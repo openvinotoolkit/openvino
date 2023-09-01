@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/split_relu.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string SplitRelu::getTestCaseName(const testing::TestParamInfo<SplitReluTuple> &obj) {
@@ -33,7 +34,7 @@ namespace SubgraphTestsDefinitions {
         for (auto&& shape : inputs) {
             input.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
         }
-        auto split = ngraph::builder::makeSplit(input[0], ngPrc, 4, 1);
+        auto split = ov::builder::makeSplit(input[0], ngPrc, 4, 1);
         ngraph::ResultVector results;
 
         for (size_t i : connect_index) {

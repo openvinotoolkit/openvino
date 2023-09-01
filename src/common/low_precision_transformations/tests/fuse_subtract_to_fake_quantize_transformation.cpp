@@ -10,11 +10,11 @@
 
 #include <gtest/gtest.h>
 #include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/fuse_subtract_to_fake_quantize_function.hpp"
+#include "lpt_ov_models/fuse_subtract_to_fake_quantize_function.hpp"
 
 #include "simple_low_precision_transformer.hpp"
 
@@ -22,7 +22,7 @@ namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class FuseSubtractToFakeQuantizeTransformationTestValues {
 public:
@@ -74,11 +74,11 @@ public:
         }
 
         actualFunction = testValues.actual.fakeQuantizeOnData2.empty() ?
-            ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+            ov::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
                 inputShape,
                 testValues.actual.fakeQuantizeOnData,
                 testValues.actual.dequantization) :
-            ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+            ov::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
                 inputShape,
                 testValues.actual.fakeQuantizeOnData,
                 testValues.actual.dequantization,
@@ -90,11 +90,11 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction = testValues.expected.fakeQuantizeOnData2.empty() ?
-            ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+            ov::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
                 inputShape,
                 testValues.expected.fakeQuantizeOnData,
                 testValues.expected.dequantization) :
-            ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+            ov::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
                 inputShape,
                 testValues.expected.fakeQuantizeOnData,
                 testValues.expected.dequantization,

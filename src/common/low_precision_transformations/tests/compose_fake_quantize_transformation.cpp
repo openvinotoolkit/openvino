@@ -15,21 +15,21 @@
 #include <low_precision/network_helper.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/compose_fake_quantize_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/compose_fake_quantize_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 
 using namespace testing;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class ComposeFakeQuantizeTransformationParams {
 public:
     class Values {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     ov::element::Type originalPrecision;
@@ -48,7 +48,7 @@ public:
     void SetUp() override {
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
-        actualFunction = ngraph::builder::subgraph::ComposeFakeQuantizeFunction::get(
+        actualFunction = ov::builder::subgraph::ComposeFakeQuantizeFunction::get(
             testValues.originalPrecision,
             inputShape,
             testValues.actual.fakeQuantize,
@@ -61,7 +61,7 @@ public:
         const auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(it->get_node()->shared_from_this());
         ov::pass::low_precision::NetworkHelper::composeFakeQuantize(fakeQuantize);
 
-        referenceFunction = ngraph::builder::subgraph::ComposeFakeQuantizeFunction::get(
+        referenceFunction = ov::builder::subgraph::ComposeFakeQuantizeFunction::get(
             testValues.originalPrecision,
             inputShape,
             testValues.expected.fakeQuantize,

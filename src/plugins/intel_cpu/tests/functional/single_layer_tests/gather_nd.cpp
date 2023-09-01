@@ -4,7 +4,10 @@
 
 #include <shared_test_classes/single_layer/gather_nd.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 using namespace InferenceEngine;
 using namespace ov;

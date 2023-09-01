@@ -58,7 +58,7 @@ getPaddings(const T& layer) {
 }
 
 /*********************************************
- * TensorIterator Helpers section
+ * TensorIterator ov::helpers section
  *********************************************/
 
 /**

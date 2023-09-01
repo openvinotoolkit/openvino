@@ -4,9 +4,10 @@
 
 #include "shared_test_classes/single_layer/strided_slice.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;
@@ -28,7 +29,7 @@ typedef std::tuple<
         InputShape,                        // Input shapes
         StridedSliceParams,
         ElementType,                       // Element type
-        ngraph::helpers::InputLayerType,   // begin/end/stride input type
+        ov::helpers::InputLayerType,   // begin/end/stride input type
         std::map<std::string, std::string> // Additional network configuration
 > StridedSliceLayerParamSet;
 
@@ -39,7 +40,7 @@ public:
         InputShape shapes;
         StridedSliceParams params;
         ElementType elementType;
-        ngraph::helpers::InputLayerType restInputType;
+        ov::helpers::InputLayerType restInputType;
         TargetDevice targetDevice;
         std::map<std::string, std::string> additionalConfig;
         std::tie(shapes, params, elementType, restInputType, additionalConfig) = obj.param;
@@ -110,7 +111,7 @@ protected:
     void SetUp() override {
         InputShape shapes;
         StridedSliceParams ssParams;
-        ngraph::helpers::InputLayerType restInputType;
+        ov::helpers::InputLayerType restInputType;
         std::map<std::string, std::string> additionalConfig;
         std::tie(shapes, ssParams, inType, restInputType, additionalConfig) = this->GetParam();
 
@@ -122,7 +123,7 @@ protected:
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);
-        if (restInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (restInputType == ov::helpers::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(begin.size())}, std::vector<ov::Shape>(shapes.second.size(), {begin.size()})));
             inputShapes.push_back(InputShape({static_cast<int64_t>(end.size())}, std::vector<ov::Shape>(shapes.second.size(), {end.size()})));
             inputShapes.push_back(InputShape({static_cast<int64_t>(stride.size())}, std::vector<ov::Shape>(shapes.second.size(), {stride.size()})));
@@ -133,7 +134,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
         // auto paramNode = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(shape));
         std::shared_ptr<ov::Node> beginInput, endInput, strideInput;
-        if (restInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (restInputType == ov::helpers::InputLayerType::PARAMETER) {
             auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{begin.size()});
             auto endNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{end.size()});
             auto strideNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{stride.size()});
@@ -174,9 +175,9 @@ const std::vector<ElementType> inputPrecisions = {
         ElementType::f32
 };
 
-const std::vector<ngraph::helpers::InputLayerType> restInputTypes = {
-    ngraph::helpers::InputLayerType::CONSTANT,
-    ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::helpers::InputLayerType> restInputTypes = {
+    ov::helpers::InputLayerType::CONSTANT,
+    ov::helpers::InputLayerType::PARAMETER
 };
 
 const std::vector<InputShape> inputShapesDynamic2D = {
@@ -202,7 +203,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D, StridedSliceLaye
                              ::testing::ValuesIn(static_shapes_to_test_representation({{32, 20}})),
                              ::testing::ValuesIn(paramsPlain2D),
                              ::testing::ValuesIn(inputPrecisions),
-                             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                             ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                              ::testing::Values(emptyAdditionalConfig)),
                          StridedSliceLayerGPUTest::getTestCaseName);
 

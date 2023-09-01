@@ -9,21 +9,21 @@
 #include <vector>
 #include <memory>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 namespace LayerTestsDefinitions {
 
 using MaxMinParamsTuple = typename std::tuple<
         std::vector<std::vector<size_t>>, // Input shapes
-        ngraph::helpers::MinMaxOpType,    // OperationType
+        ov::helpers::MinMaxOpType,    // OperationType
         InferenceEngine::Precision,       // Network precision
         InferenceEngine::Precision,       // Input precision
         InferenceEngine::Precision,       // Output precision
         InferenceEngine::Layout,          // Input layout
         InferenceEngine::Layout,          // Output layout
-        ngraph::helpers::InputLayerType,  // Secondary input type
+        ov::helpers::InputLayerType,  // Secondary input type
         std::string>;                     // Device name
 
 class MaxMinLayerTest:

@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -15,7 +15,7 @@ namespace CPULayerTestsDefinitions {
 
 using RNNSequenceCpuSpecificParams = typename std::tuple<
         std::vector<InputShape>,                  // Shapes
-        ngraph::helpers::SequenceTestsMode,       // Pure Sequence or TensorIterator
+        ov::helpers::SequenceTestsMode,       // Pure Sequence or TensorIterator
         std::vector<std::string>,                 // Activations
         float,                                    // Clip
         ov::op::RecurrentSequenceDirection,       // Direction
@@ -29,7 +29,7 @@ class RNNSequenceCPUTest : public testing::WithParamInterface<RNNSequenceCpuSpec
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RNNSequenceCpuSpecificParams> &obj) {
         std::vector<InputShape> inputShapes;
-        ngraph::helpers::SequenceTestsMode seqMode;
+        ov::helpers::SequenceTestsMode seqMode;
         std::vector<std::string> activations;
         float clip;
         ov::op::RecurrentSequenceDirection direction;
@@ -72,7 +72,7 @@ public:
 protected:
     void SetUp() override {
         std::vector<InputShape> inputShapes;
-        ngraph::helpers::SequenceTestsMode seqMode;
+        ov::helpers::SequenceTestsMode seqMode;
         std::vector<std::string> activations;
         float clip;
         ov::op::RecurrentSequenceDirection direction;
@@ -116,8 +116,8 @@ protected:
             1lu;
         if (inputDynamicShapes.size() > 2) {
             if (!inputDynamicShapes[2].is_dynamic() &&
-                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM &&
-                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
+                    seqMode != ov::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM &&
+                    seqMode != ov::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
                 params.pop_back();
             } else {
                 params[2]->set_element_type(ElementType::i64);
@@ -126,7 +126,7 @@ protected:
 
         std::vector<ov::Shape> WRB = {{numDirections, hiddenSize, inputSize}, {numDirections, hiddenSize, hiddenSize}, {numDirections, hiddenSize},
                                         {batchSize}};
-        auto rnn_sequence = ngraph::builder::makeRNN(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+        auto rnn_sequence = ov::builder::makeRNN(ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes(params)),
                                                      WRB,
                                                      hiddenSize,
                                                      activations,
@@ -138,16 +138,16 @@ protected:
                                                      seqMode);
         function = makeNgraphFunction(netPrecision, params, rnn_sequence, "rnnSequence");
 
-        if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
+        if (seqMode != ov::helpers::SequenceTestsMode::PURE_SEQ) {
             ngraph::pass::Manager manager;
             if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
             manager.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
             manager.run_passes(function);
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);
         } else {
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
     }
@@ -183,7 +183,7 @@ std::vector<std::map<std::string, std::string>> additionalConfig
 CPUSpecificParams cpuParams{{ntc, tnc}, {ntc, tnc}, {"ref_any"}, "ref_any"};
 CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc}, {tnc, tnc}, {"ref_any"}, "ref_any"};
 
-std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
+std::vector<ov::helpers::SequenceTestsMode> mode{ov::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2
 std::vector<size_t> seq_lengths_zero_clip{ 2 };
 std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"tanh"}};

@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/subtract_multiply_to_multiply_add_function.hpp"
+#include "lpt_ov_models/subtract_multiply_to_multiply_add_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -33,7 +33,7 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
     SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::SubtractMultiplyToMultiplyAddFunction::getOriginal(
+    function = ov::builder::subgraph::SubtractMultiplyToMultiplyAddFunction::getOriginal(
         testValues.inputShape,
         testValues.precision,
         testValues.fqOnData);

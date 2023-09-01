@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string ConvReshapeAct::getTestCaseName(const testing::TestParamInfo<ConvReshapeActParams>& obj) {
@@ -60,7 +61,7 @@ namespace SubgraphTestsDefinitions {
             ngraph::Shape{permute_in_order});
         auto permute_in = std::make_shared<ngraph::opset1::Transpose>(reshape_in, permute_in_params);
 
-        auto conv = ngraph::builder::makeConvolution(permute_in, ngPrc, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+        auto conv = ov::builder::makeConvolution(permute_in, ngPrc, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
             ngraph::op::PadType::VALID, output_channels);
 
         auto permute_out_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,

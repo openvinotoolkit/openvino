@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/relu_split_reshape.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset7.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string ReluSplitReshape::getTestCaseName(const testing::TestParamInfo<ReluSplitReshapeTuple> &obj) {
@@ -36,7 +38,7 @@ void ReluSplitReshape::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
-    auto split = ngraph::builder::makeSplit(relu, ngPrc, splitNum, splitAxis);
+    auto split = ov::builder::makeSplit(relu, ngPrc, splitNum, splitAxis);
 
     auto shape = split->get_output_shape(0);
     shape[shape.size() - 2] *= 2;

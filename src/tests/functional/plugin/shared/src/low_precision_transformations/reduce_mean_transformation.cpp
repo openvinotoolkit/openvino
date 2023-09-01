@@ -8,7 +8,8 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/reduce_function.hpp"
+#include "lpt_ov_models/reduce_function.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -23,7 +24,7 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
@@ -45,11 +46,11 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
 void ReduceMeanTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMean>(
+    function = ov::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMean>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/multiply_add.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string MultiplyAddLayerTest::getTestCaseName(const testing::TestParamInfo<MultiplyAddParamsTuple> &obj) {
@@ -24,15 +25,15 @@ void MultiplyAddLayerTest::SetUp() {
     std::tie(inputShape, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> constShape(inputShape.size(), 1);
     constShape[1] = inputShape[1];
 
-    auto const_mul = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
+    auto const_mul = ov::builder::makeConstant<float>(ngPrc, constShape, {}, true);
     auto mul = std::make_shared<ngraph::opset3::Multiply>(paramOuts[0], const_mul);
-    auto const_add = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
+    auto const_add = ov::builder::makeConstant<float>(ngPrc, constShape, {}, true);
     auto add = std::make_shared<ngraph::opset3::Add>(mul, const_add);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, params, "multiplyAdd");

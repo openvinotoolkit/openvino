@@ -11,8 +11,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/variadic_split_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/variadic_split_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -25,15 +25,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
+        std::vector<ov::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
     ov::PartialShape inputShape;
@@ -50,7 +50,7 @@ public:
     void SetUp() override {
         const VariadicSplitTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::VariadicSplitFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::VariadicSplitFunction::getOriginal(
             testValues.inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
@@ -63,7 +63,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::VariadicSplitFunction::getReference(testValues.inputShape,
+            ov::builder::subgraph::VariadicSplitFunction::getReference(testValues.inputShape,
                                                                            testValues.expected.inputPrecision,
                                                                            testValues.expected.dequantizationBefore,
                                                                            testValues.expected.precisionAfterOperation,

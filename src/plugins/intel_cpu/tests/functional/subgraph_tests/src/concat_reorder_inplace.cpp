@@ -4,8 +4,8 @@
 
 #include <ngraph/opsets/opset8.hpp>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -36,19 +36,19 @@ public:
         const std::vector<size_t> inputShape = {1, 100, 1, 1};
         ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShape)),
                                         std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShape))};
-        auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{inputParams[0], inputParams[1]}, 1);
+        auto concat = ov::builder::makeConcat(ngraph::OutputVector{inputParams[0], inputParams[1]}, 1);
         const auto targetFormat = nhwc;
         auto mul1 = std::make_shared<ngraph::opset8::Multiply>(
             concat,
-            ngraph::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{4}));
+            ov::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{4}));
         mul1->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
         auto mul2 = std::make_shared<ngraph::opset8::Multiply>(
             concat,
-            ngraph::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{5}));
+            ov::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{5}));
         mul2->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
         auto mul3 = std::make_shared<ngraph::opset8::Multiply>(
             concat,
-            ngraph::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{6}));
+            ov::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{6}));
         mul3->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(mul1),

@@ -108,13 +108,13 @@ std::string LayerTransformation::getTestCaseNameByParams(
     return result.str();
 }
 
-ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequantizationOperations(
+ov::builder::subgraph::DequantizationOperations LayerTransformation::toDequantizationOperations(
     const ov::pass::low_precision::FakeQuantizeDequantization& dequantization) {
     const auto convert = dequantization.convert != nullptr ?
-        ngraph::builder::subgraph::DequantizationOperations::Convert(dequantization.convert->output(0).get_element_type()) :
-        ngraph::builder::subgraph::DequantizationOperations::Convert();
+        ov::builder::subgraph::DequantizationOperations::Convert(dequantization.convert->output(0).get_element_type()) :
+        ov::builder::subgraph::DequantizationOperations::Convert();
 
-    ngraph::builder::subgraph::DequantizationOperations::Subtract subtract;
+    ov::builder::subgraph::DequantizationOperations::Subtract subtract;
     {
         const bool addDequantizationAttribute = dequantization.subtract != nullptr ?
             dequantization.subtract->get_rt_info().count("DEQUANTIZATION") != 0 :
@@ -127,7 +127,7 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
             0ul;
 
         subtract = dequantization.subtractConstant != nullptr ?
-            ngraph::builder::subgraph::DequantizationOperations::Subtract(
+            ov::builder::subgraph::DequantizationOperations::Subtract(
                 dequantization.subtractConstant->cast_vector<float>(),
                 dequantization.subtract->output(0).get_element_type(),
                 dequantization.subtractConstant->output(0).get_shape(),
@@ -135,26 +135,26 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
                 constantIndex,
                 dequantization.subtractConstant->output(0).get_element_type(),
                 dequantization.subtractConvert != nullptr) :
-            ngraph::builder::subgraph::DequantizationOperations::Subtract();
+            ov::builder::subgraph::DequantizationOperations::Subtract();
     }
 
-    ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
+    ov::builder::subgraph::DequantizationOperations::Multiply multiply;
     {
         const size_t constantIndex = dequantization.multiplyConstant && dequantization.multiply ?
             ov::pass::low_precision::NetworkHelper::getChildInputIndex(dequantization.multiplyConstant, dequantization.multiply) :
             0ul;
 
         multiply = dequantization.multiplyConstant != nullptr ?
-            ngraph::builder::subgraph::DequantizationOperations::Multiply(
+            ov::builder::subgraph::DequantizationOperations::Multiply(
                 dequantization.multiplyConstant->cast_vector<float>(),
                 dequantization.multiplyConstant->output(0).get_element_type(),
                 dequantization.multiplyConstant->output(0).get_shape(),
                 false,
                 constantIndex) :
-            ngraph::builder::subgraph::DequantizationOperations::Multiply();
+            ov::builder::subgraph::DequantizationOperations::Multiply();
     }
 
-    return ngraph::builder::subgraph::DequantizationOperations(convert, subtract, multiply);
+    return ov::builder::subgraph::DequantizationOperations(convert, subtract, multiply);
 }
 
 bool LayerTransformation::allNamesAreUnique(const std::shared_ptr<ov::Model>& model) {

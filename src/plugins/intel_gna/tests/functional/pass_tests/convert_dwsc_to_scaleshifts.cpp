@@ -12,7 +12,7 @@
 #include <string>
 
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/init_node_info.hpp"
 

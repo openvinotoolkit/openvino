@@ -3,9 +3,10 @@
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ov::test;
 
@@ -75,7 +76,7 @@ protected:
         }
         params[0]->set_friendly_name("data");
         auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+            ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::shared_ptr<ov::Node> uniqueNode;
         if (flattened) {
             uniqueNode = std::make_shared<ov::op::v10::Unique>(paramOuts[0], sorted);

@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/variadic_split.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -36,9 +37,9 @@ namespace LayerTestsDefinitions {
         std::tie(numSplits, axis, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-        auto VariadicSplit = std::dynamic_pointer_cast<ngraph::opset3::VariadicSplit>(ngraph::builder::makeVariadicSplit(params[0], numSplits,
+        auto paramOuts = ov::helpers::convert2OutputVector(
+                ov::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        auto VariadicSplit = std::dynamic_pointer_cast<ngraph::opset3::VariadicSplit>(ov::builder::makeVariadicSplit(params[0], numSplits,
                 axis));
         ngraph::ResultVector results;
         for (int i = 0; i < numSplits.size(); i++) {

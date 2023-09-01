@@ -11,8 +11,8 @@
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/max_pool.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/fuse_fake_quantize_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -26,16 +26,16 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBefore;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBefore;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOperations2;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
+        ov::builder::subgraph::DequantizationOperations dequantizationOperations2;
     };
 
     ov::PartialShape inputShape;
@@ -50,7 +50,7 @@ public:
     void SetUp() override {
         const TransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
+        actualFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
                                                                                   testValues.actual.precisionBefore,
                                                                                   testValues.actual.fakeQuantizeOnData1,
                                                                                   testValues.actual.fakeQuantizeOnData2,
@@ -66,7 +66,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
+            ov::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
                                                                      testValues.expected.precisionBefore,
                                                                      testValues.expected.fakeQuantizeOnData1,
                                                                      testValues.expected.fakeQuantizeOnData2,

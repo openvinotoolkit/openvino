@@ -5,7 +5,7 @@
 #pragma once
 
 #include <functional_test_utils/summary/op_summary.hpp>
-#include <ngraph_functions/subgraph_builders.hpp>
+#include <ov_models/subgraph_builders.hpp>
 
 namespace ov {
 namespace test {

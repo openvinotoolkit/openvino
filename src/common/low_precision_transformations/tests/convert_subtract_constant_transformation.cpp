@@ -15,7 +15,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "lpt_ov_models/fake_quantize_and_convolution_function.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -26,12 +26,12 @@ public:
     class Values {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
-        ngraph::builder::subgraph::Constant weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::Constant weights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -49,7 +49,7 @@ public:
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        actualFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             testValues.actual.precisionBeforeDequantization,
             inputShape,
             {},
@@ -65,7 +65,7 @@ public:
         manager.register_pass<ov::pass::low_precision::ConvertSubtractConstant>();
         manager.run_passes(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        referenceFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             testValues.actual.precisionBeforeDequantization,
             inputShape,
             {},

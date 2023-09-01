@@ -5,9 +5,11 @@
 #include "shared_test_classes/single_layer/pad.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <string>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -22,7 +24,7 @@ using PadLayerGPUTestParamSet = std::tuple<
         std::vector<int64_t>,                           // padsBegin
         std::vector<int64_t>,                           // padsEnd
         float,                                          // argPadValue
-        std::vector<ngraph::helpers::InputLayerType>,   // for {begin, end, padValue}
+        std::vector<ov::helpers::InputLayerType>,   // for {begin, end, padValue}
         ov::op::PadMode                                 // padMode
 >;
 
@@ -70,17 +72,17 @@ protected:
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);
-        if (inputLayerTypes[0] == helpers::InputLayerType::PARAMETER) {
+        if (inputLayerTypes[0] == ov::helpers::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(padsBegin.size())}, std::vector<ov::Shape>(shapes.second.size(), {padsBegin.size()})));
         }
-        if (inputLayerTypes[1] == helpers::InputLayerType::PARAMETER) {
+        if (inputLayerTypes[1] == ov::helpers::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(padsEnd.size())}, std::vector<ov::Shape>(shapes.second.size(), {padsEnd.size()})));
         }
 
         init_input_shapes(inputShapes);
 
         // Add empty shape for parameter input of scalar 'pad_value'
-        if (inputLayerTypes[2] == helpers::InputLayerType::PARAMETER) {
+        if (inputLayerTypes[2] == ov::helpers::InputLayerType::PARAMETER) {
             inputDynamicShapes.push_back(ov::PartialShape({}));
             for (size_t i = 0; i < shapes.second.size(); ++i) {
                 for (size_t k = 0; k < targetStaticShapes.size(); ++k) {
@@ -95,7 +97,7 @@ protected:
 
         std::shared_ptr<ov::Node> pads_begin, pads_end, arg_pad_value;
         // padsBegin
-        if (inputLayerTypes[0] == helpers::InputLayerType::PARAMETER) {
+        if (inputLayerTypes[0] == ov::helpers::InputLayerType::PARAMETER) {
             functionParams.push_back(std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ov::Shape{padsBegin.size()}));
             functionParams.back()->set_friendly_name("padsBegin");
             pads_begin = functionParams.back();
@@ -104,7 +106,7 @@ protected:
         }
 
         // padsEnd
-        if (inputLayerTypes[1] == helpers::InputLayerType::PARAMETER) {
+        if (inputLayerTypes[1] == ov::helpers::InputLayerType::PARAMETER) {
             functionParams.push_back(std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ov::Shape{padsEnd.size()}));
             functionParams.back()->set_friendly_name("padsEnd");
             pads_end = functionParams.back();
@@ -113,7 +115,7 @@ protected:
         }
 
         // argPadValue
-        if (inputLayerTypes[2] == helpers::InputLayerType::PARAMETER) {
+        if (inputLayerTypes[2] == ov::helpers::InputLayerType::PARAMETER) {
             functionParams.push_back(std::make_shared<ngraph::opset1::Parameter>(inType, ov::PartialShape({})));
             functionParams.back()->set_friendly_name("padValue");
             arg_pad_value = functionParams.back();
@@ -121,7 +123,7 @@ protected:
             arg_pad_value = std::make_shared<ngraph::opset3::Constant>(inType, ngraph::Shape{}, &argPadValue);
         }
 
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
         auto pad = std::make_shared<ngraph::opset3::Pad>(paramOuts[0], pads_begin, pads_end, arg_pad_value, padMode);
 
         ngraph::ResultVector results;
@@ -187,10 +189,10 @@ const std::vector<ov::op::PadMode> padMode = {
 };
 
 const std::vector<std::vector<helpers::InputLayerType>> isConstantInput = {
-    {helpers::InputLayerType::CONSTANT, helpers::InputLayerType::CONSTANT, helpers::InputLayerType::CONSTANT},
-    {helpers::InputLayerType::CONSTANT, helpers::InputLayerType::PARAMETER, helpers::InputLayerType::CONSTANT},
-    {helpers::InputLayerType::CONSTANT, helpers::InputLayerType::PARAMETER, helpers::InputLayerType::PARAMETER},
-    {helpers::InputLayerType::PARAMETER, helpers::InputLayerType::PARAMETER, helpers::InputLayerType::PARAMETER}
+    {helpers::InputLayerType::CONSTANT, ov::helpers::InputLayerType::CONSTANT, ov::helpers::InputLayerType::CONSTANT},
+    {helpers::InputLayerType::CONSTANT, ov::helpers::InputLayerType::PARAMETER, ov::helpers::InputLayerType::CONSTANT},
+    {helpers::InputLayerType::CONSTANT, ov::helpers::InputLayerType::PARAMETER, ov::helpers::InputLayerType::PARAMETER},
+    {helpers::InputLayerType::PARAMETER, ov::helpers::InputLayerType::PARAMETER, ov::helpers::InputLayerType::PARAMETER}
 };
 
 //====================== Dynamic Shapes Tests 2D ======================
@@ -211,7 +213,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd2D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::ValuesIn(isConstantInput),
-                ::testing::Values(ngraph::helpers::PadMode::CONSTANT)),
+                ::testing::Values(ov::helpers::PadMode::CONSTANT)),
         PadLayerGPUTest::getTestCaseName
 );
 
@@ -247,7 +249,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::ValuesIn(isConstantInput),
-                ::testing::Values(ngraph::helpers::PadMode::CONSTANT)),
+                ::testing::Values(ov::helpers::PadMode::CONSTANT)),
         PadLayerGPUTest::getTestCaseName
 );
 
@@ -283,7 +285,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::ValuesIn(isConstantInput),
-                ::testing::Values(ngraph::helpers::PadMode::CONSTANT)),
+                ::testing::Values(ov::helpers::PadMode::CONSTANT)),
         PadLayerGPUTest::getTestCaseName
 );
 

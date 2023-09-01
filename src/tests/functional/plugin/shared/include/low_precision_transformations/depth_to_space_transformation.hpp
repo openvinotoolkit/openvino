@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 

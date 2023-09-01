@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/eltwise.hpp"
 
@@ -15,9 +15,9 @@ namespace subgraph {
 std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj) {
     std::vector<InputShape> shapes;
     ElementType netType, inType, outType;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    ov::helpers::InputLayerType secondaryInputType;
     ov::test::utils::OpType opType;
-    ngraph::helpers::EltwiseTypes eltwiseOpType;
+    ov::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     ov::AnyMap additional_config;
     std::tie(shapes, eltwiseOpType, secondaryInputType, opType, netType, inType, outType, targetName, additional_config) = obj.param;
@@ -70,9 +70,9 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
 void EltwiseLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     ElementType netType;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    ov::helpers::InputLayerType secondaryInputType;
     ov::test::utils::OpType opType;
-    ngraph::helpers::EltwiseTypes eltwiseType;
+    ov::helpers::EltwiseTypes eltwiseType;
     Config additional_config;
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
             this->GetParam();
@@ -94,37 +94,37 @@ void EltwiseLayerTest::SetUp() {
             FAIL() << "Unsupported Secondary operation type";
     }
     // To propagate shape_input_secondary just in static case because all shapes are defined in dynamic scenarion
-    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+    if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
         transformInputShapesAccordingEltwise(shape_input_secondary);
     }
 
     std::shared_ptr<ngraph::Node> secondaryInput;
-    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+    if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
         auto param = std::make_shared<ov::op::v0::Parameter>(netType, shape_input_secondary);
         secondaryInput = param;
         parameters.push_back(param);
     } else {
         ov::Shape shape = inputDynamicShapes.back().get_max_shape();
         switch (eltwiseType) {
-            case ngraph::helpers::EltwiseTypes::DIVIDE:
-            case ngraph::helpers::EltwiseTypes::MOD:
-            case ngraph::helpers::EltwiseTypes::FLOOR_MOD: {
+            case ov::helpers::EltwiseTypes::DIVIDE:
+            case ov::helpers::EltwiseTypes::MOD:
+            case ov::helpers::EltwiseTypes::FLOOR_MOD: {
                 std::vector<float> data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
-                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+                secondaryInput = ov::builder::makeConstant(netType, shape, data);
                 break;
             }
-            case ngraph::helpers::EltwiseTypes::POWER:
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true, 3);
+            case ov::helpers::EltwiseTypes::POWER:
+                secondaryInput = ov::builder::makeConstant<float>(netType, shape, {}, true, 3);
                 break;
             default:
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true);
+                secondaryInput = ov::builder::makeConstant<float>(netType, shape, {}, true);
         }
     }
 
     parameters[0]->set_friendly_name("param0");
     secondaryInput->set_friendly_name("param1");
 
-    auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
+    auto eltwise = ov::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, parameters, "Eltwise");
 }
 

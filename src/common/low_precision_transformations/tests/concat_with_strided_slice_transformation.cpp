@@ -18,8 +18,8 @@
 #include <low_precision/strided_slice.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/concat_function.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -30,8 +30,8 @@ namespace {
 
 class ConcatTransformationActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationActualValues& values) {
@@ -40,13 +40,13 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationAct
 
 class ConcatTransformationResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
     ov::element::Type precisionBeforeConcat;
     ov::element::Type precisionAfterConcat;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter2;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter1;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationResultValues& values) {
@@ -84,7 +84,7 @@ public:
         const ov::PartialShape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithStridedSlice(
+        actualFunction = ov::builder::subgraph::ConcatFunction::getOriginalWithStridedSlice(
             precision,
             shape,
             testValues.actual.fakeQuantize1,
@@ -112,7 +112,7 @@ public:
         transform.add<ov::pass::low_precision::StridedSliceTransformation, ov::op::v1::StridedSlice>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithStridedSlice(
+        referenceFunction = ov::builder::subgraph::ConcatFunction::getReferenceWithStridedSlice(
             precision,
             shape,
             testValues.result.fakeQuantize1,

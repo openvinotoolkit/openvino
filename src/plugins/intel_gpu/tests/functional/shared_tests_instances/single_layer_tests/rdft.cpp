@@ -8,9 +8,9 @@
 
 namespace {
 
-const std::vector<ngraph::helpers::DFTOpType> opTypes = {
-    ngraph::helpers::DFTOpType::FORWARD,
-    ngraph::helpers::DFTOpType::INVERSE,
+const std::vector<ov::helpers::DFTOpType> opTypes = {
+    ov::helpers::DFTOpType::FORWARD,
+    ov::helpers::DFTOpType::INVERSE,
 };
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
@@ -38,7 +38,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_1d,
                                           testing::ValuesIn(inputPrecisions),
                                           testing::Values(std::vector<int64_t>{0}),
                                           testing::Values(std::vector<int64_t>{}),
-                                          testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                                          testing::Values(ov::helpers::DFTOpType::FORWARD),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          RDFTLayerTest::getTestCaseName);
 
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_5d_last_axis,
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}}}),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {3, 10, 8, 6, 2}}),
-                                          testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                                          testing::Values(ov::helpers::DFTOpType::FORWARD),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          RDFTLayerTest::getTestCaseName);
 
@@ -95,7 +95,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_6d,
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}}}),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {3, 10, 8, 6, 2}}),
-                                          testing::Values(ngraph::helpers::DFTOpType::INVERSE),
+                                          testing::Values(ov::helpers::DFTOpType::INVERSE),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          RDFTLayerTest::getTestCaseName);
 

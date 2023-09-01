@@ -6,12 +6,13 @@
 #include <shared_test_classes/single_layer/convolution_backprop_data.hpp>
 
 #include "cpu_shape.h"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -21,7 +22,7 @@ namespace CPULayerTestsDefinitions {
 using DeconvSpecParams = LayerTestsDefinitions::convBackpropDataSpecificParams;
 
 using DeconvInputData = std::tuple<InputShape,                           // data shape
-                                   ngraph::helpers::InputLayerType,      // 'output_shape' input type
+                                   ov::helpers::InputLayerType,      // 'output_shape' input type
                                    std::vector<std::vector<int32_t>>>;   // values for 'output_shape'
 
 using DeconvLayerCPUTestParamsSet = std::tuple<DeconvSpecParams,
@@ -50,7 +51,7 @@ public:
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
 
         InputShape inputShape;
-        ngraph::helpers::InputLayerType outShapeType;
+        ov::helpers::InputLayerType outShapeType;
         std::vector<std::vector<int32_t>> outShapeData;
         std::tie(inputShape, outShapeType, outShapeData) = inputData;
 
@@ -113,13 +114,13 @@ public:
 
     void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
         if (function->get_parameters().size() == 1) {
-            ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
+            ov::helpers::resize_function(funcRef, targetInputStaticShapes);
         } else {
             // WA: output_shape depends on 3rd deconvolution input data
             // but the reference implementation doesn't implement shape inference
             // so we need to build a new ngraph function and replace the 3rd input parameter with a constant
             // to get valid output shapes
-            funcRef = createGraph({targetInputStaticShapes[0]}, ngraph::helpers::InputLayerType::CONSTANT);
+            funcRef = createGraph({targetInputStaticShapes[0]}, ov::helpers::InputLayerType::CONSTANT);
         }
     }
 
@@ -167,11 +168,11 @@ public:
         function = p.build();
     }
 
-    std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes, ngraph::helpers::InputLayerType outShapeType) {
+    std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes, ov::helpers::InputLayerType outShapeType) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(prec, inShapes.front())};
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
-            if (outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (outShapeType == ov::helpers::InputLayerType::PARAMETER) {
                 IE_ASSERT(inputDynamicShapes.size() == 2);
                 auto outShapeParam = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, inputDynamicShapes.back());
                 params.push_back(outShapeParam);
@@ -188,10 +189,10 @@ public:
         std::shared_ptr<ov::Node> deconv;
         if (!outShapeData.empty()) {
             IE_ASSERT(outShapeNode != nullptr);
-            deconv = ngraph::builder::makeConvolutionBackpropData(params[0], outShapeNode, prec, kernel, stride, padBegin,
+            deconv = ov::builder::makeConvolutionBackpropData(params[0], outShapeNode, prec, kernel, stride, padBegin,
                                                                   padEnd, dilation, padType, convOutChannels);
         } else {
-            deconv = ngraph::builder::makeConvolutionBackpropData(params[0], prec, kernel, stride, padBegin,
+            deconv = ov::builder::makeConvolutionBackpropData(params[0], prec, kernel, stride, padBegin,
                                                                   padEnd, dilation, padType, convOutChannels, false, outPadding);
         }
 
@@ -214,7 +215,7 @@ protected:
         std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = this->GetParam();
 
         InputShape inputShape;
-        ngraph::helpers::InputLayerType outShapeType;
+        ov::helpers::InputLayerType outShapeType;
         std::tie(inputShape, outShapeType, outShapeData) = inputData;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
@@ -234,7 +235,7 @@ protected:
 
         std::vector<InputShape> paramsShapes;
         paramsShapes.push_back(inputShape);
-        if (!outShapeData.empty() && outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (!outShapeData.empty() && outShapeType == ov::helpers::InputLayerType::PARAMETER) {
             const auto outShapeDims = ov::Shape{outShapeData.front().size()};
             paramsShapes.push_back(InputShape{outShapeDims, std::vector<ov::Shape>(inputShape.second.size(), outShapeDims)});
         }
@@ -328,12 +329,12 @@ const auto convParams_ExplicitPadding_Planar_2D = ::testing::Combine(
 const std::vector<DeconvInputData> Planar_2D_inputs_smoke = {
     DeconvInputData{
         InputShape{{}, {{ 2, 12, 7, 7 }}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{ 1, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 7, 7}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{15, 15}, {9, 10}, {15, 15}}
     }
 };
@@ -341,17 +342,17 @@ const std::vector<DeconvInputData> Planar_2D_inputs_smoke = {
 const std::vector<DeconvInputData> Planar_2D_inputs_nightly = {
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 12, 7, 7}, {{ 1, 12, 7, 7}, { 2, 12, 7, 7}, { 1, 12, 7, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     },
     DeconvInputData{
         InputShape{{{1, 10}, 12, 7, 7}, {{ 1, 12, 7, 7}, { 2, 12, 7, 7}, { 3, 12, 7, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     },
 };
@@ -400,12 +401,12 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTes
 const std::vector<DeconvInputData> Planar_3D_inputs_smoke = {
     DeconvInputData{
         InputShape{{}, {{ 2, 12, 7, 7, 7 }}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{15, 15, 15}, {9, 10, 10}, {9, 9, 9}}
     }
 };
@@ -415,17 +416,17 @@ const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
         // -1 will result deconv use 64 to infer output shape, for 3d output shape is too big for gemm bwd kernel
         //  to buffer the intermedia results
         InputShape{{-1, 12, {5, 9}, {4, 7}, {7, 9}}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}, { 2, 12, 7, 7, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{10, 16, 16}}
     },
     DeconvInputData{
         InputShape{{{1, 10}, 12, 7, 7, 7}, {{ 2, 12, 7, 7, 7}, { 1, 12, 7, 7, 7}, { 3, 12, 7, 7, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{15, 15, 15}}
     }
 };
@@ -485,12 +486,12 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTes
 const std::vector<DeconvInputData> Blocked_2D_inputs_smoke = {
     DeconvInputData{
         InputShape{{}, {{ 2, 67, 7, 7 }}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{15, 15}, {9, 10}, {9, 9}}
     }
 };
@@ -512,17 +513,17 @@ const auto convParams_ExplicitPadding_Blocked_2D_nightly = ::testing::Combine(
 const std::vector<DeconvInputData> Blocked_2D_inputs_nightly = {
     DeconvInputData{
         InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}, { 2, 67, 7, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     },
     DeconvInputData{
         InputShape{{ {1, 10}, 67, 7, 7}, {{ 2, 67, 7, 7}, { 3, 67, 7, 7}, { 1, 67, 7, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     }
 };
@@ -613,12 +614,12 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTe
 const std::vector<DeconvInputData> Blocked_3D_inputs_smoke = {
     DeconvInputData{
         InputShape{{}, {{ 2, 35, 7, 7, 7 }}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 35, -1, -1, -1}, {{ 1, 35, 5, 5, 5}, { 2, 35, 5, 7, 5}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{7, 7, 7}, {7, 9, 7}}
     }
 };
@@ -637,17 +638,17 @@ const auto convParams_ExplicitPadding_Blocked_3D_nightly = ::testing::Combine(
 const std::vector<DeconvInputData> Blocked_3D_inputs_nightly = {
     DeconvInputData{
         InputShape{{-1, 35, -1, -1, -1}, {{ 1, 35, 5, 5, 5}, { 2, 35, 5, 7, 5}, { 1, 35, 5, 5, 5}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 35, -1, -1, -1}, {{ 1, 35, 5, 5, 5}, { 2, 35, 5, 7, 5}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{7, 7, 7}}
     },
     DeconvInputData{
         InputShape{{{1, 10}, 35, 5, 5, 5}, {{ 1, 35, 5, 5, 5}, { 2, 35, 5, 5, 5}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{7, 7, 7}}
     }
 };
@@ -779,7 +780,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_reorder_Deconv_2D, DeconvolutionLayerCPUTest,
                            ::testing::Values(ngraph::op::PadType::EXPLICIT),
                            ::testing::ValuesIn(emptyOutputPadding)),
         ::testing::Values(DeconvInputData{InputShape{{-1, 67, -1, -1}, {{ 1, 67, 7, 7}, { 1, 67, 9, 4}, { 1, 67, 5, 7}, { 1, 67, 7, 7}, { 1, 67, 9, 4}}},
-                                                     ngraph::helpers::InputLayerType::PARAMETER,
+                                                     ov::helpers::InputLayerType::PARAMETER,
                                                      {{15, 15}, {9, 9}, {9, 10}, {15, 15}, {9, 9}}}),
         ::testing::Values(ElementType::f32),
         ::testing::Values(emptyFusingSpec),
@@ -791,22 +792,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_reorder_Deconv_2D, DeconvolutionLayerCPUTest,
 const std::vector<DeconvInputData> inputs_2D_AutoPadding = {
     DeconvInputData{
         InputShape{{}, {{ 2, 67, 7, 7 }}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 67, -1, -1}, {{ 1, 67, 9, 4}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     },
     DeconvInputData{
         InputShape{{-1, 67, -1, -1}, {{ 1, 67, 9, 4}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{9, 9}, {9, 10}, {9, 9}}
     }
 };
@@ -835,7 +836,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_AutoPadding_FP32, DeconvolutionLayerCPU
 const std::vector<DeconvInputData> inputs_3D_AutoPadding = {
     DeconvInputData{
         InputShape{{-1, 2, 4, {32, 64}, {32, 64}}, {{1, 2, 4, 32, 32}, {1, 2, 4, 40, 40}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{8, 64, 64}, {8, 80, 80}}
     },
     DeconvInputData{
@@ -843,7 +844,7 @@ const std::vector<DeconvInputData> inputs_3D_AutoPadding = {
             {1, 64, 5, {1, std::numeric_limits<ov::Dimension::value_type>::max()}, {1, std::numeric_limits<ov::Dimension::value_type>::max()}},
             {{1, 64, 5, 8, 8}}
         },
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{10, 16, 16}}
     },
 };
@@ -882,7 +883,7 @@ const auto deconvParams_AutoPadding_2D_AMX = ::testing::Combine(
 
 const DeconvInputData inputs_2D_AutoPadding_AMX = {
     InputShape{{-1, 512, -1, -1}, {{ 1, 512, 32, 51}, { 1, 512, 68, 101}}},
-    ngraph::helpers::InputLayerType::PARAMETER,
+    ov::helpers::InputLayerType::PARAMETER,
     {{64, 101}, {135, 202}}
 };
 

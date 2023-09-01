@@ -26,7 +26,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
+#include "lpt_ov_models/common/builders.hpp"
 
 using namespace testing;
 

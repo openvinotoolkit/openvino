@@ -16,14 +16,14 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 
-#include "lpt_ngraph_functions/normalize_l2_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/normalize_l2_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class NormalizeL2TransformationTestValues {
 public:
@@ -47,7 +47,7 @@ public:
 typedef std::tuple<
     ov::element::Type,
     ov::PartialShape,
-    ngraph::op::EpsMode,
+    ov::op::EpsMode,
     std::vector<size_t>,
     NormalizeL2TransformationTestValues> NormalizeL2TransformationParams;
 
@@ -56,12 +56,12 @@ public:
     void SetUp() override {
         ov::element::Type precision;
         ov::PartialShape shape;
-        ngraph::op::EpsMode epsMode;
+        ov::op::EpsMode epsMode;
         std::vector<size_t> axes;
         NormalizeL2TransformationTestValues params;
         std::tie(precision, shape, epsMode, axes, params) = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
+        actualFunction = ov::builder::subgraph::NormalizeL2Function::getOriginal(
             precision,
             params.actual.inputPrecision,
             shape,
@@ -73,7 +73,7 @@ public:
         transform.add<ov::pass::low_precision::NormalizeL2Transformation, ov::op::v0::NormalizeL2>(params.transformationParams);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::NormalizeL2Function::getReference(
+        referenceFunction = ov::builder::subgraph::NormalizeL2Function::getReference(
             precision,
             params.expected.inputPrecision,
             shape,
@@ -88,7 +88,7 @@ public:
         ov::element::Type precision;
         ov::PartialShape shape;
         ov::Shape axes;
-        ngraph::op::EpsMode epsMode;
+        ov::op::EpsMode epsMode;
         NormalizeL2TransformationTestValues params;
         std::tie(precision, shape, epsMode, axes, params) = obj.param;
 
@@ -115,9 +115,9 @@ const std::vector<ov::element::Type> precisions = {
     ov::element::f16
 };
 
-std::vector<ngraph::op::EpsMode> epsMode = {
-    ngraph::op::EpsMode::ADD,
-    ngraph::op::EpsMode::MAX
+std::vector<ov::op::EpsMode> epsMode = {
+    ov::op::EpsMode::ADD,
+    ov::op::EpsMode::MAX
 };
 
 std::vector<std::vector<size_t>> axes = {

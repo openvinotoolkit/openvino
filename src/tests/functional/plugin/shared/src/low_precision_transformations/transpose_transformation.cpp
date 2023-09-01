@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/transpose_function.hpp"
+#include "lpt_ov_models/transpose_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -35,7 +35,7 @@ void TransposeTransformation::SetUp() {
     TransposeTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::TransposeFunction::getOriginal(
+    function = ov::builder::subgraph::TransposeFunction::getOriginal(
         testValues.inputShape,
         testValues.transposeConstValues,
         testValues.precisionBeforeFq,

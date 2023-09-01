@@ -3,7 +3,9 @@
 //
 
 #include "shared_test_classes/single_layer/embedding_bag_packed_sum.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -43,7 +45,7 @@ void EmbeddingBagPackedSumLayerTest::SetUp() {
     ngraph::ParameterVector params = {emb_table_node};
 
     auto embBag = std::dynamic_pointer_cast<ngraph::opset3::EmbeddingBagPackedSum>(
-            ngraph::builder::makeEmbeddingBagPackedSum(
+            ov::builder::makeEmbeddingBagPackedSum(
                 ngPrc, ngIdxPrc, emb_table_node, indices, withWeights));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingBagPackedSum");

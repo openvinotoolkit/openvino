@@ -202,7 +202,7 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
                                                    actualBuffer, size, threshold, abs_threshold);
             break;
         case ngraph::element::Type_t::i4: {
-            auto expectedOut = ngraph::helpers::convertOutputPrecision(
+            auto expectedOut = ov::helpers::convertOutputPrecision(
                     expected.second,
                     expected.first,
                     ngraph::element::Type_t::i8,
@@ -212,7 +212,7 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
             break;
         }
         case ngraph::element::Type_t::u4: {
-            auto expectedOut = ngraph::helpers::convertOutputPrecision(
+            auto expectedOut = ov::helpers::convertOutputPrecision(
                     expected.second,
                     expected.first,
                     ngraph::element::Type_t::u8,
@@ -417,8 +417,8 @@ void LayerTestsCommon::Infer() {
 }
 
 void LayerTestsCommon::ConvertRefsParams() {
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
+    ov::tests::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
+    ov::tests::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
@@ -455,12 +455,12 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(functionRefs, referenceInputs, refInputsTypes);
+            expectedOutputs = ov::helpers::interpreterFunction(functionRefs, referenceInputs, refInputsTypes);
             break;
         }
         case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(functionRefs, referenceInputs, refInputsTypes);
-            expectedOutputs = ngraph::helpers::getConstData(foldedFunc);
+            const auto &foldedFunc = ov::helpers::foldFunction(functionRefs, referenceInputs, refInputsTypes);
+            expectedOutputs = ov::helpers::getConstData(foldedFunc);
             break;
         }
         case IE: {

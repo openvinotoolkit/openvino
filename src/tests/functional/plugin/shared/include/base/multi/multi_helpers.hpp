@@ -8,7 +8,7 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace ::testing;
@@ -31,7 +31,7 @@ class MultiDevice_Test : public ov::test::TestsCommon, public testing::WithParam
         std::vector<DeviceName> deviceNameList;
         std::tie(deviceNameList, _properties) = this->GetParam();
         device_names = getDeviceStringWithMulti(deviceNameList);
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::builder::subgraph::makeSplitMultiConvConcat();
     }
 
 public:
@@ -61,7 +61,7 @@ class MultiDevice_SupportTest : public ov::test::TestsCommon, public testing::Wi
         std::vector<DeviceName> deviceNameList;
         std::tie(deviceNameList, expected_status, _properties) = this->GetParam();
         device_names = getDeviceStringWithMulti(deviceNameList);
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::builder::subgraph::makeSplitMultiConvConcat();
     }
 
 public:

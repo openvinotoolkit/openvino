@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/parameter_reshape_result.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string ParamReshapeResult::getTestCaseName(const testing::TestParamInfo<ParamReshapeResultTuple> &obj) {

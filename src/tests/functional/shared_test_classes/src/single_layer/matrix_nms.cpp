@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/matrix_nms.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -15,7 +15,7 @@ namespace subgraph {
 
 using namespace ngraph;
 using namespace InferenceEngine;
-using ngraph::helpers::operator<<;
+using ov::helpers::operator<<;
 
 std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
     std::vector<InputShape> shapes;
@@ -320,7 +320,7 @@ void MatrixNmsLayerTest::SetUp() {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
     }
     const auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], m_attrs);
 
     function = std::make_shared<Function>(nms, params, "MatrixNMS");

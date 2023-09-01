@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/reduce_ops.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -11,7 +12,7 @@ std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<red
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;
     bool keepDims;
-    ngraph::helpers::ReductionType reductionType;
+    ov::helpers::ReductionType reductionType;
     std::vector<size_t> inputShape;
     std::vector<int> axes;
     ov::test::utils::OpType opType;
@@ -34,7 +35,7 @@ std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<red
 void ReduceOpsLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     bool keepDims;
-    ngraph::helpers::ReductionType reductionType;
+    ov::helpers::ReductionType reductionType;
     std::vector<size_t> inputShape;
     std::vector<int> axes;
     ov::test::utils::OpType opType;
@@ -42,8 +43,8 @@ void ReduceOpsLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
@@ -62,15 +63,15 @@ void ReduceOpsLayerTest::SetUp() {
     auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
                              std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-    const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
+    const auto reduce = ov::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
     function = std::make_shared<ngraph::Function>(results, params, "Reduce");
 }
 InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::helpers::ReductionType reductionType = std::get<3>(GetParam());
+    ov::helpers::ReductionType reductionType = std::get<3>(GetParam());
     InferenceEngine::Precision netPrecision = std::get<4>(GetParam());
-    if (reductionType == ngraph::helpers::ReductionType::LogicalOr ||
-        reductionType == ngraph::helpers::ReductionType::LogicalAnd) {
+    if (reductionType == ov::helpers::ReductionType::LogicalOr ||
+        reductionType == ov::helpers::ReductionType::LogicalAnd) {
         return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
     } else if (!netPrecision.is_float()) {
         return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 0);
@@ -78,7 +79,7 @@ InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngi
     auto td = info.getTensorDesc();
     auto blob = make_blob_with_precision(td);
     blob->allocate();
-    if (reductionType == ngraph::helpers::ReductionType::Max) {
+    if (reductionType == ov::helpers::ReductionType::Max) {
         ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, -5, 1000);
     } else {
         ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);

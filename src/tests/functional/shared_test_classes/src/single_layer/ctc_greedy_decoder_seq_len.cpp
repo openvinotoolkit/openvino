@@ -7,7 +7,8 @@
 #include <memory>
 
 #include "shared_test_classes/single_layer/ctc_greedy_decoder_seq_len.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(
@@ -56,8 +57,8 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
     auto ngDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngDataPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+        ov::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 
     const auto sequenceLenNode = [&] {
         const size_t B = inputShape[0];
@@ -75,7 +76,7 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
             sequenceLenData[b] = len;
         }
 
-        return ngraph::builder::makeConstant(ngIdxPrc, {B}, sequenceLenData);
+        return ov::builder::makeConstant(ngIdxPrc, {B}, sequenceLenData);
     }();
 
     // Cap blank index up to C - 1
@@ -83,7 +84,7 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
     blankIndex = std::min(blankIndex, C - 1);
 
     auto ctcGreedyDecoderSeqLen = std::dynamic_pointer_cast<ngraph::op::v6::CTCGreedyDecoderSeqLen>(
-            ngraph::builder::makeCTCGreedyDecoderSeqLen(paramOuts[0], sequenceLenNode,
+            ov::builder::makeCTCGreedyDecoderSeqLen(paramOuts[0], sequenceLenNode,
                                                         blankIndex, mergeRepeated, ngIdxPrc));
 
     ngraph::ResultVector results;

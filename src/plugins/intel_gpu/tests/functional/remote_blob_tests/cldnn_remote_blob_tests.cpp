@@ -16,7 +16,7 @@
 #include <functional_test_utils/plugin_cache.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 using namespace ::testing;
@@ -578,8 +578,8 @@ class TwoNets_Test : public ov::test::TestsCommon,
     public testing::WithParamInterface<TwoNetsParams> {
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
-                   ngraph::builder::subgraph::makeMultiSingleConv()};
+        fn_ptrs = {ov::builder::subgraph::makeSplitMultiConvConcat(),
+                   ov::builder::subgraph::makeMultiSingleConv()};
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TwoNetsParams>& obj) {
@@ -634,7 +634,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
             const auto blobSize = inBlob->byteSize();
             const auto inBlobBuf = inBlob->cbuffer().as<uint8_t *>();
             std::vector<uint8_t> inData(inBlobBuf, inBlobBuf + blobSize);
-            auto reOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
+            auto reOutData = ov::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
             ref.push_back(reOutData);
         }
     }

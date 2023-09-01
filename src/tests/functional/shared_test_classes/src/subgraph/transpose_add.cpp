@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/transpose_add.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string TransposeAdd::getTestCaseName(testing::TestParamInfo<TransposeAddParams> obj) {
@@ -40,7 +41,7 @@ void TransposeAdd::SetUp() {
         ngraph::Shape{permute_order.size()}, permute_order);
     auto transpose_in = std::make_shared<ngraph::opset8::Transpose>(params[0], transpose_in_params);
 
-    auto add_const = ngraph::builder::makeConstant<float>(ngPrc, transpose_in->get_output_shape(0), {}, true);
+    auto add_const = ov::builder::makeConstant<float>(ngPrc, transpose_in->get_output_shape(0), {}, true);
     auto add = std::make_shared<ngraph::opset8::Add>(transpose_in, add_const);
 
     function = std::make_shared<ngraph::Function>(add, params, "transpose_add");

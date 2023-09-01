@@ -5,11 +5,12 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/group_convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 // using namespace LayerTestsDefinitions;
 using namespace InferenceEngine;
@@ -90,9 +91,9 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
-        auto groupConvolutionNode = ngraph::builder::makeGroupConvolution(paramOuts.front(), netType, kernel, stride, padBegin,
+        auto groupConvolutionNode = ov::builder::makeGroupConvolution(paramOuts.front(), netType, kernel, stride, padBegin,
                                                                 padEnd, dilation, padType, convOutChannels, numGroups);
 
         ngraph::ResultVector results;

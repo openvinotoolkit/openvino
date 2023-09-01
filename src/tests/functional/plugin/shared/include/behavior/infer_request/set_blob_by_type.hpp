@@ -42,7 +42,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        std::shared_ptr<ngraph::Function> function = ngraph::builder::subgraph::makeConvPoolRelu(
+        std::shared_ptr<ngraph::Function> function = ov::builder::subgraph::makeConvPoolRelu(
                 {4, 3, 6, 8}, ngraph::element::Type_t::u8);
         InferenceEngine::CNNNetwork cnnNetwork(function);
         executableNetwork = ie->LoadNetwork(cnnNetwork, target_device, config);

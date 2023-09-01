@@ -11,25 +11,25 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
-static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
-    {ngraph::helpers::ActivationTypes::Sigmoid, "Sigmoid"},
-    {ngraph::helpers::ActivationTypes::Tanh, "Tanh"},
-    {ngraph::helpers::ActivationTypes::Relu, "Relu"},
-    {ngraph::helpers::ActivationTypes::Exp, "Exp"},
-    {ngraph::helpers::ActivationTypes::Log, "Log"},
-    {ngraph::helpers::ActivationTypes::Sign, "Sign"},
-    {ngraph::helpers::ActivationTypes::Abs, "Abs"}};
+static std::map<ov::helpers::ActivationTypes, std::string> activationNames = {
+    {ov::helpers::ActivationTypes::Sigmoid, "Sigmoid"},
+    {ov::helpers::ActivationTypes::Tanh, "Tanh"},
+    {ov::helpers::ActivationTypes::Relu, "Relu"},
+    {ov::helpers::ActivationTypes::Exp, "Exp"},
+    {ov::helpers::ActivationTypes::Log, "Log"},
+    {ov::helpers::ActivationTypes::Sign, "Sign"},
+    {ov::helpers::ActivationTypes::Abs, "Abs"}};
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
                    std::map<std::string, std::string>,  // Configuration
                    std::pair<float, float>,             // Input values
-                   ngraph::helpers::ActivationTypes     // Activation type
+                   ov::helpers::ActivationTypes         // Activation type
                    >
     eltwiseActFqParams;
 
@@ -43,7 +43,7 @@ public:
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::pair<float, float> inputValues;
-        ngraph::helpers::ActivationTypes act;
+        ov::helpers::ActivationTypes act;
         std::tie(netPrecision, targetDevice, configuration, inputValues, act) = obj.param;
 
         std::ostringstream result;
@@ -74,11 +74,11 @@ protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
         std::pair<float, float> inputValues;
-        ngraph::helpers::ActivationTypes act;
+        ov::helpers::ActivationTypes act;
 
         std::tie(netPrecision, targetDevice, configuration, inputValues, act) = this->GetParam();
         std::tie(inputDataMin, inputDataMax) = inputValues;
-        if (act == ngraph::helpers::ActivationTypes::Log) {
+        if (act == ov::helpers::ActivationTypes::Log) {
             // clamp not positive values
             inputDataMin = 1.0e-3;
             // get error threshold value from PWL error
@@ -143,13 +143,13 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 const std::vector<std::pair<float, float>> inputValues = {{-10.0, 10.0}, {-5.0, 5.0}, {-1.0, 1.0}, {-0.04, 0.04}};
 
-const std::vector<ngraph::helpers::ActivationTypes> activationTypes = {ngraph::helpers::ActivationTypes::Sigmoid,
-                                                                       ngraph::helpers::ActivationTypes::Tanh,
-                                                                       ngraph::helpers::ActivationTypes::Relu,
-                                                                       ngraph::helpers::ActivationTypes::Exp,
-                                                                       ngraph::helpers::ActivationTypes::Log,
-                                                                       ngraph::helpers::ActivationTypes::Sign,
-                                                                       ngraph::helpers::ActivationTypes::Abs};
+const std::vector<ov::helpers::ActivationTypes> activationTypes = {ov::helpers::ActivationTypes::Sigmoid,
+                                                                   ov::helpers::ActivationTypes::Tanh,
+                                                                   ov::helpers::ActivationTypes::Relu,
+                                                                   ov::helpers::ActivationTypes::Exp,
+                                                                   ov::helpers::ActivationTypes::Log,
+                                                                   ov::helpers::ActivationTypes::Sign,
+                                                                   ov::helpers::ActivationTypes::Abs};
 
 INSTANTIATE_TEST_SUITE_P(smoke_base,
                          EltwiseActFqTest,

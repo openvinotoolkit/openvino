@@ -15,8 +15,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/max_pool_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/max_pool_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 
 using namespace testing;
@@ -28,17 +28,17 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     TestTransformationParams params;
@@ -56,7 +56,7 @@ public:
         const ov::PartialShape shape = std::get<0>(GetParam());
         const MaxPoolTransformationTestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::MaxPoolFunction::get(
+        actualFunction = ov::builder::subgraph::MaxPoolFunction::get(
             shape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization1,
@@ -67,7 +67,7 @@ public:
         transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::MaxPoolFunction::get(
+        referenceFunction = ov::builder::subgraph::MaxPoolFunction::get(
             shape,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantization1,

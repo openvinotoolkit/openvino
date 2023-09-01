@@ -5,8 +5,9 @@
 #include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -24,7 +25,7 @@ typedef std::tuple<
         ElementType,                       // Network precision
         ElementType,                       // Input precision
         ElementType,                       // Output precision
-        ngraph::helpers::InputLayerType,   // Secondary input type
+        ov::helpers::InputLayerType,   // Secondary input type
         TargetDevice,                      // Device name
         std::map<std::string, std::string> // Additional network configuration
 > MatMulLayerTestParamsSet;
@@ -38,7 +39,7 @@ public:
         ElementType netType;
         ElementType inType, outType;
         ShapeRelatedParams shapeRelatedParams;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         TargetDevice targetDevice;
         std::map<std::string, std::string> additionalConfig;
         std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) =
@@ -88,7 +89,7 @@ protected:
 
         ShapeRelatedParams shapeRelatedParams;
         ElementType netType;
-        helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         std::map<std::string, std::string> additionalConfig;
 
         std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
@@ -118,12 +119,12 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 
-        auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
-        if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
+        auto matrixB = ov::builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
+        if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
             params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
         }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
-        auto matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<opset1::Parameter>(params));
+        auto matMul = ov::builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
         auto makeFunction = [](const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
             ngraph::ResultVector results;
 
@@ -228,7 +229,7 @@ const auto testParams2D_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_smok
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                                 ::testing::Values(emptyAdditionalConfig));
 
@@ -238,7 +239,7 @@ const auto testParams2D_nightly = ::testing::Combine(::testing::ValuesIn(IS2D_ni
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                                 ::testing::Values(emptyAdditionalConfig));
 
@@ -311,7 +312,7 @@ const auto fullyConnectedParams3D_smoke = ::testing::Combine(::testing::ValuesIn
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
@@ -321,7 +322,7 @@ const auto fullyConnectedParams3D_nightly = ::testing::Combine(::testing::Values
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
@@ -362,7 +363,7 @@ const auto fullyConnectedParams4D_smoke = ::testing::Combine(::testing::ValuesIn
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
@@ -673,7 +674,7 @@ const auto testParams = ::testing::Combine(::testing::ValuesIn(IS),
                                            ::testing::ValuesIn(netPRCs),
                                            ::testing::Values(ElementType::undefined),
                                            ::testing::Values(ElementType::undefined),
-                                           ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                           ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
                                            ::testing::ValuesIn(additionalConfig));
 
@@ -683,7 +684,7 @@ const auto testParamsOneDNN = ::testing::Combine(::testing::ValuesIn(IS_OneDNN),
                                                  ::testing::Values(ElementType::f16),
                                                  ::testing::Values(ElementType::undefined),
                                                  ::testing::Values(ElementType::undefined),
-                                                 ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                 ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                  ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                  ::testing::ValuesIn(additionalConfig));
 
@@ -693,7 +694,7 @@ const auto testParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Dynamic
                                                   ::testing::ValuesIn(netPRCs),
                                                   ::testing::Values(ElementType::undefined),
                                                   ::testing::Values(ElementType::undefined),
-                                                  ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                  ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                   ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                   ::testing::ValuesIn(additionalConfig));
 
@@ -703,7 +704,7 @@ const auto testParamsDynamic_nightly = ::testing::Combine(::testing::ValuesIn(IS
                                              ::testing::ValuesIn(netPRCs),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_GPU),
                                              ::testing::ValuesIn(additionalConfig));
 

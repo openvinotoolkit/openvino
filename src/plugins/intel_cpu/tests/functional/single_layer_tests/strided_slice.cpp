@@ -3,10 +3,12 @@
 //
 
 #include <shared_test_classes/single_layer/strided_slice.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -30,7 +32,7 @@ struct StridedSliceParams {
 typedef std::tuple<
         InputShape,                         // Input shapes
         StridedSliceParams,
-        ngraph::helpers::InputLayerType,    // Secondary input types
+        ov::helpers::InputLayerType,    // Secondary input types
         ElementType,                        // Element type
         CPUSpecificParams> StridedSliceLayerCPUTestParamSet;
 
@@ -40,7 +42,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<StridedSliceLayerCPUTestParamSet> obj) {
         InputShape shapes;
         StridedSliceParams params;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         ElementType dataType;
         CPUSpecificParams cpuParams;
         std::tie(shapes, params, secondaryInputType, dataType, cpuParams) = obj.param;
@@ -86,7 +88,7 @@ protected:
 
     void SetUp() override {
         InputShape shapes;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         CPUSpecificParams cpuParams;
         ov::element::Type dataType;
         std::tie(shapes, ssParams, secondaryInputType, dataType, cpuParams) = this->GetParam();
@@ -108,7 +110,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(dataType, shape));
         }
         std::shared_ptr<ngraph::Node> ss;
-        if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
             ov::Shape inShape = {ssParams.begin.size()};
 
             auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, inShape);
@@ -119,10 +121,10 @@ protected:
             params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(endNode));
             params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(strideNode));
 
-            ss = ngraph::builder::makeStridedSlice(params[0], beginNode, endNode, strideNode, inType, ssParams.beginMask,
+            ss = ov::builder::makeStridedSlice(params[0], beginNode, endNode, strideNode, inType, ssParams.beginMask,
                                                    ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
         } else {
-            ss = ngraph::builder::makeStridedSlice(params[0], ssParams.begin, ssParams.end, ssParams.strides, inType, ssParams.beginMask,
+            ss = ov::builder::makeStridedSlice(params[0], ssParams.begin, ssParams.end, ssParams.strides, inType, ssParams.beginMask,
                                                    ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
         }
         function = makeNgraphFunction(inType, params, ss, "StridedSlice");
@@ -156,9 +158,9 @@ const std::vector<ElementType> inputPrecisions = {
         ElementType::i8
 };
 
-const std::vector<ngraph::helpers::InputLayerType> inputLayerTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::helpers::InputLayerType> inputLayerTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER
 };
 
 const std::vector<InputShape> inputShapesDynamic2D = {
@@ -299,8 +301,8 @@ const std::vector<CPUSpecificParams> CPUParamsBlocked4D = {
         cpuParams_nChw8c,
 };
 
-const std::vector<ngraph::helpers::InputLayerType> inputLayerTypesBlocked = {
-        ngraph::helpers::InputLayerType::CONSTANT,
+const std::vector<ov::helpers::InputLayerType> inputLayerTypesBlocked = {
+        ov::helpers::InputLayerType::CONSTANT,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_4D_Subset1, StridedSliceLayerCPUTest,
@@ -503,7 +505,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StridedSliceLayerDescriptorCPUTest, StridedSliceL
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapesDescriptors),
                                  ::testing::ValuesIn(testCasesDescriptors),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::Values(ElementType::f32),
                                  ::testing::Values(cpuParams_nChw8c)),
                          StridedSliceLayerDescriptorCPUTest::getTestCaseName);

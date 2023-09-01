@@ -11,7 +11,7 @@
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
 
@@ -30,8 +30,8 @@ class AutoBatching_Test : public BehaviorTestsUtils::IEPluginTestBase,
                           public testing::WithParamInterface<AutoBatchTwoNetsParams> {
     void SetUp() override {
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSingleConv(),
-                   ngraph::builder::subgraph::makeMultiSingleConv()};
+        fn_ptrs = {ov::builder::subgraph::makeSingleConv(),
+                   ov::builder::subgraph::makeMultiSingleConv()};
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {
@@ -116,7 +116,7 @@ protected:
                     inf_req.SetBlob(output->first, blob);
                 }
 
-                auto refOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
+                auto refOutData = ov::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
                 ref.push_back(refOutData);
             }
         }
@@ -148,8 +148,8 @@ class AutoBatching_Test_DetectionOutput : public AutoBatching_Test {
 public:
     void SetUp() override {
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeDetectionOutput(),
-                   ngraph::builder::subgraph::makeDetectionOutput()};
+        fn_ptrs = {ov::builder::subgraph::makeDetectionOutput(),
+                   ov::builder::subgraph::makeDetectionOutput()};
     };
 
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {

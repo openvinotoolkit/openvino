@@ -11,7 +11,7 @@
 
 #include <ie_core.hpp>
 #include "common_test_utils/common_utils.hpp"
-#include "lpt_ngraph_functions/multiply_with_one_parent_function.hpp"
+#include "lpt_ov_models/multiply_with_one_parent_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -33,11 +33,11 @@ void MultiplyWithOneParentTransformation::SetUp() {
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     MultiplyWithOneParentTransformationValues values;
     std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(netPrecision, inputShape, values.fakeQuantize);
+    function = ov::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(netPrecision, inputShape, values.fakeQuantize);
 }
 
 TEST_P(MultiplyWithOneParentTransformation, CompareWithRefImpl) {

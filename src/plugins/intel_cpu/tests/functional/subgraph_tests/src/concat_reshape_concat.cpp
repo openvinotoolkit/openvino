@@ -3,8 +3,9 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 
 /*This test runs the following subgraph:
@@ -87,7 +88,7 @@ public:
 
         for (size_t i = 0; i < number_of_params; ++i) {
             auto soft_max = std::make_shared<ngraph::opset1::Softmax>(input_params[i], softmax_axis);
-            auto reshape_param = ngraph::builder::makeConstant<int>(ov::element::i32, {1}, {0});
+            auto reshape_param = ov::builder::makeConstant<int>(ov::element::i32, {1}, {0});
             auto reshape = std::make_shared<ngraph::opset1::Unsqueeze>(soft_max, reshape_param);
             first_level_reshapes.push_back(reshape);
         }
@@ -99,7 +100,7 @@ public:
         ov::NodeVector first_level_concats = {concat1, concat2};
 
         for (size_t i = 0; i < number_of_params / 2; ++i) {
-            auto reshape_param = ngraph::builder::makeConstant<int>(ov::element::i32, {1}, {0});
+            auto reshape_param = ov::builder::makeConstant<int>(ov::element::i32, {1}, {0});
             auto reshape = std::make_shared<ngraph::opset1::Unsqueeze>(first_level_concats[i], reshape_param);
             second_level_reshapes.push_back(reshape);
         }

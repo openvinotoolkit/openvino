@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov::opset9;
@@ -12,7 +12,7 @@ typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
                    std::map<std::string, std::string>,  // Configuration
                    std::vector<size_t>,                 // Input Shape
-                   ngraph::helpers::InputLayerType,     // Type of Eltwise input
+                   ov::helpers::InputLayerType,         // Type of Eltwise input
                    size_t>                              // Order of Eltwise input
 
     InputConvAddParams;
@@ -27,7 +27,7 @@ public:
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::vector<size_t> input_shape;
-        ngraph::helpers::InputLayerType input_eltwise_type;
+        ov::helpers::InputLayerType input_eltwise_type;
         size_t input_eltwise_order;
 
         std::tie(precision, targetDevice, configuration, input_shape, input_eltwise_type, input_eltwise_order) =
@@ -60,7 +60,7 @@ protected:
     void SetUp() override {
         InferenceEngine::Precision precision;
         std::vector<size_t> input_shape;
-        ngraph::helpers::InputLayerType input_eltwise_type;
+        ov::helpers::InputLayerType input_eltwise_type;
         size_t input_eltwise_order;
         std::tie(precision, targetDevice, configuration, input_shape, input_eltwise_type, input_eltwise_order) =
             this->GetParam();
@@ -84,11 +84,11 @@ protected:
                                                             false,
                                                             weights_values);
         std::shared_ptr<Add> add;
-        if (input_eltwise_type == ngraph::helpers::InputLayerType::CONSTANT) {
+        if (input_eltwise_type == ov::helpers::InputLayerType::CONSTANT) {
             auto const_node = std::make_shared<Constant>(ng_precision, ov::Shape{input_shape});
             add = (input_eltwise_order == 0) ? std::make_shared<Add>(const_node, convolution)
                                              : std::make_shared<Add>(convolution, const_node);
-        } else if (input_eltwise_type == ngraph::helpers::InputLayerType::PARAMETER) {
+        } else if (input_eltwise_type == ov::helpers::InputLayerType::PARAMETER) {
             add = (input_eltwise_order == 0) ? std::make_shared<Add>(input, convolution)
                                              : std::make_shared<Add>(convolution, input);
         }
@@ -101,8 +101,8 @@ TEST_P(InputConvAddTransposing, CompareWithRefImpl) {
     Run();
 };
 
-const std::vector<ngraph::helpers::InputLayerType> eltwise_input_types = {ngraph::helpers::InputLayerType::CONSTANT,
-                                                                          ngraph::helpers::InputLayerType::PARAMETER};
+const std::vector<ov::helpers::InputLayerType> eltwise_input_types = {ov::helpers::InputLayerType::CONSTANT,
+                                                                      ov::helpers::InputLayerType::PARAMETER};
 
 const std::vector<size_t> eltwise_input_order = {0, 1};
 

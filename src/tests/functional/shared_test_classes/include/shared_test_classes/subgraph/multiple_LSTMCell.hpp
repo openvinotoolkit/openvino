@@ -10,7 +10,7 @@
 
 namespace SubgraphTestsDefinitions {
 typedef std::tuple<
-    ngraph::helpers::MemoryTransformation,   // Apply Memory transformation
+    ov::helpers::MemoryTransformation,   // Apply Memory transformation
     std::string,                        // Target device name
     InferenceEngine::Precision,         // Network precision
     size_t,                             // Input size
@@ -37,7 +37,7 @@ private:
     std::vector<float> weights_2_vals;
     std::vector<float> reccurrenceWeights_vals;
     std::vector<float> bias_vals;
-    ngraph::helpers::MemoryTransformation transformation;
+    ov::helpers::MemoryTransformation transformation;
 protected:
     void SetUp() override;
     void LoadNetwork() override;

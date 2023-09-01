@@ -4,6 +4,7 @@
 
 #include <debug.h>
 #include "shared_test_classes/subgraph/reshape_permute_reshape.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string ReshapePermuteReshape::getTestCaseName(const testing::TestParamInfo<ReshapePermuteReshapeTuple> &obj) {

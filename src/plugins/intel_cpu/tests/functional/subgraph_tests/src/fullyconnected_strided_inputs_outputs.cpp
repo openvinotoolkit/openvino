@@ -4,7 +4,7 @@
 
 #include "openvino/core/partial_shape.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -48,21 +48,21 @@ protected:
 
         ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(splitShape))};
 
-        const auto splitOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+        const auto splitOutputNodes = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<op::Parameter>(params));
         const auto splitAxis = rank == 3 ? 1 : 0;
-        const auto split = builder::makeSplit(splitOutputNodes[0], ngPrec, 2 /* splits */, splitAxis);
+        const auto split = ov::builder::makeSplit(splitOutputNodes[0], ngPrec, 2 /* splits */, splitAxis);
 
         SizeVector fcWeightsShape{16, 8};
         if (rank == 3) bcastTo3D(fcWeightsShape);
 
-        auto fc1secondInput = builder::makeInputLayer(ngPrec, helpers::InputLayerType::CONSTANT, fcWeightsShape);
-        const auto fc1 = builder::makeMatMul(split->output(0), fc1secondInput, false, false);
+        auto fc1secondInput = ov::builder::makeInputLayer(ngPrec, ov::helpers::InputLayerType::CONSTANT, fcWeightsShape);
+        const auto fc1 = ov::builder::makeMatMul(split->output(0), fc1secondInput, false, false);
 
-        auto fc2secondInputB = builder::makeInputLayer(ngPrec, helpers::InputLayerType::CONSTANT, fcWeightsShape);
-        const auto fc2 = builder::makeMatMul(split->output(1), fc2secondInputB, false, false);
+        auto fc2secondInputB = ov::builder::makeInputLayer(ngPrec, ov::helpers::InputLayerType::CONSTANT, fcWeightsShape);
+        const auto fc2 = ov::builder::makeMatMul(split->output(1), fc2secondInputB, false, false);
 
         const auto fcConcatAxis = rank == 3 ? 1 : 0;
-        const auto concatMatMuls = builder::makeConcat({fc1, fc2}, fcConcatAxis);
+        const auto concatMatMuls = ov::builder::makeConcat({fc1, fc2}, fcConcatAxis);
 
         function = makeNgraphFunction(ngPrec, params, concatMatMuls, "FullyConnectedStridedInputsOutputs");
     }

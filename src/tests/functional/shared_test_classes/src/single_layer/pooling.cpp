@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/pooling.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -14,7 +15,7 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
     std::vector<size_t> inputShapes;
     std::string targetDevice;
     std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
-    ngraph::helpers::PoolingTypes poolType;
+    ov::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
     ngraph::op::PadType padType;
@@ -25,10 +26,10 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     switch (poolType) {
-        case ngraph::helpers::PoolingTypes::MAX:
+        case ov::helpers::PoolingTypes::MAX:
             result << "MaxPool_";
             break;
-        case ngraph::helpers::PoolingTypes::AVG:
+        case ov::helpers::PoolingTypes::AVG:
             result << "AvgPool_";
             result << "ExcludePad=" << excludePad << "_";
             break;
@@ -56,7 +57,7 @@ std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo
     std::string targetDevice;
     size_t channels;
     std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, channels, targetDevice) = obj.param;
-    ngraph::helpers::PoolingTypes poolType;
+    ov::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
     ngraph::op::PadType padType;
@@ -69,10 +70,10 @@ std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     switch (poolType) {
-        case ngraph::helpers::PoolingTypes::MAX:
+        case ov::helpers::PoolingTypes::MAX:
             result << "MaxPool_";
             break;
-        case ngraph::helpers::PoolingTypes::AVG:
+        case ov::helpers::PoolingTypes::AVG:
             result << "AvgPool_";
             result << "ExcludePad=" << excludePad << "_";
             break;
@@ -135,7 +136,7 @@ void PoolingLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
     std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
-    ngraph::helpers::PoolingTypes poolType;
+    ov::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
     ngraph::op::PadType padType;
@@ -145,10 +146,10 @@ void PoolingLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(paramOuts[0],
+    std::shared_ptr<ngraph::Node> pooling = ov::builder::makePooling(paramOuts[0],
                                                                          stride,
                                                                          padBegin,
                                                                          padEnd,
@@ -167,7 +168,7 @@ void GlobalPoolingLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     size_t channels;
     std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, channels, targetDevice) = this->GetParam();
-    ngraph::helpers::PoolingTypes poolType;
+    ov::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
     ngraph::op::PadType padType;
@@ -179,10 +180,10 @@ void GlobalPoolingLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(paramOuts[0],
+    std::shared_ptr<ngraph::Node> pooling = ov::builder::makePooling(paramOuts[0],
                                                                          stride,
                                                                          padBegin,
                                                                          padEnd,
@@ -211,10 +212,10 @@ void MaxPoolingV8LayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    std::shared_ptr<ngraph::Node> maxPool = ngraph::builder::makeMaxPoolingV8(paramOuts[0], stride, dilation, padBegin, padEnd,
+    std::shared_ptr<ngraph::Node> maxPool = ov::builder::makeMaxPoolingV8(paramOuts[0], stride, dilation, padBegin, padEnd,
                                                                               kernel, roundingType, padType,
                                                                               indexElementType, axis);
 

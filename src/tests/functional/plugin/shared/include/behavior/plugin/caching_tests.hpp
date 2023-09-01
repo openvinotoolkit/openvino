@@ -9,7 +9,7 @@
 #include <thread>
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/common_util.hpp"
@@ -80,7 +80,7 @@ protected:
         std::tie(targetDevice, userConfig) = GetParam();
         target_device = targetDevice;
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::builder::subgraph::makeConvPoolRelu();
         configuration = userConfig.first;
         std::string ext = userConfig.second;
         std::string::size_type pos = 0;

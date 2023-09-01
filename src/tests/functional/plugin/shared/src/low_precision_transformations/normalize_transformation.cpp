@@ -16,8 +16,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/normalize_l2_function.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "lpt_ov_models/normalize_l2_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -52,7 +52,7 @@ void NormalizeL2Transformation::SetUp() {
     bool shift;
     std::tie(precision, shapes, targetDevice, axes, fuseMultiply, shift) = this->GetParam();
 
-    function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
+    function = ov::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
         shapes,
         ngraph::element::u8,

@@ -8,7 +8,7 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
@@ -104,10 +104,10 @@ void MvnLayerCPUTest::SetUp() {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
     }
     auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
+        ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto mvn = ov::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
     if (!axes.empty()) {
-        mvn = ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps);
+        mvn = ov::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps);
     }
 
     rel_threshold = 0.015f;

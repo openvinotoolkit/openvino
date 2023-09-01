@@ -3,10 +3,12 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 namespace CPULayerTestsDefinitions {
 
@@ -15,7 +17,7 @@ using namespace CPUTestUtils;
 
 using GatherTreeCPUTestParams = typename std::tuple<
         InputShape,                        // Input tensors shape
-        ngraph::helpers::InputLayerType,   // Secondary input type
+        ov::helpers::InputLayerType,   // Secondary input type
         ov::element::Type,                 // Network precision
         InferenceEngine::Precision,        // Input precision
         InferenceEngine::Precision,        // Output precision
@@ -31,7 +33,7 @@ public:
         ov::element::Type netPrecision;
         InferenceEngine::Precision inPrc, outPrc;
         InferenceEngine::Layout inLayout, outLayout;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         std::string targetName;
 
         std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
@@ -57,7 +59,7 @@ protected:
     void SetUp() override {
         InputShape inputShape;
         ov::element::Type netPrecision;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         InferenceEngine::Precision inPrc, outPrc;
         InferenceEngine::Layout inLayout, outLayout;
 
@@ -87,20 +89,20 @@ protected:
         std::shared_ptr<ngraph::Node> inp4;
 
         ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
-        if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
-            inp2 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[1]);
-            inp3 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[2]);
-            inp4 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[3]);
+        if (ov::helpers::InputLayerType::PARAMETER == secondaryInputType) {
+            inp2 = ov::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[1]);
+            inp3 = ov::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[2]);
+            inp4 = ov::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[3]);
 
             paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset1::Parameter>(inp2));
             paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset1::Parameter>(inp3));
             paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset1::Parameter>(inp4));
-        } else if (ngraph::helpers::InputLayerType::CONSTANT == secondaryInputType) {
+        } else if (ov::helpers::InputLayerType::CONSTANT == secondaryInputType) {
             auto maxBeamIndex = inputShape.second.front().at(2) - 1;
 
-            inp2 = ngraph::builder::makeConstant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
-            inp3 = ngraph::builder::makeConstant<float>(netPrecision, {inputShape.second.front().at(1)}, {}, true, maxBeamIndex);
-            inp4 = ngraph::builder::makeConstant<float>(netPrecision, {}, {}, true, maxBeamIndex);
+            inp2 = ov::builder::makeConstant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
+            inp3 = ov::builder::makeConstant<float>(netPrecision, {inputShape.second.front().at(1)}, {}, true, maxBeamIndex);
+            inp4 = ov::builder::makeConstant<float>(netPrecision, {}, {}, true, maxBeamIndex);
         } else {
             throw std::runtime_error("Unsupported inputType");
         }
@@ -149,9 +151,9 @@ const std::vector<InputShape> inputDynamicShapesConstant =
     {{{-1, 1, -1}, {{7, 1, 10}}}, {{-1, 1, {5, 10}}, {{2, 1, 7}}},
     {{-1, {1, 5}, 10}, {{20, 1, 10}}}, {{-1, -1, -1}, {{20, 20, 15}}}};
 
-const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::helpers::InputLayerType> secondaryInputTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUStatic, GatherTreeLayerCPUTest,
@@ -169,7 +171,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUStatic, GatherTreeLayerCPUTest,
 INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter, GatherTreeLayerCPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inputDynamicShapesParameter),
-                            ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                            ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -181,7 +183,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter, GatherTreeLayerCPU
 INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant, GatherTreeLayerCPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inputDynamicShapesConstant),
-                            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                            ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

@@ -36,13 +36,13 @@ std::vector<ov::test::ElementType> netPrecisions = {
         ov::element::i32,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::helpers::InputLayerType> secondaryInputTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypesDynamic = {
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::helpers::InputLayerType> secondaryInputTypesDynamic = {
+        ov::helpers::InputLayerType::PARAMETER,
 };
 
 std::vector<ov::test::utils::OpType> opTypes = {
@@ -54,21 +54,21 @@ std::vector<ov::test::utils::OpType> opTypesDynamic = {
         ov::test::utils::OpType::VECTOR,
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::DIVIDE,
-        ngraph::helpers::EltwiseTypes::FLOOR_MOD,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
-        ngraph::helpers::EltwiseTypes::POWER,
-        ngraph::helpers::EltwiseTypes::MOD
+std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypes = {
+        ov::helpers::EltwiseTypes::ADD,
+        ov::helpers::EltwiseTypes::MULTIPLY,
+        ov::helpers::EltwiseTypes::SUBTRACT,
+        ov::helpers::EltwiseTypes::DIVIDE,
+        ov::helpers::EltwiseTypes::FLOOR_MOD,
+        ov::helpers::EltwiseTypes::SQUARED_DIFF,
+        ov::helpers::EltwiseTypes::POWER,
+        ov::helpers::EltwiseTypes::MOD
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDynamic = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
+std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypesDynamic = {
+        ov::helpers::EltwiseTypes::ADD,
+        ov::helpers::EltwiseTypes::MULTIPLY,
+        ov::helpers::EltwiseTypes::SUBTRACT,
 };
 
 ov::test::Config additional_config = {};
@@ -105,9 +105,9 @@ std::vector<std::vector<ov::Shape>> inShapesSingleThread = {
         {{2, 1, 2, 1, 2, 2}},
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::POWER,
+std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
+        ov::helpers::EltwiseTypes::ADD,
+        ov::helpers::EltwiseTypes::POWER,
 };
 
 ov::AnyMap additional_config_single_thread = {

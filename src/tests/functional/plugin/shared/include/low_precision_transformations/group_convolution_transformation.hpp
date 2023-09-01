@@ -8,8 +8,8 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -18,8 +18,8 @@ public:
     GroupConvolutionTransformationParam() = default;
     GroupConvolutionTransformationParam(const size_t group,
                                         const int groupCalculationDimention,
-                                        const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
-                                        const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+                                        const ov::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
+                                        const ov::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
                                         const bool addReshape = true,
                                         const std::string& layerName = "",
                                         const std::string& expectedKernelType = "")
@@ -33,8 +33,8 @@ public:
 
     size_t group;
     int groupCalculationDimention;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     bool addReshape;
     std::string layerName;
     std::string expectedKernelType;
@@ -43,7 +43,7 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     std::pair<ngraph::PartialShape, ngraph::Shape>,
     GroupConvolutionTransformationParam,
     bool // add precision preserved operation

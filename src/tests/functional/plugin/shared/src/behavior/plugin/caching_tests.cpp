@@ -8,8 +8,9 @@
 
 #include "behavior/plugin/caching_tests.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 using namespace InferenceEngine::details;
 using namespace InferenceEngine;
@@ -69,37 +70,37 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getNumericTypeOnly
     res.push_back(nGraphFunctionWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(nGraphFunctionWithName { simple_function_relu, "SimpleFunctionRelu"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
+        inputShapeWrapper(ov::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
         "ConvPoolRelu"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcat, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeSplitConvConcat, {1, 4, 20, 20}),
         "SplitConvConcat"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
         "KSOFunction"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
         "SingleConv"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),
         "2InputSubtract"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),
         "NestedSplitConvConcat"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatInputInBranch, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeSplitConvConcatInputInBranch, {1, 4, 20, 20}),
         "SplitConvConcatInputInBranch"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeSplitConvConcatNestedInBranch, {1, 4, 20, 20}),
         "SplitConvConcatNestedInBranch"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut, {1, 4, 20, 20}),
         "SplitConvConcatNestedInBranchNestedOut"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
         "ConvBias"});
     res.push_back(nGraphFunctionWithName{
-        inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
         "MatMulBias" });
     return res;
 }
@@ -113,7 +114,7 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getAnyTypeOnlyFunc
 std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<nGraphFunctionWithName> res;
     res.push_back(nGraphFunctionWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+        return ov::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
     }, "TIwithLSTMcell1"});
     return res;
 }

@@ -3,7 +3,7 @@
 //
 
 #include "low_precision_transformations/fake_quantize_precision_selection_transformation.hpp"
-#include "lpt_ngraph_functions/fake_quantize_precision_selection_function.hpp"
+#include "lpt_ov_models/fake_quantize_precision_selection_function.hpp"
 
 #include <memory>
 #include <tuple>
@@ -19,7 +19,7 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = obj.param;
 
@@ -31,11 +31,11 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const 
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
+    function = ov::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
         netPrecision,
         inputShape,
         {

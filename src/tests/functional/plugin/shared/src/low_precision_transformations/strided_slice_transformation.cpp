@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/strided_slice_function.hpp"
+#include "lpt_ov_models/strided_slice_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -28,7 +28,7 @@ std::string StridedSliceTransformation::getTestCaseName(const testing::TestParam
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
@@ -43,11 +43,11 @@ std::string StridedSliceTransformation::getTestCaseName(const testing::TestParam
 void StridedSliceTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::StridedSliceFunction::getOriginal(
+    function = ov::builder::subgraph::StridedSliceFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantize,

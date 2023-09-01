@@ -4,7 +4,9 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 using namespace ngraph;
 using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
@@ -65,7 +67,7 @@ protected:
                 std::make_shared<opset6::Constant>(inputPrecision, constShape, scaleShift.first));
         Shape inConstShape = Shape(inputShape.size(), 1);
         inConstShape[1] = quantizeIntervals[0].size();
-        const auto quantize = builder::makeFakeQuantize(
+        const auto quantize = ov::builder::makeFakeQuantize(
                 multiply,
                 inputPrecision,
                 256,

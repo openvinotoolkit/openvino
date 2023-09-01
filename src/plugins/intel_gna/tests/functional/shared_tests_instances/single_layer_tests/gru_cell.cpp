@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-using ngraph::helpers::InputLayerType;
+using ov::helpers::InputLayerType;
 
 class GRUCellGNATest : public GRUCellTest {
 protected:
@@ -58,7 +58,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                    std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
         std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
-        auto in = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params));
+        auto in = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes(params));
         std::vector<float> weights_vals =
             ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
         std::vector<float> reccurrenceWeights_vals =

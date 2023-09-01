@@ -3,7 +3,9 @@
 //
 
 #include "shared_test_classes/single_layer/extract_image_patches.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 
 namespace LayerTestsDefinitions {

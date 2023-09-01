@@ -4,7 +4,7 @@
 
 #include <fstream>
 
-#include <ngraph_functions/subgraph_builders.hpp>
+#include <ov_models/subgraph_builders.hpp>
 #include <base/behavior_test_utils.hpp>
 #include "behavior/ov_plugin/life_time.hpp"
 
@@ -25,7 +25,7 @@ void OVHoldersTest::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::builder::subgraph::makeSplitConcat();
 }
 
 void OVHoldersTest::TearDown() {
@@ -140,7 +140,7 @@ void OVHoldersTestOnImportedNetwork::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::builder::subgraph::makeSplitConcat();
 }
 
 void OVHoldersTestOnImportedNetwork::TearDown() {

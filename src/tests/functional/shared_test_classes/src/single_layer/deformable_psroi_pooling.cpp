@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/deformable_psroi_pooling.hpp"
-
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -97,8 +97,8 @@ namespace LayerTestsDefinitions {
         if (offsetsShape.empty()) { // Test without optional third input (offsets)
             params = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(dataShape)),
                                          std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(roisShape))};
-            inputs = ngraph::helpers::convert2OutputVector(
-                    ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            inputs = ov::helpers::convert2OutputVector(
+                    ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
             defomablePSROIPooling = std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],
                                                                                                 inputs[1],
                                                                                                 outputDim,
@@ -113,8 +113,8 @@ namespace LayerTestsDefinitions {
             params = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(dataShape)),
                                          std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(roisShape)),
                                          std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(offsetsShape))};
-            inputs = ngraph::helpers::convert2OutputVector(
-                    ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            inputs = ov::helpers::convert2OutputVector(
+                    ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
             defomablePSROIPooling = std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],
                                                                                                 inputs[1],
                                                                                                 inputs[2],

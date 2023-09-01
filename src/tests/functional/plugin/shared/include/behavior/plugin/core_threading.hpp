@@ -10,7 +10,7 @@
 #include <cpp/ie_infer_request.hpp>
 
 #include <file_utils.h>
-#include <ngraph_functions/subgraph_builders.hpp>
+#include <ov_models/subgraph_builders.hpp>
 #include <functional_test_utils/blob_utils.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
@@ -150,7 +150,7 @@ TEST_P(CoreThreadingTests, smoke_GetMetric) {
 // tested function: QueryNetwork
 TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
     InferenceEngine::Core ie;
-    InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::make2InputSubtract());
+    InferenceEngine::CNNNetwork network(ov::builder::subgraph::make2InputSubtract());
 
     ie.SetConfig(config, target_device);
     InferenceEngine::QueryNetworkResult refResult = ie.QueryNetwork(network, target_device);
@@ -225,14 +225,14 @@ protected:
     void SetupNetworks() {
         if (modelClass == ModelClass::ConvPoolRelu) {
             for (unsigned i = 0; i < numThreads; i++) {
-                networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeConvPoolRelu()));
+                networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::makeConvPoolRelu()));
             }
         } else {
-            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
-            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
-            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
-            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
-            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::make2InputSubtract()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::makeMultiSingleConv()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::makeSingleConv()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::makeSplitConvConcat()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::makeSplitMultiConvConcat()));
         }
     }
 };

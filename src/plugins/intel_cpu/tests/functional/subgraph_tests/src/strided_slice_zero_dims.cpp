@@ -3,8 +3,9 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset9.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;
@@ -40,13 +41,13 @@ public:
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
         }
-        auto end = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{2147483647});
-        auto stride  = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
-        auto indices = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
-        auto axes = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{0});
+        auto end = ov::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{2147483647});
+        auto stride  = ov::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
+        auto indices = ov::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
+        auto axes = ov::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{0});
         auto shapeOf = std::make_shared<opset9::ShapeOf>(inputParams[1]);
         auto gather = std::make_shared<opset9::Gather>(shapeOf, indices, axes);
-        auto strided_slice = builder::makeStridedSlice(inputParams.front(), gather, end, stride, element::f32, {0}, {0});
+        auto strided_slice = ov::builder::makeStridedSlice(inputParams.front(), gather, end, stride, element::f32, {0}, {0});
         NodeVector results{strided_slice};
         function = std::make_shared<Function>(results, inputParams, "StridedSliceStaticShape");
     }

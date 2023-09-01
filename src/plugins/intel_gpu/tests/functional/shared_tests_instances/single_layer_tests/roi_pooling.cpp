@@ -48,7 +48,7 @@ const auto params_max = testing::Combine(testing::ValuesIn(inShapes),
                                          testing::ValuesIn(coordShapes),
                                          testing::ValuesIn(pooledShapes_max),
                                          testing::ValuesIn(spatial_scales),
-                                         testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_MAX),
+                                         testing::Values(ov::helpers::ROIPoolingTypes::ROI_MAX),
                                          testing::ValuesIn(netPRCs),
                                          testing::Values(ov::test::utils::DEVICE_GPU));
 
@@ -56,7 +56,7 @@ const auto params_bilinear = testing::Combine(testing::ValuesIn(inShapes),
                                               testing::ValuesIn(coordShapes),
                                               testing::ValuesIn(pooledShapes_bilinear),
                                               testing::Values(spatial_scales[1]),
-                                              testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
+                                              testing::Values(ov::helpers::ROIPoolingTypes::ROI_BILINEAR),
                                               testing::ValuesIn(netPRCs),
                                               testing::Values(ov::test::utils::DEVICE_GPU));
 

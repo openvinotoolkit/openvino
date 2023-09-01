@@ -18,9 +18,9 @@ namespace {
                                                          {"tanh", "relu", "sigmoid"}, {"sigmoid", "sigmoid", "sigmoid"},
                                                          {"tanh", "tanh", "tanh"}, {"relu", "relu", "relu"}};
     std::vector<float> clip{0.f, 0.7f};
-    std::vector<ngraph::helpers::InputLayerType> layer_types = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+    std::vector<ov::helpers::InputLayerType> layer_types = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER
     };
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16};

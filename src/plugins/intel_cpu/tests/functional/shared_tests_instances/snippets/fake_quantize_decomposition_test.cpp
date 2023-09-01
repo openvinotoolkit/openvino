@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "snippets/fake_quantize_decomposition_test.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;

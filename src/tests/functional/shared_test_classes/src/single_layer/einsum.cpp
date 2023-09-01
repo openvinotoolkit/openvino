@@ -3,7 +3,8 @@
 //
 
 #include "shared_test_classes/single_layer/einsum.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -37,9 +38,9 @@ void EinsumLayerTest::SetUp() {
     for (auto&& shape : inputShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    const auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    const auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    const std::shared_ptr<ngraph::Node> einsum = ngraph::builder::makeEinsum(paramOuts, equation);
+    const std::shared_ptr<ngraph::Node> einsum = ov::builder::makeEinsum(paramOuts, equation);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(einsum)};
     function = std::make_shared<ngraph::Function>(results, params, "einsum");
 }

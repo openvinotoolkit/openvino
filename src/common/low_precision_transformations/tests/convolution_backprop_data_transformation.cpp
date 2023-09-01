@@ -17,13 +17,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/convolution_backprop_data_function.hpp"
+#include "lpt_ov_models/convolution_backprop_data_function.hpp"
 
 namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 using callback_function_type = std::function<bool(const_node_ptr&)>;
@@ -37,9 +37,9 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         std::shared_ptr<ov::op::v0::Constant> weights;
         callback_function_type callback;
 
@@ -59,8 +59,8 @@ public:
                 callback(callback) {}
         Actual(
             const ov::element::Type& precisionBeforeDequantization,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
-            const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+            const ov::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
+            const ov::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
             const std::shared_ptr<ov::op::v0::Constant>& weights,
             const callback_function_type& callback = empty_callback) :
                 precisionBeforeDequantization(precisionBeforeDequantization),
@@ -70,8 +70,8 @@ public:
                 callback(callback) {}
         Actual(
             const ov::element::Type& precisionBeforeDequantization,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
+            const ov::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
+            const ov::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
             const std::shared_ptr<ov::op::v0::Constant>& weights,
             const callback_function_type& callback = empty_callback) :
                 precisionBeforeDequantization(precisionBeforeDequantization),
@@ -84,9 +84,9 @@ public:
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
         std::shared_ptr<ov::op::v0::Constant> weights;
         bool transformed;
     };
@@ -135,20 +135,20 @@ public:
                     testValues.actual.dequantizationOnWeights,
                     ov::as_type_ptr<ov::op::v0::Constant>(actualWeights));
         } else if (!testValues.actual.fakeQuantizeOnWeights.empty()) {
-            actualWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
+            actualWeights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
                     outputShape,
                     netPrecision,
                     testValues.actual.fakeQuantizeOnWeights,
                     ov::as_type_ptr<ov::op::v0::Constant>(actualWeights));
         } else {
-            actualWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
+            actualWeights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
                     outputShape,
                     netPrecision,
                     testValues.actual.dequantizationOnWeights,
                     ov::as_type_ptr<ov::op::v0::Constant>(actualWeights));
         }
 
-        actualFunction = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::ConvolutionBackpropDataFunction::getOriginal(
                 testValues.actual.precisionBeforeDequantization,
                 netPrecision,
                 inputShape,
@@ -169,21 +169,21 @@ public:
                         Shape{ inputChannels, outputShape[1], 1, 1 }));
 
         if (!testValues.expected.transformed) {
-            refWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
+            refWeights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
                 outputShape,
                 netPrecision,
                 testValues.actual.fakeQuantizeOnWeights,
                 testValues.actual.dequantizationOnWeights,
                 ov::as_type_ptr<ov::op::v0::Constant>(refWeights));
         } else {
-            refWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
+            refWeights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
                 outputShape,
                 netPrecision,
                 testValues.expected.dequantizationOnWeights,
                 ov::as_type_ptr<ov::op::v0::Constant>(refWeights));
         }
 
-        referenceFunction = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getReference(
+        referenceFunction = ov::builder::subgraph::ConvolutionBackpropDataFunction::getReference(
                 testValues.expected.precisionBeforeDequantization,
                 netPrecision,
                 inputShape,

@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/connect_split_concat_concat.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string SplitConcatConcatTest::getTestCaseName(const testing::TestParamInfo<SplitConcatConcatParams> &obj) {
@@ -27,9 +28,9 @@ void SplitConcatConcatTest::SetUp() {
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 256})};
     auto relu_start = std::make_shared<ngraph::opset1::Relu>(params[0]);
-    auto split = ngraph::builder::makeSplit(relu_start, ngPrc, 2, 1);
-    auto const_concat = ngraph::builder::makeConstant(ngPrc, {1, 96}, std::vector<float>{0});
-    auto const_concat_2 = ngraph::builder::makeConstant(ngPrc, {1, 96}, std::vector<float>{0});
+    auto split = ov::builder::makeSplit(relu_start, ngPrc, 2, 1);
+    auto const_concat = ov::builder::makeConstant(ngPrc, {1, 96}, std::vector<float>{0});
+    auto const_concat_2 = ov::builder::makeConstant(ngPrc, {1, 96}, std::vector<float>{0});
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), const_concat}, 1);
     auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{concat, const_concat_2},
                                                              1);

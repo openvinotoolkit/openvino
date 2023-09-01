@@ -15,14 +15,14 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/group_convolution_function.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "lpt_ov_models/group_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
 std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
@@ -47,7 +47,7 @@ void GroupConvolutionTransformation::SetUp() {
     threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
@@ -56,7 +56,7 @@ void GroupConvolutionTransformation::SetUp() {
     while (param.fakeQuantizeOnData.constantShape.size() > inputShapes.first.size()) {
         param.fakeQuantizeOnData.constantShape.pop_back();
     }
-    function = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
+    function = ov::builder::subgraph::GroupConvolutionFunction::getOriginal(
         netPrecision,
         inputShapes.first,
         inputShapes.second,

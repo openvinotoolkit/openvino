@@ -31,9 +31,9 @@ std::vector<ov::test::utils::OpType> opTypes = {
     ov::test::utils::OpType::VECTOR,
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {ngraph::helpers::EltwiseTypes::MULTIPLY,
-                                                             ngraph::helpers::EltwiseTypes::SUBTRACT,
-                                                             ngraph::helpers::EltwiseTypes::ADD};
+std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypes = {ov::helpers::EltwiseTypes::MULTIPLY,
+                                                         ov::helpers::EltwiseTypes::SUBTRACT,
+                                                         ov::helpers::EltwiseTypes::ADD};
 
 std::vector<ov::AnyMap> additional_config_inputs_1 = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1638.4"}},
@@ -46,7 +46,7 @@ std::vector<ov::AnyMap> additional_config_inputs_2 = {
 const auto multiply_params_1 =
     ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
                        ::testing::ValuesIn(eltwiseOpTypes),
-                       ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                        ::testing::ValuesIn(opTypes),
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(ov::element::undefined),
@@ -57,7 +57,7 @@ const auto multiply_params_1 =
 const auto multiply_params_2 =
     ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
                        ::testing::ValuesIn(eltwiseOpTypes),
-                       ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                       ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                        ::testing::ValuesIn(opTypes),
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(ov::element::undefined),

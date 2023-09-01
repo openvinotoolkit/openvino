@@ -7,8 +7,9 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset9.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/core/enum_names.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
@@ -93,7 +94,7 @@ void ROIAlignLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> proposalVector;
     std::vector<int> roiIdxVector;
     proposalVector.resize(coordsShape[0] * 4);
@@ -174,7 +175,7 @@ void ROIAlignV9LayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> proposalVector;
     std::vector<int> roiIdxVector;
     proposalVector.resize(coordsShape[0] * 4);

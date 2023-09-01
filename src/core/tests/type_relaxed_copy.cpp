@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "ie_common.h"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 using namespace ov;
@@ -41,7 +41,7 @@ TEST_F(TypeRelaxedThreading, TypeRelaxedCloning) {
     auto inp2 = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{-1, -1, -1, -1});
 
     auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::MatMul>>(
-        *as_type_ptr<op::v0::MatMul>(ngraph::builder::makeMatMul(inp1_f32, inp2_f32, false, false)),
+        *as_type_ptr<op::v0::MatMul>(ov::builder::makeMatMul(inp1_f32, inp2_f32, false, false)),
         element::f32);
     auto matMul = matMulRelaxed->clone_with_new_inputs({inp1, inp2});
 

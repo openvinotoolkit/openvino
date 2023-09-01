@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
@@ -83,7 +83,7 @@ public:
 
     void SetUp() override {
         std::tie(m_batch_size, m_infer_request_num) = this->GetParam();
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv();
+        m_model = ov::builder::subgraph::makeMultiSingleConv();
         m_core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
 
         m_auto_batch_plugin =

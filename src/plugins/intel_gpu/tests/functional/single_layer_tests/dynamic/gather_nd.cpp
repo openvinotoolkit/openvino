@@ -5,9 +5,10 @@
 #include "shared_test_classes/single_layer/gather_nd.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
+#include "ngraph/opsets/opset4.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -88,7 +89,7 @@ protected:
                     idx_range = std::min(static_cast<int64_t>(Shapes.inputShapes.second[i][j]), idx_range);
                 }
             }
-            indicesNode = ngraph::builder::makeConstant<int64_t>(
+            indicesNode = ov::builder::makeConstant<int64_t>(
                 ngraph::element::i64,
                 Shapes.targetShapes.second[0],
                 {},
@@ -101,7 +102,7 @@ protected:
         }
 
         auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+            ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
         gather_ndNode = std::make_shared<ov::op::v8::GatherND>(paramOuts[0],
                                                           isIndicesConstant ? indicesNode : paramOuts[1],

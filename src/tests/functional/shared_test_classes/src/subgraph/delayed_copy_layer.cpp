@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/delayed_copy_layer.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace SubgraphTestsDefinitions {
     void DelayedCopyTestBase::InitMemory() {
@@ -77,10 +79,10 @@ namespace SubgraphTestsDefinitions {
         auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{mem_r, input[0]}, 1);
-        auto split = ngraph::builder::makeVariadicSplit(concat, {3 * memory_size, memory_size}, 1);
+        auto split = ov::builder::makeVariadicSplit(concat, {3 * memory_size, memory_size}, 1);
         auto mem_w = std::make_shared<ngraph::opset3::Assign>(split->output(1), "id");
 
-        auto VariadicSplit = ngraph::builder::makeVariadicSplit(concat, {memory_size / 2, 3 * memory_size + memory_size / 2}, 1);
+        auto VariadicSplit = ov::builder::makeVariadicSplit(concat, {memory_size / 2, 3 * memory_size + memory_size / 2}, 1);
         auto relu2 = std::make_shared<ngraph::opset1::Sigmoid>(VariadicSplit->output(1));
 
         mem_w->add_control_dependency(mem_r);
@@ -103,9 +105,9 @@ namespace SubgraphTestsDefinitions {
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{mem_c, input[0]}, 1);
-        auto split = ngraph::builder::makeVariadicSplit(concat, {3 * memory_size, memory_size}, 1);
+        auto split = ov::builder::makeVariadicSplit(concat, {3 * memory_size, memory_size}, 1);
 
-        auto VariadicSplit = ngraph::builder::makeVariadicSplit(concat, {memory_size / 2, 3 * memory_size + memory_size / 2}, 1);
+        auto VariadicSplit = ov::builder::makeVariadicSplit(concat, {memory_size / 2, 3 * memory_size + memory_size / 2}, 1);
         auto relu2 = std::make_shared<ngraph::opset1::Sigmoid>(VariadicSplit->output(1));
 
         function = std::make_shared<ngraph::Function>(relu2, input, "delayed_copy_layer_nonmemory");
@@ -125,20 +127,20 @@ namespace SubgraphTestsDefinitions {
 
         memory_init = ov::test::utils::generate_float_numbers(memory_size, -0.2f, 0.2f);
 
-        auto mem_c = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{8, memory_size / 8}, memory_init);
+        auto mem_c = ov::builder::makeConstant(ngPrc, ngraph::Shape{8, memory_size / 8}, memory_init);
         auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
-        auto reshape_pattern1 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
+        auto reshape_pattern1 = ov::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
         auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(mem_r, reshape_pattern1, false);
-        auto split = ngraph::builder::makeSplit(reshape1, ngPrc, 2, 1);
+        auto split = ov::builder::makeSplit(reshape1, ngPrc, 2, 1);
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), input[0]}, 1);
-        auto reshape_pattern2 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{8, memory_size / 8});
+        auto reshape_pattern2 = ov::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{8, memory_size / 8});
         auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(concat, reshape_pattern2, false);
 
         auto mem_w = std::make_shared<ngraph::opset3::Assign>(reshape2, "id");
 
         auto relu = std::make_shared<ngraph::opset1::Sigmoid>(reshape2);
-        auto reshape_pattern3 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
+        auto reshape_pattern3 = ov::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
         auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(relu, reshape_pattern3, false);
 
         mem_w->add_control_dependency(mem_r);
@@ -159,17 +161,17 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, memory_size / 2})};
 
-        auto mem_c = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
-        auto reshape_pattern1 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
+        auto mem_c = ov::builder::makeConstant(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
+        auto reshape_pattern1 = ov::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
         auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(mem_c, reshape_pattern1, false);
-        auto split = ngraph::builder::makeSplit(reshape1, ngPrc, 2, 1);
+        auto split = ov::builder::makeSplit(reshape1, ngPrc, 2, 1);
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), input[0]}, 1);
-        auto reshape_pattern2 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{8, memory_size / 8});
+        auto reshape_pattern2 = ov::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{8, memory_size / 8});
         auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(concat, reshape_pattern2, false);
 
         auto relu = std::make_shared<ngraph::opset1::Sigmoid>(reshape2);
-        auto reshape_pattern3 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
+        auto reshape_pattern3 = ov::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});
         auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(relu, reshape_pattern3, false);
 
         function = std::make_shared<ngraph::Function>(reshape3, input, "delayed_copy_layer_reshape_nonmemory");

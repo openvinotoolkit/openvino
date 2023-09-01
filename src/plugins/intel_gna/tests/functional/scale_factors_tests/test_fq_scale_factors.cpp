@@ -11,10 +11,10 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov::opset10;

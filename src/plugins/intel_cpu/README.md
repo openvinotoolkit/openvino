@@ -12,7 +12,7 @@ CPU Plugin contains the following components:
 * [src](./src/) - sources of the core component.
 * [tests](./tests/) - tests for OpenVINO Plugin components.
 * [thirdparty](./thirdparty/) - third-party modules.
-* [tools](./tools/) - tools and helpers for OpenVINO Plugin components.
+* [tools](./tools/) - tools and ov::helpers for OpenVINO Plugin components.
 
 ## Tutorials
 

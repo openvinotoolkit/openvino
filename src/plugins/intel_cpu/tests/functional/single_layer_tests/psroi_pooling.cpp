@@ -4,8 +4,9 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -86,7 +87,7 @@ protected:
 
         ngraph::Shape proposalShape = { proposal.size() / 5, 5 };
 
-        auto coords = ngraph::builder::makeConstant<float>(ngraph::element::f32, proposalShape, proposal);
+        auto coords = ov::builder::makeConstant<float>(ngraph::element::f32, proposalShape, proposal);
         ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(featureMapShape))};
 
         auto psroi = std::make_shared<ngraph::op::v0::PSROIPooling>(params[0], coords, outputDim, groupSize,

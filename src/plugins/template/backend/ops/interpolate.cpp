@@ -127,7 +127,7 @@ bool evaluate_node<ngraph::op::v0::Interpolate>(std::shared_ptr<ngraph::Node> no
 
 namespace eval {
 namespace interpolate {
-// The helpers below are similar to the internal utils used in evaluate method of v4::Intepolate core op
+// The ov::helpers below are similar to the internal utils used in evaluate method of v4::Intepolate core op
 // Those functions can be unified and moved to a common place
 std::vector<int64_t> get_axes_vector(const ngraph::HostTensorVector& args,
                                      size_t default_size,

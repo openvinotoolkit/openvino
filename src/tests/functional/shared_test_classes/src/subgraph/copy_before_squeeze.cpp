@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/copy_before_squeeze.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string CopyBeforeSqueezeTest::getTestCaseName(const testing::TestParamInfo<CopyBeforeSqueezeTuple>& obj) {

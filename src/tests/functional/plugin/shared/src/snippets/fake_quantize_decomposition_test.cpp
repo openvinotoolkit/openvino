@@ -14,6 +14,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "fake_quantize_function.hpp"
 #include "function_helper.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 

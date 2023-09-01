@@ -5,9 +5,10 @@
 #include "shared_test_classes/single_layer/roi_pooling.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -23,7 +24,7 @@ typedef std::tuple<
     ROIPoolingShapes,                           // Input shapes
     std::vector<size_t>,                        // Pooled shape {pooled_h, pooled_w}
     float,                                      // Spatial scale
-    ngraph::helpers::ROIPoolingTypes,           // ROIPooling method
+    ov::helpers::ROIPoolingTypes,           // ROIPooling method
     InferenceEngine::Precision                  // Net precision
 > ROIPoolingParams;
 
@@ -46,7 +47,7 @@ public:
         ROIPoolingShapes inputShapes;
         std::vector<size_t> poolShape;
         float spatial_scale;
-        ngraph::helpers::ROIPoolingTypes pool_method;
+        ov::helpers::ROIPoolingTypes pool_method;
         InferenceEngine::Precision netPrecision;
         std::tie(inputShapes, poolShape, spatial_scale, pool_method, netPrecision) = basicParamsSet;
 
@@ -70,10 +71,10 @@ public:
         result << "PS=" << ov::test::utils::vec2str(poolShape) << "_";
         result << "Scale=" << spatial_scale << "_";
         switch (pool_method) {
-        case ngraph::helpers::ROIPoolingTypes::ROI_MAX:
+        case ov::helpers::ROIPoolingTypes::ROI_MAX:
             result << "Max_";
             break;
-        case ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR:
+        case ov::helpers::ROIPoolingTypes::ROI_BILINEAR:
             result << "Bilinear_";
             break;
         }
@@ -99,13 +100,13 @@ protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         const ProposalGenerationMode propMode = std::get<1>(this->GetParam());
         const float spatial_scale = std::get<2>(std::get<0>(this->GetParam()));
-        const ngraph::helpers::ROIPoolingTypes pool_method = std::get<3>(std::get<0>(this->GetParam()));
+        const ov::helpers::ROIPoolingTypes pool_method = std::get<3>(std::get<0>(this->GetParam()));
 
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
         auto feat_map_shape = targetInputStaticShapes[0];
-        const auto is_roi_max_mode = (pool_method == ngraph::helpers::ROIPoolingTypes::ROI_MAX);
+        const auto is_roi_max_mode = (pool_method == ov::helpers::ROIPoolingTypes::ROI_MAX);
         const int height = is_roi_max_mode ? feat_map_shape[2] / spatial_scale : 1;
         const int width = is_roi_max_mode ? feat_map_shape[3] / spatial_scale : 1;
 
@@ -177,7 +178,7 @@ protected:
         ROIPoolingShapes inputShapes;
         std::vector<size_t> poolShape;
         float spatial_scale;
-        ngraph::helpers::ROIPoolingTypes pool_method;
+        ov::helpers::ROIPoolingTypes pool_method;
         InferenceEngine::Precision netPrecision;
         std::tie(inputShapes, poolShape, spatial_scale, pool_method, netPrecision) = basicParamsSet;
 
@@ -189,10 +190,10 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-        auto roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0], paramOuts[1], poolShape, spatial_scale, pool_method);
+        auto roi_pooling = ov::builder::makeROIPooling(paramOuts[0], paramOuts[1], poolShape, spatial_scale, pool_method);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < roi_pooling->get_output_size(); i++)
@@ -300,13 +301,13 @@ const std::vector<float> spatial_scales = {0.625f, 1.f};
 const auto test_ROIPooling_max = ::testing::Combine(::testing::ValuesIn(inShapes),
                                                     ::testing::ValuesIn(pooledShapes_max),
                                                     ::testing::ValuesIn(spatial_scales),
-                                                    ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_MAX),
+                                                    ::testing::Values(ov::helpers::ROIPoolingTypes::ROI_MAX),
                                                     ::testing::ValuesIn(netPRCs));
 
 const auto test_ROIPooling_bilinear = ::testing::Combine(::testing::ValuesIn(inShapes),
                                                          ::testing::ValuesIn(pooledShapes_bilinear),
                                                          ::testing::Values(spatial_scales[1]),
-                                                         ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
+                                                         ::testing::Values(ov::helpers::ROIPoolingTypes::ROI_BILINEAR),
                                                          ::testing::ValuesIn(netPRCs));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingGPU_max, ROIPoolingLayerGPUTest,
@@ -325,7 +326,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingGPU_bilinear_ultimateRightBorderProposa
                         ::testing::Combine(::testing::Combine(::testing::Values(ROIPoolingShapes{{{}, {{1, 1, 50, 50}}}, {{}, {{1, 5}}}}),
                                                               ::testing::Values(std::vector<size_t> { 4, 4 }),
                                                               ::testing::Values(spatial_scales[1]),
-                                                              ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
+                                                              ::testing::Values(ov::helpers::ROIPoolingTypes::ROI_BILINEAR),
                                                               ::testing::Values(InferenceEngine::Precision::FP32)),
                                            ::testing::Values(ProposalGenerationMode::ULTIMATE_RIGHT_BORDER),
                                            ::testing::Values(emptyAdditionalConfig)),

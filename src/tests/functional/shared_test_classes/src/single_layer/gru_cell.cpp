@@ -4,10 +4,11 @@
 
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include "shared_test_classes/single_layer/gru_cell.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
-using ngraph::helpers::InputLayerType;
+using ov::helpers::InputLayerType;
 
 std::string GRUCellTest::getTestCaseName(const testing::TestParamInfo<GRUCellParams> &obj) {
     bool should_decompose;
@@ -81,7 +82,7 @@ void GRUCellTest::SetUp() {
         W = param;
         params.push_back(param);
     } else {
-        W = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
+        W = ov::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
     }
 
     std::shared_ptr<ov::Node> R;
@@ -90,7 +91,7 @@ void GRUCellTest::SetUp() {
         R = param;
         params.push_back(param);
     } else {
-        R = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
+        R = ov::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
     }
 
     std::shared_ptr<ov::Node> B;
@@ -99,7 +100,7 @@ void GRUCellTest::SetUp() {
         B = param;
         params.push_back(param);
     } else {
-        B = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
+        B = ov::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
     }
 
     auto gru_cell = std::make_shared<ov::op::v3::GRUCell>(params[0], params[1], W, R, B, hidden_size, activations,

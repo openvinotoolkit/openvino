@@ -13,9 +13,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/mat_mul_function.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -28,20 +28,20 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization1;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type precisionBeforeDequantization2;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization1;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type precisionBeforeDequantization2;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
         ov::element::Type precisionBeforeOperation1;
         ov::element::Type precisionBeforeOperation2;
-        ngraph::builder::subgraph::DequantizationOperations result;
+        ov::builder::subgraph::DequantizationOperations result;
     };
 
     TestTransformationParams params;
@@ -78,7 +78,7 @@ public:
         const MatMullTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::MatMulFunction::getOriginal(precision,
+            ov::builder::subgraph::MatMulFunction::getOriginal(precision,
                                                                    shapes.first,
                                                                    testValues.actual.precisionBeforeDequantization1,
                                                                    testValues.actual.dequantization1,
@@ -92,7 +92,7 @@ public:
 
         referenceFunction = (testValues.expected.precisionBeforeOperation1 == ov::element::f32) &&
                                     testValues.expected.result.empty()
-                                ? ngraph::builder::subgraph::MatMulFunction::getOriginal(
+                                ? ov::builder::subgraph::MatMulFunction::getOriginal(
                                       precision,
                                       shapes.first,
                                       testValues.actual.precisionBeforeDequantization1,
@@ -100,7 +100,7 @@ public:
                                       shapes.second,
                                       testValues.actual.precisionBeforeDequantization2,
                                       testValues.actual.dequantization2)
-                                : ngraph::builder::subgraph::MatMulFunction::getReference(
+                                : ov::builder::subgraph::MatMulFunction::getReference(
                                       precision,
                                       shapes.first,
                                       testValues.expected.precisionBeforeDequantization1,

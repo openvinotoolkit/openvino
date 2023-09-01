@@ -8,7 +8,7 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions  {
@@ -16,7 +16,7 @@ namespace CPULayerTestsDefinitions  {
 std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
     std::vector<ov::test::InputShape> inputShapes;
     std::vector<size_t> activationShapes;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
+    std::pair<ov::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
     InferenceEngine::Precision netPrecision, inPrecision, outPrecision;
     CPUTestUtils::CPUSpecificParams cpuParams;
     std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = obj.param;
@@ -92,7 +92,7 @@ void ActivationLayerCPUTest::SetUp() {
 
     std::vector<ov::test::InputShape> inputShapes;
     std::vector<size_t> activationShapes;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
+    std::pair<ov::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
     InferenceEngine::Precision inPrecision, outPrecision;
     CPUTestUtils::CPUSpecificParams cpuParams;
     std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = this->GetParam();
@@ -106,15 +106,15 @@ void ActivationLayerCPUTest::SetUp() {
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    if defined(OPENVINO_ARCH_ARM)
-    if (activationType == ngraph::helpers::ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
+    if (activationType == ov::helpers::ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
         selectedType = std::string("ref_") + netPrecision.name();
 #    endif
-    if (activationType == ngraph::helpers::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
-        activationType == ngraph::helpers::ActivationTypes::SoftSign ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
+    if (activationType == ov::helpers::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
+        activationType == ov::helpers::ActivationTypes::SoftSign ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
         inputShapes.front().first.rank().get_length() > 5)               // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
         selectedType = std::string("ref_") + netPrecision.name();
 #else
-    if (activationType == ngraph::helpers::ActivationTypes::Log)  // @todo tmp fallback to ref, remove after Log is supported in emitters
+    if (activationType == ov::helpers::ActivationTypes::Log)  // @todo tmp fallback to ref, remove after Log is supported in emitters
         selectedType = std::string("ref_") + netPrecision.name();
 #endif
 
@@ -122,7 +122,7 @@ void ActivationLayerCPUTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front());
-    auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType, activationShapes, constantsValue);
+    auto activation = ov::builder::makeActivation(params, ngPrc, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, ov::ParameterVector{params}, "Activation");
 }

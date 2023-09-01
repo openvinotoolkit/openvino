@@ -5,13 +5,15 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/single_layer/strided_slice.hpp"
 #include <shared_test_classes/single_layer/eltwise.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -87,9 +89,9 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
         }
-        auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
-        auto addOp = ngraph::builder::makeEltwise(paramOuts[1], paramOuts[1], ngraph::helpers::EltwiseTypes::ADD);
+        auto addOp = ov::builder::makeEltwise(paramOuts[1], paramOuts[1], ov::helpers::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
         auto shapeOfOp1 = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], ElementType::i64);
@@ -97,12 +99,12 @@ protected:
         std::vector<int> reduce_axes = {0};
         auto reduceAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
                                  std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
-        auto reduceOp = ngraph::builder::makeReduce(shapeOfOp1, reduceAxesNode, true, ngraph::helpers::ReductionType::Prod);
+        auto reduceOp = ov::builder::makeReduce(shapeOfOp1, reduceAxesNode, true, ov::helpers::ReductionType::Prod);
         reduceOp->set_friendly_name("reduce");
         std::vector<int64_t> shapePatternFill = {-1};
         auto reshapePatternComp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64,
                                                                            ngraph::Shape{1}, shapePatternFill);
-        auto concatOp = ngraph::builder::makeConcat({reduceOp, reshapePatternComp}, 0);
+        auto concatOp = ov::builder::makeConcat({reduceOp, reshapePatternComp}, 0);
         concatOp->set_friendly_name("concat");
 
         auto reshapeOp = std::make_shared<ngraph::opset1::Reshape>(addOp, concatOp, false);

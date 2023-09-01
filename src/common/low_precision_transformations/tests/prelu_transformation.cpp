@@ -13,8 +13,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/prelu_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/prelu_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -28,15 +28,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -53,7 +53,7 @@ public:
         const auto testValues = std::get<1>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::PReluFunction::getOriginal(inputShape,
+            ov::builder::subgraph::PReluFunction::getOriginal(inputShape,
                                                                   testValues.actual.precisionBeforeDequantization,
                                                                   testValues.actual.dequantization);
 
@@ -62,7 +62,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::PReluFunction::getReference(inputShape,
+            ov::builder::subgraph::PReluFunction::getReference(inputShape,
                                                                    testValues.expected.precisionBeforeDequantization,
                                                                    testValues.expected.dequantizationBefore,
                                                                    testValues.expected.precisionAfterOperation,

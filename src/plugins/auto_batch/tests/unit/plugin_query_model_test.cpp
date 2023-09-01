@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 
 using ::testing::_;
@@ -60,7 +60,7 @@ public:
 
     void SetUp() override {
         std::tie(m_properties, m_throw_exception) = this->GetParam();
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv();
+        m_model = ov::builder::subgraph::makeMultiSingleConv();
         m_core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
         m_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());

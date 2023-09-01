@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -82,11 +82,11 @@ protected:
         init_input_shapes(shapes);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(prc, inputDynamicShapes.front())};
-        auto reshapeData = ngraph::builder::makeConstant(ElementType::i32, {data.size()}, data);
+        auto reshapeData = ov::builder::makeConstant(ElementType::i32, {data.size()}, data);
         auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapeData, true);
 
-        auto weight = ngraph::builder::makeDynamicInputLayer(prc, ngraph::helpers::InputLayerType::CONSTANT, inputDynamicShapes.back());
-        auto matMul = ngraph::builder::makeMatMul(reshape, weight, false, false);
+        auto weight = ov::builder::makeDynamicInputLayer(prc, ov::helpers::InputLayerType::CONSTANT, inputDynamicShapes.back());
+        auto matMul = ov::builder::makeMatMul(reshape, weight, false, false);
 
         function = makeNgraphFunction(prc, params, matMul, "ReshapeFcModel");
     }

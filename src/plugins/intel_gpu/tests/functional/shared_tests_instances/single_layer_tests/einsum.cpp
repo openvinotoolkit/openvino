@@ -6,7 +6,7 @@
 
 #include "single_layer_tests/einsum.hpp"
 
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace LayerTestsDefinitions;
 
 namespace {

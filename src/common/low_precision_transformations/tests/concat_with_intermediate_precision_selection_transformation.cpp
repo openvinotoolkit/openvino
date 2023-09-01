@@ -18,8 +18,8 @@
 #include <low_precision/fake_quantize_decomposition.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/concat_function.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -30,8 +30,8 @@ namespace {
 
 class ConcatTransformationActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationActualValues& values) {
@@ -40,14 +40,14 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationAct
 
 class ConcatTransformationResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
     ov::element::Type precisionBeforeOp;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore1;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore2;
     ov::element::Type precisionAfterOperation;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter2;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter1;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationResultValues& values) {
@@ -83,7 +83,7 @@ public:
         const ov::PartialShape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediateAvgPool(
+        actualFunction = ov::builder::subgraph::ConcatFunction::getOriginalWithIntermediateAvgPool(
             precision,
             shape,
             testValues.actual.fakeQuantize1,
@@ -106,7 +106,7 @@ public:
         transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediateAvgPool(
+        referenceFunction = ov::builder::subgraph::ConcatFunction::getReferenceWithIntermediateAvgPool(
             precision,
             shape,
             testValues.result.fakeQuantize1,

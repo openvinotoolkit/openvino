@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -16,7 +18,7 @@ namespace CPULayerTestsDefinitions {
 using oneHotCPUTestParams = std::tuple<
         InputShape,                                        // Input shape
         int,                                               // axis to extend
-        std::pair<ngraph::helpers::InputLayerType, bool>,  // secondary input type && need to generate depth
+        std::pair<ov::helpers::InputLayerType, bool>,  // secondary input type && need to generate depth
         size_t,                                            // depth
         float,                                             // on_value
         float,                                             // off_value
@@ -29,7 +31,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<oneHotCPUTestParams>& obj) {
         InputShape inputShape;
         int axis;
-        std::pair<ngraph::helpers::InputLayerType, bool> inputType;
+        std::pair<ov::helpers::InputLayerType, bool> inputType;
         size_t depth;
         float onValue, offValue;
         InferenceEngine::Precision outPrc;
@@ -45,9 +47,9 @@ public:
                 result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "axis=" << axis << "_";
-        if (inputType.first == ngraph::helpers::InputLayerType::CONSTANT && !inputType.second) {
+        if (inputType.first == ov::helpers::InputLayerType::CONSTANT && !inputType.second) {
             result << "depth=" << depth << "_";
-        } else if (inputType.first == ngraph::helpers::InputLayerType::CONSTANT && inputType.second) {
+        } else if (inputType.first == ov::helpers::InputLayerType::CONSTANT && inputType.second) {
             result << "depth=WillBeGenerated" << "_";
         } else {
             result << "depth=PARAMETER" << "_";
@@ -81,12 +83,12 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         InputShape inputShape;
-        std::pair<ngraph::helpers::InputLayerType, bool> inputType;
+        std::pair<ov::helpers::InputLayerType, bool> inputType;
         InferenceEngine::Precision outPrc;
         CPUSpecificParams cpuParams;
         std::tie(inputShape, Axis, inputType, Depth, OnValue, OffValue, outPrc, cpuParams) = this->GetParam();
 
-        if (inputType.second && inputType.first == ngraph::helpers::InputLayerType::CONSTANT) {
+        if (inputType.second && inputType.first == ov::helpers::InputLayerType::CONSTANT) {
             generateDepth();
         }
 
@@ -100,14 +102,14 @@ protected:
                 target.push_back({});
         }
 
-        function = createFunction(inputType.first == ngraph::helpers::InputLayerType::CONSTANT);
+        function = createFunction(inputType.first == ov::helpers::InputLayerType::CONSTANT);
     }
     void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
         if (function->get_parameters().size() == 2) {
             generateDepth();
             funcRef = createFunction(true);
         }
-        ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
+        ov::helpers::resize_function(funcRef, targetInputStaticShapes);
     }
     void validate() override {
             auto actualOutputs = get_plugin_outputs();
@@ -140,7 +142,7 @@ protected:
             params.push_back(depthParam);
             depth = depthParam;
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
         auto on_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OnValue);
         auto off_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OffValue);
         auto oneHot = std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], depth, on_value_const, off_value_const, Axis);
@@ -170,14 +172,14 @@ const std::vector<Precision> outPrc = {
         // Precision::U8  // Precision cannot be wrapped to constant one hot
 };
 
-std::vector<std::pair<ngraph::helpers::InputLayerType, bool>> secondaryInputTypesStaticCase = {
-        {ngraph::helpers::InputLayerType::CONSTANT, true},
-        {ngraph::helpers::InputLayerType::CONSTANT, false}
+std::vector<std::pair<ov::helpers::InputLayerType, bool>> secondaryInputTypesStaticCase = {
+        {ov::helpers::InputLayerType::CONSTANT, true},
+        {ov::helpers::InputLayerType::CONSTANT, false}
 };
-std::vector<std::pair<ngraph::helpers::InputLayerType, bool>> secondaryInputTypesDynamicCase = {
-        {ngraph::helpers::InputLayerType::CONSTANT, true},
-        {ngraph::helpers::InputLayerType::CONSTANT, false},
-        {ngraph::helpers::InputLayerType::PARAMETER, true}
+std::vector<std::pair<ov::helpers::InputLayerType, bool>> secondaryInputTypesDynamicCase = {
+        {ov::helpers::InputLayerType::CONSTANT, true},
+        {ov::helpers::InputLayerType::CONSTANT, false},
+        {ov::helpers::InputLayerType::PARAMETER, true}
 };
 
 const std::vector<ov::Shape> staticInputShapes0D = {

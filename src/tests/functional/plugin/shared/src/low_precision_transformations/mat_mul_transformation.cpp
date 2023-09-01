@@ -14,8 +14,8 @@
 #include "ngraph/op/op.hpp"
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/mat_mul_transformation.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "lpt_ov_models/mat_mul_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -64,7 +64,7 @@ void MatMulTransformation::SetUp() {
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         precision,
         testValues.inputShape1,
         testValues.fqOnData1,

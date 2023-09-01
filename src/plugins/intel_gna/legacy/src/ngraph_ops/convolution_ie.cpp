@@ -113,7 +113,7 @@ void op::ConvolutionIE::validate_and_infer_types() {
         }
     }
 
-    // we need to adjust filters_shape to reuse helpers for normal convolution
+    // we need to adjust filters_shape to reuse ov::helpers for normal convolution
     if (filters_shape.is_static() && data_batch_shape.is_static()) {
         if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER) {
             m_pads_begin.clear();

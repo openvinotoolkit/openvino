@@ -8,16 +8,18 @@
 #include <memory>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 
 namespace CPUSubgraphTestsDefinitions {
 
@@ -57,30 +59,30 @@ static std::shared_ptr<ov::Model> initMHASubgraph0(std::vector<ov::PartialShape>
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
 
     std::vector<int64_t> transpose0ConstData = {0, 2, 1, 3};
-    auto transpose0Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[0], transpose0ConstData);
+    auto transpose0Const = ov::builder::makeConstant(ElementType::i64, constantShapes[0], transpose0ConstData);
 
     std::vector<int64_t> transpose1ConstData = {0, 2, 3, 1};
-    auto transpose1Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[1], transpose1ConstData);
+    auto transpose1Const = ov::builder::makeConstant(ElementType::i64, constantShapes[1], transpose1ConstData);
 
     std::vector<float> mulConstData(ngraph::shape_size(constantShapes[2]));
-    auto mulConst = ngraph::builder::makeConstant(inputPrecisions[0], constantShapes[2], mulConstData, true);
+    auto mulConst = ov::builder::makeConstant(inputPrecisions[0], constantShapes[2], mulConstData, true);
 
     std::vector<int64_t> reshape0ConstData = {static_cast<int64_t>(inputDynamicShapes[0].get_shape()[0] *
                                                                    inputDynamicShapes[0].get_shape()[1] * inputDynamicShapes[0].get_shape()[2]),
                                              -1};
-    auto reshape0Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[3], reshape0ConstData);
+    auto reshape0Const = ov::builder::makeConstant(ElementType::i64, constantShapes[3], reshape0ConstData);
 
     std::vector<int64_t> reshape1ConstData = {static_cast<int64_t>(inputDynamicShapes[0].get_shape()[0]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[2]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[1]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[1])};
-    auto reshape1Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[4], reshape1ConstData);
+    auto reshape1Const = ov::builder::makeConstant(ElementType::i64, constantShapes[4], reshape1ConstData);
 
     std::vector<int64_t> transpose2ConstData = {0, 2, 1, 3};
-    auto transpose2Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[5], transpose2ConstData);
+    auto transpose2Const = ov::builder::makeConstant(ElementType::i64, constantShapes[5], transpose2ConstData);
 
     std::vector<int64_t> transpose3ConstData = {0, 2, 1, 3};
-    auto transpose3Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[6], transpose3ConstData);
+    auto transpose3Const = ov::builder::makeConstant(ElementType::i64, constantShapes[6], transpose3ConstData);
 
     float transA = false;
     float transB = false;
@@ -125,16 +127,16 @@ static std::shared_ptr<ov::Model> initMHASubgraph1(std::vector<ov::PartialShape>
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
 
     std::vector<int64_t> transpose0ConstData = {0, 2, 1, 3};
-    auto transpose0Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[0], transpose0ConstData);
+    auto transpose0Const = ov::builder::makeConstant(ElementType::i64, constantShapes[0], transpose0ConstData);
 
     std::vector<int64_t> transpose1ConstData = {0, 2, 3, 1};
-    auto transpose1Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[1], transpose1ConstData);
+    auto transpose1Const = ov::builder::makeConstant(ElementType::i64, constantShapes[1], transpose1ConstData);
 
     std::vector<int64_t> transpose2ConstData = {0, 2, 1, 3};
-    auto transpose2Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[0], transpose2ConstData);
+    auto transpose2Const = ov::builder::makeConstant(ElementType::i64, constantShapes[0], transpose2ConstData);
 
     std::vector<int64_t> transpose3ConstData = {0, 2, 1, 3};
-    auto transpose3Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[1], transpose3ConstData);
+    auto transpose3Const = ov::builder::makeConstant(ElementType::i64, constantShapes[1], transpose3ConstData);
 
     float transA = false;
     float transB = false;
@@ -328,57 +330,57 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
 
     std::vector<int64_t> transpose0ConstData = {0, 2, 1, 3};
-    auto transpose0Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[0], transpose0ConstData);
+    auto transpose0Const = ov::builder::makeConstant(ElementType::i64, constantShapes[0], transpose0ConstData);
 
     std::vector<int64_t> transpose1ConstData = {0, 2, 3, 1};
-    auto transpose1Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[1], transpose1ConstData);
+    auto transpose1Const = ov::builder::makeConstant(ElementType::i64, constantShapes[1], transpose1ConstData);
 
     std::vector<int64_t> reshape0ConstData = {static_cast<int64_t>(inputDynamicShapes[0].get_shape()[0] *
                                                                    inputDynamicShapes[0].get_shape()[1] * inputDynamicShapes[0].get_shape()[2]),
                                              -1};
-    auto reshape0Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[2], reshape0ConstData);
+    auto reshape0Const = ov::builder::makeConstant(ElementType::i64, constantShapes[2], reshape0ConstData);
 
     std::vector<int64_t> reshape1ConstData = {static_cast<int64_t>(inputDynamicShapes[0].get_shape()[0]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[2]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[1]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[1])};
-    auto reshape1Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[3], reshape1ConstData);
+    auto reshape1Const = ov::builder::makeConstant(ElementType::i64, constantShapes[3], reshape1ConstData);
 
     std::vector<int64_t> transpose2ConstData = {0, 2, 1, 3};
-    auto transpose2Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[4], transpose2ConstData);
+    auto transpose2Const = ov::builder::makeConstant(ElementType::i64, constantShapes[4], transpose2ConstData);
 
     std::vector<int64_t> transpose3ConstData = {0, 2, 1, 3};
-    auto transpose3Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[5], transpose3ConstData);
+    auto transpose3Const = ov::builder::makeConstant(ElementType::i64, constantShapes[5], transpose3ConstData);
 
     float transA = false;
     float transB = false;
 
     std::shared_ptr<ov::Node> fakeQuantize0;
     if (matMulIn0Precisions[0] == ElementType::u8)
-        fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+        fakeQuantize0 = ov::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
     else
-        fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+        fakeQuantize0 = ov::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(transpose1Param, inputPrecisions[1], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(transpose2Param, inputPrecisions[3], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+    const auto fakeQuantize1 = ov::builder::makeFakeQuantize(transpose1Param, inputPrecisions[1], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+    const auto fakeQuantize2 = ov::builder::makeFakeQuantize(transpose2Param, inputPrecisions[3], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
     std::shared_ptr<ov::Node> fakeQuantize4;
 
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize0, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize1, transpose1Const);
     const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(transpose0, transpose1, transA, transB);
-    const auto fakeQuantize3 = ngraph::builder::makeFakeQuantize(matMul0, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+    const auto fakeQuantize3 = ov::builder::makeFakeQuantize(matMul0, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
     const auto add = std::make_shared<ngraph::opset3::Add>(fakeQuantize3, addParam);
     const auto reshape0 = std::make_shared<ngraph::opset1::Reshape>(add, reshape0Const, true);
     const auto softMax = std::make_shared<ngraph::opset1::Softmax>(reshape0, 1);
     const auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(softMax, reshape1Const, true);
     if (matMulIn0Precisions[1] == ElementType::u8)
-        fakeQuantize4 = ngraph::builder::makeFakeQuantize(reshape1, inputPrecisions[0], 256, {}, {0.0f}, {0.255f}, {0.0f}, {0.255f});
+        fakeQuantize4 = ov::builder::makeFakeQuantize(reshape1, inputPrecisions[0], 256, {}, {0.0f}, {0.255f}, {0.0f}, {0.255f});
     else
-        fakeQuantize4 = ngraph::builder::makeFakeQuantize(reshape1, inputPrecisions[0], 256, {}, {-0.128f}, {0.127f}, {-0.128f}, {0.127f});
+        fakeQuantize4 = ov::builder::makeFakeQuantize(reshape1, inputPrecisions[0], 256, {}, {-0.128f}, {0.127f}, {-0.128f}, {0.127f});
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize2, transpose2Const);
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(fakeQuantize4, transpose2, transA, transB);
-    const auto fakeQuantize5 = ngraph::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+    const auto fakeQuantize5 = ov::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize5, transpose3Const);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(transpose3)};
@@ -411,32 +413,32 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::Pa
     constantShapes.push_back(ov::Shape({1}));
 
     std::vector<int64_t> transpose0ConstData = {0, 2, 1, 3};
-    auto transpose0Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[0], transpose0ConstData);
+    auto transpose0Const = ov::builder::makeConstant(ElementType::i64, constantShapes[0], transpose0ConstData);
 
     std::vector<int64_t> transpose1ConstData = {0, 2, 3, 1};
-    auto transpose1Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[1], transpose1ConstData);
+    auto transpose1Const = ov::builder::makeConstant(ElementType::i64, constantShapes[1], transpose1ConstData);
 
     std::vector<int64_t> transpose2ConstData = {0, 2, 1, 3};
-    auto transpose2Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[2], transpose2ConstData);
+    auto transpose2Const = ov::builder::makeConstant(ElementType::i64, constantShapes[2], transpose2ConstData);
 
     std::vector<int64_t> transpose3ConstData = {0, 2, 1, 3};
-    auto transpose3Const = ngraph::builder::makeConstant(ElementType::i64, constantShapes[3], transpose3ConstData);
+    auto transpose3Const = ov::builder::makeConstant(ElementType::i64, constantShapes[3], transpose3ConstData);
 
     std::vector<float> mulConstData(ngraph::shape_size(constantShapes[4]));
-    auto mulConst = ngraph::builder::makeConstant(inputPrecisions[0], constantShapes[4], mulConstData, true);
+    auto mulConst = ov::builder::makeConstant(inputPrecisions[0], constantShapes[4], mulConstData, true);
 
     float transA = false;
     float transB = false;
 
     std::shared_ptr<ov::Node> fakeQuantize0;
     if (matMulIn0Precisions[0] == ElementType::u8)
-        fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+        fakeQuantize0 = ov::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
     else
-        fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+        fakeQuantize0 = ov::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize0, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(transpose1, inputPrecisions[1], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+    const auto fakeQuantize1 = ov::builder::makeFakeQuantize(transpose1, inputPrecisions[1], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
     const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(transpose0, fakeQuantize1, transA, transB);
     const auto mul = std::make_shared<ngraph::opset3::Multiply>(addParam, mulConst);
     const auto add = std::make_shared<ngraph::opset3::Add>(matMul0, mul);
@@ -445,7 +447,7 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::Pa
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softMax, transpose2, transA, transB);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(
         fakeQuantize3Exists ?
-            ngraph::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, { 0.0f }, { 2.55f }, { 0.0f }, { 2.55f }) :
+            ov::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, { 0.0f }, { 2.55f }, { 0.0f }, { 2.55f }) :
             matMul1,
         transpose3Const);
 

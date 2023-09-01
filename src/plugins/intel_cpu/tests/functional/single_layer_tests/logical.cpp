@@ -3,12 +3,13 @@
 //
 
 #include <shared_test_classes/single_layer/logical.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 
 namespace CPULayerTestsDefinitions  {
 
@@ -43,8 +44,8 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         LayerTestsDefinitions::LogicalParams::InputShapesTuple inputShapes;
-        ngraph::helpers::LogicalTypes logicalOpType;
-        ngraph::helpers::InputLayerType secondInputType;
+        ov::helpers::LogicalTypes logicalOpType;
+        ov::helpers::InputLayerType secondInputType;
         InferenceEngine::Precision netPrecision;
         std::string targetName;
         std::map<std::string, std::string> additional_config;
@@ -58,14 +59,14 @@ protected:
 
         ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
         std::shared_ptr<ngraph::Node> logicalNode;
-        if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
-            auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
-            if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (logicalOpType != ov::helpers::LogicalTypes::LOGICAL_NOT) {
+            auto secondInput = ov::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+            if (secondInputType == ov::helpers::InputLayerType::PARAMETER) {
                 inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
             }
-            logicalNode = ngraph::builder::makeLogical(inputs[0], secondInput, logicalOpType);
+            logicalNode = ov::builder::makeLogical(inputs[0], secondInput, logicalOpType);
         } else {
-            logicalNode = ngraph::builder::makeLogical(inputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
+            logicalNode = ov::builder::makeLogical(inputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
         }
 
         logicalNode->get_rt_info() = getCPUInfo();
@@ -103,15 +104,15 @@ std::vector<InferenceEngine::Precision> inputsPrecisions = {
         InferenceEngine::Precision::BOOL,
 };
 
-std::vector<ngraph::helpers::LogicalTypes> logicalOpTypes = {
-        ngraph::helpers::LogicalTypes::LOGICAL_AND,
-        ngraph::helpers::LogicalTypes::LOGICAL_OR,
-        ngraph::helpers::LogicalTypes::LOGICAL_XOR,
+std::vector<ov::helpers::LogicalTypes> logicalOpTypes = {
+        ov::helpers::LogicalTypes::LOGICAL_AND,
+        ov::helpers::LogicalTypes::LOGICAL_OR,
+        ov::helpers::LogicalTypes::LOGICAL_XOR,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::helpers::InputLayerType> secondInputTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
 };
 
 std::map<std::string, std::string> additional_config;
@@ -135,8 +136,8 @@ const auto LogicalTestParams = ::testing::Combine(
 const auto LogicalTestParamsNot = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(LayerTestsDefinitions::LogicalLayerTest::combineShapes(inputShapesNot)),
-                ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
-                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                ::testing::Values(ov::helpers::LogicalTypes::LOGICAL_NOT),
+                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                 ::testing::Values(Precision::BF16),
                 ::testing::ValuesIn(bf16InpOutPrc),
                 ::testing::ValuesIn(bf16InpOutPrc),

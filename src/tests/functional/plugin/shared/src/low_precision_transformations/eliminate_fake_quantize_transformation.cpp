@@ -11,7 +11,7 @@
 
 #include <transformations/init_node_info.hpp>
 #include "openvino/util/common_util.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "lpt_ov_models/fuse_fake_quantize_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -35,7 +35,7 @@ void EliminateFakeQuantizeTransformation::SetUp() {
     // Convolution is used in a model as operation with specific precision requirements on data branch
     // to test the transformation place in LPT pipeline:
     // markup transformations and FakeQuantize operation decomposition transformation have to handle FakeQuantize as usual
-    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
+    function = ov::builder::subgraph::FuseFakeQuantizeFunction::get(
         testValues.inputShape,
         testValues.actual.precisionBefore,
         testValues.actual.fakeQuantizeOnData1,

@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -117,7 +117,7 @@ protected:
         }
         functionParams.front()->set_friendly_name("data");
 
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
 
         std::shared_ptr<ov::op::v3::Broadcast> broadcastOp;
         if (mode == ov::op::BroadcastType::EXPLICIT) {

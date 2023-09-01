@@ -11,6 +11,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
@@ -93,7 +94,7 @@ public:
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        actualNetwork = ov::builder::subgraph::makeSplitConvConcat();
     }
 };
 
@@ -211,7 +212,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
 inline void generateModelFile() {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>("test_model.xml", "test_model.bin");
-    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
+    auto function = ov::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
     manager.run_passes(function);
 }
 

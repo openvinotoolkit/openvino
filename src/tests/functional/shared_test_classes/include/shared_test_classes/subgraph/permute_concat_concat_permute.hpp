@@ -8,8 +8,9 @@
 #include <tuple>
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "ngraph/opsets/opset9.hpp"
 
 namespace SubgraphTestsDefinitions {
 typedef std::tuple<std::vector<size_t>,         // input shapes and permute shapes

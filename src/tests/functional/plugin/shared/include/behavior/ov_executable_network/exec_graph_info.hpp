@@ -76,7 +76,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
 
     ov::CompiledModel execNet;
     // Create simple function
-    function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
+    function = ov::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
     execNet = core->compile_model(function, target_device, configuration);
 
     std::stringstream strm;
@@ -337,7 +337,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     InferenceEngine::ExecutableNetwork execNet;
 
     // Create simple function
-    function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
+    function = ov::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
 
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
 
@@ -471,7 +471,7 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     ov::CompiledModel execNet;
 
     // Create simple function
-    function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
+    function = ov::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
     execNet = core->compile_model(function, target_device, configuration);
 
     std::stringstream strm;

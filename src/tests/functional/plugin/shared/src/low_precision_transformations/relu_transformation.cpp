@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/relu_function.hpp"
+#include "lpt_ov_models/relu_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -52,7 +52,7 @@ void ReluTransformation::SetUp() {
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
+    function = ov::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

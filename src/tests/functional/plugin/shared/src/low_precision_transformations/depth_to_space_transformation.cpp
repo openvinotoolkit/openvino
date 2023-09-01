@@ -15,8 +15,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/builders.hpp"
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -26,7 +26,7 @@
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <ngraph/op/depth_to_space.hpp>
 
-#include "lpt_ngraph_functions/depth_to_space_function.hpp"
+#include "lpt_ov_models/depth_to_space_function.hpp"
 
 using namespace ngraph::opset1;
 
@@ -63,7 +63,7 @@ void DepthToSpaceTransformation::SetUp() {
         IE_THROW() << "not supported input shape size " << inputShape.rank();
     }
 
-    function = ngraph::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);
+    function = ov::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);
 }
 
 TEST_P(DepthToSpaceTransformation, CompareWithRefImpl) {

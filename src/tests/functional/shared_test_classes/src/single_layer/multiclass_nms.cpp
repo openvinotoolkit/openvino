@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/multiclass_nms.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -15,7 +15,7 @@ namespace subgraph {
 
 using namespace ngraph;
 using namespace InferenceEngine;
-using ngraph::helpers::operator<<;
+using ov::helpers::operator<<;
 
 std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj) {
     std::vector<InputShape> shapes;
@@ -379,7 +379,7 @@ void MulticlassNmsLayerTest::SetUp() {
         }
     }
     const auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     m_attrs.iou_threshold = iouThr;
     m_attrs.score_threshold = scoreThr;

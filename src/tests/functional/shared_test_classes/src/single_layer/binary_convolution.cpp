@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/binary_convolution.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -72,7 +73,7 @@ void BinaryConvolutionLayerTest::SetUp() {
     params[0]->set_friendly_name("a_data_batch");
 
     // TODO: refactor build BinaryConvolution op to accept filters input as Parameter
-    auto binConv = ngraph::builder::makeBinaryConvolution(params[0], kernelSize, strides, padsBegin, padsEnd, dilations, padType, numOutChannels,
+    auto binConv = ov::builder::makeBinaryConvolution(params[0], kernelSize, strides, padsBegin, padsEnd, dilations, padType, numOutChannels,
                                                           padValue);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(binConv)};
     function = std::make_shared<ngraph::Function>(results, params, "BinaryConvolution");

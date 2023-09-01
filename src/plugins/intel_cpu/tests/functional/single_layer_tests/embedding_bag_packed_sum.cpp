@@ -7,10 +7,12 @@
 #include <vector>
 
 #include <openvino/core/partial_shape.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -75,7 +77,7 @@ protected:
         auto emb_table_node = std::make_shared<ngraph::opset1::Parameter>(inType, inputShapes.first);
         ngraph::ParameterVector params = {emb_table_node};
 
-        auto embBag = std::dynamic_pointer_cast<ngraph::opset3::EmbeddingBagPackedSum>(ngraph::builder::makeEmbeddingBagPackedSum(
+        auto embBag = std::dynamic_pointer_cast<ngraph::opset3::EmbeddingBagPackedSum>(ov::builder::makeEmbeddingBagPackedSum(
             inType,
             indPrecision,
             emb_table_node,

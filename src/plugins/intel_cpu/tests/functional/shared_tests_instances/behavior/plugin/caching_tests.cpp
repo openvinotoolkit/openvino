@@ -6,6 +6,8 @@
 #include <ov_ops/nms_ie_internal.hpp>
 #include <ov_ops/nms_static_shape_ie.hpp>
 #include <ov_ops/multiclass_nms_ie_internal.hpp>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;

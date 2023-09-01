@@ -27,7 +27,7 @@ void OVPropertiesTests::SetUp() {
     std::tie(target_device, properties) = this->GetParam();
     APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    model = ngraph::builder::subgraph::makeSplitConcat();
+    model = ov::builder::subgraph::makeSplitConcat();
 }
 
 void OVPropertiesTests::TearDown() {
@@ -57,7 +57,7 @@ std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestPara
 void OVSetPropComplieModleGetPropTests::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(target_device, properties, compileModelProperties) = this->GetParam();
-    model = ngraph::builder::subgraph::makeSplitConcat();
+    model = ov::builder::subgraph::makeSplitConcat();
 }
 
 std::string OVPropertiesTestsWithCompileModelProps::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
@@ -97,7 +97,7 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
         compileModelProperties = {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , hw_device}};
     }
 
-    model = ngraph::builder::subgraph::makeSplitConcat();
+    model = ov::builder::subgraph::makeSplitConcat();
 }
 
 void OVPropertiesTestsWithCompileModelProps::TearDown() {

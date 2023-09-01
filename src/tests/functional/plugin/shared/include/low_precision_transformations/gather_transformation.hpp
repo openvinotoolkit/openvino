@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -19,9 +19,9 @@ public:
     std::vector<int> gatherIndicesValues;
     std::vector<int> axis;
     int64_t batch_dims;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::element::Type precisionBeforeFq;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };
 
 typedef std::tuple<

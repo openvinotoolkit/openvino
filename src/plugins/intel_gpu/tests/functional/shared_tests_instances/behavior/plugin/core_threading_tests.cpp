@@ -26,11 +26,11 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     std::atomic<unsigned int> counter{0u};
 
     std::vector<InferenceEngine::CNNNetwork> networks;
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::make2InputSubtract()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::makeMultiSingleConv()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::makeSingleConv()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::makeSplitConvConcat()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ov::builder::subgraph::makeSplitMultiConvConcat()));
 
     auto ocl_instance = std::make_shared<OpenCL>();
     ie.SetConfig(config, target_device);

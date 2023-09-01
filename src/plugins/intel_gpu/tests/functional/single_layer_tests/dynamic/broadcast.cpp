@@ -5,9 +5,10 @@
 #include "shared_test_classes/single_layer/broadcast.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <string>
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -109,7 +110,7 @@ protected:
         }
         functionParams.front()->set_friendly_name("data");
 
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
 
         std::shared_ptr<ov::op::v3::Broadcast> broadcastOp;
         if (mode == ov::op::BroadcastType::EXPLICIT) {

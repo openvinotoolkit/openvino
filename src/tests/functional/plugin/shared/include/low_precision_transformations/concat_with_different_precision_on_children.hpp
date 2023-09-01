@@ -8,14 +8,14 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 class ConcatWithDifferentChildrenTransformationParam {
 public:
     std::int64_t axis;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData1;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
 };
 
 typedef std::tuple<
@@ -23,7 +23,7 @@ typedef std::tuple<
     ngraph::PartialShape,
     std::string, // target device: CPU, GPU
     ConcatWithDifferentChildrenTransformationParam,
-    ngraph::pass::low_precision::LayerTransformation::Params // transformation parameters
+    ov::pass::low_precision::LayerTransformation::Params // transformation parameters
     > ConcatWithDifferentChildrenTransformationParams;
 
 class ConcatWithDifferentChildrenTransformation :

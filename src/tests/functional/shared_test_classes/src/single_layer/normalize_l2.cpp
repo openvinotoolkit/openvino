@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/normalize_l2.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -47,7 +48,7 @@ void NormalizeL2LayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto data_input = params[0];
     data_input->set_friendly_name("data");
-    auto norm = ngraph::builder::makeNormalizeL2(data_input, axes, eps, epsMode);
+    auto norm = ov::builder::makeNormalizeL2(data_input, axes, eps, epsMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(norm)};
     function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
 }

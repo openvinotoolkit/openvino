@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/convert_pad_to_group_conv.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 namespace SubgraphTestsDefinitions {
 

@@ -41,11 +41,11 @@ const std::vector<std::vector<int64_t>> padsEnd = {
         {0, 0, 1, 1},
 };
 
-const std::vector<ngraph::helpers::PadMode> padMode = {
-        ngraph::helpers::PadMode::CONSTANT,
-        ngraph::helpers::PadMode::EDGE,
-        ngraph::helpers::PadMode::REFLECT,
-        ngraph::helpers::PadMode::SYMMETRIC
+const std::vector<ov::helpers::PadMode> padMode = {
+        ov::helpers::PadMode::CONSTANT,
+        ov::helpers::PadMode::EDGE,
+        ov::helpers::PadMode::REFLECT,
+        ov::helpers::PadMode::SYMMETRIC
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_CPU, VariadicSplitPad,

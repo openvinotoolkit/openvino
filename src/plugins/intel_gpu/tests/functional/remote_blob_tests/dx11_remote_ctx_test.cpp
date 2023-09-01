@@ -14,7 +14,7 @@
 #include <common_test_utils/test_common.hpp>
 #include <common_test_utils/test_constants.hpp>
 #include "common_test_utils/file_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include <openvino/core/preprocess/pre_post_process.hpp>
 
 #ifdef _WIN32
@@ -148,7 +148,7 @@ struct DX11CachedTexture_Test : DX11RemoteCtx_Test {
         GTEST_SKIP();
     #endif
         // inference using remote blob with batch
-        auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, texture_description.Height, texture_description.Width});
+        auto fn_ptr_remote = ov::builder::subgraph::makeConvPoolRelu({1, 3, texture_description.Height, texture_description.Width});
         ov::Core core;
         ov::intel_gpu::ocl::D3DContext context(core, device_ptr);
 

@@ -5,7 +5,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -66,8 +66,8 @@ protected:
             auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
             parameters.push_back(param_node);
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(parameters));
-        auto select = ngraph::builder::makeSelect(paramOuts, broadcast);
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(parameters));
+        auto select = ov::builder::makeSelect(paramOuts, broadcast);
 
         function = makeNgraphFunction(precision, parameters, select, "Eltwise");
    }

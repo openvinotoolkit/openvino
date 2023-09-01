@@ -16,7 +16,7 @@ namespace CPULayerTestsDefinitions {
 
 using PadLayerCPUTestParamSet = std::tuple<
         InputShape,                                     // Input shape
-        ngraph::helpers::InputLayerType,                // Secondary input types
+        ov::helpers::InputLayerType,                // Secondary input types
         ElementType,                                    // Input element type
         std::vector<int64_t>,                           // padsBegin
         std::vector<int64_t>,                           // padsEnd
@@ -30,7 +30,7 @@ class PadLayerCPUTest : public testing::WithParamInterface<PadLayerCPUTestParamS
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PadLayerCPUTestParamSet> obj) {
         InputShape shapes;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         ElementType elementType;
         std::vector<int64_t> padsBegin, padsEnd;
         ov::op::PadMode padMode;
@@ -79,7 +79,7 @@ protected:
     }
     void SetUp() override {
         InputShape shapes;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         ov::op::PadMode padMode;
         ElementType dataType;
         CPUSpecificParams cpuParams;
@@ -99,7 +99,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(dataType, shape));
         }
         std::shared_ptr<ov::Node> pad;
-        if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
             ov::Shape inShape = {padsBegin.size()};
 
             auto beginNode = std::make_shared<ov::op::v0::Parameter>(ElementType::i64, inShape);
@@ -155,13 +155,13 @@ const std::vector<ElementType> inputPrecisions = {
         ElementType::i8
 };
 
-const std::vector<ngraph::helpers::InputLayerType> inputLayerTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::helpers::InputLayerType> inputLayerTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER
 };
 
-const std::vector<ngraph::helpers::InputLayerType> inputLayerTypesBlocked = {
-    ngraph::helpers::InputLayerType::CONSTANT,
+const std::vector<ov::helpers::InputLayerType> inputLayerTypesBlocked = {
+    ov::helpers::InputLayerType::CONSTANT,
 };
 
 const std::vector<float> argPadValue = {0.f, 2.5f};

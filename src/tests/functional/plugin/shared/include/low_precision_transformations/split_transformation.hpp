@@ -5,12 +5,12 @@
 #pragma once
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 class SplitTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     int64_t splitedAxis;
     size_t numSplit;
 };
@@ -19,7 +19,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     SplitTransformationParam
 > SplitTransformationParams;
 

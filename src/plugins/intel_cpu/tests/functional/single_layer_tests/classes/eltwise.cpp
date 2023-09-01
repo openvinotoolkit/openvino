@@ -11,7 +11,7 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
@@ -46,16 +46,16 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
     gen_params params = gen_params();
     if (type.is_real()) {
         switch (eltwiseType) {
-        case ngraph::helpers::EltwiseTypes::POWER:
+        case ov::helpers::EltwiseTypes::POWER:
             params = gen_params(6, -3);
-        case ngraph::helpers::EltwiseTypes::MOD:
-        case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
+        case ov::helpers::EltwiseTypes::MOD:
+        case ov::helpers::EltwiseTypes::FLOOR_MOD:
             params = gen_params(2, 2, 8);
             break;
-        case ngraph::helpers::EltwiseTypes::DIVIDE:
+        case ov::helpers::EltwiseTypes::DIVIDE:
             params = gen_params(2, 2, 8);
             break;
-        case ngraph::helpers::EltwiseTypes::ERF:
+        case ov::helpers::EltwiseTypes::ERF:
             params = gen_params(6, -3);
             break;
         default:
@@ -85,7 +85,7 @@ void EltwiseLayerCPUTest::SetUp() {
     std::tie(basicParamsSet, cpuParams, fusingParams, enforceSnippets) = this->GetParam();
     std::vector<InputShape> shapes;
     ElementType netType;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    ov::helpers::InputLayerType secondaryInputType;
     ov::test::utils::OpType opType;
     ov::AnyMap additionalConfig;
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, additionalConfig) = basicParamsSet;
@@ -139,7 +139,7 @@ void EltwiseLayerCPUTest::SetUp() {
         }
     ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.front())};
     std::shared_ptr<ngraph::Node> secondaryInput;
-    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+    if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
         auto param = std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.back());
         secondaryInput = param;
         parameters.push_back(param);
@@ -161,15 +161,15 @@ void EltwiseLayerCPUTest::SetUp() {
             auto data_tensor = generate_eltwise_input(ElementType::i32, shape);
             auto data_ptr = reinterpret_cast<int32_t*>(data_tensor.data());
             std::vector<int32_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
-            secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            secondaryInput = ov::builder::makeConstant(netType, shape, data);
         } else {
             auto data_tensor = generate_eltwise_input(ElementType::f32, shape);
             auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
             std::vector<float> data(data_ptr, data_ptr + ngraph::shape_size(shape));
-            secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            secondaryInput = ov::builder::makeConstant(netType, shape, data);
         }
     }
-    auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
+    auto eltwise = ov::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
     function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
 
@@ -200,36 +200,36 @@ const std::vector<ov::test::utils::OpType>& opTypes() {
     return opTypes;
 }
 
-const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinInp() {
-    static const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinInp = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
+const std::vector<ov::helpers::EltwiseTypes>& eltwiseOpTypesBinInp() {
+    static const std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypesBinInp = {
+        ov::helpers::EltwiseTypes::ADD,
+        ov::helpers::EltwiseTypes::MULTIPLY,
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-        ngraph::helpers::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
-        ngraph::helpers::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
-        ngraph::helpers::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
+        ov::helpers::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
+        ov::helpers::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
+        ov::helpers::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
 #endif
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ov::helpers::EltwiseTypes::SQUARED_DIFF,
     };
     return eltwiseOpTypesBinInp;
 }
 
-const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesDiffInp() {
-    static const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Different number of input nodes depending on optimizations
-        ngraph::helpers::EltwiseTypes::POWER,
-        // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
+const std::vector<ov::helpers::EltwiseTypes>& eltwiseOpTypesDiffInp() {
+    static const std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Different number of input nodes depending on optimizations
+        ov::helpers::EltwiseTypes::POWER,
+        // ov::helpers::EltwiseTypes::MOD // Does not execute because of transformations
     };
     return eltwiseOpTypesDiffInp;
 }
 
-const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinDyn() {
-    static const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
+const std::vector<ov::helpers::EltwiseTypes>& eltwiseOpTypesBinDyn() {
+    static const std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {
+        ov::helpers::EltwiseTypes::ADD,
+        ov::helpers::EltwiseTypes::MULTIPLY,
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) // TODO: Fix CVS-105430
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
+        ov::helpers::EltwiseTypes::SUBTRACT,
 #endif
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ov::helpers::EltwiseTypes::SQUARED_DIFF,
     };
     return eltwiseOpTypesBinDyn;
 }
@@ -270,23 +270,23 @@ const std::vector<std::vector<ov::Shape>>& inShapes_5D() {
     return inShapes_5D;
 }
 
-const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesI32() {
-    static const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesI32 = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
+const std::vector<ov::helpers::EltwiseTypes>& eltwiseOpTypesI32() {
+    static const std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypesI32 = {
+        ov::helpers::EltwiseTypes::ADD,
+        ov::helpers::EltwiseTypes::MULTIPLY,
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) // TODO: Fix CVS-105430
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::DIVIDE,
+        ov::helpers::EltwiseTypes::SUBTRACT,
+        ov::helpers::EltwiseTypes::DIVIDE,
 #endif
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ov::helpers::EltwiseTypes::SQUARED_DIFF,
     };
     return eltwiseOpTypesI32;
 }
 
-const std::vector<ngraph::helpers::InputLayerType>& secondaryInputTypes() {
-    static const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+const std::vector<ov::helpers::InputLayerType>& secondaryInputTypes() {
+    static const std::vector<ov::helpers::InputLayerType> secondaryInputTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
     };
     return secondaryInputTypes;
 }

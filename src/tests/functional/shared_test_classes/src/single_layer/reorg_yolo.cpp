@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/reorg_yolo.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 

@@ -11,15 +11,15 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
                    std::map<std::string, std::string>,  // Configuration
-                   ngraph::helpers::EltwiseTypes        // Type of eltwise
+                   ov::helpers::EltwiseTypes            // Type of eltwise
                    >
     eltwiseParams;
 
@@ -31,7 +31,7 @@ public:
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
-        ngraph::helpers::EltwiseTypes eltwiseType;
+        ov::helpers::EltwiseTypes eltwiseType;
         std::tie(netPrecision, targetDevice, configuration, eltwiseType) = obj.param;
 
         std::ostringstream result;
@@ -47,7 +47,7 @@ public:
 protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
-        ngraph::helpers::EltwiseTypes eltwiseType;
+        ov::helpers::EltwiseTypes eltwiseType;
         std::tie(netPrecision, targetDevice, configuration, eltwiseType) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -80,7 +80,7 @@ public:
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
-        ngraph::helpers::EltwiseTypes eltwiseType;
+        ov::helpers::EltwiseTypes eltwiseType;
         std::tie(netPrecision, targetDevice, configuration, eltwiseType) = obj.param;
 
         std::ostringstream result;
@@ -96,7 +96,7 @@ public:
 protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
-        ngraph::helpers::EltwiseTypes eltwiseType;
+        ov::helpers::EltwiseTypes eltwiseType;
         std::tie(netPrecision, targetDevice, configuration, eltwiseType) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -140,9 +140,9 @@ const std::vector<std::map<std::string, std::string>> configs = {
 const std::vector<std::map<std::string, std::string>> configsMultiple = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1638.4"}, {"GNA_SCALE_FACTOR_1", "1638.4"}}};
 
-const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {ngraph::helpers::EltwiseTypes::MULTIPLY,
-                                                                   ngraph::helpers::EltwiseTypes::SUBTRACT,
-                                                                   ngraph::helpers::EltwiseTypes::ADD};
+const std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypes = {ov::helpers::EltwiseTypes::MULTIPLY,
+                                                               ov::helpers::EltwiseTypes::SUBTRACT,
+                                                               ov::helpers::EltwiseTypes::ADD};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d,
                          Eltwise4dBroadcast,

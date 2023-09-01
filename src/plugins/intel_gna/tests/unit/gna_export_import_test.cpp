@@ -13,7 +13,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ::testing;
 using ov::intel_gna::GNAPlugin;
@@ -108,10 +108,10 @@ protected:
         size_t shape = 10;
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, shape})};
         auto mul_const =
-            ngraph::builder::makeConstant<float>(ngPrc,
-                                                 {shape, shape},
-                                                 ov::test::utils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
-                                                 false);
+            ov::builder::makeConstant<float>(ngPrc,
+                                             {shape, shape},
+                                             ov::test::utils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
+                                             false);
 
         auto matmul = std::make_shared<ngraph::op::MatMul>(params[0], mul_const, false, true);
         auto res = std::make_shared<ngraph::op::Result>(matmul);

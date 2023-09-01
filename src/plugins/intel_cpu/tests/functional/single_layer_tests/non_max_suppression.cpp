@@ -6,10 +6,11 @@
 #include <string>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ov::test;
 using namespace ngraph;
@@ -42,7 +43,7 @@ using NmsParams = std::tuple<InputShapeParams,                                  
                              InputPrecisions,                                    // Input precisions
                              int32_t,                                            // Max output boxes per class
                              ThresholdValues,                                    // IOU, Score, Soft NMS sigma
-                             ngraph::helpers::InputLayerType,                    // max_output_boxes_per_class input type
+                             ov::helpers::InputLayerType,                    // max_output_boxes_per_class input type
                              ngraph::op::v9::NonMaxSuppression::BoxEncodingType, // Box encoding
                              bool,                                               // Sort result descending
                              ngraph::element::Type,                              // Output type
@@ -54,7 +55,7 @@ public:
         InputShapeParams inShapeParams;
         InputPrecisions inPrecisions;
         int32_t maxOutBoxesPerClass;
-        ngraph::helpers::InputLayerType maxOutBoxesType;
+        ov::helpers::InputLayerType maxOutBoxesType;
         ThresholdValues thrValues;
         float iouThr, scoreThr, softNmsSigma;
         op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
@@ -113,7 +114,7 @@ protected:
         InputShapeParams inShapeParams;
         InputPrecisions inPrecisions;
         ThresholdValues thrValues;
-        ngraph::helpers::InputLayerType maxOutBoxesType;
+        ov::helpers::InputLayerType maxOutBoxesType;
         float iouThr, scoreThr, softNmsSigma;
         op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
@@ -141,7 +142,7 @@ protected:
             size_t numBatches, numBoxes, numClasses;
             std::tie(numBatches, numBoxes, numClasses) = ts;
             targetStaticShapes.push_back(std::vector<ngraph::Shape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}});
-            if (maxOutBoxesType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (maxOutBoxesType == ov::helpers::InputLayerType::PARAMETER) {
                 targetStaticShapes.back().push_back(ngraph::Shape{1});
             }
         }
@@ -154,18 +155,18 @@ protected:
         params[0]->set_friendly_name("param_1");
         params[1]->set_friendly_name("param_2");
 
-        if (maxOutBoxesType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (maxOutBoxesType == ov::helpers::InputLayerType::PARAMETER) {
             inputDynamicShapes.push_back(ngraph::PartialShape{1});
             params.push_back(std::make_shared<ngraph::opset1::Parameter>(element::Type_t::i32, inputDynamicShapes.back()));
             params[1]->set_friendly_name("param_3");
             maxOutBoxesPerClassNode = params.back();
         } else {
-            maxOutBoxesPerClassNode = builder::makeConstant(maxBoxPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
+            maxOutBoxesPerClassNode = ov::builder::makeConstant(maxBoxPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
         }
 
-        auto iouThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
-        auto scoreThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
-        auto softNmsSigmaNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
+        auto iouThrNode = ov::builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
+        auto scoreThrNode = ov::builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
+        auto softNmsSigmaNode = ov::builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
         auto nms = std::make_shared<ngraph::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 
@@ -419,7 +420,7 @@ const std::vector<op::v9::NonMaxSuppression::BoxEncodingType> encodType = {op::v
                                                                            op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
 const std::vector<bool> sortResDesc = {true, false};
 const std::vector<element::Type> outType = {element::i32, element::i64};
-const std::vector<ngraph::helpers::InputLayerType> maxBoxInputTypes = {ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::CONSTANT};
+const std::vector<ov::helpers::InputLayerType> maxBoxInputTypes = {ov::helpers::InputLayerType::PARAMETER, ov::helpers::InputLayerType::CONSTANT};
 
 const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::Combine(::testing::Values(ElementType::f32),

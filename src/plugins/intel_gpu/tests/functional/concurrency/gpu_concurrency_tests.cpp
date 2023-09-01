@@ -12,7 +12,7 @@
 #include <gpu/gpu_config.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
@@ -30,9 +30,9 @@ class OVConcurrencyTest : public ov::test::TestsCommon,
     public testing::WithParamInterface<ConcurrencyTestParams> {
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
-                   ngraph::builder::subgraph::makeMultiSingleConv(),
-                   ngraph::builder::subgraph::makeTIwithLSTMcell()};
+        fn_ptrs = {ov::builder::subgraph::makeSplitMultiConvConcat(),
+                   ov::builder::subgraph::makeMultiSingleConv(),
+                   ov::builder::subgraph::makeTIwithLSTMcell()};
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcurrencyTestParams>& obj) {
@@ -102,7 +102,7 @@ public:
                     inputs.emplace_back(inData);
                 }
 
-                auto reOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], inputs).front().second;
+                auto reOutData = ov::helpers::interpreterFunction(fn_ptrs[i], inputs).front().second;
                 ref.push_back(reOutData);
                 outElementsCount.push_back(ov::shape_size(fn_ptrs[i]->get_output_shape(0)));
             }
@@ -161,7 +161,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVConcurrencyTest,
 TEST(canSwapTensorsBetweenInferRequests, inputs) {
     std::vector<std::vector<uint8_t>> ref;
     std::vector<ov::Tensor> input_tensors;
-    auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+    auto fn = ov::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
     auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
@@ -177,7 +177,7 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
         const auto tensor_size = tensor.get_byte_size();
         const auto in_blob_buf = static_cast<uint8_t*>(tensor.data());
         std::vector<uint8_t> inData(in_blob_buf, in_blob_buf + tensor_size);
-        auto ref_out_data = ngraph::helpers::interpreterFunction(fn, {inData}).front().second;
+        auto ref_out_data = ov::helpers::interpreterFunction(fn, {inData}).front().second;
         ref.push_back(ref_out_data);
     };
 
@@ -239,7 +239,7 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
 }
 
 TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
-    auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
+    auto fn = ov::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
     auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
@@ -278,7 +278,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
 }
 
 TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
-    auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
+    auto fn = ov::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
     auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
@@ -304,7 +304,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
     std::vector<std::vector<uint8_t>> ref;
     std::vector<ov::Tensor> input_tensors;
     std::vector<ov::Tensor> output_tensors;
-    auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+    auto fn = ov::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
     auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
@@ -322,7 +322,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
         const auto tensor_size = tensor.get_byte_size();
         const auto in_blob_buf = static_cast<uint8_t*>(tensor.data());
         std::vector<uint8_t> inData(in_blob_buf, in_blob_buf + tensor_size);
-        auto ref_out_data = ngraph::helpers::interpreterFunction(fn, {inData}).front().second;
+        auto ref_out_data = ov::helpers::interpreterFunction(fn, {inData}).front().second;
         ref.push_back(ref_out_data);
     };
 

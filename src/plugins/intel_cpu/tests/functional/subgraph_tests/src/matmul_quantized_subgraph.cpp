@@ -4,7 +4,7 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/common_utils.hpp"
 
 #include <algorithm>
@@ -69,39 +69,39 @@ protected:
         std::shared_ptr<Node> nodeBeforeConv;
         selectedType = makeSelectedTypeStr(selectedType, ElementType::i8);
         if (inType == ElementType::u8)
-            fq1 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+            fq1 = ov::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
         else
-            fq1 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            fq1 = ov::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
         if (isFC) {
             ngraph::Shape weightShape = inShapes;
             std::swap(weightShape[0], weightShape[1]);
-            auto weightsNode = ngraph::builder::makeConstant(ngPrec, weightShape, std::vector<float>{0.0f}, true);
-            auto fq2 = ngraph::builder::makeFakeQuantize(weightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            auto weightsNode = ov::builder::makeConstant(ngPrec, weightShape, std::vector<float>{0.0f}, true);
+            auto fq2 = ov::builder::makeFakeQuantize(weightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
             auto fc = std::make_shared<ngraph::opset1::MatMul>(fq1, fq2, false, false);
             fc->get_rt_info() = getCPUInfo();
             fc->set_friendly_name(nameMatmul);
-            auto biasWeightsNode = ngraph::builder::makeConstant(ngPrec, {}, std::vector<float>{0.0f}, true);
+            auto biasWeightsNode = ov::builder::makeConstant(ngPrec, {}, std::vector<float>{0.0f}, true);
             matMul = std::make_shared<ngraph::opset1::Add>(fc, biasWeightsNode);
         } else {
-            auto fq2 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
-            matMul = builder::makeMatMul(fq1, fq2, false, true);
+            auto fq2 = ov::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            matMul = ov::builder::makeMatMul(fq1, fq2, false, true);
             matMul->get_rt_info() = getCPUInfo();
             matMul->set_friendly_name(nameMatmul);
         }
         if (outType == ElementType::u8)
-            nodeBeforeConv = ngraph::builder::makeFakeQuantize(matMul, ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+            nodeBeforeConv = ov::builder::makeFakeQuantize(matMul, ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
         else if (outType == ElementType::i8)
-            nodeBeforeConv = ngraph::builder::makeFakeQuantize(matMul, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            nodeBeforeConv = ov::builder::makeFakeQuantize(matMul, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
         else
             nodeBeforeConv = matMul;
 
         // matmul->fq->matmul can cover x8*s8->x8 case
         auto filterWeightsShape = matMul->get_output_shape(0);
-        auto filterWeightsNode = ngraph::builder::makeConstant(element::f32, filterWeightsShape, std::vector<float>{}, true);
-        auto fq3 = ngraph::builder::makeFakeQuantize(filterWeightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+        auto filterWeightsNode = ov::builder::makeConstant(element::f32, filterWeightsShape, std::vector<float>{}, true);
+        auto fq3 = ov::builder::makeFakeQuantize(filterWeightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
         // only matmul avx2 support s8*s8 input
-        auto matMul2 = builder::makeMatMul(nodeBeforeConv, fq3, false, false);
+        auto matMul2 = ov::builder::makeMatMul(nodeBeforeConv, fq3, false, false);
 
         function = makeNgraphFunction(ngPrec, inputParams, matMul2, "MatmulBrgemmInt8");
     }

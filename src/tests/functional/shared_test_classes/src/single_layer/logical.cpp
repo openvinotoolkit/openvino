@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/logical.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace LayerTestsDefinitions::LogicalParams;
 
 namespace LayerTestsDefinitions {
 std::string LogicalLayerTest::getTestCaseName(const testing::TestParamInfo<LogicalTestParams>& obj) {
     InputShapesTuple inputShapes;
-    ngraph::helpers::LogicalTypes comparisonOpType;
-    ngraph::helpers::InputLayerType secondInputType;
+    ov::helpers::LogicalTypes comparisonOpType;
+    ov::helpers::InputLayerType secondInputType;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -67,14 +68,14 @@ void LogicalLayerTest::SetUp() {
     ov::ParameterVector inputs {std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
 
     std::shared_ptr<ngraph::Node> logicalNode;
-    if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
-        auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
-        if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+    if (logicalOpType != ov::helpers::LogicalTypes::LOGICAL_NOT) {
+        auto secondInput = ov::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+        if (secondInputType == ov::helpers::InputLayerType::PARAMETER) {
             inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
         }
-        logicalNode = ngraph::builder::makeLogical(inputs[0], secondInput, logicalOpType);
+        logicalNode = ov::builder::makeLogical(inputs[0], secondInput, logicalOpType);
     } else {
-        logicalNode = ngraph::builder::makeLogical(inputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
+        logicalNode = ov::builder::makeLogical(inputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
     }
 
     function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");

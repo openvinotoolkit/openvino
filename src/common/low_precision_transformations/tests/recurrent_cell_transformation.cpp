@@ -19,35 +19,35 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/recurrent_cell_function.hpp"
+#include "lpt_ov_models/common/builders.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/recurrent_cell_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include <openvino/opsets/opset5.hpp>
 
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 namespace {
 
 class RecurrentCellTransformationValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_X;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert_X;
-    ngraph::builder::subgraph::DequantizationOperations dequantization_X;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_H;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert_H;
-    ngraph::builder::subgraph::DequantizationOperations dequantization_H;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_W;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert_W;
-    ngraph::builder::subgraph::DequantizationOperations dequantization_W;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_R;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert_R;
-    ngraph::builder::subgraph::DequantizationOperations dequantization_R;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_X;
+    ov::builder::subgraph::DequantizationOperations::Convert convert_X;
+    ov::builder::subgraph::DequantizationOperations dequantization_X;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_H;
+    ov::builder::subgraph::DequantizationOperations::Convert convert_H;
+    ov::builder::subgraph::DequantizationOperations dequantization_H;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_W;
+    ov::builder::subgraph::DequantizationOperations::Convert convert_W;
+    ov::builder::subgraph::DequantizationOperations dequantization_W;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_R;
+    ov::builder::subgraph::DequantizationOperations::Convert convert_R;
+    ov::builder::subgraph::DequantizationOperations dequantization_R;
     ov::element::Type precisionAfterOperation;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const RecurrentCellTransformationValues& values) {
@@ -92,7 +92,7 @@ public:
         const std::vector<ov::Shape> weights_shapes = std::get<2>(GetParam());
         RecurrentCellTransformationTestValues testValues = std::get<3>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
+        actualFunction = ov::builder::subgraph::RecurrentCellFunction::get(precision,
                                                                       activations_shapes,
                                                                       weights_shapes,
                                                                       testValues.type,
@@ -135,7 +135,7 @@ public:
         }
 
         referenceFunction =
-            ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
+            ov::builder::subgraph::RecurrentCellFunction::get(precision,
                                                                          activations_shapes,
                                                                          weights_shapes,
                                                                          testValues.type,

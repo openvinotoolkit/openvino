@@ -6,6 +6,7 @@
 
 #include "subgraph_tests/conv_eltwise_fusion.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 using namespace SubgraphTestsDefinitions;
 

@@ -16,7 +16,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "lpt_ngraph_functions/transpose_after_mat_mul_function.hpp"
+#include "lpt_ov_models/transpose_after_mat_mul_function.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -25,7 +25,7 @@ std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::T
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;
     std::tie(netPrecision, inputShapes, targetDevice, params, perTensor, transposeChannelDim) = obj.param;
@@ -40,12 +40,12 @@ std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::T
 void TransposeAfterMatMulTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;
     std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
 
-    function = ngraph::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
+    function = ov::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
 }
 
 TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {

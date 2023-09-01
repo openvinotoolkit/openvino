@@ -455,7 +455,7 @@ public:
     void SetUp()  override {
         std::tie(layout, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }

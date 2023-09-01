@@ -3,7 +3,7 @@
 //
 
 #include "ngraph/opsets/opset8.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <cpp/ie_cnn_network.h>

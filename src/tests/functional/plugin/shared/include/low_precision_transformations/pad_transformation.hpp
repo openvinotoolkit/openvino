@@ -5,12 +5,12 @@
 #pragma once
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 class PadTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<uint64_t> padsBegin;
     std::vector<uint64_t> padsEnd;
     float padValue;
@@ -23,7 +23,7 @@ typedef std::tuple<
     ngraph::PartialShape,
     ngraph::op::PadMode,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     PadTransformationParam
 > PadTransformationParams;
 

@@ -4,12 +4,14 @@
 
 #include "shared_test_classes/single_layer/interpolate.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ov::test;
-using ngraph::helpers::operator<<;
+using ov::helpers::operator<<;
 
 namespace GPULayerTestsDefinitions {
 
@@ -24,8 +26,8 @@ using InterpolateSpecificParams = std::tuple<ngraph::op::v4::Interpolate::Interp
 using ShapeParams = std::tuple<ngraph::op::v4::Interpolate::ShapeCalcMode, // ShapeCalculationMode
                                InputShape,                                 // Input shapes
                                // params describing input, choice of which depends on ShapeCalcMode
-                               ngraph::helpers::InputLayerType,            // sizes input type
-                               ngraph::helpers::InputLayerType,            // scales input type
+                               ov::helpers::InputLayerType,            // sizes input type
+                               ov::helpers::InputLayerType,            // scales input type
                                std::vector<std::vector<float>>,            // scales or sizes values
                                std::vector<int64_t>>;                      // axes
 
@@ -56,8 +58,8 @@ public:
 
         ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
         InputShape inputShapes;
-        ngraph::helpers::InputLayerType sizesInputType;
-        ngraph::helpers::InputLayerType scalesInputType;
+        ov::helpers::InputLayerType sizesInputType;
+        ov::helpers::InputLayerType scalesInputType;
         std::vector<std::vector<float>> shapeDataForInput;
         std::vector<int64_t> axes;
         std::tie(shapeCalcMode, inputShapes, sizesInputType, scalesInputType, shapeDataForInput, axes) = shapeParams;
@@ -174,8 +176,8 @@ protected:
         std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
 
         InputShape dataShape;
-        ngraph::helpers::InputLayerType sizesInputType;
-        ngraph::helpers::InputLayerType scalesInputType;
+        ov::helpers::InputLayerType sizesInputType;
+        ov::helpers::InputLayerType scalesInputType;
         std::vector<std::vector<float>> shapeDataForInput;
         std::vector<int64_t> axes;
         std::tie(shapeCalcMode, dataShape, sizesInputType, scalesInputType, shapeDataForInput, axes) = shapeParams;
@@ -195,10 +197,10 @@ protected:
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(dataShape);
-        if (sizesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (sizesInputType == ov::helpers::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
         }
-        if (scalesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (scalesInputType == ov::helpers::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
         }
 
@@ -208,14 +210,14 @@ protected:
 
         std::shared_ptr<ov::Node> sizesInput, scalesInput;
         if (shapeCalcMode == ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES) {
-            if (scalesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (scalesInputType == ov::helpers::InputLayerType::PARAMETER) {
                 auto paramNode = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32, ov::Shape{scales.front().size()});
                 params.push_back(paramNode);
                 scalesInput = paramNode;
             } else {
                 scalesInput = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::f32, ov::Shape{scales.front().size()}, scales.front());
             }
-            if (sizesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (sizesInputType == ov::helpers::InputLayerType::PARAMETER) {
                 auto paramNode = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()});
                 params.push_back(paramNode);
                 sizesInput = paramNode;
@@ -223,14 +225,14 @@ protected:
                 sizesInput = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()}, sizes.front());
             }
         } else {
-            if (sizesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (sizesInputType == ov::helpers::InputLayerType::PARAMETER) {
                 auto paramNode = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()});
                 params.push_back(paramNode);
                 sizesInput = paramNode;
             } else {
                 sizesInput = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()}, sizes.front());
             }
-            if (scalesInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (scalesInputType == ov::helpers::InputLayerType::PARAMETER) {
                 auto paramNode = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32, ov::Shape{scales.front().size()});
                 params.push_back(paramNode);
                 scalesInput = paramNode;
@@ -339,48 +341,48 @@ const std::vector<ShapeParams> shapeParams4D_Smoke = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.25f, 1.5f}, {1.f, 1.f, 1.25f, 1.25f}, {1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {1, 10}, -1, -1}, {{1, 2, 12, 20}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
          {{1.f, 1.f, 0.5f, 2.0f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {1, 10}, -1, -1}, {{1, 2, 12, 20}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{0.5f, 2.0f}},
         reducedAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}, {2, 7, 8, 7}, {1, 11, 5, 6}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {1, 10}, -1, -1}, {{1, 2, 12, 20}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1, 2, 24, 10}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {1, 10}, -1, -1}, {{1, 2, 12, 20}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{24, 10}},
         reducedAxes4D.front()
     }
@@ -390,16 +392,16 @@ const std::vector<ShapeParams> shapeParams4D_Full = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}},
         defaultAxes4D.front()
     }
@@ -409,32 +411,32 @@ const std::vector<ShapeParams> shapeParams4DReducedAxis_Full = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.5f}},
         reducedAxes4D.back()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{6}},
         reducedAxes4D.back()
     }
@@ -594,40 +596,40 @@ const std::vector<ShapeParams> shapeParams5D_Smoke = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.25f, 1.5f, 0.5f}, {1.f, 1.f, 1.25f, 1.25f, 1.25f}, {1.f, 1.f, 1.25f, 1.5f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 10}, -1, -1, -1}, {{1, 4, 2, 3, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.5f, 2.f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6, 2}, {2, 7, 8, 7, 4}, {1, 11, 5, 6, 2}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 10}, -1, -1, -1}, {{1, 4, 2, 3, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1, 4, 4, 1, 6}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 10}, -1, -1, -1}, {{1, 4, 2, 3, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{4, 1, 6}},
         reducedAxes5D.front()
     },
@@ -637,24 +639,24 @@ const std::vector<ShapeParams> shapeParams5D_Full = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6, 4}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 6, 4}},
         reducedAxes5D.front()
     }

@@ -10,10 +10,10 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 /* ============= Concat Layer Restrictions Tests ============= */
@@ -56,7 +56,7 @@ struct ReLUConcatAxis {
         ov::OutputVector concatInputs;
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto relu = ngraph::builder::makeActivation(params[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+        auto relu = ngraph::builder::makeActivation(params[0], ngPrc, ov::helpers::ActivationTypes::Relu);
         concatInputs.push_back(relu);
         size_t totalSize = ov::shape_size(inputShape);
         auto constValues = ov::test::utils::generate_float_numbers(totalSize, -0.1f, 0.1f);

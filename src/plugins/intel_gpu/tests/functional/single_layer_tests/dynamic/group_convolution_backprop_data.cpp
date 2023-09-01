@@ -6,13 +6,15 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/group_convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "ngraph/opsets/opset8.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;
@@ -22,7 +24,7 @@ namespace GPULayerTestsDefinitions {
 using GroupDeconvSpecParams = LayerTestsDefinitions::groupConvBackpropSpecificParams;
 
 using DeconvInputData = std::tuple<InputShape,                           // data shape
-                                   ngraph::helpers::InputLayerType,      // 'output_shape' input type
+                                   ov::helpers::InputLayerType,      // 'output_shape' input type
                                    std::vector<std::vector<int32_t>>>;   // values for 'output_shape'
 
 using GroupDeconvLayerTestParamsSet = std::tuple<GroupDeconvSpecParams,
@@ -49,7 +51,7 @@ public:
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum, padType, outPadding) = basicParamsSet;
 
         InputShape inputShape;
-        ngraph::helpers::InputLayerType outShapeType;
+        ov::helpers::InputLayerType outShapeType;
         std::vector<std::vector<int32_t>> outShapeData;
         std::tie(inputShape, outShapeType, outShapeData) = inputData;
 
@@ -109,13 +111,13 @@ public:
 
     void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
         if (function->get_parameters().size() == 1) {
-            ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
+            ov::helpers::resize_function(funcRef, targetInputStaticShapes);
         } else {
             // WA: output_shape depends on 3rd deconvolution input data
             // but the reference implementation doesn't implement shape inference
             // so we need to build a new ngraph function and replace the 3rd input parameter with a constant
             // to get valid output shapes
-            funcRef = createGraph({targetInputStaticShapes[0]}, ngraph::helpers::InputLayerType::CONSTANT);
+            funcRef = createGraph({targetInputStaticShapes[0]}, ov::helpers::InputLayerType::CONSTANT);
         }
     }
 
@@ -164,11 +166,11 @@ public:
         function = p.build();
     }
 
-    std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes, ngraph::helpers::InputLayerType outShapeType) {
+    std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes, ov::helpers::InputLayerType outShapeType) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(prec, inShapes.front())};
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
-            if (outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (outShapeType == ov::helpers::InputLayerType::PARAMETER) {
                 IE_ASSERT(inputDynamicShapes.size() == 2);
                 auto outShapeParam = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, inputDynamicShapes.back());
                 params.push_back(outShapeParam);
@@ -185,10 +187,10 @@ public:
         std::shared_ptr<ov::Node> deconv;
         if (!outShapeData.empty()) {
             IE_ASSERT(outShapeNode != nullptr);
-            deconv = ngraph::builder::makeGroupConvolutionBackpropData(params[0], outShapeNode, prec, kernel, stride, padBegin,
+            deconv = ov::builder::makeGroupConvolutionBackpropData(params[0], outShapeNode, prec, kernel, stride, padBegin,
                                                                        padEnd, dilation, padType, convOutChannels, groupNum);
         } else {
-            deconv = ngraph::builder::makeGroupConvolutionBackpropData(params[0], prec, kernel, stride, padBegin,
+            deconv = ov::builder::makeGroupConvolutionBackpropData(params[0], prec, kernel, stride, padBegin,
                                                                        padEnd, dilation, padType, convOutChannels, groupNum, false, outPadding);
         }
 
@@ -207,14 +209,14 @@ protected:
         std::tie(basicParamsSet, inputData, prec, targetDevice, additionalConfig) = this->GetParam();
 
         InputShape inputShape;
-        ngraph::helpers::InputLayerType outShapeType;
+        ov::helpers::InputLayerType outShapeType;
         std::tie(inputShape, outShapeType, outShapeData) = inputData;
 
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum,  padType, outPadding) = basicParamsSet;
 
         std::vector<InputShape> paramsShapes;
         paramsShapes.push_back(inputShape);
-        if (!outShapeData.empty() && outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (!outShapeData.empty() && outShapeType == ov::helpers::InputLayerType::PARAMETER) {
             const auto outShapeDims = ov::Shape{outShapeData.front().size()};
             paramsShapes.push_back(InputShape{outShapeDims, std::vector<ov::Shape>(inputShape.second.size(), outShapeDims)});
         }
@@ -274,22 +276,22 @@ const auto groupConvParams_ExplicitPadding_2D = ::testing::Combine(
 const std::vector<DeconvInputData> dyn_2D_inputs_smoke = {
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{1, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 7, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{2, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 9, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{2, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 9, 4}, {2, 12, 5, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
         InputShape{{{1, 10}, 12, 7, 7}, {{1, 12, 7, 7}, {3, 12, 7, 7}, {2, 12, 7, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {}
     }
 };
@@ -306,17 +308,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Dynamic_FP32, GroupDeconvolutionLa
 const std::vector<DeconvInputData> dyn_2D_inputs_with_output_shape = {
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{1, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 7, 7}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{15, 15}, {9, 10}, {15, 15}}
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{2, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 9, 4}, {2, 12, 5, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     },
     DeconvInputData{
         InputShape{{{1, 10}, 12, 7, 7}, {{1, 12, 7, 7}, {3, 12, 7, 7}, {2, 12, 7, 7}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     }
 };

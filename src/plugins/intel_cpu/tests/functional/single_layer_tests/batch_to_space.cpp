@@ -4,8 +4,11 @@
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset2.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -110,7 +113,7 @@ protected:
             selectedType = std::string("ref_any_") + netPrecision.name();
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrec, inputDynamicShapes.front())};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         paramShape = {paramOuts[0].get_partial_shape().size()};
 
         std::shared_ptr<ov::Node> in2, in3, in4;

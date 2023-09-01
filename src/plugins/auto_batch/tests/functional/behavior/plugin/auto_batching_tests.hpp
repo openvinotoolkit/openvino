@@ -11,7 +11,7 @@
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -29,7 +29,7 @@ class AutoBatching_Test : public BehaviorTestsUtils::IEPluginTestBase,
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        fn_ptrs = {ngraph::builder::subgraph::makeSingleConv(), ngraph::builder::subgraph::makeMultiSingleConv()};
+        fn_ptrs = {ov::builder::subgraph::makeSingleConv(), ov::builder::subgraph::makeMultiSingleConv()};
     };
 
 public:
@@ -109,7 +109,7 @@ protected:
                     inf_req.SetBlob(output->first, blob);
                 }
 
-                auto refOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
+                auto refOutData = ov::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
                 ref.push_back(refOutData);
             }
         }
@@ -144,7 +144,7 @@ public:
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        fn_ptrs = {ngraph::builder::subgraph::makeDetectionOutput(), ngraph::builder::subgraph::makeDetectionOutput()};
+        fn_ptrs = {ov::builder::subgraph::makeDetectionOutput(), ov::builder::subgraph::makeDetectionOutput()};
     };
 
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams>& obj) {

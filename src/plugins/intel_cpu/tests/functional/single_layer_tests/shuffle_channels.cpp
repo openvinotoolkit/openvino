@@ -4,9 +4,10 @@
 
 #include "shared_test_classes/single_layer/shuffle_channels.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -70,7 +71,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
         auto shuffleChannels = std::dynamic_pointer_cast<ngraph::opset3::ShuffleChannels>(
-                ngraph::builder::makeShuffleChannels(params[0], axis, group));
+                ov::builder::makeShuffleChannels(params[0], axis, group));
         function = makeNgraphFunction(inType, params, shuffleChannels, "ShuffleChannels");
     }
 };

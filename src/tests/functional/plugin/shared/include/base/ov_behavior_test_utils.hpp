@@ -13,7 +13,7 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -34,7 +34,7 @@ namespace behavior {
 
 inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
                                                                               ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    return ngraph::builder::subgraph::makeSplitConcat(inputShape, ngPrc);
+    return ov::builder::subgraph::makeSplitConcat(inputShape, ngPrc);
 }
 
 inline bool sw_plugin_in_target_device(std::string targetDevice) {
@@ -175,13 +175,13 @@ public:
     void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         // Generic network
-        actualNetwork = ngraph::builder::subgraph::makeSplitConcat();
+        actualNetwork = ov::builder::subgraph::makeSplitConcat();
         // Quite simple network
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+        simpleNetwork = ov::builder::subgraph::makeSingleConcatWithConstant();
         // Multinput to substruct network
-        multinputNetwork = ngraph::builder::subgraph::makeConcatWithParams();
+        multinputNetwork = ov::builder::subgraph::makeConcatWithParams();
         // Network with KSO
-        ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
+        ksoNetwork = ov::builder::subgraph::makeKSOFunction();
     }
 
     virtual void setHeteroNetworkAffinity(const std::string &targetDevice) {
@@ -240,7 +240,7 @@ public:
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        actualNetwork = ov::builder::subgraph::makeSplitConvConcat();
     }
 };
 

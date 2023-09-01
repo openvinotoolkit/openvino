@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -20,7 +20,7 @@ typedef std::tuple<
     std::vector<size_t>,               // Index connected layer
     std::vector<int64_t>,              // Pad begin
     std::vector<int64_t>,              // Pad end
-    ngraph::helpers::PadMode,          // Pad mode
+    ov::helpers::PadMode,          // Pad mode
     InferenceEngine::Precision,        // Network precision
     std::string                        // Device name
 > SplitPadTuple;

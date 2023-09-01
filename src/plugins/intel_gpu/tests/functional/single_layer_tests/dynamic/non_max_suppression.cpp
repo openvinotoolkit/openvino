@@ -6,12 +6,13 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/non_max_suppression.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;
@@ -158,10 +159,10 @@ protected:
         params[0]->set_friendly_name("param_1");
         params[1]->set_friendly_name("param_2");
 
-        auto maxOutBoxesPerClassNode = builder::makeConstant(maxBoxPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass})->output(0);
-        auto iouThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
-        auto scoreThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
-        auto softNmsSigmaNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
+        auto maxOutBoxesPerClassNode = ov::builder::makeConstant(maxBoxPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass})->output(0);
+        auto iouThrNode = ov::builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
+        auto scoreThrNode = ov::builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
+        auto softNmsSigmaNode = ov::builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
         auto nms = std::make_shared<ngraph::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
         ngraph::ResultVector results;

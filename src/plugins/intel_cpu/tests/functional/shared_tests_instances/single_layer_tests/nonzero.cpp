@@ -6,7 +6,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include <vector>
 
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace LayerTestsDefinitions;
 
 namespace {

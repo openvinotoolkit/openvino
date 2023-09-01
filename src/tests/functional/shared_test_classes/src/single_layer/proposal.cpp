@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/single_layer/proposal.hpp"
+#include "ngraph/opsets/opset4.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -151,10 +153,10 @@ void ProposalLayerTest::SetUp() {
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape))};
     params[0]->set_friendly_name("a_scores");
     params[1]->set_friendly_name("b_boxes");
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto proposal = std::dynamic_pointer_cast<ngraph::opset4::Proposal>(
-             ngraph::builder::makeProposal(paramOuts[0], paramOuts[1], img_info, ngPrc,
+             ov::builder::makeProposal(paramOuts[0], paramOuts[1], img_info, ngPrc,
                                            base_size,
                                            pre_nms_topn,
                                            post_nms_topn,

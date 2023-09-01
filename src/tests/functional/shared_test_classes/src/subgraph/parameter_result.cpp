@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/parameter_result.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 

@@ -9,7 +9,7 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
@@ -83,7 +83,7 @@ void ConvertCPULayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
     }
-    auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, helpers::ConversionTypes::CONVERT);
+    auto conversion = ov::builder::makeConversion(params.front(), targetPrc, ov::helpers::ConversionTypes::CONVERT);
 
     function = makeNgraphFunction(ngPrc, params, conversion, "ConversionCPU");
 }

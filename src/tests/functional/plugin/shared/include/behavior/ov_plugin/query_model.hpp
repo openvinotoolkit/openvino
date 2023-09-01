@@ -5,6 +5,7 @@
 #pragma once
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 namespace ov {
 namespace test {

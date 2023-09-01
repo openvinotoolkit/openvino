@@ -4,8 +4,10 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -46,7 +48,7 @@ struct inputDescription {
 
 using shapeOpsParams = std::tuple<
     inputDescription,                  // input shapes
-    ngraph::helpers::InputLayerType,   // second input type
+    ov::helpers::InputLayerType,   // second input type
     shapeNodeType,                     // node type
     Precision,                         // precision
     ngraph::element::Type_t,           // second input precision
@@ -56,7 +58,7 @@ class ShapeOpsCPUTest : public testing::WithParamInterface<shapeOpsParams>, virt
 public:
     static std::string getTestCaseName(testing::TestParamInfo<shapeOpsParams> obj) {
         inputDescription inpDesc;
-        ngraph::helpers::InputLayerType secondType;
+        ov::helpers::InputLayerType secondType;
         shapeNodeType nodeType;
         Precision prc;
         bool specialZero;
@@ -135,7 +137,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         inputDescription inpDesc;
-        ngraph::helpers::InputLayerType secondType;
+        ov::helpers::InputLayerType secondType;
         shapeNodeType nodeType;
         Precision prc;
         bool specialZero;
@@ -163,13 +165,13 @@ protected:
         auto dataInput = inputs.front();
         dataInput->set_friendly_name("param_1");
         std::shared_ptr<ngraph::Node> secondaryInput;
-        if (secondType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (secondType == ov::helpers::InputLayerType::PARAMETER) {
             auto param = std::make_shared<ov::op::v0::Parameter>(secondInPrc, inputDynamicShapes.back());
             param->set_friendly_name("param_2");
             secondaryInput = param;
             inputs.push_back(param);
         } else {
-            secondaryInput = ngraph::builder::makeConstant(secondInPrc, {inpDesc.data[0].size()}, inpDesc.data[0]);
+            secondaryInput = ov::builder::makeConstant(secondInPrc, {inpDesc.data[0].size()}, inpDesc.data[0]);
         }
 
         std::shared_ptr<ngraph::Node> shapeOps;
@@ -216,7 +218,7 @@ inputDescription noBounds{{{-1, -1, -1, -1},
                            {std::vector<int>{1, -1, 0}, std::vector<int>{-1, 60, 2}, std::vector<int>{10, 30, 10}, std::vector<int>{5, 10, -1}}};
 
 const auto params = ::testing::Combine(::testing::Values(noBounds),
-                                       ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                       ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                        ::testing::Values(shapeNodeType::Reshape),
                                        ::testing::Values(Precision::FP32),
                                        ::testing::ValuesIn(secondInPrcs),
@@ -229,7 +231,7 @@ inputDescription noBounds_const{{{{1, 10}, {2, 6}, {1, 15}, {3, 11}},
                                  {std::vector<int>{2, -1, 0}}};
 
 const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
-                                             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                             ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                              ::testing::Values(shapeNodeType::Reshape),
                                              ::testing::Values(Precision::FP32),
                                              ::testing::ValuesIn(secondInPrcs),
@@ -242,7 +244,7 @@ inputDescription shape_dynBatch{{{{1, 10}, 5, 7, 3},
                                  {std::vector<int>{-1, 15, 7}}};
 
 const auto params_dynBatch = ::testing::Combine(::testing::Values(shape_dynBatch),
-                                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                 ::testing::Values(shapeNodeType::Reshape),
                                                 ::testing::Values(Precision::FP32),
                                                 ::testing::ValuesIn(secondInPrcs),
@@ -258,7 +260,7 @@ inputDescription shape_NonZero{{{-1, -1, -1, -1},
                                  {std::vector<int>{-1, 0, 4}, std::vector<int>{0, 0, -1}, std::vector<int>{2, 0, 2}}};
 
 const auto params_NonZero = ::testing::Combine(::testing::Values(shape_NonZero),
-                                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                                ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                 ::testing::Values(shapeNodeType::ReshapeWithNonZero),
                                                 ::testing::Values(Precision::FP32),
                                                 ::testing::ValuesIn(secondInPrcs),
@@ -272,7 +274,7 @@ inputDescription shape_EmptyTensor{{{-1, 2, 2},
                                  {std::vector<int>{0, 4}, std::vector<int>{2, 4}}};
 
 const auto params_EmptyTensor = ::testing::Combine(::testing::Values(shape_EmptyTensor),
-                                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                                ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                 ::testing::Values(shapeNodeType::Reshape),
                                                 ::testing::Values(Precision::FP32),
                                                 ::testing::ValuesIn(secondInPrcs),
@@ -294,7 +296,7 @@ inputDescription noBounds{{{-1, -1, -1, -1, -1, -1},
                            {std::vector<int>{2, 5}, std::vector<int>{1, 2}, std::vector<int>{4, 5}, std::vector<int>{0, 1}}};
 
 const auto params = ::testing::Combine(::testing::Values(noBounds),
-                                       ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                       ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                        ::testing::Values(shapeNodeType::Squeeze),
                                        ::testing::Values(Precision::FP32),
                                        ::testing::ValuesIn(secondInPrcs),
@@ -309,7 +311,7 @@ inputDescription noBounds_const{{{{1, 10}, {1, 15}, {2, 6}, {1, 15}, {3, 11}, {1
                                  {std::vector<int>{1, 5}}};
 
 const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
-                                             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                             ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                              ::testing::Values(shapeNodeType::Squeeze),
                                              ::testing::Values(Precision::FP32),
                                              ::testing::ValuesIn(secondInPrcs),
@@ -326,7 +328,7 @@ inputDescription noBounds{{{-1, -1, -1, -1},
                            {std::vector<int>{2, 5}, std::vector<int>{1, 2}, std::vector<int>{4, 5}, std::vector<int>{0, 1}}};
 
 const auto params = ::testing::Combine(::testing::Values(noBounds),
-                                       ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                       ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                        ::testing::Values(shapeNodeType::Unsqueeze),
                                        ::testing::Values(Precision::FP32),
                                        ::testing::ValuesIn(secondInPrcs),
@@ -341,7 +343,7 @@ inputDescription noBounds_const{{{{1, 10}, {1, 15}, {2, 20}, {3, 7}},
                                  {std::vector<int>{1, 3}}};
 
 const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
-                                             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                             ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                              ::testing::Values(shapeNodeType::Unsqueeze),
                                              ::testing::Values(Precision::FP32),
                                              ::testing::ValuesIn(secondInPrcs),

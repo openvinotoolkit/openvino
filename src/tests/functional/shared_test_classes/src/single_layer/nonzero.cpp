@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/single_layer/nonzero.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 

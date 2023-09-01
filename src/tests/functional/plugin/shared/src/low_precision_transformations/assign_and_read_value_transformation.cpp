@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/assign_and_read_value_function.hpp"
+#include "lpt_ov_models/assign_and_read_value_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -17,7 +17,7 @@ std::string AssignAndReadValueTransformation::getTestCaseName(const testing::Tes
     ngraph::PartialShape inputShape;
     size_t opset;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     AssignAndReadValueTransformationParam param;;
     std::tie(netPrecision, inputShape, opset, targetDevice, params, param) = obj.param;
 
@@ -31,11 +31,11 @@ void AssignAndReadValueTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     size_t opset;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     AssignAndReadValueTransformationParam param;
     std::tie(netPrecision, inputShape, opset, targetDevice, params, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::AssignAndReadValueFunction::getOriginal(
+    function = ov::builder::subgraph::AssignAndReadValueFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantize,

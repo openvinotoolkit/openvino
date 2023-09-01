@@ -8,7 +8,7 @@
 #include <string>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -17,7 +17,7 @@ typedef std::tuple<
         InferenceEngine::Precision,  // Input precision
         std::vector<int64_t>,  // Axes
         std::vector<int64_t>,  // Signal size
-        ngraph::helpers::DFTOpType,
+        ov::helpers::DFTOpType,
         std::string> RDFTParams;   // Device name
 
 class RDFTLayerTest : public testing::WithParamInterface<RDFTParams>, virtual public LayerTestsUtils::LayerTestsCommon {

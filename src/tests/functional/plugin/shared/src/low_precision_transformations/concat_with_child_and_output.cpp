@@ -11,8 +11,8 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/builders.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
+#include "ov_models/builders.hpp"
+#include "lpt_ov_models/concat_function.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -24,7 +24,7 @@ std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testin
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithChildAndOutputTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = obj.param;
 
     std::ostringstream result;
@@ -49,10 +49,10 @@ void ConcatWithChildAndOutputTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     ConcatWithChildAndOutputTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
 }
 

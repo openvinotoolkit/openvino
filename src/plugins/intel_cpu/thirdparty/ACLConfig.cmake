@@ -74,7 +74,7 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
 
     ov_build_compute_library()
 
-    # Helpers for oneDNN intergation
+    # helpers for oneDNN intergation
 
     set(ACL_FOUND ON)
     set(ACL_LIBRARIES arm_compute_core ArmCompute::Half)

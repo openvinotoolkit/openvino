@@ -15,29 +15,29 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/squeeze_function.hpp"
+#include "lpt_ov_models/squeeze_function.hpp"
 
 namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
 
-using ngraph::builder::subgraph::SqueezeFunction;
+using ov::builder::subgraph::SqueezeFunction;
 
 class SqueezeTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     ov::PartialShape inputShape;
@@ -52,7 +52,7 @@ public:
     void SetUp() override {
         const SqueezeTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::SqueezeFunction::getOriginal(
             testValues.inputShape,
             testValues.axes,
             testValues.actual.precisionBeforeDequantization,
@@ -63,7 +63,7 @@ public:
 
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::SqueezeFunction::getReference(
+        referenceFunction = ov::builder::subgraph::SqueezeFunction::getReference(
             testValues.inputShape,
             testValues.axes,
             testValues.expected.precisionBeforeDequantization,

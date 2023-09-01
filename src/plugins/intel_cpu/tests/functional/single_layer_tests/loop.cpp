@@ -4,13 +4,15 @@
 
 #include <shared_test_classes/single_layer/loop.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 using namespace InferenceEngine;
 using namespace ov;
 using namespace test;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 
 namespace CPULayerTestsDefinitions {
 
@@ -209,7 +211,7 @@ protected:
         // Alternative - eltwise instead of pad
         // const std::vector<int64_t> begin(inputDynamicShapes[0].rank().get_length(), 1);
         // const std::vector<int64_t> end(inputDynamicShapes[0].rank().get_length(), 0);
-        // auto node = ngraph::builder::makePad(body_params[1], begin, end, .0f, PadMode::CONSTANT);
+        // auto node = ov::builder::makePad(body_params[1], begin, end, .0f, PadMode::CONSTANT);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{less, exec_idx, node}, body_params);
 
@@ -279,8 +281,8 @@ protected:
 
         // Body
         const auto axis = 1;
-        auto s = ngraph::builder::makeSlice(body_params[0], {0}, {1}, {1}, {axis}, inType);
-        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
+        auto s = ov::builder::makeSlice(body_params[0], {0}, {1}, {1}, {axis}, inType);
+        auto constant = ov::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
         auto eltwise = std::make_shared<ov::op::v1::Add>(body_params[0], constant);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, s, eltwise}, body_params);
@@ -349,9 +351,9 @@ protected:
         }
 
         // Body
-        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{10});
+        auto constant = ov::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{10});
         auto add = std::make_shared<ngraph::opset5::Add>(body_params[0], constant);
-        auto concat = ngraph::builder::makeConcat({body_params[1], add}, 0);
+        auto concat = ov::builder::makeConcat({body_params[1], add}, 0);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, concat}, body_params);
 

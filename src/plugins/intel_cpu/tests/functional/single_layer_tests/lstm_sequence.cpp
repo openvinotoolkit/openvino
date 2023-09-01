@@ -4,7 +4,7 @@
 
 #include <cstdlib>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -16,7 +16,7 @@ namespace CPULayerTestsDefinitions {
 
 using LSTMSequenceCpuSpecificParams = typename std::tuple<
         std::vector<InputShape>,                // Shapes
-        ngraph::helpers::SequenceTestsMode,     // Pure Sequence or TensorIterator
+        ov::helpers::SequenceTestsMode,     // Pure Sequence or TensorIterator
         std::vector<std::string>,               // Activations
         float,                                  // Clip
         ngraph::op::RecurrentSequenceDirection, // Direction
@@ -30,7 +30,7 @@ class LSTMSequenceCPUTest : public testing::WithParamInterface<LSTMSequenceCpuSp
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceCpuSpecificParams> &obj) {
         std::vector<InputShape> inputShapes;
-        ngraph::helpers::SequenceTestsMode seqMode;
+        ov::helpers::SequenceTestsMode seqMode;
         std::vector<std::string> activations;
         float clip;
         ov::op::RecurrentSequenceDirection direction;
@@ -73,7 +73,7 @@ public:
 protected:
     void SetUp() override {
         std::vector<InputShape> inputShapes;
-        ngraph::helpers::SequenceTestsMode seqMode;
+        ov::helpers::SequenceTestsMode seqMode;
         std::vector<std::string> activations;
         float clip;
         ov::op::RecurrentSequenceDirection direction;
@@ -122,8 +122,8 @@ protected:
             1lu;
         if (inputDynamicShapes.size() > 3) {
             if (!inputDynamicShapes[3].is_dynamic() &&
-                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM &&
-                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
+                    seqMode != ov::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM &&
+                    seqMode != ov::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
                 params.pop_back();
             } else {
                 params[3]->set_element_type(ElementType::i64);
@@ -132,7 +132,7 @@ protected:
 
         std::vector<ov::Shape> WRB = {{numDirections, 4 * hiddenSize, inputSize}, {numDirections, 4 * hiddenSize, hiddenSize},
                 {numDirections, 4 * hiddenSize}, {batchSize}};
-        auto lstmSequenceOp = ngraph::builder::makeLSTM(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+        auto lstmSequenceOp = ov::builder::makeLSTM(ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes(params)),
                                                         WRB,
                                                         hiddenSize,
                                                         activations,
@@ -146,16 +146,16 @@ protected:
 
         function = makeNgraphFunction(netPrecision, params, lstmSequenceOp, "lstmSequenceOp");
 
-        if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
+        if (seqMode != ov::helpers::SequenceTestsMode::PURE_SEQ) {
             ov::pass::Manager manager;
             if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();
             manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.run_passes(function);
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);
         } else {
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
     }
@@ -192,7 +192,7 @@ CPUSpecificParams cpuParams{{ntc, tnc, tnc}, {ntc, tnc, tnc}, {"ref_any"}, "ref_
 // CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc, ntc}, {tnc, ntc, ntc}, {"ref_any"}, "ref_any"};
 CPUSpecificParams cpuParamsBatchSizeOne{{tnc, tnc, tnc}, {tnc, tnc, tnc}, {"ref_any"}, "ref_any"};
 
-std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
+std::vector<ov::helpers::SequenceTestsMode> mode{ov::helpers::SequenceTestsMode::PURE_SEQ};
 // oneDNN supports only sigmoid-tanh-tanh
 std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh", "tanh"}};
 // oneDNN supports only zero clip
@@ -341,7 +341,7 @@ namespace dynamicShapesBatchSwitch {
   const int seq_length = 1;
   const int hidden_size = 1024;
   const int num_directions = 1;
-  const ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ;
+  const ov::helpers::SequenceTestsMode mode = ov::helpers::SequenceTestsMode::PURE_SEQ;
   CPUSpecificParams cpuParams{{ntc, tnc, tnc}, {ntc, tnc, tnc}, {"ref_any"}, "ref_any"};
 
   const std::vector<InputShape> shapes = {

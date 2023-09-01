@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/minimum_maximum.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
     std::string MaxMinLayerTest::getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple> &obj) {
@@ -11,8 +12,8 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision inPrc, outPrc;
         InferenceEngine::Layout inLayout, outLayout;
         std::string targetName;
-        ngraph::helpers::InputLayerType inputType;
-        ngraph::helpers::MinMaxOpType opType;
+        ov::helpers::InputLayerType inputType;
+        ov::helpers::MinMaxOpType opType;
         std::tie(inputShapes, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, inputType, targetName) = obj.param;
         std::ostringstream results;
 
@@ -31,20 +32,20 @@ namespace LayerTestsDefinitions {
     void MaxMinLayerTest::SetUp() {
         std::vector<std::vector<size_t>> inputShapes;
         InferenceEngine::Precision netPrecision;
-        ngraph::helpers::InputLayerType inputType;
-        ngraph::helpers::MinMaxOpType opType;
+        ov::helpers::InputLayerType inputType;
+        ov::helpers::MinMaxOpType opType;
         std::tie(inputShapes, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, inputType, targetDevice) = this->GetParam();
         if (inputShapes.size() != 2) {
             IE_THROW() << "Unsupported inputs number for Minimum/Maximum operaton";
         }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
-        auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, inputType, {inputShapes[1]});
-        if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        auto secondaryInput = ov::builder::makeInputLayer(ngPrc, inputType, {inputShapes[1]});
+        if (inputType == ov::helpers::InputLayerType::PARAMETER) {
             input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
         }
 
-        auto op = ngraph::builder::makeMinMax(input[0], secondaryInput, opType);
+        auto op = ov::builder::makeMinMax(input[0], secondaryInput, opType);
         function = std::make_shared<ngraph::Function>(op, input, "MinMax");
     }
 } // namespace LayerTestsDefinitions

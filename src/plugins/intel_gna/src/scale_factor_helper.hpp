@@ -15,7 +15,7 @@ namespace intel_gna {
 struct Config;
 
 /**
- * @namespace helpers contains helpers tools for gna plugin.
+ * @namespace ov::helpers contains ov::helpers tools for gna plugin.
  */
 namespace helpers {
 

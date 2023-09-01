@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/scaleshift.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string ScaleShiftLayerTest::getTestCaseName(const testing::TestParamInfo<ScaleShiftParamsTuple> &obj) {

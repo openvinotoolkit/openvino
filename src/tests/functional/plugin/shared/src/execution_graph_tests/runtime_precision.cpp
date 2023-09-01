@@ -20,6 +20,8 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "execution_graph_tests/runtime_precision.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace ExecutionGraphTests {
 
@@ -28,11 +30,11 @@ std::shared_ptr<ngraph::Function> makeEltwiseFunction(const std::vector<Inferenc
 
     ov::ParameterVector inputs{
         std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), ov::Shape{1, 16, 5, 4})};
-    auto secondaryInput = ngraph::builder::makeInputLayer(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[1]),
-            ngraph::helpers::InputLayerType::PARAMETER, {{1, 16, 5, 4}});
+    auto secondaryInput = ov::builder::makeInputLayer(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[1]),
+            ov::helpers::InputLayerType::PARAMETER, {{1, 16, 5, 4}});
     inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
 
-    auto eltwise = ngraph::builder::makeEltwise(inputs[0], secondaryInput, ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise = ov::builder::makeEltwise(inputs[0], secondaryInput, ov::helpers::EltwiseTypes::ADD);
     eltwise->set_friendly_name("Eltwise");
 
     auto function = std::make_shared<ngraph::Function>(eltwise, inputs, "EltwiseWithTwoDynamicInputs");
@@ -44,10 +46,10 @@ std::shared_ptr<ngraph::Function> makeFakeQuantizeReluFunction(const std::vector
 
     ov::ParameterVector inputs{
         std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), ov::Shape{1, 16, 5, 4})};
-    auto inputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
-    auto inputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {255});
-    auto outputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
-    auto outputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {255});
+    auto inputLowNode = ov::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
+    auto inputHighNode = ov::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {255});
+    auto outputLowNode = ov::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
+    auto outputHighNode = ov::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {255});
     auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 256);
     fakeQuantize->set_friendly_name("FakeQuantize");
 
@@ -63,14 +65,14 @@ std::shared_ptr<ngraph::Function> makeFakeQuantizeBinaryConvolutionFunction(cons
 
     ov::ParameterVector inputs{
         std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), ov::Shape{1, 16, 5, 4})};
-    auto inputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
-    auto inputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
-    auto outputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
-    auto outputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
+    auto inputLowNode = ov::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
+    auto inputHighNode = ov::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
+    auto outputLowNode = ov::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
+    auto outputHighNode = ov::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
     auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 2);
     fakeQuantize->set_friendly_name("FakeQuantize");
 
-    auto binConv = ngraph::builder::makeBinaryConvolution(fakeQuantize, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT, 32, 0);
+    auto binConv = ov::builder::makeBinaryConvolution(fakeQuantize, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT, 32, 0);
     binConv->set_friendly_name("BinaryConvolution");
 
     auto function = std::make_shared<ngraph::Function>(binConv, inputs, "FakeQuantizeBinaryConvolution");

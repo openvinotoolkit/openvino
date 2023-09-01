@@ -3,6 +3,10 @@
 //
 
 #include "shared_test_classes/single_layer/gather.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset7.hpp"
+#include "ngraph/opsets/opset8.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -16,7 +20,7 @@ void GatherLayerTestBase::SetUp(const gatherParamsTuple& params) {
     ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size()) << "Indices vector size and provided indices shape doesn't fit each other";
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector functionParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
     auto indicesNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape(indicesShape), indices);
     auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
     auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
@@ -84,8 +88,8 @@ void Gather7LayerTest::SetUp() {
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector functionParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
-    auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
+    auto indicesNode = ov::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
                                                           inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1, 0);
     auto axisNode = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
     auto gather = std::make_shared<ngraph::opset7::Gather>(paramOuts[0], indicesNode, axisNode, batchIdx);
@@ -126,8 +130,8 @@ void Gather8LayerTest::SetUp() {
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector functionParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
-    auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
+    auto indicesNode = ov::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
                                                           inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1,
                                                           -static_cast<int>(inputShape[axis < 0 ? axis + inputShape.size() : axis]));
     auto axisNode = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
@@ -169,7 +173,7 @@ void Gather8IndiceScalarLayerTest::SetUp() {
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector functionParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
     auto indicesNode = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {inputShape[axis] - 1})->output(0);
 
     auto axisNode = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });

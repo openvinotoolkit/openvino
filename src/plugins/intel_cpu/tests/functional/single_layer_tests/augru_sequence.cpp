@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -15,7 +15,7 @@ namespace CPULayerTestsDefinitions {
 
 using AUGRUSequenceCpuSpecificParams = typename std::tuple<
         std::vector<InputShape>,                  // Shapes
-        ngraph::helpers::SequenceTestsMode,       // Pure Sequence or TensorIterator
+        ov::helpers::SequenceTestsMode,       // Pure Sequence or TensorIterator
         std::vector<std::string>,                 // Activations
         float,                                    // Clip
         bool,                                     // Linear_before_reset
@@ -30,7 +30,7 @@ class AUGRUSequenceCPUTest : public testing::WithParamInterface<AUGRUSequenceCpu
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AUGRUSequenceCpuSpecificParams> &obj) {
         std::vector<InputShape> inputShapes;
-        ngraph::helpers::SequenceTestsMode seqMode;
+        ov::helpers::SequenceTestsMode seqMode;
         std::vector<std::string> activations;
         float clip;
         bool linearBeforeRest;
@@ -75,7 +75,7 @@ public:
 protected:
     void SetUp() override {
         std::vector<InputShape> inputShapes;
-        ngraph::helpers::SequenceTestsMode seqMode;
+        ov::helpers::SequenceTestsMode seqMode;
         std::vector<std::string> activations;
         float clip;
         bool linearBeforeReset;
@@ -123,8 +123,8 @@ protected:
             */            
         if (inputDynamicShapes.size() > 3) {
             if (!inputDynamicShapes[3].is_dynamic() &&
-                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM &&
-                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
+                    seqMode != ov::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM &&
+                    seqMode != ov::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
                 params.pop_back();
             } else {
                 params[3]->set_element_type(ElementType::i64);
@@ -133,7 +133,7 @@ protected:
 
         std::vector<ov::Shape> WRB = {{numDirections, 3 * hiddenSize, inputSize}, {numDirections, 3 * hiddenSize, hiddenSize},
                 {numDirections, (linearBeforeReset ? 4 : 3) * hiddenSize}, {batchSize}};
-        auto augruSequenceOp = ngraph::builder::makeAUGRU(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+        auto augruSequenceOp = ov::builder::makeAUGRU(ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes(params)),
                                                      WRB,
                                                      hiddenSize,
                                                      true,
@@ -142,11 +142,11 @@ protected:
 
         function = makeNgraphFunction(netPrecision, params, augruSequenceOp, "augruSequenceOp");
 
-        if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
+        if (seqMode != ov::helpers::SequenceTestsMode::PURE_SEQ) {
             // TODO: ConvertAUGRUSequenceToTensorIterator
             throw std::runtime_error("ConvertAUGRUSequenceToTensorIterator not implemented yet.");
         } else {
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
     }
@@ -182,7 +182,7 @@ std::vector<std::map<std::string, std::string>> additionalConfig
 CPUSpecificParams cpuParams{{ntc, tnc}, {ntc, tnc}, {"ref_any"}, "ref_any"};
 CPUSpecificParams cpuParamsBatchSizeOne{{tnc, tnc}, {tnc, tnc}, {"ref_any"}, "ref_any"};;
 
-std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
+std::vector<ov::helpers::SequenceTestsMode> mode{ov::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2
 std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh"}};
 // dev_api::augrucell does not support lbr so far.

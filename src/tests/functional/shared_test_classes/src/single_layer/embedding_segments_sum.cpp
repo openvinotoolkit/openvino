@@ -3,7 +3,9 @@
 //
 
 #include "shared_test_classes/single_layer/embedding_segments_sum.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -48,7 +50,7 @@ void EmbeddingSegmentsSumLayerTest::SetUp() {
     ngraph::ParameterVector params = {emb_table_node};
 
     auto embBag = std::dynamic_pointer_cast<ngraph::opset3::EmbeddingSegmentsSum>(
-            ngraph::builder::makeEmbeddingSegmentsSum(
+            ov::builder::makeEmbeddingSegmentsSum(
                 ngPrc, ngIdxPrc, emb_table_node, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingSegmentsSum");

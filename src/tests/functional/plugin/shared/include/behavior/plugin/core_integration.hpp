@@ -13,6 +13,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
@@ -907,7 +908,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 TEST(IEClassBasicTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::CNNNetwork actualCnnNetwork;
-    std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+    std::shared_ptr<ngraph::Function> actualNetwork = ov::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));

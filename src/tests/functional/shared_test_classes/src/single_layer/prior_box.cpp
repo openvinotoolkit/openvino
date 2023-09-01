@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/single_layer/prior_box.hpp"
 #include <openvino/pass/constant_folding.hpp>
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxLayerParams>& obj) {

@@ -22,7 +22,7 @@ typedef std::tuple<
         InferenceEngine::Precision,        // Input precision
         InferenceEngine::Precision,        // Output precision
         InferenceEngine::Layout,           // Input layout
-        ngraph::helpers::InputLayerType,   // Secondary input type
+        ov::helpers::InputLayerType,   // Secondary input type
         LayerTestsUtils::TargetDevice,     // Device name
         std::map<std::string, std::string> // Additional network configuration
 > MatMulLayerTestParamsSet;

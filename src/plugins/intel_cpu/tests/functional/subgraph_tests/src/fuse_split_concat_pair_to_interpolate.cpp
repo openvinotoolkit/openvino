@@ -4,7 +4,8 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 using namespace ngraph;
 using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
@@ -54,7 +55,7 @@ protected:
         size_t num_of_concat_inputs = num_splits * scale_factor;
 
         const auto param = std::make_shared<opset6::Parameter>(inputPrecision, inputShape);
-        const auto split = builder::makeSplit(param, inputPrecision, num_splits, static_cast<int64_t>(axis));
+        const auto split = ov::builder::makeSplit(param, inputPrecision, num_splits, static_cast<int64_t>(axis));
 
         ngraph::OutputVector concat_inputs_vec(num_of_concat_inputs);
         for (size_t split_output_port = 0; split_output_port < num_splits; ++split_output_port) {
@@ -63,7 +64,7 @@ protected:
             }
         }
 
-        const auto concat = builder::makeConcat(concat_inputs_vec, axis);
+        const auto concat = ov::builder::makeConcat(concat_inputs_vec, axis);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset6::Result>(concat)};
         function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{param}, "FuseSplitConcatPairToInterpolate");

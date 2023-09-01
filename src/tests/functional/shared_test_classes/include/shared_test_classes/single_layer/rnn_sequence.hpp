@@ -10,13 +10,13 @@
 #include <memory>
 #include <ngraph/op/util/attr_types.hpp>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
 using RNNSequenceParams = typename std::tuple<
-        ngraph::helpers::SequenceTestsMode,       // pure Sequence or TensorIterator
+        ov::helpers::SequenceTestsMode,       // pure Sequence or TensorIterator
         size_t,                                   // seq_lengths
         size_t,                                   // batch
         size_t,                                   // hidden size
@@ -24,7 +24,7 @@ using RNNSequenceParams = typename std::tuple<
         std::vector<std::string>,                 // activations
         float,                                    // clip
         ngraph::op::RecurrentSequenceDirection,   // direction
-        ngraph::helpers::InputLayerType,          // WRB input type (Constant or Parameter)
+        ov::helpers::InputLayerType,          // WRB input type (Constant or Parameter)
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name
 
@@ -38,7 +38,7 @@ protected:
     void GenerateInputs() override;
 
 private:
-    ngraph::helpers::SequenceTestsMode m_mode;
+    ov::helpers::SequenceTestsMode m_mode;
     int64_t m_max_seq_len = 0;
 };
 

@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -99,7 +99,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(dataPrecision, shape));
         }
         params[0]->set_friendly_name("data");
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::shared_ptr<ov::Node> uniqueNode;
         if (flattened) {
             uniqueNode = std::make_shared<ov::op::v10::Unique>(paramOuts[0], sorted);

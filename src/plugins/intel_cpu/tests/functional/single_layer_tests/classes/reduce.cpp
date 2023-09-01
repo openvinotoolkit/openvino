@@ -7,10 +7,11 @@
 #include "gtest/gtest.h"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
@@ -25,7 +26,7 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     std::vector<int> axes;
     ov::test::utils::OpType opType;
     bool keepDims;
-    ngraph::helpers::ReductionType reductionType;
+    ov::helpers::ReductionType reductionType;
     ElementType netPrecision, inPrc, outPrc;
     std::vector<InputShape> inputShapes;
 
@@ -99,7 +100,7 @@ void ReduceCPULayerTest::SetUp() {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
     }
     auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
@@ -116,7 +117,7 @@ void ReduceCPULayerTest::SetUp() {
     auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
         std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-    const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
+    const auto reduce = ov::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
 
     // hybrid layouts
     if (inFmts.size() != 0 && outFmts.size() == 0) {
@@ -149,7 +150,7 @@ void ReduceCPULayerTest::generate_inputs(const std::vector<ngraph::Shape>& targe
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
         ov::Tensor tensor;
-        if (reductionType == ngraph::helpers::ReductionType::Prod) {
+        if (reductionType == ov::helpers::ReductionType::Prod) {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                              targetInputStaticShapes[i],
                                                              10,
@@ -228,15 +229,15 @@ const std::vector<ov::test::utils::OpType>& opTypes() {
     return opTypes;
 }
 
-const std::vector<ngraph::helpers::ReductionType>& reductionTypes() {
-    static const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
-            ngraph::helpers::ReductionType::Mean,
-            ngraph::helpers::ReductionType::Max,
-            ngraph::helpers::ReductionType::Sum,
-            ngraph::helpers::ReductionType::Min,
-            ngraph::helpers::ReductionType::Prod,
-            ngraph::helpers::ReductionType::L1,
-            ngraph::helpers::ReductionType::L2,
+const std::vector<ov::helpers::ReductionType>& reductionTypes() {
+    static const std::vector<ov::helpers::ReductionType> reductionTypes = {
+            ov::helpers::ReductionType::Mean,
+            ov::helpers::ReductionType::Max,
+            ov::helpers::ReductionType::Sum,
+            ov::helpers::ReductionType::Min,
+            ov::helpers::ReductionType::Prod,
+            ov::helpers::ReductionType::L1,
+            ov::helpers::ReductionType::L2,
     };
     return reductionTypes;
 }
@@ -265,12 +266,12 @@ const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32
     return additionalConfig;
 }
 
-const std::vector<ngraph::helpers::ReductionType>& reductionTypesInt32() {
-    static const std::vector<ngraph::helpers::ReductionType> reductionTypesInt32 = {
-            ngraph::helpers::ReductionType::Sum,
-            ngraph::helpers::ReductionType::Min,
-            ngraph::helpers::ReductionType::Max,
-            ngraph::helpers::ReductionType::L1,
+const std::vector<ov::helpers::ReductionType>& reductionTypesInt32() {
+    static const std::vector<ov::helpers::ReductionType> reductionTypesInt32 = {
+            ov::helpers::ReductionType::Sum,
+            ov::helpers::ReductionType::Min,
+            ov::helpers::ReductionType::Max,
+            ov::helpers::ReductionType::L1,
     };
     return reductionTypesInt32;
 }

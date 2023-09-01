@@ -6,10 +6,10 @@
 
 #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_and_scale_shift_function.hpp"
+#include "lpt_ov_models/fuse_fake_quantize_and_scale_shift_function.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
@@ -21,7 +21,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
+const std::vector<ov::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
     { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
 // TODO: Issue 39810
 //    {

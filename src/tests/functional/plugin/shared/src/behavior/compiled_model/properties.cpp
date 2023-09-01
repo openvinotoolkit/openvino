@@ -72,7 +72,7 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
     std::tie(target_device, userConfig) = GetParam();
     compileModelProperties = userConfig.first;
     expectedDeviceName = userConfig.second;
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ov::builder::subgraph::makeConvPoolRelu();
 }
 
 TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {

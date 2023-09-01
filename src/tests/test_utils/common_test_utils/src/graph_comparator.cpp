@@ -7,7 +7,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "gtest/gtest.h"
 #include "ie_common.h"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/result.hpp"
@@ -1034,8 +1034,8 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
             cur_input_data[cur_function->get_parameters()[i]] = tensor;
         }
 
-        auto ref_outputs = ngraph::helpers::interpretFunction(ref_function, ref_input_data);
-        auto outputs = ngraph::helpers::interpretFunction(cur_function, cur_input_data);
+        auto ref_outputs = ov::helpers::interpretFunction(ref_function, ref_input_data);
+        auto outputs = ov::helpers::interpretFunction(cur_function, cur_input_data);
 
         IE_ASSERT(ref_outputs.size() == outputs.size());
 

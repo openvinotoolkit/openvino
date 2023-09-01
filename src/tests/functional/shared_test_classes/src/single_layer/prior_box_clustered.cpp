@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/prior_box_clustered.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {

@@ -4,7 +4,8 @@
 
 #include <ngraph/op/parameter.hpp>
 #include "shared_test_classes/single_layer/random_uniform.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -84,7 +85,7 @@ void RandomUniformLayerTest::SetUp() {
 
 void RandomUniformLayerTest::ConvertRefsParams() {
     // we shouldn't use default conversion from f16 to f32
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(
+    ov::tests::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(
             functionRefs);
 }
 

@@ -127,7 +127,7 @@ public:
     // Profiling utils
     void init_profile_info(const cldnn::primitive& prim);
 
-    // Graph construction helpers
+    // Graph construction ov::helpers
     std::vector<cldnn::input_info> GetInputInfo(const std::shared_ptr<ngraph::Node>& op) const;
 
     using factory_t = std::function<void(ProgramBuilder&, const std::shared_ptr<ngraph::Node>&)>;

@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/multiple_connect_split_concat.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string MultipleConnectSplitConcatTest::getTestCaseName(const testing::TestParamInfo<MultipleConnectSplitConcatParams> &obj) {
@@ -27,7 +28,7 @@ void MultipleConnectSplitConcatTest::SetUp() {
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 256})};
     auto relu_start = std::make_shared<ngraph::opset1::Relu>(params[0]);
-    auto split = ngraph::builder::makeSplit(relu_start, ngPrc, 1, 1);
+    auto split = ov::builder::makeSplit(relu_start, ngPrc, 1, 1);
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), split->output(0)}, 1);
     auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), split->output(0)},
                                                              1);

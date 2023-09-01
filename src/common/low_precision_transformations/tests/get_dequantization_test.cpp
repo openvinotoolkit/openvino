@@ -11,8 +11,8 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/get_dequantization_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/get_dequantization_function.hpp"
 
 namespace {
 using namespace testing;
@@ -36,13 +36,13 @@ public:
         size_t mulDataInput;
         std::tie(isConvert, isSubtract, subDataInput, mulDataInput) = this->GetParam();
 
-        actualFunction = ngraph::builder::subgraph::GetDequantizationFunction::getOriginal(isConvert,
+        actualFunction = ov::builder::subgraph::GetDequantizationFunction::getOriginal(isConvert,
                                                                                            isSubtract,
                                                                                            subDataInput,
                                                                                            mulDataInput);
         auto dequantization =
             ov::pass::low_precision::NetworkHelper::getDequantization(actualFunction->get_result());
-        referenceFunction = ngraph::builder::subgraph::GetDequantizationFunction::getReference(dequantization);
+        referenceFunction = ov::builder::subgraph::GetDequantizationFunction::getReference(dequantization);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GetDequantizationTestValues> obj) {

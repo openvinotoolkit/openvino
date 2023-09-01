@@ -5,7 +5,9 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -72,8 +74,8 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
     auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
 
     auto reshape1_shape = reshape1->output(0).get_shape();
-    auto H_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true, weights_range.second, weights_range.first);
-    auto C_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true, weights_range.second, weights_range.first);
+    auto H_init = ov::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true, weights_range.second, weights_range.first);
+    auto C_init = ov::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true, weights_range.second, weights_range.first);
     if (hidden_memory_init_out != nullptr) {
         *hidden_memory_init_out = std::static_pointer_cast<ngraph::opset1::Constant>(H_init)->cast_vector<float>();
     }
@@ -86,8 +88,8 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
     C_t->set_friendly_name("cell_state_1");
     //Body
     auto X = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, 1, reshape1_shape[2] });
-    auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, reshape1_shape[2] }, {}, true, weights_range.second, weights_range.first);
-    auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, {}, true, weights_range.second,
+    auto weightsNode = ov::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, reshape1_shape[2] }, {}, true, weights_range.second, weights_range.first);
+    auto reccurrenceWeightsNode = ov::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, {}, true, weights_range.second,
                                                                        weights_range.first);
 
     //lstm [1, 10], [1, 118], [1, 118] -> [1, 118], [1, 118]
@@ -115,7 +117,7 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
     auto out0 = tensor_iterator->get_iter_value(H_o, -1);
 
     const size_t output_size = 12;
-    auto fc1 = ngraph::builder::makeFullyConnected(out0, ngPrc, output_size, true, { hiddenSize, output_size }, { weights_range.second }, { 0.f });
+    auto fc1 = ov::builder::makeFullyConnected(out0, ngPrc, output_size, true, { hiddenSize, output_size }, { weights_range.second }, { 0.f });
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fc1) };
     return std::make_shared<ngraph::Function>(results, params, "Basic_LSTM_S");

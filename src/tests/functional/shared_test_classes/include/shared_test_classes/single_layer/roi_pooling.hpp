@@ -9,8 +9,8 @@
 #include <vector>
 #include <memory>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
@@ -21,7 +21,7 @@ using roiPoolingParamsTuple = std::tuple<
         InferenceEngine::SizeVector,                // Coords shape
         std::vector<size_t>,                        // Pooled shape {pooled_h, pooled_w}
         float,                                      // Spatial scale
-        ngraph::helpers::ROIPoolingTypes,           // ROIPooling method
+        ov::helpers::ROIPoolingTypes,           // ROIPooling method
         InferenceEngine::Precision,                 // Net precision
         LayerTestsUtils::TargetDevice>;             // Device name
 
@@ -35,7 +35,7 @@ protected:
     void SetUp() override;
 
 private:
-    ngraph::helpers::ROIPoolingTypes pool_method;
+    ov::helpers::ROIPoolingTypes pool_method;
     float spatial_scale;
 };
 

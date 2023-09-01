@@ -13,7 +13,7 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <low_precision/weightable_layer_transformation.hpp>
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "lpt_ov_models/convolution_function.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -23,9 +23,9 @@ class IsAsymmetricOnWeightsFakeQuantizeTestValues {
 public:
     TestTransformationParams params;
     ov::element::Type precisionBeforeDequantization;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
     std::shared_ptr<ov::op::v0::Constant> weights;
-    ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 typedef std::tuple<
@@ -44,7 +44,7 @@ public:
         auto testValues = std::get<2>(GetParam());
         std::pair<std::vector<bool>, bool> transposeAndIsAsymmetricOnWeights = std::get<3>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::ConvolutionFunction::getOriginal(
             netPrecision,
             testValues.precisionBeforeDequantization,
             inputShape,

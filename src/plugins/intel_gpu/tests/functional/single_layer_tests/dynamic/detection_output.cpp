@@ -5,9 +5,10 @@
 #include "shared_test_classes/single_layer/detection_output.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -199,7 +200,7 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
         if (attrs.num_classes == -1) {
             std::shared_ptr<ov::op::v8::DetectionOutput> detOut;
@@ -214,7 +215,7 @@ protected:
             ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
             function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
         } else {
-            auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
+            auto detOut = ov::builder::makeDetectionOutput(paramOuts, attrs);
             ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
             function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
         }

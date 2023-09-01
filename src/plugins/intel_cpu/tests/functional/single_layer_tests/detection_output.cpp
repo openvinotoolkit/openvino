@@ -4,10 +4,11 @@
 
 #include "shared_test_classes/single_layer/detection_output.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -203,8 +204,8 @@ public:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-        auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        auto detOut = ov::builder::makeDetectionOutput(paramOuts, attrs);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
         function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
     }

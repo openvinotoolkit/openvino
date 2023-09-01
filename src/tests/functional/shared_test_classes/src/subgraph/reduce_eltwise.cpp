@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/reduce_eltwise.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<ReduceEltwiseParamsTuple> &obj) {
@@ -34,8 +35,8 @@ void ReduceEltwiseTest::SetUp() {
     std::tie(inputShape, axes, opType, keepDims, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
@@ -59,8 +60,8 @@ void ReduceEltwiseTest::SetUp() {
     std::vector<size_t> constShape(reduce.get()->get_output_partial_shape(0).rank().get_length(), 1);
     ASSERT_GT(constShape.size(), 2);
     constShape[2] = inputShape.back();
-    auto constant = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
-    auto eltw = ngraph::builder::makeEltwise(reduce, constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto constant = ov::builder::makeConstant<float>(ngPrc, constShape, {}, true);
+    auto eltw = ov::builder::makeEltwise(reduce, constant, ov::helpers::EltwiseTypes::MULTIPLY);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltw)};
     function = std::make_shared<ngraph::Function>(results, params, "ReduceEltwise");
 }

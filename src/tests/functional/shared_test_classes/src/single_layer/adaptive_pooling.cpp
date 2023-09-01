@@ -4,7 +4,7 @@
 
 #include <ngraph/opsets/opset8.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/adaptive_pooling.hpp"
 
 using namespace InferenceEngine;
@@ -42,7 +42,7 @@ void AdaPoolLayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     ngraph::Shape pooledShape = {pooledSpatialShape.size() };
-    auto pooledParam = ngraph::builder::makeConstant<int32_t>(ngraph::element::i32, pooledShape, pooledSpatialShape);
+    auto pooledParam = ov::builder::makeConstant<int32_t>(ngraph::element::i32, pooledShape, pooledSpatialShape);
 
     // we cannot create abstract Op to use polymorphism
     auto adapoolMax = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);

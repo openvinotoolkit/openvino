@@ -8,17 +8,17 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 
 class MultiplyTestValues {
 public:
     bool broadcast1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
     bool broadcast2;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
     ngraph::element::Type expectedPrecisions;
     bool secondInputIsConstant;
 };

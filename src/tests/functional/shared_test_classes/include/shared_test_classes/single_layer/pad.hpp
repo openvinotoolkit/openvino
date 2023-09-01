@@ -10,14 +10,14 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 typedef std::tuple<
         std::vector<int64_t>,          // padsBegin
         std::vector<int64_t>,          // padsEnd
         float,                         // argPadValue
-        ngraph::helpers::PadMode,      // padMode
+        ov::helpers::PadMode,      // padMode
         InferenceEngine::Precision,    // Net precision
         InferenceEngine::Precision,    // Input precision
         InferenceEngine::Precision,    // Output precision

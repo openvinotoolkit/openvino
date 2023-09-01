@@ -10,12 +10,12 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
-                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
-                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
-                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM,
-                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST,
-                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ};
+    std::vector<ov::helpers::SequenceTestsMode> mode{ov::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
+                                                         ov::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
+                                                         ov::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
+                                                         ov::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM,
+                                                         ov::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST,
+                                                         ov::helpers::SequenceTestsMode::PURE_SEQ};
     // output values increase rapidly without clip, so use only seq_lengths = 2
     std::vector<size_t> seq_lengths_zero_clip{2};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
@@ -45,14 +45,14 @@ namespace {
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction),
-                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                    ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             GRUSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClipNonConstantWRB, GRUSequenceTest,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::helpers::SequenceTestsMode::PURE_SEQ),
+                                    ::testing::Values(ov::helpers::SequenceTestsMode::PURE_SEQ),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
                                     ::testing::ValuesIn(batch),
                                     ::testing::ValuesIn(hidden_size),
@@ -61,7 +61,7 @@ namespace {
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction),
-                                    ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                    ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             GRUSequenceTest::getTestCaseName);
@@ -77,7 +77,7 @@ namespace {
                                     ::testing::ValuesIn(clip_non_zeros),
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction),
-                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                    ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             GRUSequenceTest::getTestCaseName);

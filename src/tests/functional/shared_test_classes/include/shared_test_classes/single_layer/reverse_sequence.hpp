@@ -10,8 +10,8 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -20,7 +20,7 @@ using ReverseSequenceParamsTuple = typename std::tuple<
         int64_t,                           // Index of the sequence dimension
         std::vector<size_t>,               // Input shapes
         std::vector<size_t>,               // Shape of the input vector with sequence lengths to be reversed
-        ngraph::helpers::InputLayerType,   // Secondary input type
+        ov::helpers::InputLayerType,   // Secondary input type
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name
 

@@ -24,7 +24,7 @@ const std::vector<ngraph::op::RoundingType> roundingTypes = {ngraph::op::Roundin
 ////* ========== Max Polling ========== */
 /* +========== Explicit Pad Floor Rounding ========== */
 const auto maxPool_ExplicitPad_FloorRounding_Params =
-    ::testing::Combine(::testing::Values(ngraph::helpers::PoolingTypes::MAX),
+    ::testing::Combine(::testing::Values(ov::helpers::PoolingTypes::MAX),
                        ::testing::ValuesIn(kernels),
                        ::testing::ValuesIn(strides),
                        ::testing::ValuesIn(padBegins),
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MaxPool_ExplicitPad_FloorRpunding,
 
 /* ========== Explicit Pad Ceil Rounding ========== */
 const auto maxPool_ExplicitPad_CeilRounding_Params =
-    ::testing::Combine(::testing::Values(ngraph::helpers::PoolingTypes::MAX),
+    ::testing::Combine(::testing::Values(ov::helpers::PoolingTypes::MAX),
                        ::testing::ValuesIn(kernels),
                        // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out
                        // of bounds at axis 3" thrown in the test body.
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MaxPool_ExplicitPad_CeilRpunding,
 ////* ========== Avg Pooling ========== */
 /* +========== Explicit Pad Ceil Rounding ========== */
 const auto avgPoolExplicitPadCeilRoundingParams =
-    ::testing::Combine(::testing::Values(ngraph::helpers::PoolingTypes::AVG),
+    ::testing::Combine(::testing::Values(ov::helpers::PoolingTypes::AVG),
                        ::testing::ValuesIn(kernels),
                        // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out
                        // of bounds at axis 3" thrown in the test body.
@@ -101,7 +101,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AvgPool_ExplicitPad_CeilRounding,
                          PoolingLayerTest::getTestCaseName);
 /* +========== Explicit Pad Floor Rounding ========== */
 const auto avgPoolExplicitPadFloorRoundingParams =
-    ::testing::Combine(::testing::Values(ngraph::helpers::PoolingTypes::AVG),
+    ::testing::Combine(::testing::Values(ov::helpers::PoolingTypes::AVG),
                        ::testing::ValuesIn(kernels),
                        ::testing::ValuesIn(strides),
                        // TODO: Non zero pads excluded because of accuracy mismatch
@@ -127,7 +127,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AvgPool_ExplicitPad_FloorRounding,
 ////* ========== Avg and Max Polling Cases ========== */
 /*    ========== Valid Pad Rounding Not Applicable ========== */
 const auto allPools_ValidPad_Params = ::testing::Combine(
-    ::testing::Values(ngraph::helpers::PoolingTypes::MAX, ngraph::helpers::PoolingTypes::AVG),
+    ::testing::Values(ov::helpers::PoolingTypes::MAX, ov::helpers::PoolingTypes::AVG),
     ::testing::ValuesIn(kernels),
     ::testing::ValuesIn(strides),
     ::testing::Values(std::vector<size_t>({0, 0})),

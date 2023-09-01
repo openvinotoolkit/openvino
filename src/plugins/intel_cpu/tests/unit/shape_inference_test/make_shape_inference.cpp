@@ -8,10 +8,12 @@
 #include <openvino/op/parameter.hpp>
 #include <shape_inference/shape_inference.hpp>
 #include <shape_inference/static_shape.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <thread>
 #include <atomic>
 #include <ov_ops/type_relaxed.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -24,7 +26,7 @@ TEST(StaticShapeInferenceTest, MakeShapeInference) {
     auto inp2 = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{-1, -1, -1, -1});
 
     auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<ngraph::opset3::MatMul>>(
-            *as_type_ptr<ngraph::opset3::MatMul>(ngraph::builder::makeMatMul(inp1_f32, inp2_f32, false, false)),
+            *as_type_ptr<ngraph::opset3::MatMul>(ov::builder::makeMatMul(inp1_f32, inp2_f32, false, false)),
             element::f32);
 
     auto matMul = matMulRelaxed->clone_with_new_inputs({inp1, inp2});

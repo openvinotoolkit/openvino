@@ -13,9 +13,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
-#include "lpt_ngraph_functions/group_convolution_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
+#include "lpt_ov_models/group_convolution_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -27,21 +27,21 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
         ov::element::Type precisionAfterDequantization;
     };
 
@@ -66,7 +66,7 @@ public:
         const GroupConvolutionTestValues testValues = std::get<1>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::GroupConvolutionFunction::get(testValues.actual.precisionBeforeDequantization,
+            ov::builder::subgraph::GroupConvolutionFunction::get(testValues.actual.precisionBeforeDequantization,
                                                                      inputShape,
                                                                      outputShape,
                                                                      testValues.group,
@@ -92,7 +92,7 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::GroupConvolutionFunction::get(testValues.expected.precisionBeforeDequantization,
+            ov::builder::subgraph::GroupConvolutionFunction::get(testValues.expected.precisionBeforeDequantization,
                                                                      inputShape,
                                                                      outputShape,
                                                                      testValues.group,

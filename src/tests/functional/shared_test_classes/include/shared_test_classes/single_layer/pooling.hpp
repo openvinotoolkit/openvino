@@ -9,15 +9,15 @@
 #include <vector>
 #include <memory>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-        ngraph::helpers::PoolingTypes,  // Pooling type, max or avg
+        ov::helpers::PoolingTypes,  // Pooling type, max or avg
         std::vector<size_t>,            // Kernel size
         std::vector<size_t>,            // Stride
         std::vector<size_t>,            // Pad begin

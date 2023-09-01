@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 using namespace ngraph;
 using namespace ov::test;

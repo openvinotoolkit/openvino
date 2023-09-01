@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/pad.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -12,7 +13,7 @@ std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerT
     InferenceEngine::Layout inLayout;
     InferenceEngine::SizeVector inputShapes;
     std::vector<int64_t> padsBegin, padsEnd;
-    ngraph::helpers::PadMode padMode;
+    ov::helpers::PadMode padMode;
     float argPadValue;
     std::string targetDevice;
     std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inPrc, outPrc, inLayout, inputShapes, targetDevice) =
@@ -22,7 +23,7 @@ std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerT
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
     result << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
-    if (padMode == ngraph::helpers::PadMode::CONSTANT) {
+    if (padMode == ov::helpers::PadMode::CONSTANT) {
         result << "Value=" << argPadValue << "_";
     }
     result << "PadMode=" << padMode << "_";
@@ -38,15 +39,15 @@ void PadLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
     std::vector<int64_t> padsBegin, padsEnd;
     float argPadValue;
-    ngraph::helpers::PadMode padMode;
+    ov::helpers::PadMode padMode;
     InferenceEngine::Precision netPrecision;
     std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) =
     this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-    auto pad = ngraph::builder::makePad(paramOuts[0], padsBegin, padsEnd, argPadValue, padMode);
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+    auto pad = ov::builder::makePad(paramOuts[0], padsBegin, padsEnd, argPadValue, padMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
     function = std::make_shared<ngraph::Function>(results, params, "pad");
 }

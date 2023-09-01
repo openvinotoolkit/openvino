@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/activation_concats_eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -40,17 +40,17 @@ void ActivationConcatsEltwise::SetUp() {
 
     ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
 
-    auto relu = ngraph::builder::makeActivation(input[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+    auto relu = ov::builder::makeActivation(input[0], ngPrc, ov::helpers::ActivationTypes::Relu);
 
     auto concat_vals_1 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
     auto concat_vals_2 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
-    auto concat_const_1 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_1);
-    auto concat_const_2 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_2);
+    auto concat_const_1 = ov::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_1);
+    auto concat_const_2 = ov::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_2);
 
-    auto concat_1 = ngraph::builder::makeConcat({concat_const_1, relu}, 1);
-    auto concat_2 = ngraph::builder::makeConcat({concat_const_2, relu}, 1);
+    auto concat_1 = ov::builder::makeConcat({concat_const_1, relu}, 1);
+    auto concat_2 = ov::builder::makeConcat({concat_const_2, relu}, 1);
 
-    auto eltw = ngraph::builder::makeEltwise(concat_1, concat_2, ngraph::helpers::EltwiseTypes::ADD);
+    auto eltw = ov::builder::makeEltwise(concat_1, concat_2, ov::helpers::EltwiseTypes::ADD);
 
     auto reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>({1, inputSize + concatSize}));
     auto final_reshape = std::make_shared<ngraph::op::v1::Reshape>(eltw, reshape_pattern, false);

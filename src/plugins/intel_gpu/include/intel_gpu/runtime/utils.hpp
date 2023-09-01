@@ -60,7 +60,7 @@ struct is_primitive
 
 /// @cond CPP_HELPERS
 
-/// @defgroup cpp_helpers Helpers
+/// @defgroup cpp_helpers ov::helpers
 /// @{
 
 #define CLDNN_API_CLASS(the_class) static_assert(std::is_standard_layout<the_class>::value, #the_class " has to be 'standard layout' class");
@@ -193,7 +193,7 @@ inline bool one_of(const T& val, const std::vector<T>& vec) {
     return std::any_of(vec.begin(), vec.end(), [&val](const T& v) { return v == val; });
 }
 
-// Helpers to get string for types that have operator<< defined
+// ov::helpers to get string for types that have operator<< defined
 template <typename T>
 inline std::string to_string(const T& v) {
     std::stringstream s;

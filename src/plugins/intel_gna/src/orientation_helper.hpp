@@ -16,7 +16,7 @@ namespace ov {
 namespace intel_gna {
 
 /**
- * @namespace helpers contains helpers tools for gna plugin.
+ * @namespace ov::helpers contains ov::helpers tools for gna plugin.
  */
 namespace helpers {
 

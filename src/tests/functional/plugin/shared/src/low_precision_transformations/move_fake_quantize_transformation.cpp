@@ -14,7 +14,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "lpt_ngraph_functions/move_fake_quantize_function.hpp"
+#include "lpt_ov_models/move_fake_quantize_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -22,7 +22,7 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
     ngraph::element::Type netPrecision;
     std::vector<ngraph::PartialShape> inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool oneInputWithSplit;
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, oneInputWithSplit, param) = obj.param;
@@ -39,12 +39,12 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
 void MoveFakeQuantizeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     std::vector<ngraph::PartialShape> inputShapes;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool oneInputWithSplit;
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShapes, targetDevice, params, oneInputWithSplit, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MoveFakeQuantize::get(
+    function = ov::builder::subgraph::MoveFakeQuantize::get(
         netPrecision,
         inputShapes,
         param.concatInputsCount,

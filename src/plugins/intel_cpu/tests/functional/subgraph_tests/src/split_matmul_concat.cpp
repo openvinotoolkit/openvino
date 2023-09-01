@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ngraph;
@@ -107,14 +107,14 @@ protected:
         const auto& inShapeB = inputDynamicShapes[1];
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ElementType::f32, inShapeA)};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
-        std::shared_ptr<Node> inputB = builder::makeConstant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<opset1::Parameter>(params));
+        std::shared_ptr<Node> inputB = ov::builder::makeConstant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
 
-        auto split = builder::makeVariadicSplit(paramOuts[0], {1, 1}, 0);
+        auto split = ov::builder::makeVariadicSplit(paramOuts[0], {1, 1}, 0);
 
-        auto matMul = builder::makeMatMul(split->output(0), inputB, transpA, transpB);
+        auto matMul = ov::builder::makeMatMul(split->output(0), inputB, transpA, transpB);
 
-        auto concat = builder::makeConcat({matMul, split->output(1)}, 0);
+        auto concat = ov::builder::makeConcat({matMul, split->output(1)}, 0);
 
         function = CPUTestsBase::makeNgraphFunction(ElementType::f32, params, concat, "FullyConnected");
     }

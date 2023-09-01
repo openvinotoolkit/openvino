@@ -3,8 +3,9 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 /*This test runs the following subgraph:
 
@@ -46,16 +47,16 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(precision, shape));
         }
-        auto split = ngraph::builder::makeSplit(params.front(), precision, 3, 1);
-        auto add_const = ngraph::builder::makeConstant(precision, {1}, std::vector<float>({1.0f}));
-        auto add_1 = ngraph::builder::makeEltwise(split->output(0), add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto split = ov::builder::makeSplit(params.front(), precision, 3, 1);
+        auto add_const = ov::builder::makeConstant(precision, {1}, std::vector<float>({1.0f}));
+        auto add_1 = ov::builder::makeEltwise(split->output(0), add_const, ov::helpers::EltwiseTypes::ADD);
         auto result_add_1 = std::make_shared<ngraph::opset3::Result>(add_1);
-        auto add_2 = ngraph::builder::makeEltwise(split->output(1), add_const, ngraph::helpers::EltwiseTypes::ADD);
-        auto add_3 = ngraph::builder::makeEltwise(split->output(2), add_const, ngraph::helpers::EltwiseTypes::ADD);
-        auto concat = ngraph::builder::makeConcat({add_1, add_2, add_3}, 1);
+        auto add_2 = ov::builder::makeEltwise(split->output(1), add_const, ov::helpers::EltwiseTypes::ADD);
+        auto add_3 = ov::builder::makeEltwise(split->output(2), add_const, ov::helpers::EltwiseTypes::ADD);
+        auto concat = ov::builder::makeConcat({add_1, add_2, add_3}, 1);
         auto result_concat = std::make_shared<ngraph::opset3::Result>(concat);
-        auto add_4 = ngraph::builder::makeEltwise(concat, add_const, ngraph::helpers::EltwiseTypes::ADD);
-        auto add_5 = ngraph::builder::makeEltwise(concat, add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto add_4 = ov::builder::makeEltwise(concat, add_const, ov::helpers::EltwiseTypes::ADD);
+        auto add_5 = ov::builder::makeEltwise(concat, add_const, ov::helpers::EltwiseTypes::ADD);
         auto result_1 = std::make_shared<ngraph::opset3::Result>(add_4);
         auto result_2 = std::make_shared<ngraph::opset3::Result>(add_5);
         ngraph::ResultVector results = {result_1, result_2, result_add_1, result_concat};

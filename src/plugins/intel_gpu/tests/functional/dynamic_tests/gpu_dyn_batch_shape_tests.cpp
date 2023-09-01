@@ -7,7 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ::testing;
@@ -65,8 +65,8 @@ protected:
 
         init_input_shapes(inputShape);
         //TODO: think how we can switch between several input topologies in the future
-        //  function = ngraph::builder::subgraph::makeSplitConvConcat(inputShape.front().first.get_min_shape(), netPrecision);
-        function = ngraph::builder::subgraph::makeSplitMultiConvConcat(inputShape.front().first.get_min_shape(), netPrecision);
+        //  function = ov::builder::subgraph::makeSplitConvConcat(inputShape.front().first.get_min_shape(), netPrecision);
+        function = ov::builder::subgraph::makeSplitMultiConvConcat(inputShape.front().first.get_min_shape(), netPrecision);
 
         //  make topology dynamic
         std::map<std::string, ov::PartialShape> dynShape;

@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/squeeze_unsqueeze.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 std::string SqueezeUnsqueezeLayerTest::getTestCaseName(const testing::TestParamInfo<squeezeParams>& obj) {
@@ -11,7 +12,7 @@ std::string SqueezeUnsqueezeLayerTest::getTestCaseName(const testing::TestParamI
     InferenceEngine::Layout inLayout, outLayout;
     ShapeAxesTuple shapeItem;
     std::string targetDevice;
-    ngraph::helpers::SqueezeOpType opType;
+    ov::helpers::SqueezeOpType opType;
     std::tie(shapeItem, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = obj.param;
 
     std::ostringstream result;
@@ -33,7 +34,7 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     std::vector<size_t> inputShapes;
     std::vector<int> axesVector;
     ShapeAxesTuple shapeItem;
-    ngraph::helpers::SqueezeOpType opType;
+    ov::helpers::SqueezeOpType opType;
     std::tie(shapeItem, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
     std::tie(inputShapes, axesVector) = shapeItem;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -41,10 +42,10 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
     std::shared_ptr<ngraph::Node> op;
 
-    if (axesVector.empty() && opType == ngraph::helpers::SqueezeOpType::SQUEEZE) {
+    if (axesVector.empty() && opType == ov::helpers::SqueezeOpType::SQUEEZE) {
         op = std::make_shared<ngraph::opset1::Squeeze>(params.front());
     } else {
-        op = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ngraph::element::i64, axesVector, opType);
+        op = ov::builder::makeSqueezeUnsqueeze(params.front(), ngraph::element::i64, axesVector, opType);
     }
 
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(op)};

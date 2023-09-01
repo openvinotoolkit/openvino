@@ -16,8 +16,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/mvn_function.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "lpt_ov_models/mvn_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -43,7 +43,7 @@ void MVNTransformation::SetUp() {
     bool normalizeVariance;
     std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MVNFunction::getOriginal(
+    function = ov::builder::subgraph::MVNFunction::getOriginal(
         precision,
         shape,
         reductionAxes,

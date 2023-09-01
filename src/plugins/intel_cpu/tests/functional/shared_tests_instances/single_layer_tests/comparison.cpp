@@ -27,18 +27,18 @@ std::vector<InferenceEngine::Precision> inputsPrecisions = {
         InferenceEngine::Precision::BOOL,
 };
 
-std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypes = {
-        ngraph::helpers::ComparisonTypes::EQUAL,
-        ngraph::helpers::ComparisonTypes::NOT_EQUAL,
-        ngraph::helpers::ComparisonTypes::GREATER,
-        ngraph::helpers::ComparisonTypes::GREATER_EQUAL,
-        ngraph::helpers::ComparisonTypes::LESS,
-        ngraph::helpers::ComparisonTypes::LESS_EQUAL,
+std::vector<ov::helpers::ComparisonTypes> comparisonOpTypes = {
+        ov::helpers::ComparisonTypes::EQUAL,
+        ov::helpers::ComparisonTypes::NOT_EQUAL,
+        ov::helpers::ComparisonTypes::GREATER,
+        ov::helpers::ComparisonTypes::GREATER_EQUAL,
+        ov::helpers::ComparisonTypes::LESS,
+        ov::helpers::ComparisonTypes::LESS_EQUAL,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::helpers::InputLayerType> secondInputTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
 };
 
 std::map<std::string, std::string> additional_config = {};
@@ -73,16 +73,16 @@ std::vector<InputShapesTuple> inputShapesIsOps = {
         {{2, 17, 3, 4}, {1}}
 };
 
-std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypesIs = {
-        ngraph::helpers::ComparisonTypes::IS_FINITE,
-        ngraph::helpers::ComparisonTypes::IS_NAN
+std::vector<ov::helpers::ComparisonTypes> comparisonOpTypesIs = {
+        ov::helpers::ComparisonTypes::IS_FINITE,
+        ov::helpers::ComparisonTypes::IS_NAN
 };
 
 const auto ComparisonTestParamsIs = ::testing::Combine(
         ::testing::ValuesIn(inputShapesIsOps),
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::ValuesIn(comparisonOpTypesIs),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+        ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(ov::test::utils::DEVICE_CPU),

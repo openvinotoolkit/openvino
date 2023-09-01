@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/batch_norm.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 namespace LayerTestsDefinitions {
 std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<BatchNormLayerTestParams>& obj) {
@@ -38,10 +39,10 @@ void BatchNormLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::opset4::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::opset4::Parameter>(params));
 
-    auto batchNorm = ngraph::builder::makeBatchNormInference(paramOuts[0], epsilon);
+    auto batchNorm = ov::builder::makeBatchNormInference(paramOuts[0], epsilon);
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(batchNorm)};
     function = std::make_shared<ngraph::Function>(results, params, "BatchNormInference");
 }

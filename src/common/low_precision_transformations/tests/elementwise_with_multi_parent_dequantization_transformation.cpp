@@ -18,29 +18,29 @@
 #include "simple_low_precision_transformer.hpp"
 
 #include <low_precision/add.hpp>
-#include "lpt_ngraph_functions/elementwise_with_multi_parent_dequantization_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/elementwise_with_multi_parent_dequantization_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 using namespace testing;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class ElementwiseWithMultiParentDequantizationTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type precision1;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type precision2;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
         ov::element::Type precision1;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type precision2;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     ov::element::Type precision;

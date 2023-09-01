@@ -23,12 +23,12 @@
 #include "ie_metric_helpers.hpp"
 #include "ie_remote_context.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
@@ -297,7 +297,7 @@ public:
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::Serialize>(modelName, weightsName);
-        manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu({1, 3, 227, 227}, ov::element::Type_t::f32));
+        manager.run_passes(ov::builder::subgraph::makeConvPoolRelu({1, 3, 227, 227}, ov::element::Type_t::f32));
     }
 
     void TearDown() override {

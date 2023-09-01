@@ -13,9 +13,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -76,7 +76,7 @@ protected:
                 ngraph::Shape{shape1[1], shape1[1]},
                 ov::test::utils::generate_float_numbers(shape2[1], 0.0f, maxInputValue));
         } else {
-            input2 = ngraph::builder::makeInputLayer(ngPrc, ngraph::helpers::InputLayerType::PARAMETER, shape2);
+            input2 = ngraph::builder::makeInputLayer(ngPrc, ov::helpers::InputLayerType::PARAMETER, shape2);
             params.push_back(std::dynamic_pointer_cast<ngraph::opset8::Parameter>(input2));
         }
 

@@ -6,6 +6,8 @@
 #include "behavior/infer_request/memory_states.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "blob_factory.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/sigmoid.hpp"
 
 namespace BehaviorTestsDefinitions {
 std::string InferRequestVariableStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj) {

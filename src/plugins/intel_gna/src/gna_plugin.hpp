@@ -154,7 +154,7 @@ public:
     InferenceEngine::Blob::Ptr GetInputBlob(const std::string& name, InferenceEngine::Precision precision);
     InferenceEngine::Blob::Ptr GetOutputBlob(const std::string& name, InferenceEngine::Precision precision);
     /**
-     * helpers to provide inputs info on AOT network
+     * ov::helpers to provide inputs info on AOT network
      */
     InferenceEngine::InputsDataMap GetNetworkInputs() {
         return inputs_data_map_;
@@ -165,12 +165,12 @@ public:
     std::vector<std::shared_ptr<const ov::Node>> GetOutputs();
     std::vector<std::shared_ptr<const ov::Node>> GetInputs();
     /**
-     * helpers to set inputs/output info on AOT network
+     * ov::helpers to set inputs/output info on AOT network
      */
     void SetNetworkInputs();
     void SetNetworkOutputs();
     /**
-     * helpers to update internal inputs/output descriptions from loaded network
+     * ov::helpers to update internal inputs/output descriptions from loaded network
      */
     void UpdateInputs(const std::vector<std::shared_ptr<const ov::Node>>& params);
     void UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results);

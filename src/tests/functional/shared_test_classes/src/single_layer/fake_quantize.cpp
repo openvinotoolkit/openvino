@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/fake_quantize.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -69,7 +70,7 @@ void FakeQuantizeLayerTest::SetUp() {
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     UpdateSeed();
 
@@ -81,9 +82,9 @@ void FakeQuantizeLayerTest::SetUp() {
         }
         std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
                   << "ngraphSeed = " << ngraphSeed << std::endl;
-        fakeQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape, ngraphSeed);
+        fakeQNode = ov::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape, ngraphSeed);
     } else {
-        fakeQNode = ngraph::builder::makeFakeQuantize(
+        fakeQNode = ov::builder::makeFakeQuantize(
             paramOuts[0],
             ngPrc,
             levels,

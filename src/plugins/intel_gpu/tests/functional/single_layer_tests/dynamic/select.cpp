@@ -5,8 +5,9 @@
 #include "shared_test_classes/single_layer/select.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -65,8 +66,8 @@ protected:
             std::make_shared<opset1::Parameter>(netType, inputDynamicShapes[2]),
         };
 
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
-        auto select = builder::makeSelect(paramOuts, broadcast);
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<op::Parameter>(params));
+        auto select = ov::builder::makeSelect(paramOuts, broadcast);
 
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
             ResultVector results;

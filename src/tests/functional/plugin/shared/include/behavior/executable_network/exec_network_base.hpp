@@ -291,7 +291,7 @@ TEST_P(ExecutableNetworkBaseTest, canExport) {
 
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
-    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
+    auto referenceNetwork = ov::builder::subgraph::makeConvPoolRelu();
     compare_functions(cnnNet.getFunction(), referenceNetwork);
 }
 
@@ -302,7 +302,7 @@ protected:
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::builder::subgraph::makeConvPoolRelu();
     }
     void TearDown() override {
         if (!configuration.empty()) {

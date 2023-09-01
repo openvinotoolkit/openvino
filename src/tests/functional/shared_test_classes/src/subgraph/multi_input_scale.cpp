@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/multi_input_scale.hpp"
+#include "ngraph/opsets/opset7.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -41,10 +42,10 @@ void MultipleInputScaleTest::SetUp() {
     auto fc1_weights = ov::test::utils::generate_float_numbers(inputSize * inputSize, -0.5f, 0.5f);
     auto fc2_weights = ov::test::utils::generate_float_numbers(inputSize * inputSize, -0.2f, 0.2f);
 
-    auto fc1 = ngraph::builder::makeFullyConnected(input[0], ngPrc, inputSize, false, {inputSize, inputSize}, fc1_weights);
-    auto fc2 = ngraph::builder::makeFullyConnected(input[1], ngPrc, inputSize, false, {inputSize, inputSize}, fc2_weights);
+    auto fc1 = ov::builder::makeFullyConnected(input[0], ngPrc, inputSize, false, {inputSize, inputSize}, fc1_weights);
+    auto fc2 = ov::builder::makeFullyConnected(input[1], ngPrc, inputSize, false, {inputSize, inputSize}, fc2_weights);
 
-    auto add = ngraph::builder::makeEltwise(fc1, fc2, ngraph::helpers::EltwiseTypes::ADD);
+    auto add = ov::builder::makeEltwise(fc1, fc2, ov::helpers::EltwiseTypes::ADD);
 
     auto result = std::make_shared<ngraph::opset7::Result>(add);
     function = std::make_shared<ngraph::Function>(result, input, "multiple_input_scale");

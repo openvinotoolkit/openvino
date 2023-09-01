@@ -8,9 +8,10 @@
 #include "shared_test_classes/single_layer/prior_box_clustered.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 #include <openvino/pass/constant_folding.hpp>
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -98,15 +99,15 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset3::Parameter>(functionParams));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<opset3::Parameter>(functionParams));
 
         auto shapeOfOp1 = std::make_shared<opset3::ShapeOf>(paramOuts[0], element::i32);
         auto shapeOfOp2 = std::make_shared<opset3::ShapeOf>(paramOuts[1], element::i32);
 
 
-        auto stridedSliceOp1 = ngraph::builder::makeStridedSlice(shapeOfOp1, beginInput, endInput, strideInput, element::i32,
+        auto stridedSliceOp1 = ov::builder::makeStridedSlice(shapeOfOp1, beginInput, endInput, strideInput, element::i32,
                                                                 {0}, {1}, {0}, {0}, {0});
-        auto stridedSliceOp2 = ngraph::builder::makeStridedSlice(shapeOfOp2, beginInput, endInput, strideInput, element::i32,
+        auto stridedSliceOp2 = ov::builder::makeStridedSlice(shapeOfOp2, beginInput, endInput, strideInput, element::i32,
                                                                 {0}, {1}, {0}, {0}, {0});
 
         switch (priorboxType) {

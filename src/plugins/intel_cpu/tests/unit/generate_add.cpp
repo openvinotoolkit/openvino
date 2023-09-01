@@ -27,7 +27,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 
 using namespace testing;
 
@@ -51,8 +51,8 @@ inline auto gen_inputs(const ngraph::Shape& shape, size_t n = 2) -> std::vector<
 }
 
 inline auto compare(std::shared_ptr<ngraph::Function>& s, std::shared_ptr<ngraph::Function>& f, std::vector<std::vector<std::uint8_t>>& in) -> bool{
-    auto act = ngraph::helpers::interpreterFunction(s, in);
-    auto exp = ngraph::helpers::interpreterFunction(f, in);
+    auto act = ov::helpers::interpreterFunction(s, in);
+    auto exp = ov::helpers::interpreterFunction(f, in);
 
     const float* pexp = reinterpret_cast<float*>(&exp[0].second[0]);
     const float* pact = reinterpret_cast<float*>(&act[0].second[0]);
@@ -205,8 +205,8 @@ TEST(SnippetsTests, GenerateAddBroadcastX2Edges) {
     in1[0] = 1.f;
     in2[0] = 0.42f;
 
-    auto act = ngraph::helpers::interpreterFunction(s, referenceInputs);
-    auto exp = ngraph::helpers::interpreterFunction(f, referenceInputs);
+    auto act = ov::helpers::interpreterFunction(s, referenceInputs);
+    auto exp = ov::helpers::interpreterFunction(f, referenceInputs);
 
     const float* pexp = reinterpret_cast<float*>(&exp[0].second[0]);
     const float* pact = reinterpret_cast<float*>(&act[0].second[0]);
@@ -250,8 +250,8 @@ TEST(SnippetsTests, GenerateAddBroadcastY) {
         in1[i] = 1 - i / 2048.f;
     }
 
-    auto act = ngraph::helpers::interpreterFunction(s, referenceInputs);
-    auto exp = ngraph::helpers::interpreterFunction(f, referenceInputs);
+    auto act = ov::helpers::interpreterFunction(s, referenceInputs);
+    auto exp = ov::helpers::interpreterFunction(f, referenceInputs);
 
     const float* pexp = reinterpret_cast<float*>(&exp[0].second[0]);
     const float* pact = reinterpret_cast<float*>(&act[0].second[0]);
@@ -410,8 +410,8 @@ TEST(SnippetsTests, GenerateAddBroadcastAutomatic) {
         }
     }
 
-    auto exp = ngraph::helpers::interpreterFunction(f, referenceInputs);
-    auto act = ngraph::helpers::interpreterFunction(s, referenceInputs);
+    auto exp = ov::helpers::interpreterFunction(f, referenceInputs);
+    auto act = ov::helpers::interpreterFunction(s, referenceInputs);
 
     const float* pexp = reinterpret_cast<float*>(&exp[0].second[0]);
     const float* pact = reinterpret_cast<float*>(&act[0].second[0]);

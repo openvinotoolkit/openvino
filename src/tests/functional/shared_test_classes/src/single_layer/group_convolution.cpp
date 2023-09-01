@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/group_convolution.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -51,10 +52,10 @@ void GroupConvolutionLayerTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
-            ngraph::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
+            ov::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, numGroups));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
     function = std::make_shared<ngraph::Function>(results, params, "groupConvolution");

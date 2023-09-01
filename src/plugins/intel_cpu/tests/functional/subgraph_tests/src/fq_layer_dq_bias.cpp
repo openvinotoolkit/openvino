@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lpt_ngraph_functions/markup_bias_function.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "lpt_ov_models/markup_bias_function.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -73,7 +73,7 @@ protected:
         const auto shapes = layer_type == "MatMul" ? std::vector<InputShape>{input_shape, input_shape}
                                                    : std::vector<InputShape>{input_shape};
         init_input_shapes(shapes);
-        function = ngraph::builder::subgraph::MarkupBiasFunction::get(ov::element::f32, inputDynamicShapes[0], {}, layer_type, extra_multiply);
+        function = ov::builder::subgraph::MarkupBiasFunction::get(ov::element::f32, inputDynamicShapes[0], {}, layer_type, extra_multiply);
     }
 
     std::string node_type;

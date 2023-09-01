@@ -14,8 +14,8 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
@@ -77,37 +77,37 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
     res.push_back(ovModelWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(ovModelWithName { simple_function_relu, "SimpleFunctionRelu"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
+        inputShapeWrapper(ov::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
         "ConvPoolRelu"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcat, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeSplitConvConcat, {1, 4, 20, 20}),
         "SplitConvConcat"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
         "KSOFunction"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
         "SingleConv"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),
         "2InputSubtract"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),
         "NestedSplitConvConcat"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatInputInBranch, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeSplitConvConcatInputInBranch, {1, 4, 20, 20}),
         "SplitConvConcatInputInBranch"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeSplitConvConcatNestedInBranch, {1, 4, 20, 20}),
         "SplitConvConcatNestedInBranch"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut, {1, 4, 20, 20}),
         "SplitConvConcatNestedInBranchNestedOut"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
         "ConvBias"});
     res.push_back(ovModelWithName{
-        inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
         "MatMulBias" });
     return res;
 }
@@ -115,7 +115,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
 std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
+        inputShapeWrapper(ov::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
         "ReadConcatSplitAssign"});
     return res;
 }
@@ -123,7 +123,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions(
 std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+        return ov::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
     }, "TIwithLSTMcell1"});
     return res;
 }
@@ -293,7 +293,7 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     core->set_property(ov::cache_dir());
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
-    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
+    manager.run_passes(ov::builder::subgraph::makeConvPoolRelu(
             {1, 3, 227, 227}, InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
 }
 
@@ -376,7 +376,7 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
     core->set_property(ov::cache_dir());
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
-    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
+    manager.run_passes(ov::builder::subgraph::makeConvPoolRelu(
         {1, 3, 227, 227},
         InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
 
@@ -500,7 +500,7 @@ std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<com
 }
 
 void CompiledKernelsCacheTest::SetUp() {
-    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    function = ov::builder::subgraph::makeConvPoolRelu();
     std::pair<ov::AnyMap, std::string> userConfig;
     std::tie(targetDevice, userConfig) = GetParam();
     target_device = targetDevice;

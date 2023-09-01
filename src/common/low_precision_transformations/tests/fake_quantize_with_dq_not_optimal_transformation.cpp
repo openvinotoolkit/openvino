@@ -17,11 +17,11 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ov_models/fake_quantize_and_convolution_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/constant.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -31,13 +31,13 @@ class FakeQuantizeWithNotOptimalTransformationTestValues {
 public:
     class Values {
     public:
-        ngraph:: builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
-        ngraph:: builder::subgraph::DequantizationOperations::Convert convertOnData;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnData;
-        ngraph:: builder::subgraph::Constant constantOnWeights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
+        ov::builder::subgraph::DequantizationOperations::Convert convertOnData;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnData;
+        ov::builder::subgraph::Constant constantOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
     TestTransformationParams params;
     Values actual;
@@ -68,7 +68,7 @@ public:
 
         const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(updatePrecision);
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        actualFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             precision,
             shape,
             testValues.actual.fqOnData,
@@ -97,7 +97,7 @@ public:
         transformer.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        referenceFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             precision,
             shape,
             testValues.expected.fqOnData,

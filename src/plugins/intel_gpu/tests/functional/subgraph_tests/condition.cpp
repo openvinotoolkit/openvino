@@ -6,13 +6,17 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset9.hpp"
+#include "ngraph/opsets/opset8.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 
 using namespace InferenceEngine;
@@ -150,7 +154,7 @@ protected:
 
 
     struct poolSpecificParams {
-            ngraph::helpers::PoolingTypes   pooling_type;   // Pooling type, max or avg
+            ov::helpers::PoolingTypes   pooling_type;   // Pooling type, max or avg
             std::vector<size_t>             kernel_size;    // Kernel size
             std::vector<size_t>             stride;         // Stride
             std::vector<size_t>             pad_begin;      // Pad begin
@@ -165,7 +169,7 @@ protected:
         switch (input_shape.rank().get_length()) {
             case 5:
             {
-                params = poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX,
+                params = poolSpecificParams{ ov::helpers::PoolingTypes::MAX,
                                                     {2, 2, 2}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                                                     ngraph::op::RoundingType::CEIL,
                                                     ngraph::op::PadType::SAME_LOWER, true };
@@ -173,7 +177,7 @@ protected:
             }
             case 4:
             {
-                params = poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX,
+                params = poolSpecificParams{ ov::helpers::PoolingTypes::MAX,
                                                     {2, 2}, {2, 2}, {0, 0}, {0, 0},
                                                     ngraph::op::RoundingType::CEIL,
                                                     ngraph::op::PadType::SAME_LOWER, true };
@@ -181,7 +185,7 @@ protected:
             }
             case 3:
             {
-                params = poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX,
+                params = poolSpecificParams{ ov::helpers::PoolingTypes::MAX,
                                                     {2}, {2}, {0}, {0},
                                                     ngraph::op::RoundingType::CEIL,
                                                     ngraph::op::PadType::SAME_LOWER, true };
@@ -192,7 +196,7 @@ protected:
                 OPENVINO_ASSERT(false, "Not allowed other rank");
             }
         }
-        return ngraph::builder::makePooling(in, params.stride, params.pad_begin,
+        return ov::builder::makePooling(in, params.stride, params.pad_begin,
                                             params.pad_end, params.kernel_size, params.rounding_type,
                                             params.pad_type, params.exclued_pad, params.pooling_type);
     }
@@ -217,7 +221,7 @@ protected:
         auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-        const auto reduce = ngraph::builder::makeReduce(add, reductionAxesNode, false, ngraph::helpers::ReductionType::Min);
+        const auto reduce = ov::builder::makeReduce(add, reductionAxesNode, false, ov::helpers::ReductionType::Min);
         reduce->set_friendly_name("body5_reduce");
         auto constant_ref   = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 10.0f);
         constant_ref->set_friendly_name("body5_ref_constant");

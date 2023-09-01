@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ngraph;
-using ngraph::helpers::EltwiseTypes;
+using ov::helpers::EltwiseTypes;
 
 namespace SubgraphTestsDefinitions {
 
@@ -17,15 +17,15 @@ protected:
 
         auto ngPrc = element::f32;
         ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 3, 12, 9})};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<op::Parameter>(inputParams));
 
-        auto tile = ngraph::builder::makeTile(paramOuts[0], std::vector<int64_t>{1, 2, 1, 1});
+        auto tile = ov::builder::makeTile(paramOuts[0], std::vector<int64_t>{1, 2, 1, 1});
 
-        const auto const1 = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 6, 1, 1}, std::vector<float>{}, true);
-        const auto const2 = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 6, 1, 1}, std::vector<float>{}, true);
+        const auto const1 = ov::builder::makeConstant(ngPrc, std::vector<size_t>{1, 6, 1, 1}, std::vector<float>{}, true);
+        const auto const2 = ov::builder::makeConstant(ngPrc, std::vector<size_t>{1, 6, 1, 1}, std::vector<float>{}, true);
 
-        const auto add1 = ngraph::builder::makeEltwise(tile->output(0), const1, ngraph::helpers::EltwiseTypes::ADD);
-        const auto add2 = ngraph::builder::makeEltwise(tile->output(0), const2, ngraph::helpers::EltwiseTypes::ADD);
+        const auto add1 = ov::builder::makeEltwise(tile->output(0), const1, ov::helpers::EltwiseTypes::ADD);
+        const auto add2 = ov::builder::makeEltwise(tile->output(0), const2, ov::helpers::EltwiseTypes::ADD);
 
         NodeVector results{add1, add2};
         function = std::make_shared<ngraph::Function>(results, inputParams, "TileWithTwoOutputEdges");

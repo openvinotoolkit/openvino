@@ -3,7 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/split_conv.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -64,7 +65,7 @@ void SplitConvTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     const auto splitsNum = 2;
     const auto splitAxis = 1;
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, splitAxis);
+    auto split = ov::builder::makeSplit(params[0], ngPrc, splitsNum, splitAxis);
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(split->output(0));
 
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(split->output(1));
@@ -74,7 +75,7 @@ void SplitConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::builder::makeConvolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0]  > 1 ? stride : 1, stride},

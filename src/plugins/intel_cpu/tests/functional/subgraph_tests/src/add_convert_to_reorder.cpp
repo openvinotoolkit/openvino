@@ -4,8 +4,9 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -28,8 +29,8 @@ public:
                                     << "Indices vector size and provided indices shape doesn't fit each other";
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(
+                ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto indicesNode = ngraph::opset3::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);
         auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
         auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
@@ -39,9 +40,9 @@ public:
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
         // Convert the second input constant precision to i64 to run the reference function
         if (ngraph::element::Type_t::i8 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_model(functionRefs);
+            ov::tests::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_model(functionRefs);
         } else if (ngraph::element::Type_t::bf16 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_model(functionRefs);
+            ov::tests::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_model(functionRefs);
         }
         return LayerTestsUtils::LayerTestsCommon::CalculateRefs();
     }

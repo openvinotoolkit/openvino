@@ -33,9 +33,9 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
-            ngraph::helpers::SqueezeOpType::SQUEEZE,
-            ngraph::helpers::SqueezeOpType::UNSQUEEZE
+    const std::vector<ov::helpers::SqueezeOpType> opTypes = {
+            ov::helpers::SqueezeOpType::SQUEEZE,
+            ov::helpers::SqueezeOpType::UNSQUEEZE
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_reshape_squeeze_reshape_relu, ReshapeSqueezeReshapeRelu,

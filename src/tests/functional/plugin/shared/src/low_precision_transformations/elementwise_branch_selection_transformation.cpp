@@ -8,7 +8,7 @@
 #include <tuple>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/add_function.hpp"
+#include "lpt_ov_models/add_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -25,7 +25,7 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
     result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
         "_elementwiseType_" << elementwiseType;
 
-    auto toString = [](const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
+    auto toString = [](const ov::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
         if (fqOnData.empty()) {
             return "";
         }
@@ -54,7 +54,7 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
     std::string elementwiseType;
     std::tie(precision, inputShape, targetDevice, param, elementwiseType) = this->GetParam();
 
-    function = ngraph::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
+    function = ov::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
         precision,
         inputShape,
         false,

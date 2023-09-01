@@ -10,14 +10,14 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
 using GatherTreeParamsTuple = typename std::tuple<
         std::vector<size_t>,               // Input tensors shape
-        ngraph::helpers::InputLayerType,   // Secondary input type
+        ov::helpers::InputLayerType,   // Secondary input type
         InferenceEngine::Precision,        // Network precision
         InferenceEngine::Precision,        // Input precision
         InferenceEngine::Precision,        // Output precision

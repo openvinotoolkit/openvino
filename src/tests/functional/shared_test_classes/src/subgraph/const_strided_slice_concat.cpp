@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/const_strided_slice_concat.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -46,7 +46,7 @@ namespace {
 template <class A, class B, class C>
 void appendSlices(A&& destVector, B&& src, const int64_t chunkSize, const int64_t totalSize, C precission) {
     for (int64_t start = 0; start < totalSize; start += chunkSize) {
-        using ngraph::builder::makeStridedSlice;
+        using ov::builder::makeStridedSlice;
         destVector.push_back(makeStridedSlice(src, { 0, start }, { 0, start + chunkSize }, { 1, 1 }, precission, { 1, 0 }, { 1, 0 }));
     }
 }
@@ -85,12 +85,12 @@ void ConstStridedSliceConcatTest::SetUp() {
 
     const auto totalConstantSize = constSlices * constSliceSize;
     auto constantValues = ov::test::utils::generate_float_numbers(totalConstantSize, -0.2f, 0.2f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, { 1, totalConstantSize }, constantValues);
+    auto constant = ov::builder::makeConstant(ngPrc, { 1, totalConstantSize }, constantValues);
 
     std::vector<ngraph::Output<ngraph::Node>> allToConcat;
     appendSlices(allToConcat, params[0], inputSliceSize, totalInputSize, ngPrc);
     appendSlices(allToConcat, constant, constSliceSize, totalConstantSize, ngPrc);
-    auto concat = ngraph::builder::makeConcat(allToConcat, 1);
+    auto concat = ov::builder::makeConcat(allToConcat, 1);
 
     function = std::make_shared<ngraph::Function>(concat, params, "ConstStridedSliceConcatTest");
 }

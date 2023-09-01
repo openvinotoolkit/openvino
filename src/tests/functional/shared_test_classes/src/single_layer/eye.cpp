@@ -8,7 +8,8 @@
 #include <openvino/op/parameter.hpp>
 #include <openvino/pass/constant_folding.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 

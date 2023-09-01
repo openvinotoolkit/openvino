@@ -17,15 +17,15 @@
 #include "simple_low_precision_transformer.hpp"
 
 #include <low_precision/reduce_sum.hpp>
-#include "lpt_ngraph_functions/reduce_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
+#include "lpt_ov_models/reduce_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/constant.hpp"
 
 namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class ReduceSumTransformation : public ReduceTransformation<ov::op::v1::ReduceSum> {
     void SetUp() override {

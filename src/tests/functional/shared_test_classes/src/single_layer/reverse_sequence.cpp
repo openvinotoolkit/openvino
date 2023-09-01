@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/single_layer/reverse_sequence.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 std::string ReverseSequenceLayerTest::getTestCaseName(const testing::TestParamInfo<ReverseSequenceParamsTuple> &obj) {
@@ -12,7 +14,7 @@ std::string ReverseSequenceLayerTest::getTestCaseName(const testing::TestParamIn
     std::string targetName;
     std::vector<size_t> inputShape;
     std::vector<size_t> secondInputShape;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    ov::helpers::InputLayerType secondaryInputType;
 
     std::tie(batchAxisIndx, seqAxisIndx, inputShape, secondInputShape, secondaryInputType, netPrecision, targetName) = obj.param;
 
@@ -33,7 +35,7 @@ void ReverseSequenceLayerTest::SetUp() {
     int64_t seqAxisIndx;
     std::vector<size_t> inputShape;
     std::vector<size_t> secondInputShape;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    ov::helpers::InputLayerType secondaryInputType;
 
     std::tie(batchAxisIndx, seqAxisIndx, inputShape, secondInputShape, secondaryInputType, netPrecision, targetDevice) = GetParam();
 
@@ -41,8 +43,8 @@ void ReverseSequenceLayerTest::SetUp() {
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto secondPrc = ngraph::element::Type_t::i32; //according to the specification
-    auto secondaryInput = ngraph::builder::makeInputLayer(secondPrc, secondaryInputType, secondInputShape);
-    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+    auto secondaryInput = ov::builder::makeInputLayer(secondPrc, secondaryInputType, secondInputShape);
+    if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
         paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     }
 

@@ -3,7 +3,9 @@
 //
 
 #include "shared_test_classes/subgraph/fc_conv_fc.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -69,7 +71,7 @@ void FcAfterConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.1f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::builder::makeConvolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
@@ -83,10 +85,10 @@ void FcAfterConvTest::SetUp() {
     auto relu1 = std::make_shared<ngraph::opset3::Relu>(reshape2);
 
     std::vector<float> fc3_weights = ov::test::utils::generate_float_numbers(outFormShapes[1] * outFormShapes[1], -0.1f, 0.1f);
-    auto fc3 = ngraph::builder::makeFullyConnected(relu1, ngPrc, outFormShapes[1], false, {}, fc3_weights);
+    auto fc3 = ov::builder::makeFullyConnected(relu1, ngPrc, outFormShapes[1], false, {}, fc3_weights);
 
     auto fc4_weights = ov::test::utils::generate_float_numbers(outFormShapes[1] * outFormShapes[1], -0.1f, 0.1f);
-    auto fc4 = ngraph::builder::makeFullyConnected(fc3, ngPrc, outFormShapes[1], false, {}, fc4_weights);
+    auto fc4 = ov::builder::makeFullyConnected(fc3, ngPrc, outFormShapes[1], false, {}, fc4_weights);
 
     function = std::make_shared<ngraph::Function>(fc4, params, "FcAfterConvTest");
 }
@@ -148,10 +150,10 @@ void FcBeforeConvTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto fc1_weights = ov::test::utils::generate_float_numbers(inputShape[1] * inputShape[1], -0.1f, 0.1f);
-    auto fc1 = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, fc1_weights);
+    auto fc1 = ov::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, fc1_weights);
 
     auto fc2_weights = ov::test::utils::generate_float_numbers(inputShape[1] * inputShape[1], -0.05f, 0.05f);
-    auto fc2 = ngraph::builder::makeFullyConnected(fc1, ngPrc, inputShape[1], false, {}, fc2_weights);
+    auto fc2 = ov::builder::makeFullyConnected(fc1, ngPrc, inputShape[1], false, {}, fc2_weights);
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
     auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
@@ -159,7 +161,7 @@ void FcBeforeConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.1f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::builder::makeConvolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
@@ -236,7 +238,7 @@ void FcBetweenConvsTest::SetUp() {
 
     auto filter1Weights = ov::test::utils::generate_float_numbers(outputChannels * conv1InputShape[1] * kernelShape[0] * kernelShape[1],
                                                                   -0.2f, 0.2f);
-    auto conv1 = ngraph::builder::makeConvolution(reshape1,
+    auto conv1 = ov::builder::makeConvolution(reshape1,
                                                   ngPrc,
                                                   {kernelShape[0], kernelShape[1]},
                                                   {kernelShape[0] > 1 ? stride : 1, stride},
@@ -251,7 +253,7 @@ void FcBetweenConvsTest::SetUp() {
     auto relu = std::make_shared<ngraph::opset3::Relu>(reshape2);
 
     auto fc_weights = ov::test::utils::generate_float_numbers(outFormShapes1[1] * outFormShapes1[1], -0.2f, 0.2f);
-    auto fc = ngraph::builder::makeFullyConnected(relu, ngPrc, outFormShapes1[1], false, {}, fc_weights);
+    auto fc = ov::builder::makeFullyConnected(relu, ngPrc, outFormShapes1[1], false, {}, fc_weights);
 
     std::vector<size_t> conv2InputShape = {1, outputChannels, 1, widthAfterConv1};
     auto reshapePattern3 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, conv2InputShape);
@@ -259,7 +261,7 @@ void FcBetweenConvsTest::SetUp() {
 
     auto filter2Weights = ov::test::utils::generate_float_numbers(outputChannels * conv2InputShape[1],
                                                                   -0.2f, 0.2f);
-    auto conv2 = ngraph::builder::makeConvolution(reshape3, ngPrc, { 1, 1 }, { 1, 1 }, { 0, 0 },
+    auto conv2 = ov::builder::makeConvolution(reshape3, ngPrc, { 1, 1 }, { 1, 1 }, { 0, 0 },
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filter2Weights);
     std::vector<size_t> outFormShapes2 = {1,  outputChannels * conv2InputShape[3]};
 

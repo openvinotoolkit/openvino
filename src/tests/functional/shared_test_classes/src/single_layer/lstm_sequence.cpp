@@ -6,13 +6,14 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
-    using ngraph::helpers::InputLayerType;
+    using ov::helpers::InputLayerType;
 
     std::string LSTMSequenceTest::getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams> &obj) {
-        ngraph::helpers::SequenceTestsMode mode;
+        ov::helpers::SequenceTestsMode mode;
         size_t seq_lengths;
         size_t batch;
         size_t hidden_size;
@@ -48,8 +49,8 @@ namespace LayerTestsDefinitions {
     }
 
     void LSTMSequenceTest::SetUp() {
-        using namespace ngraph::helpers;
-        using namespace ngraph::builder;
+        using namespace ov::helpers;
+        using namespace ov::builder;
         size_t seq_lengths;
 
         size_t batch;
@@ -88,13 +89,13 @@ namespace LayerTestsDefinitions {
             seq_lengths_node = param;
             seq_lengths_node->set_friendly_name("seq_lengths");
             params.push_back(param);
-        } else if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
-                   m_mode == ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
-            seq_lengths_node = ngraph::builder::makeConstant<int64_t>(ov::element::i64, inputShapes[3], {}, true,
+        } else if (m_mode == ov::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
+                   m_mode == ov::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
+            seq_lengths_node = ov::builder::makeConstant<int64_t>(ov::element::i64, inputShapes[3], {}, true,
                                                                       static_cast<int64_t>(seq_lengths), 0.f);
         } else {
             std::vector<int64_t> lengths(inputShapes[3][0], seq_lengths);
-            seq_lengths_node = ngraph::builder::makeConstant(ov::element::i64, inputShapes[3], lengths, false);
+            seq_lengths_node = ov::builder::makeConstant(ov::element::i64, inputShapes[3], lengths, false);
         }
 
         std::shared_ptr<ov::Node> W, R, B;
@@ -109,9 +110,9 @@ namespace LayerTestsDefinitions {
             params.push_back(R_param);
             params.push_back(B_param);
         } else {
-            W = ngraph::builder::makeConstant<float>(ngPrc, W_shape, {}, true);
-            R = ngraph::builder::makeConstant<float>(ngPrc, R_shape, {}, true);
-            B = ngraph::builder::makeConstant<float>(ngPrc, B_shape, {}, true);
+            W = ov::builder::makeConstant<float>(ngPrc, W_shape, {}, true);
+            R = ov::builder::makeConstant<float>(ngPrc, R_shape, {}, true);
+            B = ov::builder::makeConstant<float>(ngPrc, B_shape, {}, true);
         }
 
         auto lstm_sequence = std::make_shared<ov::op::v5::LSTMSequence>(params[0], params[1], params[2], seq_lengths_node, W, R, B, hidden_size, direction,

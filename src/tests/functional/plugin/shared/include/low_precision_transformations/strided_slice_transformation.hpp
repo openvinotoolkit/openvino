@@ -5,13 +5,13 @@
 #pragma once
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 namespace LayerTestsDefinitions {
 class StridedSliceTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<int64_t> begin;
     std::vector<int64_t> end;
     std::vector<int64_t> strides;
@@ -26,7 +26,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     StridedSliceTransformationParam
 > StridedSliceTransformationParams;
 

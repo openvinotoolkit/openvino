@@ -3,7 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/scaleshift_conv_scaleshift.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -69,7 +70,7 @@ void ScaleShiftAfterConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::builder::makeConvolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
@@ -169,7 +170,7 @@ void ScaleShiftBeforeConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.1f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape2,
+    auto conv = ov::builder::makeConvolution(reshape2,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},

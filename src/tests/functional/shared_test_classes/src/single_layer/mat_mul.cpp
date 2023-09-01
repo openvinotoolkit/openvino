@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/mat_mul.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -25,7 +27,7 @@ std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayer
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;
     ShapeRelatedParams shapeRelatedParams;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    ov::helpers::InputLayerType secondaryInputType;
     std::string targetDevice;
     std::map<std::string, std::string> additionalConfig;
     std::tie(shapeRelatedParams, netPrecision, inPrc, outPrc, inLayout, secondaryInputType, targetDevice, additionalConfig) =
@@ -52,7 +54,7 @@ std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayer
 
 void MatMulTest::SetUp() {
     ShapeRelatedParams shapeRelatedParams;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    ov::helpers::InputLayerType secondaryInputType;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::map<std::string, std::string> additionalConfig;
     std::tie(shapeRelatedParams, netPrecision, inPrc, outPrc, inLayout, secondaryInputType, targetDevice, additionalConfig) =
@@ -63,14 +65,14 @@ void MatMulTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapeRelatedParams.input1.first))};
 
-    auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);
-    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+    auto secondaryInput = ov::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);
+    if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
         params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     }
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
-            ngraph::builder::makeMatMul(paramOuts[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second));
+            ov::builder::makeMatMul(paramOuts[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "MatMul");
 }

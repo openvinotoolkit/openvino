@@ -6,12 +6,13 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/topk.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;
@@ -28,7 +29,7 @@ typedef std::tuple<
         ElementType,                        // Output precision
         InputShape,                         // inputShape
         TargetDevice,                       // Device name
-        ngraph::helpers::InputLayerType     // Input type
+        ov::helpers::InputLayerType     // Input type
 > TopKLayerTestParamsSet;
 
 class TopKLayerGPUTest : public testing::WithParamInterface<TopKLayerTestParamsSet>,
@@ -43,7 +44,7 @@ public:
         ElementType netPrecision, inPrc, outPrc;
         InputShape inputShape;
         TargetDevice targetDevice;
-        ngraph::helpers::InputLayerType inputType;
+        ov::helpers::InputLayerType inputType;
         std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape, targetDevice, inputType) = basicParamsSet;
 
         std::ostringstream result;
@@ -76,7 +77,7 @@ protected:
         InputShape inputShape;
         std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape, targetDevice, inputType) = basicParamsSet;
 
-        if (inputType == ngraph::helpers::InputLayerType::CONSTANT) {
+        if (inputType == ov::helpers::InputLayerType::CONSTANT) {
             init_input_shapes({inputShape});
         } else {
             inputDynamicShapes = {inputShape.first, {}};
@@ -88,7 +89,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
         std::shared_ptr<ngraph::opset4::TopK> topk;
-        if (inputType == ngraph::helpers::InputLayerType::CONSTANT) {
+        if (inputType == ov::helpers::InputLayerType::CONSTANT) {
             auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
             topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
         } else {
@@ -131,7 +132,7 @@ protected:
         }
         inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});
 
-        if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (inputType == ov::helpers::InputLayerType::PARAMETER) {
             const auto& kPrecision = funcInputs[1].get_element_type();
             const auto& kShape = targetInputStaticShapes[1];
 
@@ -148,7 +149,7 @@ private:
     int64_t axis;
     size_t inferRequestNum = 0;
     ElementType netPrecision;
-    ngraph::helpers::InputLayerType inputType;
+    ov::helpers::InputLayerType inputType;
 };
 
 TEST_P(TopKLayerGPUTest, CompareWithRefs) {
@@ -194,7 +195,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_constant_dynamic, TopKLayerGPUTest,
         ::testing::Values(ElementType::undefined),
         ::testing::ValuesIn(inputShapesDynamic),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT)),
+        ::testing::Values(ov::helpers::InputLayerType::CONSTANT)),
     TopKLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
@@ -208,7 +209,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
         ::testing::Values(ElementType::undefined),
         ::testing::ValuesIn(inputShapesDynamic),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER)),
+        ::testing::Values(ov::helpers::InputLayerType::PARAMETER)),
     TopKLayerGPUTest::getTestCaseName);
 
 } // namespace

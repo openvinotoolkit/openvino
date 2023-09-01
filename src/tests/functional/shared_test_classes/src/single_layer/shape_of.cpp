@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/shape_of.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -27,7 +28,7 @@ namespace LayerTestsDefinitions {
         auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
         auto outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
         ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes))};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(param));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::opset3::Parameter>(param));
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], outType);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shapeOf)};
         function = std::make_shared<ngraph::Function>(results, param, "shapeOf");

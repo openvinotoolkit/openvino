@@ -14,7 +14,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -44,10 +44,10 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
         auto shape_size = ov::shape_size(shape);
         auto add_const =
-            ngraph::builder::makeConstant<float>(ngPrc,
-                                                 shape,
-                                                 ov::test::utils::generate_float_numbers(shape_size, -0.5f, 0.5f),
-                                                 false);
+            ov::builder::makeConstant<float>(ngPrc,
+                                             shape,
+                                             ov::test::utils::generate_float_numbers(shape_size, -0.5f, 0.5f),
+                                             false);
 
         auto add = std::make_shared<ngraph::opset9::Add>(params[0], add_const);
         auto res = std::make_shared<ngraph::op::Result>(add);

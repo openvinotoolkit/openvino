@@ -227,7 +227,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_conte
         auto& device = all_devices[i];
         if (!does_device_match_config(device) || static_cast<int>(i) != ctx_device_id)
             continue;
-        supported_devices.emplace_back(std::make_shared<ocl_device>(device, ctx, device.getInfo<CL_DEVICE_PLATFORM>()));
+        supported_devices.emplace_back(std::make_shared<ocl_device>(device, ctx, nullptr));
     }
 
     OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] User defined context does not have supported GPU device.");

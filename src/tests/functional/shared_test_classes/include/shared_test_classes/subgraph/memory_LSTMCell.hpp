@@ -10,7 +10,7 @@
 
 namespace SubgraphTestsDefinitions {
 typedef std::tuple<
-    ngraph::helpers::MemoryTransformation,   // Apply Memory transformation
+    ov::helpers::MemoryTransformation,   // Apply Memory transformation
     std::string,                        // Target device name
     InferenceEngine::Precision,         // Network precision
     size_t,                             // Input size
@@ -28,7 +28,7 @@ private:
     void InitMemory();
     void ApplyLowLatency();
 
-    ngraph::helpers::MemoryTransformation transformation;
+    ov::helpers::MemoryTransformation transformation;
     std::vector<float> input_bias;
     std::vector<float> input_weights;
     std::vector<float> hidden_memory_init;

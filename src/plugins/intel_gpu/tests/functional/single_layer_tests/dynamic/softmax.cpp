@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -58,7 +59,7 @@ protected:
         }
 
         const auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {

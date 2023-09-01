@@ -10,7 +10,8 @@
 #include <ctime>
 #include <iterator>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset9.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string PermuteConcatPermute::getTestCaseName(const testing::TestParamInfo<PermuteConcatPermuteTuple>& obj) {

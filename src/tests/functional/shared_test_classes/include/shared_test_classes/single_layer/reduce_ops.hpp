@@ -10,7 +10,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -18,7 +18,7 @@ typedef std::tuple<
         std::vector<int>,               // Axis to reduce order
         ov::test::utils::OpType,        // Scalar or vector type axis
         bool,                           // Keep dims
-        ngraph::helpers::ReductionType, // Reduce operation type
+        ov::helpers::ReductionType, // Reduce operation type
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
         InferenceEngine::Precision,     // Output precision

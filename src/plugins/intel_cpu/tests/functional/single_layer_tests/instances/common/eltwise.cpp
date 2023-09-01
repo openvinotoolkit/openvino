@@ -9,7 +9,7 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
@@ -86,8 +86,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D, EltwiseLayerCPUTest, params_5
 const auto params_4D_1D_constant_mode = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D())),
-                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                ::testing::Values(ov::helpers::EltwiseTypes::ADD, ov::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -103,8 +103,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Constant, EltwiseLayerCPUTe
 const auto params_4D_1D_parameter_mode = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D())),
-                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::Values(ov::helpers::EltwiseTypes::ADD, ov::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -120,8 +120,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Parameter, EltwiseLayerCPUT
 const auto params_5D_1D_constant = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D())),
-                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                ::testing::Values(ov::helpers::EltwiseTypes::ADD, ov::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -137,8 +137,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Constant, EltwiseLayerCPUTe
 const auto params_5D_1D_parameter = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D())),
-                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::Values(ov::helpers::EltwiseTypes::ADD, ov::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -155,7 +155,7 @@ const auto params_4D_dyn_const = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapes_4D_dyn_const()),
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
-                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -172,7 +172,7 @@ const auto params_4D_dyn_param = ::testing::Combine(
         ::testing::Combine(
                 ::testing::Values(inShapes_4D_dyn_param()),
                 ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -189,7 +189,7 @@ const auto params_5D_dyn_const = ::testing::Combine(
         ::testing::Combine(
                 ::testing::Values(inShapes_5D_dyn_const()),
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
-                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
@@ -206,7 +206,7 @@ const auto params_5D_dyn_param = ::testing::Combine(
         ::testing::Combine(
                 ::testing::Values(inShapes_5D_dyn_param()),
                 ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),

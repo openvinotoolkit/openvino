@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "single_layer_tests/topk.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 using namespace LayerTestsDefinitions;
 

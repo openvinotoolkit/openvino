@@ -3,7 +3,7 @@
 //
 
 #include "behavior/plugin/stress_tests.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -21,7 +21,7 @@ std::string MultipleAllocations::getTestCaseName(const testing::TestParamInfo<Mu
 void MultipleAllocations::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(targetDevice, m_allocationsCount) = this->GetParam();
-    function = ngraph::builder::subgraph::makeSplitConvConcat();
+    function = ov::builder::subgraph::makeSplitConvConcat();
 }
 
 TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {

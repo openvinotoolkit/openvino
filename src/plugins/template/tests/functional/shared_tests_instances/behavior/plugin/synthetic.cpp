@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "behavior/plugin/hetero_synthetic.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 namespace {
 using namespace HeteroTests;
@@ -18,7 +18,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_manyTargetInputs, HeteroSyntheticTest,
                         ::testing::Combine(
                                 ::testing::Values(std::vector<PluginParameter>{{"TEMPLATE0", "openvino_template_plugin"}, {"TEMPLATE1", "openvino_template_plugin"}}),
                                 ::testing::ValuesIn(HeteroTests::HeteroSyntheticTest::withMajorNodesFunctions(
-                                        [] {return ngraph::builder::subgraph::makeConvPool2Relu2();}, {"Conv_1"}, true))),
+                                        [] {return ov::builder::subgraph::makeConvPool2Relu2();}, {"Conv_1"}, true))),
                         HeteroSyntheticTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleMajorNode, HeteroSyntheticTest,
@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_RandomMajorNodes, HeteroSyntheticTest,
                         HeteroSyntheticTest::getTestCaseName);
 
 static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> dynamicBuilders = {
-    [] {return ngraph::builder::subgraph::makeConvPoolReluNonZero();},
+    [] {return ov::builder::subgraph::makeConvPoolReluNonZero();},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_NonZeroMajorNode_dynamic, HeteroSyntheticTest,

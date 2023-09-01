@@ -16,8 +16,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/fuse_convert_function.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "lpt_ov_models/fuse_convert_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -26,7 +26,7 @@ std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamI
     ngraph::PartialShape shape;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    ngraph::builder::subgraph::DequantizationOperations deqOperations;
+    ov::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
     std::tie(precision, shape, targetDevice, deqOperations, constInput) = obj.param;
 
@@ -39,11 +39,11 @@ std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamI
 void FuseConvertTransformation::SetUp() {
     ngraph::PartialShape shape;
     ngraph::element::Type precision;
-    ngraph::builder::subgraph::DequantizationOperations deqOperations;
+    ov::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
     std::tie(precision, shape, targetDevice, deqOperations, constInput) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FuseConvertFunction::getWithFQ(
+    function = ov::builder::subgraph::FuseConvertFunction::getWithFQ(
         shape,
         precision,
         deqOperations,

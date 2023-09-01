@@ -18,8 +18,8 @@
 #include <low_precision/interpolate.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/concat_function.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -30,8 +30,8 @@ namespace {
 
 class ConcatTransformationActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationActualValues& values) {
@@ -40,12 +40,12 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationAct
 
 class ConcatTransformationResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOperations1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::DequantizationOperations dequantizationOperations1;
     ov::element::Type precisionBeforeOp;
     ov::element::Type precisionAfterOperation;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOperations2;
+    ov::builder::subgraph::DequantizationOperations dequantizationOperations2;
     ov::element::Type precisionAfterDequantization;
 };
 
@@ -84,7 +84,7 @@ public:
         const ov::PartialShape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediateWithConstant(
+        actualFunction = ov::builder::subgraph::ConcatFunction::getOriginalWithIntermediateWithConstant(
             precision,
             shape,
             testValues.transparentIntermediate,
@@ -104,7 +104,7 @@ public:
         transform.add<ov::pass::low_precision::InterpolateTransformation, ov::op::v0::Interpolate>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediateWithConstant(
+        referenceFunction = ov::builder::subgraph::ConcatFunction::getReferenceWithIntermediateWithConstant(
             precision,
             shape,
             testValues.transparentIntermediate,

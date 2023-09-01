@@ -10,9 +10,9 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
-    ngraph::helpers::ConversionTypes::CONVERT,
-    ngraph::helpers::ConversionTypes::CONVERT_LIKE,
+const std::vector<ov::helpers::ConversionTypes> conversionOpTypes = {
+    ov::helpers::ConversionTypes::CONVERT,
+    ov::helpers::ConversionTypes::CONVERT_LIKE,
 };
 
 const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};

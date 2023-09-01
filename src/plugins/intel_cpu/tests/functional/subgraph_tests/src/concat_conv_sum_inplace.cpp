@@ -4,8 +4,9 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace CPUTestUtils;
 using namespace InferenceEngine;
@@ -56,11 +57,11 @@ public:
         auto Relu2 = std::make_shared<ngraph::opset3::Relu>(inputParams[1]);
         Relu2->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
 
-        auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{Relu1, Relu2}, 1);
+        auto concat = ov::builder::makeConcat(ngraph::OutputVector{Relu1, Relu2}, 1);
 
-        auto conv = ngraph::builder::makeConvolution(concat, ngraph::element::f32, kernel, stride, padBegin,
+        auto conv = ov::builder::makeConvolution(concat, ngraph::element::f32, kernel, stride, padBegin,
                                                      padEnd, dilation, ngraph::op::PadType::AUTO, convOutChannels);
-        auto bias = ngraph::builder::makeConstant<float>(ngraph::element::Type_t::f32, ngraph::Shape({1, convOutChannels, 1, 1}), {}, true);
+        auto bias = ov::builder::makeConstant<float>(ngraph::element::Type_t::f32, ngraph::Shape({1, convOutChannels, 1, 1}), {}, true);
         auto convBiasAdd = std::make_shared<ngraph::opset3::Add>(conv, bias);
 
         auto sum = std::make_shared<ngraph::opset3::Add>(convBiasAdd, Relu1);

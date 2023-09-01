@@ -20,7 +20,7 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -221,7 +221,7 @@ void SubgraphBaseTest::compile_model() {
 }
 
 void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
-    ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
+    ov::helpers::resize_function(funcRef, targetInputStaticShapes);
 }
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -326,7 +326,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     functionToProcess = p.build();
 
-    auto results = ngraph::helpers::interpretFunction(functionToProcess, inputs);
+    auto results = ov::helpers::interpretFunction(functionToProcess, inputs);
     return results;
 }
 

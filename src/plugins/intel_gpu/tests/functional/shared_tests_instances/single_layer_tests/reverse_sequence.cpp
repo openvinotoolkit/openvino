@@ -28,9 +28,9 @@ const std::vector<std::vector<size_t>> inputShapes = { {3, 10} }; //, 10, 20
 
 const std::vector<std::vector<size_t>> reversSeqLengthsVecShapes = { {3} };
 
-const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::helpers::InputLayerType> secondaryInputTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER
 };
 
 INSTANTIATE_TEST_SUITE_P(Basic_smoke, ReverseSequenceLayerTest,

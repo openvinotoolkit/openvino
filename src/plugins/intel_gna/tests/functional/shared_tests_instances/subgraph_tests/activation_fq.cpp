@@ -36,13 +36,13 @@ const std::vector<std::vector<std::vector<size_t>>> constShapes = {{{1}}};
 const auto fqParams =
     ::testing::Combine(::testing::Values(level), ::testing::ValuesIn(constShapes), ::testing::ValuesIn(inputParams));
 
-const std::vector<ngraph::helpers::ActivationTypes> activations = {ngraph::helpers::ActivationTypes::Sigmoid,
-                                                                   ngraph::helpers::ActivationTypes::Tanh,
-                                                                   ngraph::helpers::ActivationTypes::Relu,
-                                                                   ngraph::helpers::ActivationTypes::Log,
-                                                                   ngraph::helpers::ActivationTypes::Abs,
-                                                                   ngraph::helpers::ActivationTypes::Sign,
-                                                                   ngraph::helpers::ActivationTypes::Exp};
+const std::vector<ov::helpers::ActivationTypes> activations = {ov::helpers::ActivationTypes::Sigmoid,
+                                                               ov::helpers::ActivationTypes::Tanh,
+                                                               ov::helpers::ActivationTypes::Relu,
+                                                               ov::helpers::ActivationTypes::Log,
+                                                               ov::helpers::ActivationTypes::Abs,
+                                                               ov::helpers::ActivationTypes::Sign,
+                                                               ov::helpers::ActivationTypes::Exp};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ActivationFQSubgraph,
                          ActivationFakeQuantizeSubgraphTest,

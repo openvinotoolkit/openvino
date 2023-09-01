@@ -14,29 +14,29 @@
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/max_pool.hpp>
 
-#include "lpt_ngraph_functions/precision_propagation_function.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/precision_propagation_function.hpp"
+#include "lpt_ov_models/common/builders.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 namespace {
 
 class ConcatWithNeighborsWithConvolutionActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert1;
-    ngraph::builder::subgraph::DequantizationOperations dequantization1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert2;
-    ngraph::builder::subgraph::DequantizationOperations dequantization2;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize3;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert3;
-    ngraph::builder::subgraph::DequantizationOperations dequantization3;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::DequantizationOperations::Convert convert1;
+    ov::builder::subgraph::DequantizationOperations dequantization1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::DequantizationOperations::Convert convert2;
+    ov::builder::subgraph::DequantizationOperations dequantization2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize3;
+    ov::builder::subgraph::DequantizationOperations::Convert convert3;
+    ov::builder::subgraph::DequantizationOperations dequantization3;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatWithNeighborsWithConvolutionActualValues& values) {
@@ -45,14 +45,14 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatWithNeighborsWith
 
 class ConcatWithNeighborsWithConvolutionResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize3;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize3;
     ov::element::Type precisionBeforeOp;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
     ov::element::Type precisionAfterOp;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter2;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter1;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatWithNeighborsWithConvolutionResultValues& values) {
@@ -91,7 +91,7 @@ public:
         const ov::Shape shape = std::get<1>(GetParam());
         ConcatWithNeighborsWithConvolutionTestValues testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::PrecisionPropagationFunction::getOriginalWithNeighbors(
+        actualFunction = ov::builder::subgraph::PrecisionPropagationFunction::getOriginalWithNeighbors(
             precision,
             shape,
             testValues.actual.fakeQuantize1,
@@ -124,7 +124,7 @@ public:
         transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::PrecisionPropagationFunction::getReferenceWithNeighbors(
+        referenceFunction = ov::builder::subgraph::PrecisionPropagationFunction::getReferenceWithNeighbors(
             precision,
             shape,
             testValues.result.fakeQuantize1,

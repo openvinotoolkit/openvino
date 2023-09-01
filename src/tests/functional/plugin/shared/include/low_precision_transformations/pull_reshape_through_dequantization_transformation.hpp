@@ -8,28 +8,28 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
-#include "lpt_ngraph_functions/common/reshape.hpp"
-#include "lpt_ngraph_functions/common/transpose.hpp"
+#include "lpt_ov_models/common/constant.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
+#include "lpt_ov_models/common/reshape.hpp"
+#include "lpt_ov_models/common/transpose.hpp"
 
 namespace LayerTestsDefinitions {
 
 class PullReshapeThroughDequantizationTestValues {
 public:
     ngraph::element::Type precisionBeforeDequantization;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-    ngraph::builder::subgraph::Constant weights;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
-    ngraph::builder::subgraph::Reshape reshape1;
-    ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
-    ngraph::builder::subgraph::Transpose transpose;
-    ngraph::builder::subgraph::Reshape reshape2;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+    ov::builder::subgraph::Constant weights;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+    ov::builder::subgraph::Reshape reshape1;
+    ov::builder::subgraph::DequantizationOperations::Multiply multiply;
+    ov::builder::subgraph::Transpose transpose;
+    ov::builder::subgraph::Reshape reshape2;
     ngraph::element::Type precisionAfterOperation;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     std::string operationName;
     std::string expectedKernelType;
 };
@@ -38,7 +38,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     ngraph::Shape,
     PullReshapeThroughDequantizationTestValues> PullReshapeThroughDequantizationParams;
 

@@ -20,64 +20,64 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
-static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
-        {ngraph::helpers::ActivationTypes::Sigmoid,               "Sigmoid"},
-        {ngraph::helpers::ActivationTypes::Tanh,                  "Tanh"},
-        {ngraph::helpers::ActivationTypes::Relu,                  "Relu"},
-        {ngraph::helpers::ActivationTypes::LeakyRelu,             "LeakyRelu"},
-        {ngraph::helpers::ActivationTypes::Exp,                   "Exp"},
-        {ngraph::helpers::ActivationTypes::Log,                   "Log"},
-        {ngraph::helpers::ActivationTypes::Sign,                  "Sign"},
-        {ngraph::helpers::ActivationTypes::Abs,                   "Abs"},
-        {ngraph::helpers::ActivationTypes::Clamp,                 "Clamp"},
-        {ngraph::helpers::ActivationTypes::Negative,              "Negative"},
-        {ngraph::helpers::ActivationTypes::Acos,                  "Acos"},
-        {ngraph::helpers::ActivationTypes::Acosh,                 "Acosh"},
-        {ngraph::helpers::ActivationTypes::Asin,                  "Asin"},
-        {ngraph::helpers::ActivationTypes::Asinh,                 "Asinh"},
-        {ngraph::helpers::ActivationTypes::Atan,                  "Atan"},
-        {ngraph::helpers::ActivationTypes::Atanh,                  "Atanh"},
-        {ngraph::helpers::ActivationTypes::Cos,                   "Cos"},
-        {ngraph::helpers::ActivationTypes::Cosh,                  "Cosh"},
-        {ngraph::helpers::ActivationTypes::Floor,                 "Floor"},
-        {ngraph::helpers::ActivationTypes::Sin,                   "Sin"},
-        {ngraph::helpers::ActivationTypes::Sinh,                  "Sinh"},
-        {ngraph::helpers::ActivationTypes::Sqrt,                  "Sqrt"},
-        {ngraph::helpers::ActivationTypes::Tan,                   "Tan"},
-        {ngraph::helpers::ActivationTypes::Elu,                   "Elu"},
-        {ngraph::helpers::ActivationTypes::Erf,                   "Erf"},
-        {ngraph::helpers::ActivationTypes::HardSigmoid,           "HardSigmoid"},
-        {ngraph::helpers::ActivationTypes::Selu,                  "Selu"},
-        {ngraph::helpers::ActivationTypes::Sigmoid,               "Sigmoid"},
-        {ngraph::helpers::ActivationTypes::Tanh,                  "Tanh"},
-        {ngraph::helpers::ActivationTypes::Relu,                  "Relu"},
-        {ngraph::helpers::ActivationTypes::LeakyRelu,             "LeakyRelu"},
-        {ngraph::helpers::ActivationTypes::Exp,                   "Exp"},
-        {ngraph::helpers::ActivationTypes::Log,                   "Log"},
-        {ngraph::helpers::ActivationTypes::Sign,                  "Sign"},
-        {ngraph::helpers::ActivationTypes::Abs,                   "Abs"},
-        {ngraph::helpers::ActivationTypes::Gelu,                  "Gelu"},
-        {ngraph::helpers::ActivationTypes::Ceiling,               "Ceiling"},
-        {ngraph::helpers::ActivationTypes::PReLu,                 "PReLu"},
-        {ngraph::helpers::ActivationTypes::Mish,                  "Mish"},
-        {ngraph::helpers::ActivationTypes::HSwish,                "HSwish"},
-        {ngraph::helpers::ActivationTypes::SoftPlus,              "SoftPlus"},
-        {ngraph::helpers::ActivationTypes::Swish,                 "Swish"},
-        {ngraph::helpers::ActivationTypes::HSigmoid,              "HSigmoid"},
-        {ngraph::helpers::ActivationTypes::RoundHalfToEven,       "RoundHalfToEven"},
-        {ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero, "RoundHalfAwayFromZero"},
-        {ngraph::helpers::ActivationTypes::GeluErf,               "GeluErf"},
-        {ngraph::helpers::ActivationTypes::GeluTanh,              "GeluTanh"},
-        {ngraph::helpers::ActivationTypes::SoftSign,              "SoftSign"},
+static std::map<ov::helpers::ActivationTypes, std::string> activationNames = {
+        {ov::helpers::ActivationTypes::Sigmoid,               "Sigmoid"},
+        {ov::helpers::ActivationTypes::Tanh,                  "Tanh"},
+        {ov::helpers::ActivationTypes::Relu,                  "Relu"},
+        {ov::helpers::ActivationTypes::LeakyRelu,             "LeakyRelu"},
+        {ov::helpers::ActivationTypes::Exp,                   "Exp"},
+        {ov::helpers::ActivationTypes::Log,                   "Log"},
+        {ov::helpers::ActivationTypes::Sign,                  "Sign"},
+        {ov::helpers::ActivationTypes::Abs,                   "Abs"},
+        {ov::helpers::ActivationTypes::Clamp,                 "Clamp"},
+        {ov::helpers::ActivationTypes::Negative,              "Negative"},
+        {ov::helpers::ActivationTypes::Acos,                  "Acos"},
+        {ov::helpers::ActivationTypes::Acosh,                 "Acosh"},
+        {ov::helpers::ActivationTypes::Asin,                  "Asin"},
+        {ov::helpers::ActivationTypes::Asinh,                 "Asinh"},
+        {ov::helpers::ActivationTypes::Atan,                  "Atan"},
+        {ov::helpers::ActivationTypes::Atanh,                  "Atanh"},
+        {ov::helpers::ActivationTypes::Cos,                   "Cos"},
+        {ov::helpers::ActivationTypes::Cosh,                  "Cosh"},
+        {ov::helpers::ActivationTypes::Floor,                 "Floor"},
+        {ov::helpers::ActivationTypes::Sin,                   "Sin"},
+        {ov::helpers::ActivationTypes::Sinh,                  "Sinh"},
+        {ov::helpers::ActivationTypes::Sqrt,                  "Sqrt"},
+        {ov::helpers::ActivationTypes::Tan,                   "Tan"},
+        {ov::helpers::ActivationTypes::Elu,                   "Elu"},
+        {ov::helpers::ActivationTypes::Erf,                   "Erf"},
+        {ov::helpers::ActivationTypes::HardSigmoid,           "HardSigmoid"},
+        {ov::helpers::ActivationTypes::Selu,                  "Selu"},
+        {ov::helpers::ActivationTypes::Sigmoid,               "Sigmoid"},
+        {ov::helpers::ActivationTypes::Tanh,                  "Tanh"},
+        {ov::helpers::ActivationTypes::Relu,                  "Relu"},
+        {ov::helpers::ActivationTypes::LeakyRelu,             "LeakyRelu"},
+        {ov::helpers::ActivationTypes::Exp,                   "Exp"},
+        {ov::helpers::ActivationTypes::Log,                   "Log"},
+        {ov::helpers::ActivationTypes::Sign,                  "Sign"},
+        {ov::helpers::ActivationTypes::Abs,                   "Abs"},
+        {ov::helpers::ActivationTypes::Gelu,                  "Gelu"},
+        {ov::helpers::ActivationTypes::Ceiling,               "Ceiling"},
+        {ov::helpers::ActivationTypes::PReLu,                 "PReLu"},
+        {ov::helpers::ActivationTypes::Mish,                  "Mish"},
+        {ov::helpers::ActivationTypes::HSwish,                "HSwish"},
+        {ov::helpers::ActivationTypes::SoftPlus,              "SoftPlus"},
+        {ov::helpers::ActivationTypes::Swish,                 "Swish"},
+        {ov::helpers::ActivationTypes::HSigmoid,              "HSigmoid"},
+        {ov::helpers::ActivationTypes::RoundHalfToEven,       "RoundHalfToEven"},
+        {ov::helpers::ActivationTypes::RoundHalfAwayFromZero, "RoundHalfAwayFromZero"},
+        {ov::helpers::ActivationTypes::GeluErf,               "GeluErf"},
+        {ov::helpers::ActivationTypes::GeluTanh,              "GeluTanh"},
+        {ov::helpers::ActivationTypes::SoftSign,              "SoftSign"},
 };
 
 typedef std::tuple<
-        std::pair<ngraph::helpers::ActivationTypes, std::vector<float>>, // Activation type and constant value
+        std::pair<ov::helpers::ActivationTypes, std::vector<float>>, // Activation type and constant value
         InferenceEngine::Precision,
         InferenceEngine::Precision,    // Input precision
         InferenceEngine::Precision,    // Output precision
@@ -89,7 +89,7 @@ typedef std::tuple<
 class ActivationLayerTest : public testing::WithParamInterface<activationParams>,
                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    ngraph::helpers::ActivationTypes activationType;
+    ov::helpers::ActivationTypes activationType;
     static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 

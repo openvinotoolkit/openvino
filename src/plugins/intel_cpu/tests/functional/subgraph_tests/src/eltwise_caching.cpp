@@ -38,14 +38,16 @@
 #include <memory>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 using namespace CPUTestUtils;
-using ngraph::helpers::EltwiseTypes;
+using ov::helpers::EltwiseTypes;
 using namespace ov::test;
 
 namespace CPUSubgraphTestsDefinitions {
@@ -163,22 +165,22 @@ protected:
             ngraphInputs.push_back(ngraphParam.back());
         }
 
-        auto lastNode0 = ngraph::builder::makeEltwise(ngraphParam[0], ngraphParam[1], eltwiseOpTypes[0]);
+        auto lastNode0 = ov::builder::makeEltwise(ngraphParam[0], ngraphParam[1], eltwiseOpTypes[0]);
         lastNode0->get_rt_info() = getCPUInfo();
-        auto lastNode1 = ngraph::builder::makeEltwise(ngraphParam[2], ngraphParam[3], eltwiseOpTypes[1]);
+        auto lastNode1 = ov::builder::makeEltwise(ngraphParam[2], ngraphParam[3], eltwiseOpTypes[1]);
         lastNode1->get_rt_info() = getCPUInfo();
         if (withQuantization) {
-            lastNode0 = ngraph::builder::makeFakeQuantize(lastNode0, ::ngraph::element::Type(::ngraph::element::Type_t::f32),
+            lastNode0 = ov::builder::makeFakeQuantize(lastNode0, ::ngraph::element::Type(::ngraph::element::Type_t::f32),
                                                           256, fqInputShapes[0]);
-            lastNode1 = ngraph::builder::makeFakeQuantize(lastNode1, ::ngraph::element::Type(::ngraph::element::Type_t::f32),
+            lastNode1 = ov::builder::makeFakeQuantize(lastNode1, ::ngraph::element::Type(::ngraph::element::Type_t::f32),
                                                           256, fqInputShapes[1]);
         }
         if (needReshape) {
-            auto reshapeConstNode = ngraph::builder::makeConstant(::ngraph::element::Type(::ngraph::element::Type_t::i32),
+            auto reshapeConstNode = ov::builder::makeConstant(::ngraph::element::Type(::ngraph::element::Type_t::i32),
                                                                   {reshapeShape.size()}, reshapeShape);
             lastNode1 = std::make_shared<ngraph::opset4::Reshape>(lastNode1, reshapeConstNode, false);
         }
-        auto concat = ngraph::builder::makeConcat({lastNode0, lastNode1}, 0);
+        auto concat = ov::builder::makeConcat({lastNode0, lastNode1}, 0);
         function = std::make_shared<ngraph::Function>(concat, ngraphParam, "eltwise_cache");
     }
 };

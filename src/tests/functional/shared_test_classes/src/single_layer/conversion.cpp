@@ -4,12 +4,13 @@
 
 #include "shared_test_classes/single_layer/conversion.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<ConversionParamsTuple>& obj) {
-    ngraph::helpers::ConversionTypes conversionOpType;
+    ov::helpers::ConversionTypes conversionOpType;
     InferenceEngine::Precision inputPrecision, targetPrecision;
     InferenceEngine::Layout inLayout, outLayout;
     std::string targetName;
@@ -31,7 +32,7 @@ void ConversionLayerTest::SetUp() {
     if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
     }
-    ngraph::helpers::ConversionTypes conversionOpType;
+    ov::helpers::ConversionTypes conversionOpType;
     InferenceEngine::Precision inputPrecision, targetPrecision;
     std::vector<std::vector<size_t>> inputShape;
     std::tie(conversionOpType, inputShape, inputPrecision, targetPrecision, inLayout, outLayout, targetDevice) =
@@ -43,7 +44,7 @@ void ConversionLayerTest::SetUp() {
     for (auto&& shape : inputShape) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, conversionOpType);
+    auto conversion = ov::builder::makeConversion(params.front(), targetPrc, conversionOpType);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(conversion)};
     function = std::make_shared<ngraph::Function>(results, params, "Conversion");

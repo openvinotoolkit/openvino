@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "ngraph/ngraph.hpp"
 
 #include "shared_test_classes/single_layer/slice.hpp"
@@ -52,7 +52,7 @@ void Slice8LayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
     }
-    auto sliceOp = ngraph::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);
+    auto sliceOp = ov::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);
 
     ov::ResultVector results;
     for (int i = 0; i < sliceOp->get_output_size(); i++)

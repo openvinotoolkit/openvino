@@ -8,7 +8,7 @@
 #include <legacy/ngraph_ops/eltwise.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -20,7 +20,7 @@
 
 namespace testing {
 
-using namespace ngraph::builder;
+using namespace ov::builder;
 using namespace ngraph::op;
 using namespace ov;
 using namespace ov::opset12;

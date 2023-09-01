@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset4.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "subgraph_tests/include/conv_with_zero_point_fuse.hpp"
 
@@ -41,7 +42,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
     selectedType = ".*_I8";
 
     ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShapes))};
-    const auto fq = ngraph::builder::makeFakeQuantize(
+    const auto fq = ov::builder::makeFakeQuantize(
         inputParams[0],
         ov::element::f32,
         256,
@@ -51,7 +52,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         {-12.8f},
         {12.7f});
 
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
     std::vector<std::shared_ptr<ngraph::Node>> branches(2);
     {
@@ -64,7 +65,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
                                                                         kernel);
     }
     {
-        const auto fq_conv_data = ngraph::builder::makeFakeQuantize(
+        const auto fq_conv_data = ov::builder::makeFakeQuantize(
             fq,
             ov::element::f32,
             256,
@@ -76,22 +77,22 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
 
         const InferenceEngine::SizeVector weights_const_shape = {numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]};
         const auto weights_const_values = std::vector<int>(ngraph::shape_size(weights_const_shape), 1);
-        const auto weights_const = ngraph::builder::makeConstant(ov::element::i8, weights_const_shape, weights_const_values);
+        const auto weights_const = ov::builder::makeConstant(ov::element::i8, weights_const_shape, weights_const_values);
 
-        const auto weights_convert = ngraph::builder::makeConversion(
+        const auto weights_convert = ov::builder::makeConversion(
             weights_const,
             ov::element::f32,
-            ngraph::helpers::ConversionTypes::CONVERT);
+            ov::helpers::ConversionTypes::CONVERT);
 
         const auto weights_multiply = std::make_shared<ov::opset10::Multiply>(
             weights_convert,
-            ngraph::builder::makeConstant(ov::element::f32,
+            ov::builder::makeConstant(ov::element::f32,
                                             {numOutChannels, 1, 1, 1},
                                             std::vector<float>(numOutChannels, 1.0)));
 
         switch (type) {
             case nodeType::convolution: {
-                branches[1] = ngraph::builder::makeConvolution(fq_conv_data,
+                branches[1] = ov::builder::makeConvolution(fq_conv_data,
                                                                weights_multiply,
                                                                ngraph::element::f32,
                                                                kernelSize,
@@ -104,11 +105,11 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
                 break;
             }
             case nodeType::groupConvolution: {
-                branches[1] = ngraph::builder::makeGroupConvolution(
+                branches[1] = ov::builder::makeGroupConvolution(
                     fq_conv_data,
                     std::make_shared<ov::opset10::Reshape>(
                         weights_multiply,
-                        ngraph::builder::makeConstant(
+                        ov::builder::makeConstant(
                             ov::element::i32,
                             {5},
                             std::vector<size_t>{1, numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]}),
@@ -127,7 +128,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         }
     }
 
-    auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{branches[0], branches[1]}, 1);
+    auto concat = ov::builder::makeConcat(ngraph::OutputVector{branches[0], branches[1]}, 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, inputParams, "ConvWithZeroPointFuseSubgraphTest");

@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -86,7 +86,7 @@ protected:
         for (size_t i = 0; i < outputCount; ++i) {
             auto relu = ngraph::builder::makeActivation(split->output(i),
                                                         ngraph::element::f32,
-                                                        ngraph::helpers::ActivationTypes::Sigmoid);
+                                                        ov::helpers::ActivationTypes::Sigmoid);
             auto reluFQNode = std::make_shared<ngraph::opset8::FakeQuantize>(relu,
                                                                              inputLowNode,
                                                                              inputHighNode,

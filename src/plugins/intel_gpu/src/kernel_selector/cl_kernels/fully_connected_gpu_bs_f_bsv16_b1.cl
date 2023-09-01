@@ -43,7 +43,7 @@
 //  - FILTER_CHUNK_PREFETCH_SIZE - [int] Size of array of CHUNK_TYPE use to cache/prefetch filter/weights data.
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Helpers:
+// ov::helpers:
 // ---------------------------------------------------------------------------------------------------------------------
 
 #define CONCAT_TOKEN_HANDLER1(prefix, suffix) prefix##suffix

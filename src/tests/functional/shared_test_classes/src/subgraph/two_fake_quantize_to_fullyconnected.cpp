@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/two_fake_quantize_to_fullyconnected.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -65,7 +66,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     const int seed = 0;
     std::mt19937 gen(seed);
@@ -85,7 +86,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto weightsRowNum = constShape[1][0];
     auto weightsColNum = inputShape[1];
     auto weightsData = generateFloatNumbers(weightsRowNum * weightsColNum, inputDataMin, inputDataMax);
-    auto const_param = ngraph::builder::makeConstant<float>(ngPrc, { constShape[1][0], inputShape[1] }, { 1.0f });
+    auto const_param = ov::builder::makeConstant<float>(ngPrc, { constShape[1][0], inputShape[1] }, { 1.0f });
     auto inputMinRange = std::vector<float>{};
     auto inputMaxRange = std::vector<float>{};
     auto channelDataSize = constShape[1];
@@ -111,10 +112,10 @@ void FakeQuantizeSubgraphTest::SetUp() {
         FAIL() << "Invalid test configuration";
     }
 
-    auto lowNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMinRange, false);
-    auto highNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMaxRange, false);
+    auto lowNode = ov::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMinRange, false);
+    auto highNode = ov::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMaxRange, false);
 
-    auto inputFQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, levels[0], constShape[0],
+    auto inputFQNode = ov::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, levels[0], constShape[0],
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
     auto weightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(const_param,
@@ -125,7 +126,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto matmul = std::make_shared<ngraph::opset1::MatMul>(inputFQ, weightsFQ, false, true);
     std::shared_ptr<ngraph::Node> biases_node;
     if (biases) {
-        auto const_bias = ngraph::builder::makeConstant(ngPrc, {1, constShape[1][0]}, std::vector<float>{ -1.0f });
+        auto const_bias = ov::builder::makeConstant(ngPrc, {1, constShape[1][0]}, std::vector<float>{ -1.0f });
         biases_node = std::make_shared<ngraph::opset1::Add>(matmul, const_bias);
     } else {
         biases_node = matmul;

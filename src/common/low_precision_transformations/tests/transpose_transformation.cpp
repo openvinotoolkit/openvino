@@ -13,8 +13,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/transpose_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/transpose_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -27,15 +27,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     std::vector<int> transposeConstValues;
@@ -54,7 +54,7 @@ public:
         const TransposeTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::TransposeFunction::getOriginal(inputShape,
+            ov::builder::subgraph::TransposeFunction::getOriginal(inputShape,
                                                                       testValues.transposeConstValues,
                                                                       testValues.actual.precisionBeforeDequantization,
                                                                       testValues.actual.dequantization);
@@ -63,7 +63,7 @@ public:
         transformer.add<ov::pass::low_precision::TransposeTransformation, ov::op::v1::Transpose>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::TransposeFunction::getReference(
+        referenceFunction = ov::builder::subgraph::TransposeFunction::getReference(
             inputShape,
             testValues.transposeConstValues,
             testValues.expected.precisionBeforeDequantization,

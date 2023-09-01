@@ -8,7 +8,8 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/reduce_function.hpp"
+#include "lpt_ov_models/reduce_function.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -16,7 +17,7 @@ std::string ReduceMaxTransformation::getTestCaseName(const testing::TestParamInf
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMaxTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
@@ -33,15 +34,15 @@ std::string ReduceMaxTransformation::getTestCaseName(const testing::TestParamInf
 void ReduceMaxTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMaxTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations::Convert convert;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMax>(
+    function = ov::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMax>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

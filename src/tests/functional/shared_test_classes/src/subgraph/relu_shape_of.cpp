@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/relu_shape_of.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace SubgraphTestsDefinitions {
 

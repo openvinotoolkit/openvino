@@ -16,7 +16,7 @@ namespace CPULayerTestsDefinitions  {
 using ActivationLayerCPUTestParamSet =
     std::tuple<std::vector<ov::test::InputShape>,                                // Input shapes
                std::vector<size_t>,                                              // Activation shapes
-               std::pair<ngraph::helpers::ActivationTypes, std::vector<float>>,  // Activation type and constant value
+               std::pair<ov::helpers::ActivationTypes, std::vector<float>>,  // Activation type and constant value
                InferenceEngine::Precision,                                       // Net precision
                InferenceEngine::Precision,                                       // Input precision
                InferenceEngine::Precision,                                       // Output precision
@@ -34,14 +34,14 @@ protected:
 
 private:
     InferenceEngine::Precision netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    ngraph::helpers::ActivationTypes activationType = ngraph::helpers::None;
+    ov::helpers::ActivationTypes activationType = ov::helpers::None;
 };
 
 namespace Activation {
 
 const std::vector<size_t> activationShapes();
 
-const std::map<ngraph::helpers::ActivationTypes, std::vector<std::vector<float>>>& activationTypes();
+const std::map<ov::helpers::ActivationTypes, std::vector<std::vector<float>>>& activationTypes();
 
 const std::vector<InferenceEngine::Precision>& netPrc();
 
@@ -60,7 +60,7 @@ const std::vector<CPUTestUtils::CPUSpecificParams>& cpuParams5D();
 
 const std::vector<std::vector<ov::Shape>>& basic5D();
 
-const std::map<ngraph::helpers::ActivationTypes, std::vector<std::vector<float>>>& activationTypesDynamicMath();
+const std::map<ov::helpers::ActivationTypes, std::vector<std::vector<float>>>& activationTypesDynamicMath();
 
 const std::vector<InferenceEngine::Precision>& netPrecisions();
 

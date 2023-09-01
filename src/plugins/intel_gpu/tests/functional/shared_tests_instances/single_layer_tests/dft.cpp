@@ -8,9 +8,9 @@
 
 namespace {
 
-const std::vector<ngraph::helpers::DFTOpType> opTypes = {
-    ngraph::helpers::DFTOpType::FORWARD,
-    ngraph::helpers::DFTOpType::INVERSE,
+const std::vector<ov::helpers::DFTOpType> opTypes = {
+    ov::helpers::DFTOpType::FORWARD,
+    ov::helpers::DFTOpType::INVERSE,
 };
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {

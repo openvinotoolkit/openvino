@@ -4,7 +4,8 @@
 
 #include <ngraph/opsets/opset6.hpp>
 #include "shared_test_classes/subgraph/softsign.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -67,9 +68,9 @@ std::shared_ptr<ngraph::Function> SoftsignTest::GenerateNgraphFriendlySoftSign()
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto abs = std::make_shared<ngraph::op::Abs>(params[0]);
-    auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, { 1 });
+    auto constant_0 = ov::builder::makeConstant<float>(ngPrc, inputShape, { 1 });
     auto add = std::make_shared<ngraph::op::v1::Add>(abs, constant_0);
-    auto constant_1 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, { -1 });
+    auto constant_1 = ov::builder::makeConstant<float>(ngPrc, inputShape, { -1 });
     auto power = std::make_shared<ngraph::op::v1::Power>(add, constant_1);
     auto mul = std::make_shared<ngraph::op::v1::Multiply>(power, params[0]);
 

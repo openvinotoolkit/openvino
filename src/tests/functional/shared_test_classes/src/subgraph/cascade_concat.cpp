@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/cascade_concat.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -42,14 +44,14 @@ void CascadeConcat::SetUp() {
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0),
                                                                                 relu2->output(0)},
                                                                                 1);
-    auto reshape = ngraph::builder::makeSqueezeUnsqueeze(concat, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
-    auto reshape2 = ngraph::builder::makeSqueezeUnsqueeze(reshape, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
+    auto reshape = ov::builder::makeSqueezeUnsqueeze(concat, ngraph::element::i64, {0}, ov::helpers::SqueezeOpType::UNSQUEEZE);
+    auto reshape2 = ov::builder::makeSqueezeUnsqueeze(reshape, ngraph::element::i64, {0}, ov::helpers::SqueezeOpType::SQUEEZE);
     auto concat2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{reshape2->output(0),
                                                                                  relu3->output(0)},
                                                                                  1);
     ngraph::ResultVector results;
     if (multioutput) {
-        auto const_mult = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1, input1[0][1]+input2[0][1]},
+        auto const_mult = ov::builder::makeConstant(ngPrc, ngraph::Shape{1, input1[0][1]+input2[0][1]},
                                                   std::vector<float>{1.01f});
         auto mult = std::make_shared<ngraph::op::v1::Multiply>(concat, const_mult);
         results = ngraph::ResultVector{std::make_shared<ngraph::opset1::Result>(concat2),
@@ -105,21 +107,21 @@ void CascadeConcatWithMultiConnReshape::SetUp() {
     inputShapeSqueezed.insert(std::begin(inputShapeSqueezed), 1);
     ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapeSqueezed))};
     auto relu = std::make_shared<ngraph::opset8::Relu>(input[0]);
-    auto const1 = ngraph::builder::makeConstant(ngPrc, inputShapeSqueezed, std::vector<float>{}, true);
-    auto concat1 = ngraph::builder::makeConcat({relu, const1}, inputShapeSqueezed.size() - 1);
+    auto const1 = ov::builder::makeConstant(ngPrc, inputShapeSqueezed, std::vector<float>{}, true);
+    auto concat1 = ov::builder::makeConcat({relu, const1}, inputShapeSqueezed.size() - 1);
 
-    auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(concat1, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
+    auto squeeze = ov::builder::makeSqueezeUnsqueeze(concat1, ngraph::element::i64, {0}, ov::helpers::SqueezeOpType::SQUEEZE);
 
     auto relu1 = std::make_shared<ngraph::opset8::Relu>(squeeze);
-    auto unsqueeze1 = ngraph::builder::makeSqueezeUnsqueeze(relu1, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+    auto unsqueeze1 = ov::builder::makeSqueezeUnsqueeze(relu1, ngraph::element::i64, {0}, ov::helpers::SqueezeOpType::UNSQUEEZE);
 
-    auto const2 = ngraph::builder::makeConstant(ngPrc, inputShape, std::vector<float>{}, true);
-    auto concat2 = ngraph::builder::makeConcat({squeeze, const2}, 1);
+    auto const2 = ov::builder::makeConstant(ngPrc, inputShape, std::vector<float>{}, true);
+    auto concat2 = ov::builder::makeConcat({squeeze, const2}, 1);
     // Change concat name to make it the second connection in the map of squeeze output connections
     concat2->set_friendly_name("XConcat");
 
     auto relu2 = std::make_shared<ngraph::opset8::Relu>(concat2);
-    auto unsqueeze2 = ngraph::builder::makeSqueezeUnsqueeze(relu2, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+    auto unsqueeze2 = ov::builder::makeSqueezeUnsqueeze(relu2, ngraph::element::i64, {0}, ov::helpers::SqueezeOpType::UNSQUEEZE);
     ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(unsqueeze1),
                                     std::make_shared<ngraph::opset1::Result>(unsqueeze2)};
 

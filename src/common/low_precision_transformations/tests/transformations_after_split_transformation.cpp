@@ -39,7 +39,7 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
-#include "lpt_ngraph_functions/transformations_after_split_function.hpp"
+#include "lpt_ov_models/transformations_after_split_function.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
@@ -154,7 +154,7 @@ class TransformationsAfterSplitTransformation : public LayerTransformation, publ
 public:
     void SetUp() override {
         const auto layerName = GetParam();
-        model = ngraph::builder::subgraph::TransformationsAfterSplitFunction::get(layerName);
+        model = ov::builder::subgraph::TransformationsAfterSplitFunction::get(layerName);
         model->validate_nodes_and_infer_types();
     }
 

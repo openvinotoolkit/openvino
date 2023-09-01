@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/trivial_concat.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -30,14 +31,14 @@ void TrivialConcatLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, total_size})};
 
-    auto input_relu = ngraph::builder::makeActivation(params[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+    auto input_relu = ov::builder::makeActivation(params[0], ngPrc, ov::helpers::ActivationTypes::Relu);
 
     auto input_reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
         ngraph::Shape{inputShape.size()}, std::vector<size_t>(inputShape));
     auto input = std::make_shared<ngraph::op::v1::Reshape>(input_relu, input_reshape_pattern, false);
 
     auto constant_values = ov::test::utils::generate_float_numbers(total_size, 15.5f, 16.1f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>({1, total_size}), constant_values);
+    auto constant = ov::builder::makeConstant(ngPrc, std::vector<size_t>({1, total_size}), constant_values);
 
     auto first_reshape = std::make_shared<ngraph::op::v1::Reshape>(constant, input_reshape_pattern, false);
 
@@ -47,7 +48,7 @@ void TrivialConcatLayerTest::SetUp() {
         ngraph::Shape{2}, std::vector<size_t>({1, 2 * total_size}));
     auto final_reshape = std::make_shared<ngraph::op::v1::Reshape>(concat, final_reshape_pattern, false);
 
-    auto act = ngraph::builder::makeActivation(final_reshape, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+    auto act = ov::builder::makeActivation(final_reshape, ngPrc, ov::helpers::ActivationTypes::Relu);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(act)};
     function = std::make_shared<ngraph::Function>(results, params, "trivial_concat");

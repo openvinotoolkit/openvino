@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/split_trivial_permute_concat.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string SplitTrivialPermuteConcatTest::getTestCaseName(const testing::TestParamInfo<SplitTrivialPermuteConcatTuple>& obj) {
@@ -34,7 +35,7 @@ namespace SubgraphTestsDefinitions {
         configuration.insert(config.begin(), config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto split = ngraph::builder::makeSplit(input[0], ngPrc, 2, splitAxis);
+        auto split = ov::builder::makeSplit(input[0], ngPrc, 2, splitAxis);
 
         auto permute_in_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
                                                                             ngraph::Shape{ 4 },
@@ -43,7 +44,7 @@ namespace SubgraphTestsDefinitions {
         auto permute_1 = std::make_shared<ngraph::opset1::Transpose>(split->output(1), permute_in_params);
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ permute_0, permute_1 }, concatAxis);
-        auto act = ngraph::builder::makeActivation(concat, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+        auto act = ov::builder::makeActivation(concat, ngPrc, ov::helpers::ActivationTypes::Relu);
         function = std::make_shared<ngraph::Function>(act, input, "split_trivial_permute_concat");
     }
 } // namespace SubgraphTestsDefinitions

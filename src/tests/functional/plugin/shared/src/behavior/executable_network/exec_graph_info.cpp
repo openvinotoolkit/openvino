@@ -6,6 +6,7 @@
 #include "common_test_utils/test_common.hpp"
 #include <exec_graph_info.hpp>
 #include "behavior/executable_network/exec_graph_info.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace ExecutionGraphTests {
 
@@ -463,7 +464,7 @@ void ExecGraphUniqueNodeNames::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
+    auto split = ov::builder::makeSplit(params[0], ngPrc, 2, 1);
     auto concat = std::make_shared<ngraph::opset1::Concat>(split->outputs(), 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};

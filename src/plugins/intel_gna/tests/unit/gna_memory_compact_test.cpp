@@ -14,7 +14,7 @@
 #include "gna_fused_iterator.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace memory;
@@ -314,12 +314,11 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivation) {
     ov::Strides strides = {1, 1};
     ov::Strides dilations = {1, 1};
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
+    auto weights = ov::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
-    auto activation =
-        ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
+    auto activation = ov::builder::makeActivation(conv, ov::element::f32, ov::helpers::ActivationTypes::Sigmoid);
     auto result = std::make_shared<ngraph::opset8::Result>(activation);
     auto function =
         std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
@@ -336,19 +335,19 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersMaxPool) {
     ov::Strides strides = {1, 1};
     ov::Strides dilations = {1, 1};
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
+    auto weights = ov::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
-    auto maxpool = ngraph::builder::makePooling(conv,
-                                                {1, 1},
-                                                {0, 0},
-                                                {0, 0},
-                                                {1, 1},
-                                                ngraph::op::RoundingType::FLOOR,
-                                                ngraph::op::PadType::VALID,
-                                                false,
-                                                ngraph::helpers::PoolingTypes::MAX);
+    auto maxpool = ov::builder::makePooling(conv,
+                                            {1, 1},
+                                            {0, 0},
+                                            {0, 0},
+                                            {1, 1},
+                                            ngraph::op::RoundingType::FLOOR,
+                                            ngraph::op::PadType::VALID,
+                                            false,
+                                            ov::helpers::PoolingTypes::MAX);
     auto result = std::make_shared<ngraph::opset8::Result>(maxpool);
     auto function =
         std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
@@ -365,21 +364,20 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivationMaxPool) {
     ov::Strides strides = {1, 1};
     ov::Strides dilations = {1, 1};
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
+    auto weights = ov::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
-    auto activation =
-        ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
-    auto maxpool = ngraph::builder::makePooling(activation,
-                                                {1, 1},
-                                                {0, 0},
-                                                {0, 0},
-                                                {1, 1},
-                                                ngraph::op::RoundingType::FLOOR,
-                                                ngraph::op::PadType::VALID,
-                                                false,
-                                                ngraph::helpers::PoolingTypes::MAX);
+    auto activation = ov::builder::makeActivation(conv, ov::element::f32, ov::helpers::ActivationTypes::Sigmoid);
+    auto maxpool = ov::builder::makePooling(activation,
+                                            {1, 1},
+                                            {0, 0},
+                                            {0, 0},
+                                            {1, 1},
+                                            ngraph::op::RoundingType::FLOOR,
+                                            ngraph::op::PadType::VALID,
+                                            false,
+                                            ov::helpers::PoolingTypes::MAX);
     auto result = std::make_shared<ngraph::opset8::Result>(maxpool);
     auto function =
         std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");

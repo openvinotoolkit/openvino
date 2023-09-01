@@ -3,8 +3,9 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <exec_graph_info.hpp>
+#include "ngraph/opsets/opset8.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -98,7 +99,7 @@ void QuantizedConvolutionBatchNorm::SetUp() {
     auto low_weights = opset8::Constant::create(element::f32, weights_intervals_shape, {-0.72519057});
     auto high_weights = opset8::Constant::create(element::f32, weights_intervals_shape, {0.72519057});
     std::shared_ptr<Node> activations = nullptr;
-    std::shared_ptr<Node> weights = builder::makeConstant(element::f32, weights_shape, {}, true, 0.5f, -0.5f);
+    std::shared_ptr<Node> weights = ov::builder::makeConstant(element::f32, weights_shape, {}, true, 0.5f, -0.5f);
     if (quantize_type == QuantizeType::FAKE_QUANTIZE) {
         activations = std::make_shared<opset8::FakeQuantize>(parameter, low_act, high_act, low_act, high_act, 256);
         weights = std::make_shared<opset8::FakeQuantize>(weights, low_weights, high_weights, low_weights, high_weights, 255);
@@ -158,10 +159,10 @@ void QuantizedConvolutionBatchNorm::SetUp() {
         conv = std::make_shared<opset8::ConvolutionBackpropData>(activations, weights, Strides{1, 1},
                 CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
     }
-    auto gamma = builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
-    auto beta = builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
-    auto mean = builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
-    auto var = builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
+    auto gamma = ov::builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
+    auto beta = ov::builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
+    auto mean = ov::builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
+    auto var = ov::builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
     auto batch_norm = std::make_shared<opset8::BatchNormInference>(conv, gamma, beta, mean, var, 0.00001);
     function = std::make_shared<ngraph::Function>(batch_norm, ParameterVector{parameter});
 }

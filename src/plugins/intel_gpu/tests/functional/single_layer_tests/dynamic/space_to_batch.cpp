@@ -4,9 +4,10 @@
 
 #include "shared_test_classes/single_layer/space_to_batch.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;
@@ -23,7 +24,7 @@ typedef std::tuple<
         InputShape,                        // Input shapes
         SpaceToBatchParams,
         ElementType,                       // Element type
-        ngraph::helpers::InputLayerType,   // block/begin/end input type
+        ov::helpers::InputLayerType,   // block/begin/end input type
         std::map<std::string, std::string> // Additional network configuration
 > SpaceToBatchParamsLayerParamSet;
 
@@ -34,7 +35,7 @@ public:
         InputShape shapes;
         SpaceToBatchParams params;
         ElementType elementType;
-        ngraph::helpers::InputLayerType restInputType;
+        ov::helpers::InputLayerType restInputType;
         TargetDevice targetDevice;
         std::map<std::string, std::string> additionalConfig;
         std::tie(shapes, params, elementType, restInputType, additionalConfig) = obj.param;
@@ -100,7 +101,7 @@ protected:
     void SetUp() override {
         InputShape shapes;
         SpaceToBatchParams ssParams;
-        ngraph::helpers::InputLayerType restInputType;
+        ov::helpers::InputLayerType restInputType;
         std::map<std::string, std::string> additionalConfig;
         std::tie(shapes, ssParams, inType, restInputType, additionalConfig) = this->GetParam();
 
@@ -112,7 +113,7 @@ protected:
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);
-        if (restInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (restInputType == ov::helpers::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(block.size())}, std::vector<ov::Shape>(shapes.second.size(), {block.size()})));
             inputShapes.push_back(InputShape({static_cast<int64_t>(begin.size())}, std::vector<ov::Shape>(shapes.second.size(), {begin.size()})));
             inputShapes.push_back(InputShape({static_cast<int64_t>(end.size())}, std::vector<ov::Shape>(shapes.second.size(), {end.size()})));
@@ -122,7 +123,7 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
         std::shared_ptr<ov::Node> blockInput, beginInput, endInput;
-        if (restInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (restInputType == ov::helpers::InputLayerType::PARAMETER) {
             auto blockNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{block.size()});
             auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{begin.size()});
             auto endNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{end.size()});
@@ -164,9 +165,9 @@ const std::vector<ElementType> inputPrecisions = {
         ElementType::f32
 };
 
-const std::vector<ngraph::helpers::InputLayerType> restInputTypes = {
-    ngraph::helpers::InputLayerType::CONSTANT,
-    ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::helpers::InputLayerType> restInputTypes = {
+    ov::helpers::InputLayerType::CONSTANT,
+    ov::helpers::InputLayerType::PARAMETER
 };
 
 const std::vector<InputShape> inputShapesDynamic3D = {

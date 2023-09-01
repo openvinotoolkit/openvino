@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/power.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
     std::string PowerLayerTest::getTestCaseName(const testing::TestParamInfo<PowerParamsTuple> &obj) {

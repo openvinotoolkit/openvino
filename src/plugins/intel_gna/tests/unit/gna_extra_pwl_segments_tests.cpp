@@ -9,8 +9,8 @@
 #include "gna_infer_request.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
 
 using ov::intel_gna::GNAPlugin;
 using namespace ov::op;
@@ -32,15 +32,15 @@ struct ConvolutionParameters {
 struct PWLExtraSegmentsParamsWithConv {
     ConvolutionParameters conv_params;
     ov::element::Type precision;
-    ngraph::helpers::ActivationTypes activation_type;
+    ov::helpers::ActivationTypes activation_type;
     size_t expected_segments_num;
     bool use_pooling;
     std::map<std::string, std::string> config;
 };
 
-const std::unordered_map<ngraph::helpers::ActivationTypes, std::string> kNGraphActivationMapForTests{
-    {ngraph::helpers::ActivationTypes::Relu, "Relu"},
-    {ngraph::helpers::ActivationTypes::Sigmoid, "Sigmoid"}};
+const std::unordered_map<ov::helpers::ActivationTypes, std::string> kNGraphActivationMapForTests{
+    {ov::helpers::ActivationTypes::Relu, "Relu"},
+    {ov::helpers::ActivationTypes::Sigmoid, "Sigmoid"}};
 
 const std::unordered_map<intel_dnn_operation_t, std::string> kDnnOperationMapForTests{
     {kDnnConvolutional1dOp, "kDnnConvolutional1dOp"},
@@ -62,12 +62,12 @@ std::string GetDnnOperationName(const intel_dnn_operation_t& enum_value, const s
     return GetEnumName(enum_value, kDnnOperationMapForTests, default_value);
 }
 
-std::string GetNGraphActivationTypeName(const ngraph::helpers::ActivationTypes& enum_value,
+std::string GetNGraphActivationTypeName(const ov::helpers::ActivationTypes& enum_value,
                                         const std::string default_value = "") {
     return GetEnumName(enum_value, kNGraphActivationMapForTests, default_value);
 }
 
-std::ostream& operator<<(std::ostream& os, const ngraph::helpers::ActivationTypes& value) {
+std::ostream& operator<<(std::ostream& os, const ov::helpers::ActivationTypes& value) {
     os << GetNGraphActivationTypeName(value);
     return os;
 }
@@ -136,23 +136,23 @@ void GNAPWLExtraSegmentsTestFixture::SetUp() {
     filter_shape.insert(filter_shape.end(), kernel.begin(), kernel.end());
 
     auto input = std::make_shared<Parameter>(precision, input_shape);
-    auto filter = ngraph::builder::makeConstant<float>(precision, filter_shape, {1.f}, true);
+    auto filter = ov::builder::makeConstant<float>(precision, filter_shape, {1.f}, true);
 
     auto conv = std::make_shared<Convolution>(input, filter, stride, pad_begin, pad_end, dilation);
 
-    auto activation = ngraph::builder::makeActivation(conv, precision, activation_type);
+    auto activation = ov::builder::makeActivation(conv, precision, activation_type);
     std::shared_ptr<Result> result = nullptr;
 
     if (use_pooling) {
-        auto maxpool = ngraph::builder::makePooling(activation,
-                                                    stride,
-                                                    pad_begin_pool,
-                                                    pad_end_pool,
-                                                    kernel,
-                                                    RoundingType::FLOOR,
-                                                    PadType::VALID,
-                                                    false,
-                                                    ngraph::helpers::PoolingTypes::MAX);
+        auto maxpool = ov::builder::makePooling(activation,
+                                                stride,
+                                                pad_begin_pool,
+                                                pad_end_pool,
+                                                kernel,
+                                                RoundingType::FLOOR,
+                                                PadType::VALID,
+                                                false,
+                                                ov::helpers::PoolingTypes::MAX);
         result = std::make_shared<Result>(maxpool);
     } else {
         result = std::make_shared<Result>(activation);
@@ -183,22 +183,22 @@ const ConvolutionParameters kConvolutionParams1D =
     {kDnnConvolutional1dOp, kInput1D, kKernel1D, kStride1D, kDilation1D, kOutChanneldsNum1D, kPadBegin1D, kPadEnd1D};
 
 const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithoutPoolParams_30 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 2, false, configs_30};
+    {kConvolutionParams1D, kPrecision32, ov::helpers::ActivationTypes::Relu, 2, false, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithPoolParams_30 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 2, true, configs_30};
+    {kConvolutionParams1D, kPrecision32, ov::helpers::ActivationTypes::Relu, 2, true, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution1DSigmoidWithoutPoolParams_30 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, false, configs_30};
+    {kConvolutionParams1D, kPrecision32, ov::helpers::ActivationTypes::Sigmoid, 12, false, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution1DSigmoidWithPoolParams_30 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, true, configs_30};
+    {kConvolutionParams1D, kPrecision32, ov::helpers::ActivationTypes::Sigmoid, 12, true, configs_30};
 
 const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithoutPoolParams_35 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, false, configs_35};
+    {kConvolutionParams1D, kPrecision32, ov::helpers::ActivationTypes::Relu, 4, false, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithPoolParams_35 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, true, configs_35};
+    {kConvolutionParams1D, kPrecision32, ov::helpers::ActivationTypes::Relu, 4, true, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution1DSigmoidWithoutPoolParams_35 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, false, configs_35};
+    {kConvolutionParams1D, kPrecision32, ov::helpers::ActivationTypes::Sigmoid, 12, false, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution1DSigmoidWithPoolParams_35 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, true, configs_35};
+    {kConvolutionParams1D, kPrecision32, ov::helpers::ActivationTypes::Sigmoid, 12, true, configs_35};
 
 const ov::Shape kInput2D = {1, 8, 20, 16};
 const ov::Shape kKernel2D = {1, 1};
@@ -211,22 +211,22 @@ const ConvolutionParameters kConvolutionParams2D =
     {kDnnConvolutional2dOp, kInput2D, kKernel2D, kStride2D, kDilation2D, kOutChanneldsNum2D, kPadBegin2D, kPadEnd2D};
 
 const PWLExtraSegmentsParamsWithConv kConvolution2DReluWithoutPoolParams_30 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, false, configs_30};
+    {kConvolutionParams2D, kPrecision32, ov::helpers::ActivationTypes::Relu, 4, false, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution2DReluWithPoolParams_30 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, true, configs_30};
+    {kConvolutionParams2D, kPrecision32, ov::helpers::ActivationTypes::Relu, 4, true, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution2DSigmoidWithoutPoolParams_30 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, false, configs_30};
+    {kConvolutionParams2D, kPrecision32, ov::helpers::ActivationTypes::Sigmoid, 12, false, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution2DSigmoidWithPoolParams_30 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, true, configs_30};
+    {kConvolutionParams2D, kPrecision32, ov::helpers::ActivationTypes::Sigmoid, 12, true, configs_30};
 
 const PWLExtraSegmentsParamsWithConv kConvolution2DReluWithoutPoolParams_35 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, false, configs_35};
+    {kConvolutionParams2D, kPrecision32, ov::helpers::ActivationTypes::Relu, 4, false, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution2DReluWithPoolParams_35 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, true, configs_35};
+    {kConvolutionParams2D, kPrecision32, ov::helpers::ActivationTypes::Relu, 4, true, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution2DSigmoidWithoutPoolParams_35 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, false, configs_35};
+    {kConvolutionParams2D, kPrecision32, ov::helpers::ActivationTypes::Sigmoid, 12, false, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution2DSigmoidWithPoolParams_35 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, true, configs_35};
+    {kConvolutionParams2D, kPrecision32, ov::helpers::ActivationTypes::Sigmoid, 12, true, configs_35};
 
 INSTANTIATE_TEST_CASE_P(GNAPWLExtraSegmentsConv1DTests,
                         GNAPWLExtraSegmentsTestFixture,

@@ -4,10 +4,11 @@
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;
@@ -46,7 +47,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(rtPrc, inpShape),
                                    std::make_shared<ov::op::v0::Parameter>(ov::element::i32, secShape)};
         auto shape = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
-        auto c = ngraph::builder::makeConstant<float>(rtPrc, {}, {1.0f});
+        auto c = ov::builder::makeConstant<float>(rtPrc, {}, {1.0f});
         auto broadcast = std::make_shared<ov::op::v3::Broadcast>(c, shape);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, params[1], false);
         ov::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape->output(0))};

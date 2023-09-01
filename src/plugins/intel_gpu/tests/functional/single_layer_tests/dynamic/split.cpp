@@ -5,9 +5,12 @@
 #include "shared_test_classes/single_layer/select.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -67,9 +70,9 @@ protected:
         init_input_shapes({inputShape});
         ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
         auto paramOuts =
-            ngraph::helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(dyn_params));
+            ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<opset1::Parameter>(dyn_params));
         auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(
-                     ngraph::builder::makeSplit(paramOuts[0], netPrecision, numSplits, axis));
+                     ov::builder::makeSplit(paramOuts[0], netPrecision, numSplits, axis));
         ngraph::ResultVector results;
         for (size_t i = 0; i < outIndices.size(); i++) {
             results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(outIndices[i])));
@@ -133,7 +136,7 @@ typedef std::tuple<
         std::vector<int32_t>,               // SplitLength
         ElementType,                        // Net precision
         InputShape,                         // Input shapes
-        ngraph::helpers::InputLayerType     // input type of splitLength
+        ov::helpers::InputLayerType     // input type of splitLength
 > varSplitDynamicGPUTestParams;
 
 class VariadicSplitLayerGPUDynamicTest : public testing::WithParamInterface<varSplitDynamicGPUTestParams>,
@@ -145,7 +148,7 @@ public:
         std::vector<int32_t> splitLength;
         ElementType netPrecision;
         InputShape inputShape;
-        ngraph::helpers::InputLayerType inputType;
+        ov::helpers::InputLayerType inputType;
         std::tie(axis, splitLength, netPrecision, inputShape, inputType) = obj.param;
 
         result << "IS=";
@@ -191,26 +194,26 @@ protected:
         int64_t axis;
         InputShape inputShape;
         std::vector<int32_t> splitLength;
-        ngraph::helpers::InputLayerType inputType;
+        ov::helpers::InputLayerType inputType;
         std::tie(axis, splitLength, netPrecision, inputShape, inputType) = this->GetParam();
 
         splitLength_vec = splitLength;
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(inputShape);
-        if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (inputType == ov::helpers::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(splitLength.size())},
                                   std::vector<ov::Shape>(inputShape.second.size(), {splitLength.size()})));
         }
         init_input_shapes(inputShapes);
 
         ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(dyn_params));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<opset1::Parameter>(dyn_params));
 
         auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{static_cast<int64_t>(axis)});
 
         std::shared_ptr<ov::Node> splitLengthOp;
-        if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (inputType == ov::helpers::InputLayerType::PARAMETER) {
             auto splitLengthNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{splitLength.size()});
             dyn_params.push_back(splitLengthNode);
             splitLengthOp = splitLengthNode;
@@ -232,9 +235,9 @@ TEST_P(VariadicSplitLayerGPUDynamicTest, CompareWithRefs) {
     run();
 }
 
-const std::vector<ngraph::helpers::InputLayerType> restInputTypes = {
-    ngraph::helpers::InputLayerType::CONSTANT,
-    ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::helpers::InputLayerType> restInputTypes = {
+    ov::helpers::InputLayerType::CONSTANT,
+    ov::helpers::InputLayerType::PARAMETER
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck4D, VariadicSplitLayerGPUDynamicTest,

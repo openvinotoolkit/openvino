@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/interpolate_function.hpp"
+#include "lpt_ov_models/interpolate_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -63,7 +63,7 @@ void InterpolateTransformation::SetUp() {
     interpAttrs.pads_begin = attributes.pads_begin;
     interpAttrs.pads_end = attributes.pads_end;
 
-    function = ngraph::builder::subgraph::InterpolateFunction::getOriginal(precision, shapes.first, shapes.second, interpAttrs);
+    function = ov::builder::subgraph::InterpolateFunction::getOriginal(precision, shapes.first, shapes.second, interpAttrs);
 }
 
 TEST_P(InterpolateTransformation, CompareWithRefImpl) {

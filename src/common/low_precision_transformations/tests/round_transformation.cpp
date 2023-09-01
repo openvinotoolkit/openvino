@@ -10,8 +10,8 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/round_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/round_function.hpp"
 
 namespace {
 using namespace testing;
@@ -22,8 +22,8 @@ class RoundTestValues {
 public:
     ov::element::Type inputPrecision;
     ov::Shape inputShape;
-    ngraph::builder::subgraph::DequantizationOperations actualDequantization;
-    ngraph::builder::subgraph::DequantizationOperations referenceDequantization;
+    ov::builder::subgraph::DequantizationOperations actualDequantization;
+    ov::builder::subgraph::DequantizationOperations referenceDequantization;
 };
 
 class RoundTransformation : public LayerTransformation, public testing::WithParamInterface<RoundTestValues> {
@@ -32,7 +32,7 @@ public:
         const auto testValues = this->GetParam();
 
         actualFunction =
-            ngraph::builder::subgraph::RoundWithToleranceFunction::getOriginal(testValues.inputPrecision,
+            ov::builder::subgraph::RoundWithToleranceFunction::getOriginal(testValues.inputPrecision,
                                                                                testValues.inputShape,
                                                                                testValues.actualDequantization);
         const auto lastNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
@@ -52,7 +52,7 @@ public:
         }
 
         referenceFunction =
-            ngraph::builder::subgraph::RoundWithToleranceFunction::getReference(testValues.inputPrecision,
+            ov::builder::subgraph::RoundWithToleranceFunction::getReference(testValues.inputPrecision,
                                                                                 testValues.inputShape,
                                                                                 testValues.referenceDequantization);
     }

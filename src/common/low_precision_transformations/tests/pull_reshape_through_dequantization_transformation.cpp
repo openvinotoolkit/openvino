@@ -15,7 +15,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "lpt_ov_models/fake_quantize_and_convolution_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -27,15 +27,15 @@ public:
     class Values {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        ngraph::builder::subgraph::Constant weights;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
-        ngraph::builder::subgraph::Reshape reshape1;
-        ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
-        ngraph::builder::subgraph::Transpose transpose;
-        ngraph::builder::subgraph::Reshape reshape2;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+        ov::builder::subgraph::Constant weights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::Reshape reshape1;
+        ov::builder::subgraph::DequantizationOperations::Multiply multiply;
+        ov::builder::subgraph::Transpose transpose;
+        ov::builder::subgraph::Reshape reshape2;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -69,7 +69,7 @@ public:
         testValues.expected.dequantizationOnWeights.subtract.constantShape = dequantizationElementwiseShape.second;
         testValues.expected.dequantizationOnWeights.multiply.constantShape = dequantizationElementwiseShape.second;
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        actualFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             testValues.actual.precisionBeforeDequantization,
             inputShape,
             {},
@@ -94,7 +94,7 @@ public:
         decomp->add_matcher<ov::pass::LinOpSequenceFusion>();
         manager.run_passes(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        referenceFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             testValues.actual.precisionBeforeDequantization,
             inputShape,
             {},

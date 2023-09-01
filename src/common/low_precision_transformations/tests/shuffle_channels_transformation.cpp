@@ -14,8 +14,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/shuffle_channels_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/shuffle_channels_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 namespace {
 using namespace testing;
@@ -28,15 +28,15 @@ public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -56,7 +56,7 @@ public:
         ov::PartialShape inputShape = std::get<0>(GetParam());
         ShuffleChannelsTransformationTestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::ShuffleChannelsFunction::getOriginal(
             testValues.actual.inputPrecision,
             inputShape,
             testValues.actual.dequantization,
@@ -67,7 +67,7 @@ public:
         transform.add<ov::pass::low_precision::ShuffleChannelsTransformation, ov::op::v0::ShuffleChannels>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getReference(
+        referenceFunction = ov::builder::subgraph::ShuffleChannelsFunction::getReference(
             testValues.expected.inputPrecision,
             inputShape,
             testValues.expected.dequantizationBefore,

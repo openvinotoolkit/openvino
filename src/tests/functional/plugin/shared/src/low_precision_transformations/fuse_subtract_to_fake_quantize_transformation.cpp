@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/fuse_subtract_to_fake_quantize_function.hpp"
+#include "lpt_ov_models/fuse_subtract_to_fake_quantize_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -30,7 +30,7 @@ void FuseSubtractToFakeQuantizeTransformation::SetUp() {
     FuseSubtractToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+    function = ov::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
         testValues.inputShape,
         testValues.actual.fakeQuantizeOnData,
         testValues.actual.dequantization);

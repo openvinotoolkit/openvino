@@ -10,14 +10,14 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 using ShapeAxesTuple = std::pair<std::vector<size_t>, std::vector<int>>;
 
 typedef std::tuple<
         ShapeAxesTuple,                 // InputShape (required), Squeeze indexes (if empty treated as non-existent)
-        ngraph::helpers::SqueezeOpType, // OpType
+        ov::helpers::SqueezeOpType, // OpType
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
         InferenceEngine::Precision,     // Output precision

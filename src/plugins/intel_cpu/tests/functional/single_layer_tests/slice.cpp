@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -22,7 +24,7 @@ struct Slice8SpecificParams {
 typedef std::tuple<
     std::vector<InputShape>,         // Parameters shapes
     Slice8SpecificParams,            // Slice-8 specific parameters
-    ngraph::helpers::InputLayerType, // Secondary input types
+    ov::helpers::InputLayerType, // Secondary input types
     ElementType,                     // Network precision
     CPUSpecificParams                // CPU specific parameters
 > Slice8LayerTestCPUParam;
@@ -33,7 +35,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<Slice8LayerTestCPUParam> obj) {
         std::vector<InputShape> shapes;
         Slice8SpecificParams params;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
         std::tie(shapes, params, secondaryInputType, netPrecision, cpuParams) = obj.param;
@@ -80,7 +82,7 @@ protected:
     }
     void SetUp() override {
         std::vector<InputShape> shapes;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
         std::tie(shapes, sliceParams, secondaryInputType, netPrecision, cpuParams) = this->GetParam();
@@ -103,7 +105,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
         }
         std::shared_ptr<ngraph::Node> sliceNode;
-        if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
             // Slice start, stop, step, axes are parameters.
             auto startNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, ov::Shape{sliceParams.start.size()});
             auto stopdNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, ov::Shape{sliceParams.stop.size()});
@@ -116,17 +118,17 @@ protected:
                 // With axes parameter
                 auto axesNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, ov::Shape{sliceParams.axes.size()});
                 params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(axesNode));
-                sliceNode = ngraph::builder::makeSlice(params[0], startNode, stopdNode, stepNode, axesNode);
+                sliceNode = ov::builder::makeSlice(params[0], startNode, stopdNode, stepNode, axesNode);
             } else {
                 //without axes parameter
-                sliceNode = ngraph::builder::makeSlice(params[0], startNode, stopdNode, stepNode);
+                sliceNode = ov::builder::makeSlice(params[0], startNode, stopdNode, stepNode);
             }
-        } else if (secondaryInputType == ngraph::helpers::InputLayerType::CONSTANT) {
+        } else if (secondaryInputType == ov::helpers::InputLayerType::CONSTANT) {
             // Slice start, stop, step, axes are const.
-            sliceNode = ngraph::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);;
+            sliceNode = ov::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);;
         } else {
             // Not supported others.
-            IE_THROW() << "Slice8LayerCPUTest: Unsupported ngraph::helpers::InputLayerType , value: " << secondaryInputType;
+            IE_THROW() << "Slice8LayerCPUTest: Unsupported ov::helpers::InputLayerType , value: " << secondaryInputType;
         }
 
         function = makeNgraphFunction(netPrecision, params, sliceNode, "Slice8");
@@ -141,9 +143,9 @@ TEST_P(Slice8LayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-const std::vector<ngraph::helpers::InputLayerType> inputLayerTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::helpers::InputLayerType> inputLayerTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER
 };
 
 const auto cpuParams_nChw16c = CPUSpecificParams {{nChw16c}, {nChw16c}, {}, {}};
@@ -204,7 +206,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D, Slice8LayerCPUTe
                         ::testing::Combine(
                                 ::testing::Values(static_shapes_to_test_representation({{32, 20}})),
                                 ::testing::ValuesIn(paramsPlain2D),
-                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(emptyCPUSpec)),
                         Slice8LayerCPUTest::getTestCaseName);
@@ -213,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_2D, Slice8LayerCPUT
                         ::testing::Combine(
                             ::testing::ValuesIn(inputShapesDynamic2D),
                             ::testing::ValuesIn(paramsPlain2D),
-                            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                            ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(emptyCPUSpec)),
                         Slice8LayerCPUTest::getTestCaseName);
@@ -273,7 +275,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_4D, Slice8LayerCPUT
                         ::testing::Combine(
                                 ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic4D)),
                                 ::testing::ValuesIn(testCasesCommon4D),
-                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(CPUParamsCommon4D)),
                         Slice8LayerCPUTest::getTestCaseName);
@@ -365,7 +367,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_4D_Subset1, Slice8L
                          ::testing::Combine(
                                  ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesBlockedStatic4DSubset1)),
                                  ::testing::ValuesIn(testCasesBlocked4DSubset1),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::ValuesIn(inputPrecisions),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          Slice8LayerCPUTest::getTestCaseName);
@@ -374,7 +376,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D_Subset1, Slice8
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapesBlockedDynamic4DSubset1),
                                  ::testing::ValuesIn(testCasesBlocked4DSubset1),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::ValuesIn(inputPrecisions),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          Slice8LayerCPUTest::getTestCaseName);
@@ -383,7 +385,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_4D_Subset2, Slice8L
                          ::testing::Combine(
                                  ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesBlockedStatic4DSubset2)),
                                  ::testing::ValuesIn(testCasesBlocked4DSubset2),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::ValuesIn(inputPrecisions),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          Slice8LayerCPUTest::getTestCaseName);
@@ -392,7 +394,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D_Subset2, Slice8
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapesBlockedDynamic4DSubset2),
                                  ::testing::ValuesIn(testCasesBlocked4DSubset2),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::ValuesIn(inputPrecisions),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          Slice8LayerCPUTest::getTestCaseName);
@@ -449,7 +451,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_5D, Slice8LayerCPUT
                          ::testing::Combine(
                                  ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic5D)),
                                  ::testing::ValuesIn(testCasesCommon5D),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::ValuesIn(inputPrecisions),
                                  ::testing::ValuesIn(CPUParamsCommon5D)),
                         Slice8LayerCPUTest::getTestCaseName);
@@ -542,7 +544,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_5D_Subset1, Slice8L
                          ::testing::Combine(
                                  ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesBlockedStatic5DSubset1)),
                                  ::testing::ValuesIn(testCasesBlocked5DSubset1),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::ValuesIn(inputPrecisions),
                                  ::testing::ValuesIn(CPUParamsBlocked5D)),
                          Slice8LayerCPUTest::getTestCaseName);
@@ -551,7 +553,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D_Subset1, Slice8
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapesBlockedDynamic5DSubset1),
                                  ::testing::ValuesIn(testCasesBlocked5DSubset1),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::ValuesIn(inputPrecisions),
                                  ::testing::ValuesIn(CPUParamsBlocked5D)),
                          Slice8LayerCPUTest::getTestCaseName);
@@ -560,7 +562,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Static_5D_Subset2, Slice8L
                          ::testing::Combine(
                                  ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesBlockedStatic4DSubset2)),
                                  ::testing::ValuesIn(testCasesBlocked4DSubset2),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::ValuesIn(inputPrecisions),
                                  ::testing::ValuesIn(CPUParamsBlocked4D)),
                          Slice8LayerCPUTest::getTestCaseName);
@@ -569,7 +571,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D_Subset2, Slice8
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapesBlockedDynamic5DSubset2),
                                  ::testing::ValuesIn(testCasesBlocked5DSubset2),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::ValuesIn(inputPrecisions),
                                  ::testing::ValuesIn(CPUParamsBlocked5D)),
                          Slice8LayerCPUTest::getTestCaseName);
@@ -619,7 +621,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Slice8LayerDescriptorCPUTest, Slice8LayerDescript
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapesDescriptors),
                                  ::testing::ValuesIn(testCasesDescriptors),
-                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                 ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                  ::testing::Values(ElementType::f32),
                                  ::testing::Values(cpuParams_nChw8c)),
                          Slice8LayerDescriptorCPUTest::getTestCaseName);

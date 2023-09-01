@@ -15,6 +15,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace ExecutionGraphTests {
 
@@ -33,9 +34,9 @@ void ExecGraphInputsFusingBinConv::SetUp() {
     targetDevice = this->GetParam();
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShapes))};
-    auto binConv = ngraph::builder::makeBinaryConvolution(params[0], binConvKernelSize, strides, padsBegin, padsEnd, dilations, paddingType, numOutChannels,
+    auto binConv = ov::builder::makeBinaryConvolution(params[0], binConvKernelSize, strides, padsBegin, padsEnd, dilations, paddingType, numOutChannels,
                                                           padValue);
-    auto conv = ngraph::builder::makeGroupConvolution(binConv, ngraph::element::f32, convKernelSize, strides, padsBegin, padsEnd, dilations, paddingType,
+    auto conv = ov::builder::makeGroupConvolution(binConv, ngraph::element::f32, convKernelSize, strides, padsBegin, padsEnd, dilations, paddingType,
                                                       numOutChannels, numGroups);
 
     auto biasNode = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, std::vector<size_t>{16, 1, 1});

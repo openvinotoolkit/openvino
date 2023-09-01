@@ -22,8 +22,8 @@ using InputShapesTuple = std::pair<std::vector<size_t>, std::vector<size_t>>;
 typedef std::tuple<
     ComparisonParams::InputShapesTuple, // Input shapes tuple
     InferenceEngine::Precision,         // NG Inputs precision
-    ngraph::helpers::ComparisonTypes,   // Comparison op type
-    ngraph::helpers::InputLayerType,    // Second input type
+    ov::helpers::ComparisonTypes,   // Comparison op type
+    ov::helpers::InputLayerType,    // Second input type
     InferenceEngine::Precision,         // IE in precision
     InferenceEngine::Precision,         // IE out precision
     std::string,                        // Device name
@@ -32,7 +32,7 @@ typedef std::tuple<
 
 class ComparisonLayerTest : public testing::WithParamInterface<ComparisonTestParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
-    ngraph::helpers::ComparisonTypes comparisonOpType;
+    ov::helpers::ComparisonTypes comparisonOpType;
 protected:
     void SetUp() override;
 

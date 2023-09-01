@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/generate_proposals.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
@@ -96,7 +96,7 @@ void GenerateProposalsLayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
     }
-    auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramsOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto generateProposals = std::make_shared<ov::op::v9::GenerateProposals>(
         params[0], // im_info
         params[1], // anchors

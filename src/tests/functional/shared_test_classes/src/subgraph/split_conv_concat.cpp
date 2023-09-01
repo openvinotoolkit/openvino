@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/split_conv_concat.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -27,7 +28,7 @@ void SplitConvConcat::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
+    auto split = ov::builder::makeSplit(params[0], ngPrc, 2, 1);
 
     std::vector<float> filterWeights1;
     std::vector<float> filterWeights2;
@@ -35,11 +36,11 @@ void SplitConvConcat::SetUp() {
         filterWeights1 = ov::test::utils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
         filterWeights2 = ov::test::utils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
     }
-    auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+    auto conv1 = ov::builder::makeConvolution(split->output(0), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::VALID, 8, false, filterWeights1);
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1);
 
-    auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+    auto conv2 = ov::builder::makeConvolution(split->output(1), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::VALID, 8, false, filterWeights2);
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2);
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 1);

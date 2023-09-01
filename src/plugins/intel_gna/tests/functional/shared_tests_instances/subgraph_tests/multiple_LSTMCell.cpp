@@ -9,10 +9,10 @@
 namespace SubgraphTestsDefinitions {
 namespace {
 
-std::vector<ngraph::helpers::MemoryTransformation> transformation{
-    ngraph::helpers::MemoryTransformation::NONE,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API};
+std::vector<ov::helpers::MemoryTransformation> transformation{
+    ov::helpers::MemoryTransformation::NONE,
+    ov::helpers::MemoryTransformation::LOW_LATENCY_V2,
+    ov::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API};
 
 std::vector<size_t> input_sizes = {80, 32, 64, 25};
 

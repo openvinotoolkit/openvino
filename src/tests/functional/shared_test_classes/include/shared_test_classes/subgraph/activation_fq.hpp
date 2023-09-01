@@ -13,14 +13,14 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace SubgraphTestsDefinitions {
-static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
-        {ngraph::helpers::ActivationTypes::Sigmoid,               "Sigmoid"},
-        {ngraph::helpers::ActivationTypes::Tanh,                  "Tanh"},
-        {ngraph::helpers::ActivationTypes::Relu,                  "Relu"},
-        {ngraph::helpers::ActivationTypes::Exp,                   "Exp"},
-        {ngraph::helpers::ActivationTypes::Log,                   "Log"},
-        {ngraph::helpers::ActivationTypes::Sign,                  "Sign"},
-        {ngraph::helpers::ActivationTypes::Abs,                   "Abs"},
+static std::map<ov::helpers::ActivationTypes, std::string> activationNames = {
+        {ov::helpers::ActivationTypes::Sigmoid,               "Sigmoid"},
+        {ov::helpers::ActivationTypes::Tanh,                  "Tanh"},
+        {ov::helpers::ActivationTypes::Relu,                  "Relu"},
+        {ov::helpers::ActivationTypes::Exp,                   "Exp"},
+        {ov::helpers::ActivationTypes::Log,                   "Log"},
+        {ov::helpers::ActivationTypes::Sign,                  "Sign"},
+        {ov::helpers::ActivationTypes::Abs,                   "Abs"},
 };
 
 typedef std::tuple<
@@ -31,7 +31,7 @@ typedef std::tuple<
 
 typedef std::tuple<
         fqSpecificParams,
-        ngraph::helpers::ActivationTypes,
+        ov::helpers::ActivationTypes,
         InferenceEngine::Precision,        // Net precision
         InferenceEngine::Precision,        // Input precision
         InferenceEngine::Precision,        // Output precision

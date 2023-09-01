@@ -8,23 +8,23 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ov_models/common/constant.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
 class ConvolutionQDqTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertOnData;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnData;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+    ov::builder::subgraph::DequantizationOperations::Convert convertOnData;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnData;
 
-    ngraph::builder::subgraph::Constant constantOnWeights;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertOnWeights;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+    ov::builder::subgraph::Constant constantOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::DequantizationOperations::Convert convertOnWeights;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
 
     std::string layerName;
     std::string expectedKernelType;
@@ -49,7 +49,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionQDqTransformationParam
 > ConvolutionQDqTransformationParams;
 

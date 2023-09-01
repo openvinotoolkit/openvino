@@ -4,7 +4,7 @@
 
 #include "openvino/openvino.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/convolution_params.hpp"
 
 using namespace CPUTestUtils;
@@ -41,7 +41,7 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
         params1.push_back(std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shape)));
     }
     const size_t convOutCh1 = 32;
-    auto conv1 = ngraph::builder::makeConvolution(params1.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh1);
+    auto conv1 = ov::builder::makeConvolution(params1.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh1);
     conv1->set_friendly_name(convName);
     conv1->get_input_node_shared_ptr(1)->set_friendly_name(weightName);
     auto model1 = makeNgraphFunction(type, params1, conv1, "Model1");
@@ -53,7 +53,7 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
         params2.push_back(std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shape)));
     }
     const size_t convOutCh2 = 16;
-    auto conv2 = ngraph::builder::makeConvolution(params2.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh2);
+    auto conv2 = ov::builder::makeConvolution(params2.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh2);
     conv2->set_friendly_name(convName);
     conv2->get_input_node_shared_ptr(1)->set_friendly_name(weightName);
     auto model2 = makeNgraphFunction(type, params2, conv2, "Model2");

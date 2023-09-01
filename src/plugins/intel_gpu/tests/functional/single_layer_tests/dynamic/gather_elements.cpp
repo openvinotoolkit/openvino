@@ -4,14 +4,16 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 using namespace ov::test;
 using namespace ngraph;
 using namespace InferenceEngine;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 
 namespace GPULayerTestsDefinitions  {
 

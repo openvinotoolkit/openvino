@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 #include "shared_test_classes/single_layer/pooling.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ov::test;
 
@@ -24,7 +25,7 @@ public:
         ElementType inPrc;
         std::tie(basicParamsSet, inputShapes, inPrc) = obj.param;
 
-        ngraph::helpers::PoolingTypes poolType;
+        ov::helpers::PoolingTypes poolType;
         std::vector<size_t> kernel, stride;
         std::vector<size_t> padBegin, padEnd;
         ngraph::op::PadType padType;
@@ -41,10 +42,10 @@ public:
         }
         results << "Prc=" << inPrc << "_";
         switch (poolType) {
-            case ngraph::helpers::PoolingTypes::MAX:
+            case ov::helpers::PoolingTypes::MAX:
                 results << "MaxPool_";
                 break;
-            case ngraph::helpers::PoolingTypes::AVG:
+            case ov::helpers::PoolingTypes::AVG:
                 results << "AvgPool_";
                 results << "ExcludePad=" << excludePad << "_";
                 break;
@@ -68,7 +69,7 @@ protected:
         ElementType inPrc;
         std::tie(basicParamsSet, inputShapes, inPrc) = this->GetParam();
 
-        ngraph::helpers::PoolingTypes poolType;
+        ov::helpers::PoolingTypes poolType;
         std::vector<size_t> kernel, stride;
         std::vector<size_t> padBegin, padEnd;
         ngraph::op::PadType padType;
@@ -84,7 +85,7 @@ protected:
         }
         std::shared_ptr<ngraph::Node> poolInput = params[0];
 
-        std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(poolInput,
+        std::shared_ptr<ngraph::Node> pooling = ov::builder::makePooling(poolInput,
                                                                              stride,
                                                                              padBegin,
                                                                              padEnd,
@@ -224,20 +225,20 @@ const std::vector<InputShape> inputShapes5D = {
 
 /* ============= Pooling (1D) ============= */
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax3D = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2}, {2}, {0}, {0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {2}, {2}, {0}, {0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {4}, {2}, {0}, {0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {4}, {2}, {0}, {0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2}, {1}, {0}, {0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {2}, {1}, {0}, {0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
 };
 
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg3D = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {3}, {1}, {1}, {0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {3}, {1}, {1}, {0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {3}, {1}, {1}, {0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {3}, {1}, {1}, {0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, true },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {4}, {4}, {2}, {2},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {4}, {4}, {2}, {2},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, true },
 };
 
@@ -257,28 +258,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_GPU_3D, PoolingLayerGPUTest,
 
 /* ============= Pooling (2D) ============= */
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax4D = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {2, 2}, {2, 2}, {0, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {2, 2}, {2, 2}, {0, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {4, 2}, {2, 2}, {0, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {4, 2}, {2, 2}, {0, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {4, 2}, {2, 1}, {0, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {4, 2}, {2, 1}, {0, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
 };
 
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg4D = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER, true },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER, true },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {0, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, true },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {4, 4}, {4, 4}, {2, 2}, {2, 2},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {4, 4}, {4, 4}, {2, 2}, {2, 2},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, true }
 };
 
@@ -297,7 +298,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_GPU_4D, PoolingLayerGPUTest,
                         PoolingLayerGPUTest::getTestCaseName);
 
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg4D_Large = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {65, 65}, {65, 65}, {0, 0}, {0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {65, 65}, {65, 65}, {0, 0}, {0, 0},
                             ngraph::op::RoundingType::FLOOR, ngraph::op::PadType::VALID, true },
 };
 
@@ -310,30 +311,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_GPU_Large, PoolingLayerGPUTest,
 
 /* ============= Pooling (3D) ============= */
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax5D = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2, 2, 2}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {2, 2, 2}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2, 2, 2}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {2, 2, 2}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::MAX, {3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
 };
 
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg5D = {
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER, true },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER, true },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER, false },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, true },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {3, 3, 3}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {3, 3, 3}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, true },
-        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {4, 4, 4}, {2, 2, 2}, {2, 2, 2}, {2, 2, 2},
+        LayerTestsDefinitions::poolSpecificParams{ ov::helpers::PoolingTypes::AVG, {4, 4, 4}, {2, 2, 2}, {2, 2, 2}, {2, 2, 2},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, true }
 };
 

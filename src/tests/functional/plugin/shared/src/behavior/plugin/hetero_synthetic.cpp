@@ -4,8 +4,8 @@
 
 #include "behavior/plugin/hetero_synthetic.hpp"
 #include <ngraph/op/util/op_types.hpp>
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include <random>
@@ -14,11 +14,11 @@
 namespace HeteroTests {
 
 static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders = {
-    [] {return ngraph::builder::subgraph::makeSplitMultiConvConcat();},
-    [] {return ngraph::builder::subgraph::makeNestedSplitConvConcat();},
-    [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch();},
-    [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut();},
-    [] {return ngraph::builder::subgraph::makeNestedBranchConvConcat();},
+    [] {return ov::builder::subgraph::makeSplitMultiConvConcat();},
+    [] {return ov::builder::subgraph::makeNestedSplitConvConcat();},
+    [] {return ov::builder::subgraph::makeSplitConvConcatNestedInBranch();},
+    [] {return ov::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut();},
+    [] {return ov::builder::subgraph::makeNestedBranchConvConcat();},
 };
 
 std::vector<FunctionParameter> HeteroSyntheticTest::withMajorNodesFunctions(

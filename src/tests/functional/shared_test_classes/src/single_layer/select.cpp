@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/select.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
     enum { CONDITION, THEN, ELSE, numOfInputs };
@@ -36,9 +37,9 @@ namespace LayerTestsDefinitions {
             paramNode = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes[i]));
             paramNodesVector.push_back(paramNode);
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramNodesVector));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(paramNodesVector));
 
-        auto select = std::dynamic_pointer_cast<ngraph::opset1::Select>(ngraph::builder::makeSelect(paramOuts, broadcast));
+        auto select = std::dynamic_pointer_cast<ngraph::opset1::Select>(ov::builder::makeSelect(paramOuts, broadcast));
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(select)};
         function = std::make_shared<ngraph::Function>(results, paramNodesVector, "select");
     }

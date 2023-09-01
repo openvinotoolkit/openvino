@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/single_layer/range.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 namespace LayerTestsDefinitions {
 

@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/topk.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
     std::string TopKLayerTest::getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
@@ -39,8 +40,8 @@ void TopKLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramIn = ngraph::helpers::convert2OutputVector(
-                        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramIn = ov::helpers::convert2OutputVector(
+                        ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
     auto topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(

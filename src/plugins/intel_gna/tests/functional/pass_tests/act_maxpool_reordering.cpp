@@ -11,28 +11,28 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
-static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
-    {ngraph::helpers::ActivationTypes::Sigmoid, "Sigmoid"},
-    {ngraph::helpers::ActivationTypes::Tanh, "Tanh"},
-    {ngraph::helpers::ActivationTypes::Relu, "Relu"},
-    {ngraph::helpers::ActivationTypes::LeakyRelu, "LeakyRelu"},
-    {ngraph::helpers::ActivationTypes::Exp, "Exp"},
-    {ngraph::helpers::ActivationTypes::Log, "Log"},
-    {ngraph::helpers::ActivationTypes::Sign, "Sign"},
-    {ngraph::helpers::ActivationTypes::Abs, "Abs"},
-    {ngraph::helpers::ActivationTypes::Clamp, "Clamp"}};
+static std::map<ov::helpers::ActivationTypes, std::string> activationNames = {
+    {ov::helpers::ActivationTypes::Sigmoid, "Sigmoid"},
+    {ov::helpers::ActivationTypes::Tanh, "Tanh"},
+    {ov::helpers::ActivationTypes::Relu, "Relu"},
+    {ov::helpers::ActivationTypes::LeakyRelu, "LeakyRelu"},
+    {ov::helpers::ActivationTypes::Exp, "Exp"},
+    {ov::helpers::ActivationTypes::Log, "Log"},
+    {ov::helpers::ActivationTypes::Sign, "Sign"},
+    {ov::helpers::ActivationTypes::Abs, "Abs"},
+    {ov::helpers::ActivationTypes::Clamp, "Clamp"}};
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
                    std::map<std::string, std::string>,  // Configuration
                    std::vector<size_t>,                 // Input Shape
                    bool,                                // add biases
-                   ngraph::helpers::ActivationTypes     // Activation type
+                   ov::helpers::ActivationTypes         // Activation type
                    >
     actMaxpoolReorderingParams;
 
@@ -47,7 +47,7 @@ public:
         std::map<std::string, std::string> configuration;
         std::vector<size_t> inputShape;
         bool addBiases;
-        ngraph::helpers::ActivationTypes actType;
+        ov::helpers::ActivationTypes actType;
         std::tie(netPrecision, targetDevice, configuration, inputShape, addBiases, actType) = obj.param;
 
         std::ostringstream result;
@@ -68,7 +68,7 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::vector<size_t> inputShape;
         bool addBiases;
-        ngraph::helpers::ActivationTypes actType;
+        ov::helpers::ActivationTypes actType;
         std::tie(netPrecision, targetDevice, configuration, inputShape, addBiases, actType) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -97,7 +97,7 @@ protected:
                                                     ngraph::op::RoundingType::FLOOR,
                                                     ngraph::op::PadType::VALID,
                                                     false,
-                                                    ngraph::helpers::PoolingTypes::MAX);
+                                                    ov::helpers::PoolingTypes::MAX);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(maxpool)};
         function = std::make_shared<ngraph::Function>(results, inputVector, "ActMaxpoolReordering");
@@ -125,17 +125,17 @@ const std::vector<std::vector<size_t>> inputShape = {
 
 const std::vector<bool> addBiases = {false, true};
 
-const std::vector<ngraph::helpers::ActivationTypes> activationTypes = {ngraph::helpers::ActivationTypes::Sigmoid,
-                                                                       ngraph::helpers::ActivationTypes::Tanh,
-                                                                       ngraph::helpers::ActivationTypes::Relu,
-                                                                       ngraph::helpers::ActivationTypes::Exp,
-                                                                       ngraph::helpers::ActivationTypes::Log,
-                                                                       ngraph::helpers::ActivationTypes::Sign,
-                                                                       ngraph::helpers::ActivationTypes::Abs};
+const std::vector<ov::helpers::ActivationTypes> activationTypes = {ov::helpers::ActivationTypes::Sigmoid,
+                                                                   ov::helpers::ActivationTypes::Tanh,
+                                                                   ov::helpers::ActivationTypes::Relu,
+                                                                   ov::helpers::ActivationTypes::Exp,
+                                                                   ov::helpers::ActivationTypes::Log,
+                                                                   ov::helpers::ActivationTypes::Sign,
+                                                                   ov::helpers::ActivationTypes::Abs};
 
-const std::vector<ngraph::helpers::ActivationTypes> gnaPwlUniformDesignActivationTypes = {
-    ngraph::helpers::ActivationTypes::Sigmoid,
-    ngraph::helpers::ActivationTypes::Tanh};
+const std::vector<ov::helpers::ActivationTypes> gnaPwlUniformDesignActivationTypes = {
+    ov::helpers::ActivationTypes::Sigmoid,
+    ov::helpers::ActivationTypes::Tanh};
 
 INSTANTIATE_TEST_SUITE_P(smoke_act_maxpool_reordering,
                          ActMaxpoolReordering,

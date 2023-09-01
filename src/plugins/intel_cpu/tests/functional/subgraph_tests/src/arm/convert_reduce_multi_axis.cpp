@@ -8,7 +8,7 @@
 #include <memory>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -22,13 +22,13 @@ using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov::test;
 using namespace ngraph;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 
 namespace CPUSubgraphTestsDefinitions {
 
 typedef std::tuple<
         std::vector<int>,               // Axis to reduce order
-        ngraph::helpers::ReductionType, // Reduce operation type
+        ov::helpers::ReductionType, // Reduce operation type
         std::vector<InputShape>         // Input shapes
 > reduceConvertCPUTestParamsSet;
 
@@ -67,17 +67,17 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         std::vector<size_t> shapeAxes;
         shapeAxes.push_back(axes.size());
         auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
                 std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-        const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
+        const auto reduce = ov::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
         function = makeNgraphFunction(ElementType::f32, params, reduce, "Reduce");
     }
 private:
-    ngraph::helpers::ReductionType reductionType;
+    ov::helpers::ReductionType reductionType;
 };
 
 TEST_P(reduceTransformationCPUTest, CompareWithRefs) {

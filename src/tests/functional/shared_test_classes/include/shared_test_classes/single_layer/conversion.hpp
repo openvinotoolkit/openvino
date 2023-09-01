@@ -16,11 +16,11 @@
 
 namespace LayerTestsDefinitions {
 
-static std::map<ngraph::helpers::ConversionTypes, std::string> conversionNames = {
-    {ngraph::helpers::ConversionTypes::CONVERT, "Convert"},
-    {ngraph::helpers::ConversionTypes::CONVERT_LIKE, "ConvertLike"}};
+static std::map<ov::helpers::ConversionTypes, std::string> conversionNames = {
+    {ov::helpers::ConversionTypes::CONVERT, "Convert"},
+    {ov::helpers::ConversionTypes::CONVERT_LIKE, "ConvertLike"}};
 
-using ConversionParamsTuple = typename std::tuple<ngraph::helpers::ConversionTypes,  // Convertion op type
+using ConversionParamsTuple = typename std::tuple<ov::helpers::ConversionTypes,  // Convertion op type
                                                   std::vector<std::vector<size_t>>,  // Input1 shapes
                                                   InferenceEngine::Precision,        // Input1 precision
                                                   InferenceEngine::Precision,        // Input2 precision

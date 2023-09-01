@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/perm_conv_perm_concat.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string PermConvPermConcat::getTestCaseName(const testing::TestParamInfo<PermConvPermConcatParams>& obj) {
@@ -60,7 +61,7 @@ void PermConvPermConcat::SetUp() {
     auto permute_in = std::make_shared<ngraph::opset1::Transpose>(reshape_in, permute_in_params);
     auto conv_in_shape = permute_in->get_output_shape(0);
     auto conv_weights_size = output_channels * (conv_in_shape[1]) * kernel_shape[0] * kernel_shape[1];
-    auto conv = ngraph::builder::makeConvolution(permute_in, ngPrc, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+    auto conv = ov::builder::makeConvolution(permute_in, ngPrc, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
         ngraph::op::PadType::VALID, output_channels, false, ov::test::utils::generate_float_numbers(conv_weights_size, -0.5f, 0.5f));
 
     auto permute_out_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
@@ -70,10 +71,10 @@ void PermConvPermConcat::SetUp() {
 
     auto permute_out_shape = permute_out->get_output_shape(0);
 
-    auto concat_const = ngraph::builder::makeConstant(ngPrc, {1, 1, 1, permute_out_shape[3]},
+    auto concat_const = ov::builder::makeConstant(ngPrc, {1, 1, 1, permute_out_shape[3]},
                                                       ov::test::utils::generate_float_numbers(permute_out_shape[3], -10, 10));
 
-    auto concat = ngraph::builder::makeConcat({permute_out, concat_const}, 2);
+    auto concat = ov::builder::makeConcat({permute_out, concat_const}, 2);
 
     auto reshape_out_pattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
         ngraph::Shape{2},

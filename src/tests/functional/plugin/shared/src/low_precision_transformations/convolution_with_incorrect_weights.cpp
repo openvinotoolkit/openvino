@@ -15,8 +15,8 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "lpt_ov_models/convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -24,7 +24,7 @@ std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
@@ -41,11 +41,11 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
+    function = ov::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
         inputShape,
         netPrecision,
         param.fakeQuantizeOnWeights,

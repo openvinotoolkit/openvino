@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/mvn_multiply_add.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset7.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -45,12 +47,12 @@ void MVNMultiplyAdd::SetUp() {
     auto axesType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(axesPrecision);
 
     ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(dataType, ov::Shape(inputShapes))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
-    auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
-    auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
-    auto gamma = ngraph::builder::makeConstant<float>(dataType, constantShapes, {}, true);
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
+    auto axesNode = ov::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
+    auto mvn = ov::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
+    auto gamma = ov::builder::makeConstant<float>(dataType, constantShapes, {}, true);
     auto mul = std::make_shared<ngraph::opset7::Multiply>(mvn, gamma);
-    auto beta = ngraph::builder::makeConstant<float>(dataType, constantShapes, {}, true);
+    auto beta = ov::builder::makeConstant<float>(dataType, constantShapes, {}, true);
     auto add = std::make_shared<ngraph::opset7::Add>(mul, beta);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};

@@ -16,7 +16,7 @@
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include "base/ov_behavior_test_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
@@ -29,7 +29,7 @@ protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
 
     void SetUp() override {
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::builder::subgraph::makeSplitMultiConvConcat();
     }
 };
 
@@ -352,7 +352,7 @@ protected:
 
 public:
     void SetUp() override {
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::builder::subgraph::makeSplitMultiConvConcat();
         deviceName = ov::test::utils::DEVICE_GPU;
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) {
@@ -895,7 +895,7 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, feature, height, width});
+    auto fn_ptr_remote = ov::builder::subgraph::makeConvPoolRelu({1, feature, height, width});
 
     using namespace ov::preprocess;
 
@@ -943,7 +943,7 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, height, width});
+    auto fn_ptr_regular = ov::builder::subgraph::makeConvPoolRelu({1, 1, height, width});
 
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::f32)
@@ -985,7 +985,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvertTranspose({1, 3, height, width});
+    auto fn_ptr_remote = ov::builder::subgraph::makeConvertTranspose({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1050,7 +1050,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvertTranspose({1, 3, height, width});
+    auto fn_ptr_regular = ov::builder::subgraph::makeConvertTranspose({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1093,7 +1093,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_remote = ov::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1141,7 +1141,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1184,7 +1184,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_remote = ov::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1249,7 +1249,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1291,7 +1291,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
 
     auto ie = ov::Core();
 
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_remote = ov::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1396,7 +1396,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
+    auto fn_ptr_remote = ov::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1454,7 +1454,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1504,7 +1504,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
+    auto fn_ptr_remote = ov::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1578,7 +1578,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1643,7 +1643,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, feature, height, width});
+    auto fn_ptr_remote = ov::builder::subgraph::makeConvPoolRelu({num_batch, feature, height, width});
 
     using namespace ov::preprocess;
 
@@ -1701,7 +1701,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, height, width});
+    auto fn_ptr_regular = ov::builder::subgraph::makeConvPoolRelu({1, 1, height, width});
 
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::f32)
@@ -1748,7 +1748,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
 
     // ------------------------------------------------------
     // inference using remote tensor
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
+    auto fn_ptr_remote = ov::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
 
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr_remote);
@@ -1850,7 +1850,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+    auto fn_ptr_regular = ov::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
 
     using namespace ov::preprocess;
     auto p_reg = PrePostProcessor(fn_ptr_regular);
@@ -1976,7 +1976,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
 
     const auto gpuDeviceFirst = gpuDevices[0];
     const auto gpuDeviceSecond = gpuDevices[1];
-    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+    auto model = ov::builder::subgraph::makeConvertTranspose();
 
     auto compiledModelFirst = core.compile_model(model, gpuDeviceFirst);
     auto compiledModelSecond = core.compile_model(model, gpuDeviceSecond);
@@ -2017,7 +2017,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextSingleDevice) {
     check_contexts_are_same(default_ctx,  core.get_default_context(ov::test::utils::DEVICE_GPU));
 
     // Ensure compiled model uses default context too
-    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+    auto model = ov::builder::subgraph::makeConvertTranspose();
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
     check_contexts_are_same(default_ctx, compiled_model.get_context());
     ASSERT_EQ(2, compiled_model.get_property(ov::streams::num));

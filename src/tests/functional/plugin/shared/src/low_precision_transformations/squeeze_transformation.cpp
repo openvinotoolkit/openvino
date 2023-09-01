@@ -12,8 +12,8 @@
 #include "ngraph/op/op.hpp"
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/squeeze_transformation.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/squeeze_function.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "lpt_ov_models/squeeze_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -31,13 +31,13 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 
 InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;
     std::string targetDevice;
 
     std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
 
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData = squeezeParam.fakeQuantize;
+    const ov::builder::subgraph::FakeQuantizeOnData& fqOnData = squeezeParam.fakeQuantize;
 
     return FuncTestUtils::createAndFillBlobConsistently(
         info.getTensorDesc(),
@@ -48,7 +48,7 @@ InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceE
 
 std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
     SqueezeTransformationParam squeezeParam;
     std::tie(netPrecision, targetDevice, params, squeezeParam) = obj.param;
@@ -64,12 +64,12 @@ std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<
 }
 void SqueezeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;
 
     std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
 
-    function = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
+    function = ov::builder::subgraph::SqueezeFunction::getOriginal(
         netPrecision,
         squeezeParam.shape,
         squeezeParam.fakeQuantize,

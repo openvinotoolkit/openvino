@@ -9,7 +9,8 @@
 #include "gna_executable_network.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ngraph/opsets/opset8.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ov::intel_gna;
 using namespace InferenceEngine;

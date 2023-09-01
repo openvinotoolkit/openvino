@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/handling_orientation_conv.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string HandlingOrientationClass::getTestCaseName(const testing::TestParamInfo<HandlingOrientationParams> &obj) {
@@ -35,13 +36,13 @@ namespace SubgraphTestsDefinitions {
         auto permute1 = std::make_shared<ngraph::opset1::Transpose>(reshape1,
                                                                     ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
-        auto conv1 = ngraph::builder::makeConvolution(permute1, ngPrc, { 1, 8 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
+        auto conv1 = ov::builder::makeConvolution(permute1, ngPrc, { 1, 8 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
                                                       ngraph::op::PadType::VALID, 12);
 
         auto permute2 = std::make_shared<ngraph::opset1::Transpose>(conv1,
                                                                     ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
 
-        auto conv2 = ngraph::builder::makeConvolution(reshape2, ngPrc, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
+        auto conv2 = ov::builder::makeConvolution(reshape2, ngPrc, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
                                                       ngraph::op::PadType::VALID, 336);
 
         std::vector<size_t> outFormShapes3 = { 1, 1932 };

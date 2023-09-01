@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/gather_tree.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 namespace LayerTestsDefinitions {
 std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple> &obj) {
@@ -10,7 +11,7 @@ std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<Ga
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    ov::helpers::InputLayerType secondaryInputType;
     std::string targetName;
 
     std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
@@ -30,7 +31,7 @@ std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<Ga
 void GatherTreeLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    ov::helpers::InputLayerType secondaryInputType;
 
     std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
 
@@ -41,7 +42,7 @@ void GatherTreeLayerTest::SetUp() {
     std::shared_ptr<ngraph::Node> inp4;
 
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
+    if (ov::helpers::InputLayerType::PARAMETER == secondaryInputType) {
         ov::ParameterVector paramsSecond{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
                                          std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{inputShape.at(1)}),
                                          std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape())};
@@ -50,12 +51,12 @@ void GatherTreeLayerTest::SetUp() {
         inp2 = paramsIn.at(1);
         inp3 = paramsIn.at(2);
         inp4 = paramsIn.at(3);
-    } else if (ngraph::helpers::InputLayerType::CONSTANT == secondaryInputType) {
+    } else if (ov::helpers::InputLayerType::CONSTANT == secondaryInputType) {
         auto maxBeamIndex = inputShape.at(2) - 1;
 
-        inp2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, {}, true, maxBeamIndex);
-        inp3 = ngraph::builder::makeConstant<float>(ngPrc, {inputShape.at(1)}, {}, true, maxBeamIndex);
-        inp4 = ngraph::builder::makeConstant<float>(ngPrc, {}, {}, true, maxBeamIndex);
+        inp2 = ov::builder::makeConstant<float>(ngPrc, inputShape, {}, true, maxBeamIndex);
+        inp3 = ov::builder::makeConstant<float>(ngPrc, {inputShape.at(1)}, {}, true, maxBeamIndex);
+        inp4 = ov::builder::makeConstant<float>(ngPrc, {}, {}, true, maxBeamIndex);
     } else {
         throw std::runtime_error("Unsupported inputType");
     }

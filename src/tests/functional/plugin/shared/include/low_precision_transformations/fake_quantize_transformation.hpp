@@ -6,13 +6,13 @@
 
 #include <string>
 #include <memory>
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "lpt_ov_models/fake_quantize_function.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 class FakeQuantizeTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakequantize;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakequantize;
 
     std::string layerName;
     std::string expectedKernelType;
@@ -22,7 +22,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeTransformationParam,
     bool> FakeQuantizeTransformationParams;
 

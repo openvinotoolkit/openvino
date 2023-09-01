@@ -16,7 +16,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/normalize_dequantization_function.hpp"
+#include "lpt_ov_models/normalize_dequantization_function.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -26,13 +26,13 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
     TestTransformationParams params;
     ov::Shape inputShape;
@@ -45,7 +45,7 @@ public:
     void SetUp() override {
         const NormalizeDequantizationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::NormalizeDequantizationFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::NormalizeDequantizationFunction::getOriginal(
             testValues.actual.precisionBeforeDequantization,
             testValues.inputShape,
             testValues.actual.dequantization);
@@ -54,7 +54,7 @@ public:
         const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
         ov::pass::low_precision::NetworkHelper::normalizeDequantization(dequantization);
 
-        referenceFunction = ngraph::builder::subgraph::NormalizeDequantizationFunction::getOriginal(
+        referenceFunction = ov::builder::subgraph::NormalizeDequantizationFunction::getOriginal(
             testValues.expected.precisionBeforeDequantization,
             testValues.inputShape,
             testValues.expected.dequantization);

@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/non_max_suppression.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 #include <algorithm>
 
@@ -312,9 +313,9 @@ void NmsLayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<op::Parameter>(params));
 
-    auto nms = builder::makeNms(paramOuts[0],
+    auto nms = ov::builder::makeNms(paramOuts[0],
                                 paramOuts[1],
                                 convertIE2nGraphPrc(maxBoxPrec),
                                 convertIE2nGraphPrc(thrPrec),
@@ -370,9 +371,9 @@ void Nms9LayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<op::Parameter>(params));
 
-    auto nms = builder::makeNms(paramOuts[0],
+    auto nms = ov::builder::makeNms(paramOuts[0],
                                 paramOuts[1],
                                 convertIE2nGraphPrc(maxBoxPrec),
                                 convertIE2nGraphPrc(thrPrec),
@@ -383,7 +384,7 @@ void Nms9LayerTest::SetUp() {
                                 boxEncoding == ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
                                 sortResDescend,
                                 outType,
-                                ngraph::builder::NmsVersion::NmsVersion9);
+                                ov::builder::NmsVersion::NmsVersion9);
     function = std::make_shared<Function>(nms, params, "NMS");
 }
 

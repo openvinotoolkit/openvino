@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/rdft.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -11,7 +12,7 @@ std::string RDFTLayerTest::getTestCaseName(const testing::TestParamInfo<RDFTPara
     InferenceEngine::Precision inputPrecision;
     std::vector<int64_t> axes;
     std::vector<int64_t> signalSize;
-    ngraph::helpers::DFTOpType opType;
+    ov::helpers::DFTOpType opType;
     std::string targetDevice;
     std::tie(inputShapes, inputPrecision, axes, signalSize, opType, targetDevice) = obj.param;
 
@@ -20,7 +21,7 @@ std::string RDFTLayerTest::getTestCaseName(const testing::TestParamInfo<RDFTPara
     result << "Precision=" << inputPrecision.name() << "_";
     result << "Axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "SignalSize=" << ov::test::utils::vec2str(signalSize) << "_";
-    result << "Inverse=" << (opType == ngraph::helpers::DFTOpType::INVERSE) << "_";
+    result << "Inverse=" << (opType == ov::helpers::DFTOpType::INVERSE) << "_";
     result << "TargetDevice=" << targetDevice;
     return result.str();
 }
@@ -30,15 +31,15 @@ void RDFTLayerTest::SetUp() {
     InferenceEngine::Precision inputPrecision;
     std::vector<int64_t> axes;
     std::vector<int64_t> signalSize;
-    ngraph::helpers::DFTOpType opType;
+    ov::helpers::DFTOpType opType;
     std::tie(inputShapes, inputPrecision, axes, signalSize, opType, targetDevice) = this->GetParam();
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ngraph::ParameterVector paramVector;
     auto paramData = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);
 
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto rdft = ngraph::builder::makeRDFT(paramOuts[0], axes, signalSize, opType);
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
+    auto rdft = ov::builder::makeRDFT(paramOuts[0], axes, signalSize, opType);
 
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rdft)};

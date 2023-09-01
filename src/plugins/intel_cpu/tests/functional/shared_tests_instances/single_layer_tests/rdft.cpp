@@ -9,9 +9,9 @@
 
 using namespace LayerTestsDefinitions;
 
-const std::vector<ngraph::helpers::DFTOpType> opTypes = {
-    ngraph::helpers::DFTOpType::FORWARD,
-    ngraph::helpers::DFTOpType::INVERSE
+const std::vector<ov::helpers::DFTOpType> opTypes = {
+    ov::helpers::DFTOpType::FORWARD,
+    ov::helpers::DFTOpType::INVERSE
 };
 
 static const std::vector<InferenceEngine::Precision> inputPrecision = {
@@ -36,7 +36,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_RDFT_1d, RDFTLayerTest,
                             ::testing::ValuesIn(inputPrecision),
                             ::testing::Values(std::vector<int64_t>{0}),
                             ::testing::ValuesIn(signalSizes1d),
-                            ::testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                            ::testing::Values(ov::helpers::DFTOpType::FORWARD),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> shapesInverse1d = {
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_IRDFT_1d, RDFTLayerTest,
                             ::testing::ValuesIn(inputPrecision),
                             ::testing::Values(std::vector<int64_t>{0}),
                             ::testing::ValuesIn(signalSizes1d),
-                            ::testing::Values(ngraph::helpers::DFTOpType::INVERSE),
+                            ::testing::Values(ov::helpers::DFTOpType::INVERSE),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> shapesForward2d = {
@@ -75,7 +75,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_2d, RDFTLayerTest,
                             ::testing::ValuesIn(inputPrecision),
                             ::testing::ValuesIn(axes2d),
                             ::testing::ValuesIn(signalSizes2d),
-                            ::testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                            ::testing::Values(ov::helpers::DFTOpType::FORWARD),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> shapesInverse2d = {
@@ -90,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_2d, RDFTLayerTest,
                             ::testing::ValuesIn(inputPrecision),
                             ::testing::ValuesIn(axes2d),
                             ::testing::ValuesIn(signalSizes2d),
-                            ::testing::Values(ngraph::helpers::DFTOpType::INVERSE),
+                            ::testing::Values(ov::helpers::DFTOpType::INVERSE),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> shapesForward4d = {
@@ -113,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_4d, RDFTLayerTest,
                             ::testing::ValuesIn(inputPrecision),
                             ::testing::ValuesIn(axes4d),
                             ::testing::ValuesIn(signalSizes4d),
-                            ::testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                            ::testing::Values(ov::helpers::DFTOpType::FORWARD),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
 const std::vector<std::vector<int64_t>> axes4d_2d = {
@@ -126,7 +126,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_4d_axes_2d, RDFTLayerTest,
                             ::testing::ValuesIn(inputPrecision),
                             ::testing::ValuesIn(axes4d_2d),
                             ::testing::Values(std::vector<int64_t>{}),
-                            ::testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                            ::testing::Values(ov::helpers::DFTOpType::FORWARD),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
 
@@ -141,7 +141,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_4d, RDFTLayerTest,
                             ::testing::ValuesIn(inputPrecision),
                             ::testing::ValuesIn(axes4d),
                             ::testing::ValuesIn(signalSizes4d),
-                            ::testing::Values(ngraph::helpers::DFTOpType::INVERSE),
+                            ::testing::Values(ov::helpers::DFTOpType::INVERSE),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_4d_axes_2d, RDFTLayerTest,
@@ -150,7 +150,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_4d_axes_2d, RDFTLayerTest,
                             ::testing::ValuesIn(inputPrecision),
                             ::testing::ValuesIn(axes4d_2d),
                             ::testing::Values(std::vector<int64_t>{}),
-                            ::testing::Values(ngraph::helpers::DFTOpType::INVERSE),
+                            ::testing::Values(ov::helpers::DFTOpType::INVERSE),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
 

@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/negative_memory_layer_offset.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string NegativeMemoryOffsetTest::getTestCaseName(const testing::TestParamInfo<NegativeMemoryLayerOffsetTuple>& obj) {
@@ -41,7 +43,7 @@ namespace SubgraphTestsDefinitions {
 
         // Use memory layer as the second input of 'concat' to get negative offset
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ input[0], mem_r }, 1);
-        auto split = ngraph::builder::makeVariadicSplit(concat, { hiddenSize, inputSize }, 1);
+        auto split = ov::builder::makeVariadicSplit(concat, { hiddenSize, inputSize }, 1);
         auto mem_w = std::make_shared<ngraph::opset3::Assign>(split->output(0), "memory");
         auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split->output(1));
 
@@ -60,7 +62,7 @@ namespace SubgraphTestsDefinitions {
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_init);
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ input[0], mem_c }, 1);
-        auto split = ngraph::builder::makeVariadicSplit(concat, { hiddenSize, inputSize }, 1);
+        auto split = ov::builder::makeVariadicSplit(concat, { hiddenSize, inputSize }, 1);
         auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split->output(1));
 
         function = std::make_shared<ngraph::Function>(sigm, input, "negative_memory_layer_offset_nonmemory");

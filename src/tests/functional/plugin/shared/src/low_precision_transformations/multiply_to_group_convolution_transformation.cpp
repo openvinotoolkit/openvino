@@ -16,8 +16,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/multiply_to_group_convolution_function.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "lpt_ov_models/multiply_to_group_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -45,7 +45,7 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
     MultiplyToGroupConvolutionTransformationParam param;
     std::tie(precision, shape, targetDevice, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
+    function = ov::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
         precision,
         shape,
         param.fqOnData,

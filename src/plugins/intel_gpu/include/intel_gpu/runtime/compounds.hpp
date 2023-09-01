@@ -21,7 +21,7 @@ namespace cldnn {
 
 /// @cond CPP_HELPERS
 
-/// @defgroup cpp_helpers Helpers
+/// @defgroup cpp_helpers ov::helpers
 /// @{
 
 template <typename T>

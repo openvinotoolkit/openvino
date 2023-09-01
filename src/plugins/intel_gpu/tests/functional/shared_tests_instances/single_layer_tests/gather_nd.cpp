@@ -6,6 +6,7 @@
 
 #include "single_layer_tests/gather_nd.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph::opset5;

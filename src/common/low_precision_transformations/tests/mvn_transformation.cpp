@@ -15,33 +15,33 @@
 #include "low_precision/mvn.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/mvn_function.hpp"
+#include "lpt_ov_models/mvn_function.hpp"
 
 namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class MVNTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::AxisSet reductionAxes;
+    ov::AxisSet reductionAxes;
     bool normalizeVariance;
     TestTransformationParams params;
     Actual actual;
@@ -63,7 +63,7 @@ public:
         const MVNTransformationTestValues testValues = std::get<2>(GetParam());
         const int opset_version = std::get<3>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::MVNFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::MVNFunction::getOriginal(
             precision,
             inputShape,
             testValues.reductionAxes,
@@ -76,7 +76,7 @@ public:
         transformer.add<ov::pass::low_precision::MVNTransformation, ov::op::v0::Interpolate>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::MVNFunction::getReference(
+        referenceFunction = ov::builder::subgraph::MVNFunction::getReference(
             precision,
             inputShape,
             testValues.reductionAxes,

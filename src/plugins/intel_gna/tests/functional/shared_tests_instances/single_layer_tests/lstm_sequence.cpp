@@ -13,12 +13,12 @@
 
 namespace LayerTestsDefinitions {
 
-using ngraph::helpers::InputLayerType;
+using ov::helpers::InputLayerType;
 
 class LSTMSequenceGNATest : public LSTMSequenceTest {
 protected:
     void SetUp() override {
-        using namespace ngraph::helpers;
+        using namespace ov::helpers;
         threshold = 0.015;
         size_t seq_lengths;
         size_t batch;
@@ -61,7 +61,7 @@ protected:
                                    std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[2]))};
 
         std::vector<ngraph::Shape> WRB = {inputShapes[4], inputShapes[5], inputShapes[6], inputShapes[3]};
-        auto in = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params));
+        auto in = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes(params));
 
         std::vector<float> weights_vals =
             ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
@@ -133,9 +133,8 @@ TEST_P(LSTMSequenceGNATest, CompareWithRefs) {
 using namespace LayerTestsDefinitions;
 
 namespace {
-std::vector<ngraph::helpers::SequenceTestsMode> mode{
-    ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
-    ngraph::helpers::SequenceTestsMode::PURE_SEQ};
+std::vector<ov::helpers::SequenceTestsMode> mode{ov::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
+                                                 ov::helpers::SequenceTestsMode::PURE_SEQ};
 
 std::vector<size_t> seq_lengths_zero_clip{1};
 std::vector<size_t> seq_lengths_clip_non_zero{1};

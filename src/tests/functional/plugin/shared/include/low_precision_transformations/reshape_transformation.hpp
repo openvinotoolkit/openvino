@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -16,7 +16,7 @@ class ReshapeTransformationParam {
 public:
     ngraph::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::string layerType;
     std::string expectedKernelType;
 };
@@ -24,7 +24,7 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     ReshapeTransformationParam
 > ReshapeTransformationParams;
 

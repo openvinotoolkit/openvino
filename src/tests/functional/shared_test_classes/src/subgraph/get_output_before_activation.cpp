@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/get_output_before_activation.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -58,22 +58,22 @@ void OutputBeforeActivation::SetUp() {
     std::shared_ptr<ngraph::Node> midLayer;
     switch (outputType) {
     case SubgraphTestsDefinitions::midOutputType::Sum: {
-        midLayer = ngraph::builder::makeEltwise(input0, input1, ngraph::helpers::EltwiseTypes::ADD);
+        midLayer = ov::builder::makeEltwise(input0, input1, ov::helpers::EltwiseTypes::ADD);
         break;
     }
     case SubgraphTestsDefinitions::midOutputType::Sub: {
-        midLayer = ngraph::builder::makeEltwise(input0, input1, ngraph::helpers::EltwiseTypes::SUBTRACT);
+        midLayer = ov::builder::makeEltwise(input0, input1, ov::helpers::EltwiseTypes::SUBTRACT);
         break;
     }
     case SubgraphTestsDefinitions::midOutputType::Mul: {
-        midLayer = ngraph::builder::makeEltwise(input0, input1, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        midLayer = ov::builder::makeEltwise(input0, input1, ov::helpers::EltwiseTypes::MULTIPLY);
         break;
     }
     default:
         GTEST_FAIL() << "Unknown midOutputType";
     }
 
-    auto act = ngraph::builder::makeActivation(midLayer, ngPrc, ngraph::helpers::ActivationTypes::Tanh);
+    auto act = ov::builder::makeActivation(midLayer, ngPrc, ov::helpers::ActivationTypes::Tanh);
     outputs.insert(outputs.end(), {midLayer, act});
     function = std::make_shared<ngraph::Function>(outputs, input_parameter, "output_before_activation");
 }

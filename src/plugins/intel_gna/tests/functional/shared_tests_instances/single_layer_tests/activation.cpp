@@ -15,7 +15,7 @@ protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
         std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
-        std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
+        std::pair<ov::helpers::ActivationTypes, std::vector<float>> activationDecl;
         std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = GetParam();
 
         const auto& inputShape = shapes.first;
@@ -54,19 +54,19 @@ protected:
         int32_t resolution = 32768;
 
         switch (activationType) {
-        case ngraph::helpers::ActivationTypes::Log: {
+        case ov::helpers::ActivationTypes::Log: {
             data_start_from = 1;
             data_range = 20;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::Sign: {
+        case ov::helpers::ActivationTypes::Sign: {
             data_start_from = -10;
             data_range = 20;
             resolution = 3072;
             break;
         }
-        case ngraph::helpers::ActivationTypes::Exp: {
+        case ov::helpers::ActivationTypes::Exp: {
             const double max_result_on_GNA = 15.9;
             const double exp_inverse = std::round(std::log(max_result_on_GNA));
             if (inPrcSigned) {
@@ -98,7 +98,7 @@ TEST_P(ActivationLayerGNATest, CompareWithRefs) {
 }  //  namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 namespace {
 // Common params
 

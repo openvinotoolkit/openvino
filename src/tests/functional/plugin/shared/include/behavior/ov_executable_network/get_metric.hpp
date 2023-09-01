@@ -43,7 +43,7 @@ public:
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+        simpleNetwork = ov::builder::subgraph::makeSingleConv();
     }
 };
 using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;

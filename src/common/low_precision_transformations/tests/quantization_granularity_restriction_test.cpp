@@ -15,7 +15,7 @@
 #include <low_precision/markup_quantization_granularity.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "lpt_ov_models/convolution_function.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -44,7 +44,7 @@ public:
             }
         }
 
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::get(
+        actualFunction = ov::builder::subgraph::ConvolutionFunction::get(
             Shape({ 1, 3, 16, 16 }),
             element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
@@ -60,7 +60,7 @@ public:
         manager.register_pass<ov::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
         manager.run_passes(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::get(
+        referenceFunction = ov::builder::subgraph::ConvolutionFunction::get(
             Shape({ 1, 3, 16, 16 }),
             element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },

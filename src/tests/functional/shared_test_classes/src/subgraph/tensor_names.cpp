@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/tensor_names.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 namespace SubgraphTestsDefinitions {
 

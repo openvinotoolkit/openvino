@@ -111,9 +111,9 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     const auto weightsNode = std::make_shared<ov::opset1::Constant>(weightsPrecision, weightsShape, weightsBuffer);
 
     const size_t spatialDimsSize = pShape.rank().get_length() - 2;
-    ngraph::Strides strides(spatialDimsSize, 1ul);
-    ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
-    ngraph::Strides dilations(spatialDimsSize, 1ul);
+    ov::Strides strides(spatialDimsSize, 1ul);
+    ov::CoordinateDiff pads(spatialDimsSize, 0ul);
+    ov::Strides dilations(spatialDimsSize, 1ul);
 
     const auto convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
         std::vector<element::Type>{ element::f32, element::f32 },

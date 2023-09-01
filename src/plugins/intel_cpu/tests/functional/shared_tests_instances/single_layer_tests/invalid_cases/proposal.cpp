@@ -5,7 +5,7 @@
 #include <vector>
 #include "single_layer_tests/invalid_cases/proposal.hpp"
 
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace LayerTestsDefinitions;
 using namespace BehaviorTestsDefinitions;
 

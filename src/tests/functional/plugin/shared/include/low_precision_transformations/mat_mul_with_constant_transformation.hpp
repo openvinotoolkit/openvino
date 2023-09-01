@@ -7,12 +7,12 @@
 #include <string>
 #include <memory>
 
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
+#include "lpt_ov_models/common/constant.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
+#include "lpt_ov_models/mat_mul_function.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
@@ -20,11 +20,11 @@ namespace LayerTestsDefinitions {
 class MatMulWithConstantTransformationTestValues {
 public:
     ngraph::PartialShape inputShape;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
 
-    ngraph::builder::subgraph::Constant weights;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnWeights;
-    ngraph::builder::subgraph::DequantizationOperations deqOnWeights;
+    ov::builder::subgraph::Constant weights;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnWeights;
+    ov::builder::subgraph::DequantizationOperations deqOnWeights;
 
     std::string layerName;
     std::string expectedKernelType;

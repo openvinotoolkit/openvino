@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/gather_function.hpp"
+#include "lpt_ov_models/gather_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -38,7 +38,7 @@ void GatherTransformation::SetUp() {
     int opset_version;
     std::tie(precision, targetDevice, testValues, opset_version) = this->GetParam();
 
-    function = ngraph::builder::subgraph::GatherFunction::getOriginal(
+    function = ov::builder::subgraph::GatherFunction::getOriginal(
         testValues.inputShape,
         testValues.gatherIndicesShape,
         testValues.gatherIndicesValues,

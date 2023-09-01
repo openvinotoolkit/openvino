@@ -12,8 +12,8 @@
 #include <low_precision/pad.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/pad_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/pad_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 
@@ -27,15 +27,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -46,7 +46,7 @@ public:
 typedef std::tuple <
     ov::PartialShape, // input Shape
     std::pair<std::vector<uint64_t>, std::vector<uint64_t>>, // pads begin, pads end
-    ngraph::op::PadMode, // pads mode
+    ov::op::PadMode, // pads mode
     float, // pads value (used if mode == CONSTANT)
     PadTransformationTestValues> PadTransformationParams;
 
@@ -55,14 +55,14 @@ public:
     void SetUp() override {
         const ov::PartialShape inputShape = std::get<0>(GetParam());
         const auto pads = std::get<1>(GetParam());
-        const ngraph::op::PadMode padsMode = std::get<2>(GetParam());
+        const ov::op::PadMode padsMode = std::get<2>(GetParam());
         const float padsValue = std::get<3>(GetParam());
         const PadTransformationTestValues testValues = std::get<4>(GetParam());
 
         const auto precisionAfterActualOp = testValues.actual.dequantization.convert.empty() ?
             testValues.actual.precisionBeforeDequantization : testValues.actual.dequantization.convert.outPrecision;
 
-        actualFunction = ngraph::builder::subgraph::PadFunction::get(
+        actualFunction = ov::builder::subgraph::PadFunction::get(
             inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
@@ -77,7 +77,7 @@ public:
         transformer.add<ov::pass::low_precision::PadTransformation, ov::op::v1::Pad>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::PadFunction::get(
+        referenceFunction = ov::builder::subgraph::PadFunction::get(
             inputShape,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
@@ -92,13 +92,13 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<PadTransformationParams> obj) {
         const ov::PartialShape inputShape = std::get<0>(obj.param);
         const auto pads = std::get<1>(obj.param);
-        const ngraph::op::PadMode padsMode = std::get<2>(obj.param);
+        const ov::op::PadMode padsMode = std::get<2>(obj.param);
         const float padsValue = std::get<3>(obj.param);
         const PadTransformationTestValues testValues = std::get<4>(obj.param);
 
         std::ostringstream result;
         result << "mode_" << padsMode << "_";
-        if (padsMode == ngraph::op::PadMode::CONSTANT) {
+        if (padsMode == ov::op::PadMode::CONSTANT) {
             result << "pad_value_{ " << padsValue << " }";
         }
 
@@ -141,11 +141,11 @@ const std::vector<ov::PartialShape> commonInputShapes = {
     {-1, -1, -1, -1}
 };
 
-std::vector<ngraph::op::PadMode> allModes = {
-    ngraph::op::PadMode::EDGE,
-    ngraph::op::PadMode::REFLECT,
-    ngraph::op::PadMode::SYMMETRIC,
-    ngraph::op::PadMode::CONSTANT,
+std::vector<ov::op::PadMode> allModes = {
+    ov::op::PadMode::EDGE,
+    ov::op::PadMode::REFLECT,
+    ov::op::PadMode::SYMMETRIC,
+    ov::op::PadMode::CONSTANT,
 };
 
 const std::vector<PadTransformationTestValues> deqWithoutSub = {
@@ -257,10 +257,10 @@ INSTANTIATE_TEST_SUITE_P(
 // test-cases with common logic for "EDGE", "REFLECT", and "SYMMETRIC" modes:
 // pads by spatial dimensions, dequantization with subtract
 namespace dqWithSubtract {
-std::vector<ngraph::op::PadMode> modesInWhichSubPropagated = {
-    ngraph::op::PadMode::EDGE,
-    ngraph::op::PadMode::REFLECT,
-    ngraph::op::PadMode::SYMMETRIC,
+std::vector<ov::op::PadMode> modesInWhichSubPropagated = {
+    ov::op::PadMode::EDGE,
+    ov::op::PadMode::REFLECT,
+    ov::op::PadMode::SYMMETRIC,
 };
 
 const std::vector<PadTransformationTestValues> deqWithSub = {
@@ -415,7 +415,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(padsBySpatialDimensions),
-        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(ov::op::PadMode::CONSTANT),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForConstantMode)),
     PadTransformation::getTestCaseName);
@@ -471,7 +471,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(padsBySpatialDimensions),
-        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(ov::op::PadMode::CONSTANT),
         ::testing::Values(1.f),
         ::testing::ValuesIn(testValuesForConstantMode2)),
     PadTransformation::getTestCaseName);
@@ -534,7 +534,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(padsByUniqueDimension),
-        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(ov::op::PadMode::CONSTANT),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForConstantMode)),
     PadTransformation::getTestCaseName);
@@ -597,7 +597,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(padsByUniqueDimension),
-        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(ov::op::PadMode::CONSTANT),
         ::testing::Values(2.f),
         ::testing::ValuesIn(testValuesForConstantMode)),
     PadTransformation::getTestCaseName);
@@ -634,7 +634,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(padsBySpatialDimensions),
-        ::testing::Values(ngraph::op::PadMode::EDGE),
+        ::testing::Values(ov::op::PadMode::EDGE),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForEdgeMode)),
     PadTransformation::getTestCaseName);
@@ -671,7 +671,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(padsBySpatialDimensions),
-        ::testing::Values(ngraph::op::PadMode::REFLECT),
+        ::testing::Values(ov::op::PadMode::REFLECT),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForReflectMode)),
     PadTransformation::getTestCaseName);
@@ -708,7 +708,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(padsBySpatialDimensions),
-        ::testing::Values(ngraph::op::PadMode::SYMMETRIC),
+        ::testing::Values(ov::op::PadMode::SYMMETRIC),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForSymetricMode)),
     PadTransformation::getTestCaseName);
@@ -719,11 +719,11 @@ const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
     ov::PartialShape::dynamic()
 };
 
-std::vector<ngraph::op::PadMode> allModes = {
-    ngraph::op::PadMode::EDGE,
-    ngraph::op::PadMode::REFLECT,
-    ngraph::op::PadMode::SYMMETRIC,
-    ngraph::op::PadMode::CONSTANT,
+std::vector<ov::op::PadMode> allModes = {
+    ov::op::PadMode::EDGE,
+    ov::op::PadMode::REFLECT,
+    ov::op::PadMode::SYMMETRIC,
+    ov::op::PadMode::CONSTANT,
 };
 
 const std::vector<PadTransformationTestValues> testValuesForDynamicRank = {

@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_layer/loop.hpp"
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 namespace LayerTestsDefinitions {
 

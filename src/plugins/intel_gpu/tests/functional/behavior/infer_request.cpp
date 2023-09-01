@@ -10,12 +10,13 @@
 #include "openvino/runtime/core.hpp"
 
 #include <common_test_utils/test_common.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ::testing;
 
@@ -81,9 +82,9 @@ void InferRequestIOPrecision::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
     params[0]->set_friendly_name("Input");
 
-    auto activation = ngraph::builder::makeActivation(params[0],
+    auto activation = ov::builder::makeActivation(params[0],
                                                       ngPrc,
-                                                      ngraph::helpers::ActivationTypes::Clamp,
+                                                      ov::helpers::ActivationTypes::Clamp,
                                                       {},
                                                       {clamp_min, clamp_max});
 
@@ -119,7 +120,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferRequestIOPrecision,
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
     auto ie = ov::Core();
     using namespace ov::preprocess;
-    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    auto p = PrePostProcessor(ov::builder::subgraph::makeSplitMultiConvConcat());
     p.input().tensor().set_element_type(ov::element::i8);
     p.input().preprocess().convert_element_type(ov::element::f32);
 
@@ -166,7 +167,7 @@ TEST(TensorTest, smoke_canSetScalarTensor) {
 TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
     auto ie = ov::Core();
     using namespace ov::preprocess;
-    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    auto p = PrePostProcessor(ov::builder::subgraph::makeSplitMultiConvConcat());
     p.input().tensor().set_element_type(ov::element::i8);
     p.input().preprocess().convert_element_type(ov::element::f32);
 

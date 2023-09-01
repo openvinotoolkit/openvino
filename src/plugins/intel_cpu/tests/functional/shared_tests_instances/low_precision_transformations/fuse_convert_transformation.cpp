@@ -16,7 +16,7 @@ const std::vector< ngraph::PartialShape > inputAndQuantizationShapes = {
         { 1, 4, 16, 16 },
 };
 
-const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperations = {
+const std::vector<ov::builder::subgraph::DequantizationOperations> deqOperations = {
         {
                 { ngraph::element::f32 },
                 {1.f},

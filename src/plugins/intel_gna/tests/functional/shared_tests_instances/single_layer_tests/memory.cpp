@@ -6,9 +6,9 @@
 
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
@@ -62,11 +62,11 @@ TEST_P(MemoryTestGna, CompareWithRefs) {
     Run();
 }
 
-std::vector<ngraph::helpers::MemoryTransformation> transformation{
-    ngraph::helpers::MemoryTransformation::NONE,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT};
+std::vector<ov::helpers::MemoryTransformation> transformation{
+    ov::helpers::MemoryTransformation::NONE,
+    ov::helpers::MemoryTransformation::LOW_LATENCY_V2,
+    ov::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API,
+    ov::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT};
 
 const std::vector<InferenceEngine::SizeVector> inShapes = {{1, 1}, {1, 2}, {1, 10}};
 

@@ -36,9 +36,9 @@ std::vector<ov::test::ElementType> netPrecisions = {
         ov::element::i64,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::helpers::InputLayerType> secondaryInputTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
 };
 
 std::vector<ov::test::utils::OpType> opTypes = {
@@ -46,20 +46,20 @@ std::vector<ov::test::utils::OpType> opTypes = {
         ov::test::utils::OpType::VECTOR,
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> smoke_eltwiseOpTypes = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
+std::vector<ov::helpers::EltwiseTypes> smoke_eltwiseOpTypes = {
+        ov::helpers::EltwiseTypes::ADD,
+        ov::helpers::EltwiseTypes::MULTIPLY,
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::DIVIDE,
-        ngraph::helpers::EltwiseTypes::FLOOR_MOD,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
-        ngraph::helpers::EltwiseTypes::POWER,
-        ngraph::helpers::EltwiseTypes::MOD
+std::vector<ov::helpers::EltwiseTypes> eltwiseOpTypes = {
+        ov::helpers::EltwiseTypes::ADD,
+        ov::helpers::EltwiseTypes::MULTIPLY,
+        ov::helpers::EltwiseTypes::SUBTRACT,
+        ov::helpers::EltwiseTypes::DIVIDE,
+        ov::helpers::EltwiseTypes::FLOOR_MOD,
+        ov::helpers::EltwiseTypes::SQUARED_DIFF,
+        ov::helpers::EltwiseTypes::POWER,
+        ov::helpers::EltwiseTypes::MOD
 };
 
 ov::AnyMap additional_config = {};

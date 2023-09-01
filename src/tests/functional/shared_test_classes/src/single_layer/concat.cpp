@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/concat.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -36,8 +37,8 @@ void ConcatLayerTest::SetUp() {
     for (auto&& shape : inputShape) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "concat");

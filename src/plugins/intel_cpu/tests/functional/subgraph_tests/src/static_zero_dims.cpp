@@ -3,9 +3,11 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 using namespace ov::test;
 
@@ -32,7 +34,7 @@ protected:
 
         auto relu1 = std::make_shared<ngraph::opset5::Relu>(varSplit->output(0));
 
-        auto numInRoi = ngraph::builder::makeConstant(ngPrc, {0}, std::vector<float>{}, false);
+        auto numInRoi = ov::builder::makeConstant(ngPrc, {0}, std::vector<float>{}, false);
         auto expDet = std::make_shared<ov::op::v6::ExperimentalDetectronTopKROIs>(varSplit->output(1), numInRoi, 10);
         auto relu2 = std::make_shared<ngraph::opset5::Relu>(expDet);
 

@@ -3,7 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/eltwise_conv_eltwise.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -69,7 +70,7 @@ void EltwiseAfterConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::builder::makeConvolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
@@ -161,7 +162,7 @@ void EltwiseBeforeConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::builder::makeConvolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
@@ -240,7 +241,7 @@ void EltwiseWithTwoConvsAsInputsTest::SetUp() {
     auto filterWeights1 = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                   -0.2f, 0.2f);
     auto stride_h = kernelShape[0] > 1 ? stride : 1;
-    auto conv1 = ngraph::builder::makeConvolution(reshape1,
+    auto conv1 = ov::builder::makeConvolution(reshape1,
                                                   ngPrc,
                                                   {kernelShape[0], kernelShape[1]},
                                                   {stride_h, stride},
@@ -257,7 +258,7 @@ void EltwiseWithTwoConvsAsInputsTest::SetUp() {
 
     auto filterWeights2 = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                   -0.2f, 0.2f);
-    auto conv2 = ngraph::builder::makeConvolution(reshape3,
+    auto conv2 = ov::builder::makeConvolution(reshape3,
                                                   ngPrc,
                                                   {kernelShape[0], kernelShape[1]},
                                                   {stride_h, stride},

@@ -19,26 +19,26 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
+#include "lpt_ov_models/common/builders.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/concat_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 namespace {
 
 class ConcatTransformationActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize1;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert1;
-    ngraph::builder::subgraph::DequantizationOperations dequantization1;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert2;
-    ngraph::builder::subgraph::DequantizationOperations dequantization2;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize1;
+    ov::builder::subgraph::DequantizationOperations::Convert convert1;
+    ov::builder::subgraph::DequantizationOperations dequantization1;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
+    ov::builder::subgraph::DequantizationOperations::Convert convert2;
+    ov::builder::subgraph::DequantizationOperations dequantization2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationActualValues& values) {
@@ -48,14 +48,14 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationAct
 
 class ConcatTransformationResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize1;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert1;
-    ngraph::builder::subgraph::DequantizationOperations dequantization1;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert2;
-    ngraph::builder::subgraph::DequantizationOperations dequantization2;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize1;
+    ov::builder::subgraph::DequantizationOperations::Convert convert1;
+    ov::builder::subgraph::DequantizationOperations dequantization1;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
+    ov::builder::subgraph::DequantizationOperations::Convert convert2;
+    ov::builder::subgraph::DequantizationOperations dequantization2;
     ov::element::Type precisionAfterOperation;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationResultValues& values) {
@@ -117,7 +117,7 @@ public:
             testValues.actual.dequantization2.multiply.outPrecision = precision;
         }
 
-        actualFunction = ngraph::builder::subgraph::ConcatFunction::get(precision,
+        actualFunction = ov::builder::subgraph::ConcatFunction::get(precision,
                                                                         shape,
                                                                         testValues.actual.fakeQuantize1,
                                                                         testValues.actual.convert1,
@@ -175,7 +175,7 @@ public:
         ov::IntervalsAlignmentSharedValue::Interval interval{-1.28f, 2.55f};
 
         referenceFunction =
-            ngraph::builder::subgraph::ConcatFunction::get(precision,
+            ov::builder::subgraph::ConcatFunction::get(precision,
                                                            shape,
                                                            testValues.result.fakeQuantize1,
                                                            testValues.result.convert1,

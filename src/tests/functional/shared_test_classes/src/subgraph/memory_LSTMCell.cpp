@@ -6,9 +6,10 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include "ngraph/pass/low_latency.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
 #include "functional_test_utils/core_config.hpp"
+#include "ngraph/opsets/opset7.hpp"
 
 using namespace ngraph;
 using namespace opset7;
@@ -21,7 +22,7 @@ namespace SubgraphTestsDefinitions {
         size_t inputSize;
         size_t hiddenSize;
         std::map<std::string, std::string> config;
-        ngraph::helpers::MemoryTransformation transformation;
+        ov::helpers::MemoryTransformation transformation;
         std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = obj.param;
         std::ostringstream result;
 
@@ -59,11 +60,11 @@ namespace SubgraphTestsDefinitions {
 
         ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
-        auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
-        auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
+        auto input_add_const = ov::builder::makeConstant(ngPrc, input_dims, input_bias);
+        auto add = ov::builder::makeEltwise(input_parameter[0], input_add_const, ov::helpers::EltwiseTypes::ADD);
 
-        auto input_mul_const = builder::makeConstant(ngPrc, input_dims, input_weights);
-        auto mul = builder::makeEltwise(add, input_mul_const, helpers::EltwiseTypes::MULTIPLY);
+        auto input_mul_const = ov::builder::makeConstant(ngPrc, input_dims, input_weights);
+        auto mul = ov::builder::makeEltwise(add, input_mul_const, ov::helpers::EltwiseTypes::MULTIPLY);
 
         auto unsqueeze_input_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
         auto unsqueeze_input = std::make_shared<Unsqueeze>(mul, unsqueeze_input_const);
@@ -71,14 +72,14 @@ namespace SubgraphTestsDefinitions {
         auto permute_in_params = std::make_shared<Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
         auto permute_in = std::make_shared<Transpose>(unsqueeze_input, permute_in_params);
 
-        auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+        auto cell_memory_constant = ov::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
         auto var_cell =
                 std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "cell_state_1"});
         auto var_hidden =
                 std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "hidden_state_1"});
         auto cell_memory_read = std::make_shared<ReadValue>(cell_memory_constant, var_cell);
 
-        auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+        auto hidden_memory_constant = ov::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
         auto hidden_memory_read = std::make_shared<ReadValue>(hidden_memory_constant, var_hidden);
 
         // Body - inputs
@@ -89,9 +90,9 @@ namespace SubgraphTestsDefinitions {
         auto squeeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
         auto squeeze = std::make_shared<Squeeze>(X, squeeze_const);
 
-        auto weightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
-        auto reccurrenceWeightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-        auto biasNode = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+        auto weightsNode = ov::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
+        auto reccurrenceWeightsNode = ov::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+        auto biasNode = ov::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
         auto lstm = std::make_shared<LSTMCell>(squeeze, H_t, C_t, weightsNode, reccurrenceWeightsNode, biasNode, hiddenSize);
 
         auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
@@ -148,26 +149,26 @@ namespace SubgraphTestsDefinitions {
 
         ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
-        auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
-        auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
+        auto input_add_const = ov::builder::makeConstant(ngPrc, input_dims, input_bias);
+        auto add = ov::builder::makeEltwise(input_parameter[0], input_add_const, ov::helpers::EltwiseTypes::ADD);
 
-        auto input_mul_const = builder::makeConstant(ngPrc, input_dims, input_weights);
-        auto mul = builder::makeEltwise(add, input_mul_const, helpers::EltwiseTypes::MULTIPLY);
+        auto input_mul_const = ov::builder::makeConstant(ngPrc, input_dims, input_weights);
+        auto mul = ov::builder::makeEltwise(add, input_mul_const, ov::helpers::EltwiseTypes::MULTIPLY);
 
         auto unsqueeze_input_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
         auto unsqueeze_input = std::make_shared<Unsqueeze>(mul, unsqueeze_input_const);
 
-        auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+        auto cell_memory_constant = ov::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
 
-        auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+        auto hidden_memory_constant = ov::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
 
         // Body - layers
         auto squeeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
         auto squeeze = std::make_shared<Squeeze>(unsqueeze_input, squeeze_const);
 
-        auto weightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
-        auto reccurrenceWeightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-        auto biasNode = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+        auto weightsNode = ov::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
+        auto reccurrenceWeightsNode = ov::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+        auto biasNode = ov::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
         auto lstm = std::make_shared<LSTMCell>(squeeze, hidden_memory_constant, cell_memory_constant, weightsNode,
                                                                reccurrenceWeightsNode, biasNode, hiddenSize);
 
@@ -195,11 +196,11 @@ namespace SubgraphTestsDefinitions {
 
         ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
-        auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
-        auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
+        auto input_add_const = ov::builder::makeConstant(ngPrc, input_dims, input_bias);
+        auto add = ov::builder::makeEltwise(input_parameter[0], input_add_const, ov::helpers::EltwiseTypes::ADD);
 
-        auto input_mul_const = builder::makeConstant(ngPrc, input_dims, input_weights);
-        auto mul = builder::makeEltwise(add, input_mul_const, helpers::EltwiseTypes::MULTIPLY);
+        auto input_mul_const = ov::builder::makeConstant(ngPrc, input_dims, input_weights);
+        auto mul = ov::builder::makeEltwise(add, input_mul_const, ov::helpers::EltwiseTypes::MULTIPLY);
 
         auto unsqueeze_input_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
         auto unsqueeze_input = std::make_shared<Unsqueeze>(mul, unsqueeze_input_const);
@@ -207,9 +208,9 @@ namespace SubgraphTestsDefinitions {
         auto permute_in_params = std::make_shared<Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
         auto permute_in = std::make_shared<Transpose>(unsqueeze_input, permute_in_params);
 
-        auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+        auto cell_memory_constant = ov::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
 
-        auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+        auto hidden_memory_constant = ov::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
 
         // Body - inputs
         auto X = std::make_shared<Parameter>(ngPrc, Shape{1, 1, inputSize});
@@ -221,9 +222,9 @@ namespace SubgraphTestsDefinitions {
         auto squeeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
         auto squeeze = std::make_shared<Squeeze>(X, squeeze_const);
 
-        auto weightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
-        auto reccurrenceWeightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-        auto biasNode = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+        auto weightsNode = ov::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
+        auto reccurrenceWeightsNode = ov::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+        auto biasNode = ov::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
         auto lstm = std::make_shared<LSTMCell>(squeeze, H_t, C_t, weightsNode, reccurrenceWeightsNode, biasNode, hiddenSize);
 
         auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
@@ -267,7 +268,7 @@ namespace SubgraphTestsDefinitions {
 
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        if (transformation != ngraph::helpers::MemoryTransformation::NONE) {
+        if (transformation != ov::helpers::MemoryTransformation::NONE) {
             CoreConfiguration(this);
             ApplyLowLatency();
         } else {
@@ -279,7 +280,7 @@ namespace SubgraphTestsDefinitions {
         Infer();
 
         // Calculate ref values
-        if (transformation == ngraph::helpers::MemoryTransformation::NONE) {
+        if (transformation == ov::helpers::MemoryTransformation::NONE) {
             switchToNgraphFriendlyModel();
         } else {
             CreatePureTensorIteratorModel();
@@ -308,21 +309,21 @@ namespace SubgraphTestsDefinitions {
     void MemoryLSTMCellTest::ApplyLowLatency() {
         // Calculate values after LowLatency transformation
         CreatePureTensorIteratorModel();
-        if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
+        if (transformation == ov::helpers::MemoryTransformation::LOW_LATENCY_V2) {
             function->validate_nodes_and_infer_types();
             // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
 
             pass::Manager manager;
             manager.register_pass<pass::LowLatency2>();
             manager.run_passes(function);
-            bool ti_found = helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
             LoadNetwork();
-        } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+        } else if (transformation == ov::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
             InferenceEngine::lowLatency2(cnnNetwork);
 
-            bool ti_found = helpers::is_tensor_iterator_exist(cnnNetwork.getFunction());
+            bool ti_found = ov::helpers::is_tensor_iterator_exist(cnnNetwork.getFunction());
             EXPECT_EQ(ti_found, false);
 
             ConfigureNetwork();

@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/simple_if.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace SubgraphTestsDefinitions {
@@ -65,7 +65,7 @@ void SimpleIfTest::SetUp() {
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res2}, ov::ParameterVector{p3});
 
-    auto condOp = ngraph::builder::makeConstant<bool>(ov::element::Type_t::boolean, {1}, {condition});
+    auto condOp = ov::builder::makeConstant<bool>(ov::element::Type_t::boolean, {1}, {condition});
     auto ifOp = std::make_shared<ov::op::v8::If>(condOp);
     ifOp->set_then_body(thenBody);
     ifOp->set_else_body(elseBody);
@@ -103,7 +103,7 @@ void SimpleIf2OutTest::SetUp() {
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1, res2}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res3, res4}, ov::ParameterVector{p3, p4});
 
-    auto condOp = ngraph::builder::makeConstant<bool>(ov::element::Type_t::boolean, {1}, {condition});
+    auto condOp = ov::builder::makeConstant<bool>(ov::element::Type_t::boolean, {1}, {condition});
     auto ifOp = std::make_shared<ov::op::v8::If>(condOp);
     ifOp->set_then_body(thenBody);
     ifOp->set_else_body(elseBody);
@@ -238,7 +238,7 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
 
     // then body
     const std::vector<int64_t> pads(p1->get_partial_shape().rank().get_length(), 2);
-    auto thenOp = ngraph::builder::makePad(p1, pads, pads, 0, ngraph::helpers::PadMode::CONSTANT);
+    auto thenOp = ov::builder::makePad(p1, pads, pads, 0, ov::helpers::PadMode::CONSTANT);
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp);
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
 
@@ -284,10 +284,10 @@ void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
 
     const size_t axis = 1;
     const size_t dim = inputDynamicShapes[0][axis].get_length();  // should be static for this test suit
-    auto thenOp = ngraph::builder::makeSplit(p1, inType, dim, axis);
+    auto thenOp = ov::builder::makeSplit(p1, inType, dim, axis);
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp->output(dim / 2));
 
-    auto elseOp = ngraph::builder::makeSplit(p2, inType, dim, axis);
+    auto elseOp = ov::builder::makeSplit(p2, inType, dim, axis);
     auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp->output(dim - 1));
 
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});

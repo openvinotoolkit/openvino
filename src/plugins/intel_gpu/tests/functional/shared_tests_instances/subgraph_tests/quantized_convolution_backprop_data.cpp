@@ -8,7 +8,7 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace SubgraphTestsDefinitions;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 
 namespace {
 

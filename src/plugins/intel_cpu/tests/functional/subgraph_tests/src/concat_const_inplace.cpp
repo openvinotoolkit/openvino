@@ -4,8 +4,10 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 using namespace CPUTestUtils;
 using namespace InferenceEngine;
@@ -49,7 +51,7 @@ public:
         auto transpose = std::make_shared<ngraph::opset8::Transpose>(inputParams[0], transposeOrder);
 
         auto concatConstantInput = ngraph::opset8::Constant::create(ngraph::element::f32, {1, 1, 3, 3}, {10.0f});
-        auto concat = ngraph::builder::makeConcat({concatConstantInput, transpose}, 1);
+        auto concat = ov::builder::makeConcat({concatConstantInput, transpose}, 1);
 
         // convolution
         std::vector<float> weightValuesFP32(12);

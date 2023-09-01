@@ -14,29 +14,29 @@
 #include <transformations/utils/utils.hpp>
 #include "common_test_utils/ov_test_utils.hpp"
 
-#include "lpt_ngraph_functions/reduce_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
+#include "lpt_ov_models/reduce_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/constant.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class ReduceTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -58,14 +58,14 @@ public:
         const ov::PartialShape inputShape = std::get<0>(GetParam());
         const ReduceTransformationTestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ReduceFunction::getOriginal<ReduceType>(
+        actualFunction = ov::builder::subgraph::ReduceFunction::getOriginal<ReduceType>(
             testValues.actual.inputPrecision,
             inputShape,
             testValues.actual.dequantization,
             testValues.constantValues,
             testValues.keepDims);
 
-        referenceFunction = ngraph::builder::subgraph::ReduceFunction::getReference<ReduceType>(
+        referenceFunction = ov::builder::subgraph::ReduceFunction::getReference<ReduceType>(
             testValues.expected.inputPrecision,
             inputShape,
             testValues.expected.dequantizationBefore,

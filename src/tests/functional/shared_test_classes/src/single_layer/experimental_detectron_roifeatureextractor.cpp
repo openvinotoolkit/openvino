@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/single_layer/experimental_detectron_roifeatureextractor.hpp"
@@ -70,7 +70,7 @@ void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
     }
-    auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramsOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectronROIFeatureExtractor = std::make_shared<ExperimentalROI>(paramsOuts, attrs);
     function = std::make_shared<ov::Model>(ov::OutputVector{experimentalDetectronROIFeatureExtractor->output(0),
                                                                experimentalDetectronROIFeatureExtractor->output(1)},

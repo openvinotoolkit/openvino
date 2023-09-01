@@ -33,9 +33,9 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
-        ngraph::helpers::SqueezeOpType::SQUEEZE,
-        ngraph::helpers::SqueezeOpType::UNSQUEEZE
+const std::vector<ov::helpers::SqueezeOpType> opTypes = {
+        ov::helpers::SqueezeOpType::SQUEEZE,
+        ov::helpers::SqueezeOpType::UNSQUEEZE
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
 INSTANTIATE_TEST_SUITE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(ov::test::utils::combineParams(emptyAxesVectors)),
-                                ::testing::Values(ngraph::helpers::SqueezeOpType::SQUEEZE),
+                                ::testing::Values(ov::helpers::SqueezeOpType::SQUEEZE),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

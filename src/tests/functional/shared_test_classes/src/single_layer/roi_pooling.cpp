@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/roi_pooling.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -11,7 +12,7 @@ namespace LayerTestsDefinitions {
         std::vector<size_t> coordsShape;
         std::vector<size_t> poolShape;
         float spatial_scale;
-        ngraph::helpers::ROIPoolingTypes pool_method;
+        ov::helpers::ROIPoolingTypes pool_method;
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::tie(inputShape, coordsShape, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = obj.param;
@@ -23,10 +24,10 @@ namespace LayerTestsDefinitions {
         result << "PS=" << ov::test::utils::vec2str(poolShape) << "_";
         result << "Scale=" << spatial_scale << "_";
         switch (pool_method) {
-            case ngraph::helpers::ROIPoolingTypes::ROI_MAX:
+            case ov::helpers::ROIPoolingTypes::ROI_MAX:
                 result << "Max_";
                 break;
-            case ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR:
+            case ov::helpers::ROIPoolingTypes::ROI_BILINEAR:
                 result << "Bilinear_";
                 break;
         }
@@ -38,7 +39,7 @@ namespace LayerTestsDefinitions {
     void ROIPoolingLayerTest::GenerateInputs() {
         auto feat_map_shape = cnnNetwork.getInputShapes().begin()->second;
 
-        const auto is_roi_max_mode = (pool_method == ngraph::helpers::ROIPoolingTypes::ROI_MAX);
+        const auto is_roi_max_mode = (pool_method == ov::helpers::ROIPoolingTypes::ROI_MAX);
 
         const int height = is_roi_max_mode ? feat_map_shape[2] / spatial_scale : 1;
         const int width  = is_roi_max_mode ? feat_map_shape[3] / spatial_scale : 1;
@@ -74,9 +75,9 @@ namespace LayerTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
                                     std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(coordsShape))};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        std::shared_ptr<ngraph::Node> roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0],
+        auto paramOuts = ov::helpers::convert2OutputVector(
+                ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        std::shared_ptr<ngraph::Node> roi_pooling = ov::builder::makeROIPooling(paramOuts[0],
                                                                                     paramOuts[1],
                                                                                     poolShape,
                                                                                     spatial_scale,

@@ -6,29 +6,29 @@
 
 #include <string>
 #include <memory>
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "lpt_ov_models/fake_quantize_function.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ov_models/fake_quantize_and_convolution_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/constant.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
 class FakeQuantizeWithNotOptimalTransformationTestValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertOnData;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnData;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
+    ov::builder::subgraph::DequantizationOperations::Convert convertOnData;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnData;
 
-    ngraph::builder::subgraph::Constant constantOnWeights;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertOnWeights;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+    ov::builder::subgraph::Constant constantOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    ov::builder::subgraph::DequantizationOperations::Convert convertOnWeights;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
 
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     std::string expectedPrecision;
 };
 
@@ -47,12 +47,12 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeWithNotOpti
         data.expectedPrecision;
 }
 
-// ngraph::builder::subgraph::FakeQuantizeOnData
+// ov::builder::subgraph::FakeQuantizeOnData
 typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeWithNotOptimalTransformationTestValues> FakeQuantizeTransformationParams;
 
 class FakeQuantizeWithNotOptimalTransformation :

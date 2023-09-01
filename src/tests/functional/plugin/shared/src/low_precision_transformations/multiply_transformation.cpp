@@ -11,8 +11,8 @@
 #include <ie_core.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "lpt_ngraph_functions/multiply_function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "lpt_ov_models/multiply_function.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -56,7 +56,7 @@ void MultiplyTransformation::SetUp() {
     MultiplyTestValues param;
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
+    function = ov::builder::subgraph::MultiplyFunction::getOriginal(
         precision,
         inputShape,
         param.broadcast1,

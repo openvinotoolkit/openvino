@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -12,7 +12,7 @@
 
 using namespace ov::test;
 using namespace CPUTestUtils;
-using ngraph::helpers::operator<<;
+using ov::helpers::operator<<;
 
 namespace CPULayerTestsDefinitions {
 
@@ -27,7 +27,7 @@ using InterpolateSpecificParams = std::tuple<ov::op::v11::Interpolate::Interpola
 using ShapeParams = std::tuple<ov::op::v11::Interpolate::ShapeCalcMode, // ShapeCalculationMode
                                InputShape,                                 // Input shapes
                                // params describing input, choice of which depends on ShapeCalcMode
-                               ngraph::helpers::InputLayerType,            // input type
+                               ov::helpers::InputLayerType,            // input type
                                std::vector<std::vector<float>>,            // scales or sizes values
                                std::vector<int64_t>>;                      // axes
 
@@ -61,7 +61,7 @@ public:
 
         ov::op::v11::Interpolate::ShapeCalcMode shapeCalcMode;
         InputShape inputShapes;
-        ngraph::helpers::InputLayerType shapeInputType;
+        ov::helpers::InputLayerType shapeInputType;
         std::vector<std::vector<float>> shapeDataForInput;
         std::vector<int64_t> axes;
         std::tie(shapeCalcMode, inputShapes, shapeInputType, shapeDataForInput, axes) = shapeParams;
@@ -183,7 +183,7 @@ protected:
         std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
 
         InputShape dataShape;
-        ngraph::helpers::InputLayerType shapeInputType;
+        ov::helpers::InputLayerType shapeInputType;
         std::vector<std::vector<float>> shapeDataForInput;
         std::vector<int64_t> axes;
         std::tie(shapeCalcMode, dataShape, shapeInputType, shapeDataForInput, axes) = shapeParams;
@@ -201,7 +201,7 @@ protected:
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(dataShape);
-        if (shapeInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (shapeInputType == ov::helpers::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
         }
 
@@ -217,7 +217,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
         std::shared_ptr<ov::Node> sizesInput, scalesInput;
         if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
-            if (shapeInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (shapeInputType == ov::helpers::InputLayerType::PARAMETER) {
                 auto paramNode = std::make_shared<ov::op::v0::Parameter>(ElementType::f32, ov::Shape{scales.front().size()});
                 params.push_back(paramNode);
                 scalesInput = paramNode;
@@ -225,7 +225,7 @@ protected:
                 scalesInput = std::make_shared<ov::op::v0::Constant>(ElementType::f32, ov::Shape{scales.front().size()}, scales.front());
             }
         } else {
-            if (shapeInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+            if (shapeInputType == ov::helpers::InputLayerType::PARAMETER) {
                 auto paramNode = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::Shape{sizes.front().size()});
                 params.push_back(paramNode);
                 sizesInput = paramNode;
@@ -362,28 +362,28 @@ const std::vector<ShapeParams> shapeParams4D_Smoke = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.25f, 1.5f}, {1.f, 1.f, 1.25f, 1.25f}, {1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1, 11, 6, 7}, {2, 7, 8, 7}, {1, 11, 6, 7}},
         defaultAxes4D.front()
     }
@@ -393,14 +393,14 @@ const std::vector<ShapeParams> shapeParams4D_Full = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {1, 11, 5, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}},
         defaultAxes4D.front()
     }
@@ -448,14 +448,14 @@ const std::vector<ShapeParams> shapeParams4D_fixed_C = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, 16, -1, -1}, {{1, 16, 4, 4}, {1, 16, 6, 5}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 16, 6, 7}},
         defaultAxes4D.front()
     }
@@ -628,28 +628,28 @@ const std::vector<ShapeParams> shapeParams5D_Smoke = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{}, {{1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{}, {{1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6, 2}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.25f, 1.5f, 0.5f}, {1.f, 1.f, 1.25f, 1.25f, 1.25f}, {1.f, 1.f, 1.25f, 1.5f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1, 11, 6, 7, 2}, {2, 7, 8, 7, 4}, {1, 11, 6, 7, 2}},
         defaultAxes5D.front()
     },
@@ -659,14 +659,14 @@ const std::vector<ShapeParams> shapeParams5D_Full = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}, {1, 11, 4, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6, 4}},
         defaultAxes5D.front()
     }
@@ -752,14 +752,14 @@ const std::vector<ShapeParams> shapeParams4D_corner = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{1, 11, 4, 4}, {{1, 11, 4, 4}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.25f, 1.5f}, {1.f, 1.f, 1.25f, 1.25f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{1, 11, 4, 4}, {{1, 11, 4, 4}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1, 11, 6, 7}, {1, 11, 8, 7}},
         defaultAxes4D.front()
     }
@@ -805,56 +805,56 @@ const std::vector<ShapeParams> shapeParams4D_Pillow_Smoke = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{}, {{1, 3, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{2.0f, 4.0f}},
         defaultAxes4D_pillow.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{}, {{2, 4, 16, 16}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{0.25f, 0.5f}},
         defaultAxes4D_pillow.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{}, {{1, 3, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{5, 6}},
         defaultAxes4D_pillow.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{}, {{2, 4, 16, 16}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{2, 8}},
         defaultAxes4D_pillow.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{1.25f, 1.5f}, {0.5f, 0.75f}, {1.25f, 1.5f}},
         defaultAxes4D_pillow.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.25f, 0.75f}},
         defaultAxes4D_pillow.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 17, 4, 4}, {2, 3, 10, 12}, {1, 17, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{6, 8}, {5, 4}, {6, 8}},
         defaultAxes4D_pillow.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 17, 4, 4}, {2, 3, 10, 12}, {1, 17, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{6, 8}},
         defaultAxes4D_pillow.front()
     },
@@ -862,7 +862,7 @@ const std::vector<ShapeParams> shapeParams4D_Pillow_Smoke = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 17, 4, 4}, {2, 3, 10, 12}, {1, 17, 4, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
+        ov::helpers::InputLayerType::PARAMETER,
         {{4, 4}, {10, 20}, {10, 4}},
         defaultAxes4D_pillow.front()
     }
@@ -933,28 +933,28 @@ const std::vector<ShapeParams> shapeParams4D_Pillow_Smoke_nchw_as_nhwc = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{}, {{1, 4, 4, 3}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{2.0f, 4.0f}},
         defaultAxes4D_pillow_nchw_as_nhwc.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{}, {{2, 16, 16, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{2, 8}},
         defaultAxes4D_pillow_nchw_as_nhwc.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{-1, -1, -1, {2, 20}}, {{1, 4, 4, 11}, {2, 6, 5, 7}, {1,  4, 4, 11}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{1.25f, 0.75f}},
         defaultAxes4D_pillow_nchw_as_nhwc.front()
     },
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, -1, -1, {2, 20}}, {{1, 4, 4, 17}, {2, 10, 12, 3}, {1, 4, 4, 17}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::CONSTANT,
         {{6, 8}},
         defaultAxes4D_pillow_nchw_as_nhwc.front()
     }

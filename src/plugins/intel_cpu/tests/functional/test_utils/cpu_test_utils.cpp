@@ -8,6 +8,7 @@
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include "utils/general_utils.h"
 #include <cstdint>
+#include "ngraph/opsets/opset1.hpp"
 
 namespace CPUTestUtils {
 const char* CPUTestsBase::any_type = "any_type";

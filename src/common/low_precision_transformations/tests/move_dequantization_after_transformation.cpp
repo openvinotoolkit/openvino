@@ -16,25 +16,25 @@
 #include <low_precision/network_helper.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/move_dequantization_after_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/move_dequantization_after_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 using namespace testing;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class MoveDequantizationAfterTransformationParams {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     ov::element::Type originalPrecision;
@@ -56,7 +56,7 @@ public:
     void SetUp() override {
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
-        actualFunction = ngraph::builder::subgraph::MoveDequantizationAfterFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::MoveDequantizationAfterFunction::getOriginal(
             testValues.originalPrecision,
             inputShape,
             testValues.actual.dequantization);
@@ -69,7 +69,7 @@ public:
             testValues.updatePrecision,
             testValues.moveSubtract);
 
-        referenceFunction = ngraph::builder::subgraph::MoveDequantizationAfterFunction::getReference(
+        referenceFunction = ov::builder::subgraph::MoveDequantizationAfterFunction::getReference(
             testValues.originalPrecision,
             inputShape,
             testValues.expected.dequantizationBefore,

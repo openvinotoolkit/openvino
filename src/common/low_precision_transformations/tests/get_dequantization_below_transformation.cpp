@@ -14,7 +14,7 @@
 #include <low_precision/fake_quantize_decomposition.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/get_dequantization_function.hpp"
+#include "lpt_ov_models/get_dequantization_function.hpp"
 #include <low_precision/common/fake_quantize_dequantization.hpp>
 #include "low_precision/network_helper.hpp"
 
@@ -24,8 +24,8 @@ using namespace ov::pass;
 
 class GetDequantizationBelowTestValues {
 public:
-    ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    ngraph:: builder::subgraph::DequantizationOperations dequantization;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::DequantizationOperations dequantization;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -56,7 +56,7 @@ public:
         const ov::Shape shape = std::get<1>(GetParam());
         const GetDequantizationBelowTestValues testValues = std::get<2>(GetParam());
 
-        auto const model = ngraph::builder::subgraph::GetDequantizationFunction::get(
+        auto const model = ov::builder::subgraph::GetDequantizationFunction::get(
             precision,
             shape,
             testValues.fakeQuantize,
@@ -65,13 +65,13 @@ public:
         auto const fakeQuantize = model->get_parameters()[0]->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
         auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantizationBelow(fakeQuantize);
 
-        actualFunction = ngraph::builder::subgraph::GetDequantizationFunction::get(
+        actualFunction = ov::builder::subgraph::GetDequantizationFunction::get(
             precision,
             shape,
             testValues.fakeQuantize,
             dequantization);
 
-        referenceFunction = ngraph::builder::subgraph::GetDequantizationFunction::get(
+        referenceFunction = ov::builder::subgraph::GetDequantizationFunction::get(
             precision,
             shape,
             testValues.fakeQuantize,

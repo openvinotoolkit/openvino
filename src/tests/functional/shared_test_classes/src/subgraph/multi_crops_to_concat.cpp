@@ -3,7 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/multi_crops_to_concat.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -40,12 +41,12 @@ void MultiCropsToConcatTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto crop1 = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[0].first}, std::vector<int64_t>{1, offsets[0].second},
+    auto crop1 = ov::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[0].first}, std::vector<int64_t>{1, offsets[0].second},
                                                 std::vector<int64_t>{1, 1}, ngPrc, std::vector<int64_t>{1, 0},
                                                 std::vector<int64_t>{1, 0}, std::vector<int64_t>{0, 0},
                                                 std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0});
 
-    auto crop2 = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[1].first}, std::vector<int64_t>{1, offsets[1].second},
+    auto crop2 = ov::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[1].first}, std::vector<int64_t>{1, offsets[1].second},
                                                 std::vector<int64_t>{1, 1}, ngPrc, std::vector<int64_t>{1, 0},
                                                 std::vector<int64_t>{1, 0}, std::vector<int64_t>{0, 0},
                                                 std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0});
@@ -55,7 +56,7 @@ void MultiCropsToConcatTest::SetUp() {
 
     // Case with 3 crops
     if (offsets.size() == 3) {
-        auto crop3 = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[2].first}, std::vector<int64_t>{1, offsets[2].second},
+        auto crop3 = ov::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[2].first}, std::vector<int64_t>{1, offsets[2].second},
                                                 std::vector<int64_t>{1, 1}, ngPrc, std::vector<int64_t>{1, 0},
                                                 std::vector<int64_t>{1, 0}, std::vector<int64_t>{0, 0},
                                                 std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0});

@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "shared_test_classes/subgraph/activation_fq.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
     std::string ActivationFakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamInfo<fqSubgraphTestParamsSet>& obj) {
         fqSpecificParams fqParams;
-        ngraph::helpers::ActivationTypes activationType;
+        ov::helpers::ActivationTypes activationType;
         InferenceEngine::Precision netPrecision;
         InferenceEngine::Precision inPrc, outPrc;
         InferenceEngine::Layout inLayout, outLayout;
@@ -44,7 +45,7 @@ namespace SubgraphTestsDefinitions {
 
     void ActivationFakeQuantizeSubgraphTest::SetUp() {
         fqSpecificParams fqParams;
-        ngraph::helpers::ActivationTypes activationType;
+        ov::helpers::ActivationTypes activationType;
         std::vector<size_t> inputShape;
         std::pair<std::string, std::map<std::string, std::string>> config;
         InferenceEngine::Precision netPrecision;
@@ -64,9 +65,9 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-        auto act = ngraph::builder::makeActivation(params[0], ngPrc, activationType);
+        auto act = ov::builder::makeActivation(params[0], ngPrc, activationType);
 
-        auto FQNode = ngraph::builder::makeFakeQuantize(act, ngraph::element::f32, levels[0], constShape[0],
+        auto FQNode = ov::builder::makeFakeQuantize(act, ngraph::element::f32, levels[0], constShape[0],
                                                         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
         auto FQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(FQNode);

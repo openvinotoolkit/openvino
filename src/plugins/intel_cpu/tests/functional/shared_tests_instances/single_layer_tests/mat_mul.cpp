@@ -40,9 +40,9 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {
         { { {5}, true }, { {5}, true } }
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::helpers::InputLayerType> secondaryInputTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
 };
 
 std::map<std::string, std::string> additional_config = {};

@@ -7,6 +7,7 @@
 #include "ie_precision.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;

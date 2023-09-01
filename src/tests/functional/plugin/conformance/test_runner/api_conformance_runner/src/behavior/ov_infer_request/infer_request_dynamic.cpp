@@ -6,7 +6,7 @@
 
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "ov_api_conformance_helpers.hpp"
-
+#include "ngraph/opsets/opset1.hpp"
 
 namespace {
 using namespace ov::test::behavior;
@@ -20,8 +20,8 @@ std::shared_ptr<ngraph::Function> ovGetFunction1() {
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
 
-    auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 4, 1, 1}, std::vector<float>{}, true);
-    auto add = ngraph::builder::makeEltwise(params[0], in2add, ngraph::helpers::EltwiseTypes::ADD);
+    auto in2add = ov::builder::makeConstant(ngPrc, {1, 4, 1, 1}, std::vector<float>{}, true);
+    auto add = ov::builder::makeEltwise(params[0], in2add, ov::helpers::EltwiseTypes::ADD);
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(add->output(0));
     relu1->get_output_tensor(0).set_names({"relu1"});
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(add->output(0));
@@ -38,14 +38,14 @@ std::shared_ptr<ngraph::Function> ovGetFunction2() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
+    auto split = ov::builder::makeSplit(params[0], ngPrc, 2, 1);
 
-    auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
-    auto add = ngraph::builder::makeEltwise(split->output(0), in2add, ngraph::helpers::EltwiseTypes::ADD);
+    auto in2add = ov::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
+    auto add = ov::builder::makeEltwise(split->output(0), in2add, ov::helpers::EltwiseTypes::ADD);
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(add);
 
-    auto in2mult = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
-    auto mult = ngraph::builder::makeEltwise(split->output(1), in2mult, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto in2mult = ov::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
+    auto mult = ov::builder::makeEltwise(split->output(1), in2mult, ov::helpers::EltwiseTypes::MULTIPLY);
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(mult);
 
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 3);

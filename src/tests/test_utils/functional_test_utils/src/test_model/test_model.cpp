@@ -10,7 +10,7 @@
 
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "functional_test_utils/precision_utils.hpp"
-#include <ngraph_functions/subgraph_builders.hpp>
+#include <ov_models/subgraph_builders.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "openvino/pass/serialize.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -32,7 +32,7 @@ void generateTestModel(const std::string &modelPath,
                        const InferenceEngine::SizeVector &inputDims) {
     ngraph::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(modelPath, weightsPath);
-    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
+    manager.run_passes(ov::builder::subgraph::makeConvPoolRelu(
             inputDims, InferenceEngine::details::convertPrecision(netPrc)));
 }
 

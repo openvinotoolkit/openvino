@@ -13,7 +13,7 @@ void OVInferRequestPerfCountersTest::SetUp() {
     std::tie(target_device, configuration) = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
-    function = ngraph::builder::subgraph::makeConcatWithParams();
+    function = ov::builder::subgraph::makeConcatWithParams();
     configuration.insert(ov::enable_profiling(true));
     execNet = core->compile_model(function, target_device, configuration);
     req = execNet.create_infer_request();

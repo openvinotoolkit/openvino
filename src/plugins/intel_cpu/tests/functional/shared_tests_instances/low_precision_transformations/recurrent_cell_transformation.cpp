@@ -14,7 +14,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     //ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
 };
 
@@ -47,7 +47,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
         "U8"
     },
@@ -77,7 +77,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {256ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
         "FP32"
     }
@@ -126,7 +126,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
         "U8"
     },
@@ -156,7 +156,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {256ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
         "FP32"
     }

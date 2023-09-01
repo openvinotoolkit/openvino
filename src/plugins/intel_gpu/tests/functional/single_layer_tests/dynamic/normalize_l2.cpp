@@ -3,8 +3,9 @@
 //
 
 #include <shared_test_classes/single_layer/normalize_l2.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;
@@ -59,8 +60,8 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
         }
-       auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-       auto normalize = ngraph::builder::makeNormalizeL2(paramOuts[0], axes, eps, epsMode);
+       auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+       auto normalize = ov::builder::makeNormalizeL2(paramOuts[0], axes, eps, epsMode);
 
        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(normalize)};
        function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");

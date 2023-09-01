@@ -5,8 +5,10 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -129,7 +131,7 @@ protected:
             generatePooledVector();
             funcRef = createFunction(true);
         }
-        ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
+        ov::helpers::resize_function(funcRef, targetInputStaticShapes);
     }
 
     void validate() override {

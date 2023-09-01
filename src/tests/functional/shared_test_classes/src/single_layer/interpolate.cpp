@@ -4,10 +4,12 @@
 
 #include <ie_plugin_config.hpp>
 #include "shared_test_classes/single_layer/interpolate.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
-using ngraph::helpers::operator<<;
+using ov::helpers::operator<<;
 
 namespace LayerTestsDefinitions {
 

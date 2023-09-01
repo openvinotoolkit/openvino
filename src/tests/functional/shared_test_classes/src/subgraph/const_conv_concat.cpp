@@ -3,7 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/const_conv_concat.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -69,7 +70,7 @@ void ConstConvConcatTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  0.0f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::builder::makeConvolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
@@ -80,8 +81,8 @@ void ConstConvConcatTest::SetUp() {
     std::vector<size_t> outFormShapes =  {1,  outputChannels * widthAfterConv };
 
     auto const_values = ov::test::utils::generate_float_numbers(outputChannels * widthAfterConv, -0.2f, 0.2f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, {1, outputChannels, 1, widthAfterConv}, const_values);
-    auto concat = ngraph::builder::makeConcat({constant, conv}, 3);
+    auto constant = ov::builder::makeConstant(ngPrc, {1, outputChannels, 1, widthAfterConv}, const_values);
+    auto concat = ov::builder::makeConcat({constant, conv}, 3);
 
     auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 },
                                                                       std::vector<size_t>{1,  2 * outputChannels * widthAfterConv });

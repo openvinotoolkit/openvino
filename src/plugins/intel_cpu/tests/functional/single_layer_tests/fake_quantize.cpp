@@ -3,9 +3,10 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset5.hpp"
 
 using namespace InferenceEngine;
 using namespace ngraph;
@@ -115,12 +116,12 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngInPrec, shape));
         }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset5::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<opset5::Parameter>(params));
 
-        auto il = builder::makeConstant(ngInPrec, ranges[0], rangesBounds[0], rangesBounds[0].empty());
-        auto ih = builder::makeConstant(ngInPrec, ranges[1], rangesBounds[1], rangesBounds[1].empty());
-        auto ol = builder::makeConstant(ngInPrec, ranges[2], rangesBounds[2], rangesBounds[2].empty());
-        auto oh = builder::makeConstant(ngInPrec, ranges[3], rangesBounds[3], rangesBounds[3].empty());
+        auto il = ov::builder::makeConstant(ngInPrec, ranges[0], rangesBounds[0], rangesBounds[0].empty());
+        auto ih = ov::builder::makeConstant(ngInPrec, ranges[1], rangesBounds[1], rangesBounds[1].empty());
+        auto ol = ov::builder::makeConstant(ngInPrec, ranges[2], rangesBounds[2], rangesBounds[2].empty());
+        auto oh = ov::builder::makeConstant(ngInPrec, ranges[3], rangesBounds[3], rangesBounds[3].empty());
         auto fq = std::make_shared<opset5::FakeQuantize>(paramOuts[0], il, ih, ol, oh, levels);
 
         layerName = shouldBeDecomposed ? "" : "FakeQuantize";

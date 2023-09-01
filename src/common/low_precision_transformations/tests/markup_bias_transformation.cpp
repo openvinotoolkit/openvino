@@ -11,7 +11,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/markup_bias_function.hpp"
+#include "lpt_ov_models/markup_bias_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -46,7 +46,7 @@ protected:
         std::string layer_type;
         std::tie(precision, test_values, layer_type) = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::MarkupBiasFunction::get(precision,
+        actualFunction = ov::builder::subgraph::MarkupBiasFunction::get(precision,
                                                                             test_values.input_shape,
                                                                             test_values.bias_shape,
                                                                             layer_type,

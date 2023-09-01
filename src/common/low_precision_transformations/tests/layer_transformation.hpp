@@ -10,7 +10,7 @@
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/transformation_context.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 using namespace ov;
 
@@ -61,7 +61,7 @@ public:
         const ov::PartialShape& shape,
         const TestTransformationParams& params);
 
-    static ngraph::builder::subgraph::DequantizationOperations toDequantizationOperations(
+    static ov::builder::subgraph::DequantizationOperations toDequantizationOperations(
         const ov::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
     static bool allNamesAreUnique(const std::shared_ptr<ov::Model>& model);

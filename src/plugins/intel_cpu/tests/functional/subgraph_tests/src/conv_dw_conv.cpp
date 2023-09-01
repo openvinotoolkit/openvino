@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -23,8 +23,8 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(precision, shape));
         }
-        auto conv_weights = ngraph::builder::makeConstant(precision, std::vector<size_t>{32, 32, 1, 1}, std::vector<float>{}, true);
-        auto conv = ngraph::builder::makeConvolution(params[0],
+        auto conv_weights = ov::builder::makeConstant(precision, std::vector<size_t>{32, 32, 1, 1}, std::vector<float>{}, true);
+        auto conv = ov::builder::makeConvolution(params[0],
                                                      conv_weights,
                                                      precision,
                                                      std::vector<size_t>{1, 1},
@@ -36,8 +36,8 @@ protected:
                                                      32,
                                                      true);
 
-        auto dw_conv_weights = ngraph::builder::makeConstant(precision, std::vector<size_t>{32, 1, 1, 3, 3}, std::vector<float>{}, true);
-        auto dw_conv = ngraph::builder::makeGroupConvolution(conv,
+        auto dw_conv_weights = ov::builder::makeConstant(precision, std::vector<size_t>{32, 1, 1, 3, 3}, std::vector<float>{}, true);
+        auto dw_conv = ov::builder::makeGroupConvolution(conv,
                                                              dw_conv_weights,
                                                              precision,
                                                              std::vector<size_t>{1, 1},
@@ -45,7 +45,7 @@ protected:
                                                              ov::CoordinateDiff{1, 1},
                                                              std::vector<size_t>{1, 1},
                                                              ngraph::op::PadType::EXPLICIT);
-        auto bias_const = ngraph::builder::makeConstant(precision, {1, 32 , 1, 1}, std::vector<float>{}, true);
+        auto bias_const = ov::builder::makeConstant(precision, {1, 32 , 1, 1}, std::vector<float>{}, true);
         auto bias = std::make_shared<ov::opset10::Add>(dw_conv, bias_const);
         function = std::make_shared<ov::Model>(bias, params, "ConvDWConv");
     }

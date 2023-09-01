@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/stridedslice_conv.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -59,14 +59,14 @@ void SliceConvTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto ss = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, 0, 0, 64}, std::vector<int64_t>{1, 1, 1, 128},
+    auto ss = ov::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, 0, 0, 64}, std::vector<int64_t>{1, 1, 1, 128},
                                                 std::vector<int64_t>{1, 1, 1, 1}, ngPrc, std::vector<int64_t>{1, 1, 1, 0},
                                                 std::vector<int64_t>{1, 1, 1, 0}, std::vector<int64_t>{0, 0, 0, 0},
                                                 std::vector<int64_t>{0, 0, 0, 0}, std::vector<int64_t>{0, 0, 0, 0});
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * inputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(ss,
+    auto conv = ov::builder::makeConvolution(ss,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},

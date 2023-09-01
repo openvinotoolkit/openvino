@@ -21,8 +21,8 @@ using InputShapesTuple = std::pair<std::vector<size_t>, std::vector<size_t>>;
 
 typedef std::tuple<
     LogicalParams::InputShapesTuple,    // Input shapes tuple
-    ngraph::helpers::LogicalTypes,      // Logical op type
-    ngraph::helpers::InputLayerType,    // Second input type
+    ov::helpers::LogicalTypes,      // Logical op type
+    ov::helpers::InputLayerType,    // Second input type
     InferenceEngine::Precision,         // Net precision
     InferenceEngine::Precision,         // Input precision
     InferenceEngine::Precision,         // Output precision
@@ -45,8 +45,8 @@ public:
 
 protected:
     LogicalParams::InputShapesTuple inputShapes;
-    ngraph::helpers::LogicalTypes logicalOpType;
-    ngraph::helpers::InputLayerType secondInputType;
+    ov::helpers::LogicalTypes logicalOpType;
+    ov::helpers::InputLayerType secondInputType;
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> additional_config;
 };

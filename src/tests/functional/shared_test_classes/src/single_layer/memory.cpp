@@ -7,7 +7,7 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <functional_test_utils/core_config.hpp>
 #include "ngraph/opsets/opset7.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "ngraph/pass/low_latency.hpp"
 #include "shared_test_classes/single_layer/memory.hpp"
 
@@ -21,7 +21,7 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         InferenceEngine::SizeVector inputShape;
         std::string targetDevice;
-        ngraph::helpers::MemoryTransformation transformation;
+        ov::helpers::MemoryTransformation transformation;
         std::tie(transformation, iteration_count, inputShape, netPrecision, targetDevice) = obj.param;
 
         std::ostringstream result;
@@ -38,7 +38,7 @@ namespace LayerTestsDefinitions {
         std::tie(transformation, iteration_count, inputShape, netPrecision, targetDevice) = this->GetParam();
         ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        if (transformation == ngraph::helpers::MemoryTransformation::NONE) {
+        if (transformation == ov::helpers::MemoryTransformation::NONE) {
             CreateCommonFunc();
         } else {
             CreateTIFunc();
@@ -74,7 +74,7 @@ namespace LayerTestsDefinitions {
         }
 
         try {
-            if (transformation != ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+            if (transformation != ov::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
                 LoadNetwork();
             } else {
                 CoreConfiguration(this);
@@ -193,17 +193,17 @@ namespace LayerTestsDefinitions {
     }
 
     void MemoryTest::ApplyLowLatency() {
-       if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
+       if (transformation == ov::helpers::MemoryTransformation::LOW_LATENCY_V2) {
            function->validate_nodes_and_infer_types();
            pass::Manager manager;
            manager.register_pass<pass::LowLatency2>();
            manager.run_passes(function);
-       } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
+       } else if (transformation == ov::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
            function->validate_nodes_and_infer_types();
            pass::Manager manager;
            manager.register_pass<pass::LowLatency2>(false);
            manager.run_passes(function);
-        } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+        } else if (transformation == ov::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
             InferenceEngine::lowLatency2(cnnNetwork, iteration_count);
         }

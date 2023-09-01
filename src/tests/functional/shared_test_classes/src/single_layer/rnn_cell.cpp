@@ -4,10 +4,11 @@
 
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
 #include "shared_test_classes/single_layer/rnn_cell.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
-using ngraph::helpers::InputLayerType;
+using ov::helpers::InputLayerType;
 
 std::string RNNCellTest::getTestCaseName(const testing::TestParamInfo<RNNCellParams> &obj) {
     bool should_decompose;
@@ -69,7 +70,7 @@ void RNNCellTest::SetUp() {
         W = param;
         params.push_back(param);
     } else {
-        W = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
+        W = ov::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
     }
 
     std::shared_ptr<ov::Node> R;
@@ -78,7 +79,7 @@ void RNNCellTest::SetUp() {
         R = param;
         params.push_back(param);
     } else {
-        R = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
+        R = ov::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
     }
 
     std::shared_ptr<ov::Node> B;
@@ -87,7 +88,7 @@ void RNNCellTest::SetUp() {
         B = param;
         params.push_back(param);
     } else {
-        B = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
+        B = ov::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
     }
 
     auto rnn_cell = std::make_shared<ov::op::v0::RNNCell>(params[0], params[1], W, R, B, hidden_size, activations,

@@ -6,6 +6,9 @@
 
 #include "behavior/executable_network/locale.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset4.hpp"
+#include "ngraph/opsets/opset7.hpp"
 
 namespace BehaviorTestsDefinitions {
 

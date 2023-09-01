@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 #include "shared_test_classes/subgraph/strided_slice.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -47,10 +48,10 @@ void StridedSliceTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(ssParams.inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto relu = std::make_shared<ngraph::opset1::Relu>(paramOuts[0]);
-    auto ss = ngraph::builder::makeStridedSlice(relu, ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,
+    auto ss = ov::builder::makeStridedSlice(relu, ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,
                                                 ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
     function = std::make_shared<ngraph::Function>(results, params, "strided_slice");

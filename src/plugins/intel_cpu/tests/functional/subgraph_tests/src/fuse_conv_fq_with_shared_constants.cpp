@@ -6,8 +6,8 @@
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace ov::test;
@@ -44,7 +44,7 @@ public:
             const std::vector<size_t> dilation = {1, 1};
             const size_t numOutChannels = 16;
             const op::PadType paddingType = op::PadType::EXPLICIT;
-            conv = builder::makeConvolution(fq_before, precision, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
+            conv = ov::builder::makeConvolution(fq_before, precision, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
         }
 
         auto fq_after = std::make_shared<opset1::FakeQuantize>(conv, shared_il, shared_ih, shared_ol, shared_oh, 256);

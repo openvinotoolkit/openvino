@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/comparison.hpp"
 
 using namespace LayerTestsDefinitions::ComparisonParams;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 
 namespace LayerTestsDefinitions {
 std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj) {
@@ -68,12 +68,12 @@ void ComparisonLayerTest::SetUp() {
 
     ov::ParameterVector inputs {std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
 
-    auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+    auto secondInput = ov::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
     if (secondInputType == InputLayerType::PARAMETER) {
         inputs.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondInput));
     }
 
-    auto comparisonNode = ngraph::builder::makeComparison(inputs[0], secondInput, comparisonOpType);
+    auto comparisonNode = ov::builder::makeComparison(inputs[0], secondInput, comparisonOpType);
     function = std::make_shared<ov::Model>(comparisonNode, inputs, "Comparison");
 }
 

@@ -34,7 +34,7 @@ protected:
     void SetUp() override;
 
 private:
-    ngraph::helpers::EltwiseTypes eltwiseType;
+    ov::helpers::EltwiseTypes eltwiseType;
 };
 
 namespace Eltwise {
@@ -43,12 +43,12 @@ const std::vector<ov::AnyMap>& additional_config();
 
 const std::vector<ElementType>& netType();
 const std::vector<ov::test::utils::OpType>& opTypes();
-const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinInp();
-const std::vector<ngraph::helpers::InputLayerType>& secondaryInputTypes();
+const std::vector<ov::helpers::EltwiseTypes>& eltwiseOpTypesBinInp();
+const std::vector<ov::helpers::InputLayerType>& secondaryInputTypes();
 
-const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinInp();
-const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesDiffInp();
-const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinDyn();
+const std::vector<ov::helpers::EltwiseTypes>& eltwiseOpTypesBinInp();
+const std::vector<ov::helpers::EltwiseTypes>& eltwiseOpTypesDiffInp();
+const std::vector<ov::helpers::EltwiseTypes>& eltwiseOpTypesBinDyn();
 
 const std::vector<CPUSpecificParams>& cpuParams_4D();
 const std::vector<std::vector<ov::Shape>>& inShapes_4D();
@@ -66,7 +66,7 @@ const std::vector<InputShape>& inShapes_5D_dyn_param();
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant();
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_parameter();
 
-const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesI32();
+const std::vector<ov::helpers::EltwiseTypes>& eltwiseOpTypesI32();
 
 const std::vector<bool>& enforceSnippets();
 

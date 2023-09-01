@@ -12,7 +12,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -117,11 +117,11 @@ protected:
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrec, shape));
         }
 
-        const auto outputNodes = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(inputParams));
+        const auto outputNodes = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes(inputParams));
 
         auto makeDataFQ = [](const ngraph::Output<Node>& input) {
             const auto fqLevels = 256;
-            return ngraph::builder::makeFakeQuantize(input, ngraph::element::f32, fqLevels, {},
+            return ov::builder::makeFakeQuantize(input, ngraph::element::f32, fqLevels, {},
                                                       {-128.f/127}, {1.f},
                                                       {-128.f/127}, {1.f});
         };
@@ -131,16 +131,16 @@ protected:
         if (quantizedHiddenState) {
             H = makeDataFQ(outputNodes[1]);
         } else {
-            H = ngraph::builder::makeConstant(ngraph::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
+            H = ov::builder::makeConstant(ngraph::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
         }
 
-        auto W = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
-        auto R = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
-        auto B = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
+        auto W = ov::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
+        auto R = ov::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
+        auto B = ov::builder::makeConstant(ngraph::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
 
         auto makeWeightsFQ = [](const std::shared_ptr<Node> weight) {
             const auto fqLevelsW = 255;
-            return ngraph::builder::makeFakeQuantize(weight, ngraph::element::f32,
+            return ov::builder::makeFakeQuantize(weight, ngraph::element::f32,
                                                      fqLevelsW, std::vector<size_t>{},
                                                      {-127.f/63}, {127.f/63},
                                                      {-127.f/63}, {127.f/63});

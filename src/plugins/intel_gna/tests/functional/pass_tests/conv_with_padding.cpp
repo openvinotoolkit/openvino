@@ -4,7 +4,7 @@
 
 #include "../shared_tests_instances/skip_tests_check.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision

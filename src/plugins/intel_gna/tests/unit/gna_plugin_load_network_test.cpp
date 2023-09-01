@@ -7,7 +7,7 @@
 #include "common/gna_target.hpp"
 #include "gna_mock_api_initializer.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace {
 typedef struct {
@@ -63,15 +63,15 @@ protected:
         auto parameter = std::make_shared<ngraph::opset9::Parameter>(f32, ngraph::Shape{model.input_size});
 
         auto conv = std::dynamic_pointer_cast<ngraph::opset9::Convolution>(
-            ngraph::builder::makeConvolution(parameter,
-                                             f32,
-                                             model.filter_size,
-                                             c_strides,
-                                             model.pads_begin,
-                                             model.pads_end,
-                                             c_dilations,
-                                             ngraph::op::PadType::EXPLICIT,
-                                             c_num_out_channels));
+            ov::builder::makeConvolution(parameter,
+                                         f32,
+                                         model.filter_size,
+                                         c_strides,
+                                         model.pads_begin,
+                                         model.pads_end,
+                                         c_dilations,
+                                         ngraph::op::PadType::EXPLICIT,
+                                         c_num_out_channels));
         auto result = std::make_shared<ngraph::opset9::Result>(conv);
         function = std::make_shared<ngraph::Function>(result, ov::ParameterVector{parameter}, "convolution");
     }

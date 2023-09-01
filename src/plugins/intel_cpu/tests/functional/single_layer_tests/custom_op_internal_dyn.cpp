@@ -5,8 +5,9 @@
 #include <openvino/op/op.hpp>
 #include <shape_util.hpp>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset3.hpp"
 
 using namespace ov::test;
 
@@ -90,7 +91,7 @@ protected:
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
         }
 
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
         auto customOp = std::make_shared<CustomOp>(paramOuts);
         auto shapeOf = std::make_shared<ov::opset10::ShapeOf>(customOp->output(1));
 

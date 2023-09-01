@@ -6,7 +6,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 
 using namespace ngraph;
@@ -31,7 +31,7 @@ typedef std::tuple<
         ElementType,        // Network precision
         ElementType,        // Input precision
         ElementType,        // Output precision
-        ngraph::helpers::InputLayerType,   // Secondary input type
+        ov::helpers::InputLayerType,   // Secondary input type
         TargetDevice,     // Device name
         std::map<std::string, std::string> // Additional network configuration
 > MatMulLayerTestParamsSet;
@@ -55,7 +55,7 @@ public:
         ElementType netType;
         ElementType inType, outType;
         ShapeRelatedParams shapeRelatedParams;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         TargetDevice targetDevice;
         std::map<std::string, std::string> additionalConfig;
         std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) =
@@ -116,7 +116,7 @@ protected:
 
         ShapeRelatedParams shapeRelatedParams;
         ElementType netType;
-        helpers::InputLayerType secondaryInputType;
+        ov::helpers::InputLayerType secondaryInputType;
         std::map<std::string, std::string> additionalConfig;
 
         std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
@@ -160,12 +160,12 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 
-        auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
-        if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
+        auto matrixB = ov::builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
+        if (secondaryInputType == ov::helpers::InputLayerType::PARAMETER) {
             params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
         }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
-        auto matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<opset1::Parameter>(params));
+        auto matMul = ov::builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
         function = makeNgraphFunction(netType, params, matMul, cpuNodeType);
         checkFusingPosition = false;
     }
@@ -383,7 +383,7 @@ const auto testParams2D_smoke = ::testing::Combine(::testing::Combine(::testing:
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                 ::testing::Values(emptyAdditionalConfig)),
                                              ::testing::Values(MatMulNodeType::FullyConnected),
@@ -394,7 +394,7 @@ const auto testParams2DBF16_smoke = ::testing::Combine(::testing::Combine(::test
                                                                     ::testing::ValuesIn(netPRCs),
                                                                     ::testing::Values(ElementType::undefined),
                                                                     ::testing::Values(ElementType::undefined),
-                                                                    ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                    ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                                     ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                     ::testing::ValuesIn(additionalConfig)),
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
@@ -415,7 +415,7 @@ const auto testParams2D_MLAS_smoke = ::testing::Combine(::testing::Combine(::tes
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                 ::testing::Values(emptyAdditionalConfig)),
                                              ::testing::Values(MatMulNodeType::FullyConnected),
@@ -428,7 +428,7 @@ const auto testParams2D_nightly = ::testing::Combine(::testing::Combine(::testin
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                 ::testing::Values(emptyAdditionalConfig)),
                                              ::testing::Values(MatMulNodeType::FullyConnected),
@@ -439,7 +439,7 @@ const auto testParams2DBF16_nightly = ::testing::Combine(::testing::Combine(::te
                                                                     ::testing::ValuesIn(netPRCs),
                                                                     ::testing::Values(ElementType::undefined),
                                                                     ::testing::Values(ElementType::undefined),
-                                                                    ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                    ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                                     ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                     ::testing::ValuesIn(additionalConfig)),
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
@@ -457,7 +457,7 @@ const auto testParams2D_MLAS_nightly = ::testing::Combine(::testing::Combine(::t
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                 ::testing::Values(emptyAdditionalConfig)),
                                              ::testing::Values(MatMulNodeType::FullyConnected),
@@ -558,7 +558,7 @@ const auto fullyConnectedParams3D_smoke = ::testing::Combine(::testing::ValuesIn
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
@@ -566,7 +566,7 @@ const auto fullyConnectedParams3DBF16_smoke = ::testing::Combine(::testing::Valu
                                                            ::testing::ValuesIn(netPRCs),
                                                            ::testing::Values(ElementType::undefined),
                                                            ::testing::Values(ElementType::undefined),
-                                                           ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                           ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                            ::testing::ValuesIn(additionalConfig));
 
@@ -601,7 +601,7 @@ const auto fullyConnectedParams3D_nightly = ::testing::Combine(::testing::Values
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
@@ -609,7 +609,7 @@ const auto fullyConnectedParams3DBF16_nightly = ::testing::Combine(::testing::Va
                                                            ::testing::ValuesIn(netPRCs),
                                                            ::testing::Values(ElementType::undefined),
                                                            ::testing::Values(ElementType::undefined),
-                                                           ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                           ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                            ::testing::ValuesIn(additionalConfig));
 
@@ -680,7 +680,7 @@ const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::V
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
 
@@ -725,7 +725,7 @@ const auto fullyConnectedParams2D_Brgconv1x1_smoke = ::testing::Combine(::testin
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
@@ -779,7 +779,7 @@ const auto fullyConnectedParams3D_Brgconv1x1_smoke = ::testing::Combine(::testin
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
@@ -817,7 +817,7 @@ const auto fullyConnectedParams2D_Brgemm_Amx_smoke = ::testing::Combine(::testin
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
 
@@ -833,7 +833,7 @@ const auto fullyConnectedParams2D_Brgemm_nightly = ::testing::Combine(::testing:
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
 
@@ -848,7 +848,7 @@ const auto fullyConnectedParams2D_Brgemm_Amx_nightly = ::testing::Combine(::test
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
 
@@ -1159,7 +1159,7 @@ const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),
                                              ::testing::ValuesIn(netPRCs),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(additionalConfig));
 
@@ -1175,7 +1175,7 @@ const auto matMulParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Dynam
                                              ::testing::ValuesIn(netPRCs),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(additionalConfig));
 
@@ -1190,7 +1190,7 @@ const auto matMulParamsDynamic_nightly = ::testing::Combine(::testing::ValuesIn(
                                              ::testing::ValuesIn(netPRCs),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(additionalConfig));
 
@@ -1236,7 +1236,7 @@ const auto matMulParamsDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS
                                                         ::testing::ValuesIn(netPRCs),
                                                         ::testing::Values(ElementType::undefined),
                                                         ::testing::Values(ElementType::undefined),
-                                                        ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                        ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                         ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                         ::testing::ValuesIn(additionalConfig));
 
@@ -1279,7 +1279,7 @@ const auto matMulBrgemmParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_
                                                          ::testing::Values(ElementType::f32),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
-                                                         ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                         ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                          ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
 
@@ -1315,7 +1315,7 @@ const auto matMulBrgemmAmxParams_smoke = ::testing::Combine(::testing::ValuesIn(
                                                          ::testing::Values(ElementType::f32),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
-                                                         ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                         ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                          ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
 
@@ -1330,7 +1330,7 @@ const auto matMulBrgemmParams_nightly = ::testing::Combine(::testing::ValuesIn(I
                                                          ::testing::Values(ElementType::f32),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
-                                                         ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                         ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                          ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
 
@@ -1345,7 +1345,7 @@ const auto matMulBrgemmAmxParams_nightly = ::testing::Combine(::testing::ValuesI
                                                          ::testing::Values(ElementType::f32),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
-                                                         ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                         ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                          ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
 
@@ -1420,7 +1420,7 @@ const auto matMulBrgemmParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS
                                                           ::testing::Values(ElementType::f32),
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(ElementType::undefined),
-                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                          ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                           ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
 
@@ -1435,7 +1435,7 @@ const auto matMulBrgemmAmxParamsDynamic = ::testing::Combine(::testing::ValuesIn
                                                           ::testing::Values(ElementType::f32),
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(ElementType::undefined),
-                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                          ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                           ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
 
@@ -1450,7 +1450,7 @@ const auto matMulParamsBrgemmDynamicFusing = ::testing::Combine(::testing::Value
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                                ::testing::Values(ov::helpers::InputLayerType::PARAMETER),
                                                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                 ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
 

@@ -13,8 +13,9 @@
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/common/precisions_restriction.hpp"
 #include "low_precision/common/quantization_granularity_restriction.hpp"
+#include "openvino/pass/manager.hpp"
 
-class SimpleLowPrecisionTransformer : public ngraph::pass::FunctionPass{
+class SimpleLowPrecisionTransformer : public ov::pass::ModelPass{
 public:
     SimpleLowPrecisionTransformer(
         const std::vector<ov::pass::low_precision::PrecisionsRestriction>& precisionRestrictions = {},

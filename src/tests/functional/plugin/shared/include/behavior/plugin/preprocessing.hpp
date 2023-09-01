@@ -12,6 +12,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ie_preprocess.hpp"
 #include "base/behavior_test_utils.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace BehaviorTestsDefinitions {
 
@@ -87,8 +88,8 @@ public:
         auto make_ngraph = [&](bool with_extra_conv) {
             auto in_prec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(with_extra_conv ? inPrc : decltype(inPrc)(InferenceEngine::Precision::FP32));
             ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(in_prec, ov::Shape(inputShape))};
-            auto paramIn = ngraph::helpers::convert2OutputVector(
-                    ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
+            auto paramIn = ov::helpers::convert2OutputVector(
+                    ov::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 
             auto toF32 = std::make_shared<ngraph::opset1::Convert>(paramIn[0], ngraph::element::Type_t::f32);
 

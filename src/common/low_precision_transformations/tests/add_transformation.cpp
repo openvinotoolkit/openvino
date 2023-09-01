@@ -14,44 +14,44 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/add_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/add_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class AddTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type precision1;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type precision2;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
         std::vector<float> constValues;
     };
 
     class Expected {
     public:
         ov::element::Type precision1;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type precision2;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
         std::vector<float> constValues;
         std::string operationType;
 
         Expected() = default;
 
         Expected(const ov::element::Type& precision1,
-                 ngraph::builder::subgraph::DequantizationOperations dequantization1,
+                 ov::builder::subgraph::DequantizationOperations dequantization1,
                  const ov::element::Type& precision2,
-                 ngraph::builder::subgraph::DequantizationOperations dequantization2,
-                 ngraph::builder::subgraph::DequantizationOperations dequantizationAfter,
+                 ov::builder::subgraph::DequantizationOperations dequantization2,
+                 ov::builder::subgraph::DequantizationOperations dequantizationAfter,
                  std::vector<float> constValues,
                  std::string operationType = "Add")
             : precision1(precision1),

@@ -3,12 +3,13 @@
 //
 
 #include "subgraph_tests/include/fuse_muladd_ewsimple.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using ngraph::helpers::EltwiseTypes;
-using ngraph::helpers::ActivationTypes;
+using ov::helpers::EltwiseTypes;
+using ov::helpers::ActivationTypes;
 
 namespace SubgraphTestsDefinitions {
 
@@ -46,10 +47,10 @@ void FuseMulAddAndEwSimpleTest1::CreateGraph() {
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(mulSecondInput))};
 
-    auto clamp = ngraph::builder::makeActivation(params[0], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
-    auto tanh = ngraph::builder::makeActivation(clamp, ngPrc, ActivationTypes::Tanh);
-    auto mul1 = ngraph::builder::makeEltwise(params[1], params[2], EltwiseTypes::MULTIPLY);
-    auto add = ngraph::builder::makeEltwise(tanh, mul1, EltwiseTypes::ADD);
+    auto clamp = ov::builder::makeActivation(params[0], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
+    auto tanh = ov::builder::makeActivation(clamp, ngPrc, ActivationTypes::Tanh);
+    auto mul1 = ov::builder::makeEltwise(params[1], params[2], EltwiseTypes::MULTIPLY);
+    auto add = ov::builder::makeEltwise(tanh, mul1, EltwiseTypes::ADD);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, params, "MulAdd_EwSimple");
@@ -69,12 +70,12 @@ void FuseMulAddAndEwSimpleTest2::CreateGraph() {
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto clamp1 = ngraph::builder::makeActivation(params[0], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
-    auto tanh1 = ngraph::builder::makeActivation(clamp1, ngPrc, ActivationTypes::Tanh);
-    auto clamp2 = ngraph::builder::makeActivation(params[1], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
-    auto tanh2 = ngraph::builder::makeActivation(clamp2, ngPrc, ActivationTypes::Tanh);
-    auto mul1 = ngraph::builder::makeEltwise(tanh2, tanh1, EltwiseTypes::MULTIPLY);
-    auto add = ngraph::builder::makeEltwise(mul1, params[2], EltwiseTypes::ADD);
+    auto clamp1 = ov::builder::makeActivation(params[0], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
+    auto tanh1 = ov::builder::makeActivation(clamp1, ngPrc, ActivationTypes::Tanh);
+    auto clamp2 = ov::builder::makeActivation(params[1], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
+    auto tanh2 = ov::builder::makeActivation(clamp2, ngPrc, ActivationTypes::Tanh);
+    auto mul1 = ov::builder::makeEltwise(tanh2, tanh1, EltwiseTypes::MULTIPLY);
+    auto add = ov::builder::makeEltwise(mul1, params[2], EltwiseTypes::ADD);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, params, "MulAdd_EwSimple_2");
@@ -95,11 +96,11 @@ void FuseMulAddAndEwSimpleTest3::CreateGraph() {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
 
-    auto mul1 = ngraph::builder::makeEltwise(params[0], params[1], EltwiseTypes::MULTIPLY);
-    auto add1 = ngraph::builder::makeEltwise(mul1, params[2], EltwiseTypes::ADD);
-    auto tanh1 = ngraph::builder::makeActivation(add1, ngPrc, ActivationTypes::Tanh);
-    auto mul2 = ngraph::builder::makeEltwise(tanh1, params[3], EltwiseTypes::MULTIPLY);
-    auto add2 = ngraph::builder::makeEltwise(params[4], mul2, EltwiseTypes::ADD);
+    auto mul1 = ov::builder::makeEltwise(params[0], params[1], EltwiseTypes::MULTIPLY);
+    auto add1 = ov::builder::makeEltwise(mul1, params[2], EltwiseTypes::ADD);
+    auto tanh1 = ov::builder::makeActivation(add1, ngPrc, ActivationTypes::Tanh);
+    auto mul2 = ov::builder::makeEltwise(tanh1, params[3], EltwiseTypes::MULTIPLY);
+    auto add2 = ov::builder::makeEltwise(params[4], mul2, EltwiseTypes::ADD);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(add2)};
     function = std::make_shared<ngraph::Function>(results, params, "MulAdd_EwSimple_3");

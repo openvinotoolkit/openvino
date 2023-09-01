@@ -8,7 +8,8 @@
 #include <string>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 namespace LayerTestsDefinitions {
 typedef std::tuple<

@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/convolution_relu_sequence.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -49,7 +51,7 @@ void ConvolutionReluSequenceTest::SetUp() {
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(convParamsAll.inputShape))};
-    auto lastOutputs = ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params).front();
+    auto lastOutputs = ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params).front();
     auto inputChannels = convParamsAll.inputShape[1];
 
     for (auto&& single : convParamsAll.sequenceDesc) {
@@ -70,7 +72,7 @@ void ConvolutionReluSequenceTest::SetUp() {
 
         std::shared_ptr<ngraph::Node> conv =
             std::dynamic_pointer_cast<ngraph::Node>(
-                ngraph::builder::makeConvolution(
+                ov::builder::makeConvolution(
                     lastOutputs,
                     ngPrc, single.kernelSize, single.strides, single.padBegin, single.padEnd,
                     dilation, ngraph::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));

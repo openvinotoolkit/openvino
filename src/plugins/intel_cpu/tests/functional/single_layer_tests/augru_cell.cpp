@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -98,8 +98,8 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
         }
         std::vector<ngraph::Shape> WRB = {{3 * hiddenSize, inputSize}, {3 * hiddenSize, hiddenSize}, {(linearBeforeReset ? 4 : 3) * hiddenSize}};
-        auto augruCellOp = ngraph::builder::makeAUGRU(
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)), WRB, hiddenSize/*, activations, {}, {}, clip, linearBeforeReset*/);
+        auto augruCellOp = ov::builder::makeAUGRU(
+            ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes(params)), WRB, hiddenSize/*, activations, {}, {}, clip, linearBeforeReset*/);
 
         function = makeNgraphFunction(netPrecision, params, augruCellOp, "AUGRUCell");
     }

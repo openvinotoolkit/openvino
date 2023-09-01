@@ -144,7 +144,7 @@ struct EnableIf : EnableIfCond<Condition::Value, T> {};
 template <typename Condition, typename T = void>
 struct DisableIf : DisableIfCond<Condition::Value, T> {};
 
-// SFINAE helpers
+// SFINAE ov::helpers
 struct SfinaeTag {};
 template <typename T> struct RemoveSfinaeTag;
 template <typename T> struct RemoveSfinaeTag<SfinaeTag&(*)(T)> { typedef T Type; };

@@ -1,0 +1,66 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "lpt_ov_models/fuse_subtract_to_fake_quantize_function.hpp"
+
+#include <openvino/opsets/opset1.hpp>
+#include "ov_ops/type_relaxed.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "low_precision/network_helper.hpp"
+
+#include "lpt_ov_models/common/builders.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+
+namespace ov {
+namespace builder {
+namespace subgraph {
+
+using namespace ov::pass;
+
+std::shared_ptr<ov::Model> FuseSubtractToFakeQuantizeFunction::get(
+    const ov::PartialShape& inputShape,
+    const FakeQuantizeOnDataWithConstant& fqOnData,
+    const DequantizationOperations& dequantization) {
+    const auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, inputShape);
+
+    const auto fakeQuantize = makeFakeQuantize(input, ov::element::f32, fqOnData);
+    const auto lastDequantization = makeDequantization(fakeQuantize, dequantization);
+    lastDequantization->set_friendly_name("output");
+
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(lastDequantization) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FuseSubtractToFakeQuantizeFunction");
+}
+
+std::shared_ptr<ov::Model> FuseSubtractToFakeQuantizeFunction::get(
+    const ov::PartialShape& inputShape,
+    const FakeQuantizeOnDataWithConstant& fqOnData,
+    const DequantizationOperations& dequantization,
+    const FakeQuantizeOnDataWithConstant& fqOnData2,
+    const DequantizationOperations& dequantization2) {
+    const auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, inputShape);
+
+    const auto axis = std::make_shared<ov::opset1::Constant>(element::i64, Shape{}, 1ul);
+    const std::shared_ptr<Node> split = std::make_shared<ov::opset1::Split>(input, axis, 2ul);
+
+    const auto fakeQuantize = makeFakeQuantize(split->output(0), ov::element::f32, fqOnData);
+    fakeQuantize->set_friendly_name("fakeQuantize");
+    const auto lastDequantization = makeDequantization(fakeQuantize, dequantization);
+    lastDequantization->set_friendly_name("output");
+
+    const auto fakeQuantize2 = makeFakeQuantize(split->output(1), ov::element::f32, fqOnData);
+    fakeQuantize2->set_friendly_name("fakeQuantize2");
+    const auto lastDequantization2 = makeDequantization(fakeQuantize2, dequantization);
+    lastDequantization2->set_friendly_name("output2");
+
+    ov::ResultVector results{
+        std::make_shared<ov::opset1::Result>(lastDequantization),
+        std::make_shared<ov::opset1::Result>(lastDequantization2)
+    };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FuseSubtractToFakeQuantizeFunction");
+}
+
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ov

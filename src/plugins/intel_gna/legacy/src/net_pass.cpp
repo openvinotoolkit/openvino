@@ -221,7 +221,7 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
 }
 
 /************************************************************/
-/****  TI rule helpers  *************************************/
+/****  TI rule ov::helpers  *************************************/
 /************************************************************/
 
 inline bool is_full_ranged(const TensorIterator::PortMap& rule, const DataPtr& data) {
@@ -688,7 +688,7 @@ static bool unrollTI(CNNLayerPtr cur, CNNNetwork& net) {
 }
 
 /************************************************************/
-/****  Builder helpers   ************************************/
+/****  Builder ov::helpers   ************************************/
 /************************************************************/
 
 static CNNLayerPtr _concat(std::string name, Precision prc, SizeVector dims, int num) {

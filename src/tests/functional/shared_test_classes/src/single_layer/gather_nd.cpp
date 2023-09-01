@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/single_layer/gather_nd.hpp"
+#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -45,11 +48,11 @@ void GatherNDLayerTest::SetUp() {
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto dataNode = paramOuts[0];
     auto gather = std::dynamic_pointer_cast<ngraph::opset5::GatherND>(
-            ngraph::builder::makeGatherND(dataNode, indicesShape, ngIPrc, batchDims));
+            ov::builder::makeGatherND(dataNode, indicesShape, ngIPrc, batchDims));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
 }
@@ -71,11 +74,11 @@ void GatherND8LayerTest::SetUp() {
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+        ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto dataNode = paramOuts[0];
     auto gather = std::dynamic_pointer_cast<ngraph::opset8::GatherND>(
-        ngraph::builder::makeGatherND8(dataNode, indicesShape, ngIPrc, batchDims));
+        ov::builder::makeGatherND8(dataNode, indicesShape, ngIPrc, batchDims));
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(gather) };
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
 }

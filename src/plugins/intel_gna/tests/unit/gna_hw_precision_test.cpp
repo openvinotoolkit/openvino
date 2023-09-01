@@ -8,7 +8,8 @@
 #include "gna_data_types.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ngraph/opsets/opset8.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 namespace testing {

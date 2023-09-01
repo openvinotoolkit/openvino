@@ -17,7 +17,7 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {{{{5, 1}, true}, {{5
                                                             {{{5}, false}, {{5}, false}},
                                                             {{{5}, true}, {{5}, true}}};
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {ngraph::helpers::InputLayerType::CONSTANT};
+std::vector<ov::helpers::InputLayerType> secondaryInputTypes = {ov::helpers::InputLayerType::CONSTANT};
 
 std::vector<std::map<std::string, std::string>> additional_config = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
                                                                      {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};

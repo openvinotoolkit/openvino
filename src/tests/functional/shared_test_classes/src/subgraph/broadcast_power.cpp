@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/broadcast_power.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string BroadcastPowerTest::getTestCaseName(const testing::TestParamInfo<BroadCastPowerTuple>& obj) {
@@ -33,8 +34,8 @@ void BroadcastPowerTest::SetUp() {
             inputs_shapes[1]);
     auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], reshape_pattern, false);
 
-    auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-1.0f});
-    auto sum = ngraph::builder::makeEltwise(reshape, const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto const_mult2 = ov::builder::makeConstant<float>(ngPrc, {}, {-1.0f});
+    auto sum = ov::builder::makeEltwise(reshape, const_mult2, ov::helpers::EltwiseTypes::MULTIPLY);
 
     auto reshape_pattern_2 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[0].size()},
             inputs_shapes[0]);

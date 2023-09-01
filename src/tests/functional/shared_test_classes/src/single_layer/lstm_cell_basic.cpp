@@ -4,6 +4,7 @@
 
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "shared_test_classes/single_layer/lstm_cell_basic.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -66,7 +67,7 @@ void LSTMCellBasicTest::SetUp() {
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[2]))};
 
     std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
-    auto lstm_cell = ngraph::builder::makeLSTM(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+    auto lstm_cell = ov::builder::makeLSTM(ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes(params)),
             WRB, hidden_size, activations, {}, {}, clip);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
                                  std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};

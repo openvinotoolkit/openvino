@@ -26,7 +26,7 @@ const std::vector<int64_t> iterationCount {1, 3, 10};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryTest,
         ::testing::Combine(
-                ::testing::Values(ngraph::helpers::MemoryTransformation::NONE),
+                ::testing::Values(ov::helpers::MemoryTransformation::NONE),
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
@@ -35,7 +35,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MemoryTestV3, MemoryTestV3,
         ::testing::Combine(
-                ::testing::Values(ngraph::helpers::MemoryTransformation::NONE),
+                ::testing::Values(ov::helpers::MemoryTransformation::NONE),
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),

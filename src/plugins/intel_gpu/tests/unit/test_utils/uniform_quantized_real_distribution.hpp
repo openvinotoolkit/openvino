@@ -150,7 +150,7 @@ template <typename CharType, typename CharTraits>
 struct ios_format_guard
 {
     // ----------------------------------------------------------------------------------------------------------------
-    // Typedefs, aliases and constants (including nested types and their helpers).
+    // Typedefs, aliases and constants (including nested types and their ov::helpers).
     // ----------------------------------------------------------------------------------------------------------------
     using char_type = CharType;
     using char_traits = CharTraits;
@@ -255,7 +255,7 @@ template <typename DataType, bool ForceOppositeEndianness = false>
 class data_type_mask
 {
     // ----------------------------------------------------------------------------------------------------------------
-    // Typedefs, aliases and constants (including nested types and their helpers).
+    // Typedefs, aliases and constants (including nested types and their ov::helpers).
     // ----------------------------------------------------------------------------------------------------------------
 #if (defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) \
     || defined(__LITTLE_ENDIAN__) || defined(__ARMEL__) || defined(__THUMBEL__) || defined(__AARCH64EL__)      \
@@ -311,7 +311,7 @@ private:
     struct data_parts
     {
         // ------------------------------------------------------------------------------------------------------------
-        // data_parts: Typedefs, aliases and constants (including nested types and their helpers).
+        // data_parts: Typedefs, aliases and constants (including nested types and their ov::helpers).
         // ------------------------------------------------------------------------------------------------------------
 
         // Redeclarations of some constants due to intransitive nature of friends.
@@ -960,7 +960,7 @@ class uniform_quantized_real_distribution
                   "Only binary-based floating-point types are supported as RealType.");
 
     // ----------------------------------------------------------------------------------------------------------------
-    // Typedefs, aliases and constants (including nested types and their helpers).
+    // Typedefs, aliases and constants (including nested types and their ov::helpers).
     // ----------------------------------------------------------------------------------------------------------------
 public:
     /// @brief Type of generated elements by distribution.

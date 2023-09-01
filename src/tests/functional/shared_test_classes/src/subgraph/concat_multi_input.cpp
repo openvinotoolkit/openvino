@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/concat_multi_input.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -92,17 +94,17 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
         }
         if (i == 0) {
             input_vector = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, total_size})};
-            auto relu = ngraph::builder::makeActivation(input_vector[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+            auto relu = ov::builder::makeActivation(input_vector[0], ngPrc, ov::helpers::ActivationTypes::Relu);
             concatInputs.push_back(relu);
         } else {
             auto min_max = (i % 2 == 0) ? 2 : 30;
             auto const_values = generateFloatNumbers(total_size, -min_max, min_max);
-            auto const_node = ngraph::builder::makeConstant(ngPrc, {1, total_size}, const_values);
+            auto const_node = ov::builder::makeConstant(ngPrc, {1, total_size}, const_values);
             concatInputs.push_back(const_node);
         }
     }
 
-    auto concat = ngraph::builder::makeConcat(concatInputs, 1);
+    auto concat = ov::builder::makeConcat(concatInputs, 1);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
     function = std::make_shared<ngraph::Function>(results, input_vector, "ConcatConstOnly");

@@ -9,9 +9,9 @@
 
 #include "../skip_tests_check.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov;
@@ -103,7 +103,7 @@ void ConvolutionLayerTestFixture::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<Parameter>(params));
     std::vector<float> filter_weights;
 
     auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());

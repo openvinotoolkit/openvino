@@ -8,7 +8,7 @@
 #include <vector>
 #include <string>
 
-#include "lpt_ngraph_functions/convolution_backprop_data_function.hpp"
+#include "lpt_ov_models/convolution_backprop_data_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -17,7 +17,7 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
     std::pair<ngraph::PartialShape, bool> inputShape;
     ngraph::Shape outputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionBackpropDataTransformationParam param;
     std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = obj.param;
 
@@ -36,7 +36,7 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, bool> inputShapeAndHandling;
     ngraph::Shape outputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionBackpropDataTransformationParam param;
     std::tie(netPrecision, inputShapeAndHandling, outputShape, targetDevice, params, param) = this->GetParam();
 
@@ -48,18 +48,18 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     weightsShape[1] = inputShape[1].get_length() / 2;
 
     if (!param.fakeQuantizeOnWeights.empty()) {
-        weights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
+        weights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
             weightsShape,
             netPrecision,
             param.fakeQuantizeOnWeights);
     } else {
-        weights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
+        weights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
             weightsShape,
             netPrecision,
             param.dequantizationOnWeights);
     }
 
-    function = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::get(
+    function = ov::builder::subgraph::ConvolutionBackpropDataFunction::get(
         netPrecision,
         inputShape,
         outputShape,

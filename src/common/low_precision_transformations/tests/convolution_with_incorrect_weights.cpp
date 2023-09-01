@@ -14,10 +14,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
+#include "lpt_ov_models/convolution_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -25,16 +25,16 @@ class ConvolutionWithIncorrectWeightsTestValues {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     class Expected {
     public:
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type weightsPrecision;
         std::vector<float> weightsValues;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     ov::element::Type inputPrecision;
@@ -52,7 +52,7 @@ public:
     void SetUp() override {
         const ConvolutionWithIncorrectWeightsTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
+        actualFunction = ov::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
             testValues.inputShape,
             testValues.inputPrecision,
             testValues.actual.fakeQuantizeOnWeights,
@@ -71,7 +71,7 @@ public:
         cleanupManager.register_pass<ov::pass::ConstantFolding>();
         cleanupManager.run_passes(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReferenceWithIncorrectWeights(
+        referenceFunction = ov::builder::subgraph::ConvolutionFunction::getReferenceWithIncorrectWeights(
             testValues.inputShape,
             testValues.inputPrecision,
             testValues.expected.dequantizationBefore,

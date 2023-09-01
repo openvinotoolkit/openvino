@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/transpose.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -32,8 +33,8 @@ void TransposeLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     const auto inOrderShape = inputOrder.empty() ? ngraph::Shape({0}) : ngraph::Shape({inputShape.size()});
     const auto inputOrderOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,

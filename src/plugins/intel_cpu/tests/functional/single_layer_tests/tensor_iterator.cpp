@@ -4,8 +4,10 @@
 
 #include <shared_test_classes/single_layer/tensor_iterator.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace InferenceEngine;
 using namespace ov;
@@ -66,8 +68,8 @@ protected:
             auto paramNode = std::make_shared<ngraph::opset1::Parameter>(inType, shape);
             body_params.push_back(paramNode);
         }
-        auto tanh = ngraph::builder::makeActivation(body_params[0], inType, ngraph::helpers::Tanh);
-        auto relu = ngraph::builder::makeActivation(body_params[1], inType, ngraph::helpers::Relu);
+        auto tanh = ov::builder::makeActivation(body_params[0], inType, ov::helpers::Tanh);
+        auto relu = ov::builder::makeActivation(body_params[1], inType, ov::helpers::Relu);
         auto add = std::make_shared<ngraph::opset1::Add>(tanh, relu);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{add}, body_params, "body");

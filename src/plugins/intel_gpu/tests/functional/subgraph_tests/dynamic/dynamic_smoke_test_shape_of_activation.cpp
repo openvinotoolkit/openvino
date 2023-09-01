@@ -5,14 +5,16 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/single_layer/reshape.hpp"
 #include "shared_test_classes/single_layer/gather.hpp"
 #include "shared_test_classes/single_layer/activation.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -24,7 +26,7 @@ typedef std::tuple<
         InputShape, // input shapes
         ElementType, // Network precision
         TargetDevice, // Device name
-        ngraph::helpers::ActivationTypes, // Activation type
+        ov::helpers::ActivationTypes, // Activation type
         std::vector<size_t>, //inShape
         std::vector<float>, //constantValue
         std::map<std::string, std::string> // Additional network configuration
@@ -44,7 +46,7 @@ public:
         InputShape inputShape;
         ElementType netType;
         TargetDevice targetDevice;
-        ngraph::helpers::ActivationTypes activationType;
+        ov::helpers::ActivationTypes activationType;
         std::vector<size_t> inShape;
         std::vector<float> constantValue;
         std::map<std::string, std::string> additionalConfig;
@@ -83,7 +85,7 @@ protected:
         shapeofActivationDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
         InputShape inputShape;
         ElementType netType;
-        ngraph::helpers::ActivationTypes activationType;
+        ov::helpers::ActivationTypes activationType;
         std::vector<size_t> inShape;
         std::vector<float> constantValue;
         std::map<std::string, std::string> additionalConfig;
@@ -95,7 +97,7 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
         }
-        auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        auto paramOuts = ov::helpers::convert2OutputVector(ov::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
         std::vector<int> shape_pattern = {0, 1, -1, 0};
         auto shapePatternsNode = std::dynamic_pointer_cast<ngraph::Node>(
@@ -115,11 +117,11 @@ protected:
         auto gatherOp = std::make_shared<ov::op::v7::Gather>(shapeOfOp, indicesNode, axisNode, 0);
         gatherOp->set_friendly_name("gather");
 
-        auto convertOp = ngraph::builder::makeConversion(gatherOp, ElementType::f32,
-                                                         ngraph::helpers::ConversionTypes::CONVERT);
+        auto convertOp = ov::builder::makeConversion(gatherOp, ElementType::f32,
+                                                         ov::helpers::ConversionTypes::CONVERT);
         convertOp->set_friendly_name("convert");
 
-        auto activationOp = ngraph::builder::makeActivation(convertOp,
+        auto activationOp = ov::builder::makeActivation(convertOp,
                                                             netType,
                                                             activationType,
                                                             inShape,
@@ -164,7 +166,7 @@ std::vector<float> constantValue_sqrt = {};
 const auto testParams_sqrt = ::testing::Combine(::testing::ValuesIn(inShapesDynamic4d),
                                                  ::testing::ValuesIn(netPrecisions), // netprec
                                                  ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                                 ::testing::Values(ngraph::helpers::ActivationTypes::Sqrt),
+                                                 ::testing::Values(ov::helpers::ActivationTypes::Sqrt),
                                                  ::testing::Values(inShape_sqrt),
                                                  ::testing::Values(constantValue_sqrt),
                                                  ::testing::Values(emptyAdditionalConfig));

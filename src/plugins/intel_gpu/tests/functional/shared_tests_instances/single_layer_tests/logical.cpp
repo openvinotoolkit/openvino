@@ -33,15 +33,15 @@ std::vector<InferenceEngine::Precision> inputsPrecisions = {
         InferenceEngine::Precision::BOOL,
 };
 
-std::vector<ngraph::helpers::LogicalTypes> logicalOpTypes = {
-        ngraph::helpers::LogicalTypes::LOGICAL_AND,
-        ngraph::helpers::LogicalTypes::LOGICAL_OR,
-        ngraph::helpers::LogicalTypes::LOGICAL_XOR,
+std::vector<ov::helpers::LogicalTypes> logicalOpTypes = {
+        ov::helpers::LogicalTypes::LOGICAL_AND,
+        ov::helpers::LogicalTypes::LOGICAL_OR,
+        ov::helpers::LogicalTypes::LOGICAL_XOR,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::helpers::InputLayerType> secondInputTypes = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -67,8 +67,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNot,
                          LogicalLayerTest,
                          ::testing::Combine(::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),
-                                            ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
-                                            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                            ::testing::Values(ov::helpers::LogicalTypes::LOGICAL_NOT),
+                                            ::testing::Values(ov::helpers::InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputsPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

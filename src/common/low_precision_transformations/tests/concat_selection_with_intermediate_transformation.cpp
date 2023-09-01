@@ -17,8 +17,8 @@
 #include <low_precision/max_pool.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/concat_function.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -29,8 +29,8 @@ namespace {
 
 class ActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ActualValues& values) {
@@ -39,14 +39,14 @@ inline std::ostream& operator<<(std::ostream& out, const ActualValues& values) {
 
 class ResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
     ov::element::Type precisionBeforeOp;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore1;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore2;
     ov::element::Type precisionAfterOperation;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter2;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter1;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ResultValues& values) {
@@ -78,7 +78,7 @@ public:
         const ov::element::Type precision = std::get<0>(GetParam());
         TestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalSelectionWithIntermediate(
+        actualFunction = ov::builder::subgraph::ConcatFunction::getOriginalSelectionWithIntermediate(
             precision,
             testValues.inputShape,
             testValues.transparentIntermediate,
@@ -97,7 +97,7 @@ public:
         transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceSelectionWithIntermediate(
+        referenceFunction = ov::builder::subgraph::ConcatFunction::getReferenceSelectionWithIntermediate(
             precision,
             testValues.inputShape,
             testValues.transparentIntermediate,

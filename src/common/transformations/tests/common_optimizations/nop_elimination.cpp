@@ -14,14 +14,14 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
@@ -1013,7 +1013,7 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
         constant = op::v0::Constant::create(constant_type, shape2, {1});
         break;
     case ConstantKind::RANDOM:
-        constant = ngraph::builder::makeConstant(constant_type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
+        constant = ov::builder::makeConstant(constant_type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
         break;
     }
 

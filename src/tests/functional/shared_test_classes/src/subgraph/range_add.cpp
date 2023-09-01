@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/subgraph/range_add.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -38,7 +41,7 @@ void RangeAddSubgraphTest::SetUp() {
     auto range = std::make_shared<ngraph::opset3::Range>(startConstant, stopConstant, stepConstant);
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, range->get_shape())};
-    auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise = ov::builder::makeEltwise(params.front(), range, ov::helpers::EltwiseTypes::ADD);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
     function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
 }
@@ -80,7 +83,7 @@ void RangeNumpyAddSubgraphTest::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngNetPrc, range->get_shape())};
 
-    auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise = ov::builder::makeEltwise(params.front(), range, ov::helpers::EltwiseTypes::ADD);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
     function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
 }

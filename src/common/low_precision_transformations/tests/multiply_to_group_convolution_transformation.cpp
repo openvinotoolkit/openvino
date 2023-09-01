@@ -15,21 +15,21 @@
 #include "low_precision/multiply_to_group_convolution.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/multiply_to_group_convolution_function.hpp"
+#include "lpt_ov_models/multiply_to_group_convolution_function.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class MultiplyToGroupConvolutionTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
@@ -37,7 +37,7 @@ public:
         ov::element::Type inputPrecision;
         std::shared_ptr<ov::op::v0::Constant> weights;
         std::shared_ptr<ov::op::v0::Constant> biases;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     ov::PartialShape inputShape;
@@ -55,7 +55,7 @@ public:
     void SetUp() override {
         const MultiplyToGroupConvolutionTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
             testValues.inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
@@ -73,14 +73,14 @@ public:
         transformer.transform(actualFunction);
 
         if (testValues.transformed) {
-            referenceFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getReference(
+            referenceFunction = ov::builder::subgraph::MultiplyToGroupConvolutionFunction::getReference(
                 testValues.inputShape,
                 testValues.expected.inputPrecision,
                 testValues.expected.weights,
                 testValues.expected.biases,
                 testValues.expected.dequantization);
         } else {
-            referenceFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
+            referenceFunction = ov::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
                 testValues.inputShape,
                 testValues.actual.precisionBeforeDequantization,
                 testValues.actual.dequantization,

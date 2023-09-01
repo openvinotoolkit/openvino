@@ -5,6 +5,7 @@
 #pragma once
 
 #include "shared_test_classes/single_layer/loop.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 namespace LayerTestsDefinitions {
 

@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/activation.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -12,7 +13,7 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
     InferenceEngine::Layout inLayout, outLayout;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::string targetDevice;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
+    std::pair<ov::helpers::ActivationTypes, std::vector<float>> activationDecl;
     std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = obj.param;
 
     std::ostringstream result;
@@ -33,7 +34,7 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
 void ActivationLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
+    std::pair<ov::helpers::ActivationTypes, std::vector<float>> activationDecl;
     std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = GetParam();
 
     activationType = activationDecl.first;
@@ -42,13 +43,13 @@ void ActivationLayerTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes.first))};
     params[0]->set_friendly_name("Input");
 
-    if (activationType == ngraph::helpers::ActivationTypes::PReLu && constantsValue.empty()) {
+    if (activationType == ov::helpers::ActivationTypes::PReLu && constantsValue.empty()) {
         const auto elemnts_count = ngraph::shape_size(shapes.second);
         constantsValue.resize(elemnts_count);
         std::iota(constantsValue.begin(), constantsValue.end(), -10);
     }
 
-    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
+    auto activation = ov::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
 
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
@@ -60,73 +61,73 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
     int32_t resolution;
 
     switch (activationType) {
-        case ngraph::helpers::ActivationTypes::Log: {
+        case ov::helpers::ActivationTypes::Log: {
             data_start_from = 1;
             data_range = 20;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::Sqrt: {
+        case ov::helpers::ActivationTypes::Sqrt: {
             data_start_from = 0;
             data_range = 20;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::Asin: {
+        case ov::helpers::ActivationTypes::Asin: {
             data_start_from = -1;
             data_range = 2;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::Acos: {
+        case ov::helpers::ActivationTypes::Acos: {
             data_start_from = -1;
             data_range = 2;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::Acosh: {
+        case ov::helpers::ActivationTypes::Acosh: {
             data_start_from = 1;
             data_range = 200;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::Atanh: {
+        case ov::helpers::ActivationTypes::Atanh: {
             data_start_from = -1;
             data_range = 2;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::Ceiling: {
+        case ov::helpers::ActivationTypes::Ceiling: {
             data_start_from = -1000;
             data_range = 2000;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::RoundHalfToEven: {
+        case ov::helpers::ActivationTypes::RoundHalfToEven: {
             data_start_from = -10;
             data_range = 20;
             resolution = 4;
             break;
         }
-        case ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero: {
+        case ov::helpers::ActivationTypes::RoundHalfAwayFromZero: {
             data_start_from = -10;
             data_range = 20;
             resolution = 4;
             break;
         }
-        case ngraph::helpers::ActivationTypes::Mish: {
+        case ov::helpers::ActivationTypes::Mish: {
             data_start_from = -20;
             data_range = 60;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::SoftPlus: {
+        case ov::helpers::ActivationTypes::SoftPlus: {
             data_start_from = -100;
             data_range = 200;
             resolution = 32768;
             break;
         }
-        case ngraph::helpers::ActivationTypes::SoftSign: {
+        case ov::helpers::ActivationTypes::SoftSign: {
             data_start_from = -100;
             data_range = 200;
             resolution = 32768;
@@ -151,24 +152,24 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
 
 ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape) {
     switch (activationType) {
-        case ngraph::helpers::ActivationTypes::PReLu: {
+        case ov::helpers::ActivationTypes::PReLu: {
             ov::ParameterVector negativeSlopeParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             negativeSlopeParam[0]->set_friendly_name("negativeSlope");
             return negativeSlopeParam;
         }
-        case ngraph::helpers::ActivationTypes::LeakyRelu: {
+        case ov::helpers::ActivationTypes::LeakyRelu: {
             ov::ParameterVector leakySlopeParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             leakySlopeParam[0]->set_friendly_name("leakySlope");
             return leakySlopeParam;
         }
-        case ngraph::helpers::ActivationTypes::HardSigmoid: {
+        case ov::helpers::ActivationTypes::HardSigmoid: {
             ov::ParameterVector hardSigmoidParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape)),
                                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             hardSigmoidParam[0]->set_friendly_name("alpha");
             hardSigmoidParam[1]->set_friendly_name("beta");
             return hardSigmoidParam;
         }
-        case ngraph::helpers::ActivationTypes::Selu: {
+        case ov::helpers::ActivationTypes::Selu: {
             ov::ParameterVector seluParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape)),
                                            std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             seluParam[0]->set_friendly_name("alpha");
@@ -205,7 +206,7 @@ InferenceEngine::Blob::Ptr ActivationParamLayerTest::GenerateInput(const Inferen
 void ActivationParamLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
+    std::pair<ov::helpers::ActivationTypes, std::vector<float>> activationDecl;
     std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = GetParam();
 
     activationType = activationDecl.first;
@@ -217,7 +218,7 @@ void ActivationParamLayerTest::SetUp() {
     params[0]->set_friendly_name("Input");
     params.insert(params.end(), activationParams.begin(), activationParams.end());
 
-    auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
+    auto activation = ov::builder::makeActivation(params, ngPrc, activationType);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(activation)};
     function = std::make_shared<ngraph::Function>(results, params);
 }

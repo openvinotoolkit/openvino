@@ -7,11 +7,11 @@
 #include <fstream>
 #include <random>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 namespace TestDataHelpers {
 
@@ -22,7 +22,7 @@ static const std::string model_exported_name = "test_exported_model.blob";
 inline void generate_test_model() {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(model_xml_name, model_bin_name);
-    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
+    auto function = ov::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
     manager.run_passes(function);
 }
 

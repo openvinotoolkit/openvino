@@ -5,7 +5,8 @@
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "shared_test_classes/subgraph/mul_conv_fusion.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -35,11 +36,11 @@ void MulConvFusion::SetUp() {
     auto param = std::make_shared<ngraph::opset8::Parameter>(precision, input_shape);
     auto spatial_dims = input_shape.size() - 2;
 
-    auto mul_const = ngraph::builder::makeConstant<float>(precision, const_shape, {}, true);
+    auto mul_const = ov::builder::makeConstant<float>(precision, const_shape, {}, true);
     auto mul = std::make_shared<ngraph::opset8::Multiply>(param, mul_const);
     ngraph::Shape strides(spatial_dims, 1);
     std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-    auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, {}, true);
+    auto weights = ov::builder::makeConstant<float>(precision, weights_shape, {}, true);
     std::shared_ptr<ngraph::Node> conv;
     if (conv_type == ngraph::opset8::Convolution::get_type_info_static()) {
         conv = std::make_shared<ngraph::opset8::Convolution>(mul, weights, strides, pad_begin, pad_end, strides);

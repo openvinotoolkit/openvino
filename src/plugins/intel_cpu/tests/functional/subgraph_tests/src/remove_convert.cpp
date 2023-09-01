@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -43,11 +43,11 @@ public:
             CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
         init_input_shapes({inputShape});
         auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
-        auto convert = builder::makeConversion(input_params, element::f32, ::helpers::ConversionTypes::CONVERT);
-        auto begin = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
-        auto end = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
-        auto stride = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
-        auto slice = builder::makeStridedSlice(convert,
+        auto convert = ov::builder::makeConversion(input_params, element::f32, ov::helpers::ConversionTypes::CONVERT);
+        auto begin = ov::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
+        auto end = ov::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
+        auto stride = ov::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
+        auto slice = ov::builder::makeStridedSlice(convert,
                                                begin,
                                                end,
                                                stride,
@@ -57,7 +57,7 @@ public:
                                                {},
                                                {},
                                                {});
-        auto convert2 = builder::makeConversion(slice, inType, ::helpers::ConversionTypes::CONVERT);
+        auto convert2 = ov::builder::makeConversion(slice, inType, ov::helpers::ConversionTypes::CONVERT);
         function = std::make_shared<ov::Model>(convert2, ov::ParameterVector{input_params}, "remove_convert");
     };
 };
@@ -86,11 +86,11 @@ public:
         auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
 
         // Such complicated graph is necessary to cover the case when Convert has several children and connected to non zero output
-        const auto split_axis = builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
-        const auto split_lengths = builder::makeConstant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
+        const auto split_axis = ov::builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        const auto split_lengths = ov::builder::makeConstant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
         const auto split = std::make_shared<ov::opset10::VariadicSplit>(input_params, split_axis, split_lengths);
-        auto convert = builder::makeConversion(split->output(1), inType, ::helpers::ConversionTypes::CONVERT);
-        auto relu = builder::makeActivation(convert, inType, ::helpers::ActivationTypes::Relu);
+        auto convert = ov::builder::makeConversion(split->output(1), inType, ov::helpers::ConversionTypes::CONVERT);
+        auto relu = ov::builder::makeActivation(convert, inType, ov::helpers::ActivationTypes::Relu);
 
         ov::ResultVector results{
             std::make_shared<ov::opset10::Result>(split->output(0)),

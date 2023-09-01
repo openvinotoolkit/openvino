@@ -18,10 +18,10 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/move_fake_quantize.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/move_fake_quantize_function.hpp"
-#include "lpt_ngraph_functions/relu_function.hpp"
+#include "lpt_ov_models/common/builders.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/move_fake_quantize_function.hpp"
+#include "lpt_ov_models/relu_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -33,13 +33,13 @@ namespace {
 class MoveFakeQuantizeTransformationActualValues {
 public:
     size_t number_of_operations;
-    std::vector<ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant> fakeQuantizeBefore;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+    std::vector<ov::builder::subgraph::FakeQuantizeOnDataWithConstant> fakeQuantizeBefore;
+    ov::builder::subgraph::DequantizationOperations::Convert convertBefore;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
     std::string operation;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
+    ov::builder::subgraph::DequantizationOperations::Convert convertAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransformationActualValues& values) {
@@ -51,13 +51,13 @@ inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransfo
 class MoveFakeQuantizeTransformationResultValues {
 public:
     size_t number_of_operations;
-    std::vector<ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant> fakeQuantizeBefore;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+    std::vector<ov::builder::subgraph::FakeQuantizeOnDataWithConstant> fakeQuantizeBefore;
+    ov::builder::subgraph::DequantizationOperations::Convert convertBefore;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
     std::string operation;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
+    ov::builder::subgraph::DequantizationOperations::Convert convertAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     ov::element::Type precisionAfterOperation;
 };
 
@@ -117,7 +117,7 @@ public:
 
         ov::IntervalsAlignmentSharedValue::Interval interval{-1.28f, 2.55f};
 
-        actualFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(precision,
+        actualFunction = ov::builder::subgraph::MoveFakeQuantize::get(precision,
                                                                           inputShapes,
                                                                           testValues.actual.number_of_operations,
                                                                           testValues.actual.fakeQuantizeBefore,
@@ -161,7 +161,7 @@ public:
         }
 
         referenceFunction =
-            ngraph::builder::subgraph::MoveFakeQuantize::get(precision,
+            ov::builder::subgraph::MoveFakeQuantize::get(precision,
                                                              inputShapes,
                                                              testValues.result.number_of_operations,
                                                              testValues.result.fakeQuantizeBefore,

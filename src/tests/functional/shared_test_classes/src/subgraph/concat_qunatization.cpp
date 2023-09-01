@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/concat_quantization.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -40,7 +41,7 @@ void ConcatQuantization::SetUp() {
     std::vector<size_t> outFormShapes2 = { 1, 160 };
     auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes2);
     auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(tanh, pattern2, false);
-    auto scale = ngraph::builder::makeConstant<float>(ngPrc, outFormShapes2, {}, true);
+    auto scale = ov::builder::makeConstant<float>(ngPrc, outFormShapes2, {}, true);
     //For ngraph::op::ScaleShift: Cannot cast ngraph node ScaleShift to CNNLayer!
     auto scale_shift = std::make_shared<ngraph::opset1::Multiply>(reshape2, scale);
 

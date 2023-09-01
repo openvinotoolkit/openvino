@@ -7,9 +7,11 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/codegen_gelu.hpp"
 #include "subgraph_simple.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "ngraph/opsets/opset2.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace ov {
 namespace test {

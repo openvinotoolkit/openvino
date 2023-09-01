@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/convolution.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -52,8 +53,8 @@ void ConvolutionLayerTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ov::helpers::convert2OutputVector(
+            ov::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> filter_weights;
     if (targetDevice == ov::test::utils::DEVICE_GNA) {
         auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
@@ -61,7 +62,7 @@ void ConvolutionLayerTest::SetUp() {
                                                                  -0.1f, 0.1f);
     }
     auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(
-            ngraph::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
+            ov::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, false, filter_weights));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution");

@@ -14,8 +14,10 @@
 #include "common_test_utils/test_constants.hpp"
 #include "ie_api.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace InferenceEngine;
 using Config = std::pair<std::string, std::map<std::string, std::string>>;
@@ -30,7 +32,7 @@ using TensorIteratorWithConfigParams = typename std::tuple<
         //size_t,                               // input size
         size_t,                                 // sequence axis
         float,                                  // clip
-        ngraph::helpers::TensorIteratorBody,    // body type
+        ov::helpers::TensorIteratorBody,    // body type
         ngraph::op::RecurrentSequenceDirection, // direction
         InferenceEngine::Precision,             // Network precision
         Config>;                                // Target device name & Configuration
@@ -44,7 +46,7 @@ public:
         size_t hidden_size;
         size_t input_size = 10;
         size_t sequence_axis;
-        ngraph::helpers::TensorIteratorBody ti_body;
+        ov::helpers::TensorIteratorBody ti_body;
         float clip;
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
@@ -54,19 +56,19 @@ public:
         std::vector<std::vector<size_t>> inputShapes = {};
 
         switch (ti_body) {
-            case ngraph::helpers::TensorIteratorBody::LSTM:
+            case ov::helpers::TensorIteratorBody::LSTM:
                 inputShapes = {
                         {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                                 {4 * hidden_size, hidden_size}, {4 * hidden_size}},
                 };
                 break;
-            case ngraph::helpers::TensorIteratorBody::GRU:
+            case ov::helpers::TensorIteratorBody::GRU:
                 inputShapes = {
                         {{batch, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                                 {3 * hidden_size, hidden_size}, {3 * hidden_size}},
                 };
                 break;
-            case ngraph::helpers::TensorIteratorBody::RNN:
+            case ov::helpers::TensorIteratorBody::RNN:
                 inputShapes = {{batch, input_size}, {batch, hidden_size},
                                {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
                 break;
@@ -103,7 +105,7 @@ protected:
         size_t hidden_size;
         size_t input_size = 10;
         size_t sequence_axis;
-        ngraph::helpers::TensorIteratorBody ti_body;
+        ov::helpers::TensorIteratorBody ti_body;
         float clip;
         ngraph::op::RecurrentSequenceDirection direction;
         std::pair<std::string, std::map<std::string, std::string>> config;
@@ -123,7 +125,7 @@ protected:
         auto axis = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1},
                                                                std::vector<int64_t>{static_cast<int64_t>(sequence_axis)});
         switch (ti_body) {
-            case ngraph::helpers::TensorIteratorBody::LSTM: {
+            case ov::helpers::TensorIteratorBody::LSTM: {
                 inputShapes = {
                         {{batch, seq_lengths, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                                 {4 * hidden_size, hidden_size}, {4 * hidden_size}},
@@ -144,7 +146,7 @@ protected:
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
                 ngraph::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
-                auto lstm_cell = ngraph::builder::makeLSTM(out_vector, WRB, hidden_size, {"sigmoid", "tanh", "tanh"}, {}, {}, clip);
+                auto lstm_cell = ov::builder::makeLSTM(out_vector, WRB, hidden_size, {"sigmoid", "tanh", "tanh"}, {}, {}, clip);
                 auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(lstm_cell->output(0), axis);
                 ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(unsqueeze),
                                              std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
@@ -173,7 +175,7 @@ protected:
                                                                                    tensor_iterator->output(2)}, outer_params);
                 break;
             }
-            case ngraph::helpers::TensorIteratorBody::GRU: {
+            case ov::helpers::TensorIteratorBody::GRU: {
                 inputShapes = {
                         {{batch, seq_lengths, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                                 {3 * hidden_size, hidden_size}, {3 * hidden_size}},
@@ -192,7 +194,7 @@ protected:
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
-                auto gru_cell = ngraph::builder::makeGRU(out_vector, WRB, hidden_size, {"sigmoid", "tanh"},
+                auto gru_cell = ov::builder::makeGRU(out_vector, WRB, hidden_size, {"sigmoid", "tanh"},
                                                          {}, {}, clip, false);
                 auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(gru_cell->output(0), axis);
                 ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0)),
@@ -218,7 +220,7 @@ protected:
                 function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
             }
-            case ngraph::helpers::TensorIteratorBody::RNN: {
+            case ov::helpers::TensorIteratorBody::RNN: {
                 inputShapes = {{batch, seq_lengths, input_size},
                                {batch,       hidden_size},
                                {hidden_size, input_size},
@@ -238,7 +240,7 @@ protected:
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
-                auto rnn_cell = ngraph::builder::makeRNN(out_vector, WRB, hidden_size, {"tanh"}, {}, {}, clip);
+                auto rnn_cell = ov::builder::makeRNN(out_vector, WRB, hidden_size, {"tanh"}, {}, {}, clip);
                 auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(rnn_cell->output(0), axis);
                 ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell),
                                              std::make_shared<ngraph::opset1::Result>(unsqueeze)};
@@ -283,10 +285,10 @@ namespace {
             ::testing::ValuesIn(std::vector<size_t> {2, 4}), // hidden size
             ::testing::ValuesIn(std::vector<size_t> {0, 1}), // seq axis
             ::testing::ValuesIn(std::vector<float> {0.f}), // clip - not used
-            ::testing::ValuesIn(std::vector<ngraph::helpers::TensorIteratorBody> {
-                ngraph::helpers::TensorIteratorBody::LSTM,
-                ngraph::helpers::TensorIteratorBody::RNN,
-                ngraph::helpers::TensorIteratorBody::GRU,
+            ::testing::ValuesIn(std::vector<ov::helpers::TensorIteratorBody> {
+                ov::helpers::TensorIteratorBody::LSTM,
+                ov::helpers::TensorIteratorBody::RNN,
+                ov::helpers::TensorIteratorBody::GRU,
             }), // body type
             ::testing::ValuesIn(std::vector<ngraph::op::RecurrentSequenceDirection>{
                 ngraph::op::RecurrentSequenceDirection::FORWARD,

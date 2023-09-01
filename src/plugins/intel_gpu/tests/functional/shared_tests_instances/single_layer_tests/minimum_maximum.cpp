@@ -25,14 +25,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
-const std::vector<ngraph::helpers::MinMaxOpType> opType = {
-        ngraph::helpers::MinMaxOpType::MINIMUM,
-        ngraph::helpers::MinMaxOpType::MAXIMUM,
+const std::vector<ov::helpers::MinMaxOpType> opType = {
+        ov::helpers::MinMaxOpType::MINIMUM,
+        ov::helpers::MinMaxOpType::MAXIMUM,
 };
 
-const std::vector<ngraph::helpers::InputLayerType> inputType = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+const std::vector<ov::helpers::InputLayerType> inputType = {
+        ov::helpers::InputLayerType::CONSTANT,
+        ov::helpers::InputLayerType::PARAMETER,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_maximum, MaxMinLayerTest,

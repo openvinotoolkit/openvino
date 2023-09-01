@@ -8,7 +8,7 @@
 #include "subgraph_tests/quantized_mat_mul.hpp"
 
 using namespace SubgraphTestsDefinitions;
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 
 namespace {
 

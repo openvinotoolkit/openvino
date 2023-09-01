@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/variadic_split_pad.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -11,7 +12,7 @@ std::string VariadicSplitPad::getTestCaseName(const testing::TestParamInfo<Split
     int64_t axis;
     std::vector<size_t> numSplits, connectIndexes;
     std::vector<int64_t> padsBegin, padsEnd;
-    ngraph::helpers::PadMode padMode;
+    ov::helpers::PadMode padMode;
     InferenceEngine::Precision netPrecision;
     std::string targetName;
     std::tie(inputShape, axis, numSplits, connectIndexes, padsBegin, padsEnd, padMode, netPrecision, targetName) = obj.param;
@@ -34,16 +35,16 @@ void VariadicSplitPad::SetUp() {
     int64_t axis;
     std::vector<size_t> numSplits, connectIndexes;
     std::vector<int64_t> padBegin, padEnd;
-    ngraph::helpers::PadMode padMode;
+    ov::helpers::PadMode padMode;
     InferenceEngine::Precision netPrecision;
     std::tie(inputs, axis, numSplits, connectIndexes, padBegin, padEnd, padMode, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputs))};
-    auto split = ngraph::builder::makeVariadicSplit(input[0], numSplits, axis);
+    auto split = ov::builder::makeVariadicSplit(input[0], numSplits, axis);
     ngraph::ResultVector results;
 
     for (size_t i : connectIndexes) {
-        auto pad = ngraph::builder::makePad(split->output(i), padBegin, padEnd, 0, padMode);
+        auto pad = ov::builder::makePad(split->output(i), padBegin, padEnd, 0, padMode);
         results.push_back(std::make_shared<ngraph::opset1::Result>(pad));
     }
     function = std::make_shared<ngraph::Function>(results, input, "variadic_split_pad");
