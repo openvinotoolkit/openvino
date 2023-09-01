@@ -12,7 +12,6 @@
 **Short description**: *Multinomial* operation generates a sequence of class indices sampled from Multinomial distribution.
 
 **Detailed description**: *Multinomial* operation generates a sequence of class indices sampled from Multinomial distribution.
-
 Values in *input* indicate probabilities for every class that could be randomly sampled from Multinominal distribution. When specific class is sampled, it's indice in *input* is appended to *output* sequence in corresponding batch value.
 
 **Attributes**:
@@ -26,16 +25,16 @@ Values in *input* indicate probabilities for every class that could be randomly 
 
 * ``replacement``
 
-  * **Description**: allows to control wether classes could repeat in sampled sequence.
+  * **Description**: allows to control whether classes could repeat in sampled sequence.
   * **Range of values**: `true`, `false`
       * ``true`` - class indices can repeat in sampled sequence.
-      * ``false`` - class indices will not repeat in sequence and size of *input* ``class_size`` dimension is required to be larger or equal of *num_samples* value.
+      * ``false`` - class indices will not repeat in sequence and size of *input* ``class_size`` dimension is required to be larger or equal to *num_samples* value.
   * **Type**: `bool`
   * **Required**: *Yes*
 
 * ``log_probs``
 
-  * **Description**: allows to control wether *inputs* should be treated as probabilities or unnormalized log probabilities.
+  * **Description**: allows to control whether *inputs* should be treated as probabilities or unnormalized log probabilities.
   * **Range of values**: `true`, `false`
     * ``true`` - set values in *inputs* are unnormalized log probabilites that can be any real number.
     * ``false`` - probabilities in *inputs* are expected to be non-negative, finite and have non-zero sum.
