@@ -51,7 +51,7 @@ Output<Node> create_constant_with_zeros(const Shape& shape, const Mask& mask) {
             Coordinate coord_end(shape);
             coord_end[dim] = dim_value + 1;
 
-            NGRAPH_SUPPRESS_DEPRECATED_START
+            OPENVINO_SUPPRESS_DEPRECATED_START
             ov::CoordinateTransform iter(shape, coord_begin, coord_end);
             for (const Coordinate& coord : iter) {
                 values[iter.index(coord)] = 0;
@@ -137,7 +137,7 @@ TEST(TransformationTests, InitMasksOutputChannel) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{6, 3, 3, 3};
     std::vector<double> values(shape_size(weights_shape), 1);
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::CoordinateTransform iter(weights_shape, {0, 1, 0, 0}, {6, 2, 3, 3});
     for (const Coordinate& coord : iter) {
         values[iter.index(coord)] = 0;

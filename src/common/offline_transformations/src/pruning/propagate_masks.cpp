@@ -1014,7 +1014,7 @@ struct ChannelsMap {
 /* Returns coordinate iterator through all values of given channel
  *  on unsquized_shape_dim dimension according to unsquized_shape shape.
  */
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 static ov::CoordinateTransform get_channel_iter(const ov::Shape unsquized_shape,
                                                 const size_t unsquized_shape_dim,
                                                 const size_t channel) {

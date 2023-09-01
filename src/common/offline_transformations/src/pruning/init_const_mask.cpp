@@ -42,7 +42,7 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
                 end[dim] = value + 1;
 
                 bool skip_dim_value = false;
-                NGRAPH_SUPPRESS_DEPRECATED_START
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 ov::CoordinateTransform iter(shape, begin, end);
                 for (const Coordinate& coord : iter) {
                     if (!condition(values.at(iter.index(coord)))) {
