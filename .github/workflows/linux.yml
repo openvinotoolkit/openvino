@@ -789,7 +789,7 @@ jobs:
       - name: Install python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ github.workspace }}/install/tests/functional_test_utils/requirements.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
 
       - name: Cache Tests Execution Time
         id: tests-functional-cpu-cache
