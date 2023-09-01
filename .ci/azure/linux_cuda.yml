@@ -137,6 +137,7 @@ jobs:
             -DENABLE_OV_ONNX_FRONTEND=OFF \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=ON \
+            -DENBABLE_DATA=OFF \
             -S /root/repos/openvino \
             -B /root/w/build &&
           cmake --build /root/w/build --parallel --config Release --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests"
