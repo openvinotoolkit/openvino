@@ -1,0 +1,3 @@
+# CreatePrecisionsDependentAttribute transformation {#openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute}
+
+ngraph::pass::low_precision::CreatePrecisionsDependentAttribute class represents the `CreatePrecisionsDependentAttribute` transformation.
