@@ -14,7 +14,7 @@ import numpy as np
 
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, check_positive, writable_dir, \
     readable_file_or_object, get_all_cli_parser, get_mo_convert_params
-from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace
+from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace, arguments_post_parsing, args_to_argv
 from openvino.tools.ovc.error import Error
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout
@@ -366,7 +366,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         from openvino.frontend import ConversionExtension
         args = {'input_model': os.path.dirname(__file__),
                 'extension': ConversionExtension("Ext", lambda x: x),
-                'input': ['name', ("a", [1,2,3], ov.Type.f32)],
+                'input': ['name', ("a", [1, 2, 3], ov.Type.f32)],
                 'output': ["a", "b", "c"]}
 
         cli_parser = get_all_cli_parser()
@@ -375,11 +375,119 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         assert argv.input_model == args['input_model']
         assert argv.extension == args['extension']
         assert argv.input == ['name', ("a", [1,2,3], ov.Type.f32)]
-        assert argv.output == ["a","b","c"]
+        assert argv.output == ["a", "b", "c"]
 
         for arg, value in vars(argv).items():
             if arg not in args and arg != 'is_python_api_used':
                 assert value == cli_parser.get_default(arg)
+
+    def test_output_post_parsing_1(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a,b,c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_2(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a, b, c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_3(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a,b, c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_4(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a , b ,  c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_5(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a,b"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a,b"]  # post parsing should decorate single string into a list
+
+    def test_output_post_parsing_6(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': ["first na me", "second name"]}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        argv = arguments_post_parsing(argv)
+        # when used in python api should be able to handle names with spaces
+        assert argv.output == ["first na me", "second name"]
+
+    def test_raises_output_post_parsing_1(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': ["a,b, c", 23]}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        self.assertRaises(AssertionError, arguments_post_parsing, argv)
+
+    def test_raises_output_post_parsing_2(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "na me, full_name"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        with self.assertRaisesRegex(AssertionError, ".*output names should not be empty or contain spaces"):
+            arguments_post_parsing(argv)
+
+    def test_raises_output_post_parsing_3(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a,,b,c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        with self.assertRaisesRegex(AssertionError, ".*output names should not be empty or contain spaces"):
+            arguments_post_parsing(argv)
 
     def test_not_existing_dir(self):
         args = {"input_model": "abc"}
