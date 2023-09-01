@@ -5,7 +5,7 @@ Babel==2.11.0
 beautifulsoup4==4.9.3
 certifi==2023.7.22
 colorama==0.4.6
-Cython==3.0.2
+Cython==0.29.33
 docutils==0.16
 idna==3.4
 imagesize==1.2.0
