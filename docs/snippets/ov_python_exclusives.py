@@ -4,7 +4,7 @@
 import numpy as np
 import openvino as ov
 
-from utils import get_path_to_model, get_path_to_image, get_image
+from utils import get_path_to_model, get_image
 
 #! [properties_example]
 import openvino.runtime.opset12 as ops
@@ -158,12 +158,11 @@ assert np.array_equal(unpacked_data , unt8_data)
 #! [unpacking]
 
 model_path = get_path_to_model()
-path_to_image = get_path_to_image()
+image = get_image()
 
 
 #! [releasing_gil]
 import openvino as ov
-import cv2 as cv
 from threading import Thread
 
 input_data = []
@@ -171,18 +170,15 @@ input_data = []
 # Processing input data will be done in a separate thread
 # while compilation of the model and creation of the infer request
 # is going to be executed in the main thread.
-def prepare_data(input, image_path):
-    image = cv.imread(image_path)
-    h, w = list(input.shape)[-2:]
-    image = cv.resize(image, (h, w))
-    image = image.transpose((2, 0, 1))
-    image = np.expand_dims(image, 0)
-    input_data.append(image)
+def prepare_data(input, image):
+    shape = list(input.shape)
+    resized_img = np.resize(image, shape)
+    input_data.append(resized_img)
 
 core = ov.Core()
 model = core.read_model(model_path)
 # Create thread with prepare_data function as target and start it
-thread = Thread(target=prepare_data, args=[model.input(), path_to_image])
+thread = Thread(target=prepare_data, args=[model.input(), image])
 thread.start()
 # The GIL will be released in compile_model.
 # It allows a thread above to start the job,

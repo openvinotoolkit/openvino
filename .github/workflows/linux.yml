@@ -602,7 +602,6 @@ jobs:
           export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
           
           python3 -m pip install numpy
-          python3 -m pip install opencv-python
 
           python3 ${{ github.workspace }}/openvino/docs/snippets/main.py
 

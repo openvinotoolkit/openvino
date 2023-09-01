@@ -49,13 +49,6 @@ def get_image(shape = (1, 3, 32, 32), dtype = "float32"):
     return np.random.rand(*shape).astype(dtype)
 
 
-def get_path_to_image():
-    path_to_img = tempfile.NamedTemporaryFile(suffix="_image.bmp").name
-    import cv2 as cv
-    cv.imwrite(path_to_img, get_image())
-    return path_to_img
-
-
 def get_path_to_extension_library():
     library_path=""
     if platform == "win32":

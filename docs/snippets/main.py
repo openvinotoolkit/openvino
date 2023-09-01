@@ -9,7 +9,7 @@ import importlib
 import openvino as ov
 
 #skip_snippets = ["main.py", "__init__.py"]
-skip_snippets = ["main.py", "__init__.py", "ie_common.py", "ov_common.py", "ov_python_exclusives.py", "ov_preprocessing.py"]
+skip_snippets = ["main.py", "__init__.py", "ie_common.py", "ov_common.py",  "ov_preprocessing.py"]
 
 def import_python_modules(directory, subdirectory=""):
     for item in os.listdir(directory):
@@ -17,14 +17,10 @@ def import_python_modules(directory, subdirectory=""):
             imported_item = item[:-3]
             if subdirectory != "":
                 imported_item=subdirectory + "." + imported_item
-            try:
-                mod = importlib.import_module(imported_item)
-            except RuntimeError as e:
-                pass
+            mod = importlib.import_module(imported_item)
             try:
                 mod.main()
-            except:
-                print("fail")
+            except AttributeError as e:
                 pass
         
         if os.path.isdir(os.path.join(directory, item)):
