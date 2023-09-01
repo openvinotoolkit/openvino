@@ -7,13 +7,17 @@
                  PyTorch format to the OpenVINO Intermediate Representation. 
 
 
-This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format using Model Optimizer.
-Model Optimizer Python API allows the conversion of PyTorch models using the ``convert_model()`` method.
+This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format.
+
+The conversion is a required step to run inference using OpenVINO API.
+It is not required if you choose to work with OpenVINO under the PyTorch framework, 
+using its :doc:`torch.compile feature <pytorch_2_0_torch_compile>`.
 
 Converting a PyTorch model with PyTorch Frontend 
 ###############################################################
 
-Example of PyTorch model conversion:
+To convert a PyTorch model to the OpenVINO IR format, use the OVC API (superseding the previously used tool, MO). To do so, use the ``convert_model()`` method, like so:
+
 
 .. code-block:: py
    :force:
@@ -31,9 +35,8 @@ Following PyTorch model formats are supported:
 * ``torch.jit.ScriptModule``
 * ``torch.jit.ScriptFunction``
 
-Converting certain PyTorch models may require model tracing, which needs ``example_input`` parameter to be set.
-
-Example of using ``example_input``:
+Converting certain PyTorch models may require model tracing, which needs the ``example_input`` 
+parameter to be set, for example:
 
 .. code-block:: py
    :force:
@@ -53,8 +56,9 @@ Example of using ``example_input``:
 * ``list`` or ``tuple`` with tensors (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 * ``dictionary`` where key is the input name, value is the tensor (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 
-Sometimes ``convert_model`` will produce inputs of the model with dynamic rank or dynamic type, such model may not be supported by hardware plugin,
-to solve this, please use ``input`` argument of ``convert_model``, please refer to `Convert Models Represented as Python Objects <openvino_docs_MO_DG_Python_API>` for more information. 
+Sometimes ``convert_model`` will produce inputs of the model with dynamic rank or dynamic type. 
+Such model may not be supported by the hardware chosen for inference. To avoid this issue,
+use the ``input`` argument of ``convert_model``. For more information, refer to `Convert Models Represented as Python Objects <openvino_docs_MO_DG_Python_API>`. 
 
 .. important::
 
@@ -63,7 +67,7 @@ to solve this, please use ``input`` argument of ``convert_model``, please refer 
 Exporting a PyTorch Model to ONNX Format
 ########################################
 
-It is also possible to export PyTorch model to ONNX and then converting it to IR. To convert and deploy a PyTorch model, follow these steps:
+It is also possible to export a PyTorch model to ONNX and then convert it to OpenVINO IR. To convert and deploy a PyTorch model this way, follow these steps:
 
 1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
 2. :doc:`Convert the ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.
