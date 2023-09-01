@@ -20,7 +20,7 @@ def import_python_modules(directory, subdirectory=""):
             try:
                 mod = importlib.import_module(imported_item)
             except RuntimeError as e:
-
+                pass
             try:
                 mod.main()
             except:
