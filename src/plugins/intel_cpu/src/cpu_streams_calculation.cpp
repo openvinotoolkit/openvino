@@ -540,12 +540,8 @@ void get_num_streams(const int streams,
     if (streamsConfig._streams_info_table.empty()) {
         generate_stream_info(streams, ngraphFunc, config, proc_type_table);
     } else {
-#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        InferenceEngine::ITaskExecutor::Ptr taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
-#else
         InferenceEngine::ITaskExecutor::Ptr taskExecutor =
             plugin->executorManager()->getIdleCPUStreamsExecutor(streamsConfig);
-#endif
         std::vector<Task> tasks;
         tasks.emplace_back([&] {
             generate_stream_info(streams, ngraphFunc, config, proc_type_table);
