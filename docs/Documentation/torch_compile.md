@@ -69,19 +69,19 @@ To use ``torch.compile``, you need to add an import statement and define one of 
 Environment Variables
 +++++++++++++++++++++++++++
 
-* **OPENVINO_TORCH_BACKEND_DEVICE**: enables selecting a speciffic hardware device to run the application. 
+* **OPENVINO_TORCH_BACKEND_DEVICE**: enables selecting a specific hardware device to run the application. 
   By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications using the CPU. Setting 
   this variable to GPU.0, for example, will make the application use the integrated graphics processor instead.
 * **OPENVINO_TORCH_MODEL_CACHING**: enables saving the optimized model files to a hard drive, after the first application run.
-  This makes them available for the following application executions, redicing the first-inference latency.
+  This makes them available for the following application executions, reducing the first-inference latency.
   By default, this variable is set to ``False``. Setting it to ``True`` enables caching.
 * **OPENVINO_TORCH_CACHE_DIR**: enables defining a custom directory for the model files (if model caching set to ``True``).
-  By default, the OpenVINO IR is saved in a the ``cache`` sub-directory, created in the application's root directory. 
+  By default, the OpenVINO IR is saved in the ``cache`` sub-directory, created in the application's root directory. 
 
 Windows support
 ++++++++++++++++++++++++++
 
-Currently, PyTorch does not support ``torch.compile`` feature on Windows officially. However it can be accessed by running
+Currently, PyTorch does not support ``torch.compile`` feature on Windows officially. However, it can be accessed by running
 the below instructions:
 
 1. Install the PyTorch nightly wheel file - `2.1.0.dev20230713 <https://download.pytorch.org/whl/nightly/cpu/torch-2.1.0.dev20230713%2Bcpu-cp38-cp38-win_amd64.whl>`__ ,
@@ -137,7 +137,7 @@ The ``torch.compile`` feature is part of PyTorch 2.0, and is based on:
 
 
 When the PyTorch module is wrapped with ``torch.compile``, TorchDynamo traces the module and 
-rewrites Python bytecode in order to extract sequences of PyTorch operations into an FX Graph,
+rewrites Python bytecode to extract sequences of PyTorch operations into an FX Graph,
 which can be optimized by the OpenVINO backend. The Torch FX graphs are first converted to 
 inlined FX graphs and the graph partitioning module traverses inlined FX graph to identify 
 operators supported by OpenVINO. 
