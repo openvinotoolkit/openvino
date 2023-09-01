@@ -42,7 +42,7 @@ protected:
         function = std::make_shared<Function>(avgpool, ParameterVector{param});
     }
 
-    void TearDown() override {
+    void CheckResult() {
         auto exec_model = executableNetwork.GetExecGraphInfo().getFunction();
 
         int eltwise_nodes_found = 0;
@@ -65,6 +65,7 @@ protected:
 
 TEST_F(GatherAddAvgpool, smoke_CompareWithRefs) {
     Run();
+    CheckResult();
 }
 
 TEST_F(GatherAddAvgpool, smoke_CompareWithRefs_FP16) {
@@ -74,6 +75,7 @@ TEST_F(GatherAddAvgpool, smoke_CompareWithRefs_FP16) {
     configuration.insert({ov::hint::inference_precision.name(), "f16"});
 
     Run();
+    CheckResult();
 }
 
 

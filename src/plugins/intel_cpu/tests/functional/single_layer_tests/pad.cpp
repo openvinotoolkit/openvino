@@ -95,7 +95,11 @@ protected:
         std::tie(shapes, secondaryInputType, dataType, padsBegin, padsEnd, padValue, padMode, cpuParams, additionalConfig) = this->GetParam();
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType = makeSelectedTypeStr("ref", dataType);
+        if (dataType == ElementType::f16) {
+            selectedType = makeSelectedTypeStr("ref", ElementType::f32);
+        } else {
+            selectedType = makeSelectedTypeStr("ref", dataType);
+        }
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
         for (auto& targetShapes : targetStaticShapes) {

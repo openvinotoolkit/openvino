@@ -310,6 +310,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
     for (auto &output : outputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
+        DEBUG_LOG("output_precision", outputsInfo.at(output.first)->getPrecision());
         output.second->setOriginalInputPrecisionAtPort(0, precToSet);
     }
     // enforce must be performed after inputs and outputs info are taken into account

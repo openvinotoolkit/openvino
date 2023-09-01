@@ -76,7 +76,11 @@ protected:
         if (inType == ElementType::bf16) {
             rel_threshold = 2e-2f;
         }
-        selectedType = makeSelectedTypeStr(selectedType, inType);
+        if (inType == ElementType::f16) {
+            selectedType = makeSelectedTypeStr(selectedType, ElementType::f32);
+        } else {
+            selectedType = makeSelectedTypeStr(selectedType, inType);
+        }
         init_input_shapes({config.inputShape});
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes) {

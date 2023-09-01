@@ -32,7 +32,7 @@ protected:
         function = std::make_shared<Function>(mul2, ParameterVector{param});
     }
 
-    void TearDown() override {
+    void CheckResult() {
         auto runtime_function = executableNetwork.GetExecGraphInfo().getFunction();
         int nodes_found = 0;
         for (const auto& n : runtime_function->get_ordered_ops()) {
@@ -50,6 +50,7 @@ protected:
 
 TEST_F(SubgraphWithBlockedFormat, smoke_CompareWithRefs) {
     Run();
+    CheckResult();
 }
 
 TEST_F(SubgraphWithBlockedFormat, smoke_CompareWithRefs_FP16) {
@@ -59,6 +60,7 @@ TEST_F(SubgraphWithBlockedFormat, smoke_CompareWithRefs_FP16) {
     configuration.insert({ov::hint::inference_precision.name(), "f16"});
 
     Run();
+    CheckResult();
 }
 
 } // namespace SubgraphTestsDefinitions
