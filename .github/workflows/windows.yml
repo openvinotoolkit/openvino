@@ -47,7 +47,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-latest-16-cores
+    runs-on: windows-latest-8-cores
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
