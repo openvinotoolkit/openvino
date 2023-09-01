@@ -183,7 +183,7 @@ thread.start()
 # The GIL will be released in compile_model.
 # It allows a thread above to start the job,
 # while main thread is running in the background.
-compiled = core.compile_model(model, "GPU")
+compiled = core.compile_model(model, "CPU")
 # After returning from compile_model, the main thread acquires the GIL
 # and starts create_infer_request which releases it once again.
 request = compiled.create_infer_request()

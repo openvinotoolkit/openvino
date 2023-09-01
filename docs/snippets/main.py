@@ -6,7 +6,6 @@ import sys
 import os
 import importlib
 
-import openvino as ov
 
 skip_snippets = ["main.py", "__init__.py", "ie_common.py", "ov_common.py"]
 
@@ -30,17 +29,6 @@ def import_python_modules(directory, subdirectory=""):
 def main():
     dir_path = os.path.dirname(os.path.realpath(__file__))
     import_python_modules(dir_path)
-
-    # import ov_caching
-    # try:
-    #     core = ov.Core()
-    #     available_devices = core.available_devices
-    #     if "GPU" in available_devices:
-    #         print("run gpu snippets")
-
-    # except Exception as e:
-    #     sys.exit(1)
-
 
 
 if __name__ == "__main__":
