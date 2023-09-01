@@ -14,7 +14,7 @@ void PassPipeline::register_pass(const std::shared_ptr<Pass>& pass) {
     m_passes.push_back(pass);
 }
 
-void PassPipeline::run(LinearIR& linear_ir) {
+void PassPipeline::run(LinearIR& linear_ir) const {
     for (const auto& pass : m_passes) {
         pass->run(linear_ir);
     }

@@ -10,7 +10,7 @@
 #include <openvino/op/util/sub_graph_base.hpp>
 #include "openvino/op/op.hpp"
 #include "openvino/core/rt_info.hpp"
-#include <ngraph/pass/manager.hpp>
+#include "snippets/pass_manager.hpp"
 
 #include "snippets/generator.hpp"
 
@@ -26,8 +26,6 @@ namespace op {
 class Subgraph : public ov::op::util::SubGraphOp {
 public:
     OPENVINO_OP("Subgraph", "SnippetsOpset", ov::op::util::SubGraphOp);
-    enum {DYNAMIC_DIMENSION = 0xffffffffffffffff};
-
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
     // should be:
     // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
@@ -74,9 +72,9 @@ public:
 
     Subgraph() = default;
 
-    Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body);
+    Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
 
-    Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body);
+    Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -101,18 +99,14 @@ public:
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
     snippets::Schedule generate(const BlockedShapeVector& output_shapes,
                                 const BlockedShapeVector& input_shapes,
-                                ov::pass::Manager& pre_common,
-                                ov::pass::Manager& post_common,
-                                ov::pass::Manager& post_precision,
-                                lowered::pass::PassPipeline& target_lowered_markup_pipeline,
-                                lowered::pass::PassPipeline& target_lowered_pipeline,
+                                const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
+                                const lowered::pass::PassPipeline& control_flow_passes_pre_common,
+                                const lowered::pass::PassPipeline& control_flow_passes_post_common,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
-    snippets::Schedule generate(ov::pass::Manager& pre_common,
-                                ov::pass::Manager& post_common,
-                                ov::pass::Manager& post_precision,
-                                lowered::pass::PassPipeline& target_lowered_markup_pipeline,
-                                lowered::pass::PassPipeline& target_lowered_pipeline,
+    snippets::Schedule generate(const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
+                                const lowered::pass::PassPipeline& control_flow_passes_pre_common,
+                                const lowered::pass::PassPipeline& control_flow_passes_post_common,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
     ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
@@ -146,10 +140,10 @@ public:
 
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
-    void data_flow_transformations(ov::pass::Manager& pre_common, ov::pass::Manager& post_common, ov::pass::Manager& post_precision);
+    void data_flow_transformations(const std::vector<snippets::pass::Manager::PositionedPass>& backend_passes);
     void control_flow_transformations(lowered::LinearIR& linear_ir,
-                                      lowered::pass::PassPipeline& target_markup_pipeline,
-                                      lowered::pass::PassPipeline& target_pipeline);
+                                      const lowered::pass::PassPipeline& backend_passes_pre_common,
+                                      const lowered::pass::PassPipeline& backend_passes_post_common);
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
