@@ -3,19 +3,18 @@
 //
 
 #include <gtest/gtest.h>
-#include <ie_extension.h>
 
 #include <atomic>
 #include <chrono>
-#include <common_test_utils/file_utils.hpp>
-#include <common_test_utils/test_assertions.hpp>
 #include <fstream>
-#include <functional_test_utils/test_model/test_model.hpp>
-#include <ie_core.hpp>
-#include <ie_plugin_config.hpp>
 #include <mutex>
 #include <thread>
 
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "functional_test_utils/test_model/test_model.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
@@ -24,9 +23,9 @@
 #    endif
 #endif
 
-class IECoreThreadingTests : public ::testing::Test {
+class CoreThreadingTests : public ::testing::Test {
 protected:
-    std::string modelName = "IECoreThreadingTests.xml", weightsName = "IECoreThreadingTests.bin";
+    std::string modelName = "CoreThreadingTests.xml", weightsName = "CoreThreadingTests.bin";
 
 public:
     void SetUp() override {
@@ -59,27 +58,25 @@ public:
         }
     }
 
-    void safeAddExtension(InferenceEngine::Core& ie) {
+    void safeAddExtension(ov::Core& core) {
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                    std::string("template_extension") + IE_BUILD_POSTFIX));
-            ie.AddExtension(extension);
-        } catch (const InferenceEngine::Exception& ex) {
+            core.add_extension(extension);
+        } catch (const ov::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }
     }
 };
 
 // tested function: SetConfig
-TEST_F(IECoreThreadingTests, SetConfigPluginDoesNotExist) {
-    InferenceEngine::Core ie;
-    std::map<std::string, std::string> localConfig = {
-        {CONFIG_KEY(PERF_COUNT), InferenceEngine::PluginConfigParams::YES}};
+TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
+    ov::Core core;
 
     runParallel(
         [&]() {
-            ie.SetConfig(localConfig);
+            core.set_property(ov::enable_profiling(true));
         },
         10000);
 }
@@ -88,24 +85,24 @@ TEST_F(IECoreThreadingTests, SetConfigPluginDoesNotExist) {
 #ifndef OPENVINO_STATIC_LIBRARY
 
 // tested function: RegisterPlugin
-TEST_F(IECoreThreadingTests, RegisterPlugin) {
-    InferenceEngine::Core ie;
+TEST_F(CoreThreadingTests, RegisterPlugin) {
+    ov::Core core;
     std::atomic<int> index{0};
     runParallel(
         [&]() {
             const std::string deviceName = std::to_string(index++);
-            ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                 std::string("mock_engine") + IE_BUILD_POSTFIX),
-                              deviceName);
-            ie.GetVersions(deviceName);
-            ie.UnregisterPlugin(deviceName);
+            core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                                    std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                 deviceName);
+            core.get_versions(deviceName);
+            core.unload_plugin(deviceName);
         },
         4000);
 }
 
 // tested function: RegisterPlugins
-TEST_F(IECoreThreadingTests, RegisterPlugins) {
-    InferenceEngine::Core ie;
+TEST_F(CoreThreadingTests, RegisterPlugins) {
+    ov::Core core;
     std::atomic<unsigned int> index{0};
 
     auto getPluginXml = [&]() -> std::tuple<std::string, std::string> {
@@ -134,8 +131,8 @@ TEST_F(IECoreThreadingTests, RegisterPlugins) {
         [&]() {
             std::string fileName, deviceName;
             std::tie(fileName, deviceName) = getPluginXml();
-            ie.RegisterPlugins(fileName);
-            ie.GetVersions(deviceName);
+            core.register_plugins(fileName);
+            core.get_versions(deviceName);
             ASSERT_EQ(0, std::remove(fileName.c_str()));
         },
         1000);
@@ -143,22 +140,22 @@ TEST_F(IECoreThreadingTests, RegisterPlugins) {
 
 #endif  // !OPENVINO_STATIC_LIBRARY
 
-// tested function: GetAvailableDevices, UnregisterPlugin
+// tested function: get_available_devices, unload_plugin
 // TODO: some initialization (e.g. thread/dlopen) sporadically fails during such stress-test scenario
-TEST_F(IECoreThreadingTests, GetAvailableDevices) {
+TEST_F(CoreThreadingTests, GetAvailableDevices) {
 #ifdef OV_TEST_GLIBC_VERSION_LESS_2_34
     GTEST_SKIP();
 #endif
-    InferenceEngine::Core ie;
+    ov::Core core;
     runParallel(
         [&]() {
-            std::vector<std::string> devices = ie.GetAvailableDevices();
+            std::vector<std::string> devices = core.get_available_devices();
 
             // unregister all the devices
             for (auto&& deviceName : devices) {
                 try {
-                    ie.UnregisterPlugin(deviceName);
-                } catch (const InferenceEngine::Exception& ex) {
+                    core.unload_plugin(deviceName);
+                } catch (const ov::Exception& ex) {
                     // if several threads unload plugin at once, the first thread does this
                     // while all others will throw an exception that plugin is not registered
                     ASSERT_STR_CONTAINS(ex.what(), "name is not registered in the");
@@ -169,15 +166,15 @@ TEST_F(IECoreThreadingTests, GetAvailableDevices) {
 }
 
 #if defined(ENABLE_OV_IR_FRONTEND)
-// tested function: ReadNetwork, AddExtension
-TEST_F(IECoreThreadingTests, ReadNetwork) {
-    InferenceEngine::Core ie;
-    auto network = ie.ReadNetwork(modelName, weightsName);
+// tested function: read_model and add_legacy_extension
+TEST_F(CoreThreadingTests, ReadModel) {
+    ov::Core core;
+    auto model = core.read_model(modelName, weightsName);
 
     runParallel(
         [&]() {
-            safeAddExtension(ie);
-            (void)ie.ReadNetwork(modelName, weightsName);
+            safeAddExtension(core);
+            (void)core.read_model(modelName, weightsName);
         },
         100,
         12);
