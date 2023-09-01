@@ -34,6 +34,16 @@ ov::pass::ConvertReduceSumToReshape::ConvertReduceSumToReshape() {
     register_matcher(m, convert_reduce_to_reshape<ov::op::v1::ReduceSum>());
 }
 
+ov::pass::ConvertReduceProdToReshape::ConvertReduceProdToReshape() {
+    MATCHER_SCOPE(ConvertReduceProdToReshape);
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<ov::op::v1::ReduceProd>(
+            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<ov::op::v0::Constant>()},
+            pattern::has_static_shape()),
+        matcher_name);
+    register_matcher(m, convert_reduce_to_reshape<ov::op::v1::ReduceProd>());
+}
+
 ov::pass::ConvertReduceMaxToReshape::ConvertReduceMaxToReshape() {
     MATCHER_SCOPE(ConvertReduceMaxToReshape);
     auto m = std::make_shared<pattern::Matcher>(
