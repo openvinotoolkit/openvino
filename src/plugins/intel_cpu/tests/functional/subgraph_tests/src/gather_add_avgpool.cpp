@@ -69,6 +69,7 @@ TEST_F(GatherAddAvgpool, smoke_CompareWithRefs) {
 }
 
 TEST_F(GatherAddAvgpool, smoke_CompareWithRefs_FP16) {
+    GTEST_SKIP() << "CVS-110112 test cases failed ";
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }

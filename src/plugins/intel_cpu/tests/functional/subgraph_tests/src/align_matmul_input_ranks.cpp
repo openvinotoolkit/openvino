@@ -6,6 +6,7 @@
 #include "test_utils/fusing_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -79,6 +80,8 @@ TEST_P(AlignMatMulInputRanksTest, CompareWithRefs_FP16) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
     configuration.insert({ov::hint::inference_precision.name(), "f16"});
+    selectedType = makeSelectedTypeStr("brgemm_avx512" ,  ov::test::ElementType::f16);
+
     Run();
     CheckNumberOfNodesWithType(executableNetwork, "Reshape", expectedNumOfReshapes); // Squeeze / Unsqueeze turns into Reshape
     CheckPluginRelatedResults(executableNetwork, "MatMul");

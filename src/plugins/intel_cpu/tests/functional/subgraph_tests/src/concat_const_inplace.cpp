@@ -78,11 +78,12 @@ namespace {
             }
         }
         Run();
-        if (this->GetParam() == Precision::BF16)
+        if (this->GetParam() == Precision::BF16 || this->GetParam() == Precision::FP16)
             CheckNumberOfNodesWithType(executableNetwork, "Reorder", 3);
         else
             CheckNumberOfNodesWithType(executableNetwork, "Reorder", 2);
     }
+
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU, ConcatConstantInPlaceTest,
     testing::Values(Precision::FP32, Precision::BF16, Precision::FP16),

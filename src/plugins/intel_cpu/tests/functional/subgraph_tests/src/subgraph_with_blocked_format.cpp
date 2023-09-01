@@ -60,7 +60,18 @@ TEST_F(SubgraphWithBlockedFormat, smoke_CompareWithRefs_FP16) {
     configuration.insert({ov::hint::inference_precision.name(), "f16"});
 
     Run();
-    CheckResult();
+    auto runtime_function = executableNetwork.GetExecGraphInfo().getFunction();
+    int nodes_found = 0;
+    for (const auto& n : runtime_function->get_ordered_ops()) {
+        auto layer_type = n->get_rt_info().at(ExecGraphInfoSerialization::LAYER_TYPE).as<std::string>();
+        if (layer_type == "Subgraph") {
+            nodes_found++;
+            auto output_layout = n->get_rt_info().at(ExecGraphInfoSerialization::OUTPUT_LAYOUTS).as<std::string>();
+            // convolution maybe chooses 'nhwc' and the subgraph will follow it
+            ASSERT_EQ(output_layout, "abcd");
+        }
+    }
+    ASSERT_GT(nodes_found, 0);
 }
 
 } // namespace SubgraphTestsDefinitions
