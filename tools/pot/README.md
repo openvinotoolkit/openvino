@@ -19,7 +19,7 @@ To get started with POT tool refer to the corresponding OpenVINO&trade; [documen
 POT is distributed as a part of OpenVINO&trade; Development Tools package. For installation instruction please refer to this [document](https://docs.openvino.ai/2023.0/openvino_docs_install_guides_install_dev_tools.html).
 
 ### From GitHub
-As prerequisites, you should install [OpenVINO&trade; Runtime](https://docs.openvino.ai/2023.0/openvino_docs_install_guides_install_runtime.html) and other dependencies such as [Model Optimizer](https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) and [Accuracy Checker](https://docs.openvino.ai/2023.0/omz_tools_accuracy_checker.html).
+As prerequisites, you should install [OpenVINO&trade; Runtime](https://docs.openvino.ai/2023.0/openvino_docs_install_guides_install_runtime.html) and other dependencies such as [Model Optimizer](https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) and [Accuracy Checker](https://docs.openvino.ai/2023.0/omz_tools_accuracy_checker.html).
 
 To install POT from source:
 - Clone OpenVINO repository

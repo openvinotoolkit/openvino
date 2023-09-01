@@ -235,7 +235,7 @@ While ONNX models are directly supported by OpenVINO™ runtime, it can be
 useful to convert them to IR format to take advantage of advanced
 OpenVINO optimization tools and features. You will use `model conversion
 Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 to convert model to IR format and compress weights to ``FP16`` format.
 The ``mo.convert_model`` function returns OpenVINO Model class instance
 ready to load on a device or save on a disk for next loading.

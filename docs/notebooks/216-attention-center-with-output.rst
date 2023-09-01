@@ -122,7 +122,7 @@ format. In this Notebook the model will be converted to OpenVINO IR
 format with Model Optimizer. This step will be skipped if the model have
 already been converted. For more information about Model Optimizer,
 please, see the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+Guide <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 
 Also TFLite models format is supported in OpenVINO by TFLite frontend,
 so the model can be passed directly to ``core.read_model()``. You can

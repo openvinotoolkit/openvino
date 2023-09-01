@@ -311,7 +311,7 @@ shape, type, and value within a single argument, providing greater
 flexibility.
 
 To learn more, refer to this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+`page <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 
 .. code:: ipython3
 

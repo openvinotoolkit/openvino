@@ -369,7 +369,7 @@ To evaluate performance with OpenVINO, we can
 either convert the trained PyTorch model to an intermediate
 representation (IR) format or to an ONNX representation. This notebook
 uses the ONNX format. For more details on model optimization, refer to:
-https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
+https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
 
 .. code:: ipython3
 
@@ -484,7 +484,7 @@ The OpenVINO toolkit provides a benchmarking application to
 gauge the platform specific runtime performance that can be obtained
 under optimal configuration parameters for a given model. For more
 details refer to:
-https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html
+https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html
 
 Here, we use the benchmark application to obtain performance estimates
 under optimal configuration for the knowledge graph model inference. We
@@ -531,7 +531,7 @@ perform a sample evaluation on the knowledge graph. Then, we determine
 the platform specific speedup in runtime performance that can be
 obtained through OpenVINO graph optimizations. To learn more about the
 OpenVINO performance optimizations, refer to:
-https://docs.openvino.ai/2023.0/openvino_docs_optimization_guide_dldt_optimization_guide.html
+https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_dldt_optimization_guide.html
 
 References `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

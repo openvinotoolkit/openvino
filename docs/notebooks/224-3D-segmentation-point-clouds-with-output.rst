@@ -77,7 +77,7 @@ function returns an OpenVINO model ready to load on a device and start
 making predictions. We can save it on a disk for next usage with
 ``openvino.runtime.serialize``. For more information about model
 conversion Python API, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 

@@ -190,7 +190,7 @@ While ONNX models are directly supported by OpenVINO runtime, it can be
 useful to convert them to IR format to take advantage of OpenVINO
 optimization tools and features. The ``mo.convert_model`` Python
 function of `model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 can be used for converting the model. The function returns instance of
 OpenVINO Model class, which is ready to use in Python interface but can
 also be serialized to OpenVINO IR format for future execution using

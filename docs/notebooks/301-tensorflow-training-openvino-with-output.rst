@@ -922,7 +922,7 @@ Convert the TensorFlow model with OpenVINO Model Optimizer `⇑ <#top>`__
 
 To convert the model to OpenVINO IR with ``FP16`` precision, use model
 conversion Python API. For more information, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
