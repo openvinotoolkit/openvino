@@ -24,11 +24,9 @@ To use ``torch.compile``, you need to add an import statement and define one of 
 
 | ``openvino``
 |   With this backend, Torch FX subgraphs are directly converted to OpenVINO representation without any additional PyTorch based tracing/scripting.
-    ... what this means for the user ...
 
 | ``openvino_ts``
 |   With this backend, Torch FX subgraphs are first traced/scripted with PyTorch Torchscript, and then converted to OpenVINO representation.
-    ... what this means for the user ...
 
 
 .. tab-set::
