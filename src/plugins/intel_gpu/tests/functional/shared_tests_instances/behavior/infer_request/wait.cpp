@@ -9,18 +9,6 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-auto configs = []() {
-    return std::vector<std::map<std::string, std::string>>{
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU}}};
-};
-
-auto autoConfigs = []() {
-    return std::vector<std::map<std::string, std::string>>{
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-         {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-          ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU}}};
-};
-
 auto autoBatchConfigs = []() {
     return std::vector<std::map<std::string, std::string>>{
         // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
@@ -33,18 +21,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferRequestWaitTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         InferRequestWaitTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         InferRequestWaitTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(configs())),
-                         InferRequestWaitTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         InferRequestWaitTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(autoConfigs())),
                          InferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

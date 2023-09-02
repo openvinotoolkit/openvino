@@ -47,14 +47,10 @@ std::vector<std::string> disabledTestPatterns() {
 
             // Not allowed dynamic loop tests on GPU
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
-            // Not expected behavior
-            R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
-            R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
             // TODO Issue 100145
             R"(.*Behavior.*InferRequestIOBBlobTest.*canReallocateExternalBlobViaGet.*)",
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             R"(.*Behavior.*OVInferRequestDynamicTests.*InferUpperBoundNetworkAfterIOTensorsReshaping.*)",
-            R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
@@ -76,9 +72,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_Behavior/InferRequestSetBlobByType.setInputBlobsByType/BlobType=Batched_Device=GPU_Config=().*)",
             // TODO: Issue 72624
             R"(smoke_PrePostProcess.*resize_dynamic.*)",
-            // Issue: CVS-66778
-            R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
-            R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
             // Dynamic batch allocates output using upper bound
             R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
             // need dynamic shapes
@@ -97,8 +90,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_RemoteBlob.*canInferOnUserQueue.*)",
             // Issue: CVS-76980
             R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
-            // Issue: CVS-86976
-            R"(.*smoke_VirtualPlugin_BehaviorTests.*LoadedRemoteContext.*)",
             // Issue: CVS-88667 - Need to verify hetero interoperability
             R"(.*nightly_OVClassHeteroExecutableNetworlGetMetricTest.*SUPPORTED_(CONFIG_KEYS|METRICS).*)",
             // TODO: Issue: 89555
@@ -122,20 +113,12 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: move auto/multi cases to dedicated unit tests
             R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
             // unsupported metrics
-            R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+            R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
             // Issue: 111437
             R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.CompareWithRefs.*)",
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.CompareWithRefs.*)",
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.CompareWithRefs.*)",
-            // New plugin API doesn't support changes of pre-processing
-            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
-            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
-            // New plugin work with tensors, so it means that blob in old API can have different pointers
-            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
-            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
-            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
-            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
             // For some strange reason (bug?) output format cannot have a rank greater than 4 for dynamic shape case,
             // because it crashes in some random places during "reorder_inputs" pass.
             R"(.*UniqueLayerDynamicGPUTest.*\(\d*\.\d*\.\d*\.\d*\.\d*\).*axis.*)",

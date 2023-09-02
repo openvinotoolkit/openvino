@@ -79,9 +79,10 @@ protected:
         std::tie(inputShapes, netType, targetDevice, additionalConfig) = basicParamsSet;
 
         init_input_shapes(inputShapes);
-        const auto inShapeDeconv = inputDynamicShapes[0];
-        const auto inShapeEReduce = inputDynamicShapes[1];
-        auto params = builder::makeDynamicParams(netType, {inShapeDeconv, inShapeEReduce});
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+        }
         auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
         auto deconvOp = ngraph::builder::makeConvolutionBackpropData(paramOuts[0], netType, {2, 2, 2}, {2, 2, 2}, {0, 0, 0},
