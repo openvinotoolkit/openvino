@@ -35,6 +35,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: master
 
 variables:
   - group: github
