@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp"
+
 #include <gtest/gtest.h>
 
-#include <openvino/opsets/opset10.hpp>
-#include <transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using namespace testing;
 using namespace std;

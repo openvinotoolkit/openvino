@@ -79,6 +79,7 @@ protected:
         std::tie(inputShapes, netType, targetDevice, additionalConfig) = basicParamsSet;
 
         init_input_shapes(inputShapes);
+
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
