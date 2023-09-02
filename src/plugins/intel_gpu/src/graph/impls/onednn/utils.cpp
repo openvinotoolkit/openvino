@@ -13,27 +13,6 @@
 namespace cldnn {
 namespace onednn {
 
-namespace {
-std::string convert_data_format_string(cldnn::format fmt) {
-    switch (fmt) {
-        case cldnn::format::b_fs_yx_fsv2: return "aBcd2b";
-        case cldnn::format::b_fs_zyx_fsv2: return "aBcde2b";
-        case cldnn::format::b_fs_yx_fsv8: return "aBcd8b";
-        case cldnn::format::b_fs_zyx_fsv8: return "aBcde8b";
-        case cldnn::format::bs_fs_yx_bsv16_fsv2: return "ABcd16a2b";
-        case cldnn::format::bs_fs_zyx_bsv16_fsv2: return "ABcde16a2b";
-        case cldnn::format::bs_fs_yx_bsv16_fsv4: return "ABcd16a4b";
-        case cldnn::format::bs_fs_zyx_bsv16_fsv4: return "ABcde16a4b";
-        case cldnn::format::bs_fs_yx_bsv16_fsv8: return "ABcd16a8b";
-        case cldnn::format::bs_fs_zyx_bsv16_fsv8: return "ABcde16a8b";
-        case cldnn::format::bs_fs_yx_bsv16_fsv32: return "ABcd16a32b";
-        case cldnn::format::bs_fs_zyx_bsv16_fsv32: return "ABcde16a32b";
-        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout string" + fmt_to_str(fmt));
-    }
-}
-
-}  // namespace
-
 template <typename T>
 cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
     auto engine = zp_memory->get_engine();
@@ -143,7 +122,6 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::b_fs_zyx_fsv8, dnnl::memory::format_tag::aBcde8b },
         { cldnn::format::b_fs_zyx_fsv16, dnnl::memory::format_tag::nCdhw16c },
         { cldnn::format::b_fs_zyx_fsv32, dnnl::memory::format_tag::aBcde32b },
-        { cldnn::format::bs_fs_yx_bsv16_fsv8, dnnl::memory::format_tag::ABcd16a8b },
         { cldnn::format::bs_fs_yx_bsv16_fsv16, dnnl::memory::format_tag::NChw16n16c },
         { cldnn::format::bs_fs_yx_bsv16_fsv32, dnnl::memory::format_tag::NChw16n32c },
         { cldnn::format::bs_fs_yx_bsv32_fsv32, dnnl::memory::format_tag::NChw32n32c },
@@ -154,7 +132,6 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::bs_fs_yx_bsv32_fsv16, dnnl::memory::format_tag::NChw32n16c },
         { cldnn::format::bs_fs_zyx_bsv32_fsv16, dnnl::memory::format_tag::NCdhw32n16c },
         { cldnn::format::bs_fs_zyx_bsv32_fsv32, dnnl::memory::format_tag::NCdhw32n32c },
-        { cldnn::format::bs_fs_zyx_bsv16_fsv8, dnnl::memory::format_tag::ABcde16a8b },
         { cldnn::format::bs_fs_zyx_bsv16_fsv16, dnnl::memory::format_tag::NCdhw16n16c },
         // { cldnn::format::bs_fs_zyx_bsv16_fsv32, dnnl::memory::format_tag::NCdhw16n32c }, // TODO onednn3.0: Request NCdhw16n32c format
         { cldnn::format::bs_fs_zyx_bsv8_fsv4, dnnl::memory::format_tag::ABcde8a4b },
@@ -165,8 +142,10 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
     auto ret = std::find_if(format_map.begin(), format_map.end(),
             [fmt](std::pair<cldnn::format, dnnl::memory::format_tag> &e) {
                     return e.first == fmt; });
-    if (ret == format_map.end())
-        return dnnl::memory::format_tag::undef;
+    if (ret == format_map.end()) {
+        GPU_DEBUG_INFO << "[clDNN] Unsupported conversion from "+ fmt.to_string() + " to onednn format_tag. Any tag will be used instead." << std::endl;
+        return dnnl::memory::format_tag::any;
+    }
 
     return ret->second;
 }
@@ -241,8 +220,6 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
 
     dnnl::memory::data_type dt = convert_data_type(l.data_type);
     dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
-
-    OPENVINO_ASSERT(fmt != dnnl::memory::format_tag::undef, "[GPU] Unexpected fmt: ", convert_data_format_string(l.format));
     dnnl::memory::desc res(dims, dt, fmt);
 
     return res;
