@@ -63,7 +63,7 @@ protected:
                         GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
                     }
                     GPU_DEBUG_TRACE_DETAIL << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);  // segfault in v3.3pc; TODO Report oneDNN
+                    dnnl_mem.unmap_data(mapped_ptr);
                 }
             }
         }
@@ -83,7 +83,7 @@ protected:
                         GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
                     }
                     GPU_DEBUG_TRACE_DETAIL << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);  // segfault in v3.3pc; TODO Report oneDNN
+                    dnnl_mem.unmap_data(mapped_ptr);
                 }
             }
         }
