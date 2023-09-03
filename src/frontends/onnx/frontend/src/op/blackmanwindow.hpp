@@ -9,11 +9,11 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_1 {
+namespace set_17 {
 
 OutputVector blackmanwindow(const Node& node);
 
-}  // namespace set_1
+}  // namespace set_17
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph

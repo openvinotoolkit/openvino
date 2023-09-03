@@ -346,7 +346,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
-    REGISTER_OPERATOR("BlackManWindow", 1, blackmanwindow);
+    REGISTER_OPERATOR("BlackManWindow", 17, blackmanwindow);
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);
     REGISTER_OPERATOR("Ceil", 1, ceil);
@@ -394,8 +394,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Greater", 1, greater);
     REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GRU", 1, gru);
-    REGISTER_OPERATOR("HannWindow", 1, hannwindow);
-    REGISTER_OPERATOR("HammingWindow", 1, hammingwindow);
+    REGISTER_OPERATOR("HannWindow", 17, hannwindow);
+    REGISTER_OPERATOR("HammingWindow", 17, hammingwindow);
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
