@@ -7,6 +7,8 @@ import numpy as np
 import pytest
 import tensorflow as tf
 import tensorflow_hub as hub
+# noinspection PyUnresolvedReferences
+import tensorflow_text  # do not delete, needed for text models
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 
@@ -14,12 +16,15 @@ from models_hub_common.utils import get_models_list
 class TestTFHubConvertModel(TestConvertModel):
     def load_model(self, model_name, model_link):
         load = hub.load(model_link)
-        if 'default' in list(load.signatures.keys()):
+        if 'serving_default' in list(load.signatures.keys()):
+            concrete_func = load.signatures['default']
+        elif 'default' in list(load.signatures.keys()):
             concrete_func = load.signatures['default']
         else:
             signature_keys = sorted(list(load.signatures.keys()))
             assert len(signature_keys) > 0, "No signatures for a model {}, url {}".format(model_name, model_link)
             concrete_func = load.signatures[signature_keys[0]]
+        concrete_func._backref_to_saved_model = load
         return concrete_func
 
     def get_inputs_info(self, model_obj):
@@ -43,6 +48,8 @@ class TestTFHubConvertModel(TestConvertModel):
                 tf.string: str,
                 tf.bool: bool,
             }
+            if input_info.dtype not in type_map:
+                continue
             assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
             inputs_info.append((input_shape, type_map[input_info.dtype]))
 
@@ -69,6 +76,13 @@ class TestTFHubConvertModel(TestConvertModel):
     @pytest.mark.parametrize("model_name,model_link",
                              get_models_list(os.path.join(os.path.dirname(__file__), "precommit_models")))
     @pytest.mark.precommit
+    def test_convert_model(self, model_name, model_link, ie_device):
+        # we do not perform transpose in the test in case of new frontend
+        self.run(model_name, model_link, ie_device)
+
+    @pytest.mark.parametrize("model_name,model_link",
+                             get_models_list(os.path.join(os.path.dirname(__file__), "nightly_models")))
+    @pytest.mark.nightly
     def test_convert_model(self, model_name, model_link, ie_device):
         # we do not perform transpose in the test in case of new frontend
         self.run(model_name, model_link, ie_device)

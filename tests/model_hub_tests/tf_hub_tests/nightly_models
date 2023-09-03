@@ -1,0 +1,11 @@
+imagenet/mobilenet_v1_100_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5?tf-hub-format=compressed
+imagenet/mobilenet_v2_100_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/5?tf-hub-format=compressed
+universal-sentence-encoder-multilingual,https://tfhub.dev/google/universal-sentence-encoder-multilingual/3?tf-hub-format=compressed
+universal-sentence-encoder-large,https://tfhub.dev/google/universal-sentence-encoder-large/5?tf-hub-format=compressed
+imagenet/mobilenet_v2_075_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v2_075_224/classification/5?tf-hub-format=compressed
+movenet/singlepose/lightning,https://tfhub.dev/google/movenet/singlepose/lightning/4?tf-hub-format=compressed
+vision/embedder/fungi_V2,https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed
+imagenet/mobilenet_v1_025_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v1_025_224/classification/5?tf-hub-format=compressed
+bert_en_uncased_preprocess,https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3?tf-hub-format=compressed
+tf2-preview/mobilenet_v2/feature_vector,https://tfhub.dev/google/tf2-preview/mobilenet_v2/feature_vector/4?tf-hub-format=compressed
+magenta/arbitrary-image-stylization-v1-256,https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2?tf-hub-format=compressed

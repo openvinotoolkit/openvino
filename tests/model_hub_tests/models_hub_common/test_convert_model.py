@@ -84,3 +84,5 @@ class TestConvertModel:
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
         print("Compare TensorFlow and OpenVINO results")
         self.compare_results(fw_outputs, ov_outputs)
+        del concrete_func
+        del ov_model
