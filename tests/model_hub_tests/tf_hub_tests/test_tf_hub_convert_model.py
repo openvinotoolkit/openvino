@@ -63,14 +63,14 @@ class TestTFHubConvertModel(TestConvertModel):
         for out_name, out_value in model_obj(*tf_inputs).items():
             output_dict[out_name] = out_value.numpy()
 
+        # TODO: 119141 - remove this workaround
         # map external tensor names to internal names
-        # TODO: remove this workaround
+        assert len(model_obj.outputs) == len(model_obj.structured_outputs)
         fw_outputs = {}
-        for out_name, out_value in output_dict.items():
-            mapped_name = out_name
-            if out_name in model_obj.structured_outputs:
-                mapped_name = model_obj.structured_outputs[out_name].name
-            fw_outputs[mapped_name] = out_value
+        for output_ind, external_name in enumerate(sorted(model_obj.structured_outputs.keys())):
+            internal_name = model_obj.outputs[output_ind].name
+            out_value = output_dict[external_name]
+            fw_outputs[internal_name] = out_value
         return fw_outputs
 
     @pytest.mark.parametrize("model_name,model_link",
