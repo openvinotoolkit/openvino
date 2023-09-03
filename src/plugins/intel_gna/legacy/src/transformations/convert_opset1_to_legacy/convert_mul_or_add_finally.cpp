@@ -206,7 +206,7 @@ ngraph::matcher_pass_callback get_callback() {
     return callback;
 }
 
-class ConvertAdd : public ngraph::pass::MatcherPass {
+class ConvertAdd : public ov::pass::MatcherPass {
 public:
     ConvertAdd() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::opset1::Add>());
@@ -214,7 +214,7 @@ public:
     }
 };
 
-class ConvertSub : public ngraph::pass::MatcherPass {
+class ConvertSub : public ov::pass::MatcherPass {
 public:
     ConvertSub() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::opset1::Subtract>());
@@ -222,7 +222,7 @@ public:
     }
 };
 
-class ConvertMul : public ngraph::pass::MatcherPass {
+class ConvertMul : public ov::pass::MatcherPass {
 public:
     ConvertMul() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::opset1::Multiply>());

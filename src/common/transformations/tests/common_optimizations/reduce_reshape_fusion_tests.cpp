@@ -5,16 +5,16 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/manager.hpp>
 #include <string>
-#include <transformations/common_optimizations/reduce_reshape_fusion.hpp>
-#include <transformations/common_optimizations/transpose_to_reshape.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/reduce_reshape_fusion.hpp"
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace testing;
