@@ -17,7 +17,7 @@ class TestTFHubConvertModel(TestConvertModel):
     def load_model(self, model_name, model_link):
         load = hub.load(model_link)
         if 'serving_default' in list(load.signatures.keys()):
-            concrete_func = load.signatures['default']
+            concrete_func = load.signatures['serving_default']
         elif 'default' in list(load.signatures.keys()):
             concrete_func = load.signatures['default']
         else:
