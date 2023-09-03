@@ -31,11 +31,15 @@ class TestTFHubConvertModel(TestConvertModel):
         inputs_info = []
         for input_info in model_obj.inputs:
             input_shape = []
-            for dim in input_info.shape.as_list():
-                if dim is None:
-                    input_shape.append(1)
-                else:
-                    input_shape.append(dim)
+            try:
+                for dim in input_info.shape.as_list():
+                    if dim is None:
+                        input_shape.append(1)
+                    else:
+                        input_shape.append(dim)
+            except ValueError:
+                # unknown rank case
+                pass
             type_map = {
                 tf.float64: np.float64,
                 tf.float32: np.float32,
