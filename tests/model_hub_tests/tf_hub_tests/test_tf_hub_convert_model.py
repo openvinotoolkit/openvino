@@ -60,11 +60,13 @@ class TestTFHubConvertModel(TestConvertModel):
         return inputs_info
 
     def infer_fw_model(self, model_obj, inputs):
-        tf_inputs = []
-        for input_data in inputs:
-            tf_inputs.append(tf.constant(input_data))
+        # TODO 119141 - use the same dictionary for OV inference
+        tf_inputs = {}
+        for input_ind, input_name in enumerate(sorted(model_obj.structured_input_signature[1].keys())):
+            tf_inputs[input_name] = tf.constant(inputs[input_ind])
+
         output_dict = {}
-        for out_name, out_value in model_obj(*tf_inputs).items():
+        for out_name, out_value in model_obj(**tf_inputs).items():
             output_dict[out_name] = out_value.numpy()
 
         # TODO: 119141 - remove this workaround
@@ -80,13 +82,13 @@ class TestTFHubConvertModel(TestConvertModel):
     @pytest.mark.parametrize("model_name,model_link",
                              get_models_list(os.path.join(os.path.dirname(__file__), "precommit_models")))
     @pytest.mark.precommit
-    def test_convert_model(self, model_name, model_link, ie_device):
+    def test_convert_model_precommit(self, model_name, model_link, ie_device):
         # we do not perform transpose in the test in case of new frontend
         self.run(model_name, model_link, ie_device)
 
     @pytest.mark.parametrize("model_name,model_link",
                              get_models_list(os.path.join(os.path.dirname(__file__), "nightly_models")))
     @pytest.mark.nightly
-    def test_convert_model(self, model_name, model_link, ie_device):
+    def test_convert_model_all_models(self, model_name, model_link, ie_device):
         # we do not perform transpose in the test in case of new frontend
         self.run(model_name, model_link, ie_device)

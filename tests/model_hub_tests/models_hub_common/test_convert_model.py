@@ -1,5 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import gc
 
 import numpy as np
 from openvino.runtime import Core
@@ -69,20 +70,22 @@ class TestConvertModel:
                 print("absolute eps: {}, relative eps: {}".format(fw_eps, fw_eps))
         assert is_ok, "Accuracy validation failed"
 
+    def teardown_method(self):
+        # deallocate memory after each test case
+        gc.collect()
+
     def run(self, model_name, model_link, ie_device):
         print("Load the model {} (url: {})".format(model_name, model_link))
-        concrete_func = self.load_model(model_name, model_link)
+        fw_model = self.load_model(model_name, model_link)
         print("Retrieve inputs info")
-        inputs_info = self.get_inputs_info(concrete_func)
+        inputs_info = self.get_inputs_info(fw_model)
         print("Prepare input data")
         inputs = self.prepare_inputs(inputs_info)
         print("Convert the model into ov::Model")
-        ov_model = self.convert_model(concrete_func)
+        ov_model = self.convert_model(fw_model)
         print("Infer the original model")
-        fw_outputs = self.infer_fw_model(concrete_func, inputs)
+        fw_outputs = self.infer_fw_model(fw_model, inputs)
         print("Infer ov::Model")
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
         print("Compare TensorFlow and OpenVINO results")
         self.compare_results(fw_outputs, ov_outputs)
-        del concrete_func
-        del ov_model
