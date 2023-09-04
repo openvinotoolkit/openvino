@@ -4,7 +4,7 @@ numpy>=1.16.6,<1.26  # Python bindings, frontends
 # pytest
 pytest>=5.0,<7.5
 pytest-dependency==0.5.1
-pytest-html==3.2.0
+pytest-html==4.0.0
 pytest-timeout==2.1.0
 
 # Python bindings
