@@ -1,6 +1,8 @@
 Working with GPUs in OpenVINO™
 ==============================
 
+
+
 .. _top:
 
 **Table of contents**:

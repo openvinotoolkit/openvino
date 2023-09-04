@@ -1,8 +1,6 @@
 Live Inference and Benchmark CT-scan Data with OpenVINO™
 ========================================================
 
-.. _top:
-
 Kidney Segmentation with PyTorch Lightning and OpenVINO™ - Part 4
 -----------------------------------------------------------------
 
@@ -29,6 +27,10 @@ notebook.
 
 For demonstration purposes, this tutorial will download one converted CT
 scan to use for inference. 
+
+
+
+.. _top:
 
 **Table of contents**:
 

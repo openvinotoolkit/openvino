@@ -1,7 +1,7 @@
 Convert a Tensorflow Lite Model to OpenVINO™
 ============================================
 
-.. _top:
+
 
 `TensorFlow Lite <https://www.tensorflow.org/lite/guide>`__, often
 referred to as TFLite, is an open source library developed for deploying
@@ -16,6 +16,8 @@ Optimizer <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Mod
 After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image. 
+
+.. _top:
 
 **Table of contents**:
 

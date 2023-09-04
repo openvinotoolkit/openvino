@@ -1,7 +1,7 @@
 OpenVINO optimizations for Knowledge graphs
 ===========================================
 
-.. _top:
+
 
 The goal of this notebook is to showcase performance optimizations for
 the ConvE knowledge graph embeddings model using the Intel® Distribution
@@ -17,6 +17,8 @@ The ConvE model is an implementation of the paper -
 `Convolutional 2D Knowledge Graph Embeddings <https://arxiv.org/abs/1707.01476>`__. The
 sample dataset can be downloaded from:
 https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
+
+.. _top:
 
 **Table of contents**:
 
