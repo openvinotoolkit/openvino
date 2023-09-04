@@ -196,6 +196,7 @@ private:
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
+    void fuse_constant_transposes(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
     layout_optimizer& _lo;
@@ -412,15 +413,6 @@ public:
 
 private:
     void run(program& p) override;
-};
-
-class fuse_constant_transposes : public base_pass {
-public:
-    fuse_constant_transposes() : base_pass("fuse_constant_transposes") {}
-
-private:
-    void run(program& p) override;
-    format convert_weights_format_by_order(format fmt, const std::vector<uint16_t>& order) const;
 };
 
 }  // namespace cldnn

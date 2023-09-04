@@ -80,6 +80,7 @@ struct format {
         bfvuwzyx,                               ///< 8d tensor
         yxfb,                                   ///< batch first, feature and than spatials
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
+        fbyx,
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
         bzyxf,
         byfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
@@ -341,8 +342,9 @@ struct format {
         return (fmt == yxfb || fmt == byxf ||
                 fmt == byfx || fmt == bxfy ||
                 fmt == bfyx || fmt == fyxb ||
-                fmt == bfzyx || fmt == bfwzyx ||
-                fmt == bfuwzyx || fmt == bfvuwzyx);
+                fmt == fbyx || fmt == bfzyx ||
+                fmt == bfwzyx || fmt == bfuwzyx ||
+                fmt == bfvuwzyx);
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);

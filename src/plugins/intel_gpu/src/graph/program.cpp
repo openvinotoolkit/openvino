@@ -555,6 +555,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<pre_replace_deconv>(lo);
 
+        apply_opt_pass<reorder_transfer>();
+
 #ifdef GPU_DEBUG_CONFIG
         GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
 #else
@@ -612,11 +614,6 @@ void program::post_optimize_graph(bool is_internal) {
     bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
 
     if (!is_internal) {
-        apply_opt_pass<reorder_transfer>();
-
-        if (optimize_data) {
-            apply_opt_pass<fuse_constant_transposes>();
-        }
         apply_opt_pass<post_optimize_weights>(rf);
     }
 

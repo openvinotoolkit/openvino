@@ -204,7 +204,12 @@ INSTANTIATE_TEST_SUITE_P(smoke, find_format_test,
     testing::ValuesIn(std::vector<find_format_test_params>{
     //   Dims order             Block sizes               is_weights is_grouped is_image_2d is_winograd is_nv12   Expected format
         {{0, 1, 2, 3},          {},                       false,     false,     false,      false,      false,    format::bfyx},
+        {{1, 0, 2, 3},          {},                       false,     false,     false,      false,      false,    format::fbyx},
         {{2, 3, 1, 0},          {},                       false,     false,     false,      false,      false,    format::yxfb},
+        {{0, 2, 3, 1},          {},                       false,     false,     false,      false,      false,    format::byxf},
+        {{1, 2, 3, 0},          {},                       false,     false,     false,      false,      false,    format::fyxb},
+        {{0, 2, 1, 3},          {},                       false,     false,     false,      false,      false,    format::byfx},
+        {{0, 3, 1, 2},          {},                       false,     false,     false,      false,      false,    format::bxfy},
         {{0, 1, 2, 3},          {{1, 16}},                false,     false,     false,      false,      false,    format::b_fs_yx_fsv16},
         {{0, 1},                {{0, 8}, {1, 8}},         false,     false,     false,      false,      false,    format::bs_fs_fsv8_bsv8},
         {{0, 1, 2, 3, 4, 5, 6}, {},                       false,     false,     false,      false,      false,    format::bfuwzyx},

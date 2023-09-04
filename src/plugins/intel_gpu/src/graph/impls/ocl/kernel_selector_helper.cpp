@@ -211,6 +211,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::byfx;
         case format::bxfy:
             return kernel_selector::data_layout::bxfy;
+        case format::fbyx:
+            return kernel_selector::data_layout::fbyx;
         case format::fyxb:
             return kernel_selector::data_layout::fyxb;
         case format::b_fs_yx_fsv2:
@@ -310,6 +312,8 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::byfx;
         case kernel_selector::data_layout::bxfy:
             return cldnn::format::bxfy;
+        case kernel_selector::data_layout::fbyx:
+            return cldnn::format::fbyx;
         case kernel_selector::data_layout::fyxb:
             return cldnn::format::fyxb;
         case kernel_selector::data_layout::b_fs_yx_fsv2:
@@ -382,6 +386,7 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
         case format::bfyx:
         case format::oiyx:
             return kernel_selector::weights_layout::oiyx;
+        case format::fbyx:
         case format::ioyx:
             return kernel_selector::weights_layout::ioyx;
         case format::iyxo:

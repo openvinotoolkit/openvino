@@ -91,9 +91,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 updated_input_layout.data_type = input_dtype;
 
                 // Need to update input format in case of fusing weights constant with transpose
-                if (format::is_weights_format(prev_node.get_input_layouts()[0].format)) {
-                    updated_input_layout.format = prev_node.get_input_layouts()[0].format;
-                }
+                format input_fmt = prev_node.get_input_layouts()[0].format;
+                updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
+
                 weights_reorder_params->set_input_layout(updated_input_layout);
                 auto weights_reorder = _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid,
                                                                weights_reorder_params);
