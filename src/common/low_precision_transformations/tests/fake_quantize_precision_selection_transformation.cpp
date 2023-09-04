@@ -15,7 +15,7 @@
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/max_pool.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/fake_quantize_precision_selection_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 

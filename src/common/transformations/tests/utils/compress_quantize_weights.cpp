@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "compress_quantize_weights.hpp"
+
 #include <gtest/gtest.h>
 
-#include <compress_quantize_weights.hpp>
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/rt_info/decompression.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -59,7 +60,7 @@ class CompressQuantizeWeightsTests
             model = std::make_shared<Model>(fq, ParameterVector{});
         }
 
-        manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
 
         {
             auto data = opset8::Constant::create(param.expected_type, param.shape, param.expected_weights);
@@ -147,7 +148,7 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraph) 
 
         model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
 
-        manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
     }
     {
         auto data = opset8::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
@@ -182,7 +183,7 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraphFP
 
         model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
 
-        manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
     }
     {
         auto data = opset8::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
@@ -207,8 +208,8 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointOptimizer) {
         auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
         model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
 
-        manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
-        manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+        manager.register_pass<ov::pass::ZeroPointOptimizer>();
     }
 
     {
@@ -237,8 +238,8 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointOptimizerFP16) 
         auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 255);
         model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
 
-        manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
-        manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+        manager.register_pass<ov::pass::ZeroPointOptimizer>();
     }
 
     {
@@ -262,8 +263,8 @@ TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsWithZeroPointOptimiz
         auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
         model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
 
-        manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
-        manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+        manager.register_pass<ov::pass::ZeroPointOptimizer>();
     }
     {
         auto data = opset8::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
@@ -287,8 +288,8 @@ TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsNonConstantInput) {
     auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
     model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
 
-    manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
-    manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
+    manager.register_pass<ov::pass::CompressQuantizeWeights>();
+    manager.register_pass<ov::pass::ZeroPointOptimizer>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
