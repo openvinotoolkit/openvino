@@ -74,18 +74,19 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& re
             };
             AsyncInferRequest* _this = nullptr;
         };
-        m_pipeline = {{/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
-                        if (this->m_sync_request->m_exception_ptr)  // if the exception happened in the batch1 fallback
-                            std::rethrow_exception(this->m_sync_request->m_exception_ptr);
-                        auto batchReq = this->m_sync_request->m_batched_request_wrapper;
-                        if (batchReq->_exception_ptr)  // when the batchN execution failed
-                            std::rethrow_exception(batchReq->_exception_ptr);
-                        // in the case of non-batched execution the tensors were set explicitly
-                        if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-                            this->m_sync_request->m_batched_request_status) {
-                            this->m_sync_request->copy_outputs_if_needed();
-                        }
-                    }}};
+        m_pipeline = {
+            {/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
+                 if (this->m_sync_request->m_exception_ptr)  // if the exception happened in the batch1 fallback
+                     std::rethrow_exception(this->m_sync_request->m_exception_ptr);
+                 auto batchReq = this->m_sync_request->m_batched_request_wrapper;
+                 if (batchReq->_exception_ptr)  // when the batchN execution failed
+                     std::rethrow_exception(batchReq->_exception_ptr);
+                 // in the case of non-batched execution the tensors were set explicitly
+                 if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
+                     this->m_sync_request->m_batched_request_status) {
+                     this->m_sync_request->copy_outputs_if_needed();
+                 }
+             }}};
     }
 }
 
