@@ -55,6 +55,9 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 // - Reshape(input_shape={5,10,15}, target_shape={5,10,1,15}), 2 axis is returned
 std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& target_shape, const ov::Shape& input_shape) {
     std::vector<int64_t> result;
+    if (target_shape.size() <= input_shape.size()) {
+        return result;
+    }
     if (input_shape.size() == 0) {  // scalar case - can be reshaped only to [1,..,1] shape
         result.resize(target_shape.size(), 0);
         std::iota(std::begin(result), std::end(result), 0);
@@ -198,12 +201,8 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
         if (reshape_node->get_output_partial_shape(0).is_dynamic()) {
             return false;
         }
-        const auto& input_shape = input_node.get_shape();
-        const auto& target_shape = reshape_node->get_shape();
-        if (target_shape.size() <= input_shape.size()) {
-            return false;
-        }
-        const auto unsqueeze_axes = try_get_unsqueeze_axes_from_reshape(target_shape, input_shape);
+        const auto unsqueeze_axes =
+            try_get_unsqueeze_axes_from_reshape(reshape_node->get_shape(), input_node.get_shape());
         if (unsqueeze_axes.empty()) {
             return false;
         }
