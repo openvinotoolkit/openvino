@@ -1,4 +1,4 @@
-# Converting a TensorFlow Lite Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite}
+# Converting a TensorFlow Lite Model {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite}
 
 @sphinxdirective
 

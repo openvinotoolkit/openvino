@@ -1,4 +1,4 @@
-# Compressing a Model to FP16 {#openvino_docs_MO_DG_FP16_Compression}
+# Compressing a Model to FP16 {#openvino_docs_OV_Converter_UG_FP16_Compression}
 
 @sphinxdirective
 
@@ -36,7 +36,7 @@ For details on how plugins handle compressed ``FP16`` models, see
 .. note::
 
    ``FP16`` compression is sometimes used as the initial step for ``INT8`` quantization.
-   Refer to the :doc:`Post-training optimization <**TODO: LINK TO NNCF>` guide for more
+   Refer to the :doc:`Post-training optimization <pot_introduction>` guide for more
    information about that.
 
 @endsphinxdirective

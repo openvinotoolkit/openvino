@@ -1,4 +1,4 @@
-# Converting a TensorFlow Model {#openvino_docs__prepare_model_convert_model_Convert_Model_From_TensorFlow}
+# Converting a TensorFlow Model {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
 
 @sphinxdirective
 
