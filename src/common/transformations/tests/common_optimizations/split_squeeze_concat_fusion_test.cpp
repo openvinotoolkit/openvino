@@ -52,6 +52,38 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
     }
 }
 
+TEST_F(TransformationTestsF, SplitSqueezeConcatFusionSqueezeWithoutAxesInput) {
+    size_t num_splits = 4;
+
+    {
+        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{3, 2, num_splits, 640, 20, 2});
+        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        OutputVector squeeze_vec(num_splits);
+
+        for (size_t i = 0; i < squeeze_vec.size(); i++) {
+            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i));
+        }
+
+        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+
+        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
+    }
+
+    {
+        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{3, 2, num_splits, 640, 20, 2});
+        auto transpose_order = opset7::Constant::create(element::i64, Shape{6}, {0, 1, 3, 4, 2, 5});
+        auto transpose = std::make_shared<opset7::Transpose>(input, transpose_order);
+        auto reshape_shape =
+            opset7::Constant::create<int64_t>(element::i64, Shape{5}, {3, 2, 640, 20, 2 * (int64_t)num_splits});
+        auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape, false);
+
+        model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+    }
+}
+
 TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutputsGoToSqueeze) {
     size_t num_splits = 4;
 
@@ -170,5 +202,26 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitAxisDiffer
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeSqueezeWithoutAxesInputMultipleUnitDimensions) {
+    size_t num_splits = 4;
+
+    {
+        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        OutputVector squeeze_vec(num_splits);
+
+        for (size_t i = 0; i < squeeze_vec.size(); i++) {
+            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i));
+        }
+
+        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 3);
+
+        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
     }
 }
