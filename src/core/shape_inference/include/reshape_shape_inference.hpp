@@ -12,106 +12,157 @@
 namespace ov {
 namespace op {
 namespace reshape {
+template <class T, class U = void>
+struct Product {};
 
-// helper to hold dimension products.
-template <class TDim>
-struct Product {
-    TDim not_labeled;
-    TDim labeled;
+/** \brief Helper to resolve the input and output product for static dimensions. */
+template <class T>
+struct Product<T, typename std::enable_if<!std::is_same<T, Dimension>::value>::type> {
+    T in{1};
+    T out{1};
 
-    TDim total() const {
-        return not_labeled * labeled;
+    void update_in(const T& in_dim) {
+        in *= in_dim;
     }
+
+    void update_out(const T& out_dim) {
+        out *= out_dim;
+    }
+
+    void set_inf() {
+        in = T(-1);
+        out = T(-1);
+    }
+
+    const T& get_static_in() const {
+        return in;
+    }
+
+    const T& get_static_out() const {
+        return out;
+    }
+
+    void calculate() {}
 };
 
-/**
- * @brief Check if pattern shape has `special_zero` at specified dimension.
- *
- * @tparam TShape Type of shape.
- *
- * @param pattern  Shape pattern to check.
- * @param idx      Dimension index in the shape pattern.
- * @return true    True if `special_zero` found otherwise false.
- */
-template <class TShape>
-bool has_pattern_special_zero_at(const TShape& pattern, size_t idx) {
-    return (idx < pattern.size() && pattern[idx] == 0);
-}
+/** \brief Helper to resolve the input and output product for ov::Dimension (dynamic) dimensions. */
+template <class T>
+struct Product<T, typename std::enable_if<std::is_same<T, Dimension>::value>::type> {
+    std::pair<T, T> in{1, 1};
+    std::pair<T, T> out{1, 1};
 
-// Resolve input products for PartialShape
-template <class TShape,
-          class TDim = typename TShape::value_type,
-          typename std::enable_if<std::is_same<TShape, PartialShape>::value>::type* = nullptr>
-Product<TDim> resolve_input_product(const TShape& input_shape, const TShape& pattern_shape, bool special_zero) {
-    auto in_products = Product<TDim>{1, 1};
-    bool label_found = false;
+    void update_in(const T& in_dim) {
+        inputs.emplace_back(in_dim);
+    }
 
-    for (size_t i = 0; i < input_shape.size(); ++i) {
-        if (!special_zero || !reshape::has_pattern_special_zero_at(pattern_shape, i)) {
-            if (DimensionTracker::get_label(input_shape[i]) == no_label) {
-                in_products.not_labeled *= input_shape[i];
-            } else if (label_found) {
-                in_products.labeled *= input_shape[i];
+    void update_out(const T& out_dim) {
+        outputs.emplace_back(out_dim);
+    }
+
+    void set_inf() {
+        in.second = T(-1);
+        out.second = T(-1);
+    }
+
+    const T& get_static_in() const {
+        return in.first;
+    }
+
+    const T& get_static_out() const {
+        return out.first;
+    }
+
+    const T& get_dynamic_in() const {
+        return in.second;
+    }
+
+    const T& get_dynamic_out() const {
+        return out.second;
+    }
+
+    void calculate() {
+        // dimensions compare to remove same from product calculation
+        auto dim_full_eq = [](const T& lhs, const T& rhs) -> bool {
+            return (lhs == rhs) && DimensionTracker::get_label(lhs) == DimensionTracker::get_label(rhs) &&
+                   (lhs.is_static() || DimensionTracker::has_label(lhs));
+        };
+
+        auto outs = outputs;
+
+        // calculate input product
+        for (const auto& d : inputs) {
+            auto out_it = std::find_if(outs.begin(), outs.end(), [&](const T& p) {
+                return dim_full_eq(d, p) && (d != 0);
+            });
+
+            if (out_it == outs.end()) {
+                mul(in, d);
             } else {
-                in_products.labeled = input_shape[i];
-                label_found = true;
+                if (!outs.empty()) {
+                    outs.erase(out_it);
+                }
             }
         }
-    }
 
-    return in_products;
-}
+        // calculate output product
+        for (const auto& o : outs) {
+            mul(out, o);
+        }
 
-// Resolve input products for StaticShape
-template <class TShape,
-          class TDim = typename TShape::value_type,
-          typename std::enable_if<!std::is_same<TShape, PartialShape>::value>::type* = nullptr>
-Product<TDim> resolve_input_product(const TShape& input_shape,
-                                    const result_shape_t<TShape>& pattern_shape,
-                                    bool special_zero) {
-    auto in_products = Product<TDim>{1, 1};
-
-    for (size_t i = 0; i < input_shape.size(); ++i) {
-        if (!special_zero || !reshape::has_pattern_special_zero_at(pattern_shape, i)) {
-            in_products.not_labeled *= input_shape[i];
+        if (in.first != out.first) {
+            in.second *= in.first;
+            out.second *= out.first;
+        } else if (in.second == T{1}) {
+            // If dynamic product is one (no dynamic) part use static
+            in.second = in.first;
         }
     }
 
-    return in_products;
-}
+private:
+    void mul(std::pair<T, T>& prod, const T& value) {
+        if (value.is_static()) {
+            prod.first = value * prod.first;
+        } else {
+            prod.second = value * prod.second;
+        }
+    }
+
+    std::vector<T> inputs{};
+    std::vector<T> outputs{};
+};
 
 // resolve minus one dimension for ov::Dimension
 template <class TDim,
           typename std::enable_if<std::is_same<typename std::decay<TDim>::type, Dimension>::value>::type* = nullptr>
-TDim resolve_minus_one_dim(const Product<TDim>& product_in, const TDim& product_out) {
-    TDim out = product_in.labeled;
+TDim resolve_minus_one_dim(const Product<TDim>& product) {
+    auto minus_one_dim = product.get_dynamic_in();
+    auto& product_out = product.get_dynamic_out();
 
-    if (product_out.is_static() && product_in.not_labeled.is_static()) {
-        if (product_in.not_labeled != product_out) {
-            out *= product_in.not_labeled;
-            out /= product_out.get_length();
-        }
+    if (minus_one_dim.is_static() && product_out.is_static()) {
+        minus_one_dim /= product_out.get_length();
     } else {
         using namespace ov::util;
-        out *= product_in.not_labeled;
-        auto& out_interval = out.get_interval();
-        if (product_out.get_min_length() != 0 && out_interval != Interval{} && product_out != TDim{}) {
-            out_interval.set_max_val(out_interval.get_max_val() / product_out.get_min_length());
+        auto& minus_one_interval = minus_one_dim.get_interval();
+
+        if (product_out.get_min_length() != 0 && minus_one_interval != Interval{} && product_out != TDim{}) {
+            minus_one_interval.set_max_val(minus_one_interval.get_max_val() / product_out.get_min_length());
         } else {
-            out_interval.set_max_val(Interval::s_max);
+            minus_one_interval.set_max_val(Interval::s_max);
         }
+
         if (product_out.get_max_length() != 0) {
-            out_interval.set_min_val(ceil_div(out_interval.get_min_val(), product_out.get_interval().get_max_val()));
+            minus_one_interval.set_min_val(
+                ceil_div(minus_one_interval.get_min_val(), product_out.get_interval().get_max_val()));
         }
     }
-    return out;
+    return minus_one_dim;
 }
 
 // resolve minus one dimension for static dimension
 template <class TDim,
           typename std::enable_if<!std::is_same<typename std::decay<TDim>::type, Dimension>::value>::type* = nullptr>
-TDim resolve_minus_one_dim(const Product<TDim>& product_in, const TDim& product_out) {
-    return product_in.total() / product_out.get_length();
+TDim resolve_minus_one_dim(const Product<TDim>& product) {
+    return product.get_static_in() / product.get_static_out().get_length();
 }
 
 /**
@@ -214,46 +265,67 @@ std::vector<TRShape> shape_infer(const Reshape* op,
         }
 
         const auto special_zero = op->get_special_zero();
-        TDim output_product{1};
 
-        for (size_t i = 0; i < output_pattern.size(); ++i) {
-            const auto& pattern_dim = output_pattern[i];
-            if (static_cast<int64_t>(i) == minus_one_idx) {
-                output_shape.emplace_back();
-            } else if (pattern_dim == 0 && special_zero) {
-                if (input_rank.is_dynamic()) {
+        reshape::Product<TDim> product;
+
+        if (input_rank.is_dynamic()) {
+            for (const auto& pattern : output_pattern) {
+                if (special_zero && pattern == 0) {
                     output_shape.emplace_back(dim::inf_bound);
-                    output_product = dim::inf_bound;
+                    product.set_inf();
                 } else {
-                    NODE_SHAPE_INFER_CHECK(op, input_shapes, i < input_shape.size(), "'0' dimension is out of range");
-                    output_shape.push_back(input_shape[i]);
-                    // we do not include dimension to output product here and won't include in input
-                    // product later because we will divide output_product by input_product. This
-                    // dimension contributes to both products equally
+                    output_shape.emplace_back(pattern);
+                    product.update_out(pattern);
                 }
-            } else {
-                output_shape.emplace_back(pattern_dim);
-                output_product *= pattern_dim;
+            }
+        } else {
+            auto input_iter = input_shape.begin();
+            auto input_last = input_shape.end();
+
+            for (size_t i = 0; i < output_pattern.size(); ++i) {
+                const auto& pattern_dim = output_pattern[i];
+                auto ignore_pattern_dim = special_zero && (pattern_dim == 0);
+
+                if (static_cast<int64_t>(i) == minus_one_idx) {
+                    output_shape.emplace_back();
+                } else if (ignore_pattern_dim) {
+                    NODE_SHAPE_INFER_CHECK(op, input_shapes, i < input_shape.size(), "'0' dimension is out of range");
+                    output_shape.push_back(*input_iter);
+                    // Exclude special zero dimension from product calculation
+                } else {
+                    output_shape.push_back(pattern_dim);
+                    product.update_out(pattern_dim);
+                }
+
+                if (input_iter != input_last) {
+                    if (!ignore_pattern_dim) {
+                        product.update_in(*input_iter);
+                    }
+                    ++input_iter;
+                }
+            }
+
+            // update input product by remaining input dimensions.
+            for (; input_iter != input_last; ++input_iter) {
+                product.update_in(*input_iter);
             }
         }
-
-        const auto input_product = input_rank.is_static()
-                                       ? reshape::resolve_input_product(input_shape, output_pattern, special_zero)
-                                       : reshape::Product<TDim>{TDim(dim::inf_bound), TDim(dim::inf_bound)};
+        product.calculate();
 
         // resolving -1 masked dimension
         const auto has_minus_one_idx = !dim::is_inf_bound(minus_one_idx);
         if (has_minus_one_idx) {
-            if (output_product == 0) {
+            auto& minus_one_dim = output_shape[minus_one_idx];
+            minus_one_dim = reshape::resolve_minus_one_dim(product);
+
+            if (product.get_static_out() == 0) {
                 NODE_VALIDATION_CHECK(op,
-                                      input_product.total() == 0,
+                                      product.get_static_in() == 0,
                                       "Cannot infer '-1' dimension with zero-size output dimension unless at least one "
                                       "input dimension is also zero-size");
-                output_shape[minus_one_idx] = 0;
             } else {
-                output_shape[minus_one_idx] = reshape::resolve_minus_one_dim(input_product, output_product);
                 NODE_VALIDATION_CHECK(op,
-                                      !dim::is_empty(output_shape[minus_one_idx]),
+                                      !dim::is_empty(minus_one_dim),
                                       "Non-'-1' output dimensions do not evenly divide the input dimensions");
             }
         }
@@ -261,7 +333,7 @@ std::vector<TRShape> shape_infer(const Reshape* op,
         if (input_shape.is_static() && output_shape.is_static()) {
             const auto zero_dims = std::any_of(output_pattern.begin(), output_pattern.end(), cmp::Equal<TDim>(0));
             const auto backward_compatible_check = (zero_dims && special_zero) || has_minus_one_idx;
-            const auto in_out_elements_equal = (input_product.total() == output_product);
+            const auto in_out_elements_equal = (product.get_static_in() == product.get_static_out());
 
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
