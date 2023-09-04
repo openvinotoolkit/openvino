@@ -222,7 +222,7 @@ void InferRequestBase::changeDefaultPtr() {
             inputPtrs.insert(blob->buffer());
         };
     } else {
-        changeInpPtr = [&inputPtrs](const EdgePtr &edge, InferenceEngine::Blob::Ptr blob) {
+        changeInpPtr = [](const EdgePtr &edge, InferenceEngine::Blob::Ptr blob) {
             changeEdgePtr(edge, blob);
         };
     }
