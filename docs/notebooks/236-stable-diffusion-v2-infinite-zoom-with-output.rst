@@ -470,7 +470,7 @@ generated latents channels + 4 for latent representation of masked image
 
     Text Encoder successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/text_encoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/text_encoder.bin
@@ -515,7 +515,7 @@ generated latents channels + 4 for latent representation of masked image
 
     U-Net successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/unet.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/unet.bin
@@ -561,7 +561,7 @@ generated latents channels + 4 for latent representation of masked image
 
     VAE encoder successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_encoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_encoder.bin
@@ -582,7 +582,7 @@ generated latents channels + 4 for latent representation of masked image
 
     VAE decoder successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_decoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_decoder.bin

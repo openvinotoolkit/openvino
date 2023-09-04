@@ -500,7 +500,7 @@ configuration of the device. There are three different hints:
 notebook is focused on the throughput mode, we will use the latter two.
 The hints can be used with other devices as well. Throughput mode
 implicitly triggers using the `Automatic
-Batching <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Automatic_Batching.html>`__
+Batching <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Automatic_Batching.html>`__
 feature, which sets the batch size to the optimal level.
 
 .. code:: ipython3
@@ -556,7 +556,7 @@ OpenVINO IR model in throughput mode on AUTO `⇑ <#top>`__
 
 
 OpenVINO offers a virtual device called
-`AUTO <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
+`AUTO <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
 which can select the best device for us based on the aforementioned
 performance hint.
 
@@ -671,7 +671,7 @@ There are other tricks for performance improvement, such as advanced
 options, quantization and pre-post-processing or dedicated to latency
 mode. To get even more from your model, please visit `advanced
 throughput
-options <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput_advanced.html>`__,
+options <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_tput_advanced.html>`__,
 `109-latency-tricks <109-latency-tricks-with-output.html>`__,
 `111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__, and
 `118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
@@ -722,6 +722,6 @@ object detection model. Even if you experience much better performance
 after running this notebook, please note this may not be valid for every
 hardware or every model. For the most accurate results, please use
 ``benchmark_app`` `command-line
-tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_samples_benchmark_app_README.html>`__.
+tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_samples_benchmark_app_README.html>`__.
 Note that ``benchmark_app`` cannot measure the impact of some tricks
 above.
