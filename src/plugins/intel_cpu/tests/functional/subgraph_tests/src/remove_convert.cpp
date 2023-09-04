@@ -62,6 +62,52 @@ public:
     };
 };
 
+class RemoveUselessFP16ConvertCPUTest : public testing::WithParamInterface<RemoveConvertCPUTestParams>,
+                             virtual public SubgraphBaseTest,
+                             public CPUTestsBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
+        ElementType inType;
+        InputShape inputShape;
+        std::tie(inType, inputShape) = obj.param;
+        std::ostringstream result;
+        result << "IS=" << inputShape << "_";
+        result << "Prc=" << inType;
+        return result.str();
+    }
+
+    void SetUp() override {
+        ElementType inType;
+        InputShape inputShape;
+        std::tie(inType, inputShape) = this->GetParam();
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        if (inType == ElementType::f16) {
+            configuration.insert({ov::hint::inference_precision.name(), "f16"});
+        }
+        std::tie(inFmts, outFmts, priority, selectedType) =
+            CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
+        init_input_shapes({inputShape});
+        auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
+        auto convert = builder::makeConversion(input_params, element::f32, ::helpers::ConversionTypes::CONVERT);
+        auto begin = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
+        auto end = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
+        auto stride = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
+        auto slice = builder::makeStridedSlice(convert,
+                                               begin,
+                                               end,
+                                               stride,
+                                               element::f32,
+                                               {0, 0, 0, 0},
+                                               {1, 1, 0, 1},
+                                               {},
+                                               {},
+                                               {});
+        auto convert2 = builder::makeConversion(slice, inType, ::helpers::ConversionTypes::CONVERT);
+        function = std::make_shared<ov::Model>(convert2, ov::ParameterVector{input_params}, "remove_convert");
+    };
+};
+
+
 class RemoveUselessConvertCPUTest : public testing::WithParamInterface<RemoveConvertCPUTestParams>,
                                     virtual public SubgraphBaseTest,
                                     public CPUTestsBase {
@@ -108,29 +154,7 @@ TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
 }
 
-TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
-
-    run();
-    CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
-    CheckPluginRelatedResults(compiledModel, "StridedSlice");
-}
-
-
 TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs) {
-    run();
-    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
-}
-
-TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
-
     run();
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
 }
@@ -148,6 +172,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
                          RemoveUselessBF16ConvertCPUTest,
                          ::testing::Combine(::testing::Values(ElementType::bf16), ::testing::ValuesIn(inputShapes)),
                          RemoveUselessBF16ConvertCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
+                         RemoveUselessFP16ConvertCPUTest,
+                         ::testing::Combine(::testing::Values(ElementType::f16), ::testing::ValuesIn(inputShapes)),
+                         RemoveUselessFP16ConvertCPUTest::getTestCaseName);
+
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
                          RemoveUselessConvertCPUTest,

@@ -84,7 +84,8 @@ TEST_P(FQLayerDQBias, smoke_CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, node_type);
 }
 
-TEST_P(FQLayerDQBias, smoke_CompareWithRefs_FP16) {
+using FQLayerDQBias_FP16 = FQLayerDQBias;
+TEST_P(FQLayerDQBias_FP16, smoke_CompareWithRefs) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
@@ -108,11 +109,24 @@ const std::vector<std::string> layer_types_4D_static = {
     "MatMul",
 };
 
+const std::vector<std::string> layer_types_4D_static_FP16 = {
+    "Convolution",
+    "GroupConvolution",
+    "MatMul",
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQBias_4D_static, FQLayerDQBias,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_4D_static),
                                             ::testing::ValuesIn(layer_types_4D_static),
                                             ::testing::Values(false)),
                          FQLayerDQBias::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQBias_4D_static_FP16, FQLayerDQBias_FP16,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_4D_static),
+                                            ::testing::ValuesIn(layer_types_4D_static_FP16),
+                                            ::testing::Values(false)),
+                         FQLayerDQBias::getTestCaseName);
+
 
 const std::vector<InputShape> input_shapes_4D_dynamic = {
     {{-1, 3, -1, -1}, {{1, 3, 64, 64}}}

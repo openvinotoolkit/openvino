@@ -78,7 +78,17 @@ TEST_P(ConvPoolActivTest, CompareWithRefs) {
     CheckPluginRelatedResults(executableNetwork, "Convolution");
 }
 
-TEST_P(ConvPoolActivTest, CompareWithRefs_FP16) {
+class ConvPoolActivTest_FP16 : public ConvPoolActivTest {
+    bool primTypeCheck(std::string primType) const override {
+        auto isaType = getISA(true);
+        if (isaType == "")
+            return primType == "ref";
+        else
+            return primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, element::f16);
+    }
+};
+
+TEST_P(ConvPoolActivTest_FP16, CompareWithRefs_FP16) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
@@ -96,7 +106,16 @@ const std::vector<fusingSpecificParams> fusingParamsSet {
         fusingSigmoid
 };
 
+const std::vector<fusingSpecificParams> fusingParamsSet_FP16 {
+        emptyFusingSpec
+        // fusingRelu,
+        // fusingSwish,
+        // fusingSigmoid
+};
+
+
 INSTANTIATE_TEST_SUITE_P(smoke_Check, ConvPoolActivTest, ::testing::ValuesIn(fusingParamsSet), ConvPoolActivTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check, ConvPoolActivTest_FP16, ::testing::ValuesIn(fusingParamsSet_FP16), ConvPoolActivTest::getTestCaseName);
 
 } // namespace
 

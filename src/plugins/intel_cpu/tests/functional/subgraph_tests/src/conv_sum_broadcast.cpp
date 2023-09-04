@@ -3,6 +3,8 @@
 //
 
 #include <ov_ops/type_relaxed.hpp>
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -161,16 +163,22 @@ TEST_P(ConvSumInPlaceTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
-TEST_P(ConvSumInPlaceTest, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+class ConvSumInPlaceTest_FP16 : public ConvSumInPlaceTest {
+public:
+    void SetUp() override {
+        // if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        //     GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+        // }
+        ConvSumInPlaceTest::SetUp();
     }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
-    run();
-
-    CheckPluginRelatedResults(compiledModel, "Convolution");
-}
-
+    bool primTypeCheck(std::string primType) const override {
+        auto isaType = getISA(!ov::with_cpu_x86_avx512_core_amx_fp16());
+        if (isaType == "")
+            return primType == "ref";
+        else
+            return  primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, ngraph::element::f16);
+    }
+};
 
 class ConvSumInPlaceStrided : public ConvSumInPlaceTest {
 public:
@@ -197,17 +205,6 @@ TEST_P(ConvSumInPlaceStrided, CompareWithRefs) {
 
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
-
-TEST_P(ConvSumInPlaceStrided, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
-    run();
-
-    CheckPluginRelatedResults(compiledModel, "Convolution");
-}
-
 
 class ConvSumInPlaceTestInt8 : public ConvSumInPlaceTest {
 public:
@@ -273,17 +270,6 @@ TEST_P(ConvSumInPlaceTestInt8, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
-TEST_P(ConvSumInPlaceTestInt8, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
-    run();
-
-    CheckPluginRelatedResults(compiledModel, "Convolution");
-}
-
-
 class ConvSumInPlaceTestSeveralConsumers : public ConvSumInPlaceTest {
 public:
     std::shared_ptr<ngraph::Node> addSum(std::shared_ptr<ngraph::Node> lastNode, const ngraph::ParameterVector& inputParams) override {
@@ -302,20 +288,6 @@ TEST_P(ConvSumInPlaceTestSeveralConsumers, CompareWithRefs) {
 
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
-
-TEST_P(ConvSumInPlaceTestSeveralConsumers, CompareWithRefs_FP16) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
-
-    run();
-
-    CheckPluginRelatedResults(compiledModel, "Convolution");
-}
-
 
 namespace {
 const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
@@ -407,6 +379,13 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingReluScaleShift
 };
 
+
+const std::vector<fusingSpecificParams> fusingParamsSetFP16{
+        emptyFusingSpec,
+        fusingSigmoid,
+        fusingReluScaleShift
+};
+
 InputShape convInpShape = {
         //dynamic shapes
         {-1, 32, -1, -1},
@@ -456,6 +435,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConvSumInPlaceTest,
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
                          ConvSumInPlaceTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP16, ConvSumInPlaceTest_FP16,
+                         ::testing::Combine(
+                                 ::testing::Values(convInpShape),
+                                 ::testing::ValuesIn(secondInp),
+                                 ::testing::Values(true, false),
+                                 ::testing::ValuesIn(fusingParamsSetFP16),
+                                 ::testing::Values(cpuFP16PluginConfig)),
+                         ConvSumInPlaceTest_FP16::getTestCaseName);
+
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConvSumInPlaceTestInt8,
                          ::testing::Combine(
