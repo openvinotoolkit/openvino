@@ -22,6 +22,8 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
 
     find_file(_ov_tbbbind_2_5
               NAMES "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_5${CMAKE_SHARED_LIBRARY_SUFFIX}"
+                    # TBB versions prior 2021.4.0 name library as tbbbind_2_4
+                    "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_4${CMAKE_SHARED_LIBRARY_SUFFIX}"
               HINTS "${_tbb_libs_dir}"
               DOC "Path to TBBBind 2.5+ library"
               NO_DEFAULT_PATH
