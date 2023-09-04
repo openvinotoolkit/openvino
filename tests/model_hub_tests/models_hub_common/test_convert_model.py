@@ -6,8 +6,14 @@ import numpy as np
 from openvino.runtime import Core
 from openvino.tools.mo import convert_model
 
+from multiprocessing_utils import multiprocessing_run
+
 
 class TestConvertModel:
+    def __init__(self):
+        # set 10 minutes at maximum
+        self.infer_timeout = 600
+
     def load_model(self, model_name, model_link):
         raise "load_model is not implemented"
 
@@ -74,7 +80,7 @@ class TestConvertModel:
         # deallocate memory after each test case
         gc.collect()
 
-    def run(self, model_name, model_link, ie_device):
+    def _run(self, model_name, model_link, ie_device):
         print("Load the model {} (url: {})".format(model_name, model_link))
         fw_model = self.load_model(model_name, model_link)
         print("Retrieve inputs info")
@@ -89,3 +95,6 @@ class TestConvertModel:
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
         print("Compare TensorFlow and OpenVINO results")
         self.compare_results(fw_outputs, ov_outputs)
+
+    def run(self, model_name, model_link, ie_device):
+        multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)
