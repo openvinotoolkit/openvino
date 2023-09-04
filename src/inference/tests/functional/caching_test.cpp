@@ -156,7 +156,7 @@ public:
     using CheckConfigCb = std::function<void(const ov::AnyMap&)>;
     CheckConfigCb m_checkConfigCb = nullptr;
     std::shared_ptr<ov::Model> m_model;
-    std::map<std::string, std::shared_ptr<const ov::Model>> m_models;
+    std::map<std::string, std::shared_ptr<ov::Model>> m_models;
 
     static std::string get_mock_engine_path() {
         std::string mockEngineName("mock_engine");
@@ -221,7 +221,6 @@ public:
     }
 
     void TearDown() override {
-        m_models = {};
         for (const auto& model : comp_models) {
             EXPECT_TRUE(Mock::VerifyAndClearExpectations(model.get()));
         }
@@ -363,12 +362,12 @@ private:
                     m_checkConfigCb(config);
                 }
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                auto comp_model = create_mock_compiled_model(model, mockPlugin);
+                m_models[model->get_friendly_name()] = model->clone();
+                auto comp_model = create_mock_compiled_model(m_models[model->get_friendly_name()], mockPlugin);
                 for (const auto& cb : m_post_mock_net_callbacks) {
                     cb(*comp_model);
                 }
                 comp_models.push_back(comp_model);
-                m_models[model->get_friendly_name()] = model;
                 return comp_model;
             }));
 
@@ -378,12 +377,12 @@ private:
                     m_checkConfigCb(config);
                 }
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                auto comp_model = create_mock_compiled_model(model, mockPlugin);
+                m_models[model->get_friendly_name()] = model->clone();
+                auto comp_model = create_mock_compiled_model(m_models[model->get_friendly_name()], mockPlugin);
                 for (const auto& cb : m_post_mock_net_callbacks) {
                     cb(*comp_model);
                 }
                 comp_models.push_back(comp_model);
-                m_models[model->get_friendly_name()] = model;
                 return comp_model;
             }));
 
@@ -1731,9 +1730,10 @@ TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
     }
 }
 
-TEST_P(CachingTest, DISABLED_LoadHetero_OneDevice) {
+TEST_P(CachingTest, LoadHetero_OneDevice) {
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    // deviceToLoad = "mock";
     deviceToLoad = ov::test::utils::DEVICE_HETERO + std::string(":mock");
     if (m_remoteContext) {
         return;  // skip the remote Context test for Hetero plugin
@@ -1770,7 +1770,7 @@ TEST_P(CachingTest, DISABLED_LoadHetero_OneDevice) {
     }
 }
 
-TEST_P(CachingTest, DISABLED_LoadHetero_TargetFallbackFromCore) {
+TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     deviceToLoad = ov::test::utils::DEVICE_HETERO;
@@ -1811,7 +1811,7 @@ TEST_P(CachingTest, DISABLED_LoadHetero_TargetFallbackFromCore) {
     }
 }
 
-TEST_P(CachingTest, DISABLED_LoadHetero_MultiArchs) {
+TEST_P(CachingTest, LoadHetero_MultiArchs) {
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
 
@@ -1896,7 +1896,7 @@ TEST_P(CachingTest, DISABLED_LoadHetero_MultiArchs) {
     }
 }
 
-TEST_P(CachingTest, DISABLED_LoadHetero_MultiArchs_TargetFallback_FromCore) {
+TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
