@@ -77,7 +77,6 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::string temp_device;
     std::tie(temp_device, properties) = this->GetParam();
-    APIBaseTest::SetUp();
 
     std::string::size_type pos = temp_device.find(":", 0);
     std::string hw_device;
@@ -98,6 +97,7 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     }
 
     model = ov::builder::subgraph::makeSplitConcat();
+    APIBaseTest::SetUp();
 }
 
 void OVPropertiesTestsWithCompileModelProps::TearDown() {
