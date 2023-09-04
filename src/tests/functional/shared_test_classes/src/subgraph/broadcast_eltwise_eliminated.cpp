@@ -30,15 +30,15 @@ void BroadcastEltwiseEliminated::SetUp() {
 void BroadcastEltwiseEliminated::TearDown() {
     const auto model = compiledModel.get_runtime_model();
 
-    int num_ops_excluding_reorders = 0;
+    int num_ops = 0;
     for (const auto& node : model->get_ordered_ops()) {
         const auto& rt_info = node->get_rt_info();
         const auto layer_type = rt_info.find("layerType")->second.as<std::string>();
-        if (layer_type != "Reorder")
-            num_ops_excluding_reorders++;
+        if (layer_type != "Reorder" && layer_type != "Const")
+            num_ops++;
         EXPECT_NE(layer_type, "Broadcast");
     }
-    ASSERT_EQ(num_ops_excluding_reorders, 3); // one Input, one Eltwise and one Output
+    ASSERT_EQ(num_ops, 3); // one Input, one Eltwise and one Output
 }
 
 }  // namespace test
