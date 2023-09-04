@@ -654,6 +654,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     bool is_remote = remote_ptr != nullptr;
 
     auto network = m_graph->get_network();
+    auto& engine = m_graph->get_engine();
     auto& stream = network->get_stream();
 
     OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())) || is_batched_input(port),
@@ -709,12 +710,15 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                         device_tensor->get_size(),
                         ") don't match for ", name,
                         ". Those are expected to be equal in case of static shape of the port");
-        // WA to extend shape to ranks expected by legacy shape infer. Remove after full migration to new shape infer
-        if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
-            device_tensor->set_shape(m_graph->get_input_layouts().at(name).get_shape());
-        }
     }
+
     auto memory = device_tensor->get_memory();
+    // WA to extend shape to ranks expected by legacy shape infer. Remove after full migration to new shape infer
+    if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
+        auto new_layout = memory->get_layout();
+        new_layout.set_partial_shape(m_graph->get_input_layouts().at(name).get_shape());
+        memory = engine.reinterpret_buffer(*memory, new_layout);
+    }
 
     cldnn::event::ptr ret_event = nullptr;
     if (!is_remote) {
