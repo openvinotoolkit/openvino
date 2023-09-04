@@ -13,7 +13,7 @@ namespace op {
 OutputVector translate_lstm(const NodeContext& context) {
     num_inputs_check(context, 9, 9);
     /** Data of shape either [batch, seq, features] or [seq, features, batch]
-    Only this constructor is used (batch_sizes ignored since input would have to be a
+    Only this constructor is used (batch_sizes version ignored since input would have to be a
     PackedSequence instead of data tensor)
     aten::lstm(
         Tensor data
@@ -27,7 +27,7 @@ OutputVector translate_lstm(const NodeContext& context) {
         bool batch_first
     ) -> output, hidden1, hidden2
     **/
-    auto data = context.get_input(0);
+    auto data = context.get_input(0).get_node_shared_ptr();
     const auto h_c = context.get_input(1);
     const auto params = context.get_input(2);
     const bool has_bias = context.const_input<bool>(3);
@@ -53,36 +53,44 @@ OutputVector translate_lstm(const NodeContext& context) {
         batch_size = context.mark_node(std::make_shared<opset10::Gather>(input_shape, one_1d, zero_1d));
         const auto batch_first_shape =
             context.mark_node(std::make_shared<opset10::Concat>(NodeVector{batch_size, seq_size, neg_one_1d}, 0));
-        data = context.mark_node(std::make_shared<opset10::Reshape>(data, batch_first_shape));
+        data = context.mark_node(std::make_shared<opset10::Reshape>(data, batch_first_shape, false));
     } else {
         seq_size = context.mark_node(std::make_shared<opset10::Gather>(input_shape, one_1d, zero_1d));
         batch_size = context.mark_node(std::make_shared<opset10::Gather>(input_shape, zero_1d, zero_1d));
     }
-    //  Proper way to unpack?
-    auto h0 = h_c.get_node_shared_ptr()->output(0);
-    auto c0 = h_c.get_node_shared_ptr()->output(1);
+    // TODO this only works when h_c is ListConstruct, fix when list unpack operations are available
+    auto h0 = h_c.get_node_shared_ptr()->input_value(0);
+    auto c0 = h_c.get_node_shared_ptr()->input_value(1);
     const auto c0_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(c0));
-    const auto hidden_size = context.mark_node(std::make_shared<opset10::Gather>(c0_shape, neg_one_1d));
+    const auto hidden_size = context.mark_node(std::make_shared<opset10::Gather>(c0_shape, neg_one_1d, zero_1d));
     const auto h_c_shape = context.mark_node(
         std::make_shared<opset10::Concat>(NodeVector{num_layers_1d, batch_size, num_directions_1d, neg_one_1d}, 0));
-    h0 = context.mark_node(std::make_shared<opset10::Reshape>(h0, h_c_shape));
-    c0 = context.mark_node(std::make_shared<opset10::Reshape>(c0, h_c_shape));
+    h0 = context.mark_node(std::make_shared<opset10::Reshape>(h0, h_c_shape, false));
+    c0 = context.mark_node(std::make_shared<opset10::Reshape>(c0, h_c_shape, false));
     const auto seq_len = context.mark_node(std::make_shared<opset10::Broadcast>(seq_size, batch_size));
 
     std::shared_ptr<ov::Node> packed_output;
-    ov::Output<ov::Node> hn, cn, wn, rn, bn;
+    std::shared_ptr<ov::Node> hn, cn, wn, rn, bn;
     const auto four_times_hidden_size = context.mark_node(std::make_shared<opset10::Multiply>(four_1d, hidden_size));
     const auto bias_shape =
         context.mark_node(std::make_shared<opset10::Concat>(NodeVector{num_directions_1d, four_times_hidden_size}, 0));
-    for (size_t i = 0; i++; i <= num_layers) {
+    // TODO find a better way to cast hidden_size to int64_t
+    // https://github.com/pytorch/pytorch/blob/main/torch/nn/modules/rnn.py#L835C43-L835C43
+    const auto hidden_size_from_c0 =
+        std::dynamic_pointer_cast<opset10::Constant>(c0.get_node_shared_ptr()->input_value(2).get_node_shared_ptr());
+    FRONT_END_GENERAL_CHECK(hidden_size_from_c0, "Could not extract hidden size from hx");
+    const int64_t hidden_size_i64 = hidden_size_from_c0->cast_vector<int64_t>()[0];
+
+    // https://github.com/pytorch/pytorch/blob/main/torch/nn/modules/rnn.py#L109
+    for (int64_t i = 0; i <= num_layers; i++) {
         const auto layer_idx = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {i}));
-        const auto layer_params = params.get_node_shared_ptr()->output(i);
-        // https://github.com/pytorch/pytorch/blob/main/torch/nn/modules/rnn.py#L98
-        wn = layer_params.get_node_shared_ptr()->output(0);
-        rn = layer_params.get_node_shared_ptr()->output(1);
+        const auto layer_params = params.get_node_shared_ptr()->input_value(i);
+        // TODO temporary workaround to unpack tuple, fix when List/Tuple operations are available
+        wn = layer_params.get_node_shared_ptr()->input_value(0).get_node_shared_ptr();
+        rn = layer_params.get_node_shared_ptr()->input_value(1).get_node_shared_ptr();
         if (has_bias) {
-            const auto bias_weights = layer_params.get_node_shared_ptr()->output(2);
-            const auto bias_matrix = layer_params.get_node_shared_ptr()->output(3);
+            const auto bias_weights = layer_params.get_node_shared_ptr()->input_value(2);
+            const auto bias_matrix = layer_params.get_node_shared_ptr()->input_value(3);
             bn = context.mark_node(std::make_shared<opset10::Add>(bias_weights, bias_matrix));
         } else {
             bn = context.mark_node(std::make_shared<opset10::Broadcast>(zero_1d, bias_shape));
@@ -90,12 +98,20 @@ OutputVector translate_lstm(const NodeContext& context) {
 
         hn = context.mark_node(std::make_shared<opset10::Gather>(h0, layer_idx, zero_1d));
         cn = context.mark_node(std::make_shared<opset10::Gather>(c0, layer_idx, zero_1d));
-        packed_output = context.mark_node(
-            std::make_shared<opset10::LSTMSequence>(data, hn, cn, seq_len, wn, rn, bn, hidden_size, direction));
-        data = packed_output->output(0);
+        const auto packed_output =
+            context.mark_node(std::make_shared<opset10::LSTMSequence>(data,
+                                                                      hn,
+                                                                      cn,
+                                                                      seq_len,
+                                                                      wn,
+                                                                      rn,
+                                                                      bn,
+                                                                      /** hidden_size**/ hidden_size_i64,
+                                                                      direction));
+        data = packed_output->output(0).get_node_shared_ptr();
     }
-    hn = packed_output->output(1);
-    cn = packed_output->output(2);
+    hn = packed_output->output(1).get_node_shared_ptr();
+    cn = packed_output->output(2).get_node_shared_ptr();
 
     const auto direction_times_num_layers =
         context.mark_node(std::make_shared<opset10::Multiply>(num_directions_1d, num_layers_1d));
@@ -109,9 +125,9 @@ OutputVector translate_lstm(const NodeContext& context) {
         output_shape =
             context.mark_node(std::make_shared<opset10::Concat>(NodeVector{batch_size, seq_size, neg_one_1d}, 0));
     }
-    data = context.mark_node(std::make_shared<opset10::Reshape>(data, output_shape));
-    hn = context.mark_node(std::make_shared<opset10::Reshape>(hn, output_h_c_shape));
-    cn = context.mark_node(std::make_shared<opset10::Reshape>(cn, output_h_c_shape));
+    data = context.mark_node(std::make_shared<opset10::Reshape>(data, output_shape, false));
+    hn = context.mark_node(std::make_shared<opset10::Reshape>(hn, output_h_c_shape, false));
+    cn = context.mark_node(std::make_shared<opset10::Reshape>(cn, output_h_c_shape, false));
 
     return {data, hn, cn};
 };
