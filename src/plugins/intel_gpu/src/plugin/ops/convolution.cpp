@@ -114,12 +114,11 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
-    bool hasConstantWeights = IsNodeOnConstPath(weights_node);
     // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap (and transpose) I and O dimensions to match the format
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
-    if ((hasConstantWeights && std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_node) == nullptr) || !hasConstantWeights) {
+    {
         std::string permuteName = layerName + "_cldnn_weights_permute";
         auto weights_rank = op->get_input_shape(1).size();
         std::vector<uint16_t> permute_order(weights_rank);
@@ -204,12 +203,11 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
-    bool hasConstWeights = IsNodeOnConstPath(weights_node);
     // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap I and O dimensions to match the format.
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
-    if ((hasConstWeights && std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_node) == nullptr) || !hasConstWeights) {
+    {
         std::string permuteName = layerName + "_cldnn_weights_permute";
         auto weights_rank = op->get_input_shape(1).size();
         std::vector<uint16_t> permute_order(weights_rank);
