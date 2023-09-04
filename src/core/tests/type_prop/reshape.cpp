@@ -34,7 +34,7 @@ TEST(type_prop, static_value_propagation) {
 TEST(type_prop, reshape_static_dimension_stops_label_propagation_for_auto_batch_case) {
     auto shape = ov::PartialShape({1, 1280, 1, 1});
     ov::DimensionTracker::set_label(shape[0], 1);
-    auto param = make_shared<op::Parameter>(element::f32, shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
 
