@@ -65,39 +65,59 @@ static cldnn::tensor getConstTensor(const ov::Shape constDims) {
 
 struct ConstProperties {
     bool needsBatchInterpretation;
-    bool swapOI;
-    bool hasGroupDimension;
 };
 
-static void createClDnnConstant(ProgramBuilder& p, const ov::Shape& constDims, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props);
+static void create_data(ProgramBuilder& p, const ov::Shape& constDims, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
+    cldnn::tensor constTensor = getConstTensor(constDims);
+    auto constFormat = cldnn::format::get_default_format(constDims.size());
+
+    if (props.needsBatchInterpretation) {
+        constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
+        constTensor.feature[0] = 1;
+    }
+
+    // If constDims has a dimension = 0, then create tensor with single value
+    // TODO: check if dim=0 is a valid case
+    if (std::accumulate(constDims.begin(), constDims.end(), size_t(1), std::multiplies<size_t>()) == 0)
+        constTensor = cldnn::tensor{1};
+
+    auto newDims = constDims;
+    cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
+    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(newDims, out_dtype, constFormat) :
+                                                          cldnn::layout(out_dtype, constFormat, constTensor);
+
+    cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
+    cldnn::primitive_id constPrimID;
+    auto data = op->get_data_ptr<char>();
+
+    auto bufIter = p.blobMemCache.find(std::make_pair(data, newDims));
+
+    if (bufIter != p.blobMemCache.end()) {
+        constPrimID = bufIter->second;
+        p.primitive_ids[initialconstPrimID] = constPrimID;
+        p.profiling_ids.push_back(initialconstPrimID);
+    } else {
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant]" << std::endl;
+        cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
+        auto& stream = p.get_engine().get_service_stream();
+        cldnn::mem_lock<char> lock{mem, stream};
+        auto buf = lock.data();
+        auto bufSize = constLayout.bytes_count();
+
+        std::memcpy(&buf[0], &data[0], bufSize);
+        p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+        p.blobMemCache[std::make_pair(data, newDims)] = initialconstPrimID;
+        constPrimID = initialconstPrimID;
+    }
+}
 
 static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Constant>& op) {
     ov::Shape constDims = op->get_shape();
     auto constUsers = op->get_output_target_inputs(0);
-    size_t numConstUsers = constUsers.size();
 
     std::unordered_map<std::shared_ptr<ov::op::v0::Constant>, ConstProperties> consts = {
-        {op, {false, false, false}}
+        {op, {false}}
     };
-
-    // handleConvWeights function is executed when one of the constant users is ConvolutionBackpropData or GroupConvolutionBackpropData.
-    // In that case, we mark that constant's O and I dimensions need to be swapped.
-    auto handleConvWeights = [&op] (ov::Node* conv, std::unordered_map<std::shared_ptr<ov::op::v0::Constant>, ConstProperties>& consts,
-                                 size_t& numConstUsers, bool hasGroupDimension) {
-                                 // If constant has multiple users - create its copy and replace 'conv' weights with the copy.
-                                 // This is to make sure that dimension change doesn't break other users of the constant node.
-                                 // It is a shallow copy, but that's fine since in createClDnnConstant
-                                 // every constant created here, gets memcopied to a brand new cldnn::memory.
-                                 if (numConstUsers > 1) {
-                                     auto constant = std::make_shared<ov::op::v0::Constant>(*(op.get()));
-                                     conv->input(1).replace_source_output(constant);
-                                     consts.insert({constant, {false, true, hasGroupDimension}});
-                                     numConstUsers--;
-                                 } else {
-                                     consts[op].swapOI = true;
-                                     consts[op].hasGroupDimension = hasGroupDimension;
-                                 }
-                             };
 
     auto is_binary_eltwise = [&] (ov::Node* op) -> bool {
         if (ov::op::util::is_binary_elementwise_arithmetic(op) ||
@@ -152,10 +172,6 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                    ov::is_type<ov::op::v1::Split>(outOp) ||
                    ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (ov::is_type<ov::op::v1::ConvolutionBackpropData>(outOp) && node.get_index() == 1) {
-            handleConvWeights(outOp, consts, numConstUsers, false);
-        } else if (ov::is_type<ov::op::v1::GroupConvolutionBackpropData>(outOp) && node.get_index() == 1) {
-            handleConvWeights(outOp, consts, numConstUsers, true);
         } else if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
             // PReLU slope tensor reshape policy
             //
@@ -187,97 +203,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     }
 
     for (auto& it : consts) {
-        createClDnnConstant(p, constDims, it.first, it.second);
-    }
-}
-
-void createClDnnConstant(ProgramBuilder& p, const ov::Shape& constDims, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
-    cldnn::tensor constTensor = getConstTensor(constDims);
-    auto constFormat = cldnn::format::get_default_format(constDims.size());
-
-    if (props.needsBatchInterpretation) {
-        constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
-        constTensor.feature[0] = 1;
-    }
-
-    // If constDims has a dimension = 0, then create tensor with single value
-    // TODO: check if dim=0 is a valid case
-    if (std::accumulate(constDims.begin(), constDims.end(), size_t(1), std::multiplies<size_t>()) == 0)
-        constTensor = cldnn::tensor{1};
-
-    // Swap O and I dimensions to match expected deconvolution weights format
-    size_t inputFeatureElements = 1;
-    size_t outputFeatureElements = 1;
-    size_t groups = 1;
-    auto newDims = constDims;
-    if (props.swapOI) {
-        size_t expected_min_rank = 2 + (props.hasGroupDimension ? 1 : 0);
-        if (expected_min_rank > constDims.size())
-            OPENVINO_THROW("Invalid constant properties or shape");
-
-        if (props.hasGroupDimension) {
-            std::swap(newDims[2], newDims[1]);
-            inputFeatureElements = newDims[2];
-            outputFeatureElements = newDims[1];
-            groups = newDims[0];
-        } else {
-            std::swap(newDims[1], newDims[0]);
-            inputFeatureElements = newDims[1];
-            outputFeatureElements = newDims[0];
-            groups = 1;
-        }
-        constTensor = getConstTensor(newDims);
-    }
-
-    cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(newDims, out_dtype, constFormat) :
-                                                          cldnn::layout(out_dtype, constFormat, constTensor);
-
-    cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
-    cldnn::primitive_id constPrimID;
-    auto data = op->get_data_ptr<char>();
-
-    auto bufIter = p.blobMemCache.find(std::make_pair(data, newDims));
-
-    if (bufIter != p.blobMemCache.end()) {
-        constPrimID = bufIter->second;
-        p.primitive_ids[initialconstPrimID] = constPrimID;
-        p.profiling_ids.push_back(initialconstPrimID);
-    } else {
-        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant]" << std::endl;
-        cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
-        auto& stream = p.get_engine().get_service_stream();
-        cldnn::mem_lock<char> lock{mem, stream};
-        auto buf = lock.data();
-        auto bufSize = constLayout.bytes_count();
-
-        // Do actual weights reorder and change O and I channels order
-        if (props.swapOI) {
-            auto elementSize = cldnn::data_type_traits::size_of(constLayout.data_type);
-            size_t spatial_dim_off = props.hasGroupDimension ? 3 : 2;
-            size_t featureSize = elementSize;
-            for (size_t i = spatial_dim_off; i < constDims.size(); i++) {
-                featureSize *= constDims[i];
-            }
-
-            for (size_t g = 0; g < groups; g++) {
-                for (size_t i = 0; i < inputFeatureElements; i++) {
-                    for (size_t o = 0; o < outputFeatureElements; o++) {
-                        size_t outputShift = ((g*outputFeatureElements + o)*inputFeatureElements + i)*featureSize;
-                        size_t inputShift = ((g*inputFeatureElements + i)*outputFeatureElements + o)*featureSize;
-
-                        for (size_t b = 0; b < featureSize; b++) {
-                            buf[outputShift + b] = data[inputShift + b];
-                        }
-                    }
-                }
-            }
-        } else {
-            std::memcpy(&buf[0], &data[0], bufSize);
-        }
-        p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
-        p.blobMemCache[std::make_pair(data, newDims)] = initialconstPrimID;
-        constPrimID = initialconstPrimID;
+        create_data(p, constDims, it.first, it.second);
     }
 }
 
