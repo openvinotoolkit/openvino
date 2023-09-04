@@ -271,6 +271,21 @@ TEST_P(OVCompiledModelBaseTest, CanGetProperty) {
     EXPECT_NO_THROW(auto inInfo = execNet.get_property(ov::supported_properties));
 }
 
+TEST_P(OVCompiledModelBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
+    std::vector<ov::CompiledModel> vec;
+    for (auto i = 0; i < 2; i++) {
+        EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
+        EXPECT_NE(nullptr, vec[i].get_runtime_model());
+        EXPECT_NE(vec.begin()->get_runtime_model(), vec[i].get_runtime_model());
+    }
+}
+
+TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalNetwork) {
+    // compare 2 networks
+    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
+    compare_functions(function, referenceNetwork);
+}
+
 TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfo) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto outInfo = execNet.outputs());
