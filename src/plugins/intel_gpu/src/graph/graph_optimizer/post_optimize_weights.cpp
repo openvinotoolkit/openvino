@@ -92,9 +92,16 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 // Need to restore the original shape
                 auto updated_output_layout = weights_reorder_params->get_output_layout();
                 auto orig_rank = prev_node.get_output_layout().get_partial_shape().size();
-                auto weight_format_dims = format::dimension(weights_reorder_params->get_output_layout().format);
-                updated_output_layout.set_partial_shape(
-                    updated_output_layout.get_tensor().get_partial_shape(orig_rank, weight_format_dims));
+
+                auto input1_layout = node.get_input_layout(1);
+                auto input1_pshape = input1_layout.get_partial_shape();
+                auto output_size = input1_pshape.size();
+
+                if (output_size < orig_rank) {
+                    input1_pshape.insert(input1_pshape.begin(), orig_rank - output_size, 1);
+                }
+                updated_output_layout.set_partial_shape(input1_pshape);
+
                 if (updated_output_layout != weights_reorder_params->get_output_layout())
                     weights_reorder_params->set_output_layout(updated_output_layout);
             }
