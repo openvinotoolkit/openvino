@@ -110,11 +110,11 @@ ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performan
 
 ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF "ENABLE_TESTS;ENABLE_INTEL_MYRIAD" OFF)
 
-ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
-
 ie_dependent_option (ENABLE_BEH_TESTS "tests oriented to check OpenVINO Runtime API correctness" ON "ENABLE_TESTS" OFF)
 
 ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
+
+ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
 ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
 
