@@ -256,18 +256,6 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
     std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
 }
 
-/** @brief Fill tensor with random data.
- *
- * @param tensor Target tensor
- * @param range Values range
- * @param start_from Value from which range should start
- * @param k Resolution of floating point numbers.
- * - With k = 1 every random number will be basically integer number.
- * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
- * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
- */
-void fill_tensor_random(ov::Tensor& tensor, const double range = 10, const double start_from = 0, const int32_t k = 1, const int seed = 1);
-
 /** @brief Fill blob with random data.
  *
  * @param blob Target blob

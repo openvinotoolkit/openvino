@@ -54,6 +54,11 @@ void compare(
         const ov::Tensor &actual,
         const double abs_threshold = std::numeric_limits<double>::max(),
         const double rel_threshold = std::numeric_limits<double>::max());
+
+void fill_tensor_random(ov::Tensor& tensor, const uint32_t range = 10, const int32_t start_from = 0, const int32_t k = 1, const int seed = 1);
+
+void fill_tensor_random_real(ov::Tensor& tensor, const double range = 10, const double start_from = 0, const int seed = 1);
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

@@ -19,34 +19,7 @@ ov::Tensor create_and_fill_tensor(
         const int32_t resolution,
         const int seed) {
     auto tensor = ov::Tensor{element_type, shape};
-#define CASE(X) case X: fill_data_random(                   \
-    tensor.data<element_type_traits<X>::value_type>(),                         \
-    shape_size(shape),                                                         \
-    range, start_from, resolution, seed); break;
-    switch (element_type) {
-        CASE(ov::element::Type_t::boolean)
-        CASE(ov::element::Type_t::i8)
-        CASE(ov::element::Type_t::i16)
-        CASE(ov::element::Type_t::i32)
-        CASE(ov::element::Type_t::i64)
-        CASE(ov::element::Type_t::u8)
-        CASE(ov::element::Type_t::u16)
-        CASE(ov::element::Type_t::u32)
-        CASE(ov::element::Type_t::u64)
-        CASE(ov::element::Type_t::bf16)
-        CASE(ov::element::Type_t::f16)
-        CASE(ov::element::Type_t::f32)
-        CASE(ov::element::Type_t::f64)
-        case ov::element::Type_t::u1:
-        case ov::element::Type_t::i4:
-        case ov::element::Type_t::u4:
-            fill_data_random(
-                static_cast<uint8_t*>(tensor.data()),
-                tensor.get_byte_size(),
-                range, start_from, resolution, seed); break;
-        default: OPENVINO_THROW("Unsupported element type: ", element_type);
-    }
-#undef CASE
+    fill_tensor_random(tensor, range, start_from, resolution, seed);
     return tensor;
 }
 
@@ -349,6 +322,98 @@ void compare(
     }
 #undef CASE0
 #undef CASE
+}
+
+template<ov::element::Type_t DT>
+void fill_tensor_random(ov::Tensor& tensor, const uint32_t range, const int32_t start_from, const int32_t k, const int seed) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
+    if (DT == ov::element::u4 || DT == ov::element::i4 ||
+        DT == ov::element::u1) {
+        fill_data_random(rawBlobDataPtr, tensor.get_byte_size(), range, start_from, k, seed);
+    } else {
+        fill_data_random(rawBlobDataPtr, tensor.get_size(), range, start_from, k, seed);
+    }
+}
+
+template<ov::element::Type_t DT>
+void fill_tensor_random_float(ov::Tensor& tensor, const uint32_t range, const int32_t start_from, const int32_t k, const int seed) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    auto raw_data_ptr = static_cast<T*>(tensor.data());
+    auto size = ov::shape_size(tensor.get_shape());
+    if (range == 0) {
+        for (std::size_t i = 0; i < size; i++) {
+            raw_data_ptr[i] = static_cast<T>(start_from);
+        }
+        return;
+    }
+
+    testing::internal::Random random(seed);
+    const uint32_t k_range = k * range; // range with respect to k
+    random.Generate(k_range);
+
+    for (std::size_t i = 0; i < size; i++) {
+        raw_data_ptr[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
+    }
+}
+
+void fill_tensor_random(ov::Tensor& tensor, const uint32_t range, const int32_t start_from, const int32_t k, const int seed) {
+    auto element_type = tensor.get_element_type();
+
+#define CASE(X) case X: fill_tensor_random<X>(tensor, range, start_from, k, seed); break;
+#define CASE_FLOAT(X) case X: fill_tensor_random_float<X>(tensor, range, start_from, k, seed); break;
+
+    switch (element_type) {
+        CASE_FLOAT(ov::element::f64)
+        CASE_FLOAT(ov::element::f32)
+        CASE_FLOAT(ov::element::f16)
+        CASE_FLOAT(ov::element::bf16)
+        CASE(ov::element::u1)
+        CASE(ov::element::u4)
+        CASE(ov::element::u8)
+        CASE(ov::element::u32)
+        CASE(ov::element::u16)
+        CASE(ov::element::u64)
+        CASE(ov::element::i4)
+        CASE(ov::element::i8)
+        CASE(ov::element::i16)
+        CASE(ov::element::i32)
+        CASE(ov::element::i64)
+        CASE(ov::element::boolean)
+        default:
+            OPENVINO_THROW("Wrong precision specified: ", element_type);
+    }
+#undef CASE
+#undef CASE_FLOAT
+}
+
+template<ov::element::Type_t DT>
+void fill_tensor_random_float_real(ov::Tensor& tensor, const double range = 10, const double start_from = 0, const int seed = 1) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    std::default_random_engine random(seed);
+    // 1/k is the resolution of the floating point numbers
+    std::uniform_real_distribution<double> distribution(start_from, start_from + range);
+
+    auto *raw_data_ptr = static_cast<T*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_size(); i++) {
+        raw_data_ptr[i] = static_cast<T>(distribution(random));
+    }
+}
+
+void fill_tensor_random_real(ov::Tensor& tensor, const double range, const double start_from, const int seed) {
+    auto element_type = tensor.get_element_type();
+#define CASE_FLOAT(X) case X: fill_tensor_random_float_real<X>(tensor, range, start_from, seed); break;
+
+    switch (element_type) {
+        CASE_FLOAT(ov::element::f64)
+        CASE_FLOAT(ov::element::f32)
+        CASE_FLOAT(ov::element::f16)
+        CASE_FLOAT(ov::element::bf16)
+        default:
+            OPENVINO_THROW("Wrong precision specified: ", element_type);
+    }
+#undef CASE
+#undef CASE_FLOAT
 }
 }  // namespace utils
 }  // namespace test
