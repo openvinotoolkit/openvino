@@ -90,6 +90,23 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& re
     }
 }
 
+void AsyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+    check_state();
+    if (m_sync_request && m_sync_request->get_batch_size() == 0) {
+        m_request_without_batch->set_tensor(port, tensor);
+    }
+    ov::IAsyncInferRequest::set_tensor(port, tensor);
+}
+
+void AsyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
+                                    const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
+    check_state();
+    if (m_sync_request && m_sync_request->get_batch_size() == 0) {
+        m_request_without_batch->set_tensors(port, tensors);
+    }
+    ov::IAsyncInferRequest::set_tensors(port, tensors);
+}
+
 std::vector<ov::ProfilingInfo> AsyncInferRequest::get_profiling_info() const {
     check_state();
     if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_request->m_batched_request_status)
