@@ -1,8 +1,6 @@
 Image generation with DeepFloyd IF and OpenVINO™
 ================================================
 
-.. _top:
-
 DeepFloyd IF is an advanced open-source text-to-image model that
 delivers remarkable photorealism and language comprehension. DeepFloyd
 IF consists of a frozen text encoder and three cascaded pixel diffusion
@@ -77,6 +75,10 @@ vector in embedded space.
    1024x1024 pixel resolution. It is not released yet, so we will use a
    conventional Super Resolution network to get hi-res results. 
    
+
+
+
+.. _top:
 
 **Table of contents**:
 
