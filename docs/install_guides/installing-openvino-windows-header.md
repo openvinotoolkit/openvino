@@ -16,7 +16,7 @@
    Use PyPI <openvino_docs_install_guides_installing_openvino_pip>
    Use Conda Forge <openvino_docs_install_guides_installing_openvino_conda>
    Use VCPKG <openvino_docs_install_guides_installing_openvino_vcpkg>
-   Use Docker <openvino_docs_install_guides_installing_openvino_docker_linux>
+   Use Docker <openvino_docs_install_guides_installing_openvino_docker>
 
 
 If you want to install OpenVINO™ Runtime on Windows, you have the following options:
