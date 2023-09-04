@@ -23,7 +23,6 @@ void group_normalization(const T* const data,
                          const size_t num_groups,
                          const double epsilon) {
     using namespace std;
-    using namespace ngraph::runtime::reference;
 
     const auto num_batches = data_shape[0];
     const auto num_channels = data_shape[1];

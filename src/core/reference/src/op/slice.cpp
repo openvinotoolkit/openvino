@@ -7,11 +7,10 @@
 #include <cstring>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_range.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 
 void slice(const char* data,
@@ -85,5 +84,4 @@ void slice(const char* arg,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

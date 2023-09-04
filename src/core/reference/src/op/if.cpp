@@ -8,12 +8,11 @@
 #include "openvino/reference/function.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
-void if_reference(const std::vector<std::shared_ptr<Function>>& bodies,
-                  const std::vector<op::util::MultiSubgraphOutputDescriptionVector>& out_descs,
-                  const std::vector<op::util::MultiSubgraphInputDescriptionVector>& input_descs,
+void if_reference(const std::vector<std::shared_ptr<Model>>& bodies,
+                  const std::vector<op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector>& out_descs,
+                  const std::vector<op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector>& input_descs,
                   const HostTensorVector& out,
                   const HostTensorVector& args) {
     NGRAPH_CHECK(args.size() > 0, "If operation must have input condition value");
@@ -42,5 +41,4 @@ void if_reference(const std::vector<std::shared_ptr<Function>>& bodies,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

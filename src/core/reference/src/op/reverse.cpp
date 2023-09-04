@@ -9,12 +9,11 @@
 #include <iterator>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_range.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
 
 using namespace ngraph;
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void reverse(const char* arg,
              char* out,
@@ -50,5 +49,4 @@ void reverse(const char* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

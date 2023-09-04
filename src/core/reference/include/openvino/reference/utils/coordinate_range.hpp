@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <iterator>
 
-#include "ngraph/coordinate.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/strides.hpp"
+#include "openvino/core/coordinate.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace coordinates {
 namespace impl {
 namespace {
@@ -204,4 +204,4 @@ using impl::index;
 using impl::reverse;
 using impl::slice;
 }  // namespace coordinates
-}  // namespace ngraph
+}  // namespace ov

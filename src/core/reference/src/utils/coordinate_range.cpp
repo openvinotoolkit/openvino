@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/coordinate_range.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
 
 #include <cassert>
 #include <numeric>
 #include <stdexcept>
 
-#include "ngraph/coordinate_index.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace coordinates {
 namespace impl {
 namespace {
@@ -171,4 +171,4 @@ bool ReverseRange::increment() {
 }  // namespace impl
 
 }  // namespace coordinates
-}  // namespace ngraph
+}  // namespace ov

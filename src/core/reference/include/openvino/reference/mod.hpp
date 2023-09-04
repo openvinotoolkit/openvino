@@ -7,10 +7,9 @@
 #include <cmath>
 #include <cstddef>
 
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
+#include "openvino/reference/autobroadcast_binop.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void mod(const T* arg0,
@@ -24,5 +23,4 @@ void mod(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

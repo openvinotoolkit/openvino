@@ -12,8 +12,7 @@
 
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace nms_common {
 struct Rectangle {
@@ -69,5 +68,4 @@ void nms_common_postprocessing(void* prois,
 
 }  // namespace nms_common
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

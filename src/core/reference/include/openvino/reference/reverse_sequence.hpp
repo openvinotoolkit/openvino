@@ -7,11 +7,10 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 void reverse_sequence(const T* arg,
@@ -46,5 +45,4 @@ void reverse_sequence(const T* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

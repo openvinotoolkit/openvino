@@ -6,16 +6,14 @@
 
 #include <cmath>
 
-#include "ngraph/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
-void if_reference(const std::vector<std::shared_ptr<Function>>& body,
-                  const std::vector<op::util::MultiSubgraphOutputDescriptionVector>& out_descs,
-                  const std::vector<op::util::MultiSubgraphInputDescriptionVector>& input_descs,
+void if_reference(const std::vector<std::shared_ptr<Model>>& body,
+                  const std::vector<op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector>& out_descs,
+                  const std::vector<op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector>& input_descs,
                   const HostTensorVector& out,
                   const HostTensorVector& args);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

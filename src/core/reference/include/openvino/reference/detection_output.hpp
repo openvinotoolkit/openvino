@@ -13,8 +13,7 @@
 #include "ngraph/op/util/detection_output_base.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 enum { idxLocation, idxConfidence, idxPriors, idxArmConfidence, idxArmLocation, numInputs };
 
@@ -588,5 +587,4 @@ public:
     }
 };
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

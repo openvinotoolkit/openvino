@@ -6,8 +6,7 @@
 
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void shuffle_channels(const char* arg,
                       char* out,
@@ -43,11 +42,10 @@ void shuffle_channels(const char* arg,
                                  reshaped_input_shape[1],
                                  reshaped_input_shape[3]};
     AxisVector axis_vector{0, 2, 1, 3};
-    runtime::opt_kernel::reshape(arg, out, reshaped_input_shape, axis_vector, transposed_shape, elem_size);
+    ngraph::runtime::opt_kernel::reshape(arg, out, reshaped_input_shape, axis_vector, transposed_shape, elem_size);
 
     // Reshaped 4D tensor is interpreted as ND output tensor with original shape of data
     // input
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

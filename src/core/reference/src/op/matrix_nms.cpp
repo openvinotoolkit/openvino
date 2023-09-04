@@ -14,11 +14,7 @@
 #include "openvino/reference/matrix_nms.hpp"
 #include "openvino/reference/utils/nms_common.hpp"
 
-using namespace ngraph;
-using namespace ngraph::runtime::reference;
-
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace matrix_nms_v8 {
 template <typename T, bool gaussian>
@@ -163,8 +159,8 @@ void matrix_nms(const float* boxes_data,
                 int64_t* selected_indices,
                 const Shape& selected_indices_shape,
                 int64_t* valid_outputs) {
-    using Rectangle = runtime::reference::nms_common::Rectangle;
-    using BoxInfo = runtime::reference::nms_common::BoxInfo;
+    using Rectangle = reference::nms_common::Rectangle;
+    using BoxInfo = reference::nms_common::BoxInfo;
 
     // boxes shape: {num_batches, num_boxes, 4}
     // scores shape: {num_batches, num_classes, num_boxes}
@@ -287,5 +283,4 @@ void matrix_nms(const float* boxes_data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

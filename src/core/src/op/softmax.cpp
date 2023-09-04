@@ -10,7 +10,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/softmax.hpp"
+#include "openvino/reference/softmax.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -19,7 +19,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const ov::Shape& shape, const AxisSet& axes) {
-    runtime::reference::softmax(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape, axes);
+    ov::reference::softmax(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape, axes);
     return true;
 }
 

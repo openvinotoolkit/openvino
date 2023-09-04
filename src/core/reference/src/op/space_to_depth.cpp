@@ -9,15 +9,14 @@
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void space_to_depth(const char* const in,
                     const Shape& in_shape,
                     char* const out,
                     const Shape& out_shape,
                     const size_t block_size,
-                    const op::SpaceToDepth::SpaceToDepthMode mode,
+                    const op::v0::SpaceToDepth::SpaceToDepthMode mode,
                     const size_t elem_size) {
     // SpaceToDepth run in tree steps:
     // - disperse data from depth channel
@@ -66,7 +65,7 @@ void space_to_depth(const char* const in,
     // x'' = transpose(x', [0,  1, 3, 5, ..., K + (K + 1),  2, 4, ..., K + K])
     // y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ...,
     //             DK / block_size])
-    case op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST: {
+    case op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST: {
         axes_order.insert(axes_order.begin() + 1, 1);
         break;
     }
@@ -75,7 +74,7 @@ void space_to_depth(const char* const in,
     // x'' = transpose(x',  [0,  3, 5, ..., K + (K + 1), 1,  2, 4, ..., K + K])
     // y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ...,
     //             DK / block_size])
-    case op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST: {
+    case op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST: {
         axes_order.insert(axes_order.begin() + spatial_dims + 1, 1);
     }
     }
@@ -85,8 +84,7 @@ void space_to_depth(const char* const in,
         post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
     }
 
-    runtime::opt_kernel::reshape(in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
+    ngraph::runtime::opt_kernel::reshape(in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

@@ -14,28 +14,28 @@ bool evaluate(const std::shared_ptr<ngraph::op::v10::IsInf>& op,
     ngraph::element::Type input_et = op->get_input_element_type(0);
     switch (input_et) {
     case ngraph::element::Type_t::f64:
-        ngraph::runtime::reference::is_inf(inputs[0]->get_data_ptr<double>(),
-                                           outputs[0]->get_data_ptr<ngraph::element::Type_t::boolean>(),
-                                           ngraph::shape_size(inputs[0]->get_shape()),
-                                           op->get_attributes());
+        ov::reference::is_inf(inputs[0]->get_data_ptr<double>(),
+                              outputs[0]->get_data_ptr<ngraph::element::Type_t::boolean>(),
+                              ngraph::shape_size(inputs[0]->get_shape()),
+                              op->get_attributes());
         break;
     case ngraph::element::Type_t::f32:
-        ngraph::runtime::reference::is_inf(inputs[0]->get_data_ptr<float>(),
-                                           outputs[0]->get_data_ptr<ngraph::element::Type_t::boolean>(),
-                                           ngraph::shape_size(inputs[0]->get_shape()),
-                                           op->get_attributes());
+        ov::reference::is_inf(inputs[0]->get_data_ptr<float>(),
+                              outputs[0]->get_data_ptr<ngraph::element::Type_t::boolean>(),
+                              ngraph::shape_size(inputs[0]->get_shape()),
+                              op->get_attributes());
         break;
     case ngraph::element::Type_t::f16:
-        ngraph::runtime::reference::is_inf(inputs[0]->get_data_ptr<ngraph::float16>(),
-                                           outputs[0]->get_data_ptr<ngraph::element::Type_t::boolean>(),
-                                           ngraph::shape_size(inputs[0]->get_shape()),
-                                           op->get_attributes());
+        ov::reference::is_inf(inputs[0]->get_data_ptr<ngraph::float16>(),
+                              outputs[0]->get_data_ptr<ngraph::element::Type_t::boolean>(),
+                              ngraph::shape_size(inputs[0]->get_shape()),
+                              op->get_attributes());
         break;
     case ngraph::element::Type_t::bf16:
-        ngraph::runtime::reference::is_inf(inputs[0]->get_data_ptr<ngraph::bfloat16>(),
-                                           outputs[0]->get_data_ptr<ngraph::element::Type_t::boolean>(),
-                                           ngraph::shape_size(inputs[0]->get_shape()),
-                                           op->get_attributes());
+        ov::reference::is_inf(inputs[0]->get_data_ptr<ngraph::bfloat16>(),
+                              outputs[0]->get_data_ptr<ngraph::element::Type_t::boolean>(),
+                              ngraph::shape_size(inputs[0]->get_shape()),
+                              op->get_attributes());
         break;
     default:
         return false;

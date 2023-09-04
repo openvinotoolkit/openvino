@@ -11,8 +11,7 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void transpose(const char* data,
                char* out,
@@ -21,5 +20,4 @@ void transpose(const char* data,
                const int64_t* axes_order,
                Shape out_shape);
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <cstddef>
-#include <ngraph/coordinate.hpp>
-#include <ngraph/shape.hpp>
+#include "openvino/core/coordinate.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 
 std::size_t coordinate_index(const Coordinate& c, const Shape& s);
 
-}  // namespace ngraph
+}  // namespace ov

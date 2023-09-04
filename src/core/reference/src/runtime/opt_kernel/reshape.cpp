@@ -370,7 +370,7 @@ void runtime::opt_kernel::reshape(const char* in,
         reshape_in6(in, out, in_shape, in_axis_order, out_shape, elem_size);
         break;
     default:
-        reference::reshape(in, out, in_shape, in_axis_order, out_shape, elem_size);
+        ov::reference::reshape(in, out, in_shape, in_axis_order, out_shape, elem_size);
         break;
     }
 }

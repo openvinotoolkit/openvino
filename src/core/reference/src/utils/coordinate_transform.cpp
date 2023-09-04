@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -13,13 +13,13 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/coordinate_index.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 
-using namespace ngraph;
+using namespace ov;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace {
@@ -124,8 +124,9 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
 
     for (size_t i = 0; i < m_n_axes; i++) {
         NGRAPH_SUPPRESS_DEPRECATED_START
-        std::ptrdiff_t padded_upper_bound = subtract_or_zero(source_shape[i], size_t(1)) * target_dilation_strides[i] +
-                                            1 + target_padding_below[i] + target_padding_above[i];
+        std::ptrdiff_t padded_upper_bound =
+            ngraph::subtract_or_zero(source_shape[i], size_t(1)) * target_dilation_strides[i] + 1 +
+            target_padding_below[i] + target_padding_above[i];
         NGRAPH_SUPPRESS_DEPRECATED_END
 
         if (padded_upper_bound < 0) {
@@ -166,8 +167,8 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
 
     for (size_t axis = 0; axis < m_n_axes; axis++) {
         m_target_shape.push_back(
-            ceil_div(source_end_corner[source_axis_order[axis]] - source_start_corner[source_axis_order[axis]],
-                     source_strides[source_axis_order[axis]]));
+            ngraph::ceil_div(source_end_corner[source_axis_order[axis]] - source_start_corner[source_axis_order[axis]],
+                             source_strides[source_axis_order[axis]]));
     }
 }
 

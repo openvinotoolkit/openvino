@@ -10,14 +10,14 @@
 
 #include "ngraph/check.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-void runtime::reference::split(const char* data,
-                               const Shape& data_shape,
-                               size_t elem_size,
-                               int64_t axis,
-                               size_t num_splits,
-                               char** out_data) {
+void reference::split(const char* data,
+                      const Shape& data_shape,
+                      size_t elem_size,
+                      int64_t axis,
+                      size_t num_splits,
+                      char** out_data) {
     const size_t part_length = data_shape.at(axis) / num_splits;
 
     Shape output_shape = data_shape;
@@ -28,14 +28,14 @@ void runtime::reference::split(const char* data,
     upper_bounds.at(axis) = part_length;
 
     for (size_t i = 0; i < num_splits; ++i) {
-        runtime::reference::slice(data,
-                                  out_data[i],
-                                  data_shape,
-                                  lower_bounds,
-                                  upper_bounds,
-                                  Strides(lower_bounds.size(), 1),
-                                  output_shape,
-                                  elem_size);
+        reference::slice(data,
+                         out_data[i],
+                         data_shape,
+                         lower_bounds,
+                         upper_bounds,
+                         Strides(lower_bounds.size(), 1),
+                         output_shape,
+                         elem_size);
         lower_bounds.at(axis) += part_length;
         upper_bounds.at(axis) += part_length;
     }

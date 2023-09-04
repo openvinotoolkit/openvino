@@ -30,13 +30,13 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec,
               bool pythondiv) {
-    runtime::reference::divide(arg0->get_data_ptr<ET>(),
-                               arg1->get_data_ptr<ET>(),
-                               out->get_data_ptr<ET>(),
-                               arg0->get_shape(),
-                               arg1->get_shape(),
-                               broadcast_spec,
-                               pythondiv);
+    ov::reference::divide(arg0->get_data_ptr<ET>(),
+                          arg1->get_data_ptr<ET>(),
+                          out->get_data_ptr<ET>(),
+                          arg0->get_shape(),
+                          arg1->get_shape(),
+                          broadcast_spec,
+                          pythondiv);
     return true;
 }
 

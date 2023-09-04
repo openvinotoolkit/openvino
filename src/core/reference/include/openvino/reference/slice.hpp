@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 // Slice-8 reference implementation
 void slice(const char* data,
@@ -30,5 +29,4 @@ void slice(const char* arg,
            const Shape& out_shape,
            size_t elem_size);
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

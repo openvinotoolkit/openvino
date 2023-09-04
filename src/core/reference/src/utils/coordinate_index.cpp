@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/coordinate_index.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 
-#include "ngraph/coordinate.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/coordinate.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 std::size_t coordinate_index(const Coordinate& c, const Shape& s) {
     if (c.size() < s.size()) {
         throw std::domain_error("Coordinate rank is less than shape rank.");
@@ -25,4 +25,4 @@ std::size_t coordinate_index(const Coordinate& c, const Shape& s) {
 
     return index;
 }
-}  // namespace ngraph
+}  // namespace ov

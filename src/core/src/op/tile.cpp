@@ -66,12 +66,12 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
         output->set_shape(output_shape);
     }
     repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
-    ngraph::runtime::reference::tile(data->get_data_ptr<const char>(),
-                                     output->get_data_ptr<char>(),
-                                     data->get_shape(),
-                                     output_shape,
-                                     data->get_element_type().size(),
-                                     repeats_val);
+    ov::reference::tile(data->get_data_ptr<const char>(),
+                        output->get_data_ptr<char>(),
+                        data->get_shape(),
+                        output_shape,
+                        data->get_element_type().size(),
+                        repeats_val);
 
     return true;
 }
@@ -89,12 +89,12 @@ bool op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVec
     const auto& output_shape = shape_infer(this, input_shapes, make_tensor_accessor(input_values)).front().to_shape();
     output.set_shape(output_shape);
     repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
-    ngraph::runtime::reference::tile(static_cast<const char*>(data.data()),
-                                     static_cast<char*>(output.data()),
-                                     data.get_shape(),
-                                     output_shape,
-                                     data.get_element_type().size(),
-                                     repeats_val);
+    ov::reference::tile(static_cast<const char*>(data.data()),
+                        static_cast<char*>(output.data()),
+                        data.get_shape(),
+                        output_shape,
+                        data.get_element_type().size(),
+                        repeats_val);
 
     return true;
 }

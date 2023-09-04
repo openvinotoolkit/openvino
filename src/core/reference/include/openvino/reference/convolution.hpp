@@ -8,8 +8,7 @@
 
 #include "ngraph/util.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace {
 
@@ -407,8 +406,7 @@ void convolution(const T* in,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
 
 // can't be removed currently due to arm-plugin dependency
 #include "openvino/reference/convolution_backprop_data.hpp"

@@ -12,13 +12,10 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/reference/concat.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 OPENVINO_SUPPRESS_DEPRECATED_START
-void function(const std::shared_ptr<ngraph::Function>& function,
-              const HostTensorVector& inputs,
-              HostTensorVector& outputs) {
+void function(const std::shared_ptr<Model>& function, const HostTensorVector& inputs, HostTensorVector& outputs) {
     const auto& results = function->get_results();
     outputs.reserve(results.size());
     for (size_t i = 0; i < results.size(); ++i) {
@@ -28,5 +25,4 @@ void function(const std::shared_ptr<ngraph::Function>& function,
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

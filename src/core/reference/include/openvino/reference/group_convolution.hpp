@@ -16,8 +16,7 @@ constexpr size_t out_batch_axis = 0;
 constexpr size_t out_channel_axis = 1;
 }  // namespace
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void validate_group_convolution_parameters(const Shape& in_shape,
                                            const Shape& f_shape,
@@ -72,16 +71,16 @@ void group_convolution(const INPUT* in,
     for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx) {
         group_filter = f;
         for (size_t group_idx = 0; group_idx < group_count; ++group_idx) {
-            runtime::reference::convolution(group_batch,
-                                            group_filter,
-                                            group_out,
-                                            group_batch_shape,
-                                            group_filter_shape,
-                                            group_out_shape,
-                                            strides,
-                                            dilation,
-                                            pads_begin,
-                                            pads_end);
+            reference::convolution(group_batch,
+                                   group_filter,
+                                   group_out,
+                                   group_batch_shape,
+                                   group_filter_shape,
+                                   group_out_shape,
+                                   strides,
+                                   dilation,
+                                   pads_begin,
+                                   pads_end);
             group_batch += group_batch_size;
             group_filter += group_filter_size;
             group_out += group_out_size;
@@ -89,5 +88,4 @@ void group_convolution(const INPUT* in,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

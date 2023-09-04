@@ -8,11 +8,10 @@
 #include <limits>
 #include <numeric>
 
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void max(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
@@ -20,7 +19,7 @@ void max(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
 
     constexpr bool dont_keep_dims_in_output = false;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
+    const auto out_shape = ngraph::reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
     std::fill(out, out + shape_size(out_shape), minval);
 
     const auto in_strides = row_major_strides(in_shape);
@@ -28,7 +27,7 @@ void max(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
 
     CoordinateTransformBasic input_transform(in_shape);
     for (const Coordinate& input_coord : input_transform) {
-        const Coordinate output_coord = reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
+        const Coordinate output_coord = ngraph::reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
 
         const size_t in_idx =
             std::inner_product(input_coord.begin(), input_coord.end(), in_strides.begin(), uint64_t(0));
@@ -44,5 +43,4 @@ void max(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

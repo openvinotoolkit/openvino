@@ -9,11 +9,10 @@
 #include "openvino/reference/split.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void tensor_iterator(uint64_t num_iterations,
-                     const std::shared_ptr<Function>& func,
+                     const std::shared_ptr<Model>& func,
                      const op::util::OutputDescriptionVector& out_descs,
                      const op::util::InputDescriptionVector& input_descs,
                      const HostTensorVector& out,
@@ -31,25 +30,25 @@ void tensor_iterator(uint64_t num_iterations,
     std::vector<BackEdge> back_edges;
     for (const auto& desc : input_descs) {
         inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
-        if (const auto& merged_desc = std::dynamic_pointer_cast<opset5::Loop::MergedInputDescription>(desc)) {
+        if (const auto& merged_desc = std::dynamic_pointer_cast<op::v5::Loop::MergedInputDescription>(desc)) {
             back_edges.push_back({merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
         }
     }
     // Find all ConcatOutputDescription
-    std::vector<std::shared_ptr<opset5::TensorIterator::ConcatOutputDescription>> concat_outputs;
+    std::vector<std::shared_ptr<op::v0::TensorIterator::ConcatOutputDescription>> concat_outputs;
     for (const auto& desc : out_descs) {
         if (const auto& concat_desc =
-                std::dynamic_pointer_cast<opset5::TensorIterator::ConcatOutputDescription>(desc)) {
+                std::dynamic_pointer_cast<op::v0::TensorIterator::ConcatOutputDescription>(desc)) {
             concat_outputs.push_back(concat_desc);
         }
     }
 
     // Slicing
-    std::vector<std::shared_ptr<opset5::TensorIterator::SliceInputDescription>> slice_inputs;
+    std::vector<std::shared_ptr<op::v0::TensorIterator::SliceInputDescription>> slice_inputs;
     std::vector<HostTensorVector> sliced_values;
     int slice_in_idx = 0;
     for (const auto& desc : input_descs) {
-        if (const auto& slice_desc = std::dynamic_pointer_cast<opset5::TensorIterator::SliceInputDescription>(desc)) {
+        if (const auto& slice_desc = std::dynamic_pointer_cast<op::v0::TensorIterator::SliceInputDescription>(desc)) {
             const auto el_size = args[slice_desc->m_input_index]->get_element_type().size();
             slice_inputs.push_back(slice_desc);
             auto shape = args[slice_desc->m_input_index]->get_shape();
@@ -105,7 +104,7 @@ void tensor_iterator(uint64_t num_iterations,
     }
 
     for (const auto& desc : out_descs) {
-        if (const auto& body_desc = std::dynamic_pointer_cast<opset5::TensorIterator::BodyOutputDescription>(desc)) {
+        if (const auto& body_desc = std::dynamic_pointer_cast<op::v0::TensorIterator::BodyOutputDescription>(desc)) {
             // Copy output values from the last iteration
             const auto& res = body_outputs[body_desc->m_body_value_index];
             out[body_desc->m_output_index]->set_shape(res->get_shape());
@@ -138,5 +137,4 @@ void tensor_iterator(uint64_t num_iterations,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

@@ -6,10 +6,11 @@
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "jit_generator.hpp"
+
+using namespace ngraph::runtime;
 #endif
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 namespace {
@@ -533,5 +534,4 @@ size_t count_out_of_f16_range(const float* arg, size_t count) {
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

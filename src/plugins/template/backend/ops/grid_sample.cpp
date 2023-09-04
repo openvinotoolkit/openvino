@@ -14,14 +14,14 @@ bool evaluate(const std::shared_ptr<ngraph::op::v9::GridSample>& op,
     ngraph::element::Type grid_et = op->get_input_element_type(1);
     switch (grid_et) {
     case ngraph::element::Type_t::f32:
-        ngraph::runtime::reference::grid_sample(outputs[0]->get_data_ptr<DATA_ET>(),
-                                                inputs[0]->get_data_ptr<DATA_ET>(),
-                                                inputs[1]->get_data_ptr<ngraph::element::Type_t::f32>(),
-                                                inputs[0]->get_shape(),
-                                                inputs[1]->get_shape(),
-                                                attributes.align_corners,
-                                                attributes.mode,
-                                                attributes.padding_mode);
+        ov::reference::grid_sample(outputs[0]->get_data_ptr<DATA_ET>(),
+                                   inputs[0]->get_data_ptr<DATA_ET>(),
+                                   inputs[1]->get_data_ptr<ngraph::element::Type_t::f32>(),
+                                   inputs[0]->get_shape(),
+                                   inputs[1]->get_shape(),
+                                   attributes.align_corners,
+                                   attributes.mode,
+                                   attributes.padding_mode);
         break;
     default:
         return false;

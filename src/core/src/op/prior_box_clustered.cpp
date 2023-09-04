@@ -62,11 +62,7 @@ namespace {
 template <element::Type_t ET>
 bool evaluate(const Tensor& arg0, const Tensor& arg1, Tensor& out, op::v0::PriorBoxClustered::Attributes attrs) {
     using T = fundamental_type_for<ET>;
-    ngraph::runtime::reference::prior_box_clustered(arg0.data<T>(),
-                                                    arg1.data<T>(),
-                                                    out.data<float>(),
-                                                    out.get_shape(),
-                                                    attrs);
+    ov::reference::prior_box_clustered(arg0.data<T>(), arg1.data<T>(), out.data<float>(), out.get_shape(), attrs);
     return true;
 }
 

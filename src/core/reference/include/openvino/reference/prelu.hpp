@@ -9,10 +9,9 @@
 #include <ngraph/op/util/attr_types.hpp>
 #include <ngraph/shape.hpp>
 
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
+#include "openvino/reference/autobroadcast_binop.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void prelu(const T* arg, const T* slope, T* out, const Shape& arg_shape, const Shape& slope_shape) {
@@ -34,5 +33,4 @@ void prelu(const T* arg, const T* slope, T* out, const Shape& arg_shape, const S
                         });
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

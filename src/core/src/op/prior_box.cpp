@@ -34,7 +34,7 @@ bool evaluate(const Tensor& arg0, const Tensor& arg1, Tensor& out, const op::v0:
     attrs_v8.scale_all_sizes = attrs.scale_all_sizes;
 
     using T = typename element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::prior_box(arg0.data<T>(), arg1.data<T>(), out.data<float>(), out.get_shape(), attrs_v8);
+    ov::reference::prior_box(arg0.data<T>(), arg1.data<T>(), out.data<float>(), out.get_shape(), attrs_v8);
     return true;
 }
 
@@ -176,7 +176,7 @@ namespace {
 template <element::Type_t ET>
 bool evaluate(const Tensor& arg0, const Tensor& arg1, Tensor& out, const op::v8::PriorBox::Attributes& attrs) {
     using T = typename element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::prior_box(arg0.data<T>(), arg1.data<T>(), out.data<float>(), out.get_shape(), attrs);
+    ov::reference::prior_box(arg0.data<T>(), arg1.data<T>(), out.data<float>(), out.get_shape(), attrs);
     return true;
 }
 
