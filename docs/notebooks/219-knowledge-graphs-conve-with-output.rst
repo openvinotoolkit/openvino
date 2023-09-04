@@ -531,7 +531,7 @@ perform a sample evaluation on the knowledge graph. Then, we determine
 the platform specific speedup in runtime performance that can be
 obtained through OpenVINO graph optimizations. To learn more about the
 OpenVINO performance optimizations, refer to:
-https://docs.openvino.ai/2023.1/openvino_docs_optimization_guide_dldt_optimization_guide.html
+https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_dldt_optimization_guide.html
 
 References `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
