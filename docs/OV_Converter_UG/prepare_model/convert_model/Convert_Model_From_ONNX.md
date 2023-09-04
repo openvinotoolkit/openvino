@@ -11,7 +11,7 @@ Introduction to ONNX
 
 `ONNX <https://github.com/onnx/onnx>`__ is a representation format for deep learning models that allows AI developers to easily transfer models between different frameworks.
 
-.. note:: ONNX model file can be loaded by `openvino.Core.read_model` or `openvino.Core.compile_model` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
+.. note:: ONNX model file can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
 
 Converting an ONNX Model
 ########################
@@ -38,9 +38,9 @@ To convert an ONNX model, run model conversion with the path to the input model 
 External Data Files
 #########################
 
-ONNX models may consist of multiple files when the total size of the model exceeds 2GB allowed by Protobuf. According to `ONNX< https://github.com/onnx/onnx/blob/main/docs/ExternalData.md>`, instead of a single file, such a model is represented as one file with `.onnx` extension and multiple separate files with external data which are located in the same directory where the main `.onnx` file is located or in another directory.
+ONNX models may consist of multiple files when the total size of the model exceeds 2GB allowed by Protobuf. According to `ONNX< https://github.com/onnx/onnx/blob/main/docs/ExternalData.md>`__, instead of a single file, such a model is represented as one file with ``.onnx`` extension and multiple separate files with external data which are located in the same directory where the main `.onnx` file is located or in another directory.
 
-OpenVINO model conversion API supports ONNX models with external data representation. In this case, only the main file with `.onnx` extension should be passed as `ovc` or `openvino.convert_model` parameter while other files will be found and loaded automatically during the mode conversion. The resulting OpenVINO model represented as IR in the filesystem will have the usual structure with a single `.xml` file and a single `.bin` file where all the original model weights are copied and packed together.
+OpenVINO model conversion API supports ONNX models with external data representation. In this case, only the main file with ```.onnx`` extension should be passed as ``ovc`` or ``openvino.convert_model`` parameter while other files will be found and loaded automatically during the mode conversion. The resulting OpenVINO model represented as IR in the filesystem will have the usual structure with a single ``.xml`` file and a single ``.bin`` file where all the original model weights are copied and packed together.
 
 Supported ONNX Layers
 #####################

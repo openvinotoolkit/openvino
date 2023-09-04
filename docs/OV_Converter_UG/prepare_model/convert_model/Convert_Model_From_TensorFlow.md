@@ -155,7 +155,7 @@ Freezing Custom Models in Python
 
 When a network is defined in Python code, you must create an inference graph file. Graphs are usually built in a form
 that allows model training. That means all trainable parameters are represented as variables in the graph.
-To be able to use such a graph with model conversion API, it should be frozen first before passing to `openvino.convert_model` function:
+To be able to use such a graph with model conversion API, it should be frozen first before passing to ``openvino.convert_model`` function:
 
 ** TODO: Check correctness, provide complete examples (here and below) **
 
@@ -218,7 +218,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      model = MyModule(name="simple_module")
      ov_model = ov.convert_model(model, input_shape=[-1])
 
-.. note:: There is a known bug in `openvino.convert_model` on using `tf.Variable` nodes in the model graph. The results of the conversion of such models is unpredictable. It is recommended to save a model with `tf.Variable` into TensorFlow Saved Model format and load it with `openvino.convert_model`.
+.. note:: There is a known bug in ``openvino.convert_model`` on using ``tf.Variable`` nodes in the model graph. The results of the conversion of such models is unpredictable. It is recommended to save a model with ``tf.Variable`` into TensorFlow Saved Model format and load it with `openvino.convert_model`.
 
 * ``tf.compat.v1.Graph``
 

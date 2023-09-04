@@ -1,15 +1,15 @@
 # Setting Input Shapes {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model}
 
-With model conversion API you can increase your model's efficiency by providing an additional shape definition, with `input` parameter.
+With model conversion API you can increase your model's efficiency by providing an additional shape definition, with ``input`` parameter.
 
 @sphinxdirective
 
 .. meta::
-   :description: Learn how to increase the efficiency of a model by providing an additional shape definition with the `input` parameter of `openvino.convert_model` and `ovc`.
+   :description: Learn how to increase the efficiency of a model by providing an additional shape definition with the ``input`` parameter of ``openvino.convert_model`` and ``ovc``.
 
 .. _when_to_specify_input_shapes:
 
-Specifying shapes in `input` parameter
+Specifying shapes in ``input`` parameter
 ######################################
 
 ``openvino.convert_model`` supports conversion of models with dynamic input shapes that contain undefined dimensions.
@@ -44,7 +44,7 @@ and specify the input shape of ``[2,300,300,3]``:
 
          ovc MobileNet.pb --input [2,300,300,3]
 
-If a model has multiple inputs, the input shape should be specified in ``input`` parameter as a list. In `ovc`, this is a command separate list, and in `openvino.convert_model` this is a Python list or tuple with number of elements matching the number of inputs in the model. Use input names from the original model to define the mapping between inputs and shapes specified.
+If a model has multiple inputs, the input shape should be specified in ``input`` parameter as a list. In ``ovc``, this is a command separate list, and in ``openvino.convert_model`` this is a Python list or tuple with number of elements matching the number of inputs in the model. Use input names from the original model to define the mapping between inputs and shapes specified.
 The following example demonstrates the conversion of the ONNX OCR model with a pair of inputs ``data`` and ``seq_len``
 and specifies shapes ``[3,150,200,1]`` and ``[3]`` for them respectively:
 
@@ -90,7 +90,7 @@ Whether the model has a specified order of inputs depends on the original framew
 
 The ``input`` parameter allows overriding original input shapes if it is supported by the model topology.
 Shapes with dynamic dimensions in the original model can be replaced with static shapes for the converted model, and vice versa.
-The dynamic dimension can be marked in model conversion API parameter as ``-1`` or ``?`` when using `ovc`.
+The dynamic dimension can be marked in model conversion API parameter as ``-1`` or ``?`` when using ``ovc``.
 For example, launch model conversion for the ONNX OCR model and specify dynamic batch dimension for inputs:
 
 .. tab-set::
@@ -112,7 +112,7 @@ For example, launch model conversion for the ONNX OCR model and specify dynamic 
          ovc ocr.onnx --input "data[?,150,200,1],seq_len[?]"
 
 To optimize memory consumption for models with undefined dimensions in run-time, model conversion API provides the capability to define boundaries of dimensions.
-The boundaries of undefined dimension can be specified with ellipsis in the command line or with `openvino.Dimension` class in Python.
+The boundaries of undefined dimension can be specified with ellipsis in the command line or with ``openvino.Dimension`` class in Python.
 For example, launch model conversion for the ONNX OCR model and specify a boundary for the batch dimension 1..3, which means that the input tensor will have batch dimension minimum 1 and maximum 3 in inference:
 
 .. tab-set::
