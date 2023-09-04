@@ -639,8 +639,8 @@ TEST_F(I16QuantisationTest, TI_PropagateForward) {
     const size_t batch_size = 1;
     const size_t hiddenSize = 10;
 
-    auto H_init = ngraph::builder::makeConstant<float>(ngraph::element::f32, {batch_size, hiddenSize}, {}, true);
-    auto C_init = ngraph::builder::makeConstant<float>(ngraph::element::f32, {batch_size, hiddenSize}, {}, true);
+    auto H_init = ov::builder::makeConstant<float>(ngraph::element::f32, {batch_size, hiddenSize}, {}, true);
+    auto C_init = ov::builder::makeConstant<float>(ngraph::element::f32, {batch_size, hiddenSize}, {}, true);
 
     auto H_t = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hiddenSize});
     auto C_t = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hiddenSize});
@@ -649,9 +649,9 @@ TEST_F(I16QuantisationTest, TI_PropagateForward) {
     auto X = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32,
                                                          ngraph::Shape{batch_size, 1, reshape_shape[2]});
     auto weightsNode =
-        ngraph::builder::makeConstant<float>(ngraph::element::f32, {4 * hiddenSize, reshape_shape[2]}, {}, true);
+        ov::builder::makeConstant<float>(ngraph::element::f32, {4 * hiddenSize, reshape_shape[2]}, {}, true);
     auto reccurrenceWeightsNode =
-        ngraph::builder::makeConstant<float>(ngraph::element::f32, {4 * hiddenSize, hiddenSize}, {}, true);
+        ov::builder::makeConstant<float>(ngraph::element::f32, {4 * hiddenSize, hiddenSize}, {}, true);
 
     // lstm
     auto constantX =
@@ -680,7 +680,7 @@ TEST_F(I16QuantisationTest, TI_PropagateForward) {
     auto out0 = tensor_iterator->get_iter_value(H_o, -1);
 
     const size_t output_size = 12;
-    auto fc = ngraph::builder::makeFullyConnected(out0,
+    auto fc = ov::builder::makeFullyConnected(out0,
                                                   ngraph::element::f32,
                                                   output_size,
                                                   true,
