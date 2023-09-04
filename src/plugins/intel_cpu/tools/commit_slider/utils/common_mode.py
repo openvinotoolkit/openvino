@@ -86,12 +86,30 @@ class Mode(ABC):
             raise util.CfgError("traversal is not configured")
 
     def prepareRun(self, list, cfg):
+        self.normalizeCfg(cfg)
         cfg["serviceConfig"] = {}
         if cfg["checkIfBordersDiffer"] and not self.checkIfListBordersDiffer(
                 list, cfg):
             raise util.RepoError("Borders {i1} and {i2} doesn't differ".format(
                 i1=0, i2=len(list) - 1))
         self.commitList = list
+
+    def normalizeCfg(self, cfg):
+        if "modeName" in cfg["skipMode"]:
+            errorHandlingMode = cfg["skipMode"]["modeName"]
+            if errorHandlingMode == "skip":
+                cfg["skipMode"]["flagSet"] = {}
+                cfg["skipMode"]["flagSet"]["enableSkips"] = True
+            elif (errorHandlingMode == "rebuild"):
+                cfg["skipMode"]["flagSet"] = {}
+                cfg["skipMode"]["flagSet"]["enableSkips"] = False
+                cfg["skipMode"]["flagSet"]["enableRebuild"] = True
+                cfg["skipMode"]["flagSet"]["switchOnSimpleBuild"] = True
+                cfg["skipMode"]["flagSet"]["switchOnExtendedBuild"] = False
+            else:
+                raise util.CfgError(
+                    "Error handling mode {} is not supported".format(errorHandlingMode)
+                    )
 
     def postRun(self, list):
         util.returnToActualVersion(self.cfg)
@@ -174,15 +192,15 @@ class Mode(ABC):
             try:
                 self.bypass(curList, list, cfg)
             except util.BuildError as be:
-                # to-do add analisys
-                if be.errType != util.BuildError.BuildErrType.TO_SKIP:
-                    raise util.BuildError(
-                        message = "error occured during rebuilding",
-                        errType = util.BuildError.BuildErrType.WRONG_STATE,
-                        commit=be.commit
-                        )
-                self.skipCommit(be.commit, curList, cfg)
-                self.wrappedBypass(curList, list, cfg)
+                if be.errType == util.BuildError.BuildErrType.TO_SKIP:
+                    self.skipCommit(be.commit, curList, cfg)
+                    self.wrappedBypass(curList, list, cfg)
+                elif be.errType == util.BuildError.BuildErrType.TO_REBUILD:
+                    cfg["extendBuildCommand"] = True
+                    self.wrappedBypass(curList, list, cfg)
+                else:
+                    # exception must be reported to user
+                    pass
 
 
         def skipCommit(self, commit, curList, cfg):

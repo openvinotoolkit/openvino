@@ -158,7 +158,10 @@ def runCommandList(commit, cfgData, enforceClean=False):
     else:
         skipCleanInterval = cfgData["trySkipClean"] and not enforceClean
     commitLogger = getCommitLogger(cfgData, commit)
-    commandList = cfgData["commandList"]
+    if not cfgData["extendBuildCommand"]:
+        commandList = cfgData["commandList"]
+    else:
+        commandList = cfgData["extendedCommandList"]
     gitPath = cfgData["gitPath"]
     buildPath = cfgData["buildPath"]
     defRepo = gitPath
@@ -246,13 +249,46 @@ def handleCommit(commit, cfgData):
         cfgData["trySkipClean"] = skipCleanInterval
     try:
         runCommandList(commit, cfgData)
+        if cfgData["skipMode"]["flagSet"]["enableRebuild"]:
+            cfgData["skipMode"]["flagSet"]["switchOnSimpleBuild"] = True
+            cfgData["skipMode"]["flagSet"]["switchOnExtendedBuild"] = False
+            cfgData["extendBuildCommand"] = False
     except BuildError as be:
-        commitLogger.info("Build error: clean is necessary")
-        raise BuildError(
-            errType=BuildError.BuildErrType.TO_SKIP,
-            message="build error handled by skip",
-            commit=commit
-            ) from be
+        if cfgData["skipMode"]["flagSet"]["enableSkips"]:
+            commitLogger.info("Build error: commit {} skipped".format(commit))
+            raise BuildError(
+                errType=BuildError.BuildErrType.TO_SKIP,
+                message="build error handled by skip",
+                commit=commit
+                ) from be
+        elif cfgData["skipMode"]["flagSet"]["enableRebuild"]:
+            if cfgData["skipMode"]["flagSet"]["switchOnSimpleBuild"]:
+                cfgData["skipMode"]["flagSet"]["switchOnSimpleBuild"] = False
+                cfgData["skipMode"]["flagSet"]["switchOnExtendedBuild"] = True
+                commitLogger.info("Build error: commit {} rebuilded".format(commit))
+                raise BuildError(
+                    errType=BuildError.BuildErrType.TO_REBUILD,
+                    message="build error handled by rebuilding",
+                    commit=commit
+                    ) from be
+            elif cfgData["skipMode"]["flagSet"]["switchOnExtendedBuild"]:
+                raise BuildError(
+                    errType=BuildError.BuildErrType.TO_STOP,
+                    message="cannot rebuild commit",
+                    commit=commit
+                    ) from be
+            else:
+                raise BuildError(
+                    errType=BuildError.BuildErrType.WRONG_STATE,
+                    message="incorrect case with commit",
+                    commit=commit
+                    ) from be
+        else:
+            raise BuildError(
+                        message = "error occured during handling",
+                        errType = BuildError.BuildErrType.WRONG_STATE,
+                        commit=commit
+                        )
 
 
 def returnToActualVersion(cfg):

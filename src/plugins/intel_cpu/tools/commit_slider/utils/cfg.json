@@ -11,6 +11,7 @@
         "checkCommitSet" : "IterateOverSuspiciousCommits",
         "bruteForce" : "BruteForce"
     },
+    "extendBuildCommand" : false,
     "commandList" : [
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
         {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
@@ -22,7 +23,7 @@
         {"cmd" : "make --jobs=4", "catchMsg" : "Error", "path" : "{buildPath}"},
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
     ],
-    "deepCleanCommandList" : [
+    "extendedCommandList" : [
         {"cmd" : "git rm --cached -r .", "path" : "{gitPath}"},
         {"cmd" : "git reset --hard", "path" : "{gitPath}"},
         {"cmd" : "git rm .gitattributes", "path" : "{gitPath}"},
@@ -43,17 +44,18 @@
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
     ],
     "skipMode" : {
-        "modeName" : "skipAndDeepClean",
+        "modeName" : "rebuild",
         "flagSet" : {
-            "comment" : "ignored if modeName is defined",
-            "!!" : "rebuildEnabled for checkout also",
+            "comment_1" : "\"flagSet\" ignored if modeName is defined",
             "enforceSkips" : "enabled automatically when double-build failed",
-            "enforceExtendedBuild" : false,
-            "enableSkips" : false,
             "enableRebuild" : false,
-            "buildTryCount" : 0
+            "switchOnExtendedBuild" : false,
+            "switchOnSimpleBuild" : false,
+            "comment_2" : "additional params, to-be considered in complex modes",
+            "buildTryCount" : 0,
+            "failedCommand" : "checkout | make"
         },
-        "comment" : "modes: {skipAndDeepClean (for local purpose) | rebuildAndNoSkip (for job) | rebuildAndSkip (not recommended)}"
+        "comment" : "modes: {skip (for developer purpose) | rebuild (simple user mode)}"
     },
     "makeCmd" : "cmake ..",
     "returnCmd" : "git checkout master",
