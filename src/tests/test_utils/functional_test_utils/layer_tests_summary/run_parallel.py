@@ -10,6 +10,7 @@ from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree, copyfile
 from tarfile import open as tar_open
+import defusedxml.ElementTree as ET
 
 if not constants.IS_WIN:
     from signal import SIGKILL
@@ -203,7 +204,9 @@ class TaskManager:
         return self._idx
 
 class TestParallelRunner:
-    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, is_parallel_devices=False):
+    def __init__(self, exec_file_path: os.path, test_command_line: list,
+                 worker_num: int, working_dir: os.path, cache_path: os.path,
+                 is_parallel_devices=False, excluded_tests=set()):
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
         self._conformance_ir_filelists = list()
@@ -224,6 +227,10 @@ class TestParallelRunner:
         self._available_devices = [self._device] if not self._device is None else []
         if has_python_api and is_parallel_devices:
             self._available_devices = get_available_devices(self._device)
+        self._excluded_tests_re = set()
+        self._orig_excluded_tests = excluded_tests
+        for test in excluded_tests:
+            self._excluded_tests_re.add(f'"{self.__replace_restricted_symbols(test)}":')
             
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
@@ -319,11 +326,11 @@ class TestParallelRunner:
         cached_test_list_names = list()
 
         for test in test_list_cache:
-            if test._name in test_list_runtime:
+            if test._name in test_list_runtime and not test in self._excluded_tests_re:
                 cached_test_list.append(test)
                 cached_test_list_names.append(test._name)
         for test in test_list_runtime:
-            if not test in cached_test_list_names:
+            if not test in cached_test_list_names and not test in self._excluded_tests_re:
                 runtime_test_test.append(test)
 
         if len(runtime_test_test) > 0:
@@ -468,7 +475,9 @@ class TestParallelRunner:
                     interapted_tests.append(f'"{test_name}":')
                 log_file.close()
         test_list_runtime = set(self.__get_test_list_by_runtime())
-        return list(test_list_runtime.difference(test_names)), interapted_tests
+        not_runned_tests = test_list_runtime.difference(test_names).difference(self._excluded_tests_re)
+        interapted_tests = set(interapted_tests).difference(self._excluded_tests_re)
+        return list(not_runned_tests), list(interapted_tests)
 
     def run(self):
         if TaskManager.process_timeout == -1:
@@ -657,10 +666,17 @@ class TestParallelRunner:
                 for priority, name in fix_priority:
                     csv_writer.writerow([name, priority])
                     if "IR=" in name:
-                        ir_hashes.append(name[name.find('IR=')+3:name.find('_Device=')])
+                        ir_hash = name[name.find('IR=')+3:name.find('_Device=')]
+                        if os.path.isfile(ir_hash):
+                            _, tail = os.path.split(ir_hash)
+                            ir_hash, _ = os.path.splitext(tail)
+                        ir_hashes.append(ir_hash)
+                        
                 logger.info(f"Fix priorities list is saved to: {fix_priority_path}")
                 # Find all irs for failed tests
                 failed_ir_dir = os.path.join(self._working_dir, f'{self._device}_failed_ir')
+                failed_models_file_path = os.path.join(self._working_dir, f'failed_models.lst')
+                failed_models = set()
                 for conformance_ir_filelist in self._conformance_ir_filelists:
                     with open(conformance_ir_filelist, 'r') as file:
                         for conformance_ir in file.readlines():
@@ -684,6 +700,12 @@ class TestParallelRunner:
                                 copyfile(xml_file, failed_ir_xml)
                                 copyfile(bin_file, failed_ir_bin)
                                 copyfile(meta_file, failed_ir_meta)
+
+                                meta_root = ET.parse(failed_ir_meta).getroot()
+                                for unique_model in meta_root.find("models"):
+                                    for path in unique_model:
+                                        for unique_path in path:
+                                            failed_models.add(unique_path.attrib["path"])
                 # api conformance has no failed irs
                 if os.path.exists(failed_ir_dir):
                     output_file_name = failed_ir_dir + '.tar'
@@ -691,7 +713,13 @@ class TestParallelRunner:
                         tar.add(failed_ir_dir, arcname=os.path.basename(failed_ir_dir))
                         logger.info(f"All Conformance IRs for failed tests are saved to: {output_file_name}")
                     rmtree(failed_ir_dir)
-
+                if len(failed_models) > 0:
+                    with open(failed_models_file_path, "w") as failed_models_file:
+                        failed_models_list = list()
+                        for item in failed_models:
+                            failed_models_list.append(f"{item}\n")
+                        failed_models_file.writelines(failed_models_list)
+                        failed_models_file.close()
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.log")
         with open(disabled_tests_path, "w") as disabled_tests_file:
             for i in range(len(self._disabled_tests)):
@@ -703,7 +731,7 @@ class TestParallelRunner:
         not_run_tests_path = os.path.join(logs_dir, "not_run_tests.log")
         with open(not_run_tests_path, "w") as not_run_tests_path_file:
             test_list_runtime = self.__get_test_list_by_runtime()
-            diff_set = set(test_list_runtime).difference(set(saved_tests))
+            diff_set = set(test_list_runtime).difference(set(saved_tests)).difference(self._orig_excluded_tests)
             diff_list = list()
             for item in diff_set:
                 diff_list.append(f"{item}\n")

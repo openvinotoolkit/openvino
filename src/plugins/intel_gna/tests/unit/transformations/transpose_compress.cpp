@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset12.hpp"
 
@@ -24,7 +24,7 @@ struct TestData {
 typedef std::tuple<TestData>  // Transpose order
     test_params;
 
-class TransposeCompressTest : public CommonTestUtils::TestsCommon, public ::testing::WithParamInterface<test_params> {
+class TransposeCompressTest : public ov::test::TestsCommon, public ::testing::WithParamInterface<test_params> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<test_params>& obj) {
         TestData test_shapes;

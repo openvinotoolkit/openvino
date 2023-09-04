@@ -11,7 +11,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/mat_mul_function.hpp"
@@ -20,27 +20,27 @@
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class MatMullTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization1;
+        ov::element::Type precisionBeforeDequantization1;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
-        ngraph::element::Type precisionBeforeDequantization2;
+        ov::element::Type precisionBeforeDequantization2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization1;
+        ov::element::Type precisionBeforeDequantization1;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
-        ngraph::element::Type precisionBeforeDequantization2;
+        ov::element::Type precisionBeforeDequantization2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
-        ngraph::element::Type precisionBeforeOperation1;
-        ngraph::element::Type precisionBeforeOperation2;
+        ov::element::Type precisionBeforeOperation1;
+        ov::element::Type precisionBeforeOperation2;
         ngraph::builder::subgraph::DequantizationOperations result;
     };
 
@@ -66,14 +66,14 @@ inline std::ostream& operator<<(std::ostream& out, const MatMullTransformationTe
 }
 
 typedef std::
-    tuple<ngraph::element::Type, std::pair<ngraph::PartialShape, ngraph::PartialShape>, MatMullTransformationTestValues>
+    tuple<ov::element::Type, std::pair<ngraph::PartialShape, ngraph::PartialShape>, MatMullTransformationTestValues>
         MatMulTransformationParams;
 
 class MatMulTransformation : public LayerTransformation,
                              public testing::WithParamInterface<MatMulTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
         const std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes = std::get<1>(GetParam());
         const MatMullTransformationTestValues testValues = std::get<2>(GetParam());
 
@@ -90,7 +90,7 @@ public:
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = (testValues.expected.precisionBeforeOperation1 == ngraph::element::f32) &&
+        referenceFunction = (testValues.expected.precisionBeforeOperation1 == ov::element::f32) &&
                                     testValues.expected.result.empty()
                                 ? ngraph::builder::subgraph::MatMulFunction::getOriginal(
                                       precision,
@@ -112,7 +112,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
-        ngraph::element::Type precision;
+        ov::element::Type precision;
         std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
         MatMullTransformationTestValues testValues;
         std::tie(precision, shapes, testValues) = obj.param;
@@ -131,7 +131,7 @@ TEST_P(MatMulTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32, ngraph::element::f16};
+const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
 namespace testValues1 {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapes = {
@@ -144,199 +144,199 @@ std::vector<MatMullTransformationTestValues> testValues = {
     // U8 + I8: Constant on dequantization operations on 0 branch
     {LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {{0.02f}, ngraph::element::f32, {}, true, 0}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::u8,
+         {ov::element::f32, {}, {{0.02f}, ov::element::f32, {}, true, 0}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::u8,
+         ov::element::u8,
          {},
-         ngraph::element::i8,
+         ov::element::i8,
          {},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {0.0006f}},
      }},
     // U8 + I8
     {LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {127.f}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::u8,
+         {ov::element::f32, {127.f}, {0.02f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {127.f}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::u8,
+         {ov::element::f32, {127.f}, {0.02f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {}},
      }},
     // I8 + I8
     {LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
      {
-         ngraph::element::i8,
-         {ngraph::element::f32, {127.f}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::i8,
+         {ov::element::f32, {127.f}, {0.02f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::i8,
-         {ngraph::element::f32, {127.f}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::i8,
+         {ov::element::f32, {127.f}, {0.02f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {}},
      }},
     // U8 + I8, Subtract with not int
     {LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {127.5f}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::u8,
+         {ov::element::f32, {127.5f}, {0.02f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {127.5f}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::u8,
+         {ov::element::f32, {127.5f}, {0.02f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {}},
      }},
     // U8 + FP32
     {LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {127.f}, {0.02f}},
-         ngraph::element::f32,
+         ov::element::u8,
+         {ov::element::f32, {127.f}, {0.02f}},
+         ov::element::f32,
          {{}, {}, {0.03f}},
      },
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {127.f}, {0.02f}},
-         ngraph::element::f32,
+         ov::element::u8,
+         {ov::element::f32, {127.f}, {0.02f}},
+         ov::element::f32,
          {{}, {}, {0.03f}},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::f32,
+         ov::element::f32,
          {},
      }},
     // FP32 + I8
     {LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
      {
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {127.f}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {127.f}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
+         ov::element::f32,
+         ov::element::f32,
          {},
      }},
     {LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::u8,
+         {ov::element::f32, {}, {0.02f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::u8,
+         ov::element::u8,
          {{}, {}, {}},
-         ngraph::element::i8,
+         ov::element::i8,
          {{}, {}, {}},
-         ngraph::element::u8,
-         ngraph::element::i8,
+         ov::element::u8,
+         ov::element::i8,
          {{}, {}, {0.02f * 0.03f}},
      }},
     {LayerTransformation::createParamsU8U8(),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::u8,
+         {ov::element::f32, {}, {0.02f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::u8,
+         ov::element::u8,
          {{}, {}, {}},
-         ngraph::element::i8,
+         ov::element::i8,
          {{}, {}, {}},
-         ngraph::element::u8,
-         ngraph::element::i8,
+         ov::element::u8,
+         ov::element::i8,
          {{}, {}, {0.02f * 0.03f}},
      }},
     {LayerTransformation::createParamsU8U8(),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {0.02f}},
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::u8,
+         {ov::element::f32, {}, {0.02f}},
+         ov::element::u8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::u8,
+         ov::element::u8,
          {{}, {}, {}},
-         ngraph::element::u8,
+         ov::element::u8,
          {{}, {}, {}},
-         ngraph::element::u8,
-         ngraph::element::u8,
+         ov::element::u8,
+         ov::element::u8,
          {{}, {}, {0.02f * 0.03f}},
      }},
     {LayerTransformation::createParamsI8I8().setUpdatePrecisions(true),
      {
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.02f}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.02f}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::i8,
+         ov::element::i8,
          {{}, {}, {}},
-         ngraph::element::i8,
+         ov::element::i8,
          {{}, {}, {}},
-         ngraph::element::i8,
-         ngraph::element::i8,
+         ov::element::i8,
+         ov::element::i8,
          {{}, {}, {0.02f * 0.03f}},
      }},
     {LayerTransformation::createParamsI8I8().setUpdatePrecisions(true),
      {
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {}, {0.02f}},
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {}, {0.03f}},
      },
      {
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {}, {0.02f}},
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {}, {0.03f}},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {}},
      }},
     {LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
      {
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {}, {0.02f}},
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {}, {0.03f}},
      },
      {
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {}, {}},
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {}, {}},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {0.02f * 0.03f}},
      }}};
 
@@ -358,34 +358,34 @@ std::vector<MatMullTransformationTestValues> testValues = {
     // U8 + I8: Constant on dequantization operations on 0 branch
     {LayerTransformation::createParamsU8U8(),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::u8,
+         {ov::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::u8,
+         ov::element::u8,
          {},
-         ngraph::element::i8,
+         ov::element::i8,
          {},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {{0.0006f, 0.0009f, 0.0003f}}},
      }},
     {LayerTransformation::createParamsU8U8(),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
+         ov::element::u8,
+         {ov::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
+         ov::element::i8,
+         {ov::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
      },
      {
-         ngraph::element::u8,
+         ov::element::u8,
          {},
-         ngraph::element::i8,
+         ov::element::i8,
          {},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {{0.0004f, 0.0009f, 0.0001f}}},
      }},
 };
@@ -406,34 +406,34 @@ std::vector<MatMullTransformationTestValues> testValuesWithPerChannelDq = {
     // U8 + I8: Constant on dequantization operations on 0 branch
     {LayerTransformation::createParamsU8U8(),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
+         ov::element::u8,
+         {ov::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
      },
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {0.03f}},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::u8,
+         {ov::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
+         ov::element::i8,
+         {ov::element::f32, {}, {0.03f}},
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {}},
      }},
     {LayerTransformation::createParamsU8U8(),
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
+         ov::element::u8,
+         {ov::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
+         ov::element::i8,
+         {ov::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
      },
      {
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
-         ngraph::element::i8,
-         {ngraph::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
-         ngraph::element::f32,
-         ngraph::element::f32,
+         ov::element::u8,
+         {ov::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
+         ov::element::i8,
+         {ov::element::f32, {}, {{0.02f, 0.03f, 0.01f}}},
+         ov::element::f32,
+         ov::element::f32,
          {{}, {}, {}},
      }},
 };

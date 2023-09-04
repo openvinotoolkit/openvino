@@ -4,7 +4,7 @@
 
 // clang-format off
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
+#include "openvino/reference/embedding_bag_packed_sum.hpp"
 // clang-format on
 
 namespace embedding_bag_packed_sum_v3 {
