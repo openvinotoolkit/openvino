@@ -111,6 +111,9 @@ def MULTI_4():
 
 
 def main():
+    core = ov.Core()
+    if "GPU" not in core.available_devices:
+        return 0
     MULTI_0()
     MULTI_1()
     available_devices_1()

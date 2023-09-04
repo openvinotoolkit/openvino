@@ -3,16 +3,21 @@
 
 from snippets import get_model
 
-model = get_model()
 
-#! [compile_model_default]
-import openvino as ov
+def main():
+    model = get_model()
 
-core = ov.Core()
-compiled_model = core.compile_model(model, "CPU")
-#! [compile_model_default]
+    #! [compile_model_default]
+    import openvino as ov
 
-#! [compile_model_multi]
-core = ov.Core()
-compiled_model = core.compile_model(model, "MULTI:CPU,GPU.0")
-#! [compile_model_multi]
+    core = ov.Core()
+    compiled_model = core.compile_model(model, "CPU")
+    #! [compile_model_default]
+
+    if "GPU" not in core.available_devices:
+        return 0
+
+    #! [compile_model_multi]
+    core = ov.Core()
+    compiled_model = core.compile_model(model, "MULTI:CPU,GPU.0")
+    #! [compile_model_multi]

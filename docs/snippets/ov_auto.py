@@ -185,10 +185,13 @@ def part7():
 
 
 def main():
-    part0()
-    part1()
     part3()
     part4()
     part5()
     part6()
     part7()
+    core = ov.Core()
+    if "GPU" not in core.available_devices:
+        return 0
+    part0()
+    part1()
