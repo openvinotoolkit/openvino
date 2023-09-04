@@ -424,7 +424,6 @@ unsigned get_L2_cache_size_for_current_core() {
             default: return 0U;
         }
     };
-    using namespace dnnl::impl::cpu::x64;
 
     // this function can return stub values in case of unknown CPU type
     if (cpu_.getDataCacheLevels() == 0)

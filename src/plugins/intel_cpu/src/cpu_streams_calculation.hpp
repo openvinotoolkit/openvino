@@ -113,5 +113,11 @@ void get_num_streams(const int streams,
  */
 int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode);
 
+/**
+ * @brief      Get L2 cache size of the cpu core where the current thread is located
+ * @return     cache size
+ */
+unsigned get_L2_cache_size_for_current_core();
+
 }  // namespace intel_cpu
 }  // namespace ov
