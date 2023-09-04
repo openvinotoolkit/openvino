@@ -4,6 +4,8 @@ OpenVINO™ model conversion API
 This notebook shows how to convert a model from original framework
 format to OpenVINO Intermediate Representation (IR). 
 
+.. _top:
+
 **Table of contents**:
 
 -  `OpenVINO IR format <#openvino-ir-format>`__

@@ -1,7 +1,7 @@
 Controllable Music Generation with MusicGen and OpenVINO
 ========================================================
 
-.. _top:
+
 
 MusicGen is a single-stage auto-regressive Transformer model capable of
 generating high-quality music samples conditioned on text descriptions
@@ -31,6 +31,8 @@ OpenVINO.
 We will use a model implementation from the `Hugging Face
 Transformers <https://huggingface.co/docs/transformers/index>`__
 library.
+
+.. _top:
 
 **Table of contents**:
 

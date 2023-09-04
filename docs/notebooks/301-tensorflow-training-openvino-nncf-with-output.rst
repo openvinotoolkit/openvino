@@ -11,6 +11,8 @@ A custom dataloader and metric will be defined, and accuracy and
 performance will be computed for the original IR model and the quantized
 model.
 
+.. _top:
+
 **Table of contents**:
 
 - `Preparation <#preparation>`__

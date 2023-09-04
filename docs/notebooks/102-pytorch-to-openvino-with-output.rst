@@ -1,7 +1,7 @@
 Convert a PyTorch Model to OpenVINO™ IR
 =======================================
 
-.. _top:
+
 
 This tutorial demonstrates step-by-step instructions on how to do
 inference on a PyTorch classification model using OpenVINO Runtime.
@@ -30,6 +30,10 @@ overall process is analogous to the classic manual design of networks
 but elevated to the design space level. The RegNet design space provides
 simple and fast networks that work well across a wide range of flop
 regimes. 
+
+
+
+.. _top:
 
 **Table of contents**:
 

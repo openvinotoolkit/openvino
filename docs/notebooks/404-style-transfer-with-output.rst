@@ -1,7 +1,7 @@
 Style Transfer with OpenVINO™
 =============================
 
-.. _top:
+
 
 This notebook demonstrates style transfer with OpenVINO, using the Style
 Transfer Models from `ONNX Model
@@ -31,6 +31,8 @@ Additionally, you can also upload a video file.
    the notebook. If you run the notebook on a server, the webcam will not work 
    but you can run inference, using a video file.
 
+
+.. _top:
 
 **Table of contents**:
 

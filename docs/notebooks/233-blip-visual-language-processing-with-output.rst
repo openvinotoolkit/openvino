@@ -1,7 +1,7 @@
 Visual Question Answering and Image Captioning using BLIP and OpenVINO
 ======================================================================
 
-.. _top:
+
 
 Humans perceive the world through vision and language. A longtime goal
 of AI is to build intelligent agents that can understand the world
@@ -23,6 +23,8 @@ The tutorial consists of the following parts:
 1. Instantiate a BLIP model.
 2. Convert the BLIP model to OpenVINO IR.
 3. Run visual question answering and image captioning with OpenVINO.
+
+.. _top:
 
 **Table of contents**:
 

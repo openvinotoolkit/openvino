@@ -1,7 +1,7 @@
 Image Editing with InstructPix2Pix and OpenVINO
 ===============================================
 
-.. _top:
+
 
 The InstructPix2Pix is a conditional diffusion model that edits images
 based on written instructions provided by the user. Generative image
@@ -30,6 +30,8 @@ Notebook contains the following steps:
    API.
 3. Run InstructPix2Pix pipeline with OpenVINO.
 
+
+.. _top:
 
 **Table of contents**:
 

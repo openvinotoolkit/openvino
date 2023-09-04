@@ -1,7 +1,7 @@
 Asynchronous Inference with OpenVINO™
 =====================================
 
-.. _top:
+
 
 This notebook demonstrates how to use the `Async
 API <https://docs.openvino.ai/nightly/openvino_docs_deployment_optimization_guide_common.html>`__
@@ -13,6 +13,8 @@ device is busy with inference, the application can perform other tasks
 in parallel (for example, populating inputs or scheduling other
 requests) rather than wait for the current inference to complete first.
 
+
+.. _top:
 
 **Table of contents**:
 

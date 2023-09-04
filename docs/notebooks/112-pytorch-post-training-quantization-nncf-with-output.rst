@@ -1,8 +1,6 @@
 Post-Training Quantization of PyTorch models with NNCF
 ======================================================
 
-.. _top:
-
 The goal of this tutorial is to demonstrate how to use the NNCF (Neural
 Network Compression Framework) 8-bit quantization in post-training mode
 (without the fine-tuning pipeline) to optimize a PyTorch model for the
@@ -26,6 +24,9 @@ quantization, not demanding the fine-tuning of the model.
    the default binary search path of the OS you are running the
    notebook.
 
+
+
+.. _top:
 
 **Table of contents**:
 

@@ -1,7 +1,7 @@
 Vehicle Detection And Recognition with OpenVINO™
 ================================================
 
-.. _top:
+
 
 This tutorial demonstrates how to use two pre-trained models from `Open
 Model Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__:
@@ -18,6 +18,8 @@ As a result, you can get:
    :alt: result
 
    result
+
+.. _top:
 
 **Table of contents**:
 

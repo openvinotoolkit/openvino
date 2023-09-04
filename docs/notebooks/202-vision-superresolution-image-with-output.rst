@@ -1,7 +1,7 @@
 Single Image Super Resolution with OpenVINO™
 ============================================
 
-.. _top:
+
 
 Super Resolution is the process of enhancing the quality of an image by
 increasing the pixel count using deep learning. This notebook shows the
@@ -15,6 +15,8 @@ Y. Liu et al., `“An Attention-Based Approach for Single Image Super
 Resolution,” <https://arxiv.org/abs/1807.06779>`__ 2018 24th
 International Conference on Pattern Recognition (ICPR), 2018,
 pp. 2777-2784, doi: 10.1109/ICPR.2018.8545760. 
+
+.. _top:
 
 **Table of contents**:
 

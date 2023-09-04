@@ -1,7 +1,7 @@
 Image Colorization with OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. _top:
+
 
 This notebook demonstrates how to colorize images with OpenVINO using
 the Colorization model
@@ -43,6 +43,8 @@ About Colorization-siggraph
 
 See the `colorization <https://github.com/richzhang/colorization>`__
 repository for more details. 
+
+.. _top:
 
 **Table of contents**: 
 

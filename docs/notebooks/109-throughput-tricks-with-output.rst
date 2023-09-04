@@ -1,7 +1,7 @@
 Performance tricks in OpenVINO for throughput mode
 ==================================================
 
-.. _top:
+
 
 The goal of this notebook is to provide a step-by-step tutorial for
 improving performance for inferencing in a throughput mode. High
@@ -45,6 +45,10 @@ optimize performance on OpenVINO IR files in
 
 A similar notebook focused on the latency mode is available
 `here <109-latency-tricks-with-output.html>`__.
+
+
+
+.. _top:
 
 **Table of contents**:
 

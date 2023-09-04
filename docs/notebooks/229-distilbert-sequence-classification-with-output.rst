@@ -1,13 +1,15 @@
 Sentiment Analysis with OpenVINO™
 =================================
 
-.. _top:
+
 
 **Sentiment analysis** is the use of natural language processing, text
 analysis, computational linguistics, and biometrics to systematically
 identify, extract, quantify, and study affective states and subjective
 information. This notebook demonstrates how to convert and run a
 sequence classification model using OpenVINO.
+
+.. _top:
 
 **Table of contents**:
 

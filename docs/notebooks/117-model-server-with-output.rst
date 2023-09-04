@@ -1,7 +1,7 @@
 Hello Model Server
 ==================
 
-.. _top:
+
 
 Introduction to OpenVINO™ Model Server (OVMS).
 
@@ -32,6 +32,8 @@ deployment:
   scaling.
 
 |ovms_diagram| 
+
+.. _top:
 
 **Table of contents**: 
 

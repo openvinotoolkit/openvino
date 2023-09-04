@@ -1,7 +1,7 @@
 Quantization Aware Training with NNCF, using PyTorch framework
 ==============================================================
 
-.. _top:
+
 
 This notebook is based on `ImageNet training in
 PyTorch <https://github.com/pytorch/examples/blob/master/imagenet/main.py>`__.
@@ -33,6 +33,8 @@ hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
 
    This notebook requires a C++ compiler.
 
+
+.. _top:
 
 **Table of contents**:
 

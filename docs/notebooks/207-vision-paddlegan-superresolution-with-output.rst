@@ -1,7 +1,7 @@
 Super Resolution with PaddleGAN and OpenVINO™
 =============================================
 
-.. _top:
+
 
 This notebook demonstrates converting the RealSR (real-world
 super-resolution) model from
@@ -17,6 +17,8 @@ paper <https://openaccess.thecvf.com/content_CVPRW_2020/papers/w31/Ji_Real-World
 from CVPR 2020.
 
 This notebook works best with small images (up to 800x600 resolution).
+
+.. _top:
 
 **Table of contents**:
 

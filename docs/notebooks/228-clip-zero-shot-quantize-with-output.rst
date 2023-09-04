@@ -1,7 +1,7 @@
 Post-Training Quantization of OpenAI CLIP model with NNCF
 =========================================================
 
-.. _top:
+
 
 The goal of this tutorial is to demonstrate how to speed up the model by
 applying 8-bit post-training quantization from
@@ -22,6 +22,8 @@ The optimization process contains the following steps:
    `228-clip-zero-shot-convert <228-clip-zero-shot-convert.ipynb>`__
    notebook first to generate OpenVINO IR model that is used for
    quantization.
+
+.. _top:
 
 **Table of contents**:
 

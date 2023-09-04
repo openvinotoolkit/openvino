@@ -1,7 +1,7 @@
 Selfie Segmentation using TFLite and OpenVINO
 =============================================
 
-.. _top:
+
 
 The Selfie segmentation pipeline allows developers to easily separate
 the background from users within a scene and focus on what matters.
@@ -35,6 +35,8 @@ The tutorial consists of following steps:
 1. Download the TFLite model and convert it to OpenVINO IR format.
 2. Run inference on the image.
 3. Run interactive background blurring demo on video.
+
+.. _top:
 
 **Table of contents**:
 

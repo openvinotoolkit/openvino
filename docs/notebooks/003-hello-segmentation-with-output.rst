@@ -1,7 +1,7 @@
 Hello Image Segmentation
 ========================
 
-.. _top:
+
 
 A very basic introduction to using segmentation models with OpenVINO™.
 
@@ -11,6 +11,10 @@ model from the `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
 recognizes four classes: background, road, curb and mark.
+
+
+
+.. _top:
 
 **Table of contents**:
 

@@ -1,7 +1,7 @@
 PaddleOCR with OpenVINO™
 ========================
 
-.. _top:
+
 
 This demo shows how to run PP-OCR model on OpenVINO natively. Instead of
 exporting the PaddlePaddle model to ONNX and then converting to the
@@ -24,6 +24,8 @@ the PaddleOCR is as follows:
    To use this notebook with a webcam, you need to run the notebook on a computer 
    with a webcam. If you run the notebook on a server, the webcam will not work. 
    You can still do inference on a video file.
+
+.. _top:
 
 **Table of contents**:
 

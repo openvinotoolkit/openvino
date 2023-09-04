@@ -1,8 +1,6 @@
 Performance tricks in OpenVINO for latency mode
 ===============================================
 
-.. _top:
-
 The goal of this notebook is to provide a step-by-step tutorial for
 improving performance for inferencing in a latency mode. Low latency is
 especially desired in real-time applications when the results are needed
@@ -50,6 +48,10 @@ optimize performance on OpenVINO IR files in
 
 A similar notebook focused on the throughput mode is available
 `here <109-throughput-tricks-with-output.html>`__.
+
+
+
+.. _top:
 
 **Table of contents**:
 

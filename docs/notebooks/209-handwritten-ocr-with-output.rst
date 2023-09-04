@@ -1,7 +1,7 @@
 Handwritten Chinese and Japanese OCR with OpenVINO™
 ===================================================
 
-.. _top:
+
 
 In this tutorial, we perform optical character recognition (OCR) for
 handwritten Chinese (simplified) and Japanese. An OCR tutorial using the
@@ -18,6 +18,8 @@ To decode model outputs as readable text
 and
 `scut_ept <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/scut_ept.txt>`__
 charlists are used. Both models are available on `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
+
+.. _top:
 
 **Table of contents**:
 

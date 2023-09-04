@@ -1,7 +1,7 @@
 Text-to-Image Generation with ControlNet Conditioning
 =====================================================
 
-.. _top:
+
 
 Diffusion models make a revolution in AI-generated art. This technology
 enables creation of high-quality images simply by writing a text prompt.
@@ -140,6 +140,8 @@ of the target in the image:
 
 This tutorial focuses mainly on conditioning by pose. However, the
 discussed steps are also applicable to other annotation modes.
+
+.. _top:
 
 **Table of contents**:
 

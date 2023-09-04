@@ -1,7 +1,7 @@
 Monodepth Estimation with OpenVINO
 ==================================
 
-.. _top:
+
 
 This tutorial demonstrates Monocular Depth Estimation with MidasNet in
 OpenVINO. Model information can be found
@@ -29,6 +29,8 @@ Cross-dataset
 Transfer,” <https://ieeexplore.ieee.org/document/9178977>`__ in IEEE
 Transactions on Pattern Analysis and Machine Intelligence, doi:
 ``10.1109/TPAMI.2020.3019967``. 
+
+.. _top:
 
 **Table of contents**:
 

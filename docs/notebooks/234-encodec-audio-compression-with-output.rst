@@ -1,7 +1,7 @@
 Audio compression with EnCodec and OpenVINO
 ===========================================
 
-.. _top:
+
 
 Compression is an important part of the Internet today because it
 enables people to easily share high-quality photos, listen to audio
@@ -27,6 +27,8 @@ and original `repo <https://github.com/facebookresearch/encodec>`__.
    :alt: image.png
 
    image.png
+
+.. _top:
 
 **Table of contents**:
 

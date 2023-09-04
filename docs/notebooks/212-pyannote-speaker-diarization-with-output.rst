@@ -1,7 +1,7 @@
 Speaker diarization
 ===================
 
-.. _top:
+
 
 Speaker diarization is the process of partitioning an audio stream
 containing human speech into homogeneous segments according to the
@@ -38,6 +38,8 @@ pyannote pre-trained models in `model
 card <https://huggingface.co/pyannote/speaker-diarization>`__,
 `repo <https://github.com/pyannote/pyannote-audio>`__ and
 `paper <https://arxiv.org/abs/1911.01255>`__.
+
+.. _top:
 
 **Table of contents**:
 

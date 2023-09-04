@@ -1,7 +1,7 @@
 Image Generation with Tiny-SD and OpenVINO™
 ===========================================
 
-.. _top:
+
 
 In recent times, the AI community has witnessed a remarkable surge in
 the development of larger and more performant language models, such as
@@ -41,7 +41,9 @@ The notebook contains the following steps:
 3. Run Inference pipeline with OpenVINO.
 4. Run Interactive demo for Tiny-SD model
 
-**Table of content**:
+.. _toc:
+
+**Table of contents**:
 
 -  `Prerequisites <#prerequisites>`__
 -  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__

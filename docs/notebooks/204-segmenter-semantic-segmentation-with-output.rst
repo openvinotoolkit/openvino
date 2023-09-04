@@ -1,7 +1,7 @@
 Semantic Segmentation with OpenVINO™ using Segmenter
 ====================================================
 
-.. _top:
+
 
 Semantic segmentation is a difficult computer vision problem with many
 applications such as autonomous driving, robotics, augmented reality,
@@ -27,6 +27,8 @@ More about the model and its details can be found in the following
 paper: `Segmenter: Transformer for Semantic
 Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
 `repository <https://github.com/rstrudel/segmenter>`__. 
+
+.. _top:
 
 **Table of contents**:
 

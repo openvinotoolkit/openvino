@@ -1,8 +1,6 @@
 Quantize Speech Recognition Models using NNCF PTQ API
 =====================================================
 
-.. _top:
-
 This tutorial demonstrates how to use the NNCF (Neural Network
 Compression Framework) 8-bit quantization in post-training mode (without
 the fine-tuning pipeline) to optimize the speech recognition model,
@@ -20,6 +18,10 @@ steps:
 -  Prepare the model for quantization and quantize.
 -  Compare performance of the original and quantized models.
 -  Compare Accuracy of the Original and Quantized Models.
+
+
+
+.. _top:
 
 **Table of contents**:
 

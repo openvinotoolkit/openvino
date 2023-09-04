@@ -1,8 +1,6 @@
 Automatic Device Selection with OpenVINO™
 =========================================
 
-.. _top:
-
 The `Auto
 device <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 (or AUTO in short) selects the most suitable device for inference by
@@ -31,6 +29,10 @@ first inference.
    :alt: auto
 
    auto
+
+
+
+.. _top:
 
 **Table of contents**:
 

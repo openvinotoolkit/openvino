@@ -1,7 +1,7 @@
 Video generation with ZeroScope and OpenVINO
 ============================================
 
-.. _top:
+
 
 The ZeroScope model is a free and open-source text-to-video model that
 can generate realistic and engaging videos from text descriptions. It is
@@ -33,6 +33,8 @@ Both versions of the ZeroScope model are available on Hugging Face:
 - `ZeroScope_v2 XL <https://huggingface.co/cerspense/zeroscope_v2_XL>`__
 
 We will use the first one.
+
+.. _top:
 
 **Table of contents**:
 

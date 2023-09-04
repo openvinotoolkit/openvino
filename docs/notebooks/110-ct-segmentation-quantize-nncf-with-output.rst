@@ -1,8 +1,6 @@
 Quantize a Segmentation Model and Show Live Inference
 =====================================================
 
-.. _top:
-
 Kidney Segmentation with PyTorch Lightning and OpenVINO™ - Part 3
 -----------------------------------------------------------------
 
@@ -54,6 +52,10 @@ Running this notebook with the full dataset will take a long time. For
 demonstration purposes, this tutorial will download one converted CT
 scan and use that scan for quantization and inference. For production
 purposes, use a representative dataset for quantizing the model. 
+
+
+
+.. _top:
 
 **Table of contents**:
 

@@ -1,7 +1,7 @@
 Convert and Optimize YOLOv7 with OpenVINO™
 ==========================================
 
-.. _top:
+
 
 The YOLOv7 algorithm is making big waves in the computer vision and
 machine learning communities. It is a real-time object detection
@@ -39,6 +39,8 @@ The tutorial consists of the following steps:
 -  Prepare and run optimization pipeline
 -  Compare accuracy of the FP32 and quantized models.
 -  Compare performance of the FP32 and quantized models.
+
+.. _top:
 
 **Table of contents**:
 

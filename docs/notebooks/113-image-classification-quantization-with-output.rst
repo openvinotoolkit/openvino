@@ -1,7 +1,7 @@
 Quantization of Image Classification Models
 ===========================================
 
-.. _top:
+
 
 This tutorial demonstrates how to apply ``INT8`` quantization to Image
 Classification model using
@@ -20,6 +20,8 @@ This tutorial consists of the following steps:
 -  Compare accuracy of the original and quantized models.
 -  Compare performance of the original and quantized models.
 -  Compare results on one picture.
+
+.. _top:
 
 **Table of contents**:
 

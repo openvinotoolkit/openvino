@@ -1,7 +1,7 @@
 Quantization Aware Training with NNCF, using TensorFlow Framework
 =================================================================
 
-.. _top:
+
 
 The goal of this notebook to demonstrate how to use the Neural Network
 Compression Framework `NNCF <https://github.com/openvinotoolkit/nncf>`__
@@ -22,6 +22,8 @@ This tutorial uses the ResNet-18 model with Imagenette dataset.
 Imagenette is a subset of 10 easily classified classes from the ImageNet
 dataset. Using the smaller model and dataset will speed up training and
 download time.
+
+.. _top:
 
 **Table of contents**:
 

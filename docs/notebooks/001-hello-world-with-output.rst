@@ -1,7 +1,7 @@
 Hello Image Classification
 ==========================
 
-.. _top:
+
 
 This basic introduction to OpenVINO™ shows how to do inference with an
 image classification model.
@@ -14,6 +14,10 @@ this tutorial. For more information about how OpenVINO IR models are
 created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
 tutorial. 
+
+
+
+.. _top:
 
 **Table of contents**:
 
