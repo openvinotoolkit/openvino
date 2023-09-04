@@ -1,7 +1,7 @@
 Live 3D Human Pose Estimation with OpenVINO
 ===========================================
 
-.. _top:
+
 
 This notebook demonstrates live 3D Human Pose Estimation with OpenVINO
 via a webcam. We utilize the model
@@ -29,6 +29,8 @@ been using JupyterLab to run the demo as suggested in the
 To ensure that the results are displayed correctly, run the code in a
 recommended browser on one of the following operating systems: Ubuntu,
 Windows: Chrome, macOS: Safari.
+
+.. _top:
 
 **Table of contents**:
 
