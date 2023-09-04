@@ -104,7 +104,7 @@ After initializing OpenVINO Runtime, first read the model file with
 ``compile_model()`` method.
 
 `OpenVINO™ supports several model
-formats <https://docs.openvino.ai/2023.0/Supported_Model_Formats.html#doxid-supported-model-formats>`__
+formats <https://docs.openvino.ai/2023.1/Supported_Model_Formats.html#doxid-supported-model-formats>`__
 and enables developers to convert them to its own OpenVINO IR format
 using a tool dedicated to this task.
 
@@ -123,7 +123,7 @@ file has a different filename, it can be specified using the ``weights``
 parameter in ``read_model()``.
 
 The OpenVINO `model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html#doxid-openvino-docs-m-o-d-g-deep-learning-model-optimizer-dev-guide>`__
+API <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html#doxid-openvino-docs-m-o-d-g-deep-learning-model-optimizer-dev-guide>`__
 tool is used to convert models to OpenVINO IR format. Model conversion
 API reads the original model and creates an OpenVINO IR model (``.xml``
 and ``.bin`` files) so inference can be performed without delays due to
@@ -299,7 +299,7 @@ TensorFlow models saved in frozen graph format can also be passed to
    support will be provided in the upcoming 2023 releases. Currently
    support is limited to only frozen graph inference format. Other
    TensorFlow model formats must be converted to OpenVINO IR using
-   `model conversion API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
+   `model conversion API <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
 
 
 .. code:: ipython3
@@ -573,7 +573,7 @@ Doing Inference on a Model
 
 The diagram below shows a typical inference pipeline with OpenVINO
 
-.. figure:: https://docs.openvino.ai/2023.0/_images/IMPLEMENT_PIPELINE_with_API_C.svg
+.. figure:: https://docs.openvino.ai/2023.1/_images/IMPLEMENT_PIPELINE_with_API_C.svg
    :alt: image.png
 
    image.png

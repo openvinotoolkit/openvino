@@ -135,9 +135,9 @@ next running. Optionally, we can apply compression to the FP16 model
 weights, using the ``compress_to_fp16=True`` option and integrate
 preprocessing, using this approach. For more information about model
 conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 For TensorFlow Lite, refer to the `models
-support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
+support <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
 
 .. code:: ipython3
 

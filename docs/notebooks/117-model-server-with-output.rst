@@ -225,7 +225,7 @@ Check whether the OVMS container is running normally:
 
 The required Model Server parameters are listed below. For additional
 configuration options, see the 
-`Model Server Parameters section <https://docs.openvino.ai/2023.0/ovms_docs_parameters.html#doxid-ovms-docs-parameters>`__.
+`Model Server Parameters section <https://docs.openvino.ai/2023.1/ovms_docs_parameters.html#doxid-ovms-docs-parameters>`__.
 
 .. raw:: html
 
@@ -884,6 +884,6 @@ References `⇑ <#top>`__
 
 
 1. `OpenVINO™ Model Server
-   documentation <https://docs.openvino.ai/2023.0/ovms_what_is_openvino_model_server.html>`__
+   documentation <https://docs.openvino.ai/2023.1/ovms_what_is_openvino_model_server.html>`__
 2. `OpenVINO™ Model Server GitHub
    repository <https://github.com/openvinotoolkit/model_server/>`__

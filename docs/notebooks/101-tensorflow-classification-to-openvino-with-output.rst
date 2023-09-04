@@ -4,13 +4,13 @@ Convert a TensorFlow Model to OpenVINO™
 
 
 | This short tutorial shows how to convert a TensorFlow
-  `MobileNetV3 <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
+  `MobileNetV3 <https://docs.openvino.ai/2023.1/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
   image classification model to OpenVINO `Intermediate
-  Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
+  Representation <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_IR_and_opsets.html>`__
   (OpenVINO IR) format, using `model conversion
-  API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+  API <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
   After creating the OpenVINO IR, load the model in `OpenVINO
-  Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
+  Runtime <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
   and do inference with a sample image.
 
 
@@ -140,7 +140,7 @@ model directory and returns OpenVINO Model class instance which
 represents this model. Obtained model is ready to use and to be loaded
 on a device using ``compile_model`` or can be saved on a disk using the
 ``serialize`` function. See the
-`tutorial <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__
+`tutorial <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__
 for more information about using model conversion API with TensorFlow
 models.
 
@@ -273,7 +273,7 @@ Timing `⇑ <#top>`__
 Measure the time it takes to do inference on thousand images. This gives
 an indication of performance. For more accurate benchmarking, use the
 `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 in OpenVINO. Note that many optimizations are possible to improve the
 performance.
 

@@ -7,7 +7,7 @@ Overview
 This tutorial will be divided in 2 parts:
 
 1. Create a simple inference pipeline with a pre-trained model using the OpenVINO™ IR format.
-2. Conduct `post-training quantization <https://docs.openvino.ai/latest/ptq_introduction.html>`__ 
+2. Conduct `post-training quantization <https://docs.openvino.ai/2023.1/ptq_introduction.html>`__ 
    on a pre-trained model using Hugging Face Optimum and benchmark performance.
 
 Feel free to use the notebook outline in Jupyter or your IDE for easy
@@ -257,7 +257,7 @@ Part 2: OpenVINO post-training quantization with HuggingFace Optimum
 In this section, we will quantize a trained model. At a high-level, this
 process consists of using lower precision numbers in the model, which
 results in a smaller model size and faster inference at the cost of a
-potential marginal performance degradation. `Learn more <https://docs.openvino.ai/latest/ptq_introduction.html>`__.
+potential marginal performance degradation. `Learn more <https://docs.openvino.ai/2023.1/ptq_introduction.html>`__.
 
 The HuggingFace Optimum library supports post-training quantization for
 OpenVINO. `Learn more <https://huggingface.co/docs/optimum/main/en/intel/index>`__.

@@ -77,7 +77,7 @@ understand the context of a sentence. Here, we will use
 Convert Model to OpenVINO Intermediate Representation format. `⇑ <#top>`__
 ###############################################################################################################################
 
-`Model conversion API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+`Model conversion API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 facilitates the transition between training and deployment environments,
 performs static model analysis, and adjusts deep learning models for
 optimal execution on end-point target devices.
@@ -97,14 +97,14 @@ optimal execution on end-point target devices.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
-OpenVINO™ Runtime uses the `Infer Request <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Infer_request.html>`__
+OpenVINO™ Runtime uses the `Infer Request <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Infer_request.html>`__
 mechanism which enables running models on different devices in
 asynchronous or synchronous manners. The model graph is sent as an
 argument to the OpenVINO API and an inference request is created. The
 default inference mode is AUTO but it can be changed according to
 requirements and hardware available. You can explore the different
 inference modes and their usage `in
-documentation. <https://docs.openvino.ai/2023.0/openvino_docs_Runtime_Inference_Modes_Overview.html>`__
+documentation. <https://docs.openvino.ai/2023.1/openvino_docs_Runtime_Inference_Modes_Overview.html>`__
 
 .. code:: ipython3
 

@@ -359,9 +359,9 @@ inputs are known, you can use model conversion API and convert the model
 to OpenVINO IR with these values. Use ``FP16`` precision and set log
 level to ``CRITICAL`` to ignore warnings that are irrelevant for this
 demo. For information about setting the parameters, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 
-**Convert ONNX Model to OpenVINO IR with** `Model Conversion Python API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+**Convert ONNX Model to OpenVINO IR with** `Model Conversion Python API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 
 .. code:: ipython3
 
@@ -596,7 +596,7 @@ References `⇑ <#top>`__
 -  `PaddleGAN <https://github.com/PaddlePaddle/PaddleGAN>`__
 -  `Paddle2ONNX <https://github.com/PaddlePaddle/paddle2onnx>`__
 -  `OpenVINO ONNX support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
--  `Model Conversion API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+-  `Model Conversion API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 
 The PaddleGAN code that is shown in this notebook is written by
 PaddlePaddle Authors and licensed under the Apache 2.0 license. The
