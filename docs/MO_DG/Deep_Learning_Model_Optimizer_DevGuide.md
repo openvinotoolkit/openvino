@@ -14,6 +14,7 @@
    openvino_docs_MO_DG_FP16_Compression
    openvino_docs_MO_DG_Python_API
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
+   Supported_Model_Formats_MO_DG
 
 .. meta::
    :description: Model conversion (MO) furthers the transition between training and

@@ -210,7 +210,7 @@ If a model is represented as a single file from ONNX, PaddlePaddle, TensorFlow a
 This section describes how to obtain and prepare your model for work with OpenVINO to get the best inference results:
 
 * :doc:`See the supported formats and how to use them in your project <Supported_Model_Formats>`.
-* :doc:`Convert different model formats to the ov.Model format <openvino_docs_OV_Converter _UG_Deep_Learning_Model_Optimizer_DevGuide>`.
+* :doc:`Convert different model formats to the ov.Model format <openvino_docs_OV_Converter_UG_Deep_Learning_Model_Optimizer_DevGuide>`.
 * :doc:`Transition guide from mo / ov.tools.mo.convert_model to OVC / openvino.convert_model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
 
 @endsphinxdirective

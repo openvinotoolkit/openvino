@@ -112,7 +112,7 @@ Exporting a PyTorch Model to ONNX Format
 An alternative method of converting PyTorch models is exporting a PyTorch model to ONNX with `torch.onnx.export` first and then converting the resulting `.onnx` file to OpenVINO Model with `openvino.convert_model`. It can be considered as a backup solution if a model cannot be converted directly from PyTorch to OpenVINO as described in the above chapters. Converting through ONNX can be more expensive in terms of code, conversion time, and allocated memory.
 
 1. Refer to the `Exporting PyTorch models to ONNX format <https://pytorch.org/docs/stable/onnx.html>`__ guide to learn how to export models from PyTorch to ONNX.
-2. Follow :doc:`Convert the ONNX model <openvino_docs_OVC_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>` chapter to produce OpenVINO model.
+2. Follow :doc:`Convert the ONNX model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>` chapter to produce OpenVINO model.
 
 Here is an illustration of those two steps used together:
 
