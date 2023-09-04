@@ -112,8 +112,8 @@ struct Product<T, typename std::enable_if<std::is_same<T, Dimension>::value>::ty
         if (in.first != out.first) {
             in.second *= in.first;
             out.second *= out.first;
-        } else if (in.second == T{1}) {
-            // If dynamic product is one (no dynamic) part use static
+        } else if (in.first == 1 && in.second == 1) {
+            // If dynamic product is one (no dynamic)and static is also one use static
             in.second = in.first;
         }
     }

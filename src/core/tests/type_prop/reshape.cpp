@@ -1200,3 +1200,17 @@ TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_4) {
     EXPECT_EQ(output_shape, PartialShape({1, 1280}));
     EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(1, no_label));
 }
+
+TEST(type_prop, reshape_resolve_minus_one_when_static_product_same_value) {
+    auto data_shape = PartialShape{2, 3, 4, 5};
+    set_shape_labels(data_shape, 10);
+    auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
+    auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{120, -1});
+    output_pattern->get_default_output().get_tensor().set_value_label({20, 21});
+
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({120, 1}));
+    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, no_label));
+}
