@@ -1,0 +1,13 @@
+[build-system]
+requires        = ["setuptools"]
+build-backend   = "setuptools.build_meta"
+
+[project]
+name            = "openvino_custom_sphinx_sitemap"
+version         = "0.0.1"
+description     = "Extends sphinx-sitemap plugin with additional sitemap metadata"
+dependencies    = [
+    "sphinx >= 4.5.0",
+    "sphinx-sitemap >= 2.2.0"
+]
+requires-python = ">=3.9"

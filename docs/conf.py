@@ -44,7 +44,7 @@ extensions = [
     'cpplexer',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'sphinx_sitemap'
+    'openvino_custom_sphinx_sitemap'
 ]
 
 html_baseurl = 'https://docs.openvino.ai/canonical/'
@@ -53,6 +53,19 @@ html_baseurl = 'https://docs.openvino.ai/canonical/'
 
 sitemap_url_scheme = "{link}"
 site_url = f'https://docs.openvino.ai/{version_name}/'
+
+ov_sitemap_urlset = [
+    ("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9"),
+    ("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+    ("xmlns:coveo", "https://www.coveo.com/en/company/about-us"),
+    ("xsi:schemaLocation", "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd")
+]
+
+ov_sitemap_meta = [
+    ('coveo:metadata', {
+        'ovversion': version_name,
+    })
+]
 
 # ----------------------------------------------------
 
