@@ -554,7 +554,7 @@ void get_num_streams(const int streams,
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
     std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
 
-    InferenceEngine::IStreamsExecutor::Config streamsConfig;
+    ov::threading::IStreamsExecutor::Config streamsConfig;
     streamsConfig._name = "CPUStreamsExecutor";
     streamsConfig._streams = 1;
     streamsConfig._threads = 1;
