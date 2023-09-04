@@ -5,11 +5,13 @@
 #include "utils.hpp"
 
 #include "ie_ngraph_utils.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace ov {
+
 void operator>>(const std::stringstream& in, ov::element::Type& type) {
-    type = InferenceEngine::details::convertPrecision(ov::util::trim(in.str()));
+    type = ov::element::Type(ov::util::trim(in.str()));
 }
 
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
@@ -46,8 +48,7 @@ void str_to_set_of_strings(const std::string& value, std::set<std::string>& res)
         // trim leading and trailing whitespaces
         auto strBegin = field.find_first_not_of(" ");
         if (strBegin == std::string::npos)
-            IE_THROW() << "Cannot get a set of strings from \"" << value << "\". Value \"" << field
-                       << "\" is incorrect";
+            OPENVINO_THROW("Cannot get a set of strings from \"", value, "\". Value \"", field, "\" is incorrect");
         auto strRange = field.find_last_not_of(" ") - strBegin + 1;
 
         res.insert(field.substr(strBegin, strRange));

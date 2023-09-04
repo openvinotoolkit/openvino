@@ -9,9 +9,8 @@
 #include <memory>
 #include <pugixml.hpp>
 
-#include "ie_ngraph_utils.hpp"
 #include "input_model.hpp"
-#include "ngraph/opsets/opset.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/op/loop.hpp"
@@ -43,7 +42,7 @@ struct GenericLayerParams {
             }
             ++real_id;
         }
-        IE_THROW() << "Can not find input port with id " << id << " in layer " << name;
+        OPENVINO_THROW("Can not find input port with id ", id, " in layer ", name);
     }
 
     size_t get_real_output_port_id(size_t id) const {
@@ -54,12 +53,13 @@ struct GenericLayerParams {
             }
             ++real_id;
         }
-        IE_THROW() << "Can not find output port with id " << id << " in layer " << name;
+        OPENVINO_THROW("Can not find output port with id ", id, " in layer ", name);
     }
 };
 
 class XmlDeserializer : public ov::AttributeVisitor {
 public:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit XmlDeserializer(const pugi::xml_node& node,
                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                              const std::unordered_map<std::string, ov::OpSet>& opsets,
@@ -72,6 +72,7 @@ public:
           m_extensions(extensions),
           m_variables(variables),
           m_version(version) {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& value) override {
         std::string val;
@@ -164,12 +165,14 @@ private:
     // TODO consider to call only once per layer/TI-Loop node
     IoMap updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /// \brief Traverses xml node representation in order to create ov function for it.
     /// \param node xml node representation
     /// \param weights weights attached to current node
     /// \return shared pointer to function representing input node
     std::shared_ptr<ov::Model> parse_function(const pugi::xml_node& root,
                                               const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     /// \brief Traverses xml node representation in order to get the purpose attribute of
     /// inputs/outputs in the body of Loop op. \param node xml node representation \return struct
     /// with value of purpuse attribute
@@ -177,10 +180,12 @@ private:
 
     GenericLayerParams parse_generic_params(const pugi::xml_node& node);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ov::Node> create_node(const ov::OutputVector& inputs,
                                           const pugi::xml_node& node,
                                           const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                                           const GenericLayerParams& params);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
 
@@ -190,7 +195,9 @@ private:
 
     // -- DATA --
     const pugi::xml_node m_node;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const std::shared_ptr<ngraph::runtime::AlignedBuffer>& m_weights;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const std::unordered_map<std::string, ov::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;
