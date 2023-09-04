@@ -36,7 +36,7 @@ For details on how plugins handle compressed ``FP16`` models, see
 .. note::
 
    ``FP16`` compression is sometimes used as the initial step for ``INT8`` quantization.
-   Refer to the :doc:`Post-training optimization <pot_introduction>` guide for more
+   Refer to the :doc:`Post-training optimization <ptq_introduction>` guide for more
    information about that.
 
 @endsphinxdirective
