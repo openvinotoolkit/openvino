@@ -289,7 +289,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // Common ConvertPrecision pass handles only a limited set of opevino operations to match the list of precisions supported by the plugin.
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::VisualizeTree, "before_insert.svg");
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::VisualizeTree, "before_convert_precision.svg");
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
