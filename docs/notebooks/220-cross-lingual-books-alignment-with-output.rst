@@ -960,7 +960,7 @@ Let’s compare the models and plot the results.
 .. note::
 
    To get a more accurate benchmark, use the `Benchmark Python
-   Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+   Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 
 
 .. code:: ipython3
