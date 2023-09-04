@@ -1,7 +1,7 @@
 Optical Character Recognition (OCR) with OpenVINO™
 ==================================================
 
-.. _top:
+
 
 This tutorial demonstrates how to perform optical character recognition
 (OCR) with OpenVINO models. It is a continuation of the
@@ -20,6 +20,8 @@ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. For more
 information, refer to the
 `104-model-tools <104-model-tools-with-output.html>`__ tutorial.
+
+.. _top:
 
 **Table of contents**:
 
