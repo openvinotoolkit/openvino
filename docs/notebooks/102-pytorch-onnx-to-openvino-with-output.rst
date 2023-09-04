@@ -1,7 +1,7 @@
 Convert a PyTorch Model to ONNX and OpenVINO™ IR
 ================================================
 
-.. _top:
+
 
 This tutorial demonstrates step-by-step instructions on how to do
 inference on a PyTorch semantic segmentation model, using OpenVINO
@@ -34,6 +34,10 @@ plant, sheep, sofa, train, tv monitor**
 
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
+
+
+
+.. _top:
 
 **Table of contents**: 
 
