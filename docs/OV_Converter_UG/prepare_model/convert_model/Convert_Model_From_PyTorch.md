@@ -104,7 +104,7 @@ Enclosing in ``list``, ``tuple`` or ``dict`` can be used for a single input as w
 
 If a model has a single input parameter and the type of this input is a ``tuple``, it should be passed always enclosed into an extra ``list``, ``tuple`` or ``dict`` as in the case of multiple inputs. It is required to eliminate ambiguity between `model((a, b))` and `model(a, b)` in this case.
 
-**FIXME: Missing description of non-tensor data types in inputs and output (recursive flattening)
+**FIXME: Missing description of non-tensor data types in inputs and output (recursive flattening)**
 
 Exporting a PyTorch Model to ONNX Format
 ########################################
