@@ -1,12 +1,14 @@
 Working with Open Model Zoo Models
 ==================================
 
-.. _top:
+
 
 This tutorial shows how to download a model from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__, convert it
 to OpenVINO™ IR format, show information about the model, and benchmark
 the model. 
+
+.. _top:
 
 **Table of contents**:
 

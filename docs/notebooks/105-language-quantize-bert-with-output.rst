@@ -1,7 +1,7 @@
 Quantize NLP models with Post-Training Quantization ​in NNCF
 ============================================================
 
-.. _top:
+
 
 This tutorial demonstrates how to apply ``INT8`` quantization to the
 Natural Language Processing model known as
@@ -23,6 +23,10 @@ and datasets. It consists of the following steps:
 -  Load and test quantized model.
 -  Compare the performance of the original, converted and quantized
    models.
+
+
+
+.. _top:
 
 **Table of contents**:
 
