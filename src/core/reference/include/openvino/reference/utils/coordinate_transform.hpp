@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate.hpp"
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/deprecated.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/strides.hpp"
+#include "openvino/core/axis_vector.hpp"
+#include "openvino/core/coordinate.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 
-namespace ngraph {
+namespace ov {
 /// \brief A useful class that allows to iterate over the tensor coordinates.
 ///        For example, for tensor with dimensions {2, 3} this iterator
 ///        produces the following coordinates:
@@ -76,7 +76,7 @@ public:
     /// \brief The tensor element index calculation by given coordinate.
     /// \param c tensor element coordinate
     /// \deprecated
-    NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
     size_t index(const Coordinate& c) const;
 
     /// \brief Returns an iterator to the first coordinate of the tensor.
@@ -93,7 +93,7 @@ protected:
 ///        and helps to iterate over the subset of coordinates.
 ///        Tensor items should be placed in memory in row-major order.
 /// \deprecated
-class NGRAPH_DEPRECATED("This class is deprecated and will be removed soon.") CoordinateTransform
+class OPENVINO_DEPRECATED("This class is deprecated and will be removed soon.") CoordinateTransform
     : protected CoordinateTransformBasic {
 public:
     using Iterator = CoordinateIterator;
@@ -170,4 +170,4 @@ private:
     Shape m_target_shape;
     size_t m_n_axes;
 };
-}  // namespace ngraph
+}  // namespace ov
