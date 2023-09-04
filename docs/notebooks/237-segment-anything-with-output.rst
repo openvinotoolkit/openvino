@@ -1,6 +1,8 @@
 Object masks from prompts with SAM and OpenVINO
 ===============================================
 
+
+
 .. _top:
 
 **Table of contents**:

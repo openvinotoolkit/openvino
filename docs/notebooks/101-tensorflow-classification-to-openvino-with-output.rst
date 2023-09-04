@@ -1,7 +1,7 @@
 Convert a TensorFlow Model to OpenVINO™
 =======================================
 
-.. _top:
+
 
 | This short tutorial shows how to convert a TensorFlow
   `MobileNetV3 <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
@@ -13,7 +13,11 @@ Convert a TensorFlow Model to OpenVINO™
   Runtime <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
   and do inference with a sample image.
 
-| **Table of contents**:
+
+
+| .. _top:
+
+**Table of contents**:
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__
