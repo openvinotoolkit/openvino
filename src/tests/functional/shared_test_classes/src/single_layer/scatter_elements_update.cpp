@@ -15,8 +15,8 @@ std::string ScatterElementsUpdateLayerTest::getTestCaseName(const testing::TestP
     std::string targetName;
     std::tie(shapeDescript, indicesValue, inputPrecision, indicesPrecision, targetName) = obj.param;
     std::ostringstream result;
-    result << "InputShape=" << CommonTestUtils::vec2str(std::get<0>(shapeDescript)) << "_";
-    result << "IndicesShape=" << CommonTestUtils::vec2str(std::get<1>(shapeDescript)) << "_";
+    result << "InputShape=" << ov::test::utils::vec2str(std::get<0>(shapeDescript)) << "_";
+    result << "IndicesShape=" << ov::test::utils::vec2str(std::get<1>(shapeDescript)) << "_";
     result << "Axis=" << std::get<2>(shapeDescript) << "_";
     result << "inPrc=" << inputPrecision.name() << "_";
     result << "idxPrc=" << indicesPrecision.name() << "_";

@@ -739,9 +739,10 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
             for (size_t i = 0; i < detection_output_node.get_dependencies().size(); i++) {
                 auto& input = detection_output_node.get_dependency(i);
+                auto input_layout = input.get_output_layout();
                 auto new_input = rf.get_reorder(input.id(),
-                                                input.get_output_layout(),
-                                                layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
+                                                input_layout,
+                                                layout{ input_layout.get_partial_shape(), data_types::f32, format::bfyx });
 
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
@@ -780,7 +781,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto new_format = lo.get_preferred_format(deconv_node);
         if (new_format == format::b_fs_zyx_fsv16 || new_format == format::bs_fs_zyx_bsv16_fsv16) {
             auto reorder = rf.get_reorder(input.id(), input_layout,
-                layout{ input_layout.data_type, new_format, input_layout.get_tensor() });
+                layout{ input_layout.get_partial_shape(), input_layout.data_type, new_format });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 0, !reorder.second);
             }

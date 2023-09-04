@@ -10,8 +10,9 @@
 #include "concat_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/reference/concat.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/reference/concat.hpp"
 #include "validation_util.hpp"
 
 using namespace std;
@@ -67,9 +68,7 @@ void op::Concat::validate_and_infer_types() {
         input_shapes.push_back(input_shape);
     }
 
-    std::vector<PartialShape> output_shapes(1, PartialShape{});
-
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, inputs_et, output_shapes.front());
 }
 
@@ -78,6 +77,7 @@ shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<Concat>(new_args, m_axis);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int64_t concatenation_axis) {
     std::vector<const char*> arg_bufs;
@@ -90,12 +90,12 @@ bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int
         out_shape[concatenation_axis] += arg_shapes.back()[concatenation_axis];
     }
     out->set_shape(out_shape);
-    runtime::reference::concat(arg_bufs,
-                               out->get_data_ptr<char>(),
-                               arg_shapes,
-                               out_shape,
-                               concatenation_axis,
-                               out->get_element_type().size());
+    ov::reference::concat(arg_bufs,
+                          out->get_data_ptr<char>(),
+                          arg_shapes,
+                          out_shape,
+                          concatenation_axis,
+                          out->get_element_type().size());
 
     return true;
 }
@@ -104,13 +104,12 @@ bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Concat_evaluate);
     NGRAPH_CHECK(!inputs.empty());
-    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::Concat::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Concat_evaluate);
@@ -130,12 +129,12 @@ bool op::Concat::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inp
         out_shape[concat_axis] += arg_shapes.back()[concat_axis];
     }
     outputs.front().set_shape(out_shape);
-    ngraph::runtime::reference::concat(arg_bufs,
-                                       static_cast<char*>(outputs.front().data()),
-                                       arg_shapes,
-                                       out_shape,
-                                       concat_axis,
-                                       outputs.front().get_element_type().size());
+    ov::reference::concat(arg_bufs,
+                          static_cast<char*>(outputs.front().data()),
+                          arg_shapes,
+                          out_shape,
+                          concat_axis,
+                          outputs.front().get_element_type().size());
 
     return true;
 }

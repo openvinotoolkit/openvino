@@ -18,7 +18,7 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 openvino::runtime
-                ngraph_reference
+                openvino::reference
                 interpreter_backend
                 openvino::runtime::dev
         ADD_CPPLINT

@@ -10,7 +10,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/swish.hpp"
+#include "openvino/reference/swish.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -71,6 +71,7 @@ shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_ar
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace swish {
 namespace {
 template <element::Type_t ET>
@@ -80,12 +81,9 @@ inline bool evaluate(const HostTensorPtr& arg0,
                      const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
     if (arg1 != nullptr) {
-        runtime::reference::swish<T>(arg0->get_data_ptr<ET>(),
-                                     arg1->get_data_ptr<ET>(),
-                                     out->get_data_ptr<ET>(),
-                                     count);
+        ov::reference::swish<T>(arg0->get_data_ptr<ET>(), arg1->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     } else {
-        runtime::reference::swish<T>(arg0->get_data_ptr<ET>(), nullptr, out->get_data_ptr<ET>(), count);
+        ov::reference::swish<T>(arg0->get_data_ptr<ET>(), nullptr, out->get_data_ptr<ET>(), count);
     }
     return true;
 }

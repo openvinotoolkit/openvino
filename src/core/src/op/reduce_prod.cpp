@@ -9,8 +9,8 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/product.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -26,6 +26,7 @@ shared_ptr<Node> op::v1::ReduceProd::clone_with_new_inputs(const OutputVector& n
     return make_shared<ReduceProd>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reduce_prod {
 namespace {
 template <element::Type_t ET>
@@ -33,7 +34,7 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet&
     OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
     OPENVINO_SUPPRESS_DEPRECATED_END
-    runtime::reference::product(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+    ov::reference::product(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
     return true;
 }
 

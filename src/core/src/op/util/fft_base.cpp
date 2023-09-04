@@ -2,15 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/fft_base.hpp"
+#include "openvino/op/util/fft_base.hpp"
 
-#include <fft_base_shape_inference.hpp>
-#include <ngraph/validation_util.hpp>
-
+#include "fft_base_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-
-using namespace std;
 
 ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {}
 
@@ -53,7 +48,6 @@ void ov::op::util::FFTBase::validate_and_infer_types() {
 
     validate_types();
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes;
 
     const auto& data = get_input_partial_shape(0);
@@ -65,6 +59,6 @@ void ov::op::util::FFTBase::validate_and_infer_types() {
         input_shapes = {data, axes, signal_size};
     }
 
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }

@@ -302,7 +302,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
-    Program prog(ctx->get_engine(), config);
+    ProgramBuilder prog(ctx->get_engine(), config);
     bool dyn_shape_batch_found = false;
 
     auto model = network.getFunction();
@@ -672,9 +672,9 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                name == ov::optimal_batch_size) {
         return decltype(ov::optimal_batch_size)::value_type {get_optimal_batch_size(options)};
     } else if (name == ov::device::uuid) {
-        ov::device::UUID uuid = {};
-        std::copy_n(std::begin(device_info.uuid.val), cldnn::device_uuid::max_uuid_size, std::begin(uuid.uuid));
-        return decltype(ov::device::uuid)::value_type {uuid};
+        return decltype(ov::device::uuid)::value_type {device_info.uuid};
+    } else if (name == ov::device::luid) {
+        return decltype(ov::device::luid)::value_type {device_info.luid};
     } else if (name == ov::device::full_name) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
@@ -730,6 +730,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::luid.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
@@ -745,6 +746,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
@@ -761,7 +763,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO}};
+            ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     return supported_internal_properties;
 }
 
@@ -856,7 +859,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 
     auto& engine = get_default_context(device_id)->get_impl()->get_engine();
 
-    std::shared_ptr<Program> program;
+    std::shared_ptr<ProgramBuilder> program;
 
     GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
         size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
@@ -916,7 +919,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
         auto nGraphFunc = cloned_network.getFunction();
         TransformationsPipeline transformations(config, device_info);
         transformations.apply(nGraphFunc);
-        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        program = std::make_shared<ProgramBuilder>(cloned_network, engine, config, false, true);
         std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
         if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
             return static_cast<uint32_t>(max_batch_size);

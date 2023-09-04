@@ -36,6 +36,7 @@ function(ov_add_onednn)
     # select needed primitives
     set(DNNL_ENABLE_PRIMITIVE "CONVOLUTION;DECONVOLUTION;CONCAT;LRN;INNER_PRODUCT;MATMUL;POOLING;REDUCTION;REORDER;RNN;SOFTMAX" CACHE STRING "" FORCE)
     set(DNNL_ENABLE_WORKLOAD "INFERENCE" CACHE STRING "" FORCE)
+    set(DNNL_LIBRARY_NAME "openvino_onednn_cpu" CACHE STRING "" FORCE)
 
     # Allow to enable oneDNN verbose with CPU_DEBUG_CAPS and rely on oneDNN default configuration otherwise
     if(ENABLE_CPU_DEBUG_CAPS)
@@ -130,5 +131,10 @@ function(ov_add_onednn)
                 COMPONENT core_dev)
     endif()
 endfunction()
+
+if(ENABLE_MLAS_FOR_CPU)
+    add_subdirectory(mlas)
+    ov_install_static_lib(mlas cpu)
+endif()
 
 ov_add_onednn()

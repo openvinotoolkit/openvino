@@ -6,13 +6,14 @@ import sys
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 from openvino.tools.ovc.convert_impl import _convert
-from openvino.tools.ovc.utils import get_ir_version
+from openvino.tools.ovc.cli_parser import get_model_name_from_args
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import serialize
+from openvino.runtime import save_model
 
 
 def main():
@@ -21,13 +22,11 @@ def main():
     if ngraph_function is None:
         return 1
 
-    output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-    model_path_no_ext = os.path.normpath(os.path.join(output_dir, argv.model_name))
-    model_path = model_path_no_ext + '.xml'
+    model_path = get_model_name_from_args(argv)
 
-    serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
+    compress_to_fp16 = 'compress_to_fp16' in argv and argv.compress_to_fp16
+    save_model(ngraph_function, model_path.encode('utf-8'), compress_to_fp16)
 
-    print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version()))
     print('[ SUCCESS ] XML file: {}'.format(model_path))
     print('[ SUCCESS ] BIN file: {}'.format(model_path.replace('.xml', '.bin')))
     return 0

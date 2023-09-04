@@ -4,6 +4,7 @@
 
 #include "transformation_helper.hpp"
 
+#include "common/graph_utils.hpp"
 #include "log/debug.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset12.hpp"
@@ -13,6 +14,7 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov::opset12;
+using namespace ov::intel_gna;
 
 namespace ov {
 namespace intel_gna {
@@ -92,7 +94,7 @@ bool TransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<siz
     if (data.empty())
         return false;
 
-    if (order.size() != data.size() || !std::equal(order.begin(), order.end(), data.begin()))
+    if (!graph_utils::are_shapes_equal(order, data))
         return false;
 
     return true;
@@ -156,8 +158,7 @@ void remove_single_input_node(std::shared_ptr<ov::Node> node) {
     if (!node_parent) {
         THROW_GNA_EXCEPTION << "The removing node has no parrent node";
     }
-    if (input_node_shape.size() != output_node_shape.size() ||
-        !std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
+    if (!graph_utils::are_shapes_equal(input_node_shape, output_node_shape)) {
         auto reshape_const_node =
             std::make_shared<Constant>(ov::element::i64, ov::Shape{output_node_shape.size()}, output_node_shape);
         node_parent = std::make_shared<Reshape>(node_parent, reshape_const_node, false);

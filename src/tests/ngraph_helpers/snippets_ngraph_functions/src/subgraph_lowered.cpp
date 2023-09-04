@@ -34,10 +34,9 @@ std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
 }
 std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() const {
     // todo: implement conversion between std::vector<size_t> and std::vector<Shape>
-    auto input_params = ngraph::builder::makeParams(precision,
-                                                    {input_shapes[0].get_shape(),
-                                                     input_shapes[1].get_shape(),
-                                                     input_shapes[2].get_shape()});
+    ov::ParameterVector input_params{std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[0]),
+                                     std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[1]),
+                                     std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[2])};
     auto load_or_broadcastload = [&](size_t i) -> std::shared_ptr<Node> {
         // user specified that no broadcasting is required
         if (broadcast_shapes[i].empty()) {
@@ -58,7 +57,7 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
     };
     auto add = std::make_shared<op::v1::Add>(load_or_broadcastload(0), load_or_broadcastload(1));
 
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(1, -10., 10.);
+    const std::vector<float> const_values = ov::test::utils::generate_float_numbers(1, -10., 10.);
     auto sub_scalar = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[0]);
     std::shared_ptr<Node> sub_load;
     sub_load = std::make_shared<ov::snippets::op::Load>(input_params[2]);

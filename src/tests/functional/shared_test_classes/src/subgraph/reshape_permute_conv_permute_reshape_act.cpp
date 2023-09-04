@@ -17,8 +17,8 @@ namespace SubgraphTestsDefinitions {
         std::tie(netPrecision, targetName, input_shape, kernel_shape, output_channels, configuration) = obj.param;
         std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
-        results << "KS=" << CommonTestUtils::vec2str(std::vector<size_t>(kernel_shape.begin(), kernel_shape.end())) << "_";
+        results << "IS=" << ov::test::utils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
+        results << "KS=" << ov::test::utils::vec2str(std::vector<size_t>(kernel_shape.begin(), kernel_shape.end())) << "_";
         results << "OC=" << output_channels << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "targetDevice=" << targetName;
@@ -48,7 +48,7 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> permute_out_order = { 0, 2, 3, 1 };
         std::vector<size_t> reshape_out_dims = { 1, input_shape[0] * input_shape[1] * (input_shape[2] - kernel_shape[1] + 1) * output_channels };
 
-        auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+        ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
         auto reshape_in_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
             ngraph::Shape{4},

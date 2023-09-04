@@ -38,6 +38,17 @@ def get_enabled_and_disabled_transforms():
     return enabled_transforms, disabled_transforms
 
 
+def raise_exception_for_input_output_cut(model_inputs_or_outputs: List[Place], new_nodes: List[dict], is_input: bool):
+    for new_node in new_nodes:
+        node = new_node['node']
+
+        if not any([item.is_equal(node) for item in model_inputs_or_outputs]):
+            if is_input:
+                raise Exception("Name {} is not found among model inputs.".format(new_node['input_name']))
+            else:
+                raise Exception("Name {} is not found among model outputs.".format(new_node['output_name']))
+
+
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     """
     Load input model and convert it to nGraph function
@@ -45,34 +56,29 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
-    input_checkpoint = getattr(argv, 'input_checkpoint', None)
-    enable_mmap = getattr(argv, 'enable_mmap', True)
-    if argv.input_model and input_checkpoint:
+
+    share_weights = getattr(argv, 'share_weights', True)    #FIXME: Should be controlled by default value
+    if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
         # frozen format with v1 checkpoints
-        input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint], enable_mmap)
-    elif argv.input_model:
-        input_model = moc_front_end.load(argv.input_model, enable_mmap)
-    elif argv.saved_model_dir:
-        if argv.saved_model_tags:
-            input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags], enable_mmap)
-        else:
-            input_model = moc_front_end.load(argv.saved_model_dir, enable_mmap)
-    elif argv.input_meta_graph:
-        input_model = moc_front_end.load(argv.input_meta_graph, enable_mmap)
+        input_model = moc_front_end.load([part for part in argv.input_model], share_weights)
+    else:
+        input_model = moc_front_end.load(argv.input_model, share_weights)
+
+    '''elif argv.input_meta_graph: # TODO: Cover this case
+        input_model = moc_front_end.load(argv.input_meta_graph, share_weights)
         if argv.output:
             # Simulate original behavior with freezing model
             # While freezing we do a cutting of model, to keep similar behavior we
             # need to simulate similar behavior with natively supported model
             outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
             input_model.override_all_outputs([x['node'] for x in outputs])
-
-    argv.placeholder_shapes, argv.placeholder_data_types, argv.freeze_placeholder_with_value = convert_params_lists_to_dicts(
-        input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value)
+    '''
+    argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
+        input_model, argv.placeholder_shapes, argv.placeholder_data_types)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+        argv.output, {}, moc_front_end.get_name())
 
     def check_places_are_same(places_original: List[Place], places_new: List[Place]):
         """
@@ -113,10 +119,17 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     model_inputs = input_model.get_inputs()
     inputs_equal = True
     if user_shapes:
+
+        # TODO: Remove this line when new 'cut' helper is introduced
+        raise_exception_for_input_output_cut(model_inputs, user_shapes, True)
+
         inputs_equal = check_places_are_same(model_inputs, user_shapes)
 
     outputs_equal = True
     if outputs:
+        # TODO: Remove this line when new 'cut' helper is introduced
+        raise_exception_for_input_output_cut(input_model.get_outputs(), outputs, False)
+
         outputs_equal = check_places_are_same(input_model.get_outputs(), outputs)
     log.debug('Inputs are same: {}, outputs are same: {}'.format(
         inputs_equal, outputs_equal))
@@ -142,7 +155,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             user_shapes, outputs, _ = fe_user_data_repack(
                 input_model, placeholder_shapes, argv.placeholder_data_types,
-                new_output_places_name, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+                new_output_places_name, {}, moc_front_end.get_name())
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
         add_names_to_tensors(input_model, user_shapes)
@@ -154,7 +167,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             user_shapes, outputs, _ = fe_user_data_repack(
                 input_model, placeholder_shapes, argv.placeholder_data_types,
-                argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+                argv.output, {}, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
         add_names_to_tensors(input_model, user_shapes)
@@ -230,89 +243,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
 
-    # obtain layout for all inputs
-    layout_values = {}
-    if 'layout_values' in argv and argv.layout_values:
-        layout_values = update_layout_to_dict(model_inputs, argv.layout_values,
-                                              lambda input_place: input_place.get_names())
-
-    deferred_batch_names = []
-    # set batch size for inputs with a static rank
-    # for all other inputs, set it after shape deduction is performed during model conversion
-    if argv.batch is not None and argv.batch > 0:
-        log.debug('Setting batch size to {}'.format(argv.batch))
-        frozen_input_names = list(freeze_placeholder.keys()) if freeze_placeholder else []
-        for place in model_inputs:
-            input_partial_shape = input_model.get_partial_shape(place)
-            input_names = place.get_names()
-            joined_name = ' '.join(place.get_names())
-            assert len(input_names) > 0, "One input place has no names"
-
-            # if this input is frozen, there is no need to set the batch
-            is_frozen_input = len([name for name in input_names if name in frozen_input_names]) > 0
-            if is_frozen_input:
-                # skip the frozen input
-                continue
-
-            if not input_partial_shape.rank.is_static:
-                # found input with dynamic rank, so have to repeat the batch setting after the model conversion
-                deferred_batch_names += input_names
-                continue
-
-            batch_dim, is_default_index = get_dimension_index_by_label(input_partial_shape,
-                                                                       place.get_names(), layout_values, 'N', 0)
-            if batch_dim is None:
-                # skip because no batch dimension exists in the input
-                continue
-
-            if is_default_index:
-                # if the batch index is chosen by default, we need to ensure that its size equals -1, 0 or 1
-                validate_batch_in_shape(shape_to_array(input_partial_shape), joined_name)
-
-            assert batch_dim < input_partial_shape.rank.get_length(), \
-                "Incorrect layout is specified for {}:" \
-                " index of the batch dimension is out of range.".format(input_names[0])
-
-            new_partial_shape = copy(input_partial_shape)
-            new_partial_shape[batch_dim] = argv.batch
-
-            log.debug('Input: {}, Old shape: {}, New shape: {}'.format(
-                joined_name, input_partial_shape, new_partial_shape))
-            input_model.set_partial_shape(place, new_partial_shape)
 
     ov_model = moc_front_end.convert(input_model)
-
-    if argv.batch is not None and argv.batch > 0 and len(deferred_batch_names) > 0:
-        # Frontend convert method can include reverse infer functionality that can deduce undefined input shapes
-        # so try to repeat batch setting again
-        reshape_dict = {}
-        log.debug('Deferred batch setting to size {}'.format(argv.batch))
-        is_batch_clarified = False
-        for model_input in ov_model.inputs:
-            input_name = model_input.any_name
-            input_partial_shape = model_input.get_partial_shape()
-            if input_name in deferred_batch_names and input_partial_shape.rank.is_static:
-                # update input shape with the specified batch for input that originally has dynamic rank
-                batch_dim, is_default_index = get_dimension_index_by_label(input_partial_shape,
-                                                                           model_input.get_names(),
-                                                                           layout_values, 'N', 0)
-                if batch_dim is None:
-                    continue
-
-                if is_default_index:
-                    # if the batch index is chosen by default, we need to ensure that its size equals -1, 0 or 1
-                    validate_batch_in_shape(shape_to_array(input_partial_shape), input_name)
-
-                assert batch_dim < input_partial_shape.rank.get_length(), \
-                    "Incorrect layout is specified for {}: " \
-                    "index of the batch dimension is out of range.".format(input_name)
-                input_partial_shape[batch_dim] = argv.batch
-                is_batch_clarified = True
-
-            reshape_dict.update({input_name: input_partial_shape})
-
-        if is_batch_clarified:
-            # call reshape only if batch dimension for one of the input is clarified
-            ov_model.reshape(reshape_dict)
 
     return ov_model

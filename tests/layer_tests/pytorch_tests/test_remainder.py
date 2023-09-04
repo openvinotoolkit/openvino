@@ -97,6 +97,7 @@ class TestRemainderTypes(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_ts_backend
+    @pytest.mark.precommit_fx_backend
     def test_remainder_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape

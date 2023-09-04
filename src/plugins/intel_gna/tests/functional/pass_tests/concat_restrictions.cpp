@@ -26,7 +26,6 @@ using ConcatRestrictionsParamsTuple = typename std::tuple<InferenceEngine::SizeV
 
 namespace ConcatTestsDefinitions {
 
-using namespace CommonTestUtils;
 using namespace InferenceEngine;
 using namespace ngraph::builder;
 using namespace ov;
@@ -56,11 +55,11 @@ struct ReLUConcatAxis {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
 
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto relu = ngraph::builder::makeActivation(params[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
         concatInputs.push_back(relu);
         size_t totalSize = ov::shape_size(inputShape);
-        auto constValues = CommonTestUtils::generate_float_numbers(totalSize, -0.1f, 0.1f);
+        auto constValues = ov::test::utils::generate_float_numbers(totalSize, -0.1f, 0.1f);
         auto constNode = ngraph::builder::makeConstant(ngPrc, {inputShape}, constValues);
         concatInputs.push_back(constNode);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
@@ -82,7 +81,7 @@ struct MatmulConcatAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         ov::Shape mulConstShape;
 
         switch (inputShape.size()) {
@@ -128,12 +127,12 @@ struct ConvNCHWConcatAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         size_t numOutChannels = 8;
         size_t kernelSize = 1;
         std::vector<float> filterWeights =
-            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[1] * kernelSize, -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(numOutChannels * inputShape[1] * kernelSize, -0.2f, 0.2f);
         auto conv = ngraph::builder::makeConvolution(params[0],
                                                      ngPrc,
                                                      {1, kernelSize},
@@ -148,7 +147,7 @@ struct ConvNCHWConcatAxis {
 
         concatInputs.push_back(conv);
         size_t totalSize = ov::shape_size(inputShape);
-        auto constValues = CommonTestUtils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
+        auto constValues = ov::test::utils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
         auto constNode = ngraph::builder::makeConstant(ngPrc, {inputShape}, constValues);
         concatInputs.push_back(constNode);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
@@ -170,14 +169,14 @@ struct ConvNHWCConcatAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         auto transposeInOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
         size_t numOutChannels = 8;
         size_t kernelSize = 1;
         std::vector<float> filterWeights =
-            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -0.2f, 0.2f);
         auto conv = ngraph::builder::makeConvolution(transposeIn,
                                                      ngPrc,
                                                      {1, kernelSize},
@@ -194,7 +193,7 @@ struct ConvNHWCConcatAxis {
 
         concatInputs.push_back(transposeOut);
         size_t totalSize = ov::shape_size(inputShape);
-        auto constValues = CommonTestUtils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
+        auto constValues = ov::test::utils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
         auto constNode = ngraph::builder::makeConstant(ngPrc, {inputShape}, constValues);
         concatInputs.push_back(constNode);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
@@ -216,7 +215,7 @@ struct ConvConcatNHWCAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         auto transposeInOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
         auto transposeIn1 = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
@@ -224,9 +223,9 @@ struct ConvConcatNHWCAxis {
         size_t numOutChannels = 8;
         size_t kernelSize = 1;
         std::vector<float> filterWeights1 =
-            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -0.1f, 2.2f);
+            ov::test::utils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -0.1f, 2.2f);
         std::vector<float> filterWeights2 =
-            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -1.2f, 0.5f);
+            ov::test::utils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -1.2f, 0.5f);
         auto conv1 = ngraph::builder::makeConvolution(transposeIn1,
                                                       ngPrc,
                                                       {1, kernelSize},
@@ -274,7 +273,7 @@ struct ConvConcatConcatNHWCAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concat1Inputs, concat2Inputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         auto transposeInOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
         auto transposeIn1 = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
@@ -282,9 +281,9 @@ struct ConvConcatConcatNHWCAxis {
         size_t numOutChannels = 64;
         size_t kernelSize = 1;
         std::vector<float> filterWeights1 =
-            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -0.1f, 2.2f);
+            ov::test::utils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -0.1f, 2.2f);
         std::vector<float> filterWeights2 =
-            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -1.2f, 0.5f);
+            ov::test::utils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -1.2f, 0.5f);
         auto conv1 = ngraph::builder::makeConvolution(transposeIn1,
                                                       ngPrc,
                                                       {1, kernelSize},
@@ -320,7 +319,7 @@ struct ConvConcatConcatNHWCAxis {
             ov::opset10::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1}));
 
         size_t totalSize = ov::shape_size(squeeze->get_shape());
-        auto constValues = CommonTestUtils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
+        auto constValues = ov::test::utils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
         auto constNode = ngraph::builder::makeConstant(ngPrc, {squeeze->get_shape()}, constValues);
 
         concat2Inputs.push_back(squeeze);
@@ -386,8 +385,8 @@ struct TransposeTransposeConcat {
         vector<size_t> conv_input_shape = {1, input_channels, 1, input_shapes[0] / input_channels};
 
         auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
-        auto inputs = makeParams(ng_prc, {{1, input_shapes[0]}, {1, input_shapes[1]}});
-
+        ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ng_prc, ov::Shape{1, input_shapes[0]}),
+                                   std::make_shared<ov::op::v0::Parameter>(ng_prc, ov::Shape{1, input_shapes[1]})};
         // 1st concat input
         auto reshape_l1_const = make_shared<Constant>(i64, Shape{conv_input_shape.size()}, conv_input_shape);
         auto reshape_l1 = make_shared<Reshape>(inputs[0], reshape_l1_const, false);
@@ -451,7 +450,7 @@ public:
         std::tie(inputShape, concatAxis, netPrecision, configuration, targetDevice) = obj.param;
         std::ostringstream result;
         result << T::getName() << "_";
-        result << "inputShape=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "inputShape=" << ov::test::utils::vec2str(inputShape) << "_";
         result << "concatAxis=" << concatAxis << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
@@ -469,7 +468,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        vector<float> values = generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -567,7 +566,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_matmul_4d,
                                             ::testing::ValuesIn(concatAxisMatMul4D_neg),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          MatMulConcatRestrictionsNeg::getTestCaseName);
 
 // Positive 4D MatMul cases - TODO: this test fails with 4D Gemm computation errors
@@ -580,7 +579,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_matmul_4d,
 //        ::testing::ValuesIn(concatAxisMatMul4D_pos),
 //        ::testing::ValuesIn(netPrecisions),
 //        ::testing::ValuesIn(configs),
-//        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+//        ::testing::Values(ov::test::utils::DEVICE_GNA)),
 //    MatMulConcatRestrictionsPos::getTestCaseName);
 
 // Negative 3D MatMul cases
@@ -593,7 +592,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_matmul_3d,
                                             ::testing::ValuesIn(concatAxisMatMul3D_neg),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          MatMulConcatRestrictionsNeg::getTestCaseName);
 
 // Positive 3D MatMul cases - TODO: this test fails with 3D Gemm computation errors
@@ -606,7 +605,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_matmul_3d,
 //        ::testing::ValuesIn(concatAxisMatMul3D_pos),
 //        ::testing::ValuesIn(netPrecisions),
 //        ::testing::ValuesIn(configs),
-//        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+//        ::testing::Values(ov::test::utils::DEVICE_GNA)),
 //    MatMulConcatRestrictionsPos::getTestCaseName);
 
 // Negative 2D MatMul cases
@@ -619,7 +618,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_matmul_2d,
                                             ::testing::ValuesIn(concatAxisMatMul2D_neg),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          MatMulConcatRestrictionsNeg::getTestCaseName);
 
 // Positive 2D MatMul cases
@@ -632,7 +631,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_matmul_2d,
                                             ::testing::ValuesIn(concatAxisMatMul2D_pos),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          MatMulConcatRestrictionsPos::getTestCaseName);
 
 // Negative ReLU cases
@@ -645,7 +644,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_relu,
                                             ::testing::ValuesIn(concatAxisReLU_neg),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ReLUConcatRestrictionsNeg::getTestCaseName);
 
 // Positive ReLU cases
@@ -658,7 +657,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_relu,
                                             ::testing::ValuesIn(concatAxisReLU_pos),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ReLUConcatRestrictionsPos::getTestCaseName);
 
 // Negative cases NCHW
@@ -672,7 +671,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::ValuesIn(concatAxisConvNCHW_neg),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ConvNCHWConcatRestrictionsNeg::getTestCaseName);
 
 // Positive cases NCHW
@@ -686,7 +685,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::ValuesIn(concatAxisConvNCHW_pos),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ConvNCHWConcatRestrictionsPos::getTestCaseName);
 
 // Negative cases NHWC
@@ -699,7 +698,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::ValuesIn(concatAxisNHWC_neg),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ConvNHWCConcatRestrictionsNeg::getTestCaseName);
 
 // Positive cases NHWC
@@ -712,7 +711,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::ValuesIn(concatAxisNHWC_pos),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ConvNHWCConcatRestrictionsPos::getTestCaseName);
 
 // Negative cases NHWC with concat inside transposes - TODO: this test fails, because the transposes are not removed
@@ -725,7 +724,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
 //        ::testing::ValuesIn(concatAxisConcatNHWC_neg),
 //        ::testing::ValuesIn(netPrecisions),
 //        ::testing::ValuesIn(configs),
-//        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+//        ::testing::Values(ov::test::utils::DEVICE_GNA)),
 //    ConvConcatNHWCRestrictionsNeg::getTestCaseName);
 
 // Positive cases NHWC with concat inside transposes
@@ -739,7 +738,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::ValuesIn(concatAxisConcatNHWC_pos),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ConvConcatNHWCRestrictionsPos::getTestCaseName);
 
 // Negative cases NHWC with two consecutive concats
@@ -752,7 +751,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::ValuesIn(concatAxisConcatConcatNHWC_neg),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ConvConcatConcatNHWCRestrictionsNeg::getTestCaseName);
 
 // Positive cases NHWC with two consecutive concats
@@ -764,7 +763,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::ValuesIn(concatAxisConcatConcatNHWC_pos),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ConvConcatConcatNHWCRestrictionsPos::getTestCaseName);
 
 const vector<SizeVector> ttc_input_shapes = {{64, 384}};
@@ -782,7 +781,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::ValuesIn(ttc_axis),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(ttc_configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          TransposeTransposeConcatPos::getTestCaseName);
 
 }  // namespace ConcatTestsDefinitions

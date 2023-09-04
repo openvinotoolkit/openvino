@@ -20,7 +20,7 @@ RemoteContextImpl::RemoteContextImpl(std::string device_name, std::vector<cldnn:
         : m_va_display(nullptr)
         , m_external_queue(nullptr)
         , m_type(ContextType::OCL)
-        , m_device_name(device_name)
+        , m_device_name(std::move(device_name))
         , m_memory_cache(cache_capacity) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     // TODO: Parameterize this based on plugin config and compilation options

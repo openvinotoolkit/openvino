@@ -9,7 +9,7 @@
 #include <memory>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
@@ -98,18 +98,12 @@ TEST_F(TransformationTestsF, GroupNormalizationDecompositionF16) {
     const int64_t num_groups = 4;
     element::Type elem_type = element::f16;
 
-    model = gen_model(input_shapes, elem_type, num_groups, 1e-3f);
+    model = gen_model(input_shapes, elem_type, num_groups, 1e-3);
     manager.register_pass<pass::GroupNormalizationDecomposition>();
 
     model_ref = gen_model_ref(input_shapes, elem_type, num_groups, 1e-3f);
 
-    // Ticket number: 115063
-    // abs_max < abs_threshold && rel_max < rel_threshold
-    //         abs_max: 0.03125
-    //                 coordinate 220; abs errors count 384; abs mean 0.00505998; abs threshold 0.0005
-    //         rel_max: 0.0220588
-    //                 coordinate 434; rel errors count 232; rel mean 0.0027481; rel threshold 0.001
-    // comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_num_groups) {

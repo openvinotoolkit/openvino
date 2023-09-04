@@ -24,6 +24,7 @@
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 #include "iplugin_wrapper.hpp"
+#include "legacy_op_extension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/exception.hpp"
@@ -430,6 +431,26 @@ public:
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
+        // Add legacy supported properties
+        if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+            try {
+                return m_model->get_property(name);
+            } catch (const ov::Exception&) {
+                auto props = m_model->get_property(ov::supported_properties.name()).as<std::vector<PropertyName>>();
+                std::vector<std::string> legacy_properties;
+                for (const auto& prop : props) {
+                    if ((METRIC_KEY(SUPPORTED_METRICS) == name && !prop.is_mutable()) ||
+                        (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
+                        legacy_properties.emplace_back(prop);
+                }
+                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                }
+
+                return legacy_properties;
+            }
+        }
         return m_model->get_property(name);
     }
 
@@ -544,14 +565,28 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
-        return tensor_to_blob(m_request->get_tensor(find_port(name)));
+        auto port = find_port(name);
+        auto& rt_info = port.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        InferenceEngine::TensorDesc desc;
+        if (it != rt_info.end()) {
+            desc = it->second.as<InferenceEngine::TensorDesc>();
+        }
+        return tensor_to_blob(m_request->get_tensor(port), true, desc);
     }
 
     InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
-        auto tensors = m_request->get_tensors(find_port(name));
+        auto port = find_port(name);
+        auto& rt_info = port.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        InferenceEngine::TensorDesc desc;
+        if (it != rt_info.end()) {
+            desc = it->second.as<InferenceEngine::TensorDesc>();
+        }
+        auto tensors = m_request->get_tensors(port);
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor_to_blob(tensor));
+            blobs.emplace_back(tensor_to_blob(tensor, true, desc));
         }
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
@@ -886,4 +921,77 @@ ov::SoPtr<ov::IRemoteContext> ov::legacy_convert::convert_remote_context(
         return ctx->get_context();
     }
     return {std::make_shared<InferenceEngine::IRemoteContextWrapper>(context)};
+}
+
+namespace ov {
+
+/*
+ * @brief Wrapper for old IE extensions to new API
+ */
+class ExtensionWrapper : public ov::LegacyOpExtension {
+public:
+    ExtensionWrapper(const InferenceEngine::IExtensionPtr& ext, const std::string& opset, const std::string& name)
+        : m_ext(ext),
+          m_opset_name(opset),
+          m_type(name),
+          m_ext_type(m_type.c_str(), m_opset_name.c_str()) {}
+    ~ExtensionWrapper() override = default;
+
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return m_ext_type;
+    }
+
+    ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) const override {
+        std::shared_ptr<ngraph::Node> node(m_ext->getOpSets().at(m_opset_name).create_insensitive(m_ext_type.name));
+
+        node->set_arguments(inputs);
+        if (node->visit_attributes(visitor)) {
+            node->constructor_validate_and_infer_types();
+        }
+        return node->outputs();
+    }
+
+    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+        return {};
+    }
+
+    const InferenceEngine::IExtensionPtr& get_extension() const {
+        return m_ext;
+    }
+
+private:
+    InferenceEngine::IExtensionPtr m_ext;
+    std::string m_opset_name;
+    std::string m_type;
+    ov::DiscreteTypeInfo m_ext_type;
+};
+
+}  // namespace ov
+
+std::vector<ov::Extension::Ptr> ov::legacy_convert::convert_extension(
+    const std::vector<InferenceEngine::IExtensionPtr>& exts) {
+    std::vector<ov::Extension::Ptr> extensions;
+    for (const auto& ext : exts) {
+        for (const auto& item : ext->getOpSets()) {
+            for (const auto& type_info : item.second.get_types_info()) {
+                extensions.emplace_back(std::make_shared<ov::ExtensionWrapper>(ext, item.first, type_info.name));
+            }
+        }
+    }
+    return extensions;
+}
+
+std::vector<InferenceEngine::IExtensionPtr> ov::legacy_convert::convert_extension(
+    const std::vector<ov::Extension::Ptr>& exts) {
+    std::vector<InferenceEngine::IExtensionPtr> extensions;
+    std::unordered_set<InferenceEngine::IExtensionPtr> existed_extensions;
+    for (const auto& ext : exts) {
+        if (const auto& wrapper = std::dynamic_pointer_cast<ov::ExtensionWrapper>(ext)) {
+            if (!existed_extensions.count(wrapper->get_extension())) {
+                extensions.emplace_back(wrapper->get_extension());
+                existed_extensions.insert(wrapper->get_extension());
+            }
+        }
+    }
+    return extensions;
 }

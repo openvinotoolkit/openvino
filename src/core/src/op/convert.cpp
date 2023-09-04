@@ -10,7 +10,7 @@
 #include "itt.hpp"
 #include "ngraph/op/equal.hpp"
 #include "ngraph/op/select.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
+#include "openvino/reference/convert.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -39,6 +39,7 @@ shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Convert>(new_args.at(0), m_destination_type);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace convert {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>
@@ -52,13 +53,13 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
     if (((INPUT_ET == element::u1) || (OUTPUT_ET == element::u1)) ||
         ((INPUT_ET == element::u4) || (OUTPUT_ET == element::u4)) ||
         ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4))) {
-        runtime::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
-                                               out->get_data_ptr<OUTPUT_ET>(),
-                                               element_count,
-                                               INPUT_ET,
-                                               OUTPUT_ET);
+        ov::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
+                                          out->get_data_ptr<OUTPUT_ET>(),
+                                          element_count,
+                                          INPUT_ET,
+                                          OUTPUT_ET);
     } else {
-        runtime::reference::convert(arg->get_data_ptr<INPUT_ET>(), out->get_data_ptr<OUTPUT_ET>(), element_count);
+        ov::reference::convert(arg->get_data_ptr<INPUT_ET>(), out->get_data_ptr<OUTPUT_ET>(), element_count);
     }
     return true;
 }

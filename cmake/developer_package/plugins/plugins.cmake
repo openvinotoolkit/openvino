@@ -135,7 +135,7 @@ function(ov_add_plugin)
                         LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
             else()
-                ov_install_static_lib(${OV_PLUGIN_NAME} ${install_component})
+                ov_install_static_lib(${OV_PLUGIN_NAME} ${OV_CPACK_COMP_CORE})
             endif()
         endif()
     endif()
@@ -358,7 +358,7 @@ function(ov_generate_plugins_hpp)
                          "${plugins_hpp_in}"
                          "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        COMMENT
-                         "Generate ov_plugins.hpp for build"
+                         "Generate ov_plugins.hpp"
                        VERBATIM)
 
     # for some reason dependency on source files does not work

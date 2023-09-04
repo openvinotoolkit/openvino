@@ -12,7 +12,7 @@ namespace SubgraphTestsDefinitions {
         std::string targetDevice;
         std::tie(inputPrecision, inputShapes, targetDevice) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
         result << "Precision=" << inputPrecision.name() << "_";
         result << "TargetDevice=" << targetDevice;
         return result.str();
@@ -23,7 +23,7 @@ namespace SubgraphTestsDefinitions {
         InferenceEngine::Precision inputPrecision;
         std::tie(inputPrecision, inputShapes, targetDevice) = this->GetParam();
         auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-        auto param = ngraph::builder::makeParams(inType, {inputShapes});
+        ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes))};
         auto relu = std::make_shared<ngraph::opset3::Relu>(param[0]);
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(relu, inType);
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shapeOf)};

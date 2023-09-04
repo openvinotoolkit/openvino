@@ -5,6 +5,7 @@
 #include "reduce.hpp"
 
 #include "gtest/gtest.h"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -18,10 +19,11 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     basicReduceParams basicParams;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParams, cpuParams, fusingParams) = obj.param;
+    std::map<std::string, ov::element::Type> additionalConfig;
+    std::tie(basicParams, cpuParams, fusingParams, additionalConfig) = obj.param;
 
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     bool keepDims;
     ngraph::helpers::ReductionType reductionType;
     ElementType netPrecision, inPrc, outPrc;
@@ -32,15 +34,15 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     std::ostringstream result;
     result << "IS=(";
     for (const auto& shape : inputShapes) {
-        result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
     }
     result << ")_TS=(";
     for (const auto& shape : inputShapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
-    result << ")_axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << ")_axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "opType=" << opType << "_";
     result << "type=" << reductionType << "_";
     if (keepDims)
@@ -51,6 +53,13 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     result << "inPRC=" << inPrc << "_";
     result << "outPRC=" << outPrc << "_";
 
+    if (!additionalConfig.empty()) {
+        result << "PluginConf";
+        for (auto& item : additionalConfig) {
+            result << "_" << item.first << "=" << item.second.get_type_name();
+        }
+    }
+
     result << CPUTestsBase::getTestCaseName(cpuParams);
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
@@ -58,38 +67,47 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
 }
 
 void ReduceCPULayerTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     basicReduceParams basicParams;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParams, cpuParams, fusingParams) = this->GetParam();
+    std::map<std::string, ov::element::Type> additionalConfig;
+    std::tie(basicParams, cpuParams, fusingParams, additionalConfig) = this->GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     bool keepDims;
     ElementType inPrc, outPrc;
     std::vector<InputShape> inputShapes;
 
     std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inputShapes) = basicParams;
-    inPrc = outPrc = netPrecision;
+    if (netPrecision == ElementType::boolean) {
+        inPrc = outPrc = netPrecision;
+    }
+
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
+    updateSelectedType(getPrimitiveType(), netPrecision == ElementType::boolean ? ElementType::i8 : netPrecision, configuration);
 
     init_input_shapes(inputShapes);
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
-    case CommonTestUtils::OpType::SCALAR:
+    case ov::test::utils::OpType::SCALAR:
         if (axes.size() > 1)
             FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
         break;
-    case CommonTestUtils::OpType::VECTOR:
+    case ov::test::utils::OpType::VECTOR:
         shapeAxes.push_back(axes.size());
         break;
     default:
@@ -99,9 +117,6 @@ void ReduceCPULayerTest::SetUp() {
         std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
     const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
-
-    selectedType = getPrimitiveType() + "_" +
-                   (inPrc == ElementType::boolean ? "I8" : InferenceEngine::details::convertPrecision(inPrc).name());
 
     // hybrid layouts
     if (inFmts.size() != 0 && outFmts.size() == 0) {
@@ -141,6 +156,11 @@ void ReduceCPULayerTest::generate_inputs(const std::vector<ngraph::Shape>& targe
                                                              5);
             if (netPrecision == ElementType::f32) {
                 auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
+                for (size_t i = 0; i < tensor.get_size(); ++i) {
+                    rawBlobDataPtr[i] /= 10.f;
+                }
+            } else if (netPrecision == ElementType::f16) {
+                auto *rawBlobDataPtr = static_cast<ngraph::float16 *>(tensor.data());
                 for (size_t i = 0; i < tensor.get_size(); ++i) {
                     rawBlobDataPtr[i] /= 10.f;
                 }
@@ -200,10 +220,10 @@ const std::vector<std::vector<int>>& axesND() {
     return axesND;
 }
 
-const std::vector<CommonTestUtils::OpType>& opTypes() {
-    static const std::vector<CommonTestUtils::OpType> opTypes = {
-            CommonTestUtils::OpType::SCALAR,
-            CommonTestUtils::OpType::VECTOR,
+const std::vector<ov::test::utils::OpType>& opTypes() {
+    static const std::vector<ov::test::utils::OpType> opTypes = {
+            ov::test::utils::OpType::SCALAR,
+            ov::test::utils::OpType::VECTOR,
     };
     return opTypes;
 }
@@ -222,8 +242,27 @@ const std::vector<ngraph::helpers::ReductionType>& reductionTypes() {
 }
 
 const std::vector<ElementType>& inpOutPrc() {
-    static const std::vector<ElementType> inpOutPrc = {ElementType::bf16, ElementType::f32};
+    static const std::vector<ElementType> inpOutPrc = {ElementType::f32};
     return inpOutPrc;
+}
+
+const std::vector<std::map<std::string, ov::element::Type>> additionalConfig() {
+    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+        {{ov::hint::inference_precision.name(), ov::element::f32}},
+        {{ov::hint::inference_precision.name(), ov::element::bf16}},
+// ARM doesn't support FP16 for now
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        {{ov::hint::inference_precision.name(), ov::element::f16}},
+#endif
+    };
+    return additionalConfig;
+}
+
+const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32() {
+    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+        {{ov::hint::inference_precision.name(), ov::element::f32}}
+    };
+    return additionalConfig;
 }
 
 const std::vector<ngraph::helpers::ReductionType>& reductionTypesInt32() {

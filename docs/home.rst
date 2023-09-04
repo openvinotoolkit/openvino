@@ -16,8 +16,21 @@ OpenVINO 2023.0
 
    OpenVINO 2023.0
 
-   | An open-source toolkit for optimizing and deploying deep learning models.
-   | Boost your AI deep-learning inference performance!
+   .. raw:: html
+
+      <div class="line-block">
+         <section class="splide" aria-label="Splide Banner Carousel">
+           <div class="splide__track">
+         		<ul class="splide__list">
+         			<li class="splide__slide">An open-source toolkit for optimizing and deploying deep learning models.<br>Boost your AI deep-learning inference performance!</li>
+			         <li class="splide__slide">Even more integrations in 2023.0!<br>Load TensorFlow, TensorFlow Lite, and PyTorch models directly, without manual conversion.<br><a href="https://docs.openvino.ai/2023.0/Supported_Model_Formats.html">See the supported model formats...</a></li>
+         			<li class="splide__slide">CPU inference has become even better. ARM processors are supported and thread scheduling is available on 12th gen Intel® Core and up.<br><a href="https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_OV_Runtime_User_Guide.html">See how to run OpenVINO on various devices...</a></li>
+         			<li class="splide__slide">Post-training optimization and quantization-aware training now in one tool!<br><a href="https://docs.openvino.ai/2023.0/openvino_docs_model_optimization_guide.html">See the new NNCF capabilities...</a></li>
+                  <li class="splide__slide">OpenVINO is enabled in the PyTorch 2.0 torch.compile() backend.<br><a href="https://docs.openvino.ai/2023.0/pytorch_2_0_torch_compile.html">See how it works...</a></li>
+         		</ul>
+           </div>
+         </section>
+      </div>
    
    .. button-ref::  get_started
       :ref-type: doc
@@ -70,6 +83,13 @@ OpenVINO 2023.0
       :link-type: doc
 
       Reach for performance with post-training and training-time compression with NNCF
+
+   .. grid-item-card:: PyTorch 2.0 - torch.compile() backend
+      :link: pytorch_2_0_torch_compile
+      :link-alt: torch.compile 
+      :link-type: doc
+
+      Optimize generation of the graph model with PyTorch 2.0 torch.compile() backend
 
 
 Feature Overview

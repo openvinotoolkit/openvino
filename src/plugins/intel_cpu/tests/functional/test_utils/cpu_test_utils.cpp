@@ -4,7 +4,9 @@
 
 #include "cpu_test_utils.hpp"
 #include "ie_ngraph_utils.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+#include "utils/general_utils.h"
 #include <cstdint>
 
 namespace CPUTestUtils {
@@ -224,7 +226,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
-    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || selectedType == primType;
+    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || std::regex_match(primType, std::regex(selectedType));
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
@@ -271,7 +273,6 @@ std::string CPUTestsBase::getPrimitiveType() const {
     }
     return isaType;
 }
-
 #endif
 
 std::string CPUTestsBase::getISA(bool skip_amx) const {
@@ -350,6 +351,32 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
     implString.push_back('_');
     implString += InferenceEngine::details::convertPrecision(elType).name();
     return implString;
+}
+
+void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov::element::Type netType, const ov::AnyMap& config) {
+    auto getExecType = [&](){
+        // inference_precision affects only floating point type networks
+        if (!netType.is_real())
+            return netType;
+
+        const auto it = config.find(ov::hint::inference_precision.name());
+        if (it == config.end())
+            return netType;
+
+        const auto inference_precision_type = it->second.as<ov::element::Type>();
+        // currently plugin only allows to change precision from higher to lower (i.e. f32 -> f16 or f32 -> bf16)
+        if (netType.bitwidth() < inference_precision_type.bitwidth()) {
+            return netType;
+        }
+
+        return inference_precision_type;
+    };
+
+    const auto execType = getExecType();
+
+    selectedType = primitiveType;
+    selectedType.push_back('_');
+    selectedType += InferenceEngine::details::convertPrecision(execType).name();
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams> &paramsVector) {

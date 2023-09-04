@@ -9,20 +9,21 @@
 #include <functional>
 #include <limits>
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <transformations/rt_info/attributes.hpp>
-#include <transformations_visibility.hpp>
 #include <vector>
+
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations/rt_info/attributes.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace op {
 namespace util {
 
 template <class T>
-bool normalize_single_value(std::vector<T> vec, float& value) {
+bool normalize_single_value(std::vector<T> vec, float& value, bool check_value_range = true) {
     for (const auto& val : vec) {
         if (val != *vec.begin())
             return false;
@@ -30,7 +31,8 @@ bool normalize_single_value(std::vector<T> vec, float& value) {
 
     float ref_val = static_cast<float>(*vec.begin());
 
-    if (ref_val < std::numeric_limits<float>::lowest() || ref_val > std::numeric_limits<float>::max()) {
+    if (check_value_range &&
+        (ref_val < std::numeric_limits<float>::lowest() || ref_val > std::numeric_limits<float>::max())) {
         return false;
     }
 
@@ -60,9 +62,9 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
 
 inline std::string create_ie_output_name(const Output<const Node>& output) {
     std::string out_name;
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(output.get_tensor());
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (!tensor_name.empty()) {
         out_name = std::move(tensor_name);
     } else {
@@ -159,7 +161,9 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
     return const_values == values;
 }
 
-TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<opset4::Constant>& const_node, float& value);
+TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<opset4::Constant>& const_node,
+                                          float& value,
+                                          bool check_value_range = true);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> normalize_constant(const std::shared_ptr<opset4::Constant>& constant,
                                                              const PartialShape& shape);
@@ -221,6 +225,11 @@ TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
 TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                                     const Output<Node>& constant,
                                                     const Output<Node>& non_constant_input);
+
+TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
+
+TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

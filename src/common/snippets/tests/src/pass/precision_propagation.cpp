@@ -48,7 +48,7 @@ std::string PrecisionPropagationTest::getTestCaseName(testing::TestParamInfo<Pre
         std::ostringstream result;
         result << "{";
         for (const auto& precisions : precisions_pack) {
-            result << CommonTestUtils::vec2str(precisions) << "_";
+            result << ov::test::utils::vec2str(precisions) << "_";
         }
         result << "}";
         return result.str();
@@ -91,7 +91,7 @@ TEST_P(PrecisionPropagationTest, CompareFunctions) {
             test_values.expected.convertion_before_op2_2,
             test_values.expected.convertion_after_op2
         });
-    function = function_stub.getOriginal();
+    model = function_stub.getOriginal();
 
     const auto target_machine = std::make_shared<DummyPrecisionPropagationTargetMachine>(
         test_values.actual.op1_supported_precisions,
@@ -99,7 +99,7 @@ TEST_P(PrecisionPropagationTest, CompareFunctions) {
 
     manager.register_pass<ov::snippets::pass::PropagatePrecision>(target_machine);
 
-    function_ref = function_stub.getReference();
+    model_ref = function_stub.getReference();
 }
 
 namespace PrecisionPropagationTestInstantiation {

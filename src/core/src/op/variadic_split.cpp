@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/slice.hpp"
 #include "variadic_split_shape_inference.hpp"
 
 using namespace std;
@@ -37,8 +37,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     const auto& data_type = get_input_element_type(0);
     for (size_t i = 0; i < output_shapes.size(); ++i) {
@@ -52,6 +51,7 @@ shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector
     return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace variadic_split {
 namespace {
 inline bool evaluate(const HostTensorPtr& in,
@@ -62,14 +62,14 @@ inline bool evaluate(const HostTensorPtr& in,
     const auto has_nonzero_dims = std::none_of(output_shape.begin(), output_shape.end(), ov::cmp::Equal<size_t>(0));
 
     if (has_nonzero_dims) {
-        runtime::reference::slice(in->get_data_ptr<const char>(),
-                                  out->get_data_ptr<char>(),
-                                  in->get_shape(),
-                                  lower_bounds,
-                                  upper_bounds,
-                                  Strides(lower_bounds.size(), 1),
-                                  out->get_shape(),
-                                  in->get_element_type().size());
+        ov::reference::slice(in->get_data_ptr<const char>(),
+                             out->get_data_ptr<char>(),
+                             in->get_shape(),
+                             lower_bounds,
+                             upper_bounds,
+                             Strides(lower_bounds.size(), 1),
+                             out->get_shape(),
+                             in->get_element_type().size());
         return true;
     }
     return false;
@@ -94,8 +94,7 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
     std::vector<ov::PartialShape> input_shapes = {data_tensor->get_partial_shape(),
                                                   axis_tensor->get_partial_shape(),
                                                   split_lengths_tensor->get_partial_shape()};
-    std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes, {{1, axis_tensor}, {2, split_lengths_tensor}});
+    auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
 
     const auto data_shape = data_tensor->get_shape();
     std::vector<size_t> lower_bounds(data_shape.size(), 0);

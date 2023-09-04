@@ -28,7 +28,7 @@ const auto ROIAlignCases_average = ::testing::Combine(
         ::testing::Values(2),
         ::testing::Values("avg"),
         ::testing::ValuesIn(netPRCs),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_average, ROIAlignLayerTest, ROIAlignCases_average, ROIAlignLayerTest::getTestCaseName);
@@ -46,7 +46,7 @@ const auto ROIAlignCases_max = ::testing::Combine(
         ::testing::Values(2),
         ::testing::Values("max"),
         ::testing::ValuesIn(netPRCs),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_max, ROIAlignLayerTest, ROIAlignCases_max, ROIAlignLayerTest::getTestCaseName);

@@ -30,7 +30,7 @@ std::string SpaceToDepthLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::string targetName;
     std::tie(inShape, inputPrecision, mode, blockSize, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inShape) << "_";
     result << "inPrc=" << inputPrecision.name() << "_";
     result << "M=" << SpaceToDepthModeToString(mode) << "_";
     result << "BS=" << blockSize << "_";
@@ -45,7 +45,7 @@ void SpaceToDepthLayerTest::SetUp() {
     InferenceEngine::Precision inputPrecision;
     std::tie(inShape, inputPrecision, mode, blockSize, targetDevice) = this->GetParam();
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    auto params = ngraph::builder::makeParams(inPrc, {inShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(inPrc, ov::Shape(inShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto s2d = ngraph::builder::makeSpaceToDepth(paramOuts[0], mode, blockSize);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};

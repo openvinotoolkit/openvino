@@ -27,7 +27,7 @@ struct GroupNormalizationParams {
           expected_tensor{expected},
           num_groups{num},
           epsilon{eps},
-          test_case_name{move(name)} {}
+          test_case_name{std::move(name)} {}
 
     reference_tests::Tensor data_tensor;
     reference_tests::Tensor scale_tensor;

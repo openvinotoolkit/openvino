@@ -37,11 +37,11 @@ public:
 
         std::ostringstream result;
         result << "netPRC=" << inType << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({config.inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({config.inputShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : config.inputShape.second) {
             result << "(";
-            result << CommonTestUtils::vec2str(shape);
+            result << ov::test::utils::vec2str(shape);
             result << ")_";
         }
         result << "axis=" << config.axis << "_";
@@ -68,8 +68,10 @@ protected:
         }
         selectedType = makeSelectedTypeStr(selectedType, inType);
         init_input_shapes({config.inputShape});
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
-
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
@@ -193,7 +195,7 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
 
 const auto OptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                               testing::ValuesIn(optimizedConfigsFP32),
-                                              testing::Values(CommonTestUtils::DEVICE_CPU),
+                                              testing::Values(ov::test::utils::DEVICE_CPU),
                                               testing::Values(notOptimizedCPUSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
@@ -203,7 +205,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
 
 const auto NotOptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                                  testing::ValuesIn(notOptimizedConfigsFP32),
-                                                 testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                 testing::Values(ov::test::utils::DEVICE_CPU),
                                                  testing::Values(notOptimizedCPUSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU,
@@ -213,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU,
 
 const auto UnsupportedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                                 testing::ValuesIn(unsupportedConfigsFP32),
-                                                testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                testing::Values(ov::test::utils::DEVICE_CPU),
                                                 testing::Values(notOptimizedCPUSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU,

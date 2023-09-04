@@ -79,6 +79,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND cmake_extra_args "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}")
         endif()
 
+        # propogate OpenCL if explicitly specified
+        if(OpenCL_LIBRARY)
+            list(APPEND cmake_extra_args "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}")
+        endif()
+        if(OpenCL_INCLUDE_DIR)
+            list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}")
+        endif()
+
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
             BINARY_DIR "${ONEDNN_BUILD_DIR}"
@@ -104,7 +112,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
                 "-DDNNL_CPU_RUNTIME=NONE"
                 "-DDNNL_GPU_RUNTIME=OCL"
-                "-DDNNL_LIBRARY_NAME=onednn_gpu"
+                "-DDNNL_LIBRARY_NAME=openvino_onednn_gpu"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
@@ -118,16 +126,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_TYPE=STATIC"
                 "-DDNNL_EXPERIMENTAL_PROFILING=ON"
                 "-DONEDNN_BUILD_GRAPH=OFF"
-                "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
-                "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
                 # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
                 # Conan's FindOpenCL.cmake module does not set OpenCL_INCLUDE_DIRS, so we need to set it manually
-                "-DOpenCL_INCLUDE_DIRS=${OpenCL_INCLUDE_DIR}"
+                "-DOpenCL_INCLUDE_DIRS=$<TARGET_PROPERTY:OpenCL::OpenCL,INTERFACE_INCLUDE_DIRECTORIES>"
         )
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES
             INTERFACE_LINK_DIRECTORIES "${ONEDNN_INSTALL_DIR}/lib/$<CONFIG>"
-            INTERFACE_LINK_LIBRARIES "onednn_gpu"
+            INTERFACE_LINK_LIBRARIES "openvino_onednn_gpu"
             INTERFACE_INCLUDE_DIRECTORIES "${ONEDNN_INSTALL_DIR}/include"
             INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
         )

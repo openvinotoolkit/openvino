@@ -8,7 +8,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
 #include <intel_gpu/primitives/crop.hpp>
-#include "ngraph/runtime/reference/matmul.hpp"
+#include "openvino/reference/matmul.hpp"
 
 #include "compilation_context.hpp"
 #include "gemm_inst.h"
@@ -194,15 +194,14 @@ class GemmGPUTestRandom : public GemmGPUTest {
     }
 
     void calculate_output_data() {
-        ngraph::runtime::reference::matmul<float>(
-                input_data[0].data(),
-                input_data[1].data(),
-                out_data.data(),
-                input0_shape,
-                input1_shape,
-                output_shape,
-                transpose_input0,
-                transpose_input1);
+        ov::reference::matmul<float>(input_data[0].data(),
+                                     input_data[1].data(),
+                                     out_data.data(),
+                                     input0_shape,
+                                     input1_shape,
+                                     output_shape,
+                                     transpose_input0,
+                                     transpose_input1);
     }
 
 protected:
@@ -1559,8 +1558,8 @@ TEST(gemm_onednn, impl_replacement_with_cldnn) {
         ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 
-    // WA: Call cancel() to wait for all queued kernels compilation finish
-    network.get_program()->get_compilation_context().cancel();
+    // WA: Call wait_all() to wait for all queued kernels compilation finish
+    network.get_program()->get_compilation_context().wait_all();
 
     // Check if OneDNN's impl is used for the next execute() call
     network.execute();

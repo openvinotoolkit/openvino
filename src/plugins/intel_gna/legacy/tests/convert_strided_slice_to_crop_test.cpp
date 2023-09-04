@@ -9,11 +9,11 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/function.hpp>
 #include <ngraph/op/reshape.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/constant_folding.hpp>
+#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -21,17 +21,17 @@
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 
 TEST_F(TransformationTestsF, ConvertStridedSliceToCropTests1) {
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
-        auto slice_begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
-        auto slice_end = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 2, 384, 640});
+        auto slice_begin = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 0, 0});
+        auto slice_end = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 0, 0});
+        auto slice_stride = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask = {1, 0, 1, 1};
         std::vector<int64_t> end_mask = {1, 0, 1, 1};
@@ -39,23 +39,23 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropTests1) {
         std::vector<int64_t> shrink_axis_mask = {0, 1, 0, 0};
         std::vector<int64_t> ellipsis_mask = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                     slice_begin,
-                                                                     slice_end,
-                                                                     slice_stride,
-                                                                     begin_mask,
-                                                                     end_mask,
-                                                                     new_axis_mask,
-                                                                     shrink_axis_mask,
-                                                                     ellipsis_mask);
+        auto sslice = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                                 slice_begin,
+                                                                 slice_end,
+                                                                 slice_stride,
+                                                                 begin_mask,
+                                                                 end_mask,
+                                                                 new_axis_mask,
+                                                                 shrink_axis_mask,
+                                                                 ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
 
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::NodeVector{sslice}, ov::ParameterVector{input});
         manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 2, 384, 640});
 
         std::vector<int64_t> axes = {0, 1, 2, 3};
         std::vector<int64_t> dim = {1, 1, 384, 640};
@@ -67,16 +67,16 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropTests1) {
         auto reshape = ov::op::util::reshapeTo(crop, {1, 384, 640});
         reshape->set_friendly_name("strided_slice");
 
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{reshape}, ov::ParameterVector{input});
     }
 }
 
 TEST_F(TransformationTestsF, ConvertStridedSliceToCropTests2) {
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
-        auto slice_begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
-        auto slice_end = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 2, 384, 640});
+        auto slice_begin = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 0});
+        auto slice_end = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 0, 0});
+        auto slice_stride = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask = {1, 1, 1, 1};
         std::vector<int64_t> end_mask = {1, 0, 1, 1};
@@ -84,23 +84,23 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropTests2) {
         std::vector<int64_t> shrink_axis_mask = {0, 1, 0, 0};
         std::vector<int64_t> ellipsis_mask = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                     slice_begin,
-                                                                     slice_end,
-                                                                     slice_stride,
-                                                                     begin_mask,
-                                                                     end_mask,
-                                                                     new_axis_mask,
-                                                                     shrink_axis_mask,
-                                                                     ellipsis_mask);
+        auto sslice = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                                 slice_begin,
+                                                                 slice_end,
+                                                                 slice_stride,
+                                                                 begin_mask,
+                                                                 end_mask,
+                                                                 new_axis_mask,
+                                                                 shrink_axis_mask,
+                                                                 ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
 
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::NodeVector{sslice}, ov::ParameterVector{input});
         manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 2, 384, 640});
 
         std::vector<int64_t> axes = {0, 1, 2, 3};
         std::vector<int64_t> dim = {1, 1, 384, 640};
@@ -112,17 +112,16 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropTests2) {
         auto reshape = ov::op::util::reshapeTo(crop, {1, 384, 640});
         reshape->set_friendly_name("strided_slice");
 
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{reshape}, ov::ParameterVector{input});
     }
 }
 
 TEST_F(TransformationTestsF, ConvertStridedSliceToCropNegative) {
     {
-        auto input =
-            std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
-        auto slice_begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
-        auto slice_end = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto slice_begin = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 0, 0});
+        auto slice_end = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 0, 0});
+        auto slice_stride = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask = {1, 0, 1, 1};
         std::vector<int64_t> end_mask = {1, 0, 1, 1};
@@ -130,27 +129,26 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropNegative) {
         std::vector<int64_t> shrink_axis_mask = {0, 1, 0, 0};
         std::vector<int64_t> ellipsis_mask = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                     slice_begin,
-                                                                     slice_end,
-                                                                     slice_stride,
-                                                                     begin_mask,
-                                                                     end_mask,
-                                                                     new_axis_mask,
-                                                                     shrink_axis_mask,
-                                                                     ellipsis_mask);
+        auto sslice = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                                 slice_begin,
+                                                                 slice_end,
+                                                                 slice_stride,
+                                                                 begin_mask,
+                                                                 end_mask,
+                                                                 new_axis_mask,
+                                                                 shrink_axis_mask,
+                                                                 ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
 
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::NodeVector{sslice}, ov::ParameterVector{input});
         manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
     }
 
     {
-        auto input =
-            std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
-        auto slice_begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
-        auto slice_end = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto slice_begin = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 0, 0});
+        auto slice_end = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 0, 0});
+        auto slice_stride = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask = {1, 0, 1, 1};
         std::vector<int64_t> end_mask = {1, 0, 1, 1};
@@ -158,28 +156,28 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropNegative) {
         std::vector<int64_t> shrink_axis_mask = {0, 1, 0, 0};
         std::vector<int64_t> ellipsis_mask = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                     slice_begin,
-                                                                     slice_end,
-                                                                     slice_stride,
-                                                                     begin_mask,
-                                                                     end_mask,
-                                                                     new_axis_mask,
-                                                                     shrink_axis_mask,
-                                                                     ellipsis_mask);
+        auto sslice = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                                 slice_begin,
+                                                                 slice_end,
+                                                                 slice_stride,
+                                                                 begin_mask,
+                                                                 end_mask,
+                                                                 new_axis_mask,
+                                                                 shrink_axis_mask,
+                                                                 ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
 
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{sslice}, ov::ParameterVector{input});
     }
 }
 
 TEST_F(TransformationTestsF, ConvertStridedSliceToCropNoneZeroBeginValuesWithMask) {
     // when begin_mask/end_mask are present begin/end values should not affect output shape
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 4});
-        auto slice_begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 2, 1});
-        auto slice_end = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 2});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 2, 4});
+        auto slice_begin = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 2, 1});
+        auto slice_end = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 2});
+        auto slice_stride = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask = {1, 0, 1, 1};
         std::vector<int64_t> end_mask = {1, 0, 1, 0};
@@ -187,23 +185,23 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropNoneZeroBeginValuesWithMas
         std::vector<int64_t> shrink_axis_mask = {0, 0, 0, 0};
         std::vector<int64_t> ellipsis_mask = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                     slice_begin,
-                                                                     slice_end,
-                                                                     slice_stride,
-                                                                     begin_mask,
-                                                                     end_mask,
-                                                                     new_axis_mask,
-                                                                     shrink_axis_mask,
-                                                                     ellipsis_mask);
+        auto sslice = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                                 slice_begin,
+                                                                 slice_end,
+                                                                 slice_stride,
+                                                                 begin_mask,
+                                                                 end_mask,
+                                                                 new_axis_mask,
+                                                                 shrink_axis_mask,
+                                                                 ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
 
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::NodeVector{sslice}, ov::ParameterVector{input});
         manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 4});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 2, 4});
 
         std::vector<int64_t> axes = {0, 1, 2, 3};
         std::vector<int64_t> dim = {1, 1, 2, 2};
@@ -215,6 +213,6 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropNoneZeroBeginValuesWithMas
         auto crop = std::make_shared<ngraph::op::CropIE>(reshape, axes, dim, offset);
         crop->set_friendly_name("strided_slice");
 
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{crop}, ngraph::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{crop}, ov::ParameterVector{input});
     }
 }

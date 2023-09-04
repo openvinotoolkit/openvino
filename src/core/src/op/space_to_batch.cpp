@@ -16,9 +16,9 @@
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/pad.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/pad.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -75,10 +75,10 @@ bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& vi
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
                                                            const HostTensorVector& inputs) const {
     if (outputs[0]->get_partial_shape().is_dynamic()) {
-        std::map<size_t, HostTensorPtr> constant_data;
         std::vector<ov::PartialShape> input_shapes;
         input_shapes.reserve(inputs.size());
 
@@ -87,10 +87,9 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
             if (input_shapes.back().is_dynamic()) {
                 return false;
             }
-            constant_data.emplace(i, inputs[i]);
         }
 
-        const auto output_shape = shape_infer(this, input_shapes, constant_data).front().to_shape();
+        const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
 
         outputs[0]->set_element_type(inputs[0]->get_element_type());
         outputs[0]->set_shape(output_shape);
@@ -129,15 +128,15 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
     }
 
     std::vector<char> padded_data(shape_size(padded_shape) * elem_size);
-    ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
-                                    pad_value,
-                                    padded_data.data(),
-                                    elem_size,
-                                    data_shape,
-                                    padded_shape,
-                                    pads_begin_vec,
-                                    pads_end_vec,
-                                    ngraph::op::PadMode::CONSTANT);
+    ov::reference::pad(data->get_data_ptr<char>(),
+                       pad_value,
+                       padded_data.data(),
+                       elem_size,
+                       data_shape,
+                       padded_shape,
+                       pads_begin_vec,
+                       pads_end_vec,
+                       ngraph::op::PadMode::CONSTANT);
     data_shape = padded_shape;
 
     ov::Shape dispersed_shape(block_values_size + 1);

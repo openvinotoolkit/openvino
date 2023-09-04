@@ -1,0 +1,16 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <algorithm>
+#include <ngraph/opsets/opset7.hpp>
+
+#include "ngraph/shape.hpp"
+
+namespace ov {
+namespace reference {
+void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs, const std::string& equation);
+}  // namespace reference
+}  // namespace ov

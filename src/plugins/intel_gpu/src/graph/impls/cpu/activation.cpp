@@ -44,6 +44,7 @@
 #include "openvino/op/sign.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/sqrt.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -52,8 +53,8 @@ struct activation_impl : public typed_primitive_impl<activation> {
     using parent = typed_primitive_impl<activation>;
     using parent::parent;
 
-    activation_func activation_function;
-    activation_additional_params additional_params;
+    activation_func activation_function = activation_func::none;
+    activation_additional_params additional_params = {0.f, 0.f};
 
     std::shared_ptr<ov::op::Op> op;
 
@@ -235,6 +236,8 @@ struct activation_impl : public typed_primitive_impl<activation> {
                 op = round_op;
                 break;
             }
+            case activation_func::sqrt:
+                op = std::make_shared<ov::op::v0::Sqrt>(); break;
             case activation_func::hard_sigmoid:
             case activation_func::selu:
             default:

@@ -6,10 +6,11 @@
 
 #include "dev/converter_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "openvino/core/except.hpp"
 
 InferenceEngine::ICompiledModelWrapper::ICompiledModelWrapper(
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model)
-    : ov::ICompiledModel(nullptr, ov::legacy_convert::convert_plugin(model->_plugin)),
+    : ov::ICompiledModel(nullptr, ov::legacy_convert::convert_plugin(model->_plugin), nullptr, nullptr),
       m_model(model) {
     std::vector<ov::Output<const ov::Node>> inputs, outputs;
     for (const auto& input : m_model->getInputs()) {
@@ -29,7 +30,11 @@ std::shared_ptr<ov::IAsyncInferRequest> InferenceEngine::ICompiledModelWrapper::
 }
 
 void InferenceEngine::ICompiledModelWrapper::export_model(std::ostream& model) const {
-    m_model->Export(model);
+    try {
+        m_model->Export(model);
+    } catch (const InferenceEngine::NotImplemented& ex) {
+        OPENVINO_ASSERT_HELPER(ov::NotImplemented, "", false, ex.what());
+    }
 }
 
 std::shared_ptr<const ov::Model> InferenceEngine::ICompiledModelWrapper::get_runtime_model() const {

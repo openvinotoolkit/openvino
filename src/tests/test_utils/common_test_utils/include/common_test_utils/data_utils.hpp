@@ -6,18 +6,20 @@
 
 #include <cmath>
 #include <utility>
-
-#include <gtest/gtest.h>
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/tensor.hpp"
-#include <ngraph/type/bfloat16.hpp>
-#include <ngraph/type/float16.hpp>
-#include <ngraph/type/element_type_traits.hpp>
-
-#include <ie_blob.h>
 #include <random>
 
-namespace CommonTestUtils {
+#include "common_test_utils/common_utils.hpp"
+#include "gtest/gtest.h"
+#include "ie_blob.h"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "ngraph/type/bfloat16.hpp"
+#include "ngraph/type/float16.hpp"
+
+
+namespace ov {
+namespace test {
+namespace utils {
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
@@ -53,6 +55,7 @@ inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min,
  * @param values src tensor which should be broadcast
  */
 void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, InferenceEngine::Blob::Ptr &values);
+void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values);
 
 /**
  * Wrapper on top of fill_data_with_broadcast with simplified signature
@@ -62,14 +65,14 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, InferenceEngine:
  * @param values data to broadcast
  */
 void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, size_t axis, std::vector<float> values);
-
+void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float> values);
 /**
  * Make a view blob with new shape. It will reinterpret original tensor data as a tensor with new shape.
  *
  * NB! Limitation: the nwe one blob will no have ownership of data buffer. The original blob should be alive
  *     while view is in use.
  *
- * @param blob original source tensor
+ * @param tensor original source tensor
  * @param new_shape new one shape for view blob
  * @return new one blob view
  */
@@ -77,23 +80,14 @@ InferenceEngine::Blob::Ptr
 make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeVector new_shape);
 
 /**
- * Fill blob with single value for all elements
- *
- * like:
- *     fill_data_with_broadcast(blob, 0, {val});
- *
- * @param blob tensor to fill in
- * @param val value to set into each element
- */
-void fill_data_const(InferenceEngine::Blob::Ptr &blob, float val);
-
-
-/**
  * Calculate size of buffer required for provided tensor descriptor.
  * @param tdesc provided tensor descriptor
  * @return size in bytes
  */
 size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
+
+ov::Tensor make_tensor_with_precision_convert(const ov::Tensor& tensor, ov::element::Type prc);
+
 
 template<typename T>
 inline void fill_roi_raw_ptr(T* data, size_t data_size, const uint32_t range, const int32_t height, const int32_t width, const float omega,
@@ -272,41 +266,7 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
  * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
  * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
  */
-template<ov::element::Type_t DT>
-void inline fill_tensor_random(ov::Tensor& tensor, const uint32_t range = 10, int32_t start_from = 0,
-                               const int32_t k = 1, const int seed = 1) {
-    using T = typename ov::element_type_traits<DT>::value_type;
-    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
-    if (DT == ov::element::u4 || DT == ov::element::i4 ||
-        DT == ov::element::u1) {
-        fill_data_random(rawBlobDataPtr, tensor.get_byte_size(), range, start_from, k, seed);
-    } else {
-        fill_data_random(rawBlobDataPtr, tensor.get_size(), range, start_from, k, seed);
-    }
-}
-
-template<ov::element::Type_t DT>
-void inline
-fill_tensor_random_float(ov::Tensor& tensor, const uint32_t range, int32_t start_from, const int32_t k,
-                         const int seed = 1) {
-    using T = typename ov::element_type_traits<DT>::value_type;
-    std::default_random_engine random(seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
-
-    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
-    for (size_t i = 0; i < tensor.get_size(); i++) {
-        auto value = static_cast<float>(distribution(random));
-        value /= static_cast<float>(k);
-        if (DT == ov::element::Type_t::f16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
-        } else if (DT == ov::element::Type_t::bf16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
-        } else {
-            rawBlobDataPtr[i] = static_cast<T>(value);
-        }
-    }
-}
+void fill_tensor_random(ov::Tensor& tensor, const double range = 10, const double start_from = 0, const int32_t k = 1, const int seed = 1);
 
 /** @brief Fill blob with random data.
  *
@@ -517,4 +477,7 @@ inline ngraph::float16 ie_abs(const ngraph::float16 &val) {
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+

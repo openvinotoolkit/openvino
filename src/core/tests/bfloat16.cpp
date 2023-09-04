@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/type/bfloat16.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+
+#include <gtest/gtest.h>
 
 #include <climits>
 #include <random>
 
 #include "common_test_utils/float_util.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/log.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "openvino/util/log.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 template <typename T>
 std::string to_hex(T value) {
@@ -35,16 +35,16 @@ TEST(bfloat16, conversions) {
 
     // 1.f, the ground-truth value
     source_string = "0  01111111  000 0000";
-    bf = test::bits_to_bfloat16(source_string);
+    bf = ov::test::utils::bits_to_bfloat16(source_string);
     EXPECT_EQ(bf, bfloat16(1.0));
-    bf_string = test::bfloat16_to_bits(bf);
+    bf_string = ov::test::utils::bfloat16_to_bits(bf);
     EXPECT_STREQ(source_string, bf_string.c_str());
 
     // 1.03125f, the exact upper bound
     source_string = "0  01111111  000 0100";
-    bf = test::bits_to_bfloat16(source_string);
+    bf = ov::test::utils::bits_to_bfloat16(source_string);
     EXPECT_EQ(bf, bfloat16(1.03125));
-    bf_string = test::bfloat16_to_bits(bf);
+    bf_string = ov::test::utils::bfloat16_to_bits(bf);
     EXPECT_STREQ(source_string, bf_string.c_str());
 }
 
@@ -55,23 +55,23 @@ TEST(bfloat16, round_to_nearest) {
     uint16_t bf_round;
 
     fstring = "0  01111111  000 0100 1000 0000 0000 0000";
-    fvalue = test::bits_to_float(fstring);
+    fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest(fvalue);
     EXPECT_EQ(bf_round, 0x3F85);
 
     fstring = "0  01111111  000 0100 0000 0000 0000 0000";
-    fvalue = test::bits_to_float(fstring);
+    fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest(fvalue);
     EXPECT_EQ(bf_round, 0x3F84);
 
     fstring = "0  01111111  111 1111 1000 0000 0000 0000";
-    fvalue = test::bits_to_float(fstring);
+    fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest(fvalue);
     EXPECT_EQ(bf_round, 0x4000);
 
     // 1.9921875f, the next representable number which should not round up
     fstring = "0  01111111  111 1111 0000 0000 0000 0000";
-    fvalue = test::bits_to_float(fstring);
+    fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest(fvalue);
     EXPECT_EQ(bf_round, 0x3FFF);
 }
@@ -82,27 +82,27 @@ TEST(bfloat16, round_to_nearest_even) {
     uint16_t bf_round;
 
     fstring = "0  01111111  000 0100 1000 0000 0000 0000";
-    fvalue = test::bits_to_float(fstring);
+    fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest_even(fvalue);
     EXPECT_EQ(bf_round, 0x3F84);
 
     fstring = "0  01111111  000 0101 1000 0000 0000 0000";
-    fvalue = test::bits_to_float(fstring);
+    fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest_even(fvalue);
     EXPECT_EQ(bf_round, 0x3F86);
 
     fstring = "0  01111111  000 0101 0000 0000 0000 0000";
-    fvalue = test::bits_to_float(fstring);
+    fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest_even(fvalue);
     EXPECT_EQ(bf_round, 0x3F85);
 
     fstring = "0  01111111  111 1111 1000 0000 0000 0000";
-    fvalue = test::bits_to_float(fstring);
+    fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest_even(fvalue);
     EXPECT_EQ(bf_round, 0x4000);
 
     fstring = "0  01111111  111 1111 0000 0000 0000 0000";
-    fvalue = test::bits_to_float(fstring);
+    fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest_even(fvalue);
     EXPECT_EQ(bf_round, 0x3FFF);
 }
@@ -113,13 +113,13 @@ TEST(bfloat16, to_float) {
 
     // 1.f, the ground-truth value
     source_string = "0  01111111  000 0000";
-    bf = test::bits_to_bfloat16(source_string);
+    bf = ov::test::utils::bits_to_bfloat16(source_string);
     float f = static_cast<float>(bf);
     EXPECT_EQ(f, 1.0f);
 
     // 1.03125f, the exact upper bound
     source_string = "0  01111111  000 0100";
-    bf = test::bits_to_bfloat16(source_string);
+    bf = ov::test::utils::bits_to_bfloat16(source_string);
     f = static_cast<float>(bf);
     EXPECT_EQ(f, 1.03125f);
 }
@@ -140,7 +140,7 @@ TEST(bfloat16, numeric_limits) {
 }
 
 TEST(benchmark, bfloat16) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     size_t buffer_size = 128 * 3 * 224 * 224;
     ngraph::runtime::AlignedBuffer data(buffer_size * sizeof(float), 4096);
     float* f = static_cast<float*>(data.get_ptr());
@@ -155,7 +155,7 @@ TEST(benchmark, bfloat16) {
     {
         ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
-        stopwatch timer;
+        ngraph::stopwatch timer;
         timer.start();
         for (size_t i = 0; i < buffer_size; ++i) {
             p[i] = bfloat16(f[i]);
@@ -167,7 +167,7 @@ TEST(benchmark, bfloat16) {
     {
         ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
-        stopwatch timer;
+        ngraph::stopwatch timer;
         timer.start();
         for (size_t i = 0; i < buffer_size; ++i) {
             p[i] = bfloat16::truncate(f[i]);
@@ -179,7 +179,7 @@ TEST(benchmark, bfloat16) {
     {
         ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
-        stopwatch timer;
+        ngraph::stopwatch timer;
         timer.start();
         for (size_t i = 0; i < buffer_size; ++i) {
             p[i] = bfloat16::round_to_nearest(f[i]);
@@ -191,7 +191,7 @@ TEST(benchmark, bfloat16) {
     {
         ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
-        stopwatch timer;
+        ngraph::stopwatch timer;
         timer.start();
         for (size_t i = 0; i < buffer_size; ++i) {
             p[i] = bfloat16::round_to_nearest_even(f[i]);
@@ -199,7 +199,7 @@ TEST(benchmark, bfloat16) {
         timer.stop();
         OPENVINO_INFO << "float to bfloat16 round to nearest even " << timer.get_milliseconds() << "ms";
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(bfloat16, assigns) {

@@ -10,6 +10,7 @@ from openvino.tools.ovc.error import Error
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
@@ -20,7 +21,7 @@ dynamic_dimension = np.ma.masked
 def refer_to_faq_msg(question_num: int):
     try:
         t = tm.Telemetry()
-        t.send_event('mo', 'error_info', "faq:" + str(question_num))
+        t.send_event('ovc', 'error_info', "faq:" + str(question_num))
     except Exception:
         # Telemetry can be not initialized if it is used in MO IR Reader
         pass
@@ -100,39 +101,6 @@ def validate_batch_in_shape(shape, layer_name: str):
                      'you should pass "input_shape=[100,34]" instead of "batch=100". \n\n' +
                      'You can also specify batch dimension by setting "layout". \n\n')
                     .format(layer_name, shape))
-
-
-def deduce_legacy_frontend_by_namespace(argv):
-    if not hasattr(argv, 'framework') or not argv.framework:
-        if getattr(argv, 'saved_model_dir', None) or getattr(argv, 'input_meta_graph', None):
-            argv.framework = 'tf'
-        elif getattr(argv, 'input_symbol', None) or getattr(argv, 'pretrained_model_name', None):
-            argv.framework = 'mxnet'
-        elif getattr(argv, 'input_proto', None):
-            argv.framework = 'caffe'
-        elif argv.input_model is None:
-            raise Error('Path to input model is required: use "input_model".')
-        else:
-            argv.framework = guess_framework_by_ext(argv.input_model)
-
-    return map(lambda x: argv.framework == x, ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
-
-
-def guess_framework_by_ext(input_model_path: str) -> int:
-    if re.match(r'^.*\.caffemodel$', input_model_path):
-        return 'caffe'
-    elif re.match(r'^.*\.pb$', input_model_path):
-        return 'tf'
-    elif re.match(r'^.*\.pbtxt$', input_model_path):
-        return 'tf'
-    elif re.match(r'^.*\.params$', input_model_path):
-        return 'mxnet'
-    elif re.match(r'^.*\.nnet$', input_model_path):
-        return 'kaldi'
-    elif re.match(r'^.*\.mdl', input_model_path):
-        return 'kaldi'
-    elif re.match(r'^.*\.onnx$', input_model_path):
-        return 'onnx'
 
 def get_ir_version():
     """
