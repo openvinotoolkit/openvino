@@ -1,7 +1,7 @@
 Image In-painting with OpenVINO™
 --------------------------------
 
-.. _top:
+
 
 This notebook demonstrates how to use an image in-painting model with
 OpenVINO, using `GMCNN
@@ -10,6 +10,8 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. This model,
 given a tampered image, is able to create something very similar to the
 original image. The Following pipeline will be used in this notebook.
 |pipeline|
+
+.. _top:
 
 **Table of contents**:
 

@@ -1,7 +1,7 @@
 Human Action Recognition with OpenVINO™
 =======================================
 
-.. _top:
+
 
 This notebook demonstrates live human action recognition with OpenVINO,
 using the `Action Recognition
@@ -38,6 +38,8 @@ decoder, and finally gets the human action and confidence.
 Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>`__
 and
 `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
+
+.. _top:
 
 **Table of contents**:
 

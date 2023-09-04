@@ -1,7 +1,7 @@
 Cross-lingual Books Alignment with Transformers and OpenVINO™
 =============================================================
 
-.. _top:
+
 
 Cross-lingual text alignment is the task of matching sentences in a pair
 of texts that are translations of each other. In this notebook, you’ll
@@ -38,6 +38,8 @@ Prerequisites
    embeddings
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
+
+.. _top:
 
 **Table of contents**:
 

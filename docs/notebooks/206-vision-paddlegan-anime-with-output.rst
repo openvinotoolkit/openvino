@@ -1,7 +1,7 @@
 Photos to Anime with PaddleGAN and OpenVINO
 ===========================================
 
-.. _top:
+
 
 This tutorial demonstrates converting a
 `PaddlePaddle/PaddleGAN <https://github.com/PaddlePaddle/PaddleGAN>`__
@@ -15,6 +15,8 @@ documentation <https://github.com/PaddlePaddle/PaddleGAN/blob/develop/docs/en_US
    :alt: anime
 
    anime
+
+.. _top:
 
 **Table of contents**:
 
