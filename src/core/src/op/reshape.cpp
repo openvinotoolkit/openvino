@@ -8,6 +8,7 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
