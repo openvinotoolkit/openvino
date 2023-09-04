@@ -4,11 +4,10 @@
 
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/roi_align.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertROIAlign9To3::ConvertROIAlign9To3() {
     MATCHER_SCOPE(ConvertROIAlign9To3);
@@ -53,8 +52,8 @@ ov::pass::ConvertROIAlign9To3::ConvertROIAlign9To3() {
                                                                    spatial_scale,
                                                                    m_mode_v3);
         roi_align_v3->set_friendly_name(roi_align_v9_node->get_friendly_name());
-        ngraph::copy_runtime_info(roi_align_v9_node, roi_align_v3);
-        ngraph::replace_node(roi_align_v9_node, roi_align_v3);
+        ov::copy_runtime_info(roi_align_v9_node, roi_align_v3);
+        ov::replace_node(roi_align_v9_node, roi_align_v3);
 
         return true;
     };

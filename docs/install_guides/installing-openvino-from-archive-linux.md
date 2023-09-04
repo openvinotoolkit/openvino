@@ -203,7 +203,20 @@ Step 1: Download and Install the OpenVINO Core Components
       cd /opt/intel/openvino_2023.0.1
       sudo -E ./install_dependencies/install_openvino_dependencies.sh
 
-6. For simplicity, it is useful to create a symbolic link as below:
+6. (Optional) Install *numpy* Python Library:
+
+   .. note::
+
+      This step is required only when you decide to use Python API.
+
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2023.0.1/python`` folder:
+
+   .. code-block:: sh
+
+      cd /opt/intel/openvino_2023.0.1
+      python3 -m pip install -r ./python/requirements.txt
+
+7. For simplicity, it is useful to create a symbolic link as below:
    
    .. code-block:: sh
    

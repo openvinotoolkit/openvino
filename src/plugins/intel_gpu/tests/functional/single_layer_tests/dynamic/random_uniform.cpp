@@ -125,13 +125,14 @@ protected:
         std::map<std::string, std::string> additionalConfig;
         std::pair<uint64_t, uint64_t> seeds;
 
-        ov::ParameterVector params;
         std::tie(shapes, min_max_values, seeds, netType, targetDevice, additionalConfig) = basicParamsSet;
 
         init_input_shapes(shapes);
 
-        params = builder::makeDynamicParams(netType, inputDynamicShapes);
-
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+        }
         const auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
         const auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(shape_of, params[1], params[2], netType, seeds.first, seeds.second);
 

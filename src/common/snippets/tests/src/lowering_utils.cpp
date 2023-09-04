@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ngraph_test_utils.hpp>
+#include <common_test_utils/ov_test_utils.hpp>
 #include "lowering_utils.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
@@ -62,22 +62,22 @@ void LoweringTests::SetUp() {
 }
 
 void LoweringTests::TearDown() {
-    ASSERT_TRUE(function);
-    auto cloned_function = function->clone();
-    if (!function_ref) {
-        function_ref = cloned_function;
+    ASSERT_TRUE(model);
+    auto cloned_model = model->clone();
+    if (!model_ref) {
+        model_ref = cloned_model;
     }
-    manager.run_passes(function);
-        ASSERT_NO_THROW(check_rt_info(function));
+    manager.run_passes(model);
+        ASSERT_NO_THROW(check_rt_info(model));
 
     if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
         auto acc_comparator = FunctionsComparator::no_default();
         acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-        auto res = acc_comparator.compare(function, cloned_function);
+        auto res = acc_comparator.compare(model, cloned_model);
         ASSERT_TRUE(res.valid) << res.message;
         comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
-    auto res = comparator.compare(function, function_ref);
+    auto res = comparator.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
 
@@ -99,35 +99,19 @@ std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getSubgraph(const std
     return subgraph;
 }
 
-std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
-                                                                                  const ov::PartialShape& master_shape,
-                                                                                  ov::pass::Manager pre_dialect,
-                                                                                  ov::pass::Manager post_dialect,
-                                                                                  ov::pass::Manager post_precision,
-                                                                                  ov::snippets::lowered::pass::PassPipeline lowered_pipeline,
-                                                                                  const std::shared_ptr<ov::snippets::Generator> generator) {
+std::shared_ptr<ov::snippets::op::Subgraph>
+        LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
+                                          const ov::PartialShape& master_shape,
+                                          const std::vector<ov::snippets::pass::Manager::PositionedPass>& backend_passes,
+                                          const ov::snippets::lowered::pass::PassPipeline& lowered_pre_common,
+                                          const ov::snippets::lowered::pass::PassPipeline& lowered_post_common,
+                                          const std::shared_ptr<ov::snippets::Generator>& generator) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
     subgraph->set_master_shape(master_shape);
-    const auto& body = subgraph->body_ptr();
-    auto& body_rt_info = body->get_rt_info();
-    // todo: insertLoops pass requires body_rt_info["PluginShapesOverride"] and subgraph->set_tile_rank to work normally
-    //  consider revising snippets-plugin shape and scheduling communication
-    std::vector<std::vector<size_t>> new_shapes;
-    for (const auto& p : body->get_parameters()) {
-        const auto pshape = p->get_output_partial_shape(0);
-        OPENVINO_ASSERT(pshape.is_static(), "getLoweredSubgraph supports only static shapes");
-        new_shapes.push_back(pshape.get_shape());
-    }
-    for (const auto& r : body->get_results()) {
-        const auto pshape = r->get_input_partial_shape(0);
-        OPENVINO_ASSERT(pshape.is_static(), "getLoweredSubgraph supports only static shapes");
-        new_shapes.push_back(pshape.get_shape());
-    }
-    body_rt_info["PluginShapesOverride"] = new_shapes;
     subgraph->set_tile_rank(2);
-    ov::snippets::lowered::pass::PassPipeline empty_pipeline;
-    subgraph->generate(pre_dialect, post_precision, post_precision, empty_pipeline, lowered_pipeline);
+    // Note: lowered_pipeline would have no effect on subgraph body, since it's applied on linear IR
+    subgraph->generate(backend_passes, lowered_pre_common, lowered_post_common);
     return subgraph;
 }
 

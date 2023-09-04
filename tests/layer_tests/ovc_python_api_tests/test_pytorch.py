@@ -3,7 +3,7 @@
 
 import os
 
-from typing import Tuple
+from typing import Tuple, List
 import numpy
 import numpy as np
 import openvino.runtime as ov
@@ -176,7 +176,7 @@ def create_pytorch_nn_module_with_scalar_input(tmp_dir):
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = sample_input1, sample_input2
 
-    return pt_model, ref_model, {'input': ["[]", PartialShape([-1, 3, -1, -1])],
+    return pt_model, ref_model, {'input': [PartialShape("[]"), PartialShape([-1, 3, -1, -1])],
                                  'example_input': sample_input}
 
 
@@ -958,6 +958,48 @@ def create_pytorch_module_with_nested_inputs6(tmp_dir):
         "compress_to_fp16": False}
 
 
+def create_pytorch_module_with_nested_list_and_single_input(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, x: List[torch.Tensor]):
+            x0 = x[0]
+            x0 = torch.cat([x0, torch.zeros(1, 1)], 1)
+            return x0 + torch.ones((1, 1))
+    
+    net = PTModel()
+    constant_one = ov.opset10.constant(np.ones((1, 1)), dtype=np.float32)
+    const_zero = ov.opset10.constant(0, dtype=np.int32)
+    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+
+    param =  ov.opset10.parameter(PartialShape([-1, -1, -1]), dtype=np.float32)
+    gather = ov.opset10.gather(param, const_zero, const_zero)
+    concat1 = ov.opset10.concat([gather, constant_zeros1], 1)
+    add = ov.opset10.add(concat1, constant_one)
+    ref_model = Model([add], [param], "test")
+    return net, ref_model, {
+        "example_input": [torch.ones((1, 11))],
+        "compress_to_fp16": False}
+
+def create_pytorch_module_with_single_input_as_list(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, x):
+            x0 = x[0]
+            x0 = torch.cat([x0, torch.zeros(1)], 0)
+            return x0 + torch.ones(1)
+    
+    net = PTModel()
+    constant_one = ov.opset10.constant(np.ones((1,)), dtype=np.float32)
+    const_zero = ov.opset10.constant(0, dtype=np.int32)
+    constant_zeros1 = ov.opset10.constant(np.zeros((1, ), dtype=np.float32), dtype=np.float32)
+
+    param =  ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
+    gather = ov.opset10.gather(param, const_zero, const_zero)
+    concat1 = ov.opset10.concat([gather, constant_zeros1], 0)
+    add = ov.opset10.add(concat1, constant_one)
+    ref_model = Model([add], [param], "test")
+    return net, ref_model, {
+        "example_input": [torch.ones((1, 11))],
+        "compress_to_fp16": False}
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
         create_pytorch_nn_module_case1,
@@ -1006,7 +1048,9 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_module_with_nested_inputs3,
         create_pytorch_module_with_nested_inputs4,
         create_pytorch_module_with_nested_inputs5,
-        create_pytorch_module_with_nested_inputs6
+        create_pytorch_module_with_nested_inputs6,
+        create_pytorch_module_with_nested_list_and_single_input,
+        create_pytorch_module_with_single_input_as_list
     ]
 
     @pytest.mark.parametrize("create_model", test_data)

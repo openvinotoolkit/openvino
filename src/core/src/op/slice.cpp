@@ -11,7 +11,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
+#include "openvino/reference/slice.hpp"
 #include "slice_shape_inference.hpp"
 
 using namespace std;
@@ -181,14 +181,14 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
     outputs[0]->set_shape(output_shapes.front().to_shape());
     outputs[0]->set_element_type(inputs[0]->get_element_type());
 
-    ngraph::runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
-                                      inputs[0]->get_shape(),
-                                      outputs[0]->get_data_ptr<char>(),
-                                      outputs[0]->get_shape(),
-                                      inputs[0]->get_element_type().size(),
-                                      starts,
-                                      steps,
-                                      axes);
+    ov::reference::slice(inputs[0]->get_data_ptr<char>(),
+                         inputs[0]->get_shape(),
+                         outputs[0]->get_data_ptr<char>(),
+                         outputs[0]->get_shape(),
+                         inputs[0]->get_element_type().size(),
+                         starts,
+                         steps,
+                         axes);
     return true;
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
