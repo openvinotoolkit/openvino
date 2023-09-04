@@ -12,6 +12,7 @@
 
 #include "jit_emitter.hpp"
 #include "jit_load_store_emitters.hpp"
+#include "jit_perf_count_emitters.hpp"
 
 #include "transformations/snippets/x64/op/store_convert.hpp"
 // Matmul support:
@@ -82,6 +83,10 @@ public:
     size_t get_inputs_num() const override {return 0;}
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out) const;
+
+    // move to jit_emitter, pc_op move to ::op or expression?
+    std::shared_ptr<jit_perf_count_start_emitter> pc_begin_emitter = nullptr;
+    std::shared_ptr<jit_perf_count_end_emitter> pc_end_emitter = nullptr;
 
 private:
     using jit_emitter::emit_code;
@@ -366,6 +371,10 @@ public:
     size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
     size_t aux_gprs_count() const override;
+
+    // move to jit_emitter, pc_op move to ::op or expression?
+    std::shared_ptr<jit_perf_count_start_emitter> pc_begin_emitter = nullptr;
+    std::shared_ptr<jit_perf_count_end_emitter> pc_end_emitter = nullptr;
 
     static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
     static size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);

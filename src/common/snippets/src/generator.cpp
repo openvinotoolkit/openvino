@@ -28,6 +28,9 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
     lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
     lowered_pipeline.run(linear_ir);
+    // std::string xml = "LIR.xml";
+    // std::string bin = "LIR.bin";
+    // linear_ir.serialize(xml, bin);
     linear_ir.init_emitters(target);
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")

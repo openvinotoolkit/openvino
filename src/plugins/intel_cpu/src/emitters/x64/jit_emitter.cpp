@@ -271,18 +271,18 @@ void jit_emitter::internal_call_postamble() const {
     h->add(h->rsp, n_gprs_to_save * gpr_size);
 }
 
-// additional 16 byte for offset, then callee can use arbitrary regs.
+// additional 16 byte for offset, callee can use arbitrary regs.
 void jit_emitter::internal_call_rsp_align() const {
     h->mov(h->rbx, h->rsp);
     h->and_(h->rbx, 0xf);
     h->sub(h->rsp, h->rbx);
-    h->sub(h->rsp, 16);
-    h->mov(h->rsp, h->rbx);
+    h->sub(h->rsp, 0x10);
+    h->mov(h->ptr[h->rsp], h->rbx);
 }
 
 void jit_emitter::internal_call_rsp_restore() const {
-    h->mov(h->rbx, h->rsp);
-    h->add(h->rsp, 16);
+    h->mov(h->rbx, h->ptr[h->rsp]);
+    h->add(h->rsp, 0x10);
     h->add(h->rsp, h->rbx);
 }
 

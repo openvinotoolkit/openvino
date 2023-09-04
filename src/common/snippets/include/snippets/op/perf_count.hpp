@@ -34,8 +34,7 @@ class PerfCountBegin;
 class PerfCountEnd : public ov::op::Op {
 public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset");
-    PerfCountEnd(const Output<Node>& start);
-    std::shared_ptr<PerfCountBegin> get_perf_count_start();
+    PerfCountEnd(PerfCountBegin& start);
     ~PerfCountEnd() {
         uint64_t avg = iteration == 0 ? 0 : accumulation / iteration;
         std::cout << "accumulation:" << accumulation << " iteration:" << iteration << " avg:" << avg << std::endl;
@@ -45,7 +44,7 @@ public:
     // in each call, PerfCountBegin get start_time_stamp.
     // in each call, PerfCountEnd get end_time_stamp, then total_duration += end_time_stamp - start_time_stamp, and iteration++.
     // in destructor of PerfCountEnd, output the perf info
-    // PerfCountBegin& perf_count_start;
+    PerfCountBegin& perf_count_start;
     uint64_t accumulation;
     uint32_t iteration;
 };

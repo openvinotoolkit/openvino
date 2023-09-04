@@ -16,13 +16,13 @@ using namespace Xbyak::util;
 namespace ov {
 namespace intel_cpu {
 
-void get_current_time(std::chrono::high_resolution_clock::time_point* current_time) {
+static void get_current_time(std::chrono::high_resolution_clock::time_point* current_time) {
     *current_time = std::chrono::high_resolution_clock::now();
 }
 
-void get_accumulated_time(std::chrono::high_resolution_clock::time_point* start_time, uint64_t* accumulation, uint32_t* num) {
+static void get_accumulated_time(std::chrono::high_resolution_clock::time_point* start_time, uint64_t* accumulation, uint32_t* num) {
     auto current_time = std::chrono::high_resolution_clock::now();
-    *accumulation += std::chrono::duration_cast<std::chrono::microseconds>(current_time - *start_time).count();
+    *accumulation += std::chrono::duration_cast<std::chrono::nanoseconds>(current_time - *start_time).count();
     (*num)++;
 }
 
@@ -52,7 +52,7 @@ void jit_perf_count_start_emitter::emit_impl(const std::vector<size_t> &in_idxs,
     h->pop(abi_param1);
     h->pop(h->rax);
 
-   internal_call_postamble();
+    internal_call_postamble();
 }
 
 ///////////////////jit_perf_count_end_emitter////////////////////////////////////
@@ -61,8 +61,7 @@ jit_perf_count_end_emitter::jit_perf_count_end_emitter(dnnl::impl::cpu::x64::jit
         auto end_op = ov::as_type_ptr<snippets::op::PerfCountEnd>(n);
         m_accumulation = &(end_op->accumulation);
         m_iteration = &(end_op->iteration);
-        auto start_op = end_op->get_perf_count_start();
-        m_start = &(start_op->start_time_stamp);
+        m_start = &(end_op->perf_count_start.start_time_stamp);
 }
 
 size_t jit_perf_count_end_emitter::get_inputs_num() const {
