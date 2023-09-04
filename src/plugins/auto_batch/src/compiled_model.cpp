@@ -134,26 +134,15 @@ CompiledModel::GetWorkerInferRequest() const {
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
-    if (!m_compiled_model_with_batch) {
-        auto res = m_compiled_model_without_batch->create_infer_request();
-        for (auto& iter : res->get_inputs()) {
-            auto&& tensor = res->get_tensor(iter);
-            if (!tensor._so)
-                tensor._so = m_compiled_model_without_batch._so;
-        }
-        for (auto& iter : res->get_outputs()) {
-            auto&& tensor = res->get_tensor(iter);
-            if (!tensor._so)
-                tensor._so = m_compiled_model_without_batch._so;
-        }
-        return res;
-    }
-
-    auto sync_res = create_sync_infer_request();
-
     ov::SoPtr<ov::IAsyncInferRequest> infer_request_without_batch = {
         m_compiled_model_without_batch->create_infer_request(),
         m_compiled_model_without_batch._so};
+    // simpler wrapper if m_compiled_model_with_batch is empty
+    std::shared_ptr<ov::ISyncInferRequest> sync_res = std::make_shared<ov::autobatch_plugin::SyncInferRequest>(
+        std::dynamic_pointer_cast<const ov::autobatch_plugin::CompiledModel>(shared_from_this()),
+        nullptr, 0, 0);
+    if (m_compiled_model_with_batch)
+        sync_res = create_sync_infer_request();
     return std::make_shared<ov::autobatch_plugin::AsyncInferRequest>(
         std::dynamic_pointer_cast<ov::autobatch_plugin::SyncInferRequest>(sync_res),
         infer_request_without_batch,
