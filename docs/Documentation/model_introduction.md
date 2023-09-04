@@ -178,7 +178,7 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          # run the inference
          result = compiled_model(input_data)
 
-In Option 1, where ``openvino.save_model`` function is used, an OpenVINO model will be serialized in the file system as a pair of files with extensions ``.xml`` and ``.bin``. This pair of files is called OpenVINO Intermediate Representation format (OpenVINO IR, or just IR) and useful for efficient model deployment. OpenVINO IR is intended to be loaded in another application with the `openvino.Core.read_model` for inference, please see details in :doc:`OpenVINO™ Runtime documentation <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+In Option 1, where ``openvino.save_model`` function is used, an OpenVINO model will be serialized in the file system as a pair of files with extensions ``.xml`` and ``.bin``. This pair of files is called OpenVINO Intermediate Representation format (OpenVINO IR, or just IR) and useful for efficient model deployment. OpenVINO IR is intended to be loaded in another application with the ``openvino.Core.read_model`` for inference, please see details in :doc:`OpenVINO™ Runtime documentation <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 
 Option 2, where ``openvino.compile_model`` is used, provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your already existing Python inference application. In this case, the converted model isn't saved to the IR, instead, the model is compiled and used for inference in the same application.
 
@@ -193,7 +193,7 @@ The figure below illustrates the typical workflow for deploying a trained deep-l
 Convert a model in CLI: ``ovc``
 ###############################
 
-Another option to convert a model is to use ``ovc`` command-line tool. `ovc` stands for OpenVINO Model Converter and combines both `openvino.convert_model` and `openvino.save_model` together. It is convenient to use if the original model is ready for inference and represented in a file of one of the supported formats: ONNX, TensorFlow, TensorFlow Lite, or PaddlePaddle. As the result of the conversion, `ovc` produces OpenVINO IR as a pair of `.xml` and `.bin` files, which needs to be read with the ``ov.read_model()`` method. Then, you can compile and infer the ``ov.Model`` later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
+Another option to convert a model is to use ``ovc`` command-line tool. ``ovc`` stands for OpenVINO Model Converter and combines both ``openvino.convert_model`` and ``openvino.save_model`` together. It is convenient to use if the original model is ready for inference and represented in a file of one of the supported formats: ONNX, TensorFlow, TensorFlow Lite, or PaddlePaddle. As the result of the conversion, ``ovc`` produces OpenVINO IR as a pair of ``.xml`` and ``.bin`` files, which needs to be read with the ``ov.read_model()`` method. Then, you can compile and infer the ``ov.Model`` later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
 
 .. note::
    PyTorch models cannot be converted with ``ovc``, use ``openvino.convert_model`` instead.
