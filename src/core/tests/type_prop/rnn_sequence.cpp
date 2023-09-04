@@ -266,7 +266,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     X = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for H_t tensor.
@@ -274,7 +274,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     H_t = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for W tensor.
@@ -282,7 +282,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     W = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for R tensor.
@@ -290,7 +290,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     R = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for B tensor.
@@ -298,7 +298,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     B = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 }
 

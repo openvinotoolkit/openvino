@@ -72,14 +72,14 @@ inline bool evaluate(const HostTensorPtr& arg,
                      const ov::Shape& padding_above) {
     using T = typename element_type_traits<ET>::value_type;
     out->set_shape(out_shape);
-    runtime::reference::max_pool<T>(arg->get_data_ptr<ET>(),
-                                    out->get_data_ptr<ET>(),
-                                    arg->get_shape(),
-                                    out_shape,
-                                    window_shape,
-                                    window_movement_strides,
-                                    padding_below,
-                                    padding_above);
+    ov::reference::max_pool<T>(arg->get_data_ptr<ET>(),
+                               out->get_data_ptr<ET>(),
+                               arg->get_shape(),
+                               out_shape,
+                               window_shape,
+                               window_movement_strides,
+                               padding_below,
+                               padding_above);
     return true;
 }
 
@@ -161,17 +161,17 @@ inline bool evaluate(const HostTensorPtr& data,
                      const int64_t axis) {
     using Values_t = typename element_type_traits<Values>::value_type;
     using Indices_t = typename element_type_traits<Indices>::value_type;
-    runtime::reference::max_pool<Values_t, Indices_t>(data->get_data_ptr<Values_t>(),
-                                                      values->get_data_ptr<Values_t>(),
-                                                      indices->get_data_ptr<Indices_t>(),
-                                                      data->get_shape(),
-                                                      out_shape,
-                                                      kernel,
-                                                      strides,
-                                                      dilations,
-                                                      pads_begin,
-                                                      pads_end,
-                                                      axis);
+    ov::reference::max_pool<Values_t, Indices_t>(data->get_data_ptr<Values_t>(),
+                                                 values->get_data_ptr<Values_t>(),
+                                                 indices->get_data_ptr<Indices_t>(),
+                                                 data->get_shape(),
+                                                 out_shape,
+                                                 kernel,
+                                                 strides,
+                                                 dilations,
+                                                 pads_begin,
+                                                 pads_end,
+                                                 axis);
     return true;
 }
 

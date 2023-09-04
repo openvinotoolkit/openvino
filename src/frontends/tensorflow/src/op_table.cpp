@@ -46,6 +46,7 @@ TF_OP_CONVERTER(translate_varhandle_op);
 TF_OP_CONVERTER(translate_variable_op);
 TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_while_op);
+TF_OP_CONVERTER(translate_xla_conv_v2_op);
 TF_OP_CONVERTER(translate_xla_dot_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
@@ -72,6 +73,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Mish", CreatorFunction(translate_unary_op<opset8::Mish>)},
         {"Neg", CreatorFunction(translate_unary_op<opset8::Negative>)},
         {"Relu", CreatorFunction(translate_unary_op<opset8::Relu>)},
+        {"Selu", CreatorFunction(translate_selu_op)},
         {"Sigmoid", CreatorFunction(translate_unary_op<opset8::Sigmoid>)},
         {"Sin", CreatorFunction(translate_unary_op<opset8::Sin>)},
         {"Sinh", CreatorFunction(translate_unary_op<opset8::Sinh>)},
@@ -306,6 +308,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Unique", CreatorFunction(translate_unique_op)},
 
         // XLA operations
+        {"XlaConvV2", CreatorFunction(translate_xla_conv_v2_op)},
         {"XlaDotV2", CreatorFunction(translate_xla_dot_op)},
     };
 };
