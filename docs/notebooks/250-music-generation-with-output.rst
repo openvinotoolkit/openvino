@@ -204,7 +204,7 @@ a time and this vector will just consist of ones.
 We use OpenVINO Converter (OVC) below to convert the PyTorch model to
 the OpenVINO Intermediate Representation format (IR), which you can
 infer later with `OpenVINO
-runtime <https://docs.openvino.ai/latest/openvino_docs_OV_UG_OV_Runtime_User_Guide.html#doxid-openvino-docs-o-v-u-g-o-v-runtime-user-guide>`__
+runtime <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_OV_Runtime_User_Guide.html#doxid-openvino-docs-o-v-u-g-o-v-runtime-user-guide>`__
 
 .. code:: ipython3
 

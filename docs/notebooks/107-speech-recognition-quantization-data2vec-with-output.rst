@@ -659,7 +659,7 @@ Compare Performance of the Original and Quantized Models `⇑ <#top>`__
 ###############################################################################################################################
 
 `Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 is used to measure the inference performance of the ``FP16`` and
 ``INT8`` models.
 

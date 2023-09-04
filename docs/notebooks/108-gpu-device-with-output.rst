@@ -561,7 +561,7 @@ manually specify devices to use. Below is an example showing how to use
    how to set up an asynchronous pipeline that takes advantage of
    parallelism to increase throughput. To learn more, see
    `Asynchronous
-   Inferencing <https://docs.openvino.ai/2023.0/openvino_docs_ie_plugin_dg_async_infer_request.html>`__
+   Inferencing <https://docs.openvino.ai/2023.0/openvino_docs_ov_plugin_dg_async_infer_request.html>`__
    in OpenVINO as well as the `Asynchronous Inference
    notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/115-async-api>`__.
 
@@ -1375,4 +1375,4 @@ corresponding documentation:
 -  `Benchmark Python
    Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 -  `Asynchronous
-   Inferencing <https://docs.openvino.ai/2023.0/openvino_docs_ie_plugin_dg_async_infer_request.html>`__
+   Inferencing <https://docs.openvino.ai/2023.0/openvino_docs_ov_plugin_dg_async_infer_request.html>`__

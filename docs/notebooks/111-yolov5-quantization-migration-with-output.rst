@@ -461,7 +461,7 @@ Quantization parameters ``preset``, ``model_type``, ``subset_size``,
 ``fast_bias_correction``, ``ignored_scope`` are arguments of function.
 More details about supported parameters and formats can be found in NNCF
 Post-Training Quantization
-`documentation <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#tune-quantization-parameters>`__.
+`documentation <https://docs.openvino.ai/2023.0/basic_quantization_flow.html#tune-quantization-parameters>`__.
 NNCF also expect providing model object in inference framework format,
 in our case ``openvino.runtime.Model`` instance created using
 ``core.read_model`` or ``openvino.tools.mo.convert_model``.
