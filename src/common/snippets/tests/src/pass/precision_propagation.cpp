@@ -5,7 +5,6 @@
 #include "pass/precision_propagation.hpp"
 
 #include <gtest/gtest.h>
-#include "ngraph/pass/validate.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "common_test_utils/common_utils.hpp"

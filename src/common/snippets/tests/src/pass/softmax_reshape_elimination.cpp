@@ -4,9 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/function.hpp>
-#include <ngraph/pass/manager.hpp>
-
 #include <snippets/snippets_isa.hpp>
 #include <snippets/pass/softmax_reshape_elimination.hpp>
 
