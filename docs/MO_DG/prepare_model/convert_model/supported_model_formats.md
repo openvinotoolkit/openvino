@@ -29,8 +29,8 @@ OpenVINO can read, compile, and convert them automatically, as part of its pipel
 In the Python API, these options are provided as three separate methods: 
 ``read_model()``, ``compile_model()``, and ``convert_model()``.
 The ``convert_model()`` method enables you to perform additional adjustments 
-to the model, such as: setting shapes, changing model input types or layouts, 
-cutting parts of the model, freezing inputs etc. For a detailed description 
+to the model, such as setting shapes, changing model input types or layouts, 
+cutting parts of the model, freezing inputs, etc. For a detailed description 
 of the conversion process, see the 
 :doc:`model conversion guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
