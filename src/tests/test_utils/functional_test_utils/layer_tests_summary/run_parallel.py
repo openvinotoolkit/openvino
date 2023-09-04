@@ -386,7 +386,7 @@ class TestParallelRunner:
         return cached_test_dict, runtime_test_dict
 
     def __prepare_smart_filters(self, proved_test_dict: dict):
-        def_length = len(self._exec_file_path) + len(" --gtest_filter=")
+        def_length = len(self._command) + len(" --gtest_filter=")
         if constants.IS_WIN:
             # subprocess add cmd.exe to the command line on Windows if shell=True
             def_length += len(f'{os.environ.get("COMSPEC", "cmd.exe")} /C ')
@@ -456,7 +456,7 @@ class TestParallelRunner:
         return cached_test_list, runtime_test_list
 
     def __execute_tests(self, filters: list(), prev_worker_cnt = 0):
-        commands = [f'{self._exec_file_path} --gtest_filter={filter}' for filter in filters]
+        commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
         tmp_log_dir = os.path.join(self._working_dir, "temp")
         if not os.path.isdir(tmp_log_dir):
             os.mkdir(tmp_log_dir)
