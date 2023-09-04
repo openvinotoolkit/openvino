@@ -14,14 +14,13 @@
 #include "openvino/reference/multiclass_nms.hpp"
 #include "openvino/reference/utils/nms_common.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace multiclass_nms_impl {
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-using Rectangle = runtime::reference::nms_common::Rectangle;
-using BoxInfo = runtime::reference::nms_common::BoxInfo;
+using Rectangle = reference::nms_common::Rectangle;
+using BoxInfo = reference::nms_common::BoxInfo;
 static float intersectionOverUnion(const Rectangle& boxI, const Rectangle& boxJ, const bool normalized) {
     const float norm = static_cast<float>(normalized == false);
 
@@ -394,5 +393,4 @@ void multiclass_nms(const float* boxes_data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
