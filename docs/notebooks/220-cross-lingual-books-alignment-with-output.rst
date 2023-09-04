@@ -910,7 +910,7 @@ parameters for execution on the available hardware.
 To further optimize hardware utilization, let’s change the inference
 mode from synchronous (Sync) to asynchronous (Async). While the
 synchronous API may be easier to start with, it is
-`recommended <https://docs.openvino.ai/2022.1/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
+`recommended <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
 to use the asynchronous (callbacks-based) API in production code. It is
 the most general and scalable way to implement flow control for any
 number of requests.
