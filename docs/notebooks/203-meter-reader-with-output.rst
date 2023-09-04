@@ -1,7 +1,7 @@
 Industrial Meter Reader
 =======================
 
-.. _top:
+
 
 This notebook shows how to create a industrial meter reader with
 OpenVINO Runtime. We use the pre-trained
@@ -20,6 +20,8 @@ to build up a multiple inference task pipeline:
    :alt: workflow
 
    workflow
+
+.. _top:
 
 **Table of contents**:
 

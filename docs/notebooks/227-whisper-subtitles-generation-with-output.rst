@@ -1,7 +1,7 @@
 Video Subtitle Generation using Whisper and OpenVINO™
 =====================================================
 
-.. _top:
+
 
 `Whisper <https://openai.com/blog/whisper/>`__ is an automatic speech
 recognition (ASR) system trained on 680,000 hours of multilingual and
@@ -25,6 +25,8 @@ subtitles in a sample video. Notebook contains the following steps: 1.
 Download the model. 2. Instantiate the PyTorch model pipeline. 3. Export
 the ONNX model and convert it to OpenVINO IR, using model conversion
 API. 4. Run the Whisper pipeline with OpenVINO models.
+
+.. _top:
 
 **Table of contents**:
 
