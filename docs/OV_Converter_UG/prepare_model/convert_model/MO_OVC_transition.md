@@ -1,4 +1,4 @@
-# Transition guide from MO / mo.convert_model() to OVC / ov.convert_model() {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition}
+# Transition from Legacy Conversion API {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition}
 
 @sphinxdirective
 

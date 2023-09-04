@@ -1,4 +1,4 @@
-# Legacy Model Convertion API {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+# Legacy Convertion API {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
 @sphinxdirective
 
