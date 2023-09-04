@@ -578,28 +578,7 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_9 = {
     {{24, MAIN_CORE_PROC, 1, 0, 0}, {24, MAIN_CORE_PROC, 1, 1, 1}},
 };
 
-#ifdef __linux__
-INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
-                         StreamGenerationTests,
-                         ::testing::Values(generation_latency_1sockets_14cores_3,
-                                           generation_latency_1sockets_14cores_4,
-                                           generation_latency_1sockets_14cores_5,
-                                           generation_latency_2sockets_48cores_6,
-                                           generation_latency_2sockets_48cores_7,
-                                           generation_latency_2sockets_48cores_8,
-                                           generation_latency_2sockets_48cores_9,
-                                           generation_latency_1sockets_14cores_1_pinning,
-                                           generation_latency_1sockets_14cores_2_pinning,
-                                           generation_tput_1sockets_14cores_1_pinning,
-                                           generation_tput_1sockets_14cores_2,
-                                           generation_tput_1sockets_14cores_3,
-                                           generation_tput_1sockets_14cores_4,
-                                           generation_tput_2sockets_48cores_5,
-                                           generation_tput_2sockets_48cores_6,
-                                           generation_tput_2sockets_48cores_7,
-                                           generation_tput_2sockets_48cores_8,
-                                           generation_tput_2sockets_48cores_9));
-#elif _WIN32
+#if defined (__linux__) || defined(_WIN32)
 INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
                          StreamGenerationTests,
                          ::testing::Values(generation_latency_1sockets_14cores_3,
