@@ -1158,6 +1158,8 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
         (data_type == Precision::I8 && weight_type == Precision::I8 && K < 64) ||
         // TODO: add int8 support
         (data_type != Precision::BF16) ||
+        // TODO: add weight compression support
+        (weight_type == Precision::I8 || weight_type == Precision::U8) ||
         (!isDynamicNode()) ||
         // 1 stream on 1+ numa node. Limitation: weights do not share among with multiple
         //   streams inside a numa because LLM will run with few streams.
