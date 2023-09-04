@@ -207,6 +207,7 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
 
              from openvino.preprocess import PrePostProcessor
              prep = PrePostProcessor(ov_model)
+             prep.input(input_name).tensor().set_layout(Layout(layout_value))
              prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
              ov_model = prep.build()
 
