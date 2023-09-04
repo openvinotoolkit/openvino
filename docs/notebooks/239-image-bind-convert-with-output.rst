@@ -1,7 +1,7 @@
 Binding multimodal data using ImageBind and OpenVINO
 ====================================================
 
-.. _top:
+
 
 Exploring the surrounding world, people get information using multiple
 senses, for example, seeing a busy street and hearing the sounds of car
@@ -68,6 +68,8 @@ represented on the image below:
 
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
+
+.. _top:
 
 **Table of contents**:
 
