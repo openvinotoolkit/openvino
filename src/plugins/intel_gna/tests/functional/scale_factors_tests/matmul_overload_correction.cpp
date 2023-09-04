@@ -13,6 +13,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "ngraph/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -71,17 +72,17 @@ protected:
 
         std::shared_ptr<ngraph::Node> input2;
         if (isSecondInputConst) {
-            input2 = ngraph::builder::makeConstant<float>(
+            input2 = ov::builder::makeConstant<float>(
                 ngPrc,
                 ngraph::Shape{shape1[1], shape1[1]},
                 ov::test::utils::generate_float_numbers(shape2[1], 0.0f, maxInputValue));
         } else {
-            input2 = ngraph::builder::makeInputLayer(ngPrc, ov::helpers::InputLayerType::PARAMETER, shape2);
+            input2 = ov::builder::makeInputLayer(ngPrc, ov::helpers::InputLayerType::PARAMETER, shape2);
             params.push_back(std::dynamic_pointer_cast<ngraph::opset8::Parameter>(input2));
         }
 
-        auto lowNodeIn1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-maxInputValue});
-        auto highNodeIn1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {maxInputValue});
+        auto lowNodeIn1 = ov::builder::makeConstant<float>(ngPrc, {1}, {-maxInputValue});
+        auto highNodeIn1 = ov::builder::makeConstant<float>(ngPrc, {1}, {maxInputValue});
         auto fqIn1 = std::make_shared<ngraph::opset8::FakeQuantize>(relu,
                                                                     lowNodeIn1,
                                                                     highNodeIn1,
@@ -89,8 +90,8 @@ protected:
                                                                     highNodeIn1,
                                                                     levels16);
 
-        auto lowNodeIn2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-maxInputValue});
-        auto highNodeIn2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {maxInputValue});
+        auto lowNodeIn2 = ov::builder::makeConstant<float>(ngPrc, {1}, {-maxInputValue});
+        auto highNodeIn2 = ov::builder::makeConstant<float>(ngPrc, {1}, {maxInputValue});
         auto fqIn2 = std::make_shared<ngraph::opset8::FakeQuantize>(input2,
                                                                     lowNodeIn2,
                                                                     highNodeIn2,
@@ -107,14 +108,14 @@ protected:
         }
 
         auto matmul = swapInputs ? std::dynamic_pointer_cast<ngraph::opset8::MatMul>(
-                                       ngraph::builder::makeMatMul(matmul_input2, fqIn1, false, true))
+                                       ov::builder::makeMatMul(matmul_input2, fqIn1, false, true))
                                  : std::dynamic_pointer_cast<ngraph::opset8::MatMul>(
-                                       ngraph::builder::makeMatMul(fqIn1, matmul_input2, false, true));
+                                       ov::builder::makeMatMul(fqIn1, matmul_input2, false, true));
 
         auto lowNodeOut =
-            ngraph::builder::makeConstant<float>(ngPrc, {1}, {-maxInputValue * maxInputValue * inputShape[1] / 10});
+            ov::builder::makeConstant<float>(ngPrc, {1}, {-maxInputValue * maxInputValue * inputShape[1] / 10});
         auto highNodeOut =
-            ngraph::builder::makeConstant<float>(ngPrc, {1}, {maxInputValue * maxInputValue * inputShape[1] / 10});
+            ov::builder::makeConstant<float>(ngPrc, {1}, {maxInputValue * maxInputValue * inputShape[1] / 10});
         auto fqOut = std::make_shared<ngraph::opset8::FakeQuantize>(matmul,
                                                                     lowNodeOut,
                                                                     highNodeOut,

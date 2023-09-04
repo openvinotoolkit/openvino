@@ -7,6 +7,7 @@
 #include <tuple>
 #include <vector>
 
+#include "ngraph/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -63,7 +64,7 @@ protected:
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
             static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
-        auto constant = ngraph::builder::makeConstant(ngPrc, constantShape, std::vector<float>{}, true);
+        auto constant = ov::builder::makeConstant(ngPrc, constantShape, std::vector<float>{}, true);
         auto fq2 = std::make_shared<ngraph::opset8::FakeQuantize>(
             constant,
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10}),
@@ -71,7 +72,7 @@ protected:
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
             static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
-        auto concat = ngraph::builder::makeConcat({fq1, fq2}, 1);
+        auto concat = ov::builder::makeConcat({fq1, fq2}, 1);
         function = std::make_shared<ngraph::Function>(concat, params, "WeighableLayerWithoutFq");
     }
 };  // class WeighableLayerWithoutFqTest

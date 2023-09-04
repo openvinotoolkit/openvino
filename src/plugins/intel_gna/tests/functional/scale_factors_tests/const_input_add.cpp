@@ -11,6 +11,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "ngraph/opsets/opset1.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -67,9 +68,8 @@ protected:
         ngraph::Shape shape = {1, 72};
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
 
-        auto constant =
-            ngraph::builder::makeConstant<float>(ngPrc, shape, {}, true, constRange.second, constRange.first);
-        auto eltwise = ngraph::builder::makeEltwise(constant, params[0], ov::helpers::EltwiseTypes::ADD);
+        auto constant = ov::builder::makeConstant<float>(ngPrc, shape, {}, true, constRange.second, constRange.first);
+        auto eltwise = ov::builder::makeEltwise(constant, params[0], ov::helpers::EltwiseTypes::ADD);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwise)};
         function = std::make_shared<ngraph::Function>(results, params, "InputConstAdd");

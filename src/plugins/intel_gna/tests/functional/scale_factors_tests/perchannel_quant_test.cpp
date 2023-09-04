@@ -11,6 +11,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "ngraph/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -72,9 +73,9 @@ protected:
             weightsMax.push_back(rowMax);
         }
 
-        auto constant = ngraph::builder::makeConstant<float>(ngPrc, constShape, weights);
-        auto wLowNode = ngraph::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMin});
-        auto wHighNode = ngraph::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMax});
+        auto constant = ov::builder::makeConstant<float>(ngPrc, constShape, weights);
+        auto wLowNode = ov::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMin});
+        auto wHighNode = ov::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMax});
         auto wFq = std::make_shared<ngraph::opset8::FakeQuantize>(constant,
                                                                   wLowNode,
                                                                   wHighNode,

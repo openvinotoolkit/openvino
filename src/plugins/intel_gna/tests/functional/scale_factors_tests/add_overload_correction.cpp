@@ -11,6 +11,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "ngraph/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -72,8 +73,8 @@ protected:
         params[0]->set_friendly_name("input1");
         params[1]->set_friendly_name("input2");
 
-        auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-10.0f});
-        auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {10.0f});
+        auto lowNodeIn = ov::builder::makeConstant<float>(ngPrc, {1}, {-10.0f});
+        auto highNodeIn = ov::builder::makeConstant<float>(ngPrc, {1}, {10.0f});
         auto fqIn = std::make_shared<ngraph::opset8::FakeQuantize>(params[0],
                                                                    lowNodeIn,
                                                                    highNodeIn,
@@ -82,12 +83,12 @@ protected:
                                                                    levels16);
 
         auto constant =
-            ngraph::builder::makeConstant<float>(ngPrc,
-                                                 inputShape,
-                                                 ov::test::utils::generate_float_numbers(inputShape[1], -1.0f, 1.0f));
+            ov::builder::makeConstant<float>(ngPrc,
+                                             inputShape,
+                                             ov::test::utils::generate_float_numbers(inputShape[1], -1.0f, 1.0f));
         auto mul = std::make_shared<ngraph::opset8::Multiply>(params[1], constant);
-        auto lowNodeMul = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-1.0f});
-        auto highNodeMul = ngraph::builder::makeConstant<float>(ngPrc, {1}, {1.0f});
+        auto lowNodeMul = ov::builder::makeConstant<float>(ngPrc, {1}, {-1.0f});
+        auto highNodeMul = ov::builder::makeConstant<float>(ngPrc, {1}, {1.0f});
         auto fqMul = std::make_shared<ngraph::opset8::FakeQuantize>(mul,
                                                                     lowNodeMul,
                                                                     highNodeMul,
@@ -97,8 +98,8 @@ protected:
 
         auto add = std::make_shared<ngraph::opset8::Add>(fqIn, fqMul);
 
-        auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-11.0f});
-        auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {11.0f});
+        auto lowNodeOut = ov::builder::makeConstant<float>(ngPrc, {1}, {-11.0f});
+        auto highNodeOut = ov::builder::makeConstant<float>(ngPrc, {1}, {11.0f});
         auto fqOut = std::make_shared<ngraph::opset8::FakeQuantize>(add,
                                                                     lowNodeOut,
                                                                     highNodeOut,
