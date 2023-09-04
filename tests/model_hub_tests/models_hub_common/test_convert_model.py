@@ -3,16 +3,13 @@
 import gc
 
 import numpy as np
+from models_hub_common.multiprocessing_utils import multiprocessing_run
 from openvino.runtime import Core
 from openvino.tools.mo import convert_model
 
-from multiprocessing_utils import multiprocessing_run
-
 
 class TestConvertModel:
-    def __init__(self):
-        # set 10 minutes at maximum
-        self.infer_timeout = 600
+    infer_timeout = 600
 
     def load_model(self, model_name, model_link):
         raise "load_model is not implemented"
