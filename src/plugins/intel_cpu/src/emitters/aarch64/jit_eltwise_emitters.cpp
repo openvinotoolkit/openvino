@@ -61,7 +61,7 @@ void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != Precision::FP32) {
-        IE_THROW() << "unsupported precision";
+        IE_THROW() << "unsupported precision: " << exec_prc_;
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -104,7 +104,7 @@ void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != Precision::FP32) {
-        IE_THROW() << "unsupported precision";
+        IE_THROW() << "unsupported precision: " << exec_prc_;
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -148,7 +148,7 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != Precision::FP32) {
-        IE_THROW() << "unsupported precision";
+        IE_THROW() << "unsupported precision: " << exec_prc_;
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -199,7 +199,7 @@ void jit_power_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_power_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != Precision::FP32) {
-        IE_THROW() << "unsupported precision";
+        IE_THROW() << "unsupported precision: " << exec_prc_;
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -230,6 +230,57 @@ void jit_power_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
         }
         current_power = current_power >> 1;
     }
+}
+
+/// RELU ///
+jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node,
+                                   const float alpha)
+                                   : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node), alpha) {
+}
+
+jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   const Precision exec_prc,
+                                   const float alpha)
+                                   : jit_emitter(host, host_isa, exec_prc, alpha) {
+}
+
+size_t jit_relu_emitter::get_inputs_count() const { return 1; }
+
+size_t jit_relu_emitter::get_aux_vecs_count() const { return 1; }
+
+std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+    return {{element::f32}};
+}
+
+void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        IE_THROW() << "Can't create jit eltwise kernel";
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_relu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (exec_prc_ != Precision::FP32) {
+        IE_THROW() << "unsupported precision: " << exec_prc_;
+    }
+
+    if (alpha != 0.f) {
+        IE_THROW() << "not zero alpha is not supported";
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+
+    TReg tmp = TReg(aux_vec_idxs[0]);
+    h->movi(tmp.s, 0);
+
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+    h->fmaxnm(dst.s, src.s, tmp.s);
 }
 
 }   // namespace aarch64

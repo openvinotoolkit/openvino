@@ -111,6 +111,13 @@ bool is_supported(const Node* node) {
         }
     }
 
+    if (node->getAlgorithm() == Algorithm::EltwiseRelu) {
+        const auto eltwise = dynamic_cast<const Eltwise*>(node);
+        if ((eltwise == nullptr) || (eltwise->getAlpha() != 0.f) || (eltwise->getBeta() != 0.f) || (eltwise->getGamma() != 0.f)) {
+            return false;
+        }
+    }
+
     if ((node->getAlgorithm() != Algorithm::EltwisePowerDynamic) &&
         (node->getAlgorithm() != Algorithm::EltwisePowerStatic)) {
         return true;
