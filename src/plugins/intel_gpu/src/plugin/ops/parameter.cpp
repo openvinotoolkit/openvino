@@ -66,6 +66,15 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
         return surface_input_found;
     };
 
+    std::function<bool(const std::shared_ptr<ov::Node>&)> connected_to_quantize =
+        [&](const std::shared_ptr<ov::Node> &node) -> bool {
+        for (auto& user : node->get_users()) {
+            if (ov::is_type<ov::op::v0::FakeQuantize>(user))
+                return true;
+        }
+        return false;
+    };
+
     size_t search_depth = 3;
     bool is_convert_color_input = recursive_search_convert_color(op, search_depth);
     bool is_surface_input = has_surface_input(op);
@@ -105,9 +114,12 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
         p.inputLayouts.insert({ op->get_friendly_name(), input_layout });
 
         p.add_primitive(*op, cldnn::input_layout(input_name, input_layout));
-        // Techically this reorder is not needed, but for some reason it impacts layout propagation logic
-        // TODO: Remove it and fix layout assignment & propagation passes
-        p.add_primitive(*op, cldnn::reorder(reorder_name, cldnn::input_info(input_name), input_layout), {input_name});
+
+        if (connected_to_quantize(op)) {
+            // Techically this reorder is not needed, but for some reason it impacts layout propagation logic
+            // TODO: Remove it and fix layout assignment & propagation passes
+            p.add_primitive(*op, cldnn::reorder(reorder_name, cldnn::input_info(input_name), input_layout), {input_name});
+        }
     }
 }
 

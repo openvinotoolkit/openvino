@@ -768,8 +768,7 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
 
     primitive_inst = find_primitive(id);
 
-    if (primitive_inst == nullptr)
-        throw std::runtime_error("topology doesn't contain primitive: " + id);
+    OPENVINO_ASSERT(primitive_inst != nullptr, "[GPU] topology doesn't contain primitive: ", id);
 
     if (primitive_inst->type() != input_layout::type_id()) {
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
@@ -911,8 +910,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     std::vector<event::ptr> ret_ev;
     p_inst = find_primitive(id);
 
-    if (!p_inst)
-        throw std::runtime_error("topology doesn't contain primitive: " + id);
+    OPENVINO_ASSERT(p_inst != nullptr, "[GPU] topology doesn't contain primitive: ", id);
 
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())

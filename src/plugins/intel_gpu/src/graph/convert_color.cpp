@@ -34,7 +34,7 @@ layout convert_color_inst::calc_output_layout(convert_color_node const& /* node 
 
         return out_layout;
     }
-    OPENVINO_THROW("[GPU] Unsupported color format conbinations");
+    OPENVINO_THROW("[GPU] Unsupported color format combinations");
 }
 
 std::string convert_color_inst::to_string(convert_color_node const& node) {
