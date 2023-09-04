@@ -8,11 +8,10 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/topk.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 // This used to be lambda expressions but MSVC had difficulty compiling it. This way is more explicit.
 template <bool D, typename T, typename U>
@@ -113,5 +112,4 @@ void topk(const T* arg,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
