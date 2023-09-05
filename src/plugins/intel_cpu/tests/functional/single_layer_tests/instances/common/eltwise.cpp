@@ -219,5 +219,32 @@ const auto params_5D_dyn_param = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_5D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 
+static const std::vector<std::vector<ov::Shape>> bitwise_in_shapes_4D = {
+    {{1, 3, 4, 4}, {1, 3, 4, 4}},
+    {{1, 3, 4, 4}, {1, 3, 1, 1}},
+};
+
+// TODO: debug: for development only
+const auto params_4D_bitwise = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_4D)),
+                ::testing::ValuesIn({
+                        ngraph::helpers::EltwiseTypes::BITWISE_AND,
+                        ngraph::helpers::EltwiseTypes::BITWISE_NOT,
+                        ngraph::helpers::EltwiseTypes::BITWISE_OR,
+                        ngraph::helpers::EltwiseTypes::BITWISE_XOR}),
+                ::testing::ValuesIn(secondaryInputTypes()),
+                ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
+                ::testing::ValuesIn({ElementType::f32}),
+                ::testing::Values(ov::element::f32),
+                ::testing::Values(ov::element::f32),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::ValuesIn(additional_config())),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise, EltwiseLayerCPUTest, params_4D_bitwise, EltwiseLayerCPUTest::getTestCaseName);
+
 } // namespace Eltwise
 } // namespace CPULayerTestsDefinitions

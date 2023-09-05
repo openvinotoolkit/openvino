@@ -7,7 +7,10 @@
 #include <ngraph/opsets/opset13.hpp>
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-// /Users/armplugin/eshoguli/openvino/src/core/include/openvino/op/bitwise_xor.hpp
+// TODO: debug
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 
 namespace ngraph {
@@ -35,6 +38,12 @@ std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
             return std::make_shared<ngraph::opset3::Mod>(in0, in1);
         case ngraph::helpers::EltwiseTypes::ERF:
             return std::make_shared<ngraph::opset1::Erf>(in0);
+        case ngraph::helpers::EltwiseTypes::BITWISE_AND:
+            return std::make_shared<ov::op::v13::BitwiseAnd>(in0, in1);
+        case ngraph::helpers::EltwiseTypes::BITWISE_NOT:
+            return std::make_shared<ov::op::v13::BitwiseNot>(in0, in1);
+        case ngraph::helpers::EltwiseTypes::BITWISE_OR:
+            return std::make_shared<ov::op::v13::BitwiseOr>(in0, in1);
         case ngraph::helpers::EltwiseTypes::BITWISE_XOR:
             return std::make_shared<ov::op::v13::BitwiseXor>(in0, in1);
         default: {

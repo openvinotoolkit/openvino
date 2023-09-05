@@ -67,6 +67,10 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "SoftSign", Type::Eltwise },
         { "Select", Type::Eltwise},
         { "Log", Type::Eltwise },
+        { "BitwiseAnd", Type::Eltwise },
+        { "BitwiseNot", Type::Eltwise },
+        { "BitwiseOr", Type::Eltwise },
+        { "BitwiseXor", Type::Eltwise },
         { "Reshape", Type::Reshape },
         { "Squeeze", Type::Reshape },
         { "Unsqueeze", Type::Reshape },
@@ -378,6 +382,10 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseErf);
         CASE(EltwiseSoftSign);
         CASE(EltwiseLog);
+        CASE(EltwiseBitwiseAnd);
+        CASE(EltwiseBitwiseNot);
+        CASE(EltwiseBitwiseOr);
+        CASE(EltwiseBitwiseXor);
         CASE(FQCommon);
         CASE(FQQuantization);
         CASE(FQBinarization);

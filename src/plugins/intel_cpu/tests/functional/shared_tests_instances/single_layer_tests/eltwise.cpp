@@ -77,7 +77,8 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::FLOOR_MOD,
         ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
         ngraph::helpers::EltwiseTypes::POWER,
-        ngraph::helpers::EltwiseTypes::MOD
+        ngraph::helpers::EltwiseTypes::MOD,
+        ngraph::helpers::EltwiseTypes::BITWISE_XOR
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDynamic = {

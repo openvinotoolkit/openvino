@@ -212,7 +212,7 @@ const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinInp() {
         ngraph::helpers::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
         ngraph::helpers::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
 #endif
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ngraph::helpers::EltwiseTypes::SQUARED_DIFF
     };
     return eltwiseOpTypesBinInp;
 }

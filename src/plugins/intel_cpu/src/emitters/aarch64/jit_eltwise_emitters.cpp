@@ -283,6 +283,174 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
     h->fmaxnm(dst.s, src.s, tmp.s);
 }
 
+/// BITWISE_AND ///
+jit_bitwise_and_emitter::jit_bitwise_and_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ov::Node>& node,
+                                                 const float alpha)
+                                                 : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node), alpha) {
+}
+
+jit_bitwise_and_emitter::jit_bitwise_and_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const Precision exec_prc,
+                                                 const float alpha) : jit_emitter(host, host_isa, exec_prc, alpha) {
+}
+
+size_t jit_bitwise_and_emitter::get_inputs_count() const { return 2; }
+
+void jit_bitwise_and_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        IE_THROW() << "Can't create jit eltwise kernel";
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_bitwise_and_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (exec_prc_ != Precision::FP32) {
+        IE_THROW() << "unsupported precision: " << exec_prc_;
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src0 = TReg(in_vec_idxs[0]);
+    TReg src1 = TReg(in_vec_idxs[1]);
+    TReg dst = TReg(out_vec_idxs[0]);
+
+    h->and_(dst.b, src0.b, src1.b);
+}
+
+std::set<std::vector<element::Type>> jit_bitwise_and_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
+/// BITWISE_NOT ///
+jit_bitwise_not_emitter::jit_bitwise_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ov::Node>& node,
+                                                 const float alpha)
+                                                 : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node), alpha) {
+}
+
+jit_bitwise_not_emitter::jit_bitwise_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const Precision exec_prc,
+                                                 const float alpha) : jit_emitter(host, host_isa, exec_prc, alpha) {
+}
+
+size_t jit_bitwise_not_emitter::get_inputs_count() const { return 2; }
+
+void jit_bitwise_not_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        IE_THROW() << "Can't create jit eltwise kernel";
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_bitwise_not_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (exec_prc_ != Precision::FP32) {
+        IE_THROW() << "unsupported precision: " << exec_prc_;
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src0 = TReg(in_vec_idxs[0]);
+    TReg src1 = TReg(in_vec_idxs[1]);
+    TReg dst = TReg(out_vec_idxs[0]);
+
+    h->orn(dst.b, src0.b, src1.b);
+}
+
+std::set<std::vector<element::Type>> jit_bitwise_not_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
+/// BITWISE_OR ///
+jit_bitwise_or_emitter::jit_bitwise_or_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                               const std::shared_ptr<ov::Node>& node,
+                                               const float alpha)
+                                               : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node), alpha) {
+}
+
+jit_bitwise_or_emitter::jit_bitwise_or_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                               const Precision exec_prc,
+                                               const float alpha) : jit_emitter(host, host_isa, exec_prc, alpha) {
+}
+
+size_t jit_bitwise_or_emitter::get_inputs_count() const { return 2; }
+
+void jit_bitwise_or_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        IE_THROW() << "Can't create jit eltwise kernel";
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_bitwise_or_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (exec_prc_ != Precision::FP32) {
+        IE_THROW() << "unsupported precision: " << exec_prc_;
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src0 = TReg(in_vec_idxs[0]);
+    TReg src1 = TReg(in_vec_idxs[1]);
+    TReg dst = TReg(out_vec_idxs[0]);
+
+    h->orr(dst.b, src0.b, src1.b);
+}
+
+std::set<std::vector<element::Type>> jit_bitwise_or_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
+/// BITWISE_XOR ///
+jit_bitwise_xor_emitter::jit_bitwise_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                const std::shared_ptr<ov::Node>& node,
+                                                const float alpha)
+                                                : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node), alpha) {
+}
+
+jit_bitwise_xor_emitter::jit_bitwise_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                const Precision exec_prc,
+                                                const float alpha) : jit_emitter(host, host_isa, exec_prc, alpha) {
+}
+
+size_t jit_bitwise_xor_emitter::get_inputs_count() const { return 2; }
+
+void jit_bitwise_xor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        IE_THROW() << "Can't create jit eltwise kernel";
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_bitwise_xor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (exec_prc_ != Precision::FP32) {
+        IE_THROW() << "unsupported precision: " << exec_prc_;
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src0 = TReg(in_vec_idxs[0]);
+    TReg src1 = TReg(in_vec_idxs[1]);
+    TReg dst = TReg(out_vec_idxs[0]);
+
+    h->eor(dst.b, src0.b, src1.b);
+}
+
+std::set<std::vector<element::Type>> jit_bitwise_xor_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
 }   // namespace aarch64
 }   // namespace intel_cpu
 }   // namespace ov

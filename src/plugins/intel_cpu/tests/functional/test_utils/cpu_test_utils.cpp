@@ -275,7 +275,11 @@ std::string CPUTestsBase::getPrimitiveType(const ngraph::helpers::EltwiseTypes& 
             ((eltwise_type == ngraph::helpers::EltwiseTypes::ADD) ||
              (eltwise_type == ngraph::helpers::EltwiseTypes::MULTIPLY) ||
              (eltwise_type == ngraph::helpers::EltwiseTypes::SUBTRACT) ||
-             (eltwise_type == ngraph::helpers::EltwiseTypes::DIVIDE))) {
+             (eltwise_type == ngraph::helpers::EltwiseTypes::DIVIDE) ||
+             (eltwise_type == ngraph::helpers::EltwiseTypes::BITWISE_AND) ||
+             (eltwise_type == ngraph::helpers::EltwiseTypes::BITWISE_NOT) ||
+             (eltwise_type == ngraph::helpers::EltwiseTypes::BITWISE_OR) ||
+             (eltwise_type == ngraph::helpers::EltwiseTypes::BITWISE_XOR))) {
             return "jit";
         }
     }

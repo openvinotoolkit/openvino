@@ -39,6 +39,14 @@
 
 #include "ngraph/ngraph.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset13.hpp>
+
+// TODO: debug
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
+
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
@@ -1269,6 +1277,18 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseLog;
     }},
+    {op::v13::BitwiseAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseBitwiseAnd;
+    }},
+    {op::v13::BitwiseNot::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseBitwiseNot;
+    }},
+    {op::v13::BitwiseOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseBitwiseOr;
+    }},
+    {op::v13::BitwiseXor::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseBitwiseXor;
+    }},
 };
 
 
@@ -1852,6 +1872,7 @@ public:
                         break;
                     case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
                     case Algorithm::EltwiseSelect:            *dst_ptr_f = src_f[0] ? src_f[1] : src_f[2]; break;
+                    // TODO: debug: add reference
                     default: IE_THROW() << "Unsupported operation type for Eltwise executor";
                 }
             }
@@ -1990,6 +2011,10 @@ size_t Eltwise::getOpInputsNum() const {
         case Algorithm::EltwiseLogicalOr:
         case Algorithm::EltwiseLogicalXor:
         case Algorithm::EltwisePrelu:
+        case Algorithm::EltwiseBitwiseAnd:
+        case Algorithm::EltwiseBitwiseNot:
+        case Algorithm::EltwiseBitwiseOr:
+        case Algorithm::EltwiseBitwiseXor:
             return 2;
         case Algorithm::EltwiseMulAdd:
         case Algorithm::EltwiseSelect:

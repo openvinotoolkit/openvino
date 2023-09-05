@@ -132,6 +132,101 @@ private:
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
+// TODO: debug: inherit all binary element-wise emitters from one base type
+// (if they support the same precisions): add & subtract & divide & multiply & bitwise
+
+class jit_bitwise_and_emitter : public jit_emitter {
+public:
+    jit_bitwise_and_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32,
+                            const float alpha = 0.f);
+
+    jit_bitwise_and_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const std::shared_ptr<ov::Node>& node,
+                            const float alpha = 0.f);
+
+    size_t get_inputs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+};
+
+class jit_bitwise_not_emitter : public jit_emitter {
+public:
+    jit_bitwise_not_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32,
+                            const float alpha = 0.f);
+
+    jit_bitwise_not_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const std::shared_ptr<ov::Node>& node,
+                            const float alpha = 0.f);
+
+    size_t get_inputs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+};
+
+class jit_bitwise_or_emitter : public jit_emitter {
+public:
+    jit_bitwise_or_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32,
+                           const float alpha = 0.f);
+
+    jit_bitwise_or_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const std::shared_ptr<ov::Node>& node,
+                           const float alpha = 0.f);
+
+    size_t get_inputs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+};
+
+class jit_bitwise_xor_emitter : public jit_emitter {
+public:
+    jit_bitwise_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32,
+                            const float alpha = 0.f);
+
+    jit_bitwise_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const std::shared_ptr<ov::Node>& node,
+                            const float alpha = 0.f);
+
+    size_t get_inputs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+};
+
 }   // namespace aarch64
 }   // namespace intel_cpu
 }   // namespace ov
