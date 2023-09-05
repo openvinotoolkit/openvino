@@ -44,7 +44,7 @@ public:
      * @param info[0] Name of the input or output tensor as Napi::String.
      * @param info[1] Javascript Tensor object.
      */
-    Napi::Value set_tensor(const Napi::CallbackInfo& info);
+    void set_tensor(const Napi::CallbackInfo& info);
 
     /**
      * @brief Sets an input tensor to infer.
@@ -53,7 +53,7 @@ public:
      * @param info[0] Index of the input tensor or Javascript Tensor object.
      * @param info[1] Javascript Tensor object (optional).
      */
-    Napi::Value set_input_tensor(const Napi::CallbackInfo& info);
+    void set_input_tensor(const Napi::CallbackInfo& info);
 
     /**
      * @brief Sets an output tensor to infer.
@@ -62,7 +62,7 @@ public:
      * @param info[0] Index of the output tensor or Javascript Tensor object.
      * @param info[1] Javascript Tensor object (optional).
      */
-    Napi::Value set_output_tensor(const Napi::CallbackInfo& info);
+    void set_output_tensor(const Napi::CallbackInfo& info);
 
     /**
      * @brief Gets an input/output tensor for inference.
