@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/axis_set.hpp"
+#include "openvino/core/rank.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
