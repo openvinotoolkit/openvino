@@ -37,11 +37,15 @@ std::vector<std::vector<size_t>> targetShapesNumpy1D = {
         {1, 4, 4},
 };
 
+std::vector<std::vector<ov::Shape>> input_shapes_1d_static = {
+        {{ 1 }}
+};
+
 const auto numpyBroadcast1DInputParams = ::testing::Combine(
         ::testing::ValuesIn(targetShapesNumpy1D),
         ::testing::Values(ov::AxisSet{}), //not used in numpy mode
         ::testing::Values(ov::op::BroadcastType::NUMPY),
-        ::testing::Values(std::vector<size_t>{1}),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_1d_static)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
@@ -53,7 +57,7 @@ INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTestNew,
             ::testing::Values(targetShapesNumpy1D[0]),
             ::testing::Values(ov::AxisSet{}), //not used in numpy mode
             ::testing::Values(ov::op::BroadcastType::NUMPY),
-            ::testing::Values(std::vector<size_t>{1}),
+            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_1d_static)),
             ::testing::ValuesIn(inputTPrecisions),
             ::testing::Values(ov::test::utils::DEVICE_CPU)),
         BroadcastLayerTestNew::getTestCaseName);
@@ -66,11 +70,15 @@ std::vector<std::vector<size_t>> targetShapesNumpy2D = {
         {2, 2, 3, 6},
 };
 
+const std::vector<std::vector<ov::Shape>> input_shapes_2d_static = {
+        {{ 3, 1 }}
+};
+
 const auto numpyBroadcast2DInputParams = ::testing::Combine(
         ::testing::ValuesIn(targetShapesNumpy2D),
         ::testing::Values(ov::AxisSet{}), //not used in numpy mode
         ::testing::Values(ov::op::BroadcastType::NUMPY),
-        ::testing::Values(std::vector<size_t>{3, 1}),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_2d_static)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
@@ -85,23 +93,31 @@ std::vector<std::vector<size_t>> targetShapesNumpy3D = {
         {2, 1, 1, 4, 4},
 };
 
+const std::vector<std::vector<ov::Shape>> input_shapes_3d_static = {
+        {{ 1, 4, 1 }}
+};
+
 const auto numpyBroadcast3DInputParams = ::testing::Combine(
         ::testing::ValuesIn(targetShapesNumpy3D),
         ::testing::Values(ov::AxisSet{}), //not used in numpy mode
         ::testing::Values(ov::op::BroadcastType::NUMPY),
-        ::testing::Values(std::vector<size_t>{1, 4, 1}),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_3d_static)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast3D, BroadcastLayerTestNew, numpyBroadcast3DInputParams, BroadcastLayerTestNew::getTestCaseName);
 
+const std::vector<std::vector<ov::Shape>> ngraph_evaluate_shapes_static = {
+        {{ 1, 2, 1, 4, 1, 6, 1, 8, 1, 10 }}
+};
+
 // NGRAPH EVALUATE
 const auto numpyBroadcastNgraphEvaluateParams = ::testing::Combine(
         ::testing::Values(std::vector<size_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
         ::testing::Values(ov::AxisSet{}), //not used in numpy mode
         ::testing::Values(ov::op::BroadcastType::NUMPY),
-        ::testing::Values(std::vector<size_t>{1, 2, 1, 4, 1, 6, 1, 8, 1, 10}),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(ngraph_evaluate_shapes_static)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
@@ -113,10 +129,10 @@ INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcastNgraphEvaluate,
 // END NUMPY MODE //////////////////////////////////////
 
 // BIDIRECTIONAL MODE //////////////////////////////////
-std::vector<std::vector<size_t>> inShapesBidi = {
-        {4, 1},
-        {1, 4, 1},
-        {4, 1, 1}
+std::vector<std::vector<ov::Shape>> shapes_bidi_static = {
+        {{4, 1}},
+        {{1, 4, 1}},
+        {{4, 1, 1}}
 };
 
 std::vector<std::vector<size_t>> targetShapesBidi = {
@@ -129,7 +145,7 @@ const auto bidirectionalBroadcastParams = ::testing::Combine(
         ::testing::ValuesIn(targetShapesBidi),
         ::testing::Values(ov::AxisSet{}), //not used in bidirectional mode
         ::testing::Values(ov::op::BroadcastType::BIDIRECTIONAL),
-        ::testing::ValuesIn(inShapesBidi),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes_bidi_static)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
@@ -138,7 +154,10 @@ INSTANTIATE_TEST_CASE_P(smoke_TestBidirectionalBroadcast, BroadcastLayerTestNew,
 
 // EXPLICIT MODE ///////////////////////////////////////
 // 1D
-std::vector<std::vector<size_t>> inShapesExplicit1D = { {4} };
+
+std::vector<std::vector<ov::Shape>> input_shapes_explicit_1d_static = {
+        {{ 4 }}
+};
 std::vector<std::vector<size_t>> targetShapesExplicit1D = { {4, 2, 4}, {4, 2, 4, 1} };
 std::vector<ov::AxisSet> axes1D = { {0}, {2} };
 
@@ -146,7 +165,7 @@ const auto explicitBroadcast1DInputParams = ::testing::Combine(
         ::testing::ValuesIn(targetShapesExplicit1D),
         ::testing::ValuesIn(axes1D),
         ::testing::Values(ov::op::BroadcastType::EXPLICIT),
-        ::testing::ValuesIn(inShapesExplicit1D),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_explicit_1d_static)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
@@ -157,7 +176,7 @@ const auto bidirectionalBroadcastParams3 = ::testing::Combine(
         ::testing::Values(targetShapesBidi[2]),
         ::testing::Values(ov::AxisSet{}), //not used in bidirectional mode
         ::testing::Values(ov::op::BroadcastType::BIDIRECTIONAL),
-        ::testing::Values(inShapesBidi[2]),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(shapes_bidi_static[2])),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
@@ -182,7 +201,10 @@ std::vector<std::vector<size_t>> targetShapesExplicit = {
 };
 
 // 2D
-std::vector<std::vector<size_t>> inShapesExplicit2D = { {2, 4} };
+std::vector<std::vector<ov::Shape>> input_shapes_explicit_2d_static = {
+        {{ 2, 4 }}
+};
+
 std::vector<std::vector<size_t>> targetShapesExplicit2D = { {2, 2, 4}, {2, 2, 4, 1}};
 std::vector<ov::AxisSet> axes2D = { {1, 2}, {0, 2} };
 
@@ -190,7 +212,7 @@ const auto explicitBroadcast2DInputParams = ::testing::Combine(
         ::testing::ValuesIn(targetShapesExplicit2D),
         ::testing::ValuesIn(axes2D),
         ::testing::Values(ov::op::BroadcastType::EXPLICIT),
-        ::testing::ValuesIn(inShapesExplicit2D),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_explicit_2d_static)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
@@ -198,7 +220,9 @@ const auto explicitBroadcast2DInputParams = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast2D, BroadcastLayerTestNew, explicitBroadcast2DInputParams, BroadcastLayerTestNew::getTestCaseName);
 
 // 3D
-std::vector<std::vector<size_t>> inShapesExplicit3D = { {2, 2, 2} };
+std::vector<std::vector<ov::Shape>> input_shapes_explicit_3d_static = {
+        {{ 2, 2, 2 }}
+};
 std::vector<std::vector<size_t>> targetShapesExplicit3D = { {2, 2, 2, 2} };
 std::vector<ov::AxisSet> axes3D = { {0, 1, 2}, {0, 1, 3}, {0, 2, 3}, {1, 2, 3} };
 
@@ -206,7 +230,7 @@ const auto explicitBroadcast3DInputParams = ::testing::Combine(
         ::testing::ValuesIn(targetShapesExplicit3D),
         ::testing::ValuesIn(axes3D),
         ::testing::Values(ov::op::BroadcastType::EXPLICIT),
-        ::testing::ValuesIn(inShapesExplicit3D),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_explicit_3d_static)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
