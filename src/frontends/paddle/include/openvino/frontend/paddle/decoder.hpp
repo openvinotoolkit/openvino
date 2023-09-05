@@ -55,6 +55,9 @@ public:
 
     /// \brief Get the type of the operation
     virtual std::string get_op_type() const = 0;
+
+    /// \brief Destructor
+    virtual ~DecoderBase();
 };
 }  // namespace paddle
 }  // namespace frontend
