@@ -44,7 +44,7 @@ target_compile_options(${TARGET_NAME} PRIVATE
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
-set_ov_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     OpenCL::OpenCL

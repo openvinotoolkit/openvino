@@ -64,7 +64,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
-set_ov_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 ov_mark_target_as_cc(${TARGET_NAME})
 
 # must be called after all target_link_libraries
@@ -107,7 +107,7 @@ target_compile_definitions(${TARGET_NAME}_dev INTERFACE
 
 target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::core::dev)
 
-set_ov_threading_interface_for(${TARGET_NAME}_dev)
+ov_set_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
 
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::runtime::dev)

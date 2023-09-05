@@ -39,7 +39,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
       CPU
     )
 
-    set_ov_threading_interface_for(${TEST_TARGET_NAME})
+    ov_set_threading_interface_for(${TEST_TARGET_NAME})
     # avoid building binaries for every test in case target 'all' is used
     set_target_properties(${TEST_TARGET_NAME} PROPERTIES
       EXCLUDE_FROM_ALL ON)
@@ -78,7 +78,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
       CPU
     )
 
-    set_ov_threading_interface_for(${TEST_TARGET_NAME})
+    ov_set_threading_interface_for(${TEST_TARGET_NAME})
     # avoid building binaries for every test in case target 'all' is used
     set_target_properties(${TEST_TARGET_NAME} PROPERTIES
       EXCLUDE_FROM_ALL ON)

@@ -48,7 +48,7 @@ set(SOURCES_ALL
 
 add_executable(${TARGET_NAME} ${SOURCES_ALL})
 
-set_ov_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
