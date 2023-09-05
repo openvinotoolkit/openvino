@@ -193,47 +193,47 @@ mo.convert_model() provides a wide range of preprocessing parameters. Most of th
 Here comparison of preprocessing between MO and OVC.
 
 
-* input_shape parameter:
+input_shape parameter:
 
-   .. tab-set::
+.. tab-set::
 
-       .. tab-item:: Python
-          :sync: py
+    .. tab-item:: Python
+       :sync: py
+       
+       .. list-table::
+          :header-rows: 1
           
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: py
-                    :force:
-          
-                    from openvino.tools import mo
-                    ov_model = mo.convert_model(model, input_shape=[[1, 3, 100, 100],[1]])
-          
-               - .. code-block:: py
-                    :force:
+          * - Legacy API
+            - New API
+          * - .. code-block:: py
+                 :force:
+      
+                 from openvino.tools import mo
+                 ov_model = mo.convert_model(model, input_shape=[[1, 3, 100, 100],[1]])
+      
+            - .. code-block:: py
+                 :force:
 
-                    import openvino as ov
-                    ov_model = ov.convert_model(model, input=[[1, 3, 100, 100],[1]])
+                 import openvino as ov
+                 ov_model = ov.convert_model(model, input=[[1, 3, 100, 100],[1]])
 
-       .. tab-item:: CLI
-          :sync: cli
+    .. tab-item:: CLI
+       :sync: cli
 
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: sh
-                    :force:
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: sh
+                 :force:
 
-                    mo --input_model MODEL_NAME --input_shape [1,3,100,100],[1] --output_dir OUTPUT_DIR
-          
-               - .. code-block:: sh
-                    :force:
-          
-                    ovc MODEL_NAME --input [1,3,100,100],[1] --output_model OUTPUT_MODEL
+                 mo --input_model MODEL_NAME --input_shape [1,3,100,100],[1] --output_dir OUTPUT_DIR
+      
+            - .. code-block:: sh
+                 :force:
+      
+                 ovc MODEL_NAME --input [1,3,100,100],[1] --output_model OUTPUT_MODEL
 
 * batch parameter:
 
