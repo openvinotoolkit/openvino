@@ -822,6 +822,10 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
       - name: Install python dependencies
         run: |
           python3 -m pip install --upgrade pip
