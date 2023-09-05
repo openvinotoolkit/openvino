@@ -202,12 +202,11 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import convert_model
-             ov_model = convert_model(model)
+             import openvino as ov
+             ov_model = ov.convert_model(model)
 
-             from openvino.preprocess import PrePostProcessor
-             prep = PrePostProcessor(ov_model)
-             prep.input(input_name).tensor().set_layout(Layout(layout_value))
+             prep = ov.preprocess.PrePostProcessor(ov_model)
+             prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
              prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
              ov_model = prep.build()
 
@@ -217,8 +216,8 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino.tools.mo import convert_model
-             ov_model = convert_model(model, mean_values=[0.5, 0.5, 0.5])
+             from openvino.tools import mo
+             ov_model = mo.convert_model(model, mean_values=[0.5, 0.5, 0.5])
 
 * scale_value parameter:
 
@@ -230,12 +229,11 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import convert_model
-             ov_model = convert_model(model)
+             import openvino as ov
+             ov_model = ov.convert_model(model)
 
-             from openvino.preprocess import PrePostProcessor
-             prep = PrePostProcessor(ov_model)
-             prep.input(input_name).tensor().set_layout(Layout(layout_value))
+             prep = ov.preprocess.PrePostProcessor(ov_model)
+             prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
              prep.input(input_name).preprocess().scale([255., 255., 255.])
              ov_model = prep.build()
 
@@ -245,8 +243,8 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino.tools.mo import convert_model
-             ov_model = convert_model(model, scale_value=[255., 255., 255.])
+             from openvino.tools import mo
+             ov_model = mo.convert_model(model, scale_value=[255., 255., 255.])
 
 * scale parameter:
 
@@ -258,11 +256,10 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import convert_model
-             ov_model = convert_model(model)
+             import openvino as ov
+             ov_model = ov.convert_model(model)
 
-             from openvino.preprocess import PrePostProcessor
-             prep = PrePostProcessor(ov_model)
+             prep = ov.preprocess.PrePostProcessor(ov_model)
              prep.input(input_name).preprocess().scale(255.)
              ov_model = prep.build()
 
@@ -272,8 +269,8 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino.tools.mo import convert_model
-             ov_model = convert_model(model, scale=255.)
+             from openvino.tools import mo
+             ov_model = mo.convert_model(model, scale=255.)
 
 * reverse_input_channels parameter:
 
@@ -285,12 +282,11 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import convert_model
-             ov_model = convert_model(model)
+             import openvino as ov
+             ov_model = ov.convert_model(model)
 
-             from openvino.preprocess import PrePostProcessor
-             prep = PrePostProcessor(ov_model)
-             prep.input(input_name).tensor().set_layout(Layout(layout_string))
+             prep = ov.preprocess.PrePostProcessor(ov_model)
+             prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
              prep.input(input_name).preprocess().reverse_channels()
              ov_model = prep.build()
 
@@ -300,8 +296,8 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino.tools.mo import convert_model
-             ov_model = convert_model(model, reverse_input_channels=True)
+             from openvino.tools import mo
+             ov_model = mo.convert_model(model, reverse_input_channels=True)
 
 * source_layout parameter:
 
@@ -313,12 +309,11 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import convert_model, Layout
-             ov_model = convert_model(model)
+             import openvino as ov
+             ov_model = ov.convert_model(model)
 
-             from openvino.preprocess import PrePostProcessor
-             prep = PrePostProcessor(ov_model)
-             prep.input(input_name).model().set_layout(Layout("nhwc"))
+             prep = ov.preprocess.PrePostProcessor(ov_model)
+             prep.input(input_name).model().set_layout(ov.Layout("nhwc"))
              ov_model = prep.build()
 
        .. tab-item:: mo.convert_model()
@@ -327,9 +322,10 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import Layout
-             from openvino.tools.mo import convert_model
-             ov_model = convert_model(model, source_layout={input_name: Layout("nhwc")})
+             import openvino as ov
+             from openvino.tools import mo
+             
+             ov_model = mo.convert_model(model, source_layout={input_name: ov.Layout("nhwc")})
 
 * target_layout parameter:
 
@@ -341,12 +337,11 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import convert_model, Layout
-             ov_model = convert_model(model)
+             import openvino as ov
+             ov_model = ov.convert_model(model)
 
-             from openvino.preprocess import PrePostProcessor
-             prep = PrePostProcessor(ov_model)
-             prep.input(input_name).tensor().set_layout(Layout("nhwc"))
+             prep = ov.preprocess.PrePostProcessor(ov_model)
+             prep.input(input_name).tensor().set_layout(ov.Layout("nhwc"))
              ov_model = prep.build()
 
        .. tab-item:: mo.convert_model()
@@ -355,9 +350,10 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import Layout
-             from openvino.tools.mo import convert_model
-             ov_model = convert_model(model, target_layout={input_name: Layout("nhwc")})
+             import openvino as ov
+             from openvino.tools import mo
+             
+             ov_model = mo.convert_model(model, target_layout={input_name: ov.Layout("nhwc")})
 
 
 * layout parameter:
@@ -370,13 +366,12 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import convert_model, Layout
-             ov_model = convert_model(model)
+             import openvino as ov
+             ov_model = ov.convert_model(model)
 
-             from openvino.preprocess import PrePostProcessor
-             prep = PrePostProcessor(ov_model)
-             prep.input(input_name).model().set_layout(Layout("nchw"))
-             prep.input(input_name).tensor().set_layout(Layout("nhwc"))
+             prep = ov.preprocess.PrePostProcessor(ov_model)
+             prep.input(input_name).model().set_layout(ov.Layout("nchw"))
+             prep.input(input_name).tensor().set_layout(ov.Layout("nhwc"))
              ov_model = prep.build()
 
        .. tab-item:: mo.convert_model()
@@ -385,9 +380,8 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
           .. code-block:: py
              :force:
 
-             from openvino import Layout
-             from openvino.tools.mo import convert_model, LayoutMap
-             ov_model = convert_model(model, layout={input_name: LayoutMap("nchw", "nhwc")})
+             from openvino.tools import mo
+             ov_model = mo.convert_model(model, layout={input_name: mo.LayoutMap("nchw", "nhwc")})
 
 MO vs OVC model formats
 #######################
