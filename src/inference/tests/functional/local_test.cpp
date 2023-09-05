@@ -4,90 +4,89 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-
-#include "ngraph/ops.hpp"
+#include "openvino/op/roi_align.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
+#include "openvino/runtime/core.hpp"
 
 using namespace ::testing;
 using namespace std;
-using namespace InferenceEngine;
 
 class LocaleTests : public ::testing::Test {
     std::string originalLocale;
     std::string _model = R"V0G0N(
 <net name="model" version="10">
-	<layers>
-		<layer id="0" name="input" type="Parameter" version="opset1">
-			<data shape="1,256,200,272" element_type="f16"/>
-			<output>
-				<port id="0" precision="FP16" names="input">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>272</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="rois" type="Parameter" version="opset1">
-			<data shape="1000,4" element_type="f16"/>
-			<output>
-				<port id="0" precision="FP16" names="rois">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="indices" type="Parameter" version="opset1">
-			<data shape="1000" element_type="i32"/>
-			<output>
-				<port id="0" precision="I32" names="indices">
-					<dim>1000</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="3" name="output" type="ROIAlign" version="opset3">
-			<data mode="avg" pooled_h="7" pooled_w="7" sampling_ratio="2" spatial_scale="0.25"/>
-			<input>
-				<port id="0">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>272</dim>
-				</port>
-				<port id="1">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="2">
-					<dim>1000</dim>
-				</port>
-			</input>
-			<output>
-				<port id="3" precision="FP16" names="output">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="4" name="output/sink_port_0" type="Result" version="opset1">
-			<input>
-				<port id="0">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
-				</port>
-			</input>
-		</layer>
-	</layers>
-	<edges>
-		<edge from-layer="0" from-port="0" to-layer="3" to-port="0"/>
-		<edge from-layer="1" from-port="0" to-layer="3" to-port="1"/>
-		<edge from-layer="2" from-port="0" to-layer="3" to-port="2"/>
-		<edge from-layer="3" from-port="3" to-layer="4" to-port="0"/>
-	</edges>
+    <layers>
+        <layer id="0" name="input" type="Parameter" version="opset1">
+            <data shape="1,256,200,272" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32" names="input">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>272</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="rois" type="Parameter" version="opset1">
+            <data shape="1000,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32" names="rois">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="indices" type="Parameter" version="opset1">
+            <data shape="1000" element_type="i32"/>
+            <output>
+                <port id="0" precision="I32" names="indices">
+                    <dim>1000</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="output" type="ROIAlign" version="opset3">
+            <data mode="avg" pooled_h="7" pooled_w="7" sampling_ratio="2" spatial_scale="0.25"/>
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>272</dim>
+                </port>
+                <port id="1">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="2">
+                    <dim>1000</dim>
+                </port>
+            </input>
+            <output>
+                <port id="3" precision="FP32" names="output">
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="output/sink_port_0" type="Result" version="opset1">
+            <input>
+                <port id="0">
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="3" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="3" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="3" to-port="2"/>
+        <edge from-layer="3" from-port="3" to-layer="4" to-port="0"/>
+    </edges>
 </net>
 )V0G0N";
 
@@ -185,22 +184,22 @@ class LocaleTests : public ::testing::Test {
             </port>
         </output>
         </layer>
-		<layer id="7" name="485/sink_port_0" type="Result" version="opset1">
-			<input>
-				<port id="0">
-					<dim>1</dim>
-					<dim>256</dim>
-				</port>
-			</input>
-		</layer>
-		<layer id="8" name="485/sink_port_1" type="Result" version="opset1">
-			<input>
-				<port id="0">
-					<dim>1</dim>
-					<dim>256</dim>
-				</port>
-			</input>
-		</layer>
+        <layer id="7" name="485/sink_port_0" type="Result" version="opset1">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                </port>
+            </input>
+        </layer>
+        <layer id="8" name="485/sink_port_1" type="Result" version="opset1">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                </port>
+            </input>
+        </layer>
     </layers>
     <edges>
         <edge from-layer="0" from-port="0" to-layer="6" to-port="0"/>
@@ -224,19 +223,17 @@ protected:
     }
 
     void testBody(bool isLSTM = false) const {
-        InferenceEngine::Core core;
+        ov::Core core;
 
-        std::string model = isLSTM ? _model_LSTM : _model;
-        auto blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {26000000}, Layout::C));
-        blob->allocate();
-        auto net = core.ReadNetwork(model, blob);
+        std::string model_str = isLSTM ? _model_LSTM : _model;
+        auto tensor = ov::Tensor(ov::element::u8, {26000000});
+        auto model = core.read_model(model_str, tensor);
 
-        auto funcs = net.getFunction();
-
-        for (const auto& op : funcs->get_ops()) {
+        for (const auto& op : model->get_ops()) {
             if (!isLSTM) {
                 if (op->get_friendly_name() == "output") {
-                    const auto roi = std::dynamic_pointer_cast<ngraph::op::v3::ROIAlign>(op);
+                    const auto roi = std::dynamic_pointer_cast<ov::op::v3::ROIAlign>(op);
+                    ASSERT_TRUE(roi);
                     ASSERT_EQ(roi->get_pooled_h(), 7);
                     ASSERT_EQ(roi->get_pooled_w(), 7);
                     ASSERT_EQ(roi->get_sampling_ratio(), 2);
@@ -244,7 +241,8 @@ protected:
                 }
             } else {
                 if (op->get_friendly_name() == "LSTMCell") {
-                    const auto lstm_seq = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(op);
+                    const auto lstm_seq = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(op);
+                    ASSERT_TRUE(lstm_seq);
                     ASSERT_EQ(lstm_seq->get_clip(), 0.0f);
                     ASSERT_EQ(lstm_seq->get_hidden_size(), 256);
                 }

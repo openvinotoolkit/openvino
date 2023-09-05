@@ -1,7 +1,7 @@
 Optimize Preprocessing
 ======================
 
-.. _top:
+
 
 When input data does not fit the model input tensor perfectly,
 additional operations/steps are needed to transform the data to the
@@ -11,9 +11,9 @@ instrument, that enables integration of preprocessing steps into an
 execution graph and performing it on a selected device, which can
 improve device utilization. For more information about Preprocessing
 API, see this
-`overview <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Preprocessing_Overview.html#>`__
+`overview <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Preprocessing_Overview.html#>`__
 and
-`details <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Preprocessing_Details.html>`__
+`details <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Preprocessing_Details.html>`__
 
 This tutorial include following steps:
 
@@ -26,6 +26,8 @@ This tutorial include following steps:
    image.
 -  Comparing results on one picture.
 -  Comparing performance.
+
+.. _top:
 
 **Table of contents**:
 
@@ -215,7 +217,7 @@ Convert model to OpenVINO IR and setup preprocessing steps with model conversion
 
 To convert a TensorFlow model to OpenVINO IR, use the
 ``mo.convert_model`` python function of `model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 The function returns instance of OpenVINO Model class, which is ready to
 use in Python interface but can also be serialized to OpenVINO IR format
 for future execution using ``openvino.runtime.serialize``. The models
@@ -238,7 +240,7 @@ Setup the following conversions:
 Also converting of layout could be specified with ``layout`` option.
 More information and parameters described in the `Embedding
 Preprocessing Computation
-article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html#embedding-preprocessing-computation>`__.
+article <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html#embedding-preprocessing-computation>`__.
 
 .. code:: ipython3
 
@@ -324,7 +326,7 @@ Graph modifications of a model shall be performed after the model is
 read from a drive and before it is loaded on the actual device.
 
 Pre-processing support following operations (please, see more details
-`here <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aeacaf406d72a238e31a359798ebdb3b7>`__)
+`here <https://docs.openvino.ai/2023.1/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aeacaf406d72a238e31a359798ebdb3b7>`__)
 
 -  Mean/Scale Normalization
 -  Converting Precision
@@ -358,7 +360,7 @@ Create ``PrePostProcessor`` Object `⇑ <#top>`__
 
 
 The
-`PrePostProcessor() <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
+`PrePostProcessor() <https://docs.openvino.ai/2023.1/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
 class enables specifying the preprocessing and postprocessing steps for
 a model.
 
@@ -382,7 +384,7 @@ about user’s input tensor will be initialized to same data
 (type/shape/etc) as model’s input parameter. User application can
 override particular parameters according to application’s data. Refer to
 the following
-`page <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a98fb73ff9178c8c71d809ddf8927faf5>`__
+`page <https://docs.openvino.ai/2023.1/classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a98fb73ff9178c8c71d809ddf8927faf5>`__
 for more information about parameters for overriding.
 
 Below is all the specified input information:
@@ -421,7 +423,7 @@ Declaring Model Layout `⇑ <#top>`__
 Model input already has information about precision and shape.
 Preprocessing API is not intended to modify this. The only thing that
 may be specified is input data
-`layout <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Layout_Overview.html#doxid-openvino-docs-o-v-u-g-layout-overview>`__.
+`layout <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Layout_Overview.html#doxid-openvino-docs-o-v-u-g-layout-overview>`__.
 
 .. code:: ipython3
 
@@ -450,7 +452,7 @@ Preprocessing Steps `⇑ <#top>`__
 
 Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
-`here <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html>`__.
+`here <https://docs.openvino.ai/2023.1/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html>`__.
 
 Perform the following:
 
@@ -459,7 +461,7 @@ Perform the following:
    dynamic size, for example, ``{?, 3, ?, ?}`` resize will not know how
    to resize the picture. Therefore, in this case, target height/ width
    should be specified. For more details, see also the
-   `PreProcessSteps.resize() <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a40dab78be1222fee505ed6a13400efe6>`__.
+   `PreProcessSteps.resize() <https://docs.openvino.ai/2023.1/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a40dab78be1222fee505ed6a13400efe6>`__.
 -  Subtract mean from each channel.
 -  Divide each pixel data to appropriate scale value.
 

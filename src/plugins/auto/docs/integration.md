@@ -1,7 +1,7 @@
 # AUTO Plugin Integration
 
 ## Implement a New Plugin
-Refer to [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/latest/openvino_docs_ie_plugin_dg_overview.html) for detailed information on how to implement a new plugin.
+Refer to [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/2023.1/openvino_docs_ie_plugin_dg_overview.html) for detailed information on how to implement a new plugin.
 
 Query model method `ov::IPlugin::query_model()` is recommended as it is important for AUTO to quickly make decisions and save selection time.
 
