@@ -53,5 +53,5 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
     CPU
   )
 
-  set_ie_threading_interface_for(${SUBSET_TARGET_NAME})
+  set_ov_threading_interface_for(${SUBSET_TARGET_NAME})
 endif()

@@ -54,7 +54,7 @@ addIeTargetTest(
         LABELS CPU
 )
 
-set_ie_threading_interface_for(${TARGET_NAME})
+set_ov_threading_interface_for(${TARGET_NAME})
 
 include(specific_tests.cmake)
 include(target_per_test.cmake)

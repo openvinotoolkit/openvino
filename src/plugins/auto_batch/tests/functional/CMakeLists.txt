@@ -22,4 +22,4 @@ addIeTargetTest(
             Auto_Batch
 )
 
-set_ie_threading_interface_for(${TARGET_NAME})
+set_ov_threading_interface_for(${TARGET_NAME})

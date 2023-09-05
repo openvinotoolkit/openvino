@@ -101,7 +101,7 @@ target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE
 
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::pugixml openvino::itt openvino::util)
 
-set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
+set_ov_threading_interface_for(${TARGET_NAME}_plugin_api)
 
 file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
                                  "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.h")
@@ -155,12 +155,12 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
-ie_mark_target_as_cc(${TARGET_NAME}_obj)
+ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
 # IE is public API => need to mark this library as important for ABI free
 ov_abi_free_target(${TARGET_NAME}_obj)
 
-set_ie_threading_interface_for(${TARGET_NAME}_obj)
+set_ov_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
@@ -184,7 +184,7 @@ add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
             $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-set_ie_threading_interface_for(${TARGET_NAME}_s)
+set_ov_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()

@@ -25,7 +25,7 @@ ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-set_ie_threading_interface_for(${TARGET_NAME})
+set_ov_threading_interface_for(${TARGET_NAME})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
 
