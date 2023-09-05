@@ -1,8 +1,6 @@
 Post-Training Quantization of PyTorch models with NNCF
 ======================================================
 
-.. _top:
-
 The goal of this tutorial is to demonstrate how to use the NNCF (Neural
 Network Compression Framework) 8-bit quantization in post-training mode
 (without the fine-tuning pipeline) to optimize a PyTorch model for the
@@ -26,6 +24,9 @@ quantization, not demanding the fine-tuning of the model.
    the default binary search path of the OS you are running the
    notebook.
 
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -473,7 +474,7 @@ framework is designed so that modifications to your original training
 code are minor. Quantization is the simplest scenario and requires a few
 modifications. For more information about NNCF Post Training
 Quantization (PTQ) API, refer to the `Basic Quantization Flow
-Guide <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-qauntization-flow>`__.
+Guide <https://docs.openvino.ai/2023.1/basic_quantization_flow.html#doxid-basic-quantization-flow>`__.
 
 1. Create a transformation function that accepts a sample from the
    dataset and returns data suitable for model inference. This enables
@@ -554,7 +555,7 @@ Python API . The models will be saved to the ‘OUTPUT’ directory for
 later benchmarking.
 
 For more information about model conversion, refer to this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 Before converting models, export them to ONNX. Executing the following
 command may take a while.
@@ -667,7 +668,7 @@ IV. Compare performance of INT8 model and FP32 model in OpenVINO `⇑ <#top>`__
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - an inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
