@@ -9,7 +9,7 @@ const { getModelPath } = require('./utils.js');
 
 describe('InferRequest', () => {
 
-  let testXml = getModelPath();
+  const testXml = getModelPath();
   const core = new ov.Core();
   const model = core.readModel(testXml);
   const compiledModel = core.compileModel(model, 'CPU');
@@ -22,7 +22,7 @@ describe('InferRequest', () => {
     Int32Array.from([1, 3, 32, 32]),
     tensorData,
   );
-  const res_tensor = new ov.Tensor(
+  const resTensor = new ov.Tensor(
     ov.element.f32,
     Int32Array.from([1, 10]),
     tensorData.slice(-10),
@@ -64,21 +64,21 @@ describe('InferRequest', () => {
   });
 
   it('Test setOutputTensor(tensor)', () => {
-    inferRequest.setOutputTensor(res_tensor);
+    inferRequest.setOutputTensor(resTensor);
     const res2 = inferRequest.getOutputTensor();
-    assert.deepStrictEqual(res_tensor.data[0], res2.data[0]);
+    assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
   });
 
   it('Test setOutputTensor(idx, tensor)', () => {
-    inferRequest.setOutputTensor(0, res_tensor);
+    inferRequest.setOutputTensor(0, resTensor);
     const res2 = inferRequest.getOutputTensor();
-    assert.deepStrictEqual(res_tensor.data[0], res2.data[0]);
+    assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
   });
 
   it('Test setTensor(string, tensor)', () => {
-    inferRequest.setTensor('fc_out', res_tensor);
+    inferRequest.setTensor('fc_out', resTensor);
     const res2 = inferRequest.getTensor('fc_out');
-    assert.deepStrictEqual(res_tensor.data[0], res2.data[0]);
+    assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
   });
 
   it('Test of getters', () => {
@@ -106,7 +106,7 @@ describe('InferRequest', () => {
     const ir2 = cm.createInferRequest();
     const res2 = ir2.infer([tensorData]);
     const res1 = ir.infer([tensorData]);
-    // assert(instanceOf(compiledMode, cm));
+    // assert(instanceOf(compiledMode, cm)); // TODO Create a separate test
     assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
   });
 });
