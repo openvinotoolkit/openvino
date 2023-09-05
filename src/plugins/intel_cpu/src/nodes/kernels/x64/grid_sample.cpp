@@ -13,7 +13,7 @@ namespace intel_cpu {
 
 template <x64::cpu_isa_t isa>
 GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp) :
-        GridSampleKernelBase(jit_name(), jcp) {
+        GridSampleKernelBase(jit_name(), jcp, isa) {
     vlen = x64::cpu_isa_traits<isa>::vlen;
     dataTypeSize = jcp.inDataPrc.size();
     gridTypeSize = jcp.gridPrc.size();

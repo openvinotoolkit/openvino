@@ -480,6 +480,8 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
+#undef SEARCH_TYPE
+
     if (type == impl_desc_type::unknown)
         str_type = "unknown";
     else if (str_type.empty())

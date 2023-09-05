@@ -66,7 +66,8 @@ public:
         assert(ker_);
         ker_(args);
     }
-    explicit GridSampleKernelBase(const char* name, const GridSampleKernelConfParams& jcp) : JitKernelBase(name), ker_(nullptr), jcp(jcp) {}
+    explicit GridSampleKernelBase(const char* name, const GridSampleKernelConfParams& jcp, dnnl::impl::cpu::x64::cpu_isa_t isa)
+        : JitKernelBase(name, isa), ker_(nullptr), jcp(jcp) {}
 
     virtual void create_ker() = 0;
     uint64_t getVecLen() {
