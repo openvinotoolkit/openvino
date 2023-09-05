@@ -488,7 +488,7 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                                const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
-    Compare(expectedOutputs, actualOutputs, threshold);
+    Compare(expectedOutputs, actualOutputs, threshold, abs_threshold);
 }
 
 void LayerTestsCommon::Validate() {
