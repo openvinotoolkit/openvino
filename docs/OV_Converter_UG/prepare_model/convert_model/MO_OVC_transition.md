@@ -189,8 +189,51 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
 Preprocessing of model using mo.convert_model() vs using ov.convert_model().
 ############################################################################
 
-mo.convert_model() provides a wide range of preprocessing parameters. Most of these parameters have analogs in ``ov.PrePostProcessor`` class.
-Here is the list of MO parameters which can be replaced with usage of ``ov.PrePostProcessor`` class.
+mo.convert_model() provides a wide range of preprocessing parameters. Most of these parameters have analogs in OVC or can be replaced with functionality from ``ov.PrePostProcessor`` class.
+Here comparison of preprocessing between MO and OVC.
+
+
+* input_shape parameter:
+
+   .. tab-set::
+
+       .. tab-item:: Python
+          :sync: py
+          
+          .. list-table::
+             :header-rows: 1
+          
+             * - New API
+               - Code block no. 2
+             * - .. code-block:: py
+                    :force:
+          
+                    from openvino.tools import mo
+                    ov_model = mo.convert_model(model, input_shape=[[1, 3, 100, 100],[1]])
+          
+               - .. code-block:: py
+                    :force:
+
+                    import openvino as ov
+                    ov_model = ov.convert_model(model, input=[[1, 3, 100, 100],[1]])
+
+       .. tab-item:: CLI
+          :sync: cli
+
+          .. list-table::
+             :header-rows: 1
+          
+             * - Code block no. 1
+               - Code block no. 2
+             * - .. code-block:: sh
+                    :force:
+
+                    mo --input_model MODEL_NAME --input_shape [1,3,100,100],[1] --output_dir OUTPUT_DIR
+          
+               - .. code-block:: sh
+                    :force:
+          
+                    ovc MODEL_NAME --input [1,3,100,100],[1] --output_model OUTPUT_MODEL
 
 
 * mean_value parameter:
@@ -200,11 +243,11 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
        .. tab-item:: Python
           :sync: py
           
-          .. list-table:: Code examples
+          .. list-table::
              :header-rows: 1
           
-             * - New API
-               - Code block no. 2
+             * - Legacy API
+               - New API
              * - .. code-block:: py
                     :force:
           
@@ -225,11 +268,11 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
        .. tab-item:: CLI
           :sync: cli
 
-          .. list-table:: Code examples
+          .. list-table::
              :header-rows: 1
           
-             * - Code block no. 1
-               - Code block no. 2
+             * - Legacy API
+               - New API
              * - .. code-block:: sh
                     :force:
 
