@@ -117,11 +117,7 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
-std::shared_ptr<Node> normalize_axis(const NodeContext& context,
-                                     const Output<Node>& axis,
-                                     const Output<Node>& input_node) {
-    Output<Node> rank;
-    std::tie(std::ignore, rank) = get_shape_rank(context, input_node);
+Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
     auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
     auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
     auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
@@ -185,7 +181,7 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
         OutputVector node_vector;
         auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
-            auto node = concat_list_construct(list_inputs[i].get_node_shared_ptr());
+            auto node = concat_list_construct(list_inputs[i]);
             auto unsqueezed_node = std::make_shared<opset10::Unsqueeze>(node, zero);
             node_vector.push_back(unsqueezed_node);
         }
@@ -432,16 +428,11 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
         // if div we need to also align float types to highest bitness regardless of scalar
         if (!align_scalars)
             rhs_dst_type = element::f32;
-    } else if (is_lhs_scalar) {
+    } else if (is_lhs_scalar && rhs_type != element::boolean) {
         lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
         return;
-    } else if (is_rhs_scalar) {
+    } else if (is_rhs_scalar && lhs_type != element::boolean) {
         rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-        return;
-    }
-
-    if (lhs_dst_type == element::boolean || rhs_dst_type == element::boolean) {
-        // Do nothing with bool
         return;
     }
 
@@ -450,16 +441,33 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     } else if (lhs_dst_type.is_real() && !rhs_dst_type.is_real()) {
         rhs_dst_type = element::f32;
     }
-    // Align bitness to higher
-    if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
-        const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
-        element::Type* type_to_align = &lhs_dst_type;
-        if (rhs_dst_type.bitwidth() < dst_bitness)
-            type_to_align = &rhs_dst_type;
-        if (type_to_align->is_real()) {
-            *type_to_align = bit_to_float.at(dst_bitness);
-        } else {
-            *type_to_align = bit_to_int.at(dst_bitness);
+    // Align bool to other type
+    if (lhs_dst_type == element::boolean) {
+        lhs_dst_type = rhs_dst_type;
+    } else if (rhs_dst_type == element::boolean) {
+        rhs_dst_type = lhs_dst_type;
+    }
+    // At this point we either have both floating point type or both integer type. Align bitness to higher
+    if (lhs_dst_type != rhs_dst_type) {
+        auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
+        // If integer type are mixed signed+unsigned align to next bitness
+        if (dst_bitness < 64 && lhs_dst_type.is_integral() && lhs_dst_type.is_integral() &&
+            lhs_dst_type.bitwidth() == rhs_dst_type.bitwidth() && lhs_dst_type != rhs_dst_type) {
+            dst_bitness *= 2;
+        }
+        if (lhs_dst_type.bitwidth() != dst_bitness) {
+            if (lhs_dst_type.is_real()) {
+                lhs_dst_type = bit_to_float.at(dst_bitness);
+            } else {
+                lhs_dst_type = bit_to_int.at(dst_bitness);
+            }
+        }
+        if (rhs_dst_type.bitwidth() != dst_bitness) {
+            if (rhs_dst_type.is_real()) {
+                rhs_dst_type = bit_to_float.at(dst_bitness);
+            } else {
+                rhs_dst_type = bit_to_int.at(dst_bitness);
+            }
         }
     }
 

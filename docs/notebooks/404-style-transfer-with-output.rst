@@ -1,6 +1,8 @@
 Style Transfer with OpenVINO™
 =============================
 
+
+
 This notebook demonstrates style transfer with OpenVINO, using the Style
 Transfer Models from `ONNX Model
 Repository <https://github.com/onnx/models>`__. Specifically, `Fast
@@ -23,16 +25,42 @@ and Super-Resolution <https://arxiv.org/abs/1603.08155>`__ along with
 part of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
 
-   **NOTE**: If you have a webcam on your computer, you can see live
-   results streaming in the notebook. If you run the notebook on a
-   server, the webcam will not work but you can run inference, using a
-   video file.
+.. note::
 
-Preparation
------------
+   If you have a webcam on your computer, you can see live results streaming in 
+   the notebook. If you run the notebook on a server, the webcam will not work 
+   but you can run inference, using a video file.
 
-Install requirements
-~~~~~~~~~~~~~~~~~~~~
+
+.. _top:
+
+**Table of contents**:
+
+- `Preparation <#preparation>`__
+
+  - `Install requirements <#install-requirements>`__
+  - `Imports <#imports>`__
+
+- `The Model <#the-model>`__
+
+  - `Download the Model <#download-the-model>`__
+  - `Convert ONNX Model to OpenVINO IR Format <#convert-onnx-model-to-openvino-ir-format>`__
+  - `Load the Model <#load-the-model>`__
+  - `Preprocess the image <#preprocess-the-image>`__
+  - `Helper function to postprocess the stylized image <#helper-function-to-postprocess-the-stylized-image>`__
+  - `Main Processing Function <#main-processing-function>`__
+  - `Run Style Transfer Using a Webcam <#run-style-transfer-using-a-webcam>`__
+  - `Run Style Transfer on a Video File <#run-style-transfer-on-a-video-file>`__
+
+- `References <#references>`__
+
+Preparation `⇑ <#top>`__
+###############################################################################################################################
+
+
+Install requirements `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -46,8 +74,9 @@ Install requirements
         filename='notebook_utils.py'
     )
 
-Imports
-~~~~~~~
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -77,11 +106,13 @@ Pointilism to do the style transfer.
        
     interactive(lambda option: print(option), option=styleButtons)
 
-The Model
----------
+The Model `⇑ <#top>`__
+###############################################################################################################################
 
-Download the Model
-~~~~~~~~~~~~~~~~~~
+
+Download the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The style transfer model, selected in the previous step, will be
 downloaded to ``model_path`` if you have not already downloaded it. The
@@ -102,23 +133,24 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
     style_url = f"{base_url}/{model_path}"
     utils.download_file(style_url, directory=base_model_dir)
 
-Convert ONNX Model to OpenVINO IR Format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert ONNX Model to OpenVINO IR Format `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 In the next step, you will convert the ONNX model to OpenVINO IR format
 with ``FP16`` precision. While ONNX models are directly supported by
 OpenVINO runtime, it can be useful to convert them to IR format to take
 advantage of OpenVINO optimization tools and features. The
-``mo.convert_model`` python function can be used for converting model,
-using OpenVINO Model Optimizer. The converted model is saved to the
-model directory. The function returns instance of OpenVINO Model class,
-which is ready to use in Python interface but can also be serialized to
-OpenVINO IR format for future execution. If the model has been already
-converted, you can skip this step.
+``mo.convert_model`` Python function of model conversion API can be
+used. The converted model is saved to the model directory. The function
+returns instance of OpenVINO Model class, which is ready to use in
+Python interface but can also be serialized to OpenVINO IR format for
+future execution. If the model has been already converted, you can skip
+this step.
 
 .. code:: ipython3
 
-    # Construct the command for Model Optimizer.
+    # Construct the command for model conversion API.
     from openvino.runtime import serialize
     from openvino.tools import mo
     
@@ -131,8 +163,9 @@ converted, you can skip this step.
     ir_path = Path(f"model/{styleButtons.value.lower()}-9.xml")
     onnx_path = Path(f"model/{model_path}")
 
-Load the Model
-~~~~~~~~~~~~~~
+Load the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Both the ONNX model(s) and converted IR model(s) are stored in the
 ``model`` directory.
@@ -145,7 +178,8 @@ it to load, as the startup time is somewhat longer than ``CPU``.
 
 To let OpenVINO automatically select the best device for inference just
 use ``AUTO``. In most cases, the best device to use is ``GPU`` (better
-performance, but slightly longer startup time).
+performance, but slightly longer startup time). You can select one from
+available devices using dropdown list below.
 
 OpenVINO Runtime can load ONNX models from `ONNX Model
 Repository <https://github.com/onnx/models>`__ directly. In such cases,
@@ -156,17 +190,33 @@ results.
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime.
-    ie_core = Core()
+    core = Core()
     
     # Read the network and corresponding weights from ONNX Model.
     # model = ie_core.read_model(model=onnx_path)
     
     # Read the network and corresponding weights from IR Model.
-    model = ie_core.read_model(model=ir_path)
+    model = core.read_model(model=ir_path)
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
     
     # Compile the model for CPU (or change to GPU, etc. for other devices)
     # or let OpenVINO select the best available device with AUTO.
-    compiled_model = ie_core.compile_model(model=model, device_name="AUTO")
+    device
+
+.. code:: ipython3
+
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     # Get the input and output nodes.
     input_layer = compiled_model.input(0)
@@ -185,12 +235,11 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
     # Get the input size.
     N, C, H, W = list(input_layer.shape)
 
-Preprocess the image
-~~~~~~~~~~~~~~~~~~~~
+Preprocess the image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Preprocess the input image before running the model. Prepare the
-dimensions and channel order for the image to match the original image
-with the input tensor
+Preprocess the input image before running the model. Prepare the dimensions and channel order for the
+image to match the original image with the input tensor
 
 1. Preprocess a frame to convert from ``unit8`` to ``float32``.
 2. Transpose the array to match with the network input size
@@ -215,12 +264,11 @@ with the input tensor
         image = np.expand_dims(image, axis=0)
         return image
 
-Helper function to postprocess the stylized image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Helper function to postprocess the stylized image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The converted IR model outputs a NumPy ``float32`` array of the `(1, 3,
-224,
-224) <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/README.md>`__
+The converted IR model outputs a NumPy ``float32`` array of the 
+`(1, 3, 224,224) <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/README.md>`__
 shape .
 
 .. code:: ipython3
@@ -242,8 +290,9 @@ shape .
         stylized_image = cv2.cvtColor(stylized_image, cv2.COLOR_BGR2RGB)
         return stylized_image
 
-Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The style transfer function can be run in different operating modes,
 either using a webcam or a video file.
@@ -339,8 +388,9 @@ either using a webcam or a video file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Style Transfer Using a Webcam
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Style Transfer Using a Webcam `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Now, try to apply the style transfer model using video from your webcam.
 By default, the primary webcam is set with ``source=0``. If you have
@@ -349,28 +399,34 @@ starting at 0. Set ``flip=True`` when using a front-facing camera. Some
 web browsers, especially Mozilla Firefox, may cause flickering. If you
 experience flickering, set ``use_popup=True``.
 
-   **NOTE**: To use a webcam, you must run this Jupyter notebook on a
+.. note::
+
+   To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run it on a server, you will not be
    able to access the webcam. However, you can still perform inference
    on a video file in the final step.
+
 
 .. code:: ipython3
 
     run_style_transfer(source=0, flip=True, use_popup=False)
 
-Run Style Transfer on a Video File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Style Transfer on a Video File `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 You can find out how the model works with a video file. For that, use
-any `formats supported by
-OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__.
+any `formats supported by OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__.
 You can press the stop button to terminate anytime while the video file
 is running.
 
-   **NOTE**: Sometimes, the video will be cut off when frames are
-   corrupted. If this happens, or you experience any other problems with
-   your video, use the `HandBrake <https://handbrake.fr/>`__ encoder
-   tool to create a video file in MPEG format.
+.. note::
+
+   Sometimes, the video will be cut off when frames are corrupted. If this 
+   happens, or you experience any other problems with your video, use the 
+   `HandBrake <https://handbrake.fr/>`__ encoder tool to create a video file in 
+   MPEG format.
+
 
 .. code:: ipython3
 
@@ -379,7 +435,7 @@ is running.
 
 
 
-.. image:: 404-style-transfer-with-output_files/404-style-transfer-with-output_25_0.png
+.. image:: 404-style-transfer-with-output_files/404-style-transfer-with-output_27_0.png
 
 
 .. parsed-literal::
@@ -387,8 +443,9 @@ is running.
     Source ended
 
 
-References
-----------
+References `⇑ <#top>`__
+###############################################################################################################################
+
 
 1. `ONNX Model Zoo <https://github.com/onnx/models>`__
 2. `Fast Neural Style

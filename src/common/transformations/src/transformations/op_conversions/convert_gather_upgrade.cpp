@@ -4,11 +4,10 @@
 
 #include "transformations/op_conversions/convert_gather_upgrade.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
 using namespace ov;
@@ -29,8 +28,8 @@ pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
                                                               0);
 
         gather_v7_node->set_friendly_name(gather_v1_node->get_friendly_name());
-        ngraph::copy_runtime_info(gather_v1_node, gather_v7_node);
-        ngraph::replace_node(gather_v1_node, gather_v7_node);
+        ov::copy_runtime_info(gather_v1_node, gather_v7_node);
+        ov::replace_node(gather_v1_node, gather_v7_node);
         return true;
     };
 
@@ -54,8 +53,8 @@ pass::ConvertGather7ToGather8::ConvertGather7ToGather8() {
                                                               gather_v7_node->get_batch_dims());
 
         gather_v8_node->set_friendly_name(gather_v7_node->get_friendly_name());
-        ngraph::copy_runtime_info(gather_v7_node, gather_v8_node);
-        ngraph::replace_node(gather_v7_node, gather_v8_node);
+        ov::copy_runtime_info(gather_v7_node, gather_v8_node);
+        ov::replace_node(gather_v7_node, gather_v8_node);
         return true;
     };
 

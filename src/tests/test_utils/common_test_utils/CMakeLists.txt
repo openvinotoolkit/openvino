@@ -35,7 +35,7 @@ function(add_common_utils ADD_TARGET_NAME)
                     openvino::runtime::dev
                 PRIVATE
                     openvino::util
-                    ov_shape_inference
+                    openvino::shape_inference
                 INCLUDES
                     PUBLIC
                         "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -85,7 +85,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
 endfunction()
 
-# Keep old name so that library can be used from VPU repo
+# Keep old name so that library can be used from NPU repo
 set(TARGET_NAME commonTestUtils)
 set(NEW_TARGET_NAME common_test_utils)
 

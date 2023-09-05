@@ -7,8 +7,8 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/not.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -37,7 +37,7 @@ namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::logical_not<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::logical_not<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 

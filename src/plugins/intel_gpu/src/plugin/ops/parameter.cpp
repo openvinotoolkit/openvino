@@ -2,24 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/i420_to_bgr.hpp"
 
-#include "ngraph/op/parameter.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 
-#include "openvino/core/preprocess/input_tensor_info.hpp"
-
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
+static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Parameter>& op) {
     auto networkInputs = p.GetNetworkInputs();
     OPENVINO_ASSERT(networkInputs.find(op->get_friendly_name()) != networkInputs.end(),
                     "[GPU] Can't find input ", op->get_friendly_name(), " in InputsDataMap");
@@ -55,7 +60,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     cldnn::layout networkInputLayout(input_pshape,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      inputFormat);
-    cldnn::primitive_id meanBlobID = inputName + Program::m_meanValuesTag;
+    cldnn::primitive_id meanBlobID = inputName + ProgramBuilder::m_meanValuesTag;
     std::vector<float> meanValues;
 
     if ((meanChannels > 0) &&
@@ -132,10 +137,10 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     }
 
     auto is_convert_color_type = [](const std::shared_ptr<ov::Node> &node) {
-        return ngraph::is_type<ngraph::op::v8::NV12toRGB>(node) ||
-               ngraph::is_type<ngraph::op::v8::NV12toBGR>(node) ||
-               ngraph::is_type<ngraph::op::v8::I420toRGB>(node) ||
-               ngraph::is_type<ngraph::op::v8::I420toBGR>(node);
+        return ov::is_type<ov::op::v8::NV12toRGB>(node) ||
+               ov::is_type<ov::op::v8::NV12toBGR>(node) ||
+               ov::is_type<ov::op::v8::I420toRGB>(node) ||
+               ov::is_type<ov::op::v8::I420toBGR>(node);
     };
 
     std::function<bool(const std::shared_ptr<ov::Node>&, size_t)> recursive_search_convert_color =
@@ -155,11 +160,20 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         if (node->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
             std::string mem_type = node->output(0).get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
                                                                 .as<ov::preprocess::TensorInfoMemoryType>().value;
-            if (mem_type.find(GPU_CONFIG_KEY(SURFACE)) != std::string::npos) {
+            if (mem_type.find(ov::intel_gpu::memory_type::surface) != std::string::npos) {
                 surface_input_found = true;
             }
         }
         return surface_input_found;
+    };
+
+    std::function<bool(const std::shared_ptr<ov::Node>&)> connected_to_quantize =
+        [&](const std::shared_ptr<ov::Node> &node) -> bool {
+        for (auto& user : node->get_users()) {
+            if (ov::is_type<ov::op::v0::FakeQuantize>(user))
+                return true;
+        }
+        return false;
     };
 
     size_t search_depth = 3;
@@ -183,7 +197,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             auto reorder_layout = networkInputLayout;
             reorder_layout.format = cldnn::format::bfyx;
 
-            auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag + suffix;
+            auto preprocessPrimID = "reorder:" + inputName + ProgramBuilder::m_preProcessTag + suffix;
             auto reorder = cldnn::reorder(preprocessPrimID,
                                           cldnn::input_info(batched_name),
                                           reorder_layout);
@@ -195,7 +209,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         if (batch > 1 && !is_convert_color_input)
             p.add_primitive(*op, cldnn::concatenation(inputName, surfaces_inputs, 0));
         else
-            p.primitive_ids[inputName] = "reorder:" + inputName + Program::m_preProcessTag;
+            p.primitive_ids[inputName] = "reorder:" + inputName + ProgramBuilder::m_preProcessTag;
     } else if (is_convert_color_input) {
         networkInputLayout.format = cldnn::format::byxf;
 
@@ -204,7 +218,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
         p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout));
     } else {
-        auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
+        auto preprocessPrimID = "reorder:" + inputName + ProgramBuilder::m_preProcessTag;
         cldnn::layout inputLayout(networkInputLayout);
         auto network_input_data_type = DataTypeFromPrecision(ip);
         inputLayout.data_type = network_input_data_type;
@@ -215,7 +229,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         switch (preProcess.getMeanVariant()) {
         case NONE: {
             // If mean value is not specified and the data type does not change, do not add post reorder
-            if (network_input_data_type != networkInputLayout.data_type) {
+            if (network_input_data_type != networkInputLayout.data_type || connected_to_quantize(op)) {
                 p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
                                                     cldnn::input_info(inputName),
                                                     networkInputLayout,

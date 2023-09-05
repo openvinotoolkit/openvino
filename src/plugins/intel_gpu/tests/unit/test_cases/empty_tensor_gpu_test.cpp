@@ -11,7 +11,7 @@
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/graph/network.hpp>
-#include "ngraph/runtime/reference/non_zero.hpp"
+#include "openvino/reference/non_zero.hpp"
 
 #include <cstddef>
 
