@@ -1,13 +1,13 @@
 Single Image Super Resolution with OpenVINO™
 ============================================
 
-.. _top:
+
 
 Super Resolution is the process of enhancing the quality of an image by
 increasing the pixel count using deep learning. This notebook shows the
 Single Image Super Resolution (SISR) which takes just one low resolution
 image. A model called
-`single-image-super-resolution-1032 <https://docs.openvino.ai/2023.0/omz_models_model_single_image_super_resolution_1032.html>`__,
+`single-image-super-resolution-1032 <https://docs.openvino.ai/2023.1/omz_models_model_single_image_super_resolution_1032.html>`__,
 which is available in Open Model Zoo, is used in this tutorial. It is
 based on the research paper cited below.
 
@@ -15,6 +15,8 @@ Y. Liu et al., `“An Attention-Based Approach for Single Image Super
 Resolution,” <https://arxiv.org/abs/1807.06779>`__ 2018 24th
 International Conference on Pattern Recognition (ICPR), 2018,
 pp. 2777-2784, doi: 10.1109/ICPR.2018.8545760. 
+
+.. _top:
 
 **Table of contents**:
 

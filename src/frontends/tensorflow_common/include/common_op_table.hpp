@@ -28,6 +28,7 @@ namespace op {
     OutputVector op(const ov::frontend::NodeContext& node)
 
 OP_T_CONVERTER(translate_unary_op);
+OP_CONVERTER(translate_selu_op);
 OP_T_CONVERTER(translate_binary_op);
 OP_T_CONVERTER(translate_direct_reduce_op);
 
