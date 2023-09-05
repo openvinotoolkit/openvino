@@ -5,6 +5,7 @@
 #include "openvino/frontend/ir/frontend.hpp"
 
 #include <array>
+#include <pugixml.hpp>
 #include <vector>
 
 #include "input_model.hpp"
@@ -15,9 +16,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "transformations/resolve_names_collisions.hpp"
-#include "xml_parse_utils.h"
-
-using namespace ov;
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -25,7 +24,7 @@ namespace ir {
 namespace {
 
 inline size_t get_ir_version(pugi::xml_node& root) {
-    return pugixml::utils::GetUIntAttr(root, "version", 0);
+    return static_cast<size_t>(pugixml::utils::get_uint64_attr(root, "version", 0));
 }
 
 /**
@@ -265,7 +264,7 @@ IR_C_API ov::frontend::FrontEndVersion get_api_version() {
 }
 
 IR_C_API void* get_front_end_data() {
-    frontend::FrontEndPluginInfo* res = new frontend::FrontEndPluginInfo();
+    ov::frontend::FrontEndPluginInfo* res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "ir";
     res->m_creator = []() {
         return std::make_shared<ov::frontend::ir::FrontEnd>();

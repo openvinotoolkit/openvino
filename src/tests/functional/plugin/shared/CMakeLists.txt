@@ -28,7 +28,6 @@ if(ENABLE_TEMPLATE)
     list(APPEND DEPENDENCIES openvino_template_plugin)
 endif()
 
-# remove once CVS-69781 is fixed
 if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
 endif()

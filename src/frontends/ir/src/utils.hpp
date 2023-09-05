@@ -5,10 +5,25 @@
 #pragma once
 
 #include <memory>
-#include <openvino/core/partial_shape.hpp>
+#include <pugixml.hpp>
 
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "xml_parse_utils.h"
+
+#define FOREACH_CHILD(c, p, tag) for (auto c = p.child(tag); !c.empty(); c = c.next_sibling(tag))
+
+namespace pugixml {
+namespace utils {
+
+std::string get_str_attr(const pugi::xml_node& node, const char* str, const char* def = nullptr);
+uint64_t get_uint64_attr(const pugi::xml_node& node, const char* str);
+uint64_t get_uint64_attr(const pugi::xml_node& node, const char* str, uint64_t def);
+int64_t get_int64_attr(const pugi::xml_node& node, const char* str);
+int64_t get_int64_attr(const pugi::xml_node& node, const char* str, int64_t def);
+float get_float_attr(const pugi::xml_node& node, const char* str);
+
+}  // namespace utils
+}  // namespace pugixml
 
 namespace ov {
 void operator>>(const std::stringstream& in, ov::element::Type& type);
