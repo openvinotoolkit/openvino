@@ -22,17 +22,9 @@
 
 class MockInternalPlugin : public ov::IPlugin {
     ov::IPlugin* m_plugin = nullptr;
-    std::shared_ptr<ov::IPlugin> m_converted_plugin;
-    InferenceEngine::IInferencePlugin* m_old_plugin = nullptr;
     ov::AnyMap config;
 
 public:
-    explicit MockInternalPlugin(InferenceEngine::IInferencePlugin* target) : m_old_plugin(target) {
-        std::shared_ptr<InferenceEngine::IInferencePlugin> shared_target(target,
-                                                                         [](InferenceEngine::IInferencePlugin*) {});
-        m_converted_plugin = InferenceEngine::convert_plugin(shared_target);
-        m_plugin = m_converted_plugin.get();
-    }
     explicit MockInternalPlugin(ov::IPlugin* target) : m_plugin(target) {}
     explicit MockInternalPlugin() = default;
 
@@ -111,15 +103,6 @@ public:
             }
             if (m_plugin->get_device_name().empty()) {
                 m_plugin->set_device_name(dev_name);
-            }
-        }
-        if (m_old_plugin) {
-            if (!m_old_plugin->GetCore() && core) {
-                auto old_core = std::static_pointer_cast<InferenceEngine::ICore>(core);
-                m_old_plugin->SetCore(old_core);
-            }
-            if (m_old_plugin->GetName().empty()) {
-                m_old_plugin->SetName(dev_name);
             }
         }
     }
@@ -204,11 +187,6 @@ OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<ov::IPlugin>& plugin
         targets.pop();
     }
     plugin = std::make_shared<MockPlugin>(internal_plugin);
-}
-
-OPENVINO_PLUGIN_API void InjectProxyEngine(InferenceEngine::IInferencePlugin* target) {
-    std::lock_guard<std::mutex> lock(targets_mutex);
-    targets.push(std::make_shared<MockInternalPlugin>(target));
 }
 
 OPENVINO_PLUGIN_API void InjectPlugin(ov::IPlugin* target) {
