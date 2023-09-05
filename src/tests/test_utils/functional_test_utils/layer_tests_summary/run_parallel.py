@@ -274,11 +274,12 @@ class TestParallelRunner:
         suite_filter_mixed = ''
         for filter in filters:
             patterns = filter.strip('\"').split('*')
-            suite_filter_part = f'{suite_filter}*'
+            suite_filter = f'{suite_filter}*'
+            suite_filter_part = suite_filter
             for pattern in patterns:
-                if (pattern and suite_filter.find(pattern) == -1):
+                if pattern and suite_filter.find(pattern) == -1:
                     suite_filter_part += f'{pattern}*'
-            if suite_filter_part == f'{suite_filter}*':
+            if suite_filter_part == suite_filter:
                 suite_filter_mixed = f'"{suite_filter_part}"'
                 break
             if not suite_filter_mixed:
