@@ -1,0 +1,7 @@
+pyproject.toml
+openvino_custom_sphinx_sitemap/__init__.py
+openvino_custom_sphinx_sitemap.egg-info/PKG-INFO
+openvino_custom_sphinx_sitemap.egg-info/SOURCES.txt
+openvino_custom_sphinx_sitemap.egg-info/dependency_links.txt
+openvino_custom_sphinx_sitemap.egg-info/requires.txt
+openvino_custom_sphinx_sitemap.egg-info/top_level.txt
