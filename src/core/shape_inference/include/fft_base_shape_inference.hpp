@@ -7,6 +7,7 @@
 #include "fft_common_validation.hpp"
 #include "openvino/core/axis_vector.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/fft_base.hpp"
 #include "utils.hpp"
 
@@ -23,16 +24,17 @@ void apply_dims_from_sizes(const util::FFTBase* op,
     using DimType = typename TRShape::value_type;
 
     if (const auto output_bounds = get_input_bounds<TRShape, int64_t>(op, 2, ta)) {
-        constexpr auto minus_one_bound = std::make_pair(dim::inf_bound, dim::inf_bound);
-        auto labels =
-            op->get_input_size() > 2 ? op->get_input_source_output(2).get_tensor().get_value_label() : TensorLabel();
-        const bool propagate_labels = !labels.empty();
+        const auto minus_one_bound = std::make_pair(dim::inf_bound, dim::inf_bound);
         const auto num_of_axes = axes.size();
+        const auto labels =
+            op->get_input_size() > 2 ? op->get_input_source_output(2).get_tensor().get_value_label() : TensorLabel();
+        const bool propagate_labels = num_of_axes <= labels.size();
         for (size_t i = 0; i < num_of_axes; ++i) {
             if ((*output_bounds)[i] != minus_one_bound) {
-                output_shape[(axes)[i]] = DimType((*output_bounds)[i].first, (*output_bounds)[i].second);
-                if (propagate_labels) {
-                    DimensionTracker::set_label(output_shape[(axes)[i]], labels[i]);
+                auto& out_dim = output_shape[(axes)[i]];
+                out_dim = DimType((*output_bounds)[i].first, (*output_bounds)[i].second);
+                if (propagate_labels && labels[i] != ov::no_label) {
+                    DimensionTracker::set_label(out_dim, labels[i]);
                 }
             }
         }

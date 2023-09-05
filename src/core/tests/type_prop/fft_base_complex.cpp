@@ -518,6 +518,94 @@ TYPED_TEST_P(FFTConstantAxesAndShapeOfSignalSizeTest, constant_axes_and_shape_of
     }
 }
 
+TYPED_TEST_P(FFTConstantAxesAndShapeOfSignalSizeTest, constant_axes_and_shape_of_signal_size_first_input_labels) {
+    auto params = FFTConstantAxesAndShapeOfSignalSizeTestParams{{3, {10, 16}, 18, 20, 2},
+                                                                {-1, {10, 16}, {6, 8}, 4, 2},
+                                                                {2, 0, -1},
+                                                                {{6, 8}, -1, 4},
+                                                                {ov::no_label, 11, ov::no_label, ov::no_label, 14}};
+    set_shape_labels(params.input_shape, 10);
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
+    auto axes_input = op::v0::Constant::create<int64_t>(element::i64, Shape{params.axes.size()}, params.axes);
+
+    auto param_of_shape = std::make_shared<op::v0::Parameter>(element::f32, params.signal_size);
+    auto signal_size_input = std::make_shared<op::v3::ShapeOf>(param_of_shape, element::i64);
+
+    auto dft = this->make_op(data, axes_input, signal_size_input);
+
+    EXPECT_EQ(dft->get_element_type(), element::f32);
+    EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
+
+    EXPECT_EQ(get_shape_labels(dft->get_output_partial_shape(0)), params.expected_labels);
+}
+
+TYPED_TEST_P(FFTConstantAxesAndShapeOfSignalSizeTest, constant_axes_and_shape_of_signal_size_second_input_labels) {
+    auto params = FFTConstantAxesAndShapeOfSignalSizeTestParams{{3, {10, 16}, 18, 20, 2},
+                                                                {-1, {10, 16}, {6, 8}, 4, 2},
+                                                                {2, 0, -1},
+                                                                {{6, 8}, -1, 4},
+                                                                {21, ov::no_label, 20, 22, ov::no_label}};
+
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
+    auto axes_input = op::v0::Constant::create<int64_t>(element::i64, Shape{params.axes.size()}, params.axes);
+
+    set_shape_labels(params.signal_size, 20);
+    auto param_of_shape = std::make_shared<op::v0::Parameter>(element::f32, params.signal_size);
+    auto signal_size_input = std::make_shared<op::v3::ShapeOf>(param_of_shape, element::i64);
+
+    auto dft = this->make_op(data, axes_input, signal_size_input);
+
+    EXPECT_EQ(dft->get_element_type(), element::f32);
+    EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
+
+    EXPECT_EQ(get_shape_labels(dft->get_output_partial_shape(0)), params.expected_labels);
+}
+
+TYPED_TEST_P(FFTConstantAxesAndShapeOfSignalSizeTest, constant_axes_and_shape_of_signal_size_single_label) {
+    auto params = FFTConstantAxesAndShapeOfSignalSizeTestParams{{3, {10, 16}, 18, 20, 2},
+                                                                {-1, {10, 16}, {6, 8}, 4, 2},
+                                                                {2, 0, -1},
+                                                                {{6, 8}, -1, 4},
+                                                                {ov::no_label, 11, 22, ov::no_label, ov::no_label}};
+    ov::DimensionTracker::set_label(params.input_shape[1], 11);
+
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
+    auto axes_input = op::v0::Constant::create<int64_t>(element::i64, Shape{params.axes.size()}, params.axes);
+
+    ov::DimensionTracker::set_label(params.signal_size[0], 22);
+
+    auto param_of_shape = std::make_shared<op::v0::Parameter>(element::f32, params.signal_size);
+    auto signal_size_input = std::make_shared<op::v3::ShapeOf>(param_of_shape, element::i64);
+
+    auto dft = this->make_op(data, axes_input, signal_size_input);
+
+    EXPECT_EQ(dft->get_element_type(), element::f32);
+    EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
+
+    EXPECT_EQ(get_shape_labels(dft->get_output_partial_shape(0)), params.expected_labels);
+}
+
+TYPED_TEST_P(FFTConstantAxesAndShapeOfSignalSizeTest, constant_axes_and_shape_of_signal_size_no_labels) {
+    auto params = FFTConstantAxesAndShapeOfSignalSizeTestParams{
+        {3, {10, 16}, 18, 20, 2},
+        {-1, {10, 16}, {6, 8}, 4, 2},
+        {2, 0, -1},
+        {{6, 8}, -1, 4},
+        {ov::no_label, ov::no_label, ov::no_label, ov::no_label, ov::no_label}};
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
+    auto axes_input = op::v0::Constant::create<int64_t>(element::i64, Shape{params.axes.size()}, params.axes);
+
+    auto param_of_shape = std::make_shared<op::v0::Parameter>(element::f32, params.signal_size);
+    auto signal_size_input = std::make_shared<op::v3::ShapeOf>(param_of_shape, element::i64);
+
+    auto dft = this->make_op(data, axes_input, signal_size_input);
+
+    EXPECT_EQ(dft->get_element_type(), element::f32);
+    EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
+
+    EXPECT_EQ(get_shape_labels(dft->get_output_partial_shape(0)), params.expected_labels);
+}
+
 TYPED_TEST_P(FFTConstantAxesAndShapeOfSignalSizeTest, constant_axes_and_shape_of_concat_signal_size) {
     auto params = FFTConstantAxesAndShapeOfSignalSizeTestParams{{4, {8, 16}, 24, -1, 2},
                                                                 {{5, 10}, {8, 16}, -1, 40, 2},
@@ -544,6 +632,10 @@ TYPED_TEST_P(FFTConstantAxesAndShapeOfSignalSizeTest, constant_axes_and_shape_of
 
 REGISTER_TYPED_TEST_SUITE_P(FFTConstantAxesAndShapeOfSignalSizeTest,
                             constant_axes_and_shape_of_signal_size,
+                            constant_axes_and_shape_of_signal_size_first_input_labels,
+                            constant_axes_and_shape_of_signal_size_second_input_labels,
+                            constant_axes_and_shape_of_signal_size_single_label,
+                            constant_axes_and_shape_of_signal_size_no_labels,
                             constant_axes_and_shape_of_concat_signal_size);
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, FFTConstantAxesAndShapeOfSignalSizeTest, FFTBaseTypes);
 
