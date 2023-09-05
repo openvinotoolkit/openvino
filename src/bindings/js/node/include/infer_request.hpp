@@ -47,27 +47,31 @@ public:
     void set_tensor(const Napi::CallbackInfo& info);
 
     /**
-     * @brief Sets an input tensor to infer.
-     * The model needs to have a single input if only one argument is passed.
+     * @brief Sets an input tensor for inference.
      * @param info contains passed arguments.
-     * @param info[0] Index of the input tensor or Javascript Tensor object.
-     * @param info[1] Javascript Tensor object (optional).
+     * The model needs to have a single input if only one argument is passed:
+     * @param info[0] Javascript Tensor object.
+     * The model have more inputs:
+     * @param info[0] Index of the output tensor.
+     * @param info[1] Javascript Tensor object.
      */
     void set_input_tensor(const Napi::CallbackInfo& info);
 
     /**
-     * @brief Sets an output tensor to infer.
-     * The model needs to have a single input if only one argument is passed.
+     * @brief Sets an output tensor for inference.
      * @param info contains passed arguments.
-     * @param info[0] Index of the output tensor or Javascript Tensor object.
-     * @param info[1] Javascript Tensor object (optional).
+     * The model needs to have a single input if only one argument is passed:
+     * @param info[0] Javascript Tensor object.
+     * The model have more inputs:
+     * @param info[0] Index of the output tensor.
+     * @param info[1] Javascript Tensor object.
      */
     void set_output_tensor(const Napi::CallbackInfo& info);
 
     /**
      * @brief Gets an input/output tensor for inference.
      * @param info contains passed arguments.
-     * @param info[0] Javascript ov::Output<ov::Node> object
+     * @param info[0] Javascript ov::Output<ov::Node> object or name of a tensor to get
      * @return Tensor for the specified Node object
      */
     Napi::Value get_tensor(const Napi::CallbackInfo& info);
@@ -79,7 +83,11 @@ public:
      */
     Napi::Value get_input_tensor(const Napi::CallbackInfo& info);
 
-    /** @return A Javascript output tensor for the model. If model has several outputs, an error occurs. */
+    /**
+     * @brief Gets an output tensor for inference.
+     * @note The model needs to have a single input if no argument is passed.
+     * @param idx Index of the tensor to get. (optional)
+     */
     Napi::Value get_output_tensor(const Napi::CallbackInfo& info);
 
     /** @return A Javascript object with model outputs. */
