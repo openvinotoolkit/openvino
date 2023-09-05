@@ -70,11 +70,24 @@ void LinearIR::serialize(const std::string& xml, const std::string& bin) const {
     auto first_node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     first_node->set_friendly_name("Start");
     first_node->get_rt_info()["execTimeMcs"] = 0;
-    std::shared_ptr<Node> body_node = first_node;
+    std::shared_ptr<Node> serialization_node = first_node;
+
+    // This map allows to get LoopBegin serialization node by original LoopBegin node
+    // It is used to draw an edge between LoopBegin and LoopEnd serialization nodes
+    std::map<snippets::op::LoopBegin*, std::shared_ptr<Node>> loops_map;
     for (const auto& expr : m_expressions) {
-        body_node = std::make_shared<op::SerializationNode>(body_node, expr);
+        const auto node = expr->get_node();
+        if (auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(node)) {
+            auto loop_begin_serialization_node = loops_map.at(loop_end->get_loop_begin().get());
+            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node, loop_begin_serialization_node}, expr);
+        } else {
+            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node}, expr);
+            if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(node)) {
+                loops_map[loop_begin.get()] = serialization_node;
+            }
+        }
     }
-    auto last_node = std::make_shared<ov::op::v0::Result>(body_node);
+    auto last_node = std::make_shared<ov::op::v0::Result>(serialization_node);
     last_node->set_friendly_name("End");
     const auto tmp_model = std::make_shared<ov::Model>(ResultVector {last_node},
                                                        ParameterVector {first_node},
