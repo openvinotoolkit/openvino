@@ -28,7 +28,7 @@ bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 CTCLoss::CTCLoss(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

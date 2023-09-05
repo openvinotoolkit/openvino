@@ -358,7 +358,7 @@ namespace {
 class RnnShapeInfer : public NgraphShapeInfer {
 public:
     RnnShapeInfer(std::shared_ptr<ov::Node> op) :
-        NgraphShapeInfer(make_shape_inference(op), EMPTY_PORT_MASK) {
+        NgraphShapeInfer(make_shape_inference(op)) {
             is_sequence = !(RNN::isCell(op));
 
             native_order = RNN::testNativeOrder(op);
