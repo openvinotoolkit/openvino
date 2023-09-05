@@ -23,8 +23,6 @@
 #include <utility>
 #include <vector>
 
-using std::setprecision;
-
 // clang-format off
 #include "openvino/openvino.hpp"
 #include "slog.hpp"

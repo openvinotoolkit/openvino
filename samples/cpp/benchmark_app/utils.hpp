@@ -55,7 +55,7 @@ struct InputInfo {
     std::vector<std::string> fileNames;
 };
 using InputsInfo = std::map<std::string, InputInfo>;
-using PartialShapes = std::map<std::string, ngraph::PartialShape>;
+using PartialShapes = std::map<std::string, ov::PartialShape>;
 }  // namespace benchmark_app
 
 bool can_measure_as_static(const std::vector<benchmark_app::InputsInfo>& app_input_info);
