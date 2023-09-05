@@ -290,7 +290,12 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>
         return true;
     };
 
-    if (!get_scalar(op->get_input_node_shared_ptr(4), attrs.axis))
+    enum { START = 1, STOP, STRIDE, AXIS };
+
+    int64_t stride;
+    if (!get_scalar(op->get_input_node_shared_ptr(STRIDE), stride) || stride != 1)
+        return false;
+    if (!get_scalar(op->get_input_node_shared_ptr(AXIS), attrs.axis))
         return false;
     attrs.axis = attrs.axis >= 0 ? attrs.axis : attrs.axis + rank;
 
@@ -298,20 +303,15 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>
         return false;
     const auto dimension = input_shape[attrs.axis].get_length();
 
-    for (int i = 1; i < 4; i++) {
+    for (int i = START; i <= STOP; i++) {
         int64_t value;
         if (!get_scalar(op->get_input_node_shared_ptr(i), value))
             return false;
-        if (i == 3) {
-            if (value != 1)
-                return false;
-            continue;
-        }
         value = value >= 0 ? value : value + dimension;
         value = std::min(value, dimension);
-        if (i == 1)
+        if (i == START)
             attrs.start = value;
-        else if (i == 2)
+        else if (i == STOP)
             attrs.stop = value;
     }
 
