@@ -33,7 +33,7 @@ This algorithm is applied independently to each class of each batch element. The
 
 * *box_encoding*
 
-  * **Description**: *box_encoding* specifies the format of boxes data encoding.
+  * **Description**: *box_encoding* specifies the format of boxes' data encoding.
   * **Range of values**: "corner" or "center"
 
     * *corner* - the box data is supplied as ``[y1, x1, y2, x2, ...]`` where ``(y1, x1)`` and ``(y2, x2)`` are the coordinates of any diagonal pair of box corners.
@@ -43,7 +43,7 @@ This algorithm is applied independently to each class of each batch element. The
 
 * *sort_result_descending*
 
-  * **Description**: *sort_result_descending* is a flag that specifies whenever it is necessary to sort selected boxes across batches or not.
+  * **Description**: *sort_result_descending* is a flag that specifies whether it is necessary to sort selected boxes across batches or not.
   * **Range of values**: true of false
 
     * *true* - sort selected boxes across batches.
@@ -106,7 +106,7 @@ Plugins which do not support dynamic output tensors produce ``selected_indices``
 .. code-block::  cpp
 
   <layer ... type="NMSRotated" ... >
-      <data box_encoding="corner" sort_result_descending="1" output_type="i64"/>
+      <data box_encoding="corner" sort_result_descending="true" output_type="i64"/>
       <input>
           <port id="0">
               <dim>3</dim>
