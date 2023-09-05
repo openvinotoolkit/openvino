@@ -192,18 +192,6 @@ Preprocessing of model using mo.convert_model() vs using ov.convert_model().
 mo.convert_model() provides a wide range of preprocessing parameters. Most of these parameters have analogs in ``ov.PrePostProcessor`` class.
 Here is the list of MO parameters which can be replaced with usage of ``ov.PrePostProcessor`` class.
 
-.. list-table:: Code examples
-   :header-rows: 1
-
-   * - Code block no. 1
-     - Code block no. 2
-   * - .. code-block:: sh
-
-          git clone https://github.com/sgolebiewski-intel/openvino.git
-
-     - .. code-block:: sh
-
-          git clone https://github.com/sgolebiewski-intel/openvino.git
 
 * mean_value parameter:
 
