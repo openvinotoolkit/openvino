@@ -33,9 +33,9 @@ ov::pass::Manager manager;
 auto pass_config = manager.get_pass_config();
 //! [lpt_common]
 // check if the function is quantized to ignore LPT transformations for not quantized function to speed up model loading
-const bool useLpt = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
+const bool useLpt = ov::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
 auto defaultPrecisions =
-    useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
+    useLpt ? ov::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
 if (useLpt) {
     // disable constant folding on dequantization subgraphs so they can be processed by LPT
     manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);
@@ -45,7 +45,7 @@ if (useLpt) {
 
 if (useLpt) {
     // convert subtract constant to INT8 to prevent unnecessary FP16 to FP32 conversion
-    manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
+    manager.register_pass<ov::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
 }
 
 // nGraph common transformations happen here
@@ -53,12 +53,12 @@ if (useLpt) {
 if (useLpt) {
     // convert not supported cases FakeQuantize -> Convert -> Convert -> Subtract -> Multiply to a single FakeQuantize
     pass_config->set_callback<ov::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-        return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
+        return ov::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
     });
 
     // convert not supported cases FakeQuantize -> Convert -> Convert -> Subtract -> Multiply to a single FakeQuantize
     pass_config->set_callback<ov::pass::ConvertSubtract>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-        return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
+        return ov::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
     });
 }
 
@@ -96,7 +96,7 @@ if (useLpt) {
 
     // Low precision transformations instantiation and registration in pass manager
     ov::pass::Manager lptManager;
-    lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
+    lptManager.register_pass<ov::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
 
     // Low precision transformations plugin specific configuration: transformation callbacks definition
     lptManager.get_pass_config()->set_callback<MarkupPrecisions>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
@@ -140,7 +140,7 @@ auto supportedPrecisions = std::vector<PrecisionsRestriction>({
 });
 
 ov::pass::Manager lptManager;
-lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions);
+lptManager.register_pass<ov::pass::low_precision::LowPrecision>(supportedPrecisions);
 lptManager.run_passes(nGraphFunc);
 //! [lpt_supported_precisions]
 
@@ -163,7 +163,7 @@ auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
 });
 
 ov::pass::Manager lptManager;
-lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(emptyRestrictions, perTensorQuantization);
+lptManager.register_pass<ov::pass::low_precision::LowPrecision>(emptyRestrictions, perTensorQuantization);
 lptManager.run_passes(nGraphFunc);
 //! [per_tensor_quantization]
 
@@ -180,7 +180,7 @@ auto pass_config = manager.get_pass_config();
 using namespace ngraph::pass::low_precision;
 ov::pass::Manager lptManager;
 
-lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>();
+lptManager.register_pass<ov::pass::low_precision::LowPrecision>();
 lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node>& node) -> bool {
     return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
 });
@@ -208,7 +208,7 @@ auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
 });
 
 ov::pass::Manager lptManager;
-lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
+lptManager.register_pass<ov::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
 lptManager.run_passes(nGraphFunc);
 //! [lpt_markup_pipeline]
 
