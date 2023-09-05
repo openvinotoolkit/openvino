@@ -127,7 +127,7 @@ For example, to install and configure the components for working with TensorFlow
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2023.0/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages.
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2023.1/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
 
 ### Errors with Installing via PIP for Users in China
 
