@@ -40,7 +40,7 @@ using BroadcastParamsTuple = typename std::tuple<
         std::vector<size_t>,       // target shape
         ov::AxisSet,               // axes mapping
         ov::op::BroadcastType,     // broadcast mode
-        std::vector<size_t>,       // Input shape
+        std::vector<InputShape>,   // Input shape
         ov::element::Type,         // Network precision
         std::string>;              // Device name
 

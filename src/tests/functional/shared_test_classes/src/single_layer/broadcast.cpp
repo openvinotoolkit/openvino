@@ -54,20 +54,28 @@ namespace ov {
 namespace test {
 
 std::string BroadcastLayerTestNew::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
-    std::vector<size_t> targetShape;
+    ov::Shape targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;
-    std::vector<size_t> inputShape;
+    std::vector<InputShape> shapes;
     ov::element::Type type;
     std::string deviceName;
-    std::tie(targetShape, axesMapping, mode, inputShape, type, deviceName) = obj.param;
+    std::tie(targetShape, axesMapping, mode, shapes, type, deviceName) = obj.param;
 
     std::ostringstream result;
     result << "targetShape=" << ov::test::utils::vec2str(targetShape) << "_";
     result << "axesMapping=" << ov::test::utils::set2str(axesMapping)  << "_";
     result << "mode=" << mode << "_";
-    result << "inShape=" << ov::test::utils::vec2str(inputShape) << "_";
-    result << "IT=" << type.get_type_name() << "_";
+    result << "IS=(";
+    for (const auto& shape : shapes) {
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
+    }
+    result << ")_TS=(";
+    for (const auto& shape : shapes) {
+        for (const auto& item : shape.second) {
+            result << ov::test::utils::vec2str(item) << "_";
+        }
+    }    result << "IT=" << type.get_type_name() << "_";
     result << "trgDev=" << deviceName;
     return result.str();
 }
@@ -76,15 +84,16 @@ void BroadcastLayerTestNew::SetUp() {
     std::vector<size_t> targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;
-    std::vector<size_t> inputShape;
-    std::tie(targetShape, axesMapping, mode, inputShape, inType, targetDevice) = this->GetParam();
+    std::vector<InputShape> shapes;
+    std::tie(targetShape, axesMapping, mode, shapes, inType, targetDevice) = this->GetParam();
+    init_input_shapes(shapes);
     outType = inType;
     if (inType == ElementType::bf16 || inType == ElementType::f16) {
         rel_threshold = 1e-2;
     }
 
     auto target_shape_const = ov::op::v0::Constant::create(ov::element::i64, {targetShape.size()}, targetShape);
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShape))};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
 
     std::shared_ptr<ov::Node> broadcast;
     if (mode == ngraph::op::BroadcastType::NONE) {
@@ -102,9 +111,6 @@ void BroadcastLayerTestNew::SetUp() {
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(broadcast)};
     function = std::make_shared<ov::Model>(results, params, "BroadcastInference");
-
-    std::vector<ov::test::InputShape> input_shapes{{{}, {ov::Shape(inputShape)}}};
-    init_input_shapes(input_shapes);
 }
 } //  namespace test
 } //  namespace ov
