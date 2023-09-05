@@ -31,4 +31,4 @@ addIeTargetTest(
 )
 ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src/plugin.cpp ${TARGET_NAME})
 
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})

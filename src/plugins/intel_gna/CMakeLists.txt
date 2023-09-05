@@ -46,7 +46,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy
         Threads::Threads libGNA)

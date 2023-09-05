@@ -242,7 +242,7 @@ macro(ov_find_package_tbb)
     endif()
 endmacro()
 
-function(set_ie_threading_interface_for TARGET_NAME)
+function(ov_set_threading_interface_for TARGET_NAME)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
         # find TBB
         ov_find_package_tbb()
@@ -331,7 +331,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
 
         if (NOT OpenVINO_SOURCE_DIR)
-            # TODO: dead code since ie_parallel.cmake is not used outside of OpenVINO build
+            # TODO: dead code since ov_parallel.cmake is not used outside of OpenVINO build
             if (WIN32)
                 set(lib_rel_path ${IE_LIB_REL_DIR})
                 set(lib_dbg_path ${IE_LIB_DBG_DIR})
@@ -398,4 +398,9 @@ function(set_ie_threading_interface_for TARGET_NAME)
         find_package(Threads REQUIRED)
         ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
     endif()
+endfunction(ov_set_threading_interface_for)
+
+function(set_ie_threading_interface_for TARGET_NAME)
+    message(WARNING "This function is deprecated. Please use ov_set_threading_interface_for(TARGET_NAME) instead.")
+    ov_set_threading_interface_for(${TARGET_NAME})
 endfunction(set_ie_threading_interface_for)
