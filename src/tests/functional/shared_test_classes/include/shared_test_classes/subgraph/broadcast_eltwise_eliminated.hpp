@@ -10,7 +10,7 @@ namespace ov {
 namespace test {
 
 class BroadcastEltwiseEliminated : public testing::WithParamInterface<const char*>,
-                                    virtual public ov::test::SubgraphBaseTest {
+                                   public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<const char*> &obj);
 
