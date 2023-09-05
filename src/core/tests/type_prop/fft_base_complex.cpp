@@ -414,12 +414,12 @@ TYPED_TEST_P(FFTInvalidInput, invalid_axes) {
     auto axes = op::v0::Constant::create(element::i64, Shape{1}, {3});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
                     ov::Exception,
-                    HasSubstr("Axis value: 3, must be in range (-3, 2)"));
+                    HasSubstr("Parameter axis 3 out of the tensor rank range [-2, 1]"));
 
     axes = op::v0::Constant::create(element::i64, Shape{1}, {-3});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
                     ov::Exception,
-                    HasSubstr("Axis value: -3, must be in range (-3, 2)"));
+                    HasSubstr("Parameter axis -3 out of the tensor rank range [-2, 1]"));
 
     axes = op::v0::Constant::create(element::i64, Shape{2}, {0, -2});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes), ov::Exception, HasSubstr("Each axis must be unique"));
@@ -427,7 +427,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_axes) {
     axes = op::v0::Constant::create(element::i64, Shape{1}, {2});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
                     ov::Exception,
-                    HasSubstr("Axis value: 2, must be in range (-3, 2)"));
+                    HasSubstr("Parameter axis 2 out of the tensor rank range [-2, 1]"));
 
     axes = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes), ov::Exception, HasSubstr("Axes input must be 1D tensor."));

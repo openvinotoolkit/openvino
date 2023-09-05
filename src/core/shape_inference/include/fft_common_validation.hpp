@@ -72,33 +72,11 @@ void validate_axes(const ov::op::util::FFTBase* op,
     // according to the RDFT operation specification, axes should be integers from -r to (r - 1)
     // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r + a'.
     const int64_t axis_correction = (fft_kind == FFTKind::RealInput) ? input_rank : (input_rank - 1);
-    auto axis_min_value = -input_rank;
-    auto axis_max_value = input_rank - 1;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ov::normalize_axes(op, axis_correction, axes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    // RDFT op axes can contain the last axis
-    if (fft_kind == FFTKind::RealInput) {
-        --axis_min_value;
-        ++axis_max_value;
-    }
-
-    ov::AxisSet axes_set;
-    for (int64_t& axis : axes) {
-        NODE_SHAPE_INFER_CHECK(op,
-                               input_shapes,
-                               axis_min_value < axis && axis < axis_max_value,
-                               "Axis value: ",
-                               axis,
-                               ", must be in range (",
-                               axis_min_value,
-                               ", ",
-                               axis_max_value,
-                               ").");
-        if (axis < 0) {
-            axis += axis_correction;
-        }
-        axes_set.insert(static_cast<size_t>(axis));
-    }
-
+    auto axes_set = AxisSet(std::vector<size_t>(axes.begin(), axes.end()));
     NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "Each axis must be unique.");
 }
 
