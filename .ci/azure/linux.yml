@@ -248,6 +248,7 @@ jobs:
         -DCMAKE_C_COMPILER=clang
         -DENABLE_SYSTEM_SNAPPY=ON
         -DENABLE_SYSTEM_TBB=ON
+        -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libstdc++"
         -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
         -DBUILD_nvidia_plugin=OFF
         -S $(REPO_DIR)

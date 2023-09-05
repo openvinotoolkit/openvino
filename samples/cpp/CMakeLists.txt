@@ -11,6 +11,10 @@ endif()
 
 project(Samples)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libstdc++")
+endif()
+
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
     # Ninja-Multi specific, see:
