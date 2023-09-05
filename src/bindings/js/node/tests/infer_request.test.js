@@ -49,7 +49,36 @@ describe('InferRequest', () => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);
     });
+
   });
+
+  it('Test infer(TypedArray) throws', () => {
+    assert.throws(
+      () => inferRequest.infer(tensorData),
+      {message: 'TypedArray cannot be passed directly into infer() method.'});
+  });
+
+  const buffer = new ArrayBuffer(tensorData.length);
+  const inputMessagePairs = [
+    ['string', 'Cannot create a tensor from the passed Napi::Value.'],
+    [tensorData.slice(-10), 'Memory allocated using shape and element::type mismatch passed data\'s size'],
+    [new Float32Array(buffer, 4), 'TypedArray.byteOffset has to be equal to zero.'],
+  ];
+
+  inputMessagePairs.forEach( ([tl, msg]) => {
+    it(`Test infer([data]) throws ${msg}`, () => {
+      assert.throws(
+        () => inferRequest.infer([tl]),
+        {message: msg});
+    });
+    it(`Test infer({ data: tl}) throws ${msg}`, () => {
+      assert.throws(
+        () => inferRequest.infer({data: tl}),
+        {message: msg});
+    });
+  });
+
+  // TODO Add test infer([object]) to check scenario when the passed object is not a Tensor.
 
   it('Test setInputTensor(tensor)', () => {
     inferRequest.setInputTensor(tensor);
@@ -63,6 +92,20 @@ describe('InferRequest', () => {
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
   });
 
+  it('Test setInputTensor() - pass two tensors', () => {
+    assert.throws(
+      () => inferRequest.setInputTensor(resTensor, tensor),
+      {message: 'InferRequest.setInputTensor() invalid argument.'});
+  });
+
+  it('Test setInputTensor() - pass number as a single arg', () => {
+    assert.throws(
+      () => inferRequest.setInputTensor(123),
+      {message: 'InferRequest.setInputTensor() invalid argument.'});
+  });
+
+  // TODO Add test setInputTensor() to check scenario when an object is passed that is not a Tensor.
+
   it('Test setOutputTensor(tensor)', () => {
     inferRequest.setOutputTensor(resTensor);
     const res2 = inferRequest.getOutputTensor();
@@ -75,28 +118,68 @@ describe('InferRequest', () => {
     assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
   });
 
+  it('Test setOutputTensor() - pass two tensors', () => {
+    assert.throws(
+      () => inferRequest.setOutputTensor(resTensor, tensor),
+      {message: 'InferRequest.setOutputTensor() invalid argument.'});
+  });
+
+  // TODO Add test setOutputTensor() to check scenario when an object is passed that is not a Tensor.
+
   it('Test setTensor(string, tensor)', () => {
     inferRequest.setTensor('fc_out', resTensor);
     const res2 = inferRequest.getTensor('fc_out');
     assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
   });
 
-  it('Test of getters', () => {
-    const ir = compiledModel.createInferRequest();
-    ir.setInputTensor(tensor);
+  it('Test setTensor(string, tensor) - pass one arg', () => {
+    assert.throws(
+      () => inferRequest.setTensor('fc_out'),
+      {message: 'InferRequest.setTensor() invalid argument.'});
+  });
 
-    const t1 = ir.getInputTensor(0);
-    const t2 = ir.getTensor('data');
-    const input = ir.getCompiledModel().input();
-    const t3 = ir.getTensor(input);
+  it('Test setTensor(string, tensor) - pass args in wrong order', () => {
+    assert.throws(
+      () => inferRequest.setTensor(resTensor, 'fc_out'),
+      {message: 'InferRequest.setTensor() invalid argument.'});
+  });
 
+  it('Test setTensor(string, tensor) - pass number as first arg', () => {
+    assert.throws(
+      () => inferRequest.setTensor(123, 'fc_out'),
+      {message: 'InferRequest.setTensor() invalid argument.'});
+  });
+
+  // TODO Add test setTensor() to check scenario when an object is passed that is not a Tensor as second arg.
+
+  const irGetters = compiledModel.createInferRequest();
+  irGetters.setInputTensor(tensor);
+  irGetters.infer();
+
+  it('Test getTensor(tensorName)', () => {
+    const t1 = irGetters.getTensor('data');
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
-    assert.deepStrictEqual(tensor.data[0], t2.data[0]);
-    assert.deepStrictEqual(tensor.data[0], t3.data[0]);
+  });
 
-    ir.infer();
-    const res1 = ir.getOutputTensor();
-    const res2 = ir.getOutputTensor(0);
+  it('Test getTensor(Output)', () => {
+    const input = irGetters.getCompiledModel().input();
+    const t1 = irGetters.getTensor(input);
+    assert.deepStrictEqual(tensor.data[0], t1.data[0]);
+  });
+
+  it('Test getInputTensor()', () => {
+    const t1 = irGetters.getInputTensor();
+    assert.deepStrictEqual(tensor.data[0], t1.data[0]);
+  });
+
+  it('Test getInputTensor(idx)', () => {
+    const t1 = irGetters.getInputTensor(0);
+    assert.deepStrictEqual(tensor.data[0], t1.data[0]);
+  });
+
+  it('Test getOutputTensor(idx?)', () => {
+    const res1 = irGetters.getOutputTensor();
+    const res2 = irGetters.getOutputTensor(0);
     assert.deepStrictEqual(res1.data[0], res2.data[0]);
   });
 
