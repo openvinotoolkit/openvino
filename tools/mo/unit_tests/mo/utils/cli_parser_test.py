@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import stat
 from unittest.mock import patch
 
 import numpy as np
@@ -1226,11 +1227,15 @@ class PathCheckerFunctions(unittest.TestCase):
     @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
     def test_single_non_writable_dir(self):
         with self.assertRaises(Error) as cm:
+            print(f'!!!DEBUG!!! {__class__.NOT_WRITABLE_DIR}\n')
+            print(f'!!!DEBUG!!! {os.stat(__class__.NOT_WRITABLE_DIR)}\n')
             writable_dir(__class__.NOT_WRITABLE_DIR)
 
     @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
     def test_single_non_writable_sub_dir(self):
         with self.assertRaises(Error) as cm:
+            print(f'!!!DEBUG!!! {__class__.NOT_WRITABLE_SUB_DIR}\n')
+            print(f'!!!DEBUG!!! {os.stat(__class__.NOT_WRITABLE_SUB_DIR)}\n')
             writable_dir(__class__.NOT_WRITABLE_SUB_DIR)
 
     def test_multiple_writable_dirs(self):
