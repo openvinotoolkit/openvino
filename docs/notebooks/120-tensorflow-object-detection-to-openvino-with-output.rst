@@ -694,5 +694,4 @@ utilization.
 
 For more information, refer to the `Optimize Preprocessing
 tutorial <118-optimize-preprocessing-with-output.html>`__
-and to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+and to the overview of :doc:`Preprocessing API <openvino_docs_OV_UG_Preprocessing_Overview>`.
