@@ -34,10 +34,10 @@ This algorithm is applied independently to each class of each batch element. The
 * *box_encoding*
 
   * **Description**: *box_encoding* specifies the format of boxes' data encoding.
-  * **Range of values**: "corner" or "center"
+  * **Range of values**: "center" or "corner"
+    * *center* - the box data is supplied as ``[x_center, y_center, width, height, angle]``, the coordinates of the center, width (x), height (y) and the angle in radians.
+    * *corner* - the box data is supplied as ``[x0, y0, x1, y1, x2, y2, x3, y3]``, the coordinates of the four corners of the box.
 
-    * *corner* - the box data is supplied as ``[y1, x1, y2, x2, ...]`` where ``(y1, x1)`` and ``(y2, x2)`` are the coordinates of any diagonal pair of box corners.
-    * *center* - the box data is supplied as ``[x_center, y_center, width, height, ...]``.
   * **Type**: string
   * **Required**: *yes*
 
@@ -71,7 +71,7 @@ This algorithm is applied independently to each class of each batch element. The
 
 **Inputs**:
 
-*   **1**: ``boxes`` - tensor of type *T* and shape ``[num_batches, num_boxes, 5]`` with box coordinates and rotation angle in radians. **Required.**
+*   **1**: ``boxes`` - tensor of type *T* and shape depending on the box encoding. If the ``box_encoding`` attribute is set to *center* the expected boxes shape is ``[num_batches, num_boxes, 5]`` with coordinates of the box center and rotation angle in radians, otherwise the box encoding is *corner* and the shape must be ``[num_batches, num_boxes, 8]`` with four pairs of ``(x, y)`` coordinates defining box corners. **Required.**
 
 *   **2**: ``scores`` - tensor of type *T* and shape ``[num_batches, num_classes, num_boxes]`` with box scores. **Required.**
 
