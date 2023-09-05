@@ -88,5 +88,21 @@ bool is_dynamic_shape(const Shape& s) {
     OPENVINO_SUPPRESS_DEPRECATED_END
     return s == dyn_shape;
 }
+
+Shape reduce(const Shape& input, const AxisSet& axes) {
+    return ov::reduce_container(input, axes);
+}
+
+Shape reduce(const Shape& input, const AxisSet& axes, const bool keep_dims) {
+    return keep_dims ? reduce_keep_dims(input, axes) : reduce(input, axes);
+}
+
+std::vector<size_t> reduce(const std::vector<size_t>& input, const AxisSet& axes) {
+    return ov::reduce_container(input, axes);
+}
+
+Shape reduce_keep_dims(const Shape& input, const AxisSet& axes) {
+    return ov::replace_container(input, axes);
+}
 }  // namespace util
 }  // namespace ov
