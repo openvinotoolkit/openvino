@@ -1628,6 +1628,30 @@ StreamsCalculationTestCase _1sockets_6cores_tput_4 = {
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {6, HYPER_THREADING_PROC, 1, 0, 0}},
 };
 
+StreamsCalculationTestCase _1sockets_4cores_latency_1 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    "LATENCY",
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    {{4, 4, 0, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 4, 0, 0}},
+};
+
+StreamsCalculationTestCase _1sockets_4cores_tput_1 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    "THROUGHPUT",
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    {{4, 4, 0, 0, 0, 0}},
+    {{4, MAIN_CORE_PROC, 1, 0, 0}},
+};
+
 StreamsCalculationTestCase _1sockets_ecores_latency_1 = {
     1,
     false,
@@ -1746,18 +1770,6 @@ StreamsCalculationTestCase _1sockets_mock_tput_1 = {
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{20, 6, 7, 6, 0, 0}},
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {3, EFFICIENT_CORE_PROC, 2, 0, 0}, {3, HYPER_THREADING_PROC, 1, 0, 0}},
-};
-
-StreamsCalculationTestCase _1sockets_mock_tput_2 = {
-    0,
-    false,
-    0,
-    0,
-    0,
-    "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
-    {{4, 4, 0, 0, 0, 0}},
-    {{4, MAIN_CORE_PROC, 1, 0, 0}},
 };
 
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
@@ -1883,6 +1895,8 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_6cores_tput_2,
                                          _1sockets_6cores_tput_3,
                                          _1sockets_6cores_tput_4,
+                                         _1sockets_4cores_latency_1,
+                                         _1sockets_4cores_tput_1,
                                          _1sockets_ecores_latency_1,
                                          _1sockets_ecores_latency_2,
                                          _1sockets_ecores_latency_3,
@@ -1892,7 +1906,6 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_ecores_tput_3,
                                          _1sockets_ecores_tput_4,
                                          _1sockets_ecores_tput_5,
-                                         _1sockets_mock_tput_1,
-                                         _1sockets_mock_tput_2));
+                                         _1sockets_mock_tput_1));
 
 }  // namespace
