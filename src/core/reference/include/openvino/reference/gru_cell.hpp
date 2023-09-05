@@ -16,8 +16,7 @@
 #include "openvino/reference/subtract.hpp"
 #include "openvino/reference/tanh.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void gru_cell(const T* X,
@@ -130,7 +129,7 @@ void gru_cell(const T* X,
         } else if (activation == "sigmoid") {
             reference::sigmoid(gate.data(), gate.data(), gate.size());
         } else if (activation == "tanh") {
-            reference::tanh(gate.data(), gate.data(), gate.size());
+            ov::reference::tanh(gate.data(), gate.data(), gate.size());
         } else {
             OPENVINO_THROW("Activation function " + activation + " is not supported.");
         }
@@ -216,5 +215,4 @@ void gru_cell(const T* X,
     reference::add(mul1.data(), mul2.data(), dst_data, gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

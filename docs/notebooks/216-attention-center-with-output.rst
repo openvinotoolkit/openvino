@@ -1,7 +1,7 @@
 The attention center model with OpenVINO™
 =========================================
 
-.. _top:
+
 
 This notebook demonstrates how to use the `attention center
 model <https://github.com/google/attention-center/tree/main>`__ with
@@ -50,6 +50,8 @@ post <https://opensource.googleblog.com/2022/12/open-sourcing-attention-center-m
 The attention center model has been trained with images from the `COCO
 dataset <https://cocodataset.org/#home>`__ annotated with saliency from
 the `SALICON dataset <http://salicon.net/>`__.
+
+.. _top:
 
 **Table of contents**:
 
@@ -122,7 +124,7 @@ format. In this Notebook the model will be converted to OpenVINO IR
 format with Model Optimizer. This step will be skipped if the model have
 already been converted. For more information about Model Optimizer,
 please, see the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+Guide <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 
 Also TFLite models format is supported in OpenVINO by TFLite frontend,
 so the model can be passed directly to ``core.read_model()``. You can

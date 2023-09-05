@@ -1,7 +1,7 @@
 Convert and Optimize YOLOv7 with OpenVINO™
 ==========================================
 
-.. _top:
+
 
 The YOLOv7 algorithm is making big waves in the computer vision and
 machine learning communities. It is a real-time object detection
@@ -39,6 +39,8 @@ The tutorial consists of the following steps:
 -  Prepare and run optimization pipeline
 -  Compare accuracy of the FP32 and quantized models.
 -  Compare performance of the FP32 and quantized models.
+
+.. _top:
 
 **Table of contents**:
 
@@ -772,9 +774,12 @@ OpenVINO with minimal accuracy drop. We will use 8-bit quantization in
 post-training mode (without the fine-tuning pipeline) to optimize
 YOLOv7.
 
-   **Note**: NNCF Post-training Quantization is available as a preview
+.. note::
+
+   NNCF Post-training Quantization is available as a preview
    feature in OpenVINO 2022.3 release. Fully functional support will be
    provided in the next releases.
+
 
 The optimization process contains the following steps:
 
@@ -906,16 +911,19 @@ Compare Performance of the Original and Quantized Models `⇑ <#top>`__
 ###############################################################################################################################
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+
+   For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to
    benchmark on GPU. Run ``benchmark_app --help`` to see an overview of
    all command-line options.
+
 
 .. code:: ipython3
 

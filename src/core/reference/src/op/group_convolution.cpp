@@ -4,8 +4,7 @@
 
 #include "openvino/reference/group_convolution.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 
 void validate_group_convolution_parameters(const Shape& in_shape,
@@ -54,5 +53,4 @@ void validate_group_convolution_parameters(const Shape& in_shape,
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

@@ -1,7 +1,7 @@
 Cross-lingual Books Alignment with Transformers and OpenVINO™
 =============================================================
 
-.. _top:
+
 
 Cross-lingual text alignment is the task of matching sentences in a pair
 of texts that are translations of each other. In this notebook, you’ll
@@ -39,6 +39,8 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
+.. _top:
+
 **Table of contents**:
 
 - `Get Books <#get-books>`__
@@ -53,7 +55,7 @@ Prerequisites
 - `Visualize Sentence Alignment <#visualize-sentence-alignment>`__
 - `Speed up Embeddings Computation <#speed-up-embeddings-computation>`__
 
-.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png%22
+.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
 
 .. code:: ipython3
 
@@ -356,9 +358,12 @@ code <https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes>`__, as the
 rules for splitting text into sentences may vary for different
 languages.
 
-   **Hint**: The ``book_metadata`` obtained from the Gutendex contains
+.. hint::
+
+   The ``book_metadata`` obtained from the Gutendex contains
    the language code as well, enabling automation of this part of the
    pipeline.
+
 
 .. code:: ipython3
 
@@ -410,7 +415,7 @@ translation pairs.
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png%22
+.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png
 
 .. code:: ipython3
 
@@ -479,7 +484,7 @@ Optimize the Model with OpenVINO `⇑ <#top>`__
 
 The LaBSE model is quite large and can be slow to infer on some
 hardware, so let’s optimize it with OpenVINO. `Model conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+API <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 accepts the PyTorch/Transformers model object and additional information
 about model inputs. An ``example_input`` is needed to trace the model
 execution graph, as PyTorch constructs it dynamically during inference.
@@ -873,7 +878,7 @@ the pipeline - getting embeddings. You might wonder why, when using
 OpenVINO, you need to compile the model after reading it. There are two
 main reasons for this: 1. Compatibility with different devices. The
 model can be compiled to run on a `specific
-device <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Working_with_devices.html>`__,
+device <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Working_with_devices.html>`__,
 like CPU, GPU or GNA. Each device may work with different data types,
 support different features, and gain performance by changing the neural
 network for a specific computing model. With OpenVINO, you do not need
@@ -882,13 +887,13 @@ hardware. A universal OpenVINO model representation is enough. 1.
 Optimization for different scenarios. For example, one scenario
 prioritizes minimizing the *time between starting and finishing model
 inference* (`latency-oriented
-optimization <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_latency.html>`__).
+optimization <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_latency.html>`__).
 In our case, it is more important *how many texts per second the model
 can process* (`throughput-oriented
-optimization <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput.html>`__).
+optimization <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_tput.html>`__).
 
 To get a throughput-optimized model, pass a `performance
-hint <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Performance_Hints.html#performance-hints-latency-and-throughput>`__
+hint <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Performance_Hints.html#performance-hints-latency-and-throughput>`__
 as a configuration during compilation. Then OpenVINO selects the optimal
 parameters for execution on the available hardware.
 
@@ -907,7 +912,7 @@ parameters for execution on the available hardware.
 To further optimize hardware utilization, let’s change the inference
 mode from synchronous (Sync) to asynchronous (Async). While the
 synchronous API may be easier to start with, it is
-`recommended <https://docs.openvino.ai/2022.1/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
+`recommended <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
 to use the asynchronous (callbacks-based) API in production code. It is
 the most general and scalable way to implement flow control for any
 number of requests.
@@ -952,8 +957,11 @@ advance and fill it in as the inference requests are executed.
 
 Let’s compare the models and plot the results.
 
-   **Note**: To get a more accurate benchmark, use the `Benchmark Python
-   Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+.. note::
+
+   To get a more accurate benchmark, use the `Benchmark Python
+   Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+
 
 .. code:: ipython3
 
@@ -1068,8 +1076,8 @@ boost.
 
 Here are useful links with information about the techniques used in this
 notebook: - `OpenVINO performance
-hints <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Performance_Hints.html>`__
+hints <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Performance_Hints.html>`__
 - `OpenVINO Async
-API <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
+API <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
 - `Throughput
-Optimizations <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput.html>`__
+Optimizations <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_tput.html>`__

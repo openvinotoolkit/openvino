@@ -224,7 +224,7 @@ TEST(type_prop, bin_convolution_invalid_inputs_et) {
     } catch (...) {
         FAIL() << "Data batch element type validation check failed for unexpected reason";
     }
-    // TODO: Add test with check filters element type once u1 is supported in nGraph Python API
+    // TODO: Add test with check filters element type once u1 is supported in OpenVINO Python API
     // (#49517)
 }
 

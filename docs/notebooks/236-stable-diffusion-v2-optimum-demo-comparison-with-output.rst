@@ -1,9 +1,11 @@
 Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware
 ==============================================================================
 
-.. _top:
+
 
 |image0|
+
+.. _top:
 
 **Table of contents**:
 
@@ -20,7 +22,10 @@ accelerate end-to-end pipelines on Intel architectures. More details in
 this
 `repository <https://github.com/huggingface/optimum-intel#openvino>`__.
 
-``Note: We suggest you to create a different environment and run the following installation command there.``
+.. note::
+
+    We suggest you to create a different environment and run the following installation command there.
+
 
 .. code:: ipython3
 
@@ -43,11 +48,14 @@ you have integrated GPU (iGPU) and discrete GPU (dGPU), it will show
 If you just have either an iGPU or dGPU that will be assigned to
 ``"GPU"``
 
-Note: For more details about GPU with OpenVINO visit this
-`link <https://docs.openvino.ai/nightly/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__.
-If you have been facing any issue in Ubuntu 20.04 or Windows 11 read
-this
-`blog <https://blog.openvino.ai/blog-posts/install-gpu-drivers-windows-ubuntu>`__.
+.. note::
+
+   For more details about GPU with OpenVINO visit this
+   `link <https://docs.openvino.ai/nightly/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__.
+   If you have been facing any issue in Ubuntu 20.04 or Windows 11 read
+   this
+   `blog <https://blog.openvino.ai/blog-posts/install-gpu-drivers-windows-ubuntu>`__.
+
 
 .. code:: ipython3
 

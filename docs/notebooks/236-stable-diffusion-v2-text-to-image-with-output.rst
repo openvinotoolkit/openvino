@@ -1,7 +1,7 @@
 Text-to-Image Generation with Stable Diffusion v2 and OpenVINO™
 ===============================================================
 
-.. _top:
+
 
 Stable Diffusion v2 is the next generation of Stable Diffusion model a
 Text-to-Image latent diffusion model created by the researchers and
@@ -73,10 +73,15 @@ Notebook contains the following steps:
    API.
 3. Run Stable Diffusion v2 Text-to-Image pipeline with OpenVINO.
 
-**Note:** This is the full version of the Stable Diffusion text-to-image
-implementation. If you would like to get started and run the notebook
-quickly, check out `236-stable-diffusion-v2-text-to-image-demo
-notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image-demo.ipynb>`__.
+.. note::
+
+   This is the full version of the Stable Diffusion text-to-image
+   implementation. If you would like to get started and run the notebook
+   quickly, check out `236-stable-diffusion-v2-text-to-image-demo
+   notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image-demo.ipynb>`__.
+
+
+.. _top:
 
 **Table of contents**: 
 
@@ -180,7 +185,7 @@ example, input and output names or dynamic shapes).
 While ONNX models are directly supported by OpenVINO™ runtime, it can be
 useful to convert them to IR format to take the advantage of advanced
 OpenVINO optimization tools and features. We will use OpenVINO `Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+Optimizer <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 to convert a model to IR format.
 
 The pipeline consists of three important parts:
@@ -380,8 +385,10 @@ When running Text-to-Image pipeline, we will see that we **only need the
 VAE decoder**, but preserve VAE encoder conversion, it will be useful in
 next chapter of our tutorial.
 
-Note: This process will take a few minutes and use significant amount of
-RAM (recommended at least 32GB).
+.. note::
+
+   This process will take a few minutes and use significant amount of RAM (recommended at least 32GB).
+
 
 .. code:: ipython3
 
@@ -964,8 +971,11 @@ Now, you can define a text prompts for image generation and run
 inference pipeline. Optionally, you can also change the random generator
 seed for latent state initialization and number of steps.
 
-   **Note**: Consider increasing ``steps`` to get more precise results.
+.. note::
+
+   Consider increasing ``steps`` to get more precise results.
    A suggested value is ``50``, but it will take longer time to process.
+
 
 .. code:: ipython3
 

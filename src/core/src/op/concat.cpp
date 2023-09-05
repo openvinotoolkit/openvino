@@ -10,6 +10,7 @@
 #include "concat_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/reference/concat.hpp"
 #include "validation_util.hpp"
@@ -89,12 +90,12 @@ bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int
         out_shape[concatenation_axis] += arg_shapes.back()[concatenation_axis];
     }
     out->set_shape(out_shape);
-    runtime::reference::concat(arg_bufs,
-                               out->get_data_ptr<char>(),
-                               arg_shapes,
-                               out_shape,
-                               concatenation_axis,
-                               out->get_element_type().size());
+    ov::reference::concat(arg_bufs,
+                          out->get_data_ptr<char>(),
+                          arg_shapes,
+                          out_shape,
+                          concatenation_axis,
+                          out->get_element_type().size());
 
     return true;
 }
@@ -128,12 +129,12 @@ bool op::Concat::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inp
         out_shape[concat_axis] += arg_shapes.back()[concat_axis];
     }
     outputs.front().set_shape(out_shape);
-    ngraph::runtime::reference::concat(arg_bufs,
-                                       static_cast<char*>(outputs.front().data()),
-                                       arg_shapes,
-                                       out_shape,
-                                       concat_axis,
-                                       outputs.front().get_element_type().size());
+    ov::reference::concat(arg_bufs,
+                          static_cast<char*>(outputs.front().data()),
+                          arg_shapes,
+                          out_shape,
+                          concat_axis,
+                          outputs.front().get_element_type().size());
 
     return true;
 }

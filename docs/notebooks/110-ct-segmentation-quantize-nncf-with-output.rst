@@ -1,8 +1,6 @@
 Quantize a Segmentation Model and Show Live Inference
 =====================================================
 
-.. _top:
-
 Kidney Segmentation with PyTorch Lightning and OpenVINO™ - Part 3
 -----------------------------------------------------------------
 
@@ -16,7 +14,7 @@ scratch; the data is from
 This third tutorial in the series shows how to:
 
 -  Convert an Original model to OpenVINO IR with `model conversion
-   API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+   API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 -  Quantize a PyTorch model with NNCF
 -  Evaluate the F1 score metric of the original model and the quantized
    model
@@ -54,6 +52,10 @@ Running this notebook with the full dataset will take a long time. For
 demonstration purposes, this tutorial will download one converted CT
 scan and use that scan for quantization and inference. For production
 purposes, use a representative dataset for quantizing the model. 
+
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -455,19 +457,20 @@ this notebook.
 advanced algorithms for Neural Networks inference optimization in
 OpenVINO with minimal accuracy drop.
 
-   **Note**: NNCF Post-training Quantization is available in OpenVINO
+.. note::
+
+   NNCF Post-training Quantization is available in OpenVINO
    2023.0 release.
+
 
 Create a quantized model from the pre-trained ``FP32`` model and the
 calibration dataset. The optimization process contains the following
 steps:
 
-::
-
-   1. Create a Dataset for quantization.
-   2. Run `nncf.quantize` for getting an optimized model.
-   3. Export the quantized model to ONNX and then convert to OpenVINO IR model.
-   4. Serialize the INT8 model using `openvino.runtime.serialize` function for benchmarking.
+1. Create a Dataset for quantization.
+2. Run ``nncf.quantize`` for getting an optimized model.
+3. Export the quantized model to ONNX and then convert to OpenVINO IR model.
+4. Serialize the INT8 model using ``openvino.runtime.serialize`` function for benchmarking.
 
 .. code:: ipython3
 
@@ -574,18 +577,21 @@ Compare Performance of the FP32 IR Model and Quantized Models `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To measure the inference performance of the ``FP32`` and ``INT8``
-models, we use `Benchmark Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+models, we use `Benchmark Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - OpenVINO’s inference performance measurement tool. Benchmark tool is a
 command line application, part of OpenVINO development tools, that can
 be run in the notebook with ``! benchmark_app`` or
 ``%sx benchmark_app``.
 
-   **NOTE**: For the most accurate performance estimation, it is
+.. note::
+
+   For the most accurate performance estimation, it is
    recommended to run ``benchmark_app`` in a terminal/command prompt
    after closing other applications. Run
    ``benchmark_app -m model.xml -d CPU`` to benchmark async inference on
    CPU for one minute. Change ``CPU`` to ``GPU`` to benchmark on GPU.
    Run ``benchmark_app --help`` to see all command line options.
+
 
 .. code:: ipython3
 
@@ -759,9 +765,12 @@ slices are annotated as kidney.
 Run this cell again to show results on a different subset. The random
 seed is displayed to enable reproducing specific runs of this cell.
 
-   **NOTE**: the images are shown after optional augmenting and
+.. note::
+
+   The images are shown after optional augmenting and
    resizing. In the Kits19 dataset all but one of the cases has the
    ``(512, 512)`` input shape.
+
 
 .. code:: ipython3
 
@@ -841,7 +850,9 @@ inference on the specified CT scan has completed, the total time and
 throughput (fps), including preprocessing and displaying, will be
 printed.
 
-   **NOTE**: If you experience flickering on Firefox, consider using
+.. note::
+
+   If you experience flickering on Firefox, consider using
    Chrome or Edge to run this notebook.
 
 Load Model and List of Image Files `⇑ <#top>`__
