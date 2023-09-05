@@ -237,7 +237,9 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     n_proc = std::min(n_threads, n_proc);
                 }
 
-                if (0 == n_proc % 4) {
+                if (proc_type_table[0][ALL_PROC] <= 4) {
+                    n_threads_per_stream = 1;
+                } else if (0 == n_proc % 4) {
                     n_threads_per_stream = 4;
                 } else if (0 == n_proc % 5) {
                     n_threads_per_stream = 5;
