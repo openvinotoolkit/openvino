@@ -1,7 +1,7 @@
 Text-to-Image Generation with Stable Diffusion v2 and OpenVINO™
 ===============================================================
 
-.. _top:
+
 
 Stable Diffusion v2 is the next generation of Stable Diffusion model a
 Text-to-Image latent diffusion model created by the researchers and
@@ -80,6 +80,8 @@ Notebook contains the following steps:
    quickly, check out `236-stable-diffusion-v2-text-to-image-demo
    notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image-demo.ipynb>`__.
 
+
+.. _top:
 
 **Table of contents**: 
 
@@ -183,7 +185,7 @@ example, input and output names or dynamic shapes).
 While ONNX models are directly supported by OpenVINO™ runtime, it can be
 useful to convert them to IR format to take the advantage of advanced
 OpenVINO optimization tools and features. We will use OpenVINO `Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+Optimizer <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 to convert a model to IR format.
 
 The pipeline consists of three important parts:
