@@ -63,6 +63,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              gtest
                                              gtest_main
                                              gflags
+                                             common_test_utils
                                              openvino::reference
                                              inference_engine_transformations
                                              gmock)
