@@ -11,7 +11,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v7::Einsum>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     const auto equation = op->get_equation();
-    ngraph::runtime::reference::einsum(outputs, inputs, equation);
+    ov::reference::einsum(outputs, inputs, equation);
     return true;
 }
 
