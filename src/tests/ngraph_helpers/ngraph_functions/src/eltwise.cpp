@@ -4,8 +4,11 @@
 
 #include <memory>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset13.hpp>
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
+// /Users/armplugin/eshoguli/openvino/src/core/include/openvino/op/bitwise_xor.hpp
+#include "openvino/op/bitwise_xor.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -32,6 +35,8 @@ std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
             return std::make_shared<ngraph::opset3::Mod>(in0, in1);
         case ngraph::helpers::EltwiseTypes::ERF:
             return std::make_shared<ngraph::opset1::Erf>(in0);
+        case ngraph::helpers::EltwiseTypes::BITWISE_XOR:
+            return std::make_shared<ov::op::v13::BitwiseXor>(in0, in1);
         default: {
             throw std::runtime_error("Incorrect type of Eltwise operation");
         }

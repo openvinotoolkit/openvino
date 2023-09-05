@@ -666,6 +666,18 @@ std::ostream& operator<<(std::ostream & os, const ngraph::helpers::EltwiseTypes 
         case ngraph::helpers::EltwiseTypes::ERF:
             os << "Erf";
             break;
+        case ngraph::helpers::EltwiseTypes::BITWISE_AND:
+            os << "BitwiseAnd";
+            break;
+        case ngraph::helpers::EltwiseTypes::BITWISE_NOT:
+            os << "BitwiseNot";
+            break;
+        case ngraph::helpers::EltwiseTypes::BITWISE_OR:
+            os << "BitwiseOr";
+            break;
+        case ngraph::helpers::EltwiseTypes::BITWISE_XOR:
+            os << "BitwiseXor";
+            break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }
