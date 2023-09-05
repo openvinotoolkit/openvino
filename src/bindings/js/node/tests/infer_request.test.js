@@ -19,12 +19,12 @@ describe('InferRequest', () => {
   const tensorData = Float32Array.from({ length: 3072 }, () => Math.floor(Math.random() * 3072));
   const tensor = new ov.Tensor(
     ov.element.f32,
-    Int32Array.from([1, 3, 32, 32]),
+    [1, 3, 32, 32],
     tensorData,
   );
   const resTensor = new ov.Tensor(
     ov.element.f32,
-    Int32Array.from([1, 10]),
+    [1, 10],
     tensorData.slice(-10),
   );
 
