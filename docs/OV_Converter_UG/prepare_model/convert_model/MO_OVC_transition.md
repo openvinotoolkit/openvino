@@ -192,32 +192,76 @@ Preprocessing of model using mo.convert_model() vs using ov.convert_model().
 mo.convert_model() provides a wide range of preprocessing parameters. Most of these parameters have analogs in ``ov.PrePostProcessor`` class.
 Here is the list of MO parameters which can be replaced with usage of ``ov.PrePostProcessor`` class.
 
+.. list-table:: Code examples
+   :header-rows: 1
+
+   * - Code block no. 1
+     - Code block no. 2
+   * - .. code-block:: sh
+
+          git clone https://github.com/sgolebiewski-intel/openvino.git
+
+     - .. code-block:: sh
+
+          git clone https://github.com/sgolebiewski-intel/openvino.git
+
 * mean_value parameter:
 
    .. tab-set::
 
-       .. tab-item:: ov.convert_model()
+       .. tab-item:: Python
           :sync: py
+          
+          .. list-table:: Code examples
+             :header-rows: 1
+          
+             * - New API
+               - Code block no. 2
+             * - .. code-block:: py
+                    :force:
+          
+                    from openvino.tools import mo
+                    ov_model = mo.convert_model(model, mean_values=[0.5, 0.5, 0.5])
+          
+               - .. code-block:: py
+                    :force:
 
-          .. code-block:: py
-             :force:
+                    import openvino as ov
+                    ov_model = ov.convert_model(model)
 
-             import openvino as ov
-             ov_model = ov.convert_model(model)
+                    prep = ov.preprocess.PrePostProcessor(ov_model)
+                    prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
+                    prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
+                    ov_model = prep.build()
 
-             prep = ov.preprocess.PrePostProcessor(ov_model)
-             prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
-             prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
-             ov_model = prep.build()
+       .. tab-item:: CLI
+          :sync: cli
 
-       .. tab-item:: mo.convert_model()
-          :sync: py
+          .. list-table:: Code examples
+             :header-rows: 1
+          
+             * - Code block no. 1
+               - Code block no. 2
+             * - .. code-block:: sh
+                    :force:
 
-          .. code-block:: py
-             :force:
+                    mo --input_model MODEL_NAME --mean_values [0.5,0.5,0.5] --output_dir OUTPUT_DIR
+          
+               - .. code-block:: sh
+                    :force:
+          
+                    ovc MODEL_NAME --output_model OUTPUT_MODEL
 
-             from openvino.tools import mo
-             ov_model = mo.convert_model(model, mean_values=[0.5, 0.5, 0.5])
+                 .. code-block:: py
+                    :force:
+
+                    import openvino as ov
+                    ov_model = ov.read_model(OUTPUT_MODEL)
+
+                    prep = ov.preprocess.PrePostProcessor(ov_model)
+                    prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
+                    prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
+                    ov_model = prep.build()
 
 * scale_value parameter:
 
