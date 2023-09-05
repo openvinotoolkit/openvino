@@ -1,7 +1,7 @@
 Live Object Detection with OpenVINO™
 ====================================
 
-.. _top:
+
 
 This notebook demonstrates live object detection with OpenVINO, using
 the `SSDLite
@@ -16,6 +16,8 @@ Additionally, you can also upload a video file.
    To use this notebook with a webcam, you need to run the notebook on a computer 
    with a webcam. If you run the notebook on a server, the webcam will not work. 
    However, you can still do inference on a video.
+
+.. _top:
 
 **Table of contents**:
 

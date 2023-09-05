@@ -1,7 +1,7 @@
 Convert a TensorFlow Object Detection Model to OpenVINO™
 ========================================================
 
-.. _top:
+
 
 `TensorFlow <https://www.tensorflow.org/>`__, or TF for short, is an
 open-source framework for machine learning.
@@ -25,6 +25,8 @@ Optimizer <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Mod
 After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image. 
+
+.. _top:
 
 **Table of contents**:
 
@@ -692,5 +694,4 @@ utilization.
 
 For more information, refer to the `Optimize Preprocessing
 tutorial <118-optimize-preprocessing-with-output.html>`__
-and to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.1/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+and to the overview of :doc:`Preprocessing API <openvino_docs_OV_UG_Preprocessing_Overview>` .

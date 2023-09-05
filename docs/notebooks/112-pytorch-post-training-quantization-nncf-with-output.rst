@@ -1,8 +1,6 @@
 Post-Training Quantization of PyTorch models with NNCF
 ======================================================
 
-.. _top:
-
 The goal of this tutorial is to demonstrate how to use the NNCF (Neural
 Network Compression Framework) 8-bit quantization in post-training mode
 (without the fine-tuning pipeline) to optimize a PyTorch model for the
@@ -26,6 +24,9 @@ quantization, not demanding the fine-tuning of the model.
    the default binary search path of the OS you are running the
    notebook.
 
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -473,7 +474,7 @@ framework is designed so that modifications to your original training
 code are minor. Quantization is the simplest scenario and requires a few
 modifications. For more information about NNCF Post Training
 Quantization (PTQ) API, refer to the `Basic Quantization Flow
-Guide <https://docs.openvino.ai/2023.1/basic_qauntization_flow.html#doxid-basic-qauntization-flow>`__.
+Guide <https://docs.openvino.ai/2023.1/basic_quantization_flow.html#doxid-basic-quantization-flow>`__.
 
 1. Create a transformation function that accepts a sample from the
    dataset and returns data suitable for model inference. This enables

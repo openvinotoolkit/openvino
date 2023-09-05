@@ -1,7 +1,7 @@
 Convert and Optimize YOLOv8 with OpenVINO™
 ==========================================
 
-.. _top:
+
 
 The YOLOv8 algorithm developed by Ultralytics is a cutting-edge,
 state-of-the-art (SOTA) model that is designed to be fast, accurate, and
@@ -38,6 +38,8 @@ The tutorial consists of the following steps:
 -  Prepare and run optimization pipeline.
 -  Compare performance of the FP32 and quantized models.
 -  Compare accuracy of the FP32 and quantized models.
+
+.. _top:
 
 **Table of contents**:
 
@@ -1678,8 +1680,7 @@ on a selected device (CPU/GPU etc.) rather than always being executed on
 CPU as part of an application. This will improve selected device
 utilization.
 
-For more information, refer to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.1/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+For more information, refer to the overview of :doc:`Preprocessing API <openvino_docs_OV_UG_Preprocessing_Overview>` .
 
 For example, we can integrate converting input data layout and
 normalization defined in ``image_to_tensor`` function.

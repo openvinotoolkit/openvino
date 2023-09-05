@@ -1,7 +1,7 @@
 Performance tricks in OpenVINO for throughput mode
 ==================================================
 
-.. _top:
+
 
 The goal of this notebook is to provide a step-by-step tutorial for
 improving performance for inferencing in a throughput mode. High
@@ -45,6 +45,10 @@ optimize performance on OpenVINO IR files in
 
 A similar notebook focused on the latency mode is available
 `here <109-latency-tricks-with-output.html>`__.
+
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -667,7 +671,7 @@ There are other tricks for performance improvement, such as advanced
 options, quantization and pre-post-processing or dedicated to latency
 mode. To get even more from your model, please visit `advanced
 throughput
-options <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput_advanced.html>`__,
+options <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_tput_advanced.html>`__,
 `109-latency-tricks <109-latency-tricks-with-output.html>`__,
 `111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__, and
 `118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.

@@ -299,7 +299,7 @@ TensorFlow models saved in frozen graph format can also be passed to
    support will be provided in the upcoming 2023 releases. Currently
    support is limited to only frozen graph inference format. Other
    TensorFlow model formats must be converted to OpenVINO IR using
-   `model conversion API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
+   `model conversion API <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
 
 
 .. code:: ipython3

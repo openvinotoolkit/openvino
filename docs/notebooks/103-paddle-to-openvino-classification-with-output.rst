@@ -1,7 +1,7 @@
 Convert a PaddlePaddle Model to OpenVINO™ IR
 ============================================
 
-.. _top:
+
 
 This notebook shows how to convert a MobileNetV3 model from
 `PaddleHub <https://github.com/PaddlePaddle/PaddleHub>`__, pre-trained
@@ -15,6 +15,10 @@ IR model.
 
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
+
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -496,4 +500,4 @@ References `⇑ <#top>`__
 -  `OpenVINO PaddlePaddle
    support <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
 -  `OpenVINO Model Optimizer
-   Documentation <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
+   Documentation <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__

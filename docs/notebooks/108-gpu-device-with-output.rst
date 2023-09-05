@@ -1,6 +1,8 @@
 Working with GPUs in OpenVINO™
 ==============================
 
+
+
 .. _top:
 
 **Table of contents**:
@@ -532,7 +534,7 @@ or by manual specification of the device name as above. When we have
 multiple devices, such as an integrated and discrete GPU, we may use
 both at the same time to improve the utilization of the resources. In
 order to do this, OpenVINO provides a virtual device called
-`MULTI <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__,
+`MULTI <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__,
 which is just a combination of the existent devices that knows how to
 split inference work between them, leveraging the capabilities of each
 device.
@@ -561,7 +563,7 @@ manually specify devices to use. Below is an example showing how to use
    how to set up an asynchronous pipeline that takes advantage of
    parallelism to increase throughput. To learn more, see
    `Asynchronous
-   Inferencing <https://docs.openvino.ai/2023.1/openvino_docs_ie_plugin_dg_async_infer_request.html>`__
+   Inferencing <https://docs.openvino.ai/2023.1/openvino_docs_ov_plugin_dg_async_infer_request.html>`__
    in OpenVINO as well as the `Asynchronous Inference
    notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/115-async-api>`__.
 
@@ -1367,7 +1369,7 @@ corresponding documentation:
 -  `Model
    Caching <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Model_caching_overview.html>`__
 -  `MULTI Device
-   Mode <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__
+   Mode <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__
 -  `Query Device
    Properties <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_query_api.html>`__
 -  `Configurations for GPUs with
@@ -1375,4 +1377,4 @@ corresponding documentation:
 -  `Benchmark Python
    Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 -  `Asynchronous
-   Inferencing <https://docs.openvino.ai/2023.1/openvino_docs_ie_plugin_dg_async_infer_request.html>`__
+   Inferencing <https://docs.openvino.ai/2023.1/openvino_docs_ov_plugin_dg_async_infer_request.html>`__

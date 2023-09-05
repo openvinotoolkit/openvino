@@ -1,8 +1,6 @@
 Migrate quantization from POT API to NNCF API
 =============================================
 
-.. _top:
-
 This tutorial demonstrates how to migrate quantization pipeline written
 using the OpenVINO `Post-Training Optimization Tool (POT) <https://docs.openvino.ai/2023.1/pot_introduction.html>`__ to
 `NNCF Post-Training Quantization API <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__.
@@ -22,6 +20,9 @@ The tutorial consists from the following parts:
 6. Run model inference demo
 7. Compare performance FP32 and INT8 models
 
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -461,7 +462,7 @@ Quantization parameters ``preset``, ``model_type``, ``subset_size``,
 ``fast_bias_correction``, ``ignored_scope`` are arguments of function.
 More details about supported parameters and formats can be found in NNCF
 Post-Training Quantization
-`documentation <https://docs.openvino.ai/2023.1/basic_qauntization_flow.html#tune-quantization-parameters>`__.
+`documentation <https://docs.openvino.ai/2023.1/basic_quantization_flow.html#tune-quantization-parameters>`__.
 NNCF also expect providing model object in inference framework format,
 in our case ``openvino.runtime.Model`` instance created using
 ``core.read_model`` or ``openvino.tools.mo.convert_model``.

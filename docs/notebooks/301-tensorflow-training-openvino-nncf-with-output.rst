@@ -11,6 +11,8 @@ A custom dataloader and metric will be defined, and accuracy and
 performance will be computed for the original IR model and the quantized
 model.
 
+.. _top:
+
 **Table of contents**:
 
 - `Preparation <#preparation>`__
@@ -397,11 +399,11 @@ Download Intermediate Representation (IR) model.
     ir_model = ie.read_model(model_xml)
 
 Use `Basic Quantization
-Flow <https://docs.openvino.ai/2023.1/basic_qauntization_flow.html#doxid-basic-qauntization-flow>`__.
+Flow <https://docs.openvino.ai/2023.1/basic_quantization_flow.html#doxid-basic-quantization-flow>`__.
 To use the most advanced quantization flow that allows to apply 8-bit
 quantization to the model with accuracy control see `Quantizing with
 accuracy
-control <https://docs.openvino.ai/2023.1/quantization_w_accuracy_control.html#>`__.
+control <https://docs.openvino.ai/2023.1/quantization_w_accuracy_control.html>`__.
 
 .. code:: ipython3
 
