@@ -5,8 +5,8 @@
 const path = require('path');
 
 function getModelPath(isFP16=false) {
-  const basePath = '../../python/tests/';
-  return path.join(basePath, 'test_utils', 'utils', `test_model_fp${isFP16 ? 16 : 32}.xml`);
+  const basePath = 'tests/test_models/';
+  return path.join(basePath, `test_model_fp${isFP16 ? 16 : 32}.xml`);
 }
 
 module.exports = {
