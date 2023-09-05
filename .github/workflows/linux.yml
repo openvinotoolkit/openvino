@@ -319,7 +319,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt update
-          apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
+          apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers libsnappy-dev
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
