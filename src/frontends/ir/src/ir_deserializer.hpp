@@ -16,7 +16,6 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "utils.hpp"
-#include "xml_parse_utils.h"
 
 namespace ov {
 
