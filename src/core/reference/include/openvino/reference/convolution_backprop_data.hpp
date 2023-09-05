@@ -14,8 +14,7 @@
 #include "openvino/reference/convolution.hpp"
 #include "openvino/reference/reverse.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace {
 constexpr size_t filter_input_ch_axis = 0;
@@ -395,5 +394,4 @@ void convolution_backprop_in(const T* delta_in,
                               output_padding);
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

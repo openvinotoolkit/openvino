@@ -1,7 +1,7 @@
 `FastComposer: Tuning-Free Multi-Subject Image Generation with Localized Attention <https://fastcomposer.mit.edu/>`__
 =====================================================================================================================
 
-.. _top:
+
 
 FastComposer uses subject embeddings extracted by an image encoder to
 augment the generic text conditioning in diffusion models, enabling
@@ -31,6 +31,8 @@ different styles, actions, and contexts.
    lines of code are removed to avoid errors if there are no CUDA
    drivers in the system - changes to have compatibility with
    transformers >= 4.30.1 (due to security vulnerability)
+
+.. _top:
 
 **Table of contents**:
 

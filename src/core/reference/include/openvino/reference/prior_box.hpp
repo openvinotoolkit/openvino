@@ -8,11 +8,10 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/prior_box.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 static inline float clip_great(float x, float threshold) {
     return x < threshold ? x : threshold;
@@ -229,5 +228,4 @@ void prior_box(const T* data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

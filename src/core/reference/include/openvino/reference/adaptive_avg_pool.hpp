@@ -11,8 +11,7 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace adaptive_pool {
 inline size_t window_start(size_t idx, size_t arg_shape, size_t out_shape) {
@@ -130,5 +129,4 @@ void adaptive_avg_pool(const T* arg, T* out, const Shape& arg_shape, const Shape
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
