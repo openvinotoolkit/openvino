@@ -37,7 +37,7 @@ format to OpenVINO Intermediate Representation (IR).
 
    # Required imports. Please execute this cell first.
    ! pip install -q --find-links https://download.pytorch.org/whl/torch_stable.html \
-   "openvino-dev>=2023.0.1" \
+   "openvino-dev>=2023.0.2" \
    "requests" \
    "tqdm" \
    "transformers[onnx]>=4.21.1" \
