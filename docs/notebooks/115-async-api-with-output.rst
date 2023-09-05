@@ -1,7 +1,7 @@
 Asynchronous Inference with OpenVINO™
 =====================================
 
-.. _top:
+
 
 This notebook demonstrates how to use the `Async
 API <https://docs.openvino.ai/nightly/openvino_docs_deployment_optimization_guide_common.html>`__
@@ -13,6 +13,8 @@ device is busy with inference, the application can perform other tasks
 in parallel (for example, populating inputs or scheduling other
 requests) rather than wait for the current inference to complete first.
 
+
+.. _top:
 
 **Table of contents**:
 
@@ -465,7 +467,7 @@ Compare the performance `⇑ <#top>`__
 
 
 Asynchronous mode pipelines can be supported with the
-`AsyncInferQueue <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+`AsyncInferQueue <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 wrapper class. This class automatically spawns the pool of
 ``InferRequest`` objects (also called “jobs”) and provides
 synchronization mechanisms to control the flow of the pipeline. It is a

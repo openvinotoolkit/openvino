@@ -1,7 +1,7 @@
 Text-to-Image Generation with Stable Diffusion and OpenVINO™
 ============================================================
 
-.. _top:
+
 
 Stable Diffusion is a text-to-image latent diffusion model created by
 the researchers and engineers from
@@ -40,6 +40,8 @@ Notebook contains the following steps:
 2. Convert ONNX models to OpenVINO IR format, using model conversion
    API.
 3. Run Stable Diffusion pipeline with OpenVINO.
+
+.. _top:
 
 **Table of contents**:
 
