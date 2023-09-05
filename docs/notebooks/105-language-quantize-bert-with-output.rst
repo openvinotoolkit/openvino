@@ -1,7 +1,7 @@
 Quantize NLP models with Post-Training Quantization ​in NNCF
 ============================================================
 
-.. _top:
+
 
 This tutorial demonstrates how to apply ``INT8`` quantization to the
 Natural Language Processing model known as
@@ -23,6 +23,10 @@ and datasets. It consists of the following steps:
 -  Load and test quantized model.
 -  Compare the performance of the original, converted and quantized
    models.
+
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -590,10 +594,12 @@ Frames Per Second (FPS) for images.
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
 ``INT8`` models. For this purpose, use 
-`Benchmark Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+`Benchmark Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 in OpenVINO.
 
-   **Note**: The ``benchmark_app`` tool is able to measure the
+.. note::
+
+   The ``benchmark_app`` tool is able to measure the
    performance of the OpenVINO Intermediate Representation (OpenVINO IR)
    models only. For more accurate performance, run ``benchmark_app`` in
    a terminal/command prompt after closing other applications. Run
@@ -601,6 +607,7 @@ in OpenVINO.
    CPU for one minute. Change ``CPU`` to ``GPU`` to benchmark on GPU.
    Run ``benchmark_app --help`` to see an overview of all command-line
    options.
+
 
 .. code:: ipython3
 

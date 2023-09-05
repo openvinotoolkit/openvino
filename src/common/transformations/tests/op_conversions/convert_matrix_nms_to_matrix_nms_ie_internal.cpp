@@ -5,23 +5,23 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ov_ops/nms_static_shape_ie.hpp>
 #include <queue>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset5.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/nms_static_shape_ie.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
+#include "transformations/utils/utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace testing {
 class ConvertMatrixNmsToMatrixNmsIEFixture : public ::testing::WithParamInterface<element::Type>,
@@ -40,25 +40,25 @@ public:
 
             auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, opset8::MatrixNms::Attributes());
 
-            function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+            model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
             manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
-            manager.register_pass<ngraph::pass::ConstantFolding>();
+            manager.register_pass<pass::ConstantFolding>();
         }
 
         {
             auto boxes = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1000, 4});
             auto scores = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1, 1000});
-            auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(
+            auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<opset8::MatrixNms>>(
                 boxes,
                 scores,
                 opset8::MatrixNms::Attributes());
 
-            function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+            model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
         }
-        ASSERT_EQ(function->get_output_element_type(0), function_ref->get_output_element_type(0))
-            << "Output element type mismatch " << function->get_output_element_type(0).get_type_name() << " vs "
-            << function_ref->get_output_element_type(0).get_type_name();
+        ASSERT_EQ(model->get_output_element_type(0), model_ref->get_output_element_type(0))
+            << "Output element type mismatch " << model->get_output_element_type(0).get_type_name() << " vs "
+            << model_ref->get_output_element_type(0).get_type_name();
     }
 };
 

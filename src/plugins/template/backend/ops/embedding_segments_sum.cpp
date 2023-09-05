@@ -13,16 +13,15 @@ inline void evaluate(const std::shared_ptr<ngraph::op::v3::EmbeddingSegmentsSum>
                      const ngraph::HostTensorVector& inputs) {
     using T1 = typename ngraph::element_type_traits<t1>::value_type;
     using T2 = typename ngraph::element_type_traits<t2>::value_type;
-    ngraph::runtime::reference::embeddingSegmentsSum<T1, T2>(
-        inputs[0]->get_data_ptr<T1>(),
-        inputs[1]->get_data_ptr<T2>(),
-        inputs[2]->get_data_ptr<T2>(),
-        inputs.size() > 4 ? inputs[4]->get_data_ptr<T2>() : nullptr,
-        inputs.size() > 5 ? inputs[5]->get_data_ptr<T1>() : nullptr,
-        outputs[0]->get_data_ptr<T1>(),
-        inputs[0]->get_shape(),
-        inputs[1]->get_shape(),
-        outputs[0]->get_shape());
+    ov::reference::embeddingSegmentsSum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                                inputs[1]->get_data_ptr<T2>(),
+                                                inputs[2]->get_data_ptr<T2>(),
+                                                inputs.size() > 4 ? inputs[4]->get_data_ptr<T2>() : nullptr,
+                                                inputs.size() > 5 ? inputs[5]->get_data_ptr<T1>() : nullptr,
+                                                outputs[0]->get_data_ptr<T1>(),
+                                                inputs[0]->get_shape(),
+                                                inputs[1]->get_shape(),
+                                                outputs[0]->get_shape());
 }
 }  // namespace embedding_offsets_sum_v3
 

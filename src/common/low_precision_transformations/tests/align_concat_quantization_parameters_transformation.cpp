@@ -13,29 +13,29 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/align_concat_quantization_parameters_function.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph::pass;
+using namespace ov::pass;
 
 class AlignConcatQuantizationParametersTransformationTestValues {
 public:
 public:
     class Actual {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type preicsionAfterOperation;
+        ov::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -44,8 +44,8 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ngraph::element::Type,
-                   ngraph::Shape,
+typedef std::tuple<ov::element::Type,
+                   ov::Shape,
                    bool,         // additional FakeQuantize After
                    std::string,  // additional layer before FQ
                    AlignConcatQuantizationParametersTransformationTestValues>
@@ -56,8 +56,8 @@ class AlignConcatQuantizationParametersTransformation
       public testing::WithParamInterface<AlignConcatQuantizationParametersTransformationParams> {
 public:
     void SetUp() override {
-        ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ov::element::Type precision;
+        ov::Shape shape;
         bool addFakeQuantize;
         std::string additionalLayer;
         AlignConcatQuantizationParametersTransformationTestValues testValues;
@@ -73,7 +73,7 @@ public:
 
         auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
             {ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>(
-                {{{0}, {ngraph::element::u8}}, {{1}, {ngraph::element::i8}}})});
+                {{{0}, {ov::element::u8}}, {{1}, {ov::element::i8}}})});
 
         auto perTensorQuantization = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
             ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>({0}),
@@ -102,8 +102,8 @@ public:
 
     static std::string getTestCaseName(
         testing::TestParamInfo<AlignConcatQuantizationParametersTransformationParams> obj) {
-        ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ov::element::Type precision;
+        ov::Shape shape;
         bool addFakeQuantize;
         std::string additionalLayer;
         AlignConcatQuantizationParametersTransformationTestValues testValues;
@@ -129,7 +129,7 @@ TEST_P(AlignConcatQuantizationParametersTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32};
+const std::vector<ov::element::Type> precisions = {ov::element::f32};
 
 const std::vector<std::string> additionalLayer = {
     "maxpool"  // any transparent layer
@@ -137,15 +137,15 @@ const std::vector<std::string> additionalLayer = {
 
 const std::vector<bool> addFQ = {false};
 
-const std::vector<ngraph::Shape> shapes = {{1, 3, 9, 9}, {4, 3, 9, 9}};
+const std::vector<ov::Shape> shapes = {{1, 3, 9, 9}, {4, 3, 9, 9}};
 
 const std::vector<AlignConcatQuantizationParametersTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::f32, {{ngraph::element::f32}, {128.f}, {0.02f}}},
-     {ngraph::element::f32,
+     {ov::element::f32, {{ov::element::f32}, {128.f}, {0.02f}}},
+     {ov::element::f32,
       {{}, {std::vector<float>(6, 128.f), element::f32, {1, 6, 1, 1}}, {}},
-      ngraph::element::f32,
+      ov::element::f32,
       {{}, {}, {{0.0001f}, element::f32, {}}}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

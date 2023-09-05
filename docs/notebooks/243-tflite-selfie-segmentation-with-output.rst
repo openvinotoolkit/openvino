@@ -1,7 +1,7 @@
 Selfie Segmentation using TFLite and OpenVINO
 =============================================
 
-.. _top:
+
 
 The Selfie segmentation pipeline allows developers to easily separate
 the background from users within a scene and focus on what matters.
@@ -35,6 +35,8 @@ The tutorial consists of following steps:
 1. Download the TFLite model and convert it to OpenVINO IR format.
 2. Run inference on the image.
 3. Run interactive background blurring demo on video.
+
+.. _top:
 
 **Table of contents**:
 
@@ -133,9 +135,9 @@ next running. Optionally, we can apply compression to the FP16 model
 weights, using the ``compress_to_fp16=True`` option and integrate
 preprocessing, using this approach. For more information about model
 conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 For TensorFlow Lite, refer to the `models
-support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
+support <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
 
 .. code:: ipython3
 
@@ -534,12 +536,15 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering,
 set \ ``use_popup=True``.
 
-   **NOTE**: To use this notebook with a webcam, you need to run the
+.. note::
+
+   To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
    remote server (for example, in Binder or Google Colab service), the
    webcam will not work. By default, the lower cell will run model
    inference on a video file. If you want to try to live inference on
    your webcam set ``WEBCAM_INFERENCE = True``
+
 
 .. code:: ipython3
 

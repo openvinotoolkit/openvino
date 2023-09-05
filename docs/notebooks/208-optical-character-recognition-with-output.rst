@@ -1,7 +1,7 @@
 Optical Character Recognition (OCR) with OpenVINO™
 ==================================================
 
-.. _top:
+
 
 This tutorial demonstrates how to perform optical character recognition
 (OCR) with OpenVINO models. It is a continuation of the
@@ -9,9 +9,9 @@ This tutorial demonstrates how to perform optical character recognition
 tutorial, which shows only text detection.
 
 The
-`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.0/omz_models_model_horizontal_text_detection_0001.html>`__
+`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.1/omz_models_model_horizontal_text_detection_0001.html>`__
 and
-`text-recognition-resnet <https://docs.openvino.ai/2023.0/omz_models_model_text_recognition_resnet_fc.html>`__
+`text-recognition-resnet <https://docs.openvino.ai/2023.1/omz_models_model_text_recognition_resnet_fc.html>`__
 models are used together for text detection and then text recognition.
 
 In this tutorial, Open Model Zoo tools including Model Downloader, Model
@@ -20,6 +20,8 @@ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. For more
 information, refer to the
 `104-model-tools <104-model-tools-with-output.html>`__ tutorial.
+
+.. _top:
 
 **Table of contents**:
 
@@ -38,7 +40,7 @@ information, refer to the
 - `Text Recognition <#text-recognition>`__
 
   - `Load Text Recognition Model <#load-text-recognition-model>`__
-  - `Do Inference <#do-inference>`__
+  - `Do Inference <#do-the-inference>`__
 
 - `Show Results <#show-results>`__
 
@@ -341,9 +343,9 @@ Converting text-recognition-resnet-fc…
     Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmppkwl27u7 --model_name=text-recognition-resnet-fc --input=input '--mean_values=input[127.5]' '--scale_values=input[127.5]' --output=output --input_model=model/public/text-recognition-resnet-fc/resnet_fc.onnx '--layout=input(NCHW)' '--input_shape=[1, 1, 32, 100]' --compress_to_fp16=True
     
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument --compress_to_fp16 or set it to false --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /tmp/tmppkwl27u7/text-recognition-resnet-fc.xml
     [ SUCCESS ] BIN file: /tmp/tmppkwl27u7/text-recognition-resnet-fc.bin
@@ -535,6 +537,9 @@ Load Text Recognition Model `⇑ <#top>`__
     
     # Get the height and width of the input layer.
     _, _, H, W = recognition_input_layer.shape
+
+
+.. _do-the-inference:
 
 Do Inference `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

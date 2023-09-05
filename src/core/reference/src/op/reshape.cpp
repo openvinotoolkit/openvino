@@ -8,11 +8,10 @@
 #include <numeric>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_range.hpp"
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace {
 std::vector<size_t> reorder(const std::vector<size_t>& origin, const AxisVector& order) {
@@ -52,5 +51,4 @@ void reshape(const char* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

@@ -1,7 +1,7 @@
 Convert a PaddlePaddle Model to OpenVINO™ IR
 ============================================
 
-.. _top:
+
 
 This notebook shows how to convert a MobileNetV3 model from
 `PaddleHub <https://github.com/PaddlePaddle/PaddleHub>`__, pre-trained
@@ -16,9 +16,13 @@ IR model.
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
 
+
+
+.. _top:
+
 **Table of contents**:
 
-- `Preparation <#1preparation>`__
+- `Preparation <#preparation>`__
 
   - `Imports <#imports>`__
   - `Settings <#settings>`__
@@ -263,7 +267,7 @@ accept path to PaddlePaddle model and returns OpenVINO Model class
 instance which represents this model. Obtained model is ready to use and
 loading on device using ``compile_model`` or can be saved on disk using
 ``serialize`` function. See the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+Guide <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 for more information about Model Optimizer.
 
 .. code:: ipython3
@@ -364,7 +368,7 @@ Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
 For a fair comparison, we include the time it takes to process the
 image. For more accurate benchmarking, use the `OpenVINO benchmark
-tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
 Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3
@@ -494,6 +498,6 @@ References `⇑ <#top>`__
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle
-   support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
+   support <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
 -  `OpenVINO Model Optimizer
-   Documentation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
+   Documentation <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
