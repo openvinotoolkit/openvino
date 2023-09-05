@@ -27,7 +27,7 @@ OpenVINO™ :doc:`supports several model representations <Supported_Model_Format
    provide the same level of features, that means the new tools are not always backward compatible with the old ones. Please consult with :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
 Convert a model in Python: ``convert_model``
-##########################################
+############################################
 
 Model conversion API is exposed in Python by means of ``openvino.convert_model`` function which converts a model from original framework representation, for example Pytorch or TensorFlow, to the object of type ``openvino.Model``. The resulting ``openvino.Model`` can be inferred in the same application (Python script or Jupiter Notebook) or saved into a file with ``openvino.save_model`` for later use. There are several examples of using ``openvino.convert_model`` below based on popular public model repositories:
 

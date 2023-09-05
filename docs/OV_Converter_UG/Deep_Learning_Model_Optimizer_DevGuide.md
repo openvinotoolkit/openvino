@@ -44,7 +44,7 @@ To convert a model to OpenVINO model, you can use the following commands as desc
 
 Providing just a path to the model or model object as ``openvino.convert_model`` argument is frequently enough to make a successful conversion. However, depending on the model topology and original deep learning framework, additional parameters may be required:
 
-- ``example_input`` parameter available in Python ``openvino.convert_model`` only is intended to trace the model to obtain its graph representation. This parameter is crucial for the successful conversion of a model from PyTorch and is sometimes required for TensorFlow. Refer to the :doc:`PyTorch Model Conversion <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>` or :doc:`TensorFlow Model Conversion <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensoFlow>`.
+- ``example_input`` parameter available in Python ``openvino.convert_model`` only is intended to trace the model to obtain its graph representation. This parameter is crucial for the successful conversion of a model from PyTorch and is sometimes required for TensorFlow. Refer to the :doc:`PyTorch Model Conversion <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>` or :doc:`TensorFlow Model Conversion <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`.
 
 - ``input`` parameter to set or override shapes for model inputs. It configures dynamic and static dimensions in model inputs depending on your needs for the most efficient inference. For more information about using this parameter, refer to the :doc:`Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>` guide.
 

@@ -10,7 +10,7 @@ With model conversion API you can increase your model's efficiency by providing 
 .. _when_to_specify_input_shapes:
 
 Specifying shapes in ``input`` parameter
-######################################
+########################################
 
 ``openvino.convert_model`` supports conversion of models with dynamic input shapes that contain undefined dimensions.
 However, if the shape of data is not going to change from one inference request to another,
