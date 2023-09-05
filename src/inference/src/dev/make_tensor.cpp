@@ -406,13 +406,15 @@ public:
     ov::SoPtr<ITensor> tensor;
 };
 
-ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
+ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob, bool unwrap) {
 #define ELSE_IF(type)                                                                \
     else if (auto tblob = dynamic_cast<const TensorMemoryBlob<type>*>(blob.get())) { \
         return tblob->tensor;                                                        \
     }
     if (blob == nullptr) {
         return {};
+    } else if (unwrap && std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob) != nullptr) {
+        return std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob)->get_tensor();
     } else if (auto remote_blob = std::dynamic_pointer_cast<TensorRemoteBlob>(blob)) {
         return remote_blob->get_tensor();
     } else if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {

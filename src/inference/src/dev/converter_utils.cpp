@@ -215,7 +215,7 @@ public:
     }
 
     void SetState(const InferenceEngine::Blob::Ptr& newState) override {
-        m_state->set_state(ov::make_tensor(newState));
+        m_state->set_state(ov::make_tensor(newState, true));
     }
 
     InferenceEngine::Blob::CPtr GetState() const override {
@@ -542,7 +542,7 @@ public:
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
         try {
-            m_request->set_tensor(find_port(name), ov::make_tensor(data));
+            m_request->set_tensor(find_port(name), ov::make_tensor(data, true));
         } catch (const ov::Exception& ex) {
             const std::string what = ex.what();
             if (what.find("Failed to set tensor") != std::string::npos) {
@@ -556,7 +556,7 @@ public:
         try {
             std::vector<ov::SoPtr<ov::ITensor>> tensors;
             for (const auto& blob : blobs) {
-                tensors.emplace_back(ov::make_tensor(blob));
+                tensors.emplace_back(ov::make_tensor(blob, true));
             }
             m_request->set_tensors(find_port(name), tensors);
         } catch (const ov::Exception& ex) {
