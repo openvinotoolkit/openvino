@@ -1,9 +1,11 @@
 Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware
 ==============================================================================
 
-.. _top:
+
 
 |image0|
+
+.. _top:
 
 **Table of contents**:
 

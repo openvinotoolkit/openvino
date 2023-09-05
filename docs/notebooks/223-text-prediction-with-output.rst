@@ -1,7 +1,7 @@
 Text Prediction with OpenVINO™
 ==============================
 
-.. _top:
+
 
 This notebook shows text prediction with OpenVINO. This notebook can
 work in two different modes, Text Generation and Conversation, which the
@@ -72,6 +72,8 @@ above. The Generated response is added to the history with the
 ``eos_token`` at the end. Additional user input is added to the history,
 and the sequence is passed back into the model.
 
+
+.. _top:
 
 **Table of contents**:
 
@@ -190,7 +192,7 @@ While ONNX models are directly supported by OpenVINO runtime, it can be
 useful to convert them to IR format to take advantage of OpenVINO
 optimization tools and features. The ``mo.convert_model`` Python
 function of `model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 can be used for converting the model. The function returns instance of
 OpenVINO Model class, which is ready to use in Python interface but can
 also be serialized to OpenVINO IR format for future execution using

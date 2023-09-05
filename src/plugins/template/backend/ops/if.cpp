@@ -163,7 +163,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v8::If>& op,
         out_descs.emplace_back(op->get_output_descriptions(static_cast<int>(i)));
     }
     try {
-        ngraph::runtime::reference::if_reference(bodies, out_descs, in_descs, outputs, inputs);
+        ov::reference::if_reference(bodies, out_descs, in_descs, outputs, inputs);
     } catch (...) {
         if_op::if_reference(bodies, out_descs, in_descs, outputs, inputs);
     }

@@ -26,6 +26,14 @@ def get_convert_model_help_specifics():
                  'If the dimension is set as an integer (like 100 in [1,100]), such a dimension is not supposed '
                  'to be changed later, during a model conversion it is treated as a static value. '
                  'Example with unnamed inputs: \"[1,100],[1,?]\".'},
+        'output':
+            {'description':
+                 'One or more comma-separated model outputs to be preserved in the converted model. '
+                 'Other outputs are removed. If `output` parameter is not specified then all outputs from '
+                 'the original model are preserved. '
+                 'Do not add :0 to the names for TensorFlow. The order of outputs in the converted model is the '
+                 'same as the order of specified names. '
+                 'Example: ovc model.onnx output=out_1,out_2'},
         'extension':
             {'description':
                  'Paths or a comma-separated list of paths to libraries '
