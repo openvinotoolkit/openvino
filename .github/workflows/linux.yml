@@ -677,7 +677,7 @@ jobs:
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_precommit.xml --html report_tf_hub_precommit.html --self-contained-html
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_precommit.xml --html TEST-tf_hub_precommit.html --self-contained-html
         env:
           TEST_DEVICE: CPU
 
@@ -689,7 +689,7 @@ jobs:
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_nightly.xml --html report_tf_hub_all_models.html --self-contained-html
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_all_models.xml --html TEST-tf_hub_all_models.html --self-contained-html
         env:
           TYPE: ${{ github.event_name == 'schedule'}}
           TEST_DEVICE: CPU
