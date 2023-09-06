@@ -553,7 +553,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
           * - .. code-block:: sh
                  :force:
 
-                 mo --input_model MODEL_NAME --layout input_name(nchw->nhwc) --output_dir OUTPUT_DIR
+                 mo --input_model MODEL_NAME --layout "input_name(nchw->nhwc)" --output_dir OUTPUT_DIR
       
             - Not available in OVC tool. Please check Python API.
 
