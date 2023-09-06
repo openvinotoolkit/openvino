@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "single_opt_tests/bucketize.hpp"
+#include "single_op_tests/bucketize.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using ov::test::BucketizeLayerTest;

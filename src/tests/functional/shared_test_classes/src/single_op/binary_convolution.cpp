@@ -1,0 +1,90 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "shared_test_classes/single_op/binary_convolution.hpp"
+
+#include "ngraph_functions/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+
+namespace ov {
+namespace test {
+std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<binaryConvolutionTestParamsSet>& obj) {
+    binConvSpecificParams bin_conv_params;
+    ov::element::Type model_type;
+    ov::element::Type in_type, out_type;
+    std::vector<InputShape> shapes;
+    std::string target_device;
+
+    std::tie(bin_conv_params, model_type, in_type, out_type, shapes, target_device) = obj.param;
+
+    ov::op::PadType pad_type;
+    std::vector<size_t> kernel, stride, dilation;
+    std::vector<ptrdiff_t> pad_begin, padEnd;
+    size_t conv_out_channels;
+    float pad_value;
+    std::tie(kernel, stride, pad_begin, padEnd, dilation, conv_out_channels, pad_type, pad_value) = bin_conv_params;
+
+    std::ostringstream result;
+    result << "IS=(";
+    for (const auto& shape : shapes) {
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
+    }
+    result << ")_TS=(";
+    for (const auto& shape : shapes) {
+        for (const auto& item : shape.second) {
+            result << ov::test::utils::vec2str(item) << "_";
+        }
+    }
+    result << "KS=" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S=" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB=" << ov::test::utils::vec2str(pad_begin) << "_";
+    result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
+    result << "O=" << conv_out_channels << "_";
+    result << "AP=" << pad_type << "_";
+    result << "PV=" << pad_value << "_";
+    result << "netPRC=" << model_type.get_type_name() << "_";
+    result << "inPRC=" << in_type.get_type_name() << "_";
+    result << "outPRC=" << out_type.get_type_name() << "_";
+    result << "trgDev=" << target_device;
+    return result.str();
+}
+
+void BinaryConvolutionLayerTest::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
+    inputs.clear();
+    auto params = function->get_parameters();
+    OPENVINO_ASSERT(target_input_static_shapes.size() >= params.size());
+    for (int i = 0; i < params.size(); i++) {
+        auto tensor = ov::test::utils::create_and_fill_tensor(params[i]->get_element_type(), target_input_static_shapes[i], 1, 0, 1, 7235346);
+        inputs.insert({params[i], tensor});
+    }
+}
+
+void BinaryConvolutionLayerTest::SetUp() {
+    binConvSpecificParams bin_conv_params;
+    ov::element::Type model_type;
+    std::vector<InputShape> shapes;
+
+    std::tie(bin_conv_params, model_type, inType, outType, shapes, targetDevice) = this->GetParam();
+    init_input_shapes(shapes);
+
+    ov::op::PadType pad_type;
+    std::vector<size_t> kernel_size, strides, dilations;
+    std::vector<ptrdiff_t> pads_begin, pads_end;
+    size_t num_out_channels;
+    float pad_value;
+    std::tie(kernel_size, strides, pads_begin, pads_end, dilations, num_out_channels, pad_type, pad_value) = bin_conv_params;
+
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
+    params[0]->set_friendly_name("a_data_batch");
+
+    // TODO: refactor build BinaryConvolution op to accept filters input as Parameter
+    auto bin_conv =
+        ngraph::builder::makeBinaryConvolution(params[0], kernel_size, strides, pads_begin, pads_end, dilations, pad_type, num_out_channels, pad_value);
+    auto result = std::make_shared<ov::op::v0::Result>(bin_conv);
+    function = std::make_shared<ov::Model>(ov::OutputVector{result}, params, "BinaryConvolution");
+}
+
+} // namespace test
+} // namespace ov

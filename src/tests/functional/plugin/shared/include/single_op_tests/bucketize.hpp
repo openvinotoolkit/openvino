@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "shared_test_classes/single_opt/bucketize.hpp"
+#include "shared_test_classes/single_op/bucketize.hpp"
 
 namespace ov {
 namespace test {
-TEST_P(BucketizeLayerTest, CompareWithRefs) {
+TEST_P(BucketizeLayerTest, Inference) {
     run();
 }
 }  // namespace test
