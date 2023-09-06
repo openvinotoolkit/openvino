@@ -161,9 +161,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
                                               input_layout.format.value;
 
-    // Select preferred output format if the impl_type of FC node is onednn.
-    if (node.get_preferred_impl_type() == impl_types::onednn
-        && node.get_preferred_output_fmt() != format::any)
+    if (node.get_preferred_output_fmt() != format::any)
         output_format = node.get_preferred_output_fmt();
 
     return { layout{output_shapes[0], output_type, output_format} };

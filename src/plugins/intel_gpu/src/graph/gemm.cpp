@@ -108,10 +108,8 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
-    // Select preferred output format if the impl_type of gemm node is onednn.
     cldnn::format output_format = input0_layout.format;
-    if (node.get_preferred_impl_type() == impl_types::onednn
-        && node.get_preferred_output_fmt() != format::any)
+    if (node.get_preferred_output_fmt() != format::any)
         output_format = node.get_preferred_output_fmt();
 
     return { layout{output_shapes[0], output_type, output_format, prim->output_paddings[0]} };
