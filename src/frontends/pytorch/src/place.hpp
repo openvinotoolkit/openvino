@@ -13,7 +13,7 @@ namespace pytorch {
 
 class InputModel;
 
-// Place represent a tensor in the model
+// Place represents a tensor in the model
 class Place : public ov::frontend::Place {
     friend class ::ov::frontend::pytorch::InputModel;
 
