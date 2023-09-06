@@ -442,7 +442,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
 
-    using namespace ngraph::pass::low_precision;
+    using namespace ov::pass::low_precision;
     CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
     //Only enable conv/group conv signed input on AMX platform.

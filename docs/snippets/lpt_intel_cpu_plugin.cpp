@@ -66,7 +66,7 @@ manager.run_passes(nGraphFunc);
 //! [lpt_common]
 
 //! [lpt_execution]
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 if (useLpt) {
     // Low precision transformations plugin specific configuration: restrictions definition
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
@@ -130,7 +130,7 @@ int lpt_supported_precisions() {
 std::shared_ptr<ov::Model> nGraphFunc;
 ov::pass::Manager manager;
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 //! [lpt_supported_precisions]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ov::opset1::Convolution>({
@@ -154,7 +154,7 @@ return 0;
 int per_tensor_quantization() {
 std::shared_ptr<ov::Model> nGraphFunc;
 //! [per_tensor_quantization]
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 const std::vector<PrecisionsRestriction> emptyRestrictions;
 
@@ -177,7 +177,7 @@ auto pass_config = manager.get_pass_config();
 
 
 //! [asymmetric_quantization]
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 ov::pass::Manager lptManager;
 
 lptManager.register_pass<ov::pass::low_precision::LowPrecision>();
@@ -194,7 +194,7 @@ int lpt_markup_pipeline() {
 std::shared_ptr<ov::Model> nGraphFunc;
 ov::pass::Manager manager;
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 //! [lpt_markup_pipeline]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ov::opset1::Convolution>({

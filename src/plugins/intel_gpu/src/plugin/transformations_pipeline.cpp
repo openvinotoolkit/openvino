@@ -34,6 +34,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/validation_util.hpp"
 
 #include "transformations/einsum_decomposition.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
@@ -474,7 +475,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     if (enableInt8) {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::lpt");
-        using namespace ngraph::pass::low_precision;
+        using namespace ov::pass::low_precision;
 
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ov::op::v1::Convolution>({

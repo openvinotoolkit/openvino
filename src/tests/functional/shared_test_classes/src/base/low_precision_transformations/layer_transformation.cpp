@@ -58,7 +58,7 @@ std::pair<float, float> LayerTransformation::getQuantizationInterval(const ngrap
 }
 
 std::string LayerTransformation::toString(const ov::pass::low_precision::LayerTransformation::Params& params) {
-    using namespace ngraph::pass::low_precision;
+    using namespace ov::pass::low_precision;
     std::ostringstream result;
     result <<
         (params.updatePrecisions ? "" : "notUpdatePrecisions_") <<
