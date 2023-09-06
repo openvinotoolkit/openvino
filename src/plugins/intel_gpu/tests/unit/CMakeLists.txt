@@ -48,7 +48,7 @@ set(SOURCES_ALL
 
 add_executable(${TARGET_NAME} ${SOURCES_ALL})
 
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -63,6 +63,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              gtest
                                              gtest_main
                                              gflags
+                                             common_test_utils
                                              openvino::reference
                                              inference_engine_transformations
                                              gmock)
