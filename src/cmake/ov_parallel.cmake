@@ -16,10 +16,20 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
             message(FATAL_ERROR "Internal error: ${target} does not represent a target")
         endif()
 
+        # check that target is imported
+        get_target_property(is_imported ${target} IMPORTED)
+        if(NOT is_imported)
+            return()
+        endif()
+
         get_target_property(_imported_configs ${target} IMPORTED_CONFIGURATIONS)
         if(NOT _imported_configs)
             # if IMPORTED_CONFIGURATIONS property is not set, then set a common list
             set(_imported_configs RELEASE NONE)
+            if(NOT OV_GENERATOR_MULTI_CONFIG)
+                string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
+                list(APPEND _imported_configs ${_build_type})
+            endif()
         endif()
 
         # generate a list of locations
@@ -38,7 +48,7 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
         endforeach()
     endfunction()
 
-    macro(_handle_tbb_target _tbb_target)
+    macro(_get_target_location_and_return _tbb_target)
         _get_target_location(${_tbb_target} "_tbb_lib_location")
         if(_tbb_lib_location)
             set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
@@ -53,7 +63,7 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
         # handle cases like in conan: $<$<CONFIG:Release>:CONAN_LIB::onetbb_TBB_tbb_tbb_RELEASE>
         if(${tbb_lib} MATCHES "CONAN_LIB::([A-Za-z0-9_]*)")
             set(tbb_lib_parsed "CONAN_LIB::${CMAKE_MATCH_1}")
-            _handle_tbb_target(${tbb_lib_parsed})
+            _get_target_location_and_return(${tbb_lib_parsed})
         elseif(tbb_lib MATCHES "${CMAKE_SHARED_LIBRARY_PREFIX}tbb${CMAKE_SHARED_LIBRARY_SUFFIX}")
             # tbb_lib just a full path to a library itself
             set(${_tbb_lib_location_var} "${tbb_lib}" PARENT_SCOPE)
@@ -62,14 +72,21 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
     endforeach()
 
     # handle case of usual target
-    _handle_tbb_target(${tbb_target})
+    _get_target_location_and_return(${tbb_target})
 
    message(FATAL_ERROR "Failed to detect TBB library location")
 endfunction()
 
 macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        set(_ov_minimal_tbb_version 2017.0)
+        # conan generates TBBConfig.cmake files, which follows cmake's
+        # SameMajorVersion scheme, while TBB itself follows AnyNewerVersion one
+        # see https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html#generating-a-package-version-file
+        if(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain.cmake" OR CONAN_EXPORTED)
+            set(_ov_minimal_tbb_version 2021.0)
+        else()
+            set(_ov_minimal_tbb_version 2017.0)
+        endif()
 
         if(NOT ENABLE_SYSTEM_TBB)
             if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
@@ -225,7 +242,7 @@ macro(ov_find_package_tbb)
     endif()
 endmacro()
 
-function(set_ie_threading_interface_for TARGET_NAME)
+function(ov_set_threading_interface_for TARGET_NAME)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
         # find TBB
         ov_find_package_tbb()
@@ -314,7 +331,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
 
         if (NOT OpenVINO_SOURCE_DIR)
-            # TODO: dead code since ie_parallel.cmake is not used outside of OpenVINO build
+            # TODO: dead code since ov_parallel.cmake is not used outside of OpenVINO build
             if (WIN32)
                 set(lib_rel_path ${IE_LIB_REL_DIR})
                 set(lib_dbg_path ${IE_LIB_DBG_DIR})
@@ -381,4 +398,9 @@ function(set_ie_threading_interface_for TARGET_NAME)
         find_package(Threads REQUIRED)
         ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
     endif()
+endfunction(ov_set_threading_interface_for)
+
+function(set_ie_threading_interface_for TARGET_NAME)
+    message(WARNING "This function is deprecated. Please use ov_set_threading_interface_for(TARGET_NAME) instead.")
+    ov_set_threading_interface_for(${TARGET_NAME})
 endfunction(set_ie_threading_interface_for)
