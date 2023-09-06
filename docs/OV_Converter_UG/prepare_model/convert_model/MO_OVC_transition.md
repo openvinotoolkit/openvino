@@ -603,7 +603,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
             - Not available in OVC tool. Please check Python API.
 
 Supported frameworks in MO vs OVC 
-#######################
+#################################
 
 ov.convert_model() and OVC tool support conversion from PyTorch, TF, TF Lite, ONNX, PaddlePaddle.
 Following frameworks are supported only in MO and mo.convert_model(): Caffe, MxNet, Kaldi.
