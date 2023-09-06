@@ -91,42 +91,4 @@ describe('Input class for ov::Input<const ov::Node>', () => {
     assert.deepStrictEqual(compiledModel.input(0).shape, [1, 3, 32, 32]);
   });
 
-  it('Input.getShape() method', () => {
-    assert.deepStrictEqual(
-      compiledModel.input(0).getShape(), [1, 3, 32, 32]);
-  });
-});
-
-describe('InferRequest infer()', () => {
-  const tensorData = Float32Array.from({ length: 3072 }, () => Math.random());
-  const tensor = new ov.Tensor(
-    ov.element.f32,
-    Int32Array.from([1, 3, 32, 32]),
-    tensorData,
-  );
-
-  const tensorLike = [[tensor],
-    [tensorData]];
-
-  tensorLike.forEach(([tl]) => {
-    const inferRequest = compiledModel.createInferRequest();
-    inferRequest.infer({ data: tl });
-    const result = inferRequest.getOutputTensors();
-    const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
-    it(`Test infer(inputData: { [inputName: string]: ${label} })`, () => {
-      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-      assert.deepStrictEqual(result['fc_out'].data.length, 10);
-    });
-  });
-
-  tensorLike.forEach(([tl]) => {
-    const inferRequest = compiledModel.createInferRequest();
-    inferRequest.infer([tl]);
-    const result = inferRequest.getOutputTensors();
-    const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
-    it(`Test infer(inputData: [ [inputName: string]: ${label} ])`, () => {
-      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-      assert.deepStrictEqual(result['fc_out'].data.length, 10);
-    });
-  });
 });

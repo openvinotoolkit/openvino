@@ -131,9 +131,9 @@ ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& inf
         const auto data = value.As<Napi::TypedArray>();
         return cast_to_tensor(data, shape, type);
 
-    } else if (value.IsObject()) {
+    } else if (value.IsObject()) { // TODO: Check info[0] object type
         return cast_to_tensor(value.As<Napi::Object>());
     } else {
-        throw std::invalid_argument(std::string("Cannot create a tensor from the passed Napi::Value." ));
+        throw std::invalid_argument("Cannot create a tensor from the passed Napi::Value." );
     }
 }
