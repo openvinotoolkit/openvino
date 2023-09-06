@@ -615,20 +615,20 @@ template <typename T0, typename T1, typename T2, typename T3, typename T4, typen
 void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const F& func) {
 #if OV_THREAD == OV_THREAD_TBB
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);
-    int nthr = parallel_get_max_threads();
-    if (static_cast<size_t>(nthr) > work_amount)
-        nthr = static_cast<int>(work_amount);
-    if (nthr == 1) {
+//    int nthr = parallel_get_max_threads();
+//    if (static_cast<size_t>(nthr) > work_amount)
+//        nthr = static_cast<int>(work_amount);
+//    if (nthr == 1) {
         for_5d(0, 1, D0, D1, D2, D3, D4, func);
-    } else {
-        tbb::parallel_for(
-            0,
-            nthr,
-            [&](int ithr) {
-                for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
-            },
-            tbb::static_partitioner());
-    }
+//    } else {
+//        tbb::parallel_for(
+//            0,
+//            nthr,
+//            [&](int ithr) {
+//                for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
+//            },
+//            tbb::static_partitioner());
+//    }
 #elif OV_THREAD == OV_THREAD_TBB_AUTO
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
