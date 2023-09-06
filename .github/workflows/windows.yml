@@ -1,14 +1,14 @@
 name: Tests on Windows (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
 #  push:
 #    paths-ignore:
 #      - '**/docs/**'
@@ -134,10 +134,11 @@ jobs:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
-          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
-          key: ${{ github.job }}-windows
+          # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          append-timestamp: false
+          key: ${{ github.job }}-${{ runner.os }}
           restore-keys: |
-            ${{ github.job }}-windows
+            ${{ github.job }}-${{ runner.os }}
 
       - name: CMake configure
         run: |
@@ -663,10 +664,12 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-latest
+    runs-on: windows-latest-16-cores
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\run_parallel.py"
+      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache.lst"
 
     steps:
       - name: Create Directories
@@ -701,6 +704,25 @@ jobs:
           ls "${{ env.INSTALL_DIR }}"
           ls "${{ env.INSTALL_TEST_DIR }}"
 
+      - name: Install python dependencies
+        shell: cmd
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\requirements.txt
+
+      - name: Cache Tests Execution Time
+        id: tests-functional-cpu-cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-cache
+
+      - name: Intel CPU plugin func tests (parallel)
+        shell: cmd
+        run: |
+          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}\TEST-CPUFuncTests-parallel.xml"
+        timeout-minutes: 45
+
       - name: Intel CPU plugin func tests
         shell: cmd
         run: |
@@ -711,5 +733,10 @@ jobs:
         if: ${{ always() }}
         with:
           name: test-results-functional-cpu
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
           if-no-files-found: 'error'
