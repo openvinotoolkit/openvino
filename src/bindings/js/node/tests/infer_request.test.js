@@ -6,30 +6,31 @@ const ov = require('../build/Release/ov_node_addon.node');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
+const util = require('node:util');
+
+const testXml = getModelPath();
+const core = new ov.Core();
+const model = core.readModel(testXml);
+const compiledModel = core.compileModel(model, 'CPU');
+
+const inferRequest = compiledModel.createInferRequest();
+
+const tensorData = Float32Array.from({ length: 3072 }, () => Math.floor(Math.random() * 3072));
+const tensor = new ov.Tensor(
+  ov.element.f32,
+  [1, 3, 32, 32],
+  tensorData,
+);
+const resTensor = new ov.Tensor(
+  ov.element.f32,
+  [1, 10],
+  tensorData.slice(-10),
+);
+
+const tensorLike = [[tensor],
+  [tensorData]];
 
 describe('InferRequest', () => {
-
-  const testXml = getModelPath();
-  const core = new ov.Core();
-  const model = core.readModel(testXml);
-  const compiledModel = core.compileModel(model, 'CPU');
-
-  const inferRequest = compiledModel.createInferRequest();
-
-  const tensorData = Float32Array.from({ length: 3072 }, () => Math.floor(Math.random() * 3072));
-  const tensor = new ov.Tensor(
-    ov.element.f32,
-    [1, 3, 32, 32],
-    tensorData,
-  );
-  const resTensor = new ov.Tensor(
-    ov.element.f32,
-    [1, 10],
-    tensorData.slice(-10),
-  );
-
-  const tensorLike = [[tensor],
-    [tensorData]];
 
   tensorLike.forEach(([tl]) => {
     inferRequest.infer({ data: tl });
@@ -192,4 +193,15 @@ describe('InferRequest', () => {
     // assert(instanceOf(compiledMode, cm)); // TODO Create a separate test
     assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
   });
+});
+
+describe("Asynchronous inference", () => {
+    it('Test promisifiedAsyncInfer()', () => {
+        const ir = compiledModel.createInferRequest();
+        const res1 = ir.infer([tensorData]);
+        const promisifiedAsyncInfer = util.promisify(ov.asyncInfer);
+        promisifiedAsyncInfer(ir, [tensorData]).then((result, err) => {
+            assert.deepStrictEqual(res1['fc_out'].data[0], result['fc_out'].data[0]);
+        })
+     });
 });
