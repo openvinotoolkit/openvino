@@ -252,13 +252,6 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, Mode
         } else {
             inferencePrecision = ov::element::f32;
         }
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-        //fp16 precision is used as default precision on ARM for non-convolution networks
-        //fp16 ACL convolution is slower than fp32
-        if (modelType != ModelType::CNN) {
-            inferencePrecision = ov::element::f16;
-        }
-#endif
     }
 
     if (!prop.empty())

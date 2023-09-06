@@ -4,14 +4,10 @@
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 
 #include <memory>
-#include <ngraph/op/util/broadcast_base.hpp>
-#include <ngraph/op/util/gather_base.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <transformations/rt_info/nms_selected_indices.hpp>
 
 #include "itt.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/non_max_suppression.hpp"
@@ -20,7 +16,11 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/nms_selected_indices.hpp"
 
 using namespace std;
 

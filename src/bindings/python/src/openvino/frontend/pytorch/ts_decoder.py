@@ -35,6 +35,7 @@ class TorchScriptPythonDecoder (Decoder):
         self.m_decoders = []
         self._input_signature = None
         self._shared_memory = shared_memory
+        self._input_is_list = False
         if graph_element is None:
             try:
                 pt_module = self._get_scripted_model(pt_module, example_input)
@@ -77,7 +78,7 @@ class TorchScriptPythonDecoder (Decoder):
         preserved_attributes = []
         for name, module in model.named_modules():
             if hasattr(module, "weight"):
-                if module.weight.dtype in [torch.int8, torch.uint8]:
+                if module.weight is not None and module.weight.dtype in [torch.int8, torch.uint8]:
                     preserved_attributes.append(name)
         return preserved_attributes
 
@@ -136,11 +137,16 @@ class TorchScriptPythonDecoder (Decoder):
             return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, wrapped_model
 
         def prepare_example_inputs_and_model(inputs, input_params, model):
+            input_signature = list(input_params)
             if isinstance(inputs, dict):
                 return process_dict_inputs(inputs, input_params, model)
+            if isinstance(inputs, list) and len(inputs) == 1 and isinstance(inputs[0], torch.Tensor):
+                if "typing.List" in str(input_params[input_signature[0]].annotation):
+                    inputs = inputs[0].unsqueeze(0)
+                    self._input_is_list = True
+
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
-            input_signature = list(input_params)
             input_signature = input_signature[:len(inputs)]
             return {"example_inputs": inputs}, input_signature, model
 
@@ -164,7 +170,7 @@ class TorchScriptPythonDecoder (Decoder):
                         try:
                             scripted = torch.jit.trace(pt_module, **input_parameters, strict=False)
                         except Exception as te:
-                            raise f"Tracing failed with exception {te}\nScripting failed with exception: {se}"
+                            raise Exception(f"Tracing failed with exception {te}\nScripting failed with exception: {se}")
             skip_freeze = False
             for n in scripted.inlined_graph.nodes():
                 # TODO: switch off freezing for all traced models
@@ -176,7 +182,7 @@ class TorchScriptPythonDecoder (Decoder):
                     first_input = next(n.inputs())
                     if first_input.node().kind() == "prim::Constant":
                         ivalue = first_input.toIValue()
-                        if ivalue is not None and ivalue.dtype in [torch.bfloat16, torch.float16]:
+                        if isinstance(ivalue, torch.Tensor) and ivalue.dtype in [torch.bfloat16, torch.float16]:
                             # do not freeze models with compressed constants
                             skip_freeze = True
                             break
@@ -273,6 +279,9 @@ class TorchScriptPythonDecoder (Decoder):
             decoder = TorchScriptPythonDecoder(self.pt_module, node, alias_db=self.alias_db, shared_memory=self._shared_memory)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
+
+    def decoder_type_name(self) -> str:
+        return "ts"
 
     def get_subgraphs(self) -> list:
         if self.graph_element.kind() == "prim::PythonOp":

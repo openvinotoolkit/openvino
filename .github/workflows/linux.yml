@@ -41,6 +41,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       BUILD_DIR: ${{ github.workspace }}/build
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
@@ -48,20 +49,20 @@ jobs:
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
           submodules: 'recursive'
 
       - name: Clone testdata for C API tests
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -183,14 +184,23 @@ jobs:
       - name: Cmake Layer Tests
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
 
+      - name: Cmake Model Hub Tests
+        run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/model_hub_tests -B ${{ env.BUILD_DIR }}/model_hub_tests
+
       - name: Build Layer Tests
         run: cmake --build ${{ env.BUILD_DIR }}/layer_tests --parallel --config Release
+
+      - name: Build Model Hub Tests
+        run: cmake --build ${{ env.BUILD_DIR }}/model_hub_tests --parallel --config Release
 
       - name: Install wheel packages
         run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Install Layer Tests
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/layer_tests/cmake_install.cmake
+
+      - name: Install Model Hub Tests
+        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/model_hub_tests/cmake_install.cmake
 
       - name: Install python wheels
         run: python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
@@ -482,6 +492,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       BUILD_DIR: ${{ github.workspace }}/build
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
@@ -494,7 +505,7 @@ jobs:
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'recursive'
@@ -617,6 +628,7 @@ jobs:
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
 
       - name: TensorFlow 1 Layer Tests - TF FE
         run: |
@@ -629,6 +641,7 @@ jobs:
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - TF FE
         run: |
@@ -638,6 +651,30 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: JAX Layer Tests - TF FE
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
+        env:
+          TEST_DEVICE: CPU
+
+      - name: TensorFlow Hub Tests - TF FE
+        run: |
+          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
+
+          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml
         env:
           TEST_DEVICE: CPU
 
@@ -659,6 +696,7 @@ jobs:
               --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
           TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         run: |
@@ -669,6 +707,7 @@ jobs:
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
 
       - name: MO Python API Tests
         run: |
@@ -679,6 +718,7 @@ jobs:
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
 
       - name: Python Frontend tests
         run: |
@@ -709,10 +749,12 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest-4-cores
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/run_parallel.py
+      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
 
     steps:
       - name: Create Directories
@@ -744,15 +786,34 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
 
-      - name: Intel CPU plugin func tests
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
+
+      - name: Cache Tests Execution Time
+        id: tests-functional-cpu-cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-cache
+
+      - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
+          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+        timeout-minutes: 25
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
           name: test-results-functional-cpu
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
           if-no-files-found: 'error'

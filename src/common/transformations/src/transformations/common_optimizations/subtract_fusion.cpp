@@ -5,16 +5,16 @@
 #include "transformations/common_optimizations/subtract_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::SubtractFusion::SubtractFusion() {
@@ -29,7 +29,7 @@ ov::pass::SubtractFusion::SubtractFusion() {
     auto p_mul_or_neg = std::make_shared<pattern::op::Or>(OutputVector({p_mul, p_neg}));
 
     auto p_add_input = pattern::any_input();
-    auto p_add = ngraph::pattern::wrap_type<ov::op::v1::Add>({p_add_input, p_mul_or_neg});
+    auto p_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_add_input, p_mul_or_neg});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -58,6 +58,6 @@ ov::pass::SubtractFusion::SubtractFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(p_add, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(p_add, matcher_name);
     register_matcher(m, callback);
 }
