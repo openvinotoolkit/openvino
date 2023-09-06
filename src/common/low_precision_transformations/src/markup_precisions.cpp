@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset6.hpp"
@@ -152,10 +153,12 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
         { name<opset1::ReduceMin>() },
         { name<opset1::Relu>() },
         // TODO: there are conditions
+        { name<opset2::BatchToSpace>() },
         { name<opset1::Pad>() },
         { name<ov::opset12::Pad>() },
         { name<opset1::Reshape>() },
         { name<opset1::Squeeze>() },
+        { name<opset2::SpaceToBatch>() },
         { name<opset1::Split>() },
         { name<opset1::StridedSlice>() },
         { name<opset1::ShuffleChannels>() },

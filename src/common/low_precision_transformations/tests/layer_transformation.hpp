@@ -217,6 +217,28 @@ public:
         return true;
     }
 
+    template <class Operation>
+    static ov::element::Type get_output_precision(const std::shared_ptr<ov::Model>& model) {
+        auto result = ov::element::undefined;
+        for (const auto& op : model->get_ops()) {
+            if (ov::is_type<Operation>(op)) {
+                if (result != ov::element::undefined) {
+                    THROW_IE_LPT_EXCEPTION(*op) << "not one operation";
+                }
+                if (op->get_output_size() != 1) {
+                    THROW_IE_LPT_EXCEPTION(*op) << "not expected outputs count";
+                }
+                result = op->get_output_element_type(0);
+            }
+        }
+
+        if (result == ov::element::undefined) {
+            THROW_IE_LPT_EXCEPTION_BASE << "operation was not found";
+        }
+
+        return result;
+    }
+
 protected:
     std::shared_ptr<Model> actualFunction;
     std::shared_ptr<Model> referenceFunction;

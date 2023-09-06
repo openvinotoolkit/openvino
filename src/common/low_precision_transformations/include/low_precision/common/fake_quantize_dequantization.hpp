@@ -33,6 +33,7 @@ public:
     bool multiplyHasZeroOrDenormal() const;
     bool isShared() const;
     bool isLowPrecision() const;
+    bool isPerTensor() const;
     std::shared_ptr<Node> copyWithNewInput(const std::shared_ptr<Node>& input) const;
 
     bool checkElementwise(const std::shared_ptr<ov::Node>& elementwise) const;
