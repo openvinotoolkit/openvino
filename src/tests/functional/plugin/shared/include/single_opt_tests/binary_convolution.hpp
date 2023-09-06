@@ -4,10 +4,12 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/binary_convolution.hpp"
+#include "shared_test_classes/single_opt/binary_convolution.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
 TEST_P(BinaryConvolutionLayerTest, CompareWithRefs) {
-    Run();
+    run();
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
