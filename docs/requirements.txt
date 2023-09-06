@@ -45,3 +45,4 @@ sphinxcontrib-serializinghtml==1.1.5
 toml==0.10.2
 urllib3==1.26.5
 zipp==3.4.1
+docs/openvino_custom_sphinx_sitemap
