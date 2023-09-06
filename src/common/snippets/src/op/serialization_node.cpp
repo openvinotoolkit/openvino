@@ -32,16 +32,16 @@ std::shared_ptr<Node> SerializationNode::clone_with_new_inputs(const OutputVecto
 }
 
 bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
-    std::vector<std::pair<std::string, ov::PartialShape>> shapes;
+    std::vector<std::pair<std::string, std::vector<size_t>>> shapes;
     for (size_t i = 0; i < m_expr->get_input_count(); i++) {
         const auto &shape = m_expr->get_input_port_descriptor(i)->get_shape();
         if (!shape.empty())
-            shapes.emplace_back("in_shape_" + std::to_string(i), ov::PartialShape(shape));
+            shapes.emplace_back("in_shape_" + std::to_string(i), shape);
     }
     for (size_t i = 0; i < m_expr->get_output_count(); i++) {
         const auto &shape = m_expr->get_output_port_descriptor(i)->get_shape();
         if (!shape.empty())
-            shapes.emplace_back("out_shape_" + std::to_string(i), ov::PartialShape(shape));
+            shapes.emplace_back("out_shape_" + std::to_string(i), shape);
     }
 
     auto loop_ids = m_expr->get_loop_ids();
