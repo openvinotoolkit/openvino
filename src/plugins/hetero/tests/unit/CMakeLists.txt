@@ -3,6 +3,8 @@
 #
 
 set(TARGET_NAME ov_hetero_unit_tests)
+
+set(CI_BUILD_NUMBER "unittest")
 set(HETERO_SOURCE_DIR ${OpenVINO_SOURCE_DIR}/src/plugins/hetero/src)
 
 ov_add_test_target(
