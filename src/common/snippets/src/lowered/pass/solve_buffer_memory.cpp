@@ -80,7 +80,7 @@ bool SolveBufferMemory::run(LinearIR& linear_ir) {
     // Set offsets for Buffers
     for (const auto& box : boxes) {
         for (const auto& buffer : m_clusters[box.id]) {
-            const auto offset = static_cast<size_t>(memSolver.getOffset(box.id));
+            const auto offset = static_cast<size_t>(memSolver.getOffset(static_cast<int>(box.id)));
             AllocateBufferMemory::set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
         }
     }
