@@ -95,8 +95,16 @@ protected:
         std::tie(shapes, secondaryInputType, dataType, padsBegin, padsEnd, padValue, padMode, cpuParams, additionalConfig) = this->GetParam();
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        if (dataType == ElementType::f16) {
-            selectedType = makeSelectedTypeStr("ref", ElementType::f32);
+
+        if (dataType == ElementType::i8) {
+            selectedType = makeSelectedTypeStr("ref", ElementType::i8);
+        } else if (dataType == ElementType::bf16) {
+            selectedType = makeSelectedTypeStr("ref", ElementType::bf16);
+        } else if (dataType == ElementType::f16) {
+            selectedType = makeSelectedTypeStr("ref", ElementType::f16);
+        } else if (additionalConfig.count(ov::hint::inference_precision.name()) &&
+                additionalConfig[ov::hint::inference_precision.name()] == "f16") {
+            selectedType = makeSelectedTypeStr("ref", ElementType::f16);
         } else {
             selectedType = makeSelectedTypeStr("ref", dataType);
         }

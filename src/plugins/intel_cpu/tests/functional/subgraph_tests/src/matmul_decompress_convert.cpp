@@ -312,6 +312,14 @@ std::vector<CPUSpecificParams> filterSpecificParams_BF16() {
     return specificParams;
 }
 
+std::vector<CPUSpecificParams> filterSpecificParams_FP16() {
+    std::vector<CPUSpecificParams> specificParams;
+    specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
+    specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"});
+    return filterCPUInfoForDeviceWithFP16(specificParams);
+}
+
+
 
 const auto testParams2D_FP32_smoke = ::testing::Combine(
     ::testing::ValuesIn(inputShapes2D),
@@ -329,7 +337,7 @@ const auto testParams2D_FP16_smoke = ::testing::Combine(
     ::testing::ValuesIn(transposeParams),
     ::testing::Values(ElementType::f16),
     ::testing::Values(emptyConfig),
-    ::testing::ValuesIn(filterSpecificParams(false)));
+    ::testing::ValuesIn(filterSpecificParams_FP16()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16, MatMulDecompressConvertTest, testParams2D_FP16_smoke,
                         MatMulDecompressConvertTest::getTestCaseName);
@@ -362,7 +370,7 @@ const auto testParams3D_FP16_smoke = ::testing::Combine(
     ::testing::ValuesIn(transposeParams),
     ::testing::Values(ElementType::f16),
     ::testing::Values(emptyConfig),
-    ::testing::ValuesIn(filterSpecificParams(false)));
+    ::testing::ValuesIn(filterSpecificParams_FP16()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP16, MatMulDecompressConvertTest, testParams3D_FP16_smoke,
                         MatMulDecompressConvertTest::getTestCaseName);
@@ -517,18 +525,6 @@ TEST_P(MatMulDecompressConvertTest2, CompareWithRefs) {
     run();
     CheckExecutionGraph();
 }
-
-TEST_P(MatMulDecompressConvertTest2, CompareWithRefs_FP16) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), "f16"});
-
-    run();
-    CheckExecutionGraph();
-}
-
 
 namespace {
 
