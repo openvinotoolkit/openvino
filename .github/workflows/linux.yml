@@ -1,5 +1,8 @@
 name: Tests on Linux (Ubuntu 22.04, Python 3.11)
 on:
+  schedule:
+    # - cron: '0 20/72 * * *'
+    - cron: '10 * * * *'
   workflow_dispatch:
   pull_request:
     paths-ignore:
@@ -674,8 +677,9 @@ jobs:
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml --html TEST-tf_hub_tf_fe.html --self-contained-html
         env:
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
@@ -741,7 +745,9 @@ jobs:
         if: ${{ always() }}
         with:
           name: test-results-python
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
   CPU_Functional_Tests:
