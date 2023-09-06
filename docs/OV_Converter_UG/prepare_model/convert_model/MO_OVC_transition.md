@@ -557,6 +557,51 @@ Here comparison of preprocessing between MO and OVC.
       
             - Not available in OVC tool. Please check Python API.
 
+``transform`` parameter:
+
+.. tab-set::
+
+    .. tab-item:: Python
+       :sync: py
+      
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: py
+                 :force:
+      
+                 from openvino.tools import mo
+
+                 ov_model = mo.convert_model(model, transform=[('LowLatency2', {'use_const_initializer': False}), 'Pruning', ('MakeStateful', {'param_res_names': {'input_name': 'output_name'}})])
+      
+            - .. code-block:: py
+                 :force:
+
+                 import openvino as ov
+                 from openvino._offline_transformations import apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation
+
+                 ov_model = ov.convert_model(model)
+                 apply_low_latency_transformation(model, use_const_initializer=False)
+                 apply_pruning_transformation(model)
+                 apply_make_stateful_transformation(model, param_res_names={'input_name': 'output_name'})
+
+    .. tab-item:: CLI
+       :sync: cli
+
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: sh
+                 :force:
+
+                 mo --input_model MODEL_NAME --transform LowLatency2[use_const_initializer=False] --output_dir OUTPUT_DIR
+      
+            - Not available in OVC tool. Please check Python API.
+
 MO vs OVC model formats
 #######################
 
