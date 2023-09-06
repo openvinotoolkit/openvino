@@ -11,7 +11,7 @@ opencl-headers/2023.04.17
 xbyak/[>=6.62]
 snappy/[>=1.1.7]
 gflags/2.2.2
-onnx/1.13.1
+onnx/1.14.0
 nlohmann_json/[>=3.1.1]
 pybind11/[>=2.10.1]
 flatbuffers/[>=22.9.24]
