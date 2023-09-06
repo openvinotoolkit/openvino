@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 
@@ -18,8 +19,8 @@ public:
     OPENVINO_OP("BitwiseOr", "opset13", util::BinaryElementwiseArithmetic);
     BitwiseOr() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
     BitwiseOr(const Output<Node>& arg0,
-               const Output<Node>& arg1,
-               const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec());
+              const Output<Node>& arg1,
+              const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec());
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 

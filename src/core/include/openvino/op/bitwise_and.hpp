@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 

@@ -14,7 +14,7 @@ using namespace ngraph;
 op::v13::BitwiseOr::BitwiseOr(const Output<Node>& arg0,
                               const Output<Node>& arg1,
                               const AutoBroadcastSpec& auto_broadcast)
-                              : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
+    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }
 
@@ -32,19 +32,19 @@ bool op::v13::BitwiseOr::evaluate(const HostTensorVector& outputs, const HostTen
 bool op::v13::BitwiseOr::has_evaluate() const {
     OV_OP_SCOPE(v13_BitwiseOr_has_evaluate);
     switch (get_input_element_type(0)) {
-        case ngraph::element::i4:
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u4:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64:
-            return true;
-        default:
-            break;
+    case ngraph::element::i4:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u4:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+        return true;
+    default:
+        break;
     }
     return false;
 }
