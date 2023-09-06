@@ -267,7 +267,7 @@ jobs:
           export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
 
           python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
-          export LD_LIBRARY_PATH=${{ env.IE_APP_PATH }}:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
 
@@ -706,7 +706,7 @@ jobs:
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.xml
         env:
           TEST_DEVICE: CPU
 
@@ -829,7 +829,7 @@ jobs:
       - name: Install python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/requirements.txt
 
       - name: Cache Tests Execution Time
         id: tests-functional-cpu-cache
@@ -841,7 +841,7 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${env.INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 25
 
 
