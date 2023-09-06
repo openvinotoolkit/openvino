@@ -108,11 +108,13 @@ html_theme_options = {
     "show_prev_next": False,
 }
 
+snippet_root = os.getenv("SNIPPET_ROOT", "")
+
 html_context = {
     'current_language': 'English',
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
     'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
-    'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
+    'doxygen_snippet_root': snippet_root
 }
 
 repositories = {
