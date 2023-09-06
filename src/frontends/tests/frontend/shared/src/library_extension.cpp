@@ -4,7 +4,6 @@
 
 #include "library_extension.hpp"
 
-#include <common_test_utils/graph_comparator.hpp>
 #include <ostream>
 
 #include "common_test_utils/file_utils.hpp"

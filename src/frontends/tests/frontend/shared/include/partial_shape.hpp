@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/frontend/manager.hpp>
+#include "openvino/frontend/manager.hpp"
 
 struct BaseFEParam {
     BaseFEParam() {}
@@ -20,8 +20,8 @@ struct BaseFEParam {
 struct PartShape {
     std::string m_modelName;
     std::string m_tensorName;
-    ngraph::PartialShape m_oldPartialShape;
-    ngraph::PartialShape m_newPartialShape;
+    ov::PartialShape m_oldPartialShape;
+    ov::PartialShape m_newPartialShape;
 };
 
 using PartialShapeParam = std::tuple<BaseFEParam, PartShape>;
