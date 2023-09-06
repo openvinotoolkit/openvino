@@ -86,39 +86,39 @@ jobs:
         run: |
           sudo -E apt update
           sudo -E ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
-          
+
           # 'clang' is used as a default compiler
           sudo apt --assume-yes install clang
           sudo apt --assume-yes install --no-install-recommends libopencv-imgproc-dev libopencv-imgcodecs-dev
-          
+
           # Speed up build
           sudo apt -y --no-install-recommends install unzip
           wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
           unzip ninja-linux.zip
           sudo cp -v ninja /usr/local/bin/
-          
+
           # Speed up tests
           git clone https://github.com/google/gtest-parallel.git
 
       - name: Install python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          
+
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
-          
+
           # For running Python API tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          
+
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
-          
+
           # For running ONNX frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
-          
+
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
-          
+
           # For MO unit tests
           python3 -m pip install -U pip
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
@@ -128,7 +128,7 @@ jobs:
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
-          
+
           # for Python API tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements_test.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements.txt
@@ -260,6 +260,11 @@ jobs:
           export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
           ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
 
+      - name: Hetero Unit Tests
+          run: |
+            export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
+            ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
+
       - name: Hetero Func Tests
         run: |
           export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
@@ -344,7 +349,7 @@ jobs:
         run: |
           # For python imports to import pybind_mock_frontend
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:${{ env.OPENVINO_REPO }}/tools/mo:$PYTHONPATH
-          
+
           export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
 
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino \
@@ -355,7 +360,7 @@ jobs:
         run: |
           # For python imports to import pybind_mock_frontend
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:${{ env.OPENVINO_REPO }}/tools/mo:$PYTHONPATH
-          
+
           export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
 
           python3 -m pytest -sv ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests \
@@ -392,7 +397,7 @@ jobs:
       - name: Samples Smoke Tests
         run: |
           python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
-          
+
           export LD_LIBRARY_PATH=${{ env.IE_APP_PATH }}:$LD_LIBRARY_PATH
 
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/smoke_tests -k "not GNA" \
@@ -409,14 +414,14 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          
+
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          
+
           # Need to be reinstalled to have correct numpy version
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
@@ -424,7 +429,7 @@ jobs:
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-          
+
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
