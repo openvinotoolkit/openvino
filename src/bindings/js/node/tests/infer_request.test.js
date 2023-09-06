@@ -196,12 +196,12 @@ describe('InferRequest', () => {
 });
 
 describe("Asynchronous inference", () => {
-    it('Test promisifiedAsyncInfer()', () => {
+    it('Compare infer and asyncInfer results', () => {
         const ir = compiledModel.createInferRequest();
         const res1 = ir.infer([tensorData]);
-        const promisifiedAsyncInfer = util.promisify(ov.asyncInfer);
-        promisifiedAsyncInfer(ir, [tensorData]).then((result, err) => {
+
+        ov.asyncInfer(ir, [tensorData], (err, result) => {
             assert.deepStrictEqual(res1['fc_out'].data[0], result['fc_out'].data[0]);
-        })
+        });
      });
 });
