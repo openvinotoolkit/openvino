@@ -44,7 +44,6 @@ bool ReduceL1::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2);
 
-    std::cout << "Reduce L1 eval " << this << std::endl;
     const auto reduction_axes = get_normalized_axes_from_tensor(this, inputs[1], inputs[0].get_shape().size());
     outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
