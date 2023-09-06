@@ -57,10 +57,16 @@ public:
                 "Invalid outputs shape rank: ", outputs[i].get_shape().size());
         }
 
-        const auto& in_0 = inputs[0];
-        auto& out = outputs[0];
+    std::string result = "CustomOpScalar::evaluate:\n";
+auto in = reinterpret_cast<const uint8_t*>(inputs[0].data());
+for (int i = 0; i < inputs[0].get_byte_size(); i++) {
+    if (i > 0 && i % 16  == 0)
+        result += "\n";
+    result += std::to_string(static_cast<int>(in[i])) + "; ";
+}
+printf("%s\n", result.c_str());
 
-        memcpy(out.data(), in_0.data(), out.get_byte_size());
+        memcpy(outputs[0].data(), inputs[0].data(), outputs[0].get_byte_size());
 
         return true;
     }
@@ -81,13 +87,12 @@ class CustomOpScalarCPUTest : public testing::WithParamInterface<CustomOpScalarC
                                   public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CustomOpScalarCPUTestParams>& obj) {
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = obj.param;
+        const auto& in_type  = std::get<0>(obj.param);
+        const auto& in_shape = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result << "IS=" << inputShape << "_";
-        result << "Prc=" << inType;
+        result << "IS=" << in_shape;
+        result << "_Prc=" << in_type;
         return result.str();
     }
 
@@ -95,14 +100,14 @@ protected:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
 
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = this->GetParam();
+        const auto& params = this->GetParam();
+        const auto& in_type  = std::get<0>(params);
+        const auto& in_shape = std::get<1>(params);
 
-        init_input_shapes({inputShape});
+        init_input_shapes({in_shape});
 
-        auto in_0 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
-        auto in_1 = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape({0}), std::vector<uint8_t>{});
+        auto in_0 = std::make_shared<ov::op::v0::Parameter>(in_type, inputDynamicShapes[0]);
+        auto in_1 = std::make_shared<ov::op::v0::Constant>(in_type, ov::Shape({0}), std::vector<uint8_t>{});
         ov::OutputVector param_outs({in_0, in_1});
         auto custom_op = std::make_shared<CustomOpScalar>(param_outs);
 
@@ -114,6 +119,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
+std::cout << "generate_inputs in num: " << funcInputs.size() << std::endl;
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             auto tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
@@ -125,6 +131,7 @@ protected:
         ASSERT_EQ(expected.size(), actual.size());
         ASSERT_EQ(expected.size(), function->get_results().size());
         const auto& results = function->get_results();
+std::cout << "compare out num: " << results.size() << std::endl;
         for (size_t j = 0; j < results.size(); j++) {
             const auto result = results[j];
             for (size_t i = 0; i < result->get_input_size(); ++i) {

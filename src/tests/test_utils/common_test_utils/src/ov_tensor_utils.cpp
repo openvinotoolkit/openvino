@@ -235,6 +235,23 @@ void compare(const ov::Tensor& expected,
     double abs_threshold = abs_threshold_;
     double rel_threshold = rel_threshold_;
     size_t shape_size_cnt = shape_size(expected_shape);
+
+std::cout << "COMPARE: " << std::endl;
+std::cout << "EXPECTED: " << std::endl;
+for (int i = 0; i < shape_size_cnt; i++) {
+    if (i > 0 && i % 16  == 0)
+        std::cout << std::endl;
+    std::cout << int(expected_data[i]) << "; ";
+}
+std::cout << std::endl;
+std::cout << "ACTUAL: " << std::endl;
+for (int i = 0; i < shape_size_cnt; i++) {
+    if (i > 0 && i % 16  == 0)
+        std::cout << std::endl;
+    std::cout << int(actual_data[i]) << "; ";
+}
+std::cout << std::endl;
+
     if (abs_threshold == std::numeric_limits<double>::max() && rel_threshold == std::numeric_limits<double>::max()) {
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
             abs_threshold = 1.;

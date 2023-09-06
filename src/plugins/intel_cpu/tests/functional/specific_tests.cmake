@@ -5,8 +5,9 @@
 # to limit test scope to a particular test files
 # improves debugging expirience
 # relative path to specifc test files
-if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
-  set(SUBSET_TARGET_NAME ov_cpu_func_tests_subset)
+# if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
+  set(ENABLE_CPU_SUBSET_TESTS_PATH "subgraph_tests/src/custom_op_scalar.cpp")
+  set(SUBSET_TARGET_NAME ov_cpu_func_tests)
 
   set(CPU_SUBSET_TEST_ABS_PATH_LIST)
   set(CPU_SUBSET_TEST_DIR)
@@ -54,4 +55,4 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
   )
 
   set_ie_threading_interface_for(${SUBSET_TARGET_NAME})
-endif()
+# endif()

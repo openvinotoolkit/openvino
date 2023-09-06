@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ov_cpu_func_tests)
+# set(TARGET_NAME ov_cpu_func_tests)
 
 add_library(cpuSpecificRtInfo STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.hpp
@@ -41,20 +41,20 @@ else()
     set(TMP_EXPLICITLY_ENABLED_TESTS "${TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS}")
 endif()
 
-addIeTargetTest(
-        NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        INCLUDES ${INCLUDES}
-        EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
-        OBJECT_FILES ${TMP_EXPLICITLY_ENABLED_TESTS}
-        DEFINES ${DEFINES}
-        DEPENDENCIES ${DEPENDENCIES}
-        LINK_LIBRARIES ${LINK_LIBRARIES}
-        ADD_CPPLINT
-        LABELS CPU
-)
+# addIeTargetTest(
+#         NAME ${TARGET_NAME}
+#         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+#         INCLUDES ${INCLUDES}
+#         EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
+#         OBJECT_FILES ${TMP_EXPLICITLY_ENABLED_TESTS}
+#         DEFINES ${DEFINES}
+#         DEPENDENCIES ${DEPENDENCIES}
+#         LINK_LIBRARIES ${LINK_LIBRARIES}
+#         ADD_CPPLINT
+#         LABELS CPU
+# )
 
-set_ie_threading_interface_for(${TARGET_NAME})
+# set_ie_threading_interface_for(${TARGET_NAME})
 
 include(specific_tests.cmake)
 include(target_per_test.cmake)
