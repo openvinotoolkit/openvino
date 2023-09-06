@@ -193,7 +193,7 @@ mo.convert_model() provides a wide range of preprocessing parameters. Most of th
 Here comparison of preprocessing between MO and OVC.
 
 
-input_shape parameter:
+``input_shape`` parameter:
 
 .. tab-set::
 
@@ -235,312 +235,312 @@ input_shape parameter:
       
                  ovc MODEL_NAME --input [1,3,100,100],[1] --output_model OUTPUT_MODEL
 
-* batch parameter:
+``batch`` parameter:
 
-   .. tab-set::
+.. tab-set::
 
-       .. tab-item:: Python
-          :sync: py
-          
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: py
-                    :force:
-          
-                    from openvino.tools import mo
-                    ov_model = mo.convert_model(model, batch=2)
-          
-               -    In this example [batch_dim, dim1, dim2, ... dimN] - is original model shape.
+    .. tab-item:: Python
+       :sync: py
+      
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: py
+                 :force:
+      
+                 from openvino.tools import mo
+                 ov_model = mo.convert_model(model, batch=2)
+      
+            -    In this example [batch_dim, dim1, dim2, ... dimN] - is original model shape.
 
-                    .. code-block:: py
-                    :force:
+              .. code-block:: py
+                 :force:
 
-                    import openvino as ov
-                    ov_model = ov.convert_model(model, input=[2, dim1, dim2, dim3])
+                 import openvino as ov
+                 ov_model = ov.convert_model(model, input=[2, dim1, dim2, dim3])
 
-       .. tab-item:: CLI
-          :sync: cli
+    .. tab-item:: CLI
+       :sync: cli
 
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: sh
-                    :force:
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: sh
+                 :force:
 
-                    mo --input_model MODEL_NAME --batch 2 --output_dir OUTPUT_DIR
-          
-               - Not available in OVC tool. Please check Python API.
+                 mo --input_model MODEL_NAME --batch 2 --output_dir OUTPUT_DIR
+      
+            - Not available in OVC tool. Please check Python API.
 
-* mean_value parameter:
+``mean_value`` parameter:
 
-   .. tab-set::
+.. tab-set::
 
-       .. tab-item:: Python
-          :sync: py
-          
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: py
-                    :force:
-          
-                    from openvino.tools import mo
-                    ov_model = mo.convert_model(model, mean_values=[0.5, 0.5, 0.5])
-          
-               - .. code-block:: py
-                    :force:
+    .. tab-item:: Python
+       :sync: py
+      
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: py
+                 :force:
+      
+                 from openvino.tools import mo
+                 ov_model = mo.convert_model(model, mean_values=[0.5, 0.5, 0.5])
+      
+            - .. code-block:: py
+                 :force:
 
-                    import openvino as ov
-                    ov_model = ov.convert_model(model)
+                 import openvino as ov
+                 ov_model = ov.convert_model(model)
 
-                    prep = ov.preprocess.PrePostProcessor(ov_model)
-                    prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
-                    prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
-                    ov_model = prep.build()
+                 prep = ov.preprocess.PrePostProcessor(ov_model)
+                 prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
+                 prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
+                 ov_model = prep.build()
 
-       .. tab-item:: CLI
-          :sync: cli
+    .. tab-item:: CLI
+       :sync: cli
 
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: sh
-                    :force:
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: sh
+                 :force:
 
-                    mo --input_model MODEL_NAME --mean_values [0.5,0.5,0.5] --output_dir OUTPUT_DIR
-          
-               - Not available in OVC tool. Please check Python API.
+                 mo --input_model MODEL_NAME --mean_values [0.5,0.5,0.5] --output_dir OUTPUT_DIR
+      
+            - Not available in OVC tool. Please check Python API.
 
-* scale_value parameter:
+``scale_value`` parameter:
 
-   .. tab-set::
+.. tab-set::
 
-       .. tab-item:: Python
-          :sync: py
-          
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: py
-                    :force:
-          
-                    from openvino.tools import mo
-                    ov_model = mo.convert_model(model, scale_value=[255., 255., 255.])
-          
-               - .. code-block:: py
-                    :force:
+    .. tab-item:: Python
+       :sync: py
+      
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: py
+                 :force:
+      
+                 from openvino.tools import mo
+                 ov_model = mo.convert_model(model, scale_value=[255., 255., 255.])
+      
+            - .. code-block:: py
+                 :force:
 
-                    import openvino as ov
-                    ov_model = ov.convert_model(model)
+                 import openvino as ov
+                 ov_model = ov.convert_model(model)
 
-                    prep = ov.preprocess.PrePostProcessor(ov_model)
-                    prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
-                    prep.input(input_name).preprocess().scale([255., 255., 255.])
-                    ov_model = prep.build()
+                 prep = ov.preprocess.PrePostProcessor(ov_model)
+                 prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
+                 prep.input(input_name).preprocess().scale([255., 255., 255.])
+                 ov_model = prep.build()
 
-       .. tab-item:: CLI
-          :sync: cli
+    .. tab-item:: CLI
+       :sync: cli
 
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: sh
-                    :force:
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: sh
+                 :force:
 
-                    mo --input_model MODEL_NAME --scale_values [255,255,255] --output_dir OUTPUT_DIR
-          
-               - Not available in OVC tool. Please check Python API.
+                 mo --input_model MODEL_NAME --scale_values [255,255,255] --output_dir OUTPUT_DIR
+      
+            - Not available in OVC tool. Please check Python API.
 
-* reverse_input_channels parameter:
+``reverse_input_channels`` parameter:
 
-   .. tab-set::
+.. tab-set::
 
-       .. tab-item:: Python
-          :sync: py
-          
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: py
-                    :force:
-          
-                    from openvino.tools import mo
-                    ov_model = mo.convert_model(model, reverse_input_channels=True)
-          
-               - .. code-block:: py
-                    :force:
+    .. tab-item:: Python
+       :sync: py
+      
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: py
+                 :force:
+      
+                 from openvino.tools import mo
+                 ov_model = mo.convert_model(model, reverse_input_channels=True)
+      
+            - .. code-block:: py
+                 :force:
 
-                    import openvino as ov
-                    ov_model = ov.convert_model(model)
+                 import openvino as ov
+                 ov_model = ov.convert_model(model)
 
-                    prep = ov.preprocess.PrePostProcessor(ov_model)
-                    prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
-                    prep.input(input_name).preprocess().reverse_channels()
-                    ov_model = prep.build()
+                 prep = ov.preprocess.PrePostProcessor(ov_model)
+                 prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
+                 prep.input(input_name).preprocess().reverse_channels()
+                 ov_model = prep.build()
 
-       .. tab-item:: CLI
-          :sync: cli
+    .. tab-item:: CLI
+       :sync: cli
 
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: sh
-                    :force:
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: sh
+                 :force:
 
-                    mo --input_model MODEL_NAME --reverse_input_channels --output_dir OUTPUT_DIR
-          
-               - Not available in OVC tool. Please check Python API.
+                 mo --input_model MODEL_NAME --reverse_input_channels --output_dir OUTPUT_DIR
+      
+            - Not available in OVC tool. Please check Python API.
 
-* source_layout parameter:
+``source_layout`` parameter:
 
-   .. tab-set::
+.. tab-set::
 
-       .. tab-item:: Python
-          :sync: py
-          
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: py
-                    :force:
-          
-                    import openvino as ov
-                    from openvino.tools import mo
-             
-                    ov_model = mo.convert_model(model, source_layout={input_name: ov.Layout("nhwc")})
-          
-               - .. code-block:: py
-                    :force:
+    .. tab-item:: Python
+       :sync: py
+      
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: py
+                 :force:
+      
+                 import openvino as ov
+                 from openvino.tools import mo
+         
+                 ov_model = mo.convert_model(model, source_layout={input_name: ov.Layout("nhwc")})
+      
+            - .. code-block:: py
+                 :force:
 
-                    import openvino as ov
-                    ov_model = ov.convert_model(model)
+                 import openvino as ov
+                 ov_model = ov.convert_model(model)
 
-                    prep = ov.preprocess.PrePostProcessor(ov_model)
-                    prep.input(input_name).model().set_layout(ov.Layout("nhwc"))
-                    ov_model = prep.build()
+                 prep = ov.preprocess.PrePostProcessor(ov_model)
+                 prep.input(input_name).model().set_layout(ov.Layout("nhwc"))
+                 ov_model = prep.build()
 
-       .. tab-item:: CLI
-          :sync: cli
+    .. tab-item:: CLI
+       :sync: cli
 
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: sh
-                    :force:
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: sh
+                 :force:
 
-                    mo --input_model MODEL_NAME --source_layout input_name(nhwc) --output_dir OUTPUT_DIR
-          
-               - Not available in OVC tool. Please check Python API.
+                 mo --input_model MODEL_NAME --source_layout input_name(nhwc) --output_dir OUTPUT_DIR
+      
+            - Not available in OVC tool. Please check Python API.
 
-* target_layout parameter:
+``target_layout`` parameter:
 
-   .. tab-set::
+.. tab-set::
 
-       .. tab-item:: Python
-          :sync: py
-          
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: py
-                    :force:
-          
-                    import openvino as ov
-                    from openvino.tools import mo
-             
-                    ov_model = mo.convert_model(model, target_layout={input_name: ov.Layout("nhwc")})
-          
-               - .. code-block:: py
-                    :force:
+    .. tab-item:: Python
+       :sync: py
+      
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: py
+                 :force:
+      
+                 import openvino as ov
+                 from openvino.tools import mo
+         
+                 ov_model = mo.convert_model(model, target_layout={input_name: ov.Layout("nhwc")})
+      
+            - .. code-block:: py
+                 :force:
 
-                    import openvino as ov
-                    ov_model = ov.convert_model(model)
+                 import openvino as ov
+                 ov_model = ov.convert_model(model)
 
-                    prep = ov.preprocess.PrePostProcessor(ov_model)
-                    prep.input(input_name).tensor().set_layout(ov.Layout("nhwc"))
-                    ov_model = prep.build()
+                 prep = ov.preprocess.PrePostProcessor(ov_model)
+                 prep.input(input_name).tensor().set_layout(ov.Layout("nhwc"))
+                 ov_model = prep.build()
 
-       .. tab-item:: CLI
-          :sync: cli
+    .. tab-item:: CLI
+       :sync: cli
 
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: sh
-                    :force:
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: sh
+                 :force:
 
-                    mo --input_model MODEL_NAME --target_layout input_name(nhwc) --output_dir OUTPUT_DIR
-          
-               - Not available in OVC tool. Please check Python API.
+                 mo --input_model MODEL_NAME --target_layout input_name(nhwc) --output_dir OUTPUT_DIR
+      
+            - Not available in OVC tool. Please check Python API.
 
-* layout parameter:
+``layout`` parameter:
 
-   .. tab-set::
+.. tab-set::
 
-       .. tab-item:: Python
-          :sync: py
-          
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: py
-                    :force:
-          
-                    from openvino.tools import mo
-                    ov_model = mo.convert_model(model, layout={input_name: mo.LayoutMap("nchw", "nhwc")})
-          
-               - .. code-block:: py
-                    :force:
+    .. tab-item:: Python
+       :sync: py
+      
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: py
+                 :force:
+      
+                 from openvino.tools import mo
+                 ov_model = mo.convert_model(model, layout={input_name: mo.LayoutMap("nchw", "nhwc")})
+      
+            - .. code-block:: py
+                 :force:
 
-                    import openvino as ov
-                    ov_model = ov.convert_model(model)
+                 import openvino as ov
+                 ov_model = ov.convert_model(model)
 
-                    prep = ov.preprocess.PrePostProcessor(ov_model)
-                    prep.input(input_name).model().set_layout(ov.Layout("nchw"))
-                    prep.input(input_name).tensor().set_layout(ov.Layout("nhwc"))
-                    ov_model = prep.build()
+                 prep = ov.preprocess.PrePostProcessor(ov_model)
+                 prep.input(input_name).model().set_layout(ov.Layout("nchw"))
+                 prep.input(input_name).tensor().set_layout(ov.Layout("nhwc"))
+                 ov_model = prep.build()
 
-       .. tab-item:: CLI
-          :sync: cli
+    .. tab-item:: CLI
+       :sync: cli
 
-          .. list-table::
-             :header-rows: 1
-          
-             * - Legacy API
-               - New API
-             * - .. code-block:: sh
-                    :force:
+       .. list-table::
+          :header-rows: 1
+      
+          * - Legacy API
+            - New API
+          * - .. code-block:: sh
+                 :force:
 
-                    mo --input_model MODEL_NAME --layout input_name(nchw->nhwc) --output_dir OUTPUT_DIR
-          
-               - Not available in OVC tool. Please check Python API.
+                 mo --input_model MODEL_NAME --layout input_name(nchw->nhwc) --output_dir OUTPUT_DIR
+      
+            - Not available in OVC tool. Please check Python API.
 
 MO vs OVC model formats
 #######################
