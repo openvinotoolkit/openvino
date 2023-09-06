@@ -243,10 +243,10 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-      
+       
        .. list-table::
           :header-rows: 1
-      
+          
           * - Legacy API
             - New API
           * - .. code-block:: py
