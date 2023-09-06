@@ -281,7 +281,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
             - Not available in OVC tool. Please check Python API.
 
-``mean_value`` parameter:
+``mean_values`` parameter:
 
 .. tab-set::
 
@@ -327,7 +327,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
             - Not available in OVC tool. Please check Python API.
 
-``scale_value`` parameter:
+``scale_values`` parameter:
 
 .. tab-set::
 
@@ -344,7 +344,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
                  from openvino.tools import mo
 
-                 ov_model = mo.convert_model(model, scale_value=[255., 255., 255.])
+                 ov_model = mo.convert_model(model, scale_values=[255., 255., 255.])
       
             - .. code-block:: py
                  :force:
