@@ -8,11 +8,10 @@
 #include <cassert>
 #include <numeric>
 
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "utils/span.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace details {
 template <typename Iterator>
@@ -106,5 +105,4 @@ void gather_nd(const T* const params,
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
