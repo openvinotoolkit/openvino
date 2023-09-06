@@ -22,4 +22,3 @@ public:
 };
 
 }  // namespace ov
-
