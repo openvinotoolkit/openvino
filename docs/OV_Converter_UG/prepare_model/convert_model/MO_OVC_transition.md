@@ -598,7 +598,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
           * - .. code-block:: sh
                  :force:
 
-                 mo --input_model MODEL_NAME --transform LowLatency2[use_const_initializer=False] --output_dir OUTPUT_DIR
+                 mo --input_model MODEL_NAME --transform LowLatency2[use_const_initializer=False],Pruning,MakeStateful[param_res_names={'input_name':'output_name'}] --output_dir OUTPUT_DIR
       
             - Not available in OVC tool. Please check Python API.
 
