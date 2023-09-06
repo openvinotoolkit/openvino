@@ -523,4 +523,3 @@ inline ov::float16 ie_abs(const ov::float16& val) {
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
-

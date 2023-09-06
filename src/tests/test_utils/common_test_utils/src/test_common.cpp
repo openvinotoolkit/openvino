@@ -44,18 +44,26 @@ std::string TestsCommon::GetTimestamp() {
 }
 
 std::string TestsCommon::GetTestName() const {
-    std::string test_name =
-        ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::replace_if(test_name.begin(), test_name.end(),
-        [](char c) { return !std::isalnum(c); }, '_');
+    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::replace_if(
+        test_name.begin(),
+        test_name.end(),
+        [](char c) {
+            return !std::isalnum(c);
+        },
+        '_');
     return test_name;
 }
 
 std::string TestsCommon::GetFullTestName() const {
-    std::string suite_name =
-        ::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
-    std::replace_if(suite_name.begin(), suite_name.end(),
-        [](char c) { return !std::isalnum(c); }, '_');
+    std::string suite_name = ::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
+    std::replace_if(
+        suite_name.begin(),
+        suite_name.end(),
+        [](char c) {
+            return !std::isalnum(c);
+        },
+        '_');
 
     std::string test_name = GetTestName();
 
