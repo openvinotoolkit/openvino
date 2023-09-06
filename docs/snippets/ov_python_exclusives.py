@@ -40,6 +40,7 @@ tensor = ov.Tensor(data_int32)
 assert tensor.element_type == ov.Type.i32
 #! [tensor_basics]
 
+
 #! [tensor_shared_mode]
 data_to_share = np.ones(shape=(2,8))
 
