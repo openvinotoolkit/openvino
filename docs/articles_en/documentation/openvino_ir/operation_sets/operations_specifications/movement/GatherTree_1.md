@@ -1,4 +1,7 @@
-# GatherTree {#openvino_docs_ops_movement_GatherTree_1}
+.. {#openvino_docs_ops_movement_GatherTree_1}
+
+GatherTree
+==========
 
 
 .. meta::

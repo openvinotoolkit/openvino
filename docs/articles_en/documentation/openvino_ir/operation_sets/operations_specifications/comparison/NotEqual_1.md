@@ -1,4 +1,7 @@
-# NotEqual {#openvino_docs_ops_comparison_NotEqual_1}
+.. {#openvino_docs_ops_comparison_NotEqual_1}
+
+NotEqual
+========
 
 
 .. meta::

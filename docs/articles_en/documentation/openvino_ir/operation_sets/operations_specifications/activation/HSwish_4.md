@@ -1,4 +1,7 @@
-# HSwish {#openvino_docs_ops_activation_HSwish_4}
+.. {#openvino_docs_ops_activation_HSwish_4}
+
+HSwish
+======
 
 
 .. meta::

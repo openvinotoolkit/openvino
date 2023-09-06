@@ -1,4 +1,7 @@
-# NonMaxSuppression {#openvino_docs_ops_sort_NonMaxSuppression_3}
+.. {#openvino_docs_ops_sort_NonMaxSuppression_3}
+
+NonMaxSuppression
+=================
 
 
 .. meta::

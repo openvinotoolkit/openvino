@@ -1,4 +1,7 @@
-# Using Advanced Throughput Options: Streams and Batching {#openvino_docs_deployment_optimization_guide_tput_advanced}
+.. {#openvino_docs_deployment_optimization_guide_tput_advanced}
+
+Using Advanced Throughput Options: Streams and Batching
+=======================================================
 
 
 .. meta::

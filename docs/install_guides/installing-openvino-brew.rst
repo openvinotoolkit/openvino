@@ -1,4 +1,7 @@
-# Install OpenVINO™ Runtime via Homebrew {#openvino_docs_install_guides_installing_openvino_brew}
+.. {#openvino_docs_install_guides_installing_openvino_brew}
+
+Install OpenVINO™ Runtime via Homebrew
+========================================
 
 
 .. meta::

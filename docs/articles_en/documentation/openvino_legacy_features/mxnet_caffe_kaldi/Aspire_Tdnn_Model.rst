@@ -1,4 +1,7 @@
-# Converting a Kaldi ASpIRE Chain Time Delay Neural Network (TDNN) Model {#openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model}
+
+Converting a Kaldi ASpIRE Chain Time Delay Neural Network (TDNN) Model
+======================================================================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# ReduceMax {#openvino_docs_ops_reduction_ReduceMax_1}
+.. {#openvino_docs_ops_reduction_ReduceMax_1}
+
+ReduceMax
+=========
 
 
 .. meta::

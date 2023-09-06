@@ -1,4 +1,7 @@
-# Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
+.. {#openvino_inference_engine_samples_benchmark_app_README}
+
+Benchmark C++ Tool
+==================
 
 
 .. meta::

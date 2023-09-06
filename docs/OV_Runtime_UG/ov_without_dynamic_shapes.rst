@@ -1,4 +1,7 @@
-# When Dynamic Shapes API is Not Applicable  {#openvino_docs_OV_UG_NoDynamicShapes}
+.. {#openvino_docs_OV_UG_NoDynamicShapes}
+
+When Dynamic Shapes API is Not Applicable
+=========================================
 
 
 .. meta::

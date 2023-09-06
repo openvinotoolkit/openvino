@@ -1,4 +1,7 @@
-# Inference Device Support {#openvino_docs_OV_UG_Working_with_devices}
+.. {#openvino_docs_OV_UG_Working_with_devices}
+
+Inference Device Support
+========================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Erf {#openvino_docs_ops_arithmetic_Erf_1}
+.. {#openvino_docs_ops_arithmetic_Erf_1}
+
+Erf
+===
 
 
 .. meta::

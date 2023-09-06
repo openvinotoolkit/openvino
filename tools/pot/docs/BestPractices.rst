@@ -1,4 +1,7 @@
-#  Post-Training Quantization Best Practices {#pot_docs_BestPractices}
+.. {#pot_docs_BestPractices}
+
+Post-Training Quantization Best Practices
+=========================================
 
 
 .. toctree::

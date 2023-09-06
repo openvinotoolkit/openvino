@@ -1,4 +1,7 @@
-# ReduceProd {#openvino_docs_ops_reduction_ReduceProd_1}
+.. {#openvino_docs_ops_reduction_ReduceProd_1}
+
+ReduceProd
+==========
 
 
 .. meta::

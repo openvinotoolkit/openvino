@@ -1,4 +1,7 @@
-# Converting a PyTorch QuartzNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet}
+
+Converting a PyTorch QuartzNet Model
+====================================
 
 
 .. meta::

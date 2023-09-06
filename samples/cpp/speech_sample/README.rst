@@ -1,4 +1,7 @@
-# Automatic Speech Recognition C++ Sample {#openvino_inference_engine_samples_speech_sample_README}
+.. {#openvino_inference_engine_samples_speech_sample_README}
+
+Automatic Speech Recognition C++ Sample
+=======================================
 
 <<<<<<<< HEAD:docs/articles_en/learn_openvino/openvino_samples/cpp_sample_automatic_speech_recognition.md
 

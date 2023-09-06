@@ -1,4 +1,7 @@
-# Hello Query Device C++ Sample {#openvino_inference_engine_samples_hello_query_device_README}
+.. {#openvino_inference_engine_samples_hello_query_device_README}
+
+Hello Query Device C++ Sample
+=============================
 
 
 .. meta::

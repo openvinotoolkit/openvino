@@ -1,4 +1,7 @@
-# Configurations for Intel® NPU with OpenVINO™ {#openvino_docs_install_guides_configurations_for_intel_npu}
+.. {#openvino_docs_install_guides_configurations_for_intel_npu}
+
+Configurations for Intel® NPU with OpenVINO™
+===============================================
 
 
 .. meta::

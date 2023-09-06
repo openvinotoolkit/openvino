@@ -1,4 +1,7 @@
-# Greater {#openvino_docs_ops_comparison_Greater_1}
+.. {#openvino_docs_ops_comparison_Greater_1}
+
+Greater
+=======
 
 
 .. meta::

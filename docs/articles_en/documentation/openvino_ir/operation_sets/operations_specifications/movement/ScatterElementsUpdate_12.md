@@ -1,4 +1,7 @@
-# ScatterElementsUpdate {#openvino_docs_ops_movement_ScatterElementsUpdate_12}
+.. {#openvino_docs_ops_movement_ScatterElementsUpdate_12}
+
+ScatterElementsUpdate
+=====================
 
 
 **Versioned name**: *ScatterElementsUpdate-12*

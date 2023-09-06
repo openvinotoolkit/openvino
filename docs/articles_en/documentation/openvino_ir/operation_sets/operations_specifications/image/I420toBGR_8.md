@@ -1,4 +1,7 @@
-# I420toBGR {#openvino_docs_ops_image_I420toBGR_8}
+.. {#openvino_docs_ops_image_I420toBGR_8}
+
+I420toBGR
+=========
 
 
 .. meta::

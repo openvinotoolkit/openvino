@@ -1,4 +1,7 @@
-# AdaptiveMaxPool {#openvino_docs_ops_pooling_AdaptiveMaxPool_8}
+.. {#openvino_docs_ops_pooling_AdaptiveMaxPool_8}
+
+AdaptiveMaxPool
+===============
 
 
 .. meta::

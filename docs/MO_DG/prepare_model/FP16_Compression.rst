@@ -1,4 +1,7 @@
-# Compressing a Model to FP16 {#openvino_docs_MO_DG_FP16_Compression}
+.. {#openvino_docs_MO_DG_FP16_Compression}
+
+Compressing a Model to FP16
+===========================
 
 
 By default, when IR is saved all relevant floating-point weights are compressed to ``FP16`` data type during model conversion.

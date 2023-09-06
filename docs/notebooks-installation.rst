@@ -1,4 +1,7 @@
-# Installation of OpenVINO™ Notebooks {#notebooks_installation}
+.. {#notebooks_installation}
+
+Installation of OpenVINO™ Notebooks
+=====================================
 
 
 

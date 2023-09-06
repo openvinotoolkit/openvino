@@ -1,4 +1,7 @@
-# DFT {#openvino_docs_ops_signals_DFT_7}
+.. {#openvino_docs_ops_signals_DFT_7}
+
+DFT
+===
 
 
 .. meta::

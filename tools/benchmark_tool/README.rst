@@ -1,4 +1,7 @@
-# Benchmark Python Tool {#openvino_inference_engine_tools_benchmark_tool_README}
+.. {#openvino_inference_engine_tools_benchmark_tool_README}
+
+Benchmark Python Tool
+=====================
 
 
 .. meta::

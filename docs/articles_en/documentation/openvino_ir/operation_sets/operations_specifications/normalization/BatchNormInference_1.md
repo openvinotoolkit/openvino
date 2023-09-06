@@ -1,4 +1,7 @@
-# BatchNormInference {#openvino_docs_ops_normalization_BatchNormInference_1}
+.. {#openvino_docs_ops_normalization_BatchNormInference_1}
+
+BatchNormInference
+==================
 
 
 .. meta::

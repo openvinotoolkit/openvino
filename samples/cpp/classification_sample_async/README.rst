@@ -1,4 +1,7 @@
-# Image Classification Async C++ Sample {#openvino_inference_engine_samples_classification_sample_async_README}
+.. {#openvino_inference_engine_samples_classification_sample_async_README}
+
+Image Classification Async C++ Sample
+=====================================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Negative  {#openvino_docs_ops_arithmetic_Negative_1}
+.. {#openvino_docs_ops_arithmetic_Negative_1}
+
+Negative
+========
 
 
 .. meta::

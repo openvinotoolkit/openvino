@@ -1,4 +1,7 @@
-# Asynchronous Inference Request {#openvino_docs_ov_plugin_dg_async_infer_request}
+.. {#openvino_docs_ov_plugin_dg_async_infer_request}
+
+Asynchronous Inference Request
+==============================
 
 
 .. meta::

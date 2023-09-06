@@ -1,4 +1,7 @@
-# Bucketize {#openvino_docs_ops_condition_Bucketize_3}
+.. {#openvino_docs_ops_condition_Bucketize_3}
+
+Bucketize
+=========
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Install OpenVINO™ Runtime from Conda Forge {#openvino_docs_install_guides_installing_openvino_conda}
+.. {#openvino_docs_install_guides_installing_openvino_conda}
+
+Install OpenVINO™ Runtime from Conda Forge
+============================================
 
 
 .. meta::

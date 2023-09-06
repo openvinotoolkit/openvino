@@ -1,4 +1,7 @@
-# Using Encrypted Models with OpenVINO  {#openvino_docs_OV_UG_protecting_model_guide}
+.. {#openvino_docs_OV_UG_protecting_model_guide}
+
+Using Encrypted Models with OpenVINO
+====================================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# CTCGreedyDecoder {#openvino_docs_ops_sequence_CTCGreedyDecoder_1}
+.. {#openvino_docs_ops_sequence_CTCGreedyDecoder_1}
+
+CTCGreedyDecoder
+================
 
 
 .. meta::

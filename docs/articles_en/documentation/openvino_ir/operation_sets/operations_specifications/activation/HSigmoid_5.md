@@ -1,4 +1,7 @@
-# HSigmoid {#openvino_docs_ops_activation_HSigmoid_5}
+.. {#openvino_docs_ops_activation_HSigmoid_5}
+
+HSigmoid
+========
 
 
 .. meta::

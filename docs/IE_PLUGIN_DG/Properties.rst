@@ -1,4 +1,7 @@
-# Plugin Properties {#openvino_docs_ov_plugin_dg_properties}
+.. {#openvino_docs_ov_plugin_dg_properties}
+
+Plugin Properties
+=================
 
 
 .. meta::

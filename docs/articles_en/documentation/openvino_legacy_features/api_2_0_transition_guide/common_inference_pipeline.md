@@ -1,4 +1,7 @@
-# Inference Pipeline {#openvino_2_0_inference_pipeline}
+.. {#openvino_2_0_inference_pipeline}
+
+Inference Pipeline
+==================
 
 
 .. meta::

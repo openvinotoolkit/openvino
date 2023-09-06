@@ -1,4 +1,7 @@
-# ExperimentalDetectronPriorGridGenerator {#openvino_docs_ops_detection_ExperimentalDetectronPriorGridGenerator_6}
+.. {#openvino_docs_ops_detection_ExperimentalDetectronPriorGridGenerator_6}
+
+ExperimentalDetectronPriorGridGenerator
+=======================================
 
 
 .. meta::

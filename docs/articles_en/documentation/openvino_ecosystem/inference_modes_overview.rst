@@ -1,4 +1,7 @@
-# Inference Modes {#openvino_docs_Runtime_Inference_Modes_Overview}
+.. {#openvino_docs_Runtime_Inference_Modes_Overview}
+
+Inference Modes
+===============
 
 
 .. toctree::

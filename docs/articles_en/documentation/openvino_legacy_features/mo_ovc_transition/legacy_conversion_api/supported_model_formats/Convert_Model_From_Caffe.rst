@@ -1,4 +1,7 @@
-# Converting a Caffe Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe}
+
+Converting a Caffe Model
+========================
 
 
 .. meta::

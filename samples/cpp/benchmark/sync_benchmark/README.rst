@@ -1,4 +1,7 @@
-# Sync Benchmark C++ Sample {#openvino_inference_engine_samples_sync_benchmark_README}
+.. {#openvino_inference_engine_samples_sync_benchmark_README}
+
+Sync Benchmark C++ Sample
+=========================
 
 
 .. meta::

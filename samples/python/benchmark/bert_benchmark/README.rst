@@ -1,4 +1,7 @@
-# Bert Benchmark Python Sample {#openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README}
+.. {#openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README}
+
+Bert Benchmark Python Sample
+============================
 
 
 .. meta::

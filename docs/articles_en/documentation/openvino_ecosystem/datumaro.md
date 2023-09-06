@@ -1,4 +1,7 @@
-# Datumaro {#datumaro_documentation}
+.. {#datumaro_documentation}
+
+Datumaro
+========
 
 
 .. meta::

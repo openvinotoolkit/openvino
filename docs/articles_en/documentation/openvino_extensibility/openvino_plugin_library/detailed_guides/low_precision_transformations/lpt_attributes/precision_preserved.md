@@ -1,4 +1,7 @@
-# PrecisionPreserved Attribute {#openvino_docs_OV_UG_lpt_PrecisionPreserved}
+.. {#openvino_docs_OV_UG_lpt_PrecisionPreserved}
+
+PrecisionPreserved Attribute
+============================
 
 
 .. meta::

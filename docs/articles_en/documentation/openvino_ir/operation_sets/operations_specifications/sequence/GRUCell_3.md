@@ -1,4 +1,7 @@
-# GRUCell  {#openvino_docs_ops_sequence_GRUCell_3}
+.. {#openvino_docs_ops_sequence_GRUCell_3}
+
+GRUCell
+=======
 
 
 .. meta::

@@ -1,4 +1,7 @@
-#  OpenVINO™ API 2.0 Transition Guide {#openvino_2_0_transition_guide}
+.. {#openvino_2_0_transition_guide}
+
+OpenVINO™ API 2.0 Transition Guide
+====================================
 
 
 .. meta::

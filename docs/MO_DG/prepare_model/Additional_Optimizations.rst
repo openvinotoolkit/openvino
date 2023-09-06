@@ -1,4 +1,7 @@
-# Embedding Preprocessing Computation {#openvino_docs_MO_DG_Additional_Optimization_Use_Cases}
+.. {#openvino_docs_MO_DG_Additional_Optimization_Use_Cases}
+
+Embedding Preprocessing Computation
+===================================
 
 
 Input data for inference can be different from the training dataset and requires

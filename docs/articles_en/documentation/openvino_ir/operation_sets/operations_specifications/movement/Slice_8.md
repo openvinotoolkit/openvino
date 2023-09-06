@@ -1,4 +1,7 @@
-# Slice {#openvino_docs_ops_movement_Slice_8}
+.. {#openvino_docs_ops_movement_Slice_8}
+
+Slice
+=====
 
 
 .. meta::

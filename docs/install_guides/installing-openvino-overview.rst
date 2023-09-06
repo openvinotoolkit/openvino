@@ -1,4 +1,7 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit {#openvino_docs_install_guides_overview}
+.. {#openvino_docs_install_guides_overview}
+
+Install Intel® Distribution of OpenVINO™ Toolkit
+===================================================
 
 
 .. meta::

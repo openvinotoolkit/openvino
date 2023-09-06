@@ -1,4 +1,7 @@
-# Automatic Device Selection {#openvino_docs_OV_UG_supported_plugins_AUTO}
+.. {#openvino_docs_OV_UG_supported_plugins_AUTO}
+
+Automatic Device Selection
+==========================
 
 
 .. toctree::

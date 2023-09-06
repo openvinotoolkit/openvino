@@ -1,4 +1,7 @@
-# Heterogeneous execution {#openvino_docs_OV_UG_Hetero_execution}
+.. {#openvino_docs_OV_UG_Hetero_execution}
+
+Heterogeneous execution
+=======================
 
 
 .. meta::

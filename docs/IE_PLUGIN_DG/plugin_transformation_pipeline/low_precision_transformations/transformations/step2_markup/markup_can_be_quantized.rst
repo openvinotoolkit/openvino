@@ -1,3 +1,6 @@
-# MarkupCanBeQuantized transformation {#openvino_docs_OV_UG_lpt_MarkupCanBeQuantized}
+.. {#openvino_docs_OV_UG_lpt_MarkupCanBeQuantized}
+
+MarkupCanBeQuantized transformation
+===================================
 
 ngraph::pass::low_precision::MarkupCanBeQuantized class represents the `MarkupCanBeQuantized` transformation.

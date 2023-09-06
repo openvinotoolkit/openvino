@@ -1,4 +1,7 @@
-# QuantizationGranularity Attribute {#openvino_docs_OV_UG_lpt_QuantizationGranularity}
+.. {#openvino_docs_OV_UG_lpt_QuantizationGranularity}
+
+QuantizationGranularity Attribute
+=================================
 
 
 .. meta::

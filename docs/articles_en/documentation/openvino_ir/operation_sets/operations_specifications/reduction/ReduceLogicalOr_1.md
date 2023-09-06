@@ -1,4 +1,7 @@
-# ReduceLogicalOr {#openvino_docs_ops_reduction_ReduceLogicalOr_1}
+.. {#openvino_docs_ops_reduction_ReduceLogicalOr_1}
+
+ReduceLogicalOr
+===============
 
 
 .. meta::

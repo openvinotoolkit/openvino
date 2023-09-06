@@ -1,4 +1,7 @@
-# Troubleshooting Reshape Errors {#troubleshooting_reshape_errors}
+.. {#troubleshooting_reshape_errors}
+
+Troubleshooting Reshape Errors
+==============================
 
 
 .. meta::

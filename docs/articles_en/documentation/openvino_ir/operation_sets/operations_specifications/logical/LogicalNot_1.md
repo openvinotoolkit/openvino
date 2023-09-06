@@ -1,4 +1,7 @@
-# LogicalNot {#openvino_docs_ops_logical_LogicalNot_1}
+.. {#openvino_docs_ops_logical_LogicalNot_1}
+
+LogicalNot
+==========
 
 
 .. meta::

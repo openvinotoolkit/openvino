@@ -1,4 +1,7 @@
-# GatherND {#openvino_docs_ops_movement_GatherND_5}
+.. {#openvino_docs_ops_movement_GatherND_5}
+
+GatherND
+========
 
 
 

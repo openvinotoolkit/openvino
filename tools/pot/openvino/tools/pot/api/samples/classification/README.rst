@@ -1,4 +1,7 @@
-# Quantizing Image Classification Model {#pot_example_classification_README}
+.. {#pot_example_classification_README}
+
+Quantizing Image Classification Model
+=====================================
 
 
 This example demonstrates the use of the :doc:`Post-training Optimization Tool API <pot_compression_api_README>` for the task of quantizing a classification model.

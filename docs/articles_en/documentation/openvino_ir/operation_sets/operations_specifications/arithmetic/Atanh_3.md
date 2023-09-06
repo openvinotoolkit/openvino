@@ -1,4 +1,7 @@
-# Atanh {#openvino_docs_ops_arithmetic_Atanh_3}
+.. {#openvino_docs_ops_arithmetic_Atanh_3}
+
+Atanh
+=====
 
 
 .. meta::

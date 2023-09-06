@@ -1,4 +1,11 @@
+<<<<<<< HEAD:docs/articles_en/about_openvino/performance_benchmarks/performance_int8_vs_fp32.rst
 # Model Accuracy {#openvino_docs_performance_int8_vs_fp32}
+=======
+.. {#openvino_docs_performance_int8_vs_fp32}
+
+OpenVINO Accuracy
+=================
+>>>>>>> 7a671c1bc1 (adjust modified rst files):docs/benchmarks/performance_int8_vs_fp32.rst
 
 
 

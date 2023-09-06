@@ -1,4 +1,7 @@
-# Split {#openvino_docs_ops_movement_Split_1}
+.. {#openvino_docs_ops_movement_Split_1}
+
+Split
+=====
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Cosh  {#openvino_docs_ops_arithmetic_Cosh_1}
+.. {#openvino_docs_ops_arithmetic_Cosh_1}
+
+Cosh
+====
 
 
 .. meta::

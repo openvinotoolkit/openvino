@@ -1,4 +1,7 @@
-# Unique  {#openvino_docs_ops_movement_Unique_10}
+.. {#openvino_docs_ops_movement_Unique_10}
+
+Unique
+======
 
 
 .. meta::

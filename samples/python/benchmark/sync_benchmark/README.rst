@@ -1,4 +1,7 @@
-# Sync Benchmark Python Sample {#openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README}
+.. {#openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README}
+
+Sync Benchmark Python Sample
+============================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# LogicalAnd {#openvino_docs_ops_logical_LogicalAnd_1}
+.. {#openvino_docs_ops_logical_LogicalAnd_1}
+
+LogicalAnd
+==========
 
 
 .. meta::

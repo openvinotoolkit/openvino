@@ -1,3 +1,6 @@
-# InterpolateTransformation transformation {#openvino_docs_OV_UG_lpt_InterpolateTransformation}
+.. {#openvino_docs_OV_UG_lpt_InterpolateTransformation}
+
+InterpolateTransformation transformation
+========================================
 
 ngraph::pass::low_precision::InterpolateTransformation class represents the `Interpolate` operation transformation.

@@ -1,4 +1,7 @@
-# IntervalsAlignment Attribute {#openvino_docs_OV_UG_lpt_IntervalsAlignment}
+.. {#openvino_docs_OV_UG_lpt_IntervalsAlignment}
+
+IntervalsAlignment Attribute
+============================
 
 
 .. meta::

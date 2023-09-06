@@ -1,4 +1,7 @@
-# Throughput Benchmark Python Sample {#openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README}
+.. {#openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README}
+
+Throughput Benchmark Python Sample
+==================================
 
 
 .. meta::

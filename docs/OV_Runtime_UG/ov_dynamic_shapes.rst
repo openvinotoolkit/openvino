@@ -1,4 +1,7 @@
-# Dynamic Shapes {#openvino_docs_OV_UG_DynamicShapes}
+.. {#openvino_docs_OV_UG_DynamicShapes}
+
+Dynamic Shapes
+==============
 
 
 .. toctree::

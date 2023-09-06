@@ -1,4 +1,7 @@
-# Optimizing memory usage {#openvino_docs_memory_optimization_guide}
+.. {#openvino_docs_memory_optimization_guide}
+
+Optimizing memory usage
+=======================
 
 
 .. warning::

@@ -1,4 +1,7 @@
-# Model Creation C++ Sample {#openvino_inference_engine_samples_model_creation_sample_README}
+.. {#openvino_inference_engine_samples_model_creation_sample_README}
+
+Model Creation C++ Sample
+=========================
 
 
 .. meta::

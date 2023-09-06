@@ -1,4 +1,7 @@
-# OneHot {#openvino_docs_ops_sequence_OneHot_1}
+.. {#openvino_docs_ops_sequence_OneHot_1}
+
+OneHot
+======
 
 
 .. meta::

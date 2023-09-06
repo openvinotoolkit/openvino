@@ -1,4 +1,7 @@
-# Parameter  {#openvino_docs_ops_infrastructure_Parameter_1}
+.. {#openvino_docs_ops_infrastructure_Parameter_1}
+
+Parameter
+=========
 
 
 .. meta::

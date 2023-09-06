@@ -1,4 +1,7 @@
-# ScatterNDUpdate {#openvino_docs_ops_movement_ScatterNDUpdate_3}
+.. {#openvino_docs_ops_movement_ScatterNDUpdate_3}
+
+ScatterNDUpdate
+===============
 
 
 .. meta::

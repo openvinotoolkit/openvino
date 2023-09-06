@@ -1,4 +1,7 @@
-# Preprocessing {#openvino_2_0_preprocessing}
+.. {#openvino_2_0_preprocessing}
+
+Preprocessing
+=============
 
 
 .. meta::

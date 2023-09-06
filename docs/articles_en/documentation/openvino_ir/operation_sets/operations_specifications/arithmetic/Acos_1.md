@@ -1,4 +1,7 @@
-# Acos {#openvino_docs_ops_arithmetic_Acos_1}
+.. {#openvino_docs_ops_arithmetic_Acos_1}
+
+Acos
+====
 
 
 .. meta::

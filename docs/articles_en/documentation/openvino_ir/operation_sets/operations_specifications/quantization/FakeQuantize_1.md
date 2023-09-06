@@ -1,4 +1,7 @@
-# FakeQuantize {#openvino_docs_ops_quantization_FakeQuantize_1}
+.. {#openvino_docs_ops_quantization_FakeQuantize_1}
+
+FakeQuantize
+============
 
 
 .. meta::

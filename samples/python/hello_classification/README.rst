@@ -1,4 +1,7 @@
-# Hello Classification Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
+.. {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
+
+Hello Classification Python Sample
+==================================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# ScatterElementsUpdate {#openvino_docs_ops_movement_ScatterElementsUpdate_3}
+.. {#openvino_docs_ops_movement_ScatterElementsUpdate_3}
+
+ScatterElementsUpdate
+=====================
 
 
 .. meta::

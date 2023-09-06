@@ -1,4 +1,7 @@
-# Power  {#openvino_docs_ops_arithmetic_Power_1}
+.. {#openvino_docs_ops_arithmetic_Power_1}
+
+Power
+=====
 
 
 .. meta::

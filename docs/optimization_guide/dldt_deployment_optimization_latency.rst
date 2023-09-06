@@ -1,4 +1,7 @@
-## Optimizing for Latency {#openvino_docs_deployment_optimization_guide_latency}
+.. {#openvino_docs_deployment_optimization_guide_latency}
+
+Optimizing for Latency
+======================
 
 
 .. toctree::

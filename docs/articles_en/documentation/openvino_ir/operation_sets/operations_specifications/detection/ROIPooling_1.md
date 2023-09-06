@@ -1,4 +1,7 @@
-# ROIPooling {#openvino_docs_ops_detection_ROIPooling_1}
+.. {#openvino_docs_ops_detection_ROIPooling_1}
+
+ROIPooling
+==========
 
 
 .. meta::

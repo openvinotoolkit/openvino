@@ -1,4 +1,7 @@
-# SquaredDifference {#openvino_docs_ops_arithmetic_SquaredDifference_1}
+.. {#openvino_docs_ops_arithmetic_SquaredDifference_1}
+
+SquaredDifference
+=================
 
 
 .. meta::

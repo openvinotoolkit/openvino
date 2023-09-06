@@ -1,4 +1,7 @@
-# Einsum {#openvino_docs_ops_matrix_Einsum_7}
+.. {#openvino_docs_ops_matrix_Einsum_7}
+
+Einsum
+======
 
 
 .. meta::

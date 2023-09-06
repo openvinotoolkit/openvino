@@ -1,4 +1,7 @@
-# Deploying Your Application with Deployment Manager {#openvino_docs_install_guides_deployment_manager_tool}
+.. {#openvino_docs_install_guides_deployment_manager_tool}
+
+Deploying Your Application with Deployment Manager
+==================================================
 
 
 .. meta::

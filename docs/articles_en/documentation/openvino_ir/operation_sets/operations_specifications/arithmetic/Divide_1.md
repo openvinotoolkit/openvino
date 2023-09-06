@@ -1,4 +1,7 @@
-# Divide {#openvino_docs_ops_arithmetic_Divide_1}
+.. {#openvino_docs_ops_arithmetic_Divide_1}
+
+Divide
+======
 
 
 .. meta::

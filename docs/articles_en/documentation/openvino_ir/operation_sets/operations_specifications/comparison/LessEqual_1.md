@@ -1,4 +1,7 @@
-# LessEqual {#openvino_docs_ops_comparison_LessEqual_1}
+.. {#openvino_docs_ops_comparison_LessEqual_1}
+
+LessEqual
+=========
 
 
 .. meta::

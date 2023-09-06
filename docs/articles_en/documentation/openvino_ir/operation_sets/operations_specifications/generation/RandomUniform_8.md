@@ -1,4 +1,7 @@
-# RandomUniform {#openvino_docs_ops_generation_RandomUniform_8}
+.. {#openvino_docs_ops_generation_RandomUniform_8}
+
+RandomUniform
+=============
 
 
 .. meta::

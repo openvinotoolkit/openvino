@@ -1,4 +1,7 @@
-# Constant {#openvino_docs_ops_infrastructure_Constant_1}
+.. {#openvino_docs_ops_infrastructure_Constant_1}
+
+Constant
+========
 
 
 .. meta::

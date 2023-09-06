@@ -1,4 +1,7 @@
-# Configuration File Description {#pot_configs_README}
+.. {#pot_configs_README}
+
+Configuration File Description
+==============================
 
 
 The tool is designed to work with the configuration file where all the parameters required for the optimization are specified. These parameters are organized as a dictionary and stored in

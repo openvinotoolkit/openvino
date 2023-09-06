@@ -1,4 +1,7 @@
-# Discrete Fourier Transformation for real-valued input (RDFT) {#openvino_docs_ops_signals_RDFT_9}
+.. {#openvino_docs_ops_signals_RDFT_9}
+
+Discrete Fourier Transformation for real-valued input (RDFT)
+============================================================
 
 
 .. meta::

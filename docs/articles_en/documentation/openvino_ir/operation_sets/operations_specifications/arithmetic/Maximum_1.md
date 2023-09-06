@@ -1,4 +1,7 @@
-# Maximum  {#openvino_docs_ops_arithmetic_Maximum_1}
+.. {#openvino_docs_ops_arithmetic_Maximum_1}
+
+Maximum
+=======
 
 
 .. meta::

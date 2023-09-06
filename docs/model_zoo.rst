@@ -1,4 +1,7 @@
-# Model Zoo {#model_zoo}
+.. {#model_zoo}
+
+Model Zoo
+=========
 
 
 .. _model zoo:

@@ -1,4 +1,7 @@
-# Step 3. Main Transformations {#openvino_docs_OV_UG_lpt_step3_main}
+.. {#openvino_docs_OV_UG_lpt_step3_main}
+
+Step 3. Main Transformations
+============================
 
 
 .. meta::

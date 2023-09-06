@@ -1,4 +1,7 @@
-# SoftPlus {#openvino_docs_ops_activation_SoftPlus_4}
+.. {#openvino_docs_ops_activation_SoftPlus_4}
+
+SoftPlus
+========
 
 
 .. meta::

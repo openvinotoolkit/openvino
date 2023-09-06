@@ -1,4 +1,7 @@
-# Configuring Devices {#openvino_2_0_configure_devices}
+.. {#openvino_2_0_configure_devices}
+
+Configuring Devices
+===================
 
 
 .. meta::

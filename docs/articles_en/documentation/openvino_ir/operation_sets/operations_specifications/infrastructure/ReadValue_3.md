@@ -1,4 +1,7 @@
-# ReadValue {#openvino_docs_ops_infrastructure_ReadValue_3}
+.. {#openvino_docs_ops_infrastructure_ReadValue_3}
+
+ReadValue
+=========
 
 
 .. meta::

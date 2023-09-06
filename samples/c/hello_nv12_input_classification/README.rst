@@ -1,4 +1,7 @@
-# Hello NV12 Input Classification C Sample {#openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README}
+.. {#openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README}
+
+Hello NV12 Input Classification C Sample
+========================================
 
 
 .. meta::

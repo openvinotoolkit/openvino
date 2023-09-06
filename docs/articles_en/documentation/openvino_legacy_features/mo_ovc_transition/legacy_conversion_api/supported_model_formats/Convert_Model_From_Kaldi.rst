@@ -1,4 +1,7 @@
-# Converting a Kaldi Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi}
+
+Converting a Kaldi Model
+========================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# NV12toBGR {#openvino_docs_ops_image_NV12toBGR_8}
+.. {#openvino_docs_ops_image_NV12toBGR_8}
+
+NV12toBGR
+=========
 
 
 .. meta::

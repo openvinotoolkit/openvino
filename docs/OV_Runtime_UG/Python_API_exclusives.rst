@@ -1,4 +1,7 @@
-# OpenVINO™ Python API Exclusives {#openvino_docs_OV_UG_Python_API_exclusives}
+.. {#openvino_docs_OV_UG_Python_API_exclusives}
+
+OpenVINO™ Python API Exclusives
+=================================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# ReverseSequence {#openvino_docs_ops_movement_ReverseSequence_1}
+.. {#openvino_docs_ops_movement_ReverseSequence_1}
+
+ReverseSequence
+===============
 
 
 .. meta::

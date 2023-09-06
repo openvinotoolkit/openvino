@@ -1,4 +1,7 @@
-# BinaryConvolution {#openvino_docs_ops_convolution_BinaryConvolution_1}
+.. {#openvino_docs_ops_convolution_BinaryConvolution_1}
+
+BinaryConvolution
+=================
 
 
 .. meta::

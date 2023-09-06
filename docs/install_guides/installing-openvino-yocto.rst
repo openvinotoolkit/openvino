@@ -1,4 +1,7 @@
-# Create a Yocto Image with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_yocto}
+.. {#openvino_docs_install_guides_installing_openvino_yocto}
+
+Create a Yocto Image with Intel® Distribution of OpenVINO™ toolkit
+=====================================================================
 
 
 .. meta::

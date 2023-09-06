@@ -1,4 +1,7 @@
-# PReLU {#openvino_docs_ops_activation_PReLU_1}
+.. {#openvino_docs_ops_activation_PReLU_1}
+
+PReLU
+=====
 
 
 .. meta::

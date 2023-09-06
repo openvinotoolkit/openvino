@@ -1,4 +1,7 @@
-# OpenVINO™ Low Precision Transformations {#openvino_docs_OV_UG_lpt}
+.. {#openvino_docs_OV_UG_lpt}
+
+OpenVINO™ Low Precision Transformations
+=========================================
 
 
 .. meta::

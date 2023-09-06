@@ -1,4 +1,7 @@
-# FloorMod  {#openvino_docs_ops_arithmetic_FloorMod_1}
+.. {#openvino_docs_ops_arithmetic_FloorMod_1}
+
+FloorMod
+========
  
 
 .. meta::

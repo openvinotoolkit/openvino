@@ -1,4 +1,7 @@
-##  MulticlassNonMaxSuppression {#openvino_docs_ops_sort_MulticlassNonMaxSuppression_8}
+.. {#openvino_docs_ops_sort_MulticlassNonMaxSuppression_8}
+
+MulticlassNonMaxSuppression
+===========================
 
 
 .. meta::

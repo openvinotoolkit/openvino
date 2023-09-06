@@ -1,4 +1,7 @@
-# Equal {#openvino_docs_ops_comparison_Equal_1}
+.. {#openvino_docs_ops_comparison_Equal_1}
+
+Equal
+=====
 
 
 .. meta::

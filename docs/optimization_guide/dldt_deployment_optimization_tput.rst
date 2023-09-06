@@ -1,4 +1,7 @@
-# Optimizing for Throughput {#openvino_docs_deployment_optimization_guide_tput}
+.. {#openvino_docs_deployment_optimization_guide_tput}
+
+Optimizing for Throughput
+=========================
 
 
 .. meta::

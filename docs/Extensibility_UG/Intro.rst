@@ -1,4 +1,7 @@
-﻿# OpenVINO Extensibility Mechanism {#openvino_docs_Extensibility_UG_Intro}
+.. {#openvino_docs_Extensibility_UG_Intro}
+
+OpenVINO Extensibility Mechanism
+================================
 
 
 .. meta::

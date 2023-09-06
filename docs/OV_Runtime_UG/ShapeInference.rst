@@ -1,4 +1,7 @@
-# Changing Input Shapes {#openvino_docs_OV_UG_ShapeInference}
+.. {#openvino_docs_OV_UG_ShapeInference}
+
+Changing Input Shapes
+=====================
 
 
 .. toctree::

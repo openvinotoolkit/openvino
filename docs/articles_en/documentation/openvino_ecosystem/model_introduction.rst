@@ -1,4 +1,7 @@
-# Model Preparation {#openvino_docs_model_processing_introduction}
+.. {#openvino_docs_model_processing_introduction}
+
+Model Preparation
+=================
 
 
 .. meta::

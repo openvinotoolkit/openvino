@@ -1,4 +1,7 @@
-# Supported Operations - by Framework Frontend {#openvino_resources_supported_operations_frontend}
+.. {#openvino_resources_supported_operations_frontend}
+
+Supported Operations - by Framework Frontend
+============================================
 
 
 .. meta::

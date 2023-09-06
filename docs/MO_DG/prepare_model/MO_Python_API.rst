@@ -1,4 +1,7 @@
-# Convert Models Represented as Python Objects {#openvino_docs_MO_DG_Python_API}
+.. {#openvino_docs_MO_DG_Python_API}
+
+Convert Models Represented as Python Objects
+============================================
 
 
 Model conversion API is represented by ``convert_model()`` method in openvino.tools.mo namespace. ``convert_model()`` is compatible with types from openvino.runtime, like PartialShape, Layout, Type, etc.

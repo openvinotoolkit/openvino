@@ -1,4 +1,7 @@
-# Ceiling  {#openvino_docs_ops_arithmetic_Ceiling_1}
+.. {#openvino_docs_ops_arithmetic_Ceiling_1}
+
+Ceiling
+=======
 
 
 .. meta::

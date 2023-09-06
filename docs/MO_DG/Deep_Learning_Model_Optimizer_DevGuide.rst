@@ -1,4 +1,11 @@
+<<<<<<< HEAD
 # Legacy Conversion API {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+=======
+.. {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+
+Convert a Model
+===============
+>>>>>>> 7a671c1bc1 (adjust modified rst files)
 
 
 .. toctree::

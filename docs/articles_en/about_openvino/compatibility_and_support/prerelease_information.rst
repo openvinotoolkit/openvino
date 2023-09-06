@@ -1,4 +1,7 @@
-# Pre-release Information {#prerelease_information}
+.. {#prerelease_information}
+
+Pre-release Information
+=======================
 
 
 .. meta::

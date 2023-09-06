@@ -1,4 +1,7 @@
-# ReLU {#openvino_docs_ops_activation_ReLU_1}
+.. {#openvino_docs_ops_activation_ReLU_1}
+
+ReLU
+====
 
 
 .. meta::

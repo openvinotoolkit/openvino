@@ -1,4 +1,7 @@
-# Optimize Preprocessing {#openvino_docs_OV_UG_Preprocessing_Overview}
+.. {#openvino_docs_OV_UG_Preprocessing_Overview}
+
+Optimize Preprocessing
+======================
 
 
 .. toctree::

@@ -1,4 +1,7 @@
-# Remote Context {#openvino_docs_ov_plugin_dg_remote_context}
+.. {#openvino_docs_ov_plugin_dg_remote_context}
+
+Remote Context
+==============
 
 
 .. meta::

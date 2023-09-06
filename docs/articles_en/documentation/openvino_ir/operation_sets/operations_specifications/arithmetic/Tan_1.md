@@ -1,4 +1,7 @@
-# Tan  {#openvino_docs_ops_arithmetic_Tan_1}
+.. {#openvino_docs_ops_arithmetic_Tan_1}
+
+Tan
+===
 
 
 .. meta::

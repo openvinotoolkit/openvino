@@ -1,4 +1,7 @@
-# Basic Quantization Flow {#basic_quantization_flow}
+.. {#basic_quantization_flow}
+
+Basic Quantization Flow
+=======================
 
 
 Introduction

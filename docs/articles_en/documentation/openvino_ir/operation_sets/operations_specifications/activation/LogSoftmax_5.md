@@ -1,4 +1,7 @@
-# LogSoftMax {#openvino_docs_ops_activation_LogSoftmax_5}
+.. {#openvino_docs_ops_activation_LogSoftmax_5}
+
+LogSoftMax
+==========
 
 
 .. meta::

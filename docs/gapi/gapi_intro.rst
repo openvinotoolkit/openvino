@@ -1,4 +1,7 @@
-# Introduction to OpenCV Graph API (G-API) {#openvino_docs_gapi_gapi_intro}
+.. {#openvino_docs_gapi_gapi_intro}
+
+Introduction to OpenCV Graph API (G-API)
+========================================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# GELU {#openvino_docs_ops_activation_GELU_2}
+.. {#openvino_docs_ops_activation_GELU_2}
+
+GELU
+====
 
 
 

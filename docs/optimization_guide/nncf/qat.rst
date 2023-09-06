@@ -1,4 +1,7 @@
-# Quantization-aware Training (QAT) {#qat_introduction}
+.. {#qat_introduction}
+
+Quantization-aware Training (QAT)
+=================================
 
 
 Introduction

@@ -1,4 +1,7 @@
-# Quantizing Semantic Segmentation Model {#pot_example_segmentation_README}
+.. {#pot_example_segmentation_README}
+
+Quantizing Semantic Segmentation Model
+======================================
 
 
 This example demonstrates the use of the :doc:`Post-training Optimization Tool API <pot_compression_api_README>` for the task of quantizing a segmentation model.

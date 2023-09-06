@@ -1,4 +1,7 @@
-# Compiled Model {#openvino_docs_ov_plugin_dg_compiled_model}
+.. {#openvino_docs_ov_plugin_dg_compiled_model}
+
+Compiled Model
+==============
 
 
 .. meta::

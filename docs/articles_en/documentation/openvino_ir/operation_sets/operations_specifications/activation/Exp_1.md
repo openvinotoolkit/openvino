@@ -1,4 +1,7 @@
-# Exp {#openvino_docs_ops_activation_Exp_1}
+.. {#openvino_docs_ops_activation_Exp_1}
+
+Exp
+===
 
 
 .. meta::

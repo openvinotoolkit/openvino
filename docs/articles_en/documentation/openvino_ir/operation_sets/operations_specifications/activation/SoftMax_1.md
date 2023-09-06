@@ -1,4 +1,7 @@
-# SoftMax {#openvino_docs_ops_activation_SoftMax_1}
+.. {#openvino_docs_ops_activation_SoftMax_1}
+
+SoftMax
+=======
 
 
 .. meta::

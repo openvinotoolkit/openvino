@@ -1,4 +1,7 @@
-# Precision Control {#openvino_docs_OV_UG_Precision_Control}
+.. {#openvino_docs_OV_UG_Precision_Control}
+
+Precision Control
+=================
 
 
 The choice of data types is essential to the inference runtime, which can have a huge impact on the performance and other metrics. Usually 2 types of precision are identified:

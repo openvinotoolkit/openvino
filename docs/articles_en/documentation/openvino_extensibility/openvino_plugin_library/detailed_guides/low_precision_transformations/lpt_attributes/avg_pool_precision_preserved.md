@@ -1,4 +1,7 @@
-# AvgPoolPrecisionPreserved Attribute {#openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved}
+.. {#openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved}
+
+AvgPoolPrecisionPreserved Attribute
+===================================
 
 
 .. meta::

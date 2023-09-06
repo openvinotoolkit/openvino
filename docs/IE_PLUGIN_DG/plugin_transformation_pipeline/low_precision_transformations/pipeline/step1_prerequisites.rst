@@ -1,4 +1,7 @@
-# Step 1. Prerequisites Transformations {#openvino_docs_OV_UG_lpt_step1_prerequisites}
+.. {#openvino_docs_OV_UG_lpt_step1_prerequisites}
+
+Step 1. Prerequisites Transformations
+=====================================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# ShuffleChannels {#openvino_docs_ops_movement_ShuffleChannels_1}
+.. {#openvino_docs_ops_movement_ShuffleChannels_1}
+
+ShuffleChannels
+===============
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Interpolate {#openvino_docs_ops_image_Interpolate_11}
+.. {#openvino_docs_ops_image_Interpolate_11}
+
+Interpolate
+===========
 
 
 .. meta::

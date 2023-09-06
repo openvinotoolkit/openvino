@@ -1,4 +1,7 @@
-# ROIAlign {#openvino_docs_ops_detection_ROIAlign_3}
+.. {#openvino_docs_ops_detection_ROIAlign_3}
+
+ROIAlign
+========
 
 
 .. meta::

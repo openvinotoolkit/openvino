@@ -1,4 +1,7 @@
-# Inverse Discrete Fourier Transformation (IDFT) {#openvino_docs_ops_signals_IDFT_7}
+.. {#openvino_docs_ops_signals_IDFT_7}
+
+Inverse Discrete Fourier Transformation (IDFT)
+==============================================
 
 
 .. meta::

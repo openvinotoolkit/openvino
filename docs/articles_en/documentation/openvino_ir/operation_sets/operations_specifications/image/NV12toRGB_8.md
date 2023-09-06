@@ -1,4 +1,7 @@
-# NV12toRGB {#openvino_docs_ops_image_NV12toRGB_8}
+.. {#openvino_docs_ops_image_NV12toRGB_8}
+
+NV12toRGB
+=========
 
 
 .. meta::

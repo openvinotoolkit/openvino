@@ -1,4 +1,7 @@
-# GPU Device {#openvino_docs_OV_UG_supported_plugins_GPU}
+.. {#openvino_docs_OV_UG_supported_plugins_GPU}
+
+GPU Device
+==========
 
 
 .. toctree::

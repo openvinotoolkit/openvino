@@ -1,4 +1,7 @@
-# Quantizing 3D Segmentation Model {#pot_example_3d_segmentation_README}
+.. {#pot_example_3d_segmentation_README}
+
+Quantizing 3D Segmentation Model
+================================
 
 
 This example demonstrates the use of the :doc:`Post-training Optimization Tool API <pot_compression_api_README>` for the task of quantizing a 3D segmentation model.

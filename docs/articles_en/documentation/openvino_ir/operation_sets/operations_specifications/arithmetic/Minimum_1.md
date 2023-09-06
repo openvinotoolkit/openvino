@@ -1,4 +1,7 @@
-# Minimum  {#openvino_docs_ops_arithmetic_Minimum_1}
+.. {#openvino_docs_ops_arithmetic_Minimum_1}
+
+Minimum
+=======
 
 
 .. meta::

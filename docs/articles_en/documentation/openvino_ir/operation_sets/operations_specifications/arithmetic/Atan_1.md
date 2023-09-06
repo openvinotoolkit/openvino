@@ -1,4 +1,7 @@
-# Atan  {#openvino_docs_ops_arithmetic_Atan_1}
+.. {#openvino_docs_ops_arithmetic_Atan_1}
+
+Atan
+====
 
 
 .. meta::

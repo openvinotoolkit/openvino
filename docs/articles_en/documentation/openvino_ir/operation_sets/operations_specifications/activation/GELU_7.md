@@ -1,4 +1,7 @@
-# GELU {#openvino_docs_ops_activation_GELU_7}
+.. {#openvino_docs_ops_activation_GELU_7}
+
+GELU
+====
 
 
 .. meta::

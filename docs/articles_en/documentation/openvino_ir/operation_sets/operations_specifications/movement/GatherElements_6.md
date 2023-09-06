@@ -1,4 +1,7 @@
-# GatherElements {#openvino_docs_ops_movement_GatherElements_6}
+.. {#openvino_docs_ops_movement_GatherElements_6}
+
+GatherElements
+==============
 
 
 

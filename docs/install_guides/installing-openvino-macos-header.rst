@@ -1,4 +1,7 @@
-# Install and OpenVINO™ Runtime for macOS {#openvino_docs_install_guides_installing_openvino_macos_header}
+.. {#openvino_docs_install_guides_installing_openvino_macos_header}
+
+Install and OpenVINO™ Runtime for macOS
+=========================================
 
 
 .. meta::

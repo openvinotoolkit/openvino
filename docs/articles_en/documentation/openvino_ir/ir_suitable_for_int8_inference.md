@@ -1,4 +1,7 @@
-# Intermediate Representation Suitable for INT8 Inference {#openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference}
+
+Intermediate Representation Suitable for INT8 Inference
+=======================================================
 
 
 .. meta::

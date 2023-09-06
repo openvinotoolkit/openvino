@@ -1,4 +1,7 @@
-# Multi-device execution {#openvino_docs_OV_UG_Running_on_multiple_devices}
+.. {#openvino_docs_OV_UG_Running_on_multiple_devices}
+
+Multi-device execution
+======================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Optimize Inference {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
+.. {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
+
+Optimize Inference
+==================
 
 
 .. toctree::

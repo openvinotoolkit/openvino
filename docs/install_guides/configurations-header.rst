@@ -1,4 +1,7 @@
-# Additional Configurations For Hardware {#openvino_docs_install_guides_configurations_header}
+.. {#openvino_docs_install_guides_configurations_header}
+
+Additional Configurations For Hardware
+======================================
 
 
 .. meta::

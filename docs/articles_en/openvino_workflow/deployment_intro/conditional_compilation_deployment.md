@@ -1,4 +1,7 @@
-# OpenVINO Conditional Compilation for Optimal Binary Size{#opevino_conditional_compilation_deploying_guide}
+.. {#opevino_conditional_compilation_deploying_guide}
+
+OpenVINO Conditional Compilation for Optimal Binary Size
+========================================================
 
 
 Conditional compilation can significantly reduce the binary size of the OpenVINO package by excluding unnecessary components for inference of particular models. This is particularly useful for edge and client deployment scenarios, where reducing the size of application binary is important.

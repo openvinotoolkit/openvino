@@ -1,4 +1,7 @@
-# IsInf {#openvino_docs_ops_comparison_IsInf_10}
+.. {#openvino_docs_ops_comparison_IsInf_10}
+
+IsInf
+=====
 
 
 .. meta::

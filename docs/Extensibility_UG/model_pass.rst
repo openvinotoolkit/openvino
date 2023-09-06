@@ -1,4 +1,7 @@
-# OpenVINO Model Pass {#openvino_docs_Extensibility_UG_model_pass}
+.. {#openvino_docs_Extensibility_UG_model_pass}
+
+OpenVINO Model Pass
+===================
 
 
 .. meta::

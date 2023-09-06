@@ -1,4 +1,7 @@
-# ExperimentalDetectronTopKROIs  {#openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6}
+.. {#openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6}
+
+ExperimentalDetectronTopKROIs
+=============================
 
 
 .. meta::

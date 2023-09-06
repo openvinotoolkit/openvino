@@ -1,4 +1,7 @@
-# Install OpenVINO™ Runtime on macOS from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_macos}
+.. {#openvino_docs_install_guides_installing_openvino_from_archive_macos}
+
+Install OpenVINO™ Runtime on macOS from an Archive File
+=========================================================
 
 
 .. meta::

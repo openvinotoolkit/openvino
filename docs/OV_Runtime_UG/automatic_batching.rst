@@ -1,4 +1,7 @@
-# Automatic Batching {#openvino_docs_OV_UG_Automatic_Batching}
+.. {#openvino_docs_OV_UG_Automatic_Batching}
+
+Automatic Batching
+==================
 
 
 .. meta::

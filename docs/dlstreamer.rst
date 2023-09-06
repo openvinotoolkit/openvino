@@ -1,4 +1,7 @@
-# Intel® Deep Learning Streamer (Intel® DL Streamer) {#openvino_docs_dlstreamer}
+.. {#openvino_docs_dlstreamer}
+
+Intel® Deep Learning Streamer (Intel® DL Streamer)
+====================================================
 
 
 .. meta::

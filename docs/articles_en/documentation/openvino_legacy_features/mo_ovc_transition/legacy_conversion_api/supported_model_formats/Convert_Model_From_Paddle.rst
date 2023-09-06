@@ -1,4 +1,11 @@
+<<<<<<< HEAD:docs/articles_en/documentation/openvino_legacy_features/mo_ovc_transition/legacy_conversion_api/supported_model_formats/Convert_Model_From_Paddle.rst
 # Converting a PaddlePaddle Model {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle}
+=======
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
+
+Converting a PaddlePaddle Model
+===============================
+>>>>>>> 7a671c1bc1 (adjust modified rst files):docs/MO_DG/prepare_model/convert_model/Convert_Model_From_Paddle.rst
 
 
 .. meta::

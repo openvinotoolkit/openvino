@@ -1,4 +1,7 @@
-# Sin {#openvino_docs_ops_arithmetic_Sin_1}
+.. {#openvino_docs_ops_arithmetic_Sin_1}
+
+Sin
+===
 
 
 .. meta::

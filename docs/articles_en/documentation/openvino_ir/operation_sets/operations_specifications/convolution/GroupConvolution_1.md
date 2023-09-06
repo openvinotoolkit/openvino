@@ -1,4 +1,7 @@
-# GroupConvolution  {#openvino_docs_ops_convolution_GroupConvolution_1}
+.. {#openvino_docs_ops_convolution_GroupConvolution_1}
+
+GroupConvolution
+================
 
 
 .. meta::

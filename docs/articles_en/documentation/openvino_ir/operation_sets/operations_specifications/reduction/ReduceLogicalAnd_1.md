@@ -1,4 +1,7 @@
-# ReduceLogicalAnd {#openvino_docs_ops_reduction_ReduceLogicalAnd_1}
+.. {#openvino_docs_ops_reduction_ReduceLogicalAnd_1}
+
+ReduceLogicalAnd
+================
 
 
 .. meta::

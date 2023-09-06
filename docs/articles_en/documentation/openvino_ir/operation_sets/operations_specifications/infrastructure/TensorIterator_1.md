@@ -1,4 +1,7 @@
-# TensorIterator {#openvino_docs_ops_infrastructure_TensorIterator_1}
+.. {#openvino_docs_ops_infrastructure_TensorIterator_1}
+
+TensorIterator
+==============
 
 
 .. meta::

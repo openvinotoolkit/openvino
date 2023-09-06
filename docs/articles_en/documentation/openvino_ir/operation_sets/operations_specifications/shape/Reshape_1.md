@@ -1,4 +1,7 @@
-# Reshape {#openvino_docs_ops_shape_Reshape_1}
+.. {#openvino_docs_ops_shape_Reshape_1}
+
+Reshape
+=======
 
 
 .. meta::

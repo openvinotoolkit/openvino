@@ -1,4 +1,7 @@
-# OpenVINO™ Ecosystem Overview {#openvino_ecosystem}
+.. {#openvino_ecosystem}
+
+OpenVINO™ Ecosystem Overview
+==============================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# NormalizeL2 {#openvino_docs_ops_normalization_NormalizeL2_1}
+.. {#openvino_docs_ops_normalization_NormalizeL2_1}
+
+NormalizeL2
+===========
 
 
 .. meta::

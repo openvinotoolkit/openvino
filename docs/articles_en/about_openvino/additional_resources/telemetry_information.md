@@ -1,4 +1,7 @@
-# OpenVINO™ Telemetry {#openvino_docs_telemetry_information}
+.. {#openvino_docs_telemetry_information}
+
+OpenVINO™ Telemetry
+=====================
 
 
 .. meta::

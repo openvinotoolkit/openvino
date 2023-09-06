@@ -9,6 +9,11 @@ do
     firstline=$(head -n1 "$file")
     if (echo "$firstline" | grep -qo '{#.*}'); then
         echo "Label found in $file file. Cleaning up file and saving as rst..."
+        newfirstline=$(echo $firstline | grep -Po '{#.*}')
+        title=$(echo $firstline | grep -Po '# .*{' | tr -d '#{' | awk '{$1=$1;print}')
+        #signs=$(echo $title | wc -c)
+        eqs=$(printf "%0.s=" $(seq ${#title}))
+        sed -i "s/$firstline/.. $newfirstline\n\n$title\n$eqs/" $file
         sed -i -E '/^@(end)?sphinxdirective/d' $file
         directory=$(dirname $file)
         filename=$(basename $file .md)

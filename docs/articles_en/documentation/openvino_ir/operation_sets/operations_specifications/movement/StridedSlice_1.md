@@ -1,4 +1,7 @@
-# StridedSlice {#openvino_docs_ops_movement_StridedSlice_1}
+.. {#openvino_docs_ops_movement_StridedSlice_1}
+
+StridedSlice
+============
 
 
 .. meta::

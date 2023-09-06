@@ -1,4 +1,7 @@
-# Acosh {#openvino_docs_ops_arithmetic_Acosh_3}
+.. {#openvino_docs_ops_arithmetic_Acosh_3}
+
+Acosh
+=====
 
 
 .. meta::

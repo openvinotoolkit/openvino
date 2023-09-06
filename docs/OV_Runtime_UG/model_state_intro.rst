@@ -1,4 +1,7 @@
-# Stateful models {#openvino_docs_OV_UG_model_state_intro}
+.. {#openvino_docs_OV_UG_model_state_intro}
+
+Stateful models
+===============
 
 
 .. toctree::

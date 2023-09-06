@@ -1,4 +1,7 @@
-# Proposal {#openvino_docs_ops_detection_Proposal_4}
+.. {#openvino_docs_ops_detection_Proposal_4}
+
+Proposal
+========
 
 
 .. meta::

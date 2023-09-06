@@ -1,4 +1,7 @@
-# OpenVINO TensorFlow Frontend Capabilities and Limitations {#openvino_docs_MO_DG_TensorFlow_Frontend}
+.. {#openvino_docs_MO_DG_TensorFlow_Frontend}
+
+OpenVINO TensorFlow Frontend Capabilities and Limitations
+=========================================================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# OpenVINO™ Training Extensions {#ote_documentation}
+.. {#ote_documentation}
+
+OpenVINO™ Training Extensions
+===============================
 
 
 .. meta::

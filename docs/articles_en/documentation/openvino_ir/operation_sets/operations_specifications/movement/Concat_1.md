@@ -1,4 +1,7 @@
-# Concat {#openvino_docs_ops_movement_Concat_1}
+.. {#openvino_docs_ops_movement_Concat_1}
+
+Concat
+======
 
 
 .. meta::

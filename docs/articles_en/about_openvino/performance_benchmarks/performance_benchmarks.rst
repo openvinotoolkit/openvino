@@ -1,4 +1,7 @@
-# Performance Benchmarks {#openvino_docs_performance_benchmarks}
+.. {#openvino_docs_performance_benchmarks}
+
+Performance Benchmarks
+======================
 
 
 .. meta::

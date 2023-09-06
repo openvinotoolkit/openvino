@@ -1,4 +1,7 @@
-# Troubleshooting Guide for OpenVINO™ Installation & Configuration {#openvino_docs_get_started_guide_troubleshooting}
+.. {#openvino_docs_get_started_guide_troubleshooting}
+
+Troubleshooting Guide for OpenVINO™ Installation & Configuration
+================================================================
 
 
 .. meta::

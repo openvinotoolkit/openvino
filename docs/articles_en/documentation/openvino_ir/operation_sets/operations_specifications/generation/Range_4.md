@@ -1,4 +1,7 @@
-# Range {#openvino_docs_ops_generation_Range_4}
+.. {#openvino_docs_ops_generation_Range_4}
+
+Range
+=====
 
 
 .. meta::

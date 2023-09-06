@@ -1,4 +1,7 @@
-# API Reference  {#pot_compression_api_README}
+.. {#pot_compression_api_README}
+
+API Reference
+=============
 
 
 Post-training Optimization Tool API provides a full set of interfaces and helpers that allow users to implement a custom optimization pipeline for various types of DL models including cascaded or compound models. Below is a full specification of this API:

@@ -1,4 +1,7 @@
-# Install OpenVINO™ Runtime on Linux from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_linux}
+.. {#openvino_docs_install_guides_installing_openvino_from_archive_linux}
+
+Install OpenVINO™ Runtime on Linux from an Archive File
+=========================================================
 
 <<<<<<<< HEAD:docs/articles_en/get started/installing-openvino-overview/installing-openvino-linux-header/installing-openvino-from-archive-linux.md
 @sphinxdirective

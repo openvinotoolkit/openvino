@@ -1,4 +1,7 @@
-# Interactive Tutorials (Python) {#tutorials}
+.. {#tutorials}
+
+Interactive Tutorials (Python)
+==============================
 
 
 .. _notebook tutorials:

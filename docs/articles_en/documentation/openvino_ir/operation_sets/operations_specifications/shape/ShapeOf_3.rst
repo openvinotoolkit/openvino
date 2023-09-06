@@ -1,4 +1,7 @@
-# ShapeOf {#openvino_docs_ops_shape_ShapeOf_3}
+.. {#openvino_docs_ops_shape_ShapeOf_3}
+
+ShapeOf
+=======
 
 
 .. meta::

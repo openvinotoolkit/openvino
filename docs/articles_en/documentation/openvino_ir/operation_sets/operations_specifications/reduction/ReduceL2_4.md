@@ -1,4 +1,7 @@
-# ReduceL2 {#openvino_docs_ops_reduction_ReduceL2_4}
+.. {#openvino_docs_ops_reduction_ReduceL2_4}
+
+ReduceL2
+========
 
 
 .. meta::

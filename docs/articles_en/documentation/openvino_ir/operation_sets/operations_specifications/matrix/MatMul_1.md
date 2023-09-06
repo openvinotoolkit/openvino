@@ -1,4 +1,7 @@
-# MatMul {#openvino_docs_ops_matrix_MatMul_1}
+.. {#openvino_docs_ops_matrix_MatMul_1}
+
+MatMul
+======
 
 
 .. meta::

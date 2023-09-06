@@ -1,4 +1,7 @@
-# PSROIPooling {#openvino_docs_ops_detection_PSROIPooling_1}
+.. {#openvino_docs_ops_detection_PSROIPooling_1}
+
+PSROIPooling
+============
 
 
 .. meta::

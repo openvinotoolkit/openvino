@@ -1,4 +1,7 @@
-# OpenVINO™ Security Add-on {#ovsa_get_started}
+.. {#ovsa_get_started}
+
+OpenVINO™ Security Add-on
+===========================
 
 
 .. meta::

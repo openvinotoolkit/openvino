@@ -1,4 +1,7 @@
-# RNNCell  {#openvino_docs_ops_sequence_RNNCell_3}
+.. {#openvino_docs_ops_sequence_RNNCell_3}
+
+RNNCell
+=======
 
 
 .. meta::

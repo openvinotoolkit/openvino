@@ -1,4 +1,7 @@
-# Use Post-Training Optimization Tool Command-Line Interface (Model Zoo flow){#pot_compression_cli_README}
+.. {#pot_compression_cli_README}
+
+Use Post-Training Optimization Tool Command-Line Interface (Model Zoo flow)
+===========================================================================
 
 
 .. toctree::

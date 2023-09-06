@@ -1,4 +1,7 @@
-# Unsqueeze {#openvino_docs_ops_shape_Unsqueeze_1}
+.. {#openvino_docs_ops_shape_Unsqueeze_1}
+
+Unsqueeze
+=========
 
 
 .. meta::

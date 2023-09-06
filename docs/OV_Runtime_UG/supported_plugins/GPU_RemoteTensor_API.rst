@@ -1,4 +1,7 @@
-# Remote Tensor API of GPU Plugin {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
+.. {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
+
+Remote Tensor API of GPU Plugin
+===============================
 
 
 .. meta::

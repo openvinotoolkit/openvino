@@ -1,4 +1,7 @@
-# Model Optimizer Frequently Asked Questions  {#openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ}
+.. {#openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ}
+
+Model Optimizer Frequently Asked Questions
+==========================================
 
 
 .. important::

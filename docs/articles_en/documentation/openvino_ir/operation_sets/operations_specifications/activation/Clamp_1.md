@@ -1,4 +1,7 @@
-# Clamp {#openvino_docs_ops_activation_Clamp_1}
+.. {#openvino_docs_ops_activation_Clamp_1}
+
+Clamp
+=====
 
 
 .. meta::

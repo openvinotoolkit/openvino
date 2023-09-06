@@ -1,4 +1,7 @@
-# Supported Operations - by Inference Devices {#openvino_resources_supported_operations}
+.. {#openvino_resources_supported_operations}
+
+Supported Operations - by Inference Devices
+===========================================
 
 
 This page lists operations supported by OpenVINO inference devices. The table presents general information,

@@ -1,4 +1,7 @@
-# Converting a PyTorch RCAN Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN}
+
+Converting a PyTorch RCAN Model
+===============================
 
 
 .. meta::

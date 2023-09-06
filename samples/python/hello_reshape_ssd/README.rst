@@ -1,4 +1,7 @@
-# Hello Reshape SSD Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
+.. {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
+
+Hello Reshape SSD Python Sample
+===============================
 
 
 .. meta::

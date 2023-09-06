@@ -1,4 +1,7 @@
-# Broadcast {#openvino_docs_ops_movement_Broadcast_1}
+.. {#openvino_docs_ops_movement_Broadcast_1}
+
+Broadcast
+=========
 
 
 .. meta::

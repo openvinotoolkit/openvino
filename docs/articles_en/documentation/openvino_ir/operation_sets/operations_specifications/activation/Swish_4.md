@@ -1,4 +1,7 @@
-# Swish {#openvino_docs_ops_activation_Swish_4}
+.. {#openvino_docs_ops_activation_Swish_4}
+
+Swish
+=====
 
 
 .. meta::

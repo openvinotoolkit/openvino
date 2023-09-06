@@ -1,4 +1,7 @@
-# Converting MXNet GluonCV Models {#openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_GluonCV_Models}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_GluonCV_Models}
+
+Converting MXNet GluonCV Models
+===============================
 
 
 .. meta::

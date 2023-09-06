@@ -1,4 +1,7 @@
-# The LowLatencу2 Transformation {#openvino_docs_OV_UG_lowlatency2}
+.. {#openvino_docs_OV_UG_lowlatency2}
+
+The LowLatencу2 Transformation
+===============================
 
 
 .. meta::

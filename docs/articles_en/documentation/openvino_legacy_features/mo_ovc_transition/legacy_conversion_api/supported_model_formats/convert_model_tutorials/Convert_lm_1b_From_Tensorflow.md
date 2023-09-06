@@ -1,4 +1,7 @@
-# Converting a TensorFlow Language Model on One Billion Word Benchmark {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow}
+
+Converting a TensorFlow Language Model on One Billion Word Benchmark
+====================================================================
 
 
 .. meta::

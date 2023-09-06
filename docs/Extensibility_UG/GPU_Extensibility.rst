@@ -1,4 +1,7 @@
-# How to Implement Custom GPU Operations {#openvino_docs_Extensibility_UG_GPU}
+.. {#openvino_docs_Extensibility_UG_GPU}
+
+How to Implement Custom GPU Operations
+======================================
 
 
 .. meta::

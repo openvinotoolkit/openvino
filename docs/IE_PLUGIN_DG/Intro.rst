@@ -1,4 +1,7 @@
-# Overview of OpenVINO Plugin Library {#openvino_docs_ie_plugin_dg_overview}
+.. {#openvino_docs_ie_plugin_dg_overview}
+
+Overview of OpenVINO Plugin Library
+===================================
 
 
 .. meta::

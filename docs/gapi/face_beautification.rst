@@ -1,4 +1,7 @@
-# Implementing a Face Beautification Algorithm {#openvino_docs_gapi_face_beautification}
+.. {#openvino_docs_gapi_face_beautification}
+
+Implementing a Face Beautification Algorithm
+============================================
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Libraries for Local Distribution {#openvino_docs_deploy_local_distribution}
+.. {#openvino_docs_deploy_local_distribution}
+
+Libraries for Local Distribution
+================================
 
 
 .. meta::

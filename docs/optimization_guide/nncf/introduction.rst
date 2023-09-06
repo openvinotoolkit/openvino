@@ -1,4 +1,7 @@
-# Compressing Models During Training {#tmo_introduction}
+.. {#tmo_introduction}
+
+Compressing Models During Training
+==================================
 
 
 .. toctree::

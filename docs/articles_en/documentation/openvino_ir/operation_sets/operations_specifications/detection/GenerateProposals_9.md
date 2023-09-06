@@ -1,4 +1,7 @@
-# GenerateProposals {#openvino_docs_ops_detection_GenerateProposals_9}
+.. {#openvino_docs_ops_detection_GenerateProposals_9}
+
+GenerateProposals
+=================
 
 
 .. meta::

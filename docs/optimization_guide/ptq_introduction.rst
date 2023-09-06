@@ -1,4 +1,7 @@
-# Quantizing Models Post-training {#ptq_introduction}
+.. {#ptq_introduction}
+
+Quantizing Models Post-training
+===============================
 
 
 .. toctree::

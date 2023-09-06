@@ -1,4 +1,7 @@
-# Plugin Testing {#openvino_docs_ov_plugin_dg_plugin_testing}
+.. {#openvino_docs_ov_plugin_dg_plugin_testing}
+
+Plugin Testing
+==============
 
 
 .. meta::

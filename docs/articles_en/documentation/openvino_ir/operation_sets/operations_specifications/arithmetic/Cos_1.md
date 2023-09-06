@@ -1,4 +1,7 @@
-# Cos {#openvino_docs_ops_arithmetic_Cos_1}
+.. {#openvino_docs_ops_arithmetic_Cos_1}
+
+Cos
+===
 
 
 .. meta::

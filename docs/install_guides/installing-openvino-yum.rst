@@ -1,4 +1,7 @@
-# Install OpenVINO™ Runtime on Linux From YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
+.. {#openvino_docs_install_guides_installing_openvino_yum}
+
+Install OpenVINO™ Runtime on Linux From YUM Repository
+========================================================
 
 <<<<<<<< HEAD:docs/articles_en/get started/installing-openvino-overview/installing-openvino-linux-header/installing-openvino-yum.md
 @sphinxdirective

@@ -1,4 +1,7 @@
-# Convolution {#openvino_docs_ops_convolution_Convolution_1}
+.. {#openvino_docs_ops_convolution_Convolution_1}
+
+Convolution
+===========
 
 
 .. meta::

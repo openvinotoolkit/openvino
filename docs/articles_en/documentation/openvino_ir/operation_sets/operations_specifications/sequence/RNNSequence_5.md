@@ -1,4 +1,7 @@
-# RNNSequence {#openvino_docs_ops_sequence_RNNSequence_5}
+.. {#openvino_docs_ops_sequence_RNNSequence_5}
+
+RNNSequence
+===========
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Add {#openvino_docs_ops_arithmetic_Add_1}
+.. {#openvino_docs_ops_arithmetic_Add_1}
+
+Add
+===
 
 
 .. meta::

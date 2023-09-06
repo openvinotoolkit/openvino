@@ -1,4 +1,7 @@
-# Supported Models {#openvino_supported_models}
+.. {#openvino_supported_models}
+
+Supported Models
+================
 
 
 

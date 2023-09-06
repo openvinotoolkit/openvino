@@ -1,4 +1,7 @@
-# OpenVINO Graph Rewrite Pass {#openvino_docs_Extensibility_UG_graph_rewrite_pass}
+.. {#openvino_docs_Extensibility_UG_graph_rewrite_pass}
+
+OpenVINO Graph Rewrite Pass
+===========================
 
 
 .. meta::

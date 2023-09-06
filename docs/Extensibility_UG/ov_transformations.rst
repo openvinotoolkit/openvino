@@ -1,4 +1,7 @@
-# Overview of Transformations API {#openvino_docs_transformations}
+.. {#openvino_docs_transformations}
+
+Overview of Transformations API
+===============================
 
 
 .. meta::

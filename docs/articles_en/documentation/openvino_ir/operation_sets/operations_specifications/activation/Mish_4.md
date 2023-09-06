@@ -1,4 +1,7 @@
-# Mish {#openvino_docs_ops_activation_Mish_4}
+.. {#openvino_docs_ops_activation_Mish_4}
+
+Mish
+====
 
 
 .. meta::

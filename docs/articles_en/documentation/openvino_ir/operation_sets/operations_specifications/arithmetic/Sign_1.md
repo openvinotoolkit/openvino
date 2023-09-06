@@ -1,4 +1,7 @@
-# Sign  {#openvino_docs_ops_arithmetic_Sign_1}
+.. {#openvino_docs_ops_arithmetic_Sign_1}
+
+Sign
+====
 
 
 .. meta::

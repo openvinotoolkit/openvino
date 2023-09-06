@@ -1,4 +1,7 @@
-# Quantizing Cascaded Face detection Model {#pot_example_face_detection_README}
+.. {#pot_example_face_detection_README}
+
+Quantizing Cascaded Face detection Model
+========================================
 
 
 This example demonstrates the use of the :doc:`Post-training Optimization Tool API <pot_compression_api_README>` for the task of quantizing a face detection model.

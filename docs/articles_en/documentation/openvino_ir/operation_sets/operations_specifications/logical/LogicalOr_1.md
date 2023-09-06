@@ -1,4 +1,7 @@
-# LogicalOr {#openvino_docs_ops_logical_LogicalOr_1}
+.. {#openvino_docs_ops_logical_LogicalOr_1}
+
+LogicalOr
+=========
 
 
 .. meta::

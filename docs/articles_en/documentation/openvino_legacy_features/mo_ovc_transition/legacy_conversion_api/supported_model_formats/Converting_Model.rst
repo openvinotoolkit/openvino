@@ -1,4 +1,7 @@
-# Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
+
+Setting Input Shapes
+====================
 
 With model conversion API you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `input_shape` and `static_shape`.
 

@@ -1,4 +1,7 @@
-# Deploy Locally {#openvino_deployment_guide}
+.. {#openvino_deployment_guide}
+
+Deploy Locally
+==============
 
 
 .. toctree::

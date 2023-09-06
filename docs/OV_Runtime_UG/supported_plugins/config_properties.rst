@@ -1,4 +1,7 @@
-# Query Device Properties - Configuration {#openvino_docs_OV_UG_query_api}
+.. {#openvino_docs_OV_UG_query_api}
+
+Query Device Properties - Configuration
+=======================================
 
 
 

@@ -1,4 +1,7 @@
-# ExtractImagePatches {#openvino_docs_ops_movement_ExtractImagePatches_3}
+.. {#openvino_docs_ops_movement_ExtractImagePatches_3}
+
+ExtractImagePatches
+===================
 
 
 .. meta::

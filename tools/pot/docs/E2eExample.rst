@@ -1,4 +1,7 @@
-# End-to-end Command-line Interface Example {#pot_configs_examples_README}
+.. {#pot_configs_examples_README}
+
+End-to-end Command-line Interface Example
+=========================================
 
 
 This tutorial describes an example of running post-training quantization for the **MobileNet v2 model from PyTorch** framework, 

@@ -1,4 +1,7 @@
-# Graph API Kernel API {#openvino_docs_gapi_kernel_api}
+.. {#openvino_docs_gapi_kernel_api}
+
+Graph API Kernel API
+====================
 
 
 .. meta::

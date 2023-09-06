@@ -1,4 +1,7 @@
-# SpaceToBatch {#openvino_docs_ops_movement_SpaceToBatch_2}
+.. {#openvino_docs_ops_movement_SpaceToBatch_2}
+
+SpaceToBatch
+============
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Asinh {#openvino_docs_ops_arithmetic_Asinh_3}
+.. {#openvino_docs_ops_arithmetic_Asinh_3}
+
+Asinh
+=====
 
 
 .. meta::

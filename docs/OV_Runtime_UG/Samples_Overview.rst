@@ -1,4 +1,7 @@
-# OpenVINO™ Samples {#openvino_docs_OV_UG_Samples_Overview}
+.. {#openvino_docs_OV_UG_Samples_Overview}
+
+OpenVINO™ Samples
+===================
 
 
 .. _code samples:

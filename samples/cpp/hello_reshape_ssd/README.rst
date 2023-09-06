@@ -1,4 +1,7 @@
-# Hello Reshape SSD C++ Sample {#openvino_inference_engine_samples_hello_reshape_ssd_README}
+.. {#openvino_inference_engine_samples_hello_reshape_ssd_README}
+
+Hello Reshape SSD C++ Sample
+============================
 
 
 .. meta::

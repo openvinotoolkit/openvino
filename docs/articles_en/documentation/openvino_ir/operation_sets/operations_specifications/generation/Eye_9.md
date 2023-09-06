@@ -1,4 +1,7 @@
-# Eye {#openvino_docs_ops_generation_Eye_9}
+.. {#openvino_docs_ops_generation_Eye_9}
+
+Eye
+===
 
 
 .. meta::

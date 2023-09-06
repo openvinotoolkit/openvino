@@ -1,4 +1,7 @@
-# OpenVINO Security {#openvino_docs_security_guide_introduction}
+.. {#openvino_docs_security_guide_introduction}
+
+OpenVINO Security
+=================
 
 
 .. toctree::

@@ -1,4 +1,7 @@
-# Mod  {#openvino_docs_ops_arithmetic_Mod_1}
+.. {#openvino_docs_ops_arithmetic_Mod_1}
+
+Mod
+===
 
 
 .. meta::

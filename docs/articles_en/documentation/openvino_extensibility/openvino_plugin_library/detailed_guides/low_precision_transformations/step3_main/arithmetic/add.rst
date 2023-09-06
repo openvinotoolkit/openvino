@@ -1,4 +1,7 @@
-# AddTransformation transformation {#openvino_docs_OV_UG_lpt_AddTransformation}
+.. {#openvino_docs_OV_UG_lpt_AddTransformation}
+
+AddTransformation transformation
+================================
 
 ov::pass::low_precision::AddTransformation class represents the `Add` operation transformation.
 

@@ -1,4 +1,7 @@
-# Quantized models compute and restrictions {#openvino_docs_ov_plugin_dg_quantized_models}
+.. {#openvino_docs_ov_plugin_dg_quantized_models}
+
+Quantized models compute and restrictions
+=========================================
 
 
 

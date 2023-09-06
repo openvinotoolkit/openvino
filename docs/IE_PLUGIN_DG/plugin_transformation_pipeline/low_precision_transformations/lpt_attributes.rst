@@ -1,4 +1,7 @@
-# Attributes {#openvino_docs_OV_UG_lpt_attributes}
+.. {#openvino_docs_OV_UG_lpt_attributes}
+
+Attributes
+==========
 
 
 .. meta::

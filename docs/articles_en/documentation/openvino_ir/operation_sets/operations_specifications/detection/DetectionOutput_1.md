@@ -1,4 +1,7 @@
-# DetectionOutput {#openvino_docs_ops_detection_DetectionOutput_1}
+.. {#openvino_docs_ops_detection_DetectionOutput_1}
+
+DetectionOutput
+===============
 
 
 .. meta::

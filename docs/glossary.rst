@@ -1,4 +1,7 @@
-# Glossary {#openvino_docs_OV_Glossary}
+.. {#openvino_docs_OV_Glossary}
+
+Glossary
+========
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# LogicalXor {#openvino_docs_ops_logical_LogicalXor_1}
+.. {#openvino_docs_ops_logical_LogicalXor_1}
+
+LogicalXor
+==========
 
 
 .. meta::

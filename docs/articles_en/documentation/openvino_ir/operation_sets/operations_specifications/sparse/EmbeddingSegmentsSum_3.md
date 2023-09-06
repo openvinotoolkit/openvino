@@ -1,4 +1,7 @@
-# EmbeddingSegmentsSum {#openvino_docs_ops_sparse_EmbeddingSegmentsSum_3}
+.. {#openvino_docs_ops_sparse_EmbeddingSegmentsSum_3}
+
+EmbeddingSegmentsSum
+====================
 
 
 .. meta::

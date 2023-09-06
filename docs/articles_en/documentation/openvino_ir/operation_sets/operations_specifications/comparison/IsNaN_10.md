@@ -1,4 +1,7 @@
-# IsNaN {#openvino_docs_ops_comparison_IsNaN_10}
+.. {#openvino_docs_ops_comparison_IsNaN_10}
+
+IsNaN
+=====
 
 
 .. meta::

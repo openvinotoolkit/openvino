@@ -1,4 +1,7 @@
-# Sqrt {#openvino_docs_ops_arithmetic_Sqrt_1}
+.. {#openvino_docs_ops_arithmetic_Sqrt_1}
+
+Sqrt
+====
 
 
 .. meta::

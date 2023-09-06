@@ -1,4 +1,7 @@
-# Converting a PyTorch YOLACT Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT}
+
+Converting a PyTorch YOLACT Model
+=================================
 
 
 .. meta::

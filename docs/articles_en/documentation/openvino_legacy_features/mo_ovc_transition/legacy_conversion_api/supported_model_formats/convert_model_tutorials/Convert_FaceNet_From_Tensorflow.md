@@ -1,4 +1,7 @@
-# Converting TensorFlow FaceNet Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow}
+
+Converting TensorFlow FaceNet Models
+====================================
 
 
 .. meta::

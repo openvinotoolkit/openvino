@@ -1,4 +1,7 @@
-# Converting an ONNX Mask R-CNN Model {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN}
+
+Converting an ONNX Mask R-CNN Model
+===================================
 
 
 .. meta::

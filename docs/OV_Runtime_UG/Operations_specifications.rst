@@ -1,4 +1,7 @@
-# Operation Specifications {#openvino_docs_operations_specifications}
+.. {#openvino_docs_operations_specifications}
+
+Operation Specifications
+========================
 
 
 .. meta::

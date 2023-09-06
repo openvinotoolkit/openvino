@@ -1,4 +1,7 @@
-# Available Operation Sets {#openvino_docs_ops_opset}
+.. {#openvino_docs_ops_opset}
+
+Available Operation Sets
+========================
 
 
 .. meta::

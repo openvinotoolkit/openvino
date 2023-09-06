@@ -1,4 +1,7 @@
-# OpenVINO Matcher Pass {#openvino_docs_Extensibility_UG_matcher_pass}
+.. {#openvino_docs_Extensibility_UG_matcher_pass}
+
+OpenVINO Matcher Pass
+=====================
 
 
 .. meta::

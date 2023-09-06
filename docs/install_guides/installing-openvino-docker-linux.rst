@@ -1,4 +1,7 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image {#openvino_docs_install_guides_installing_openvino_docker_linux}
+.. {#openvino_docs_install_guides_installing_openvino_docker_linux}
+
+Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image
+=================================================================================
 
 
 .. meta::

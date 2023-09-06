@@ -1,4 +1,7 @@
-# Pad {#openvino_docs_ops_movement_Pad_12}
+.. {#openvino_docs_ops_movement_Pad_12}
+
+Pad
+===
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# Documentation {#documentation}
+.. {#documentation}
+
+Documentation
+=============
 
 
 .. meta::

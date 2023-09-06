@@ -1,4 +1,7 @@
-# MVN {#openvino_docs_ops_normalization_MVN_1}
+.. {#openvino_docs_ops_normalization_MVN_1}
+
+MVN
+===
 
 
 .. meta::

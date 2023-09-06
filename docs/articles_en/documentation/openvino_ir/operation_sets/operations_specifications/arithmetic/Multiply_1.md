@@ -1,4 +1,7 @@
-# Multiply {#openvino_docs_ops_arithmetic_Multiply_1}
+.. {#openvino_docs_ops_arithmetic_Multiply_1}
+
+Multiply
+========
 
 
 .. meta::

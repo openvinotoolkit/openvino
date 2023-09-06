@@ -1,4 +1,7 @@
-# Subtract {#openvino_docs_ops_arithmetic_Subtract_1}
+.. {#openvino_docs_ops_arithmetic_Subtract_1}
+
+Subtract
+========
 
 
 .. meta::

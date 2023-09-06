@@ -1,4 +1,7 @@
-# TopK {#openvino_docs_ops_sort_TopK_1}
+.. {#openvino_docs_ops_sort_TopK_1}
+
+TopK
+====
 
 
 .. meta::

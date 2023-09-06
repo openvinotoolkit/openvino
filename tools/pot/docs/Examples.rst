@@ -1,4 +1,7 @@
-# Examples {#pot_examples_description}
+.. {#pot_examples_description}
+
+Examples
+========
 
 
 .. toctree::

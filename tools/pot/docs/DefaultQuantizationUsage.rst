@@ -1,4 +1,7 @@
-# Quantizing Models {#pot_default_quantization_usage}
+.. {#pot_default_quantization_usage}
+
+Quantizing Models
+=================
 
 
 

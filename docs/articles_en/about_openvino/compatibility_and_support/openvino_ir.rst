@@ -1,4 +1,7 @@
-# OpenVINO IR format {#openvino_ir}
+.. {#openvino_ir}
+
+OpenVINO IR format
+==================
 
 
 .. meta::

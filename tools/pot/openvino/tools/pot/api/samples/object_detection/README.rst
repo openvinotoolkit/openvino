@@ -1,4 +1,7 @@
-# Quantizing Object Detection Model with Accuracy Control {#pot_example_object_detection_README}
+.. {#pot_example_object_detection_README}
+
+Quantizing Object Detection Model with Accuracy Control
+=======================================================
 
 
 This example demonstrates the use of the :doc:`Post-training Optimization Toolkit API <pot_compression_api_README>` to quantize an object detection model in the :doc:`accuracy-aware mode <accuracy_aware_README>`. The `MobileNetV1 FPN <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd_mobilenet_v1_fpn_coco>`__ model from TensorFlow for object detection task is used for this purpose. A custom ``DataLoader`` is created to load the `COCO <https://cocodataset.org/>`__ dataset for object detection task and the implementation of mAP COCO is used for the model evaluation. The code of the example is available on `GitHub <https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection>`__.

@@ -1,4 +1,7 @@
-# ConvolutionTransformation transformation {#openvino_docs_OV_UG_lpt_ConvolutionTransformation}
+.. {#openvino_docs_OV_UG_lpt_ConvolutionTransformation}
+
+ConvolutionTransformation transformation
+========================================
 
 ov::pass::low_precision::ConvolutionTransformation class represents the `Convolution` operation transformation.
 

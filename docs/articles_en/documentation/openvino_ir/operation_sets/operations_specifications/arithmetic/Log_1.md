@@ -1,4 +1,7 @@
-# Log  {#openvino_docs_ops_arithmetic_Log_1}
+.. {#openvino_docs_ops_arithmetic_Log_1}
+
+Log
+===
 
 
 .. meta::

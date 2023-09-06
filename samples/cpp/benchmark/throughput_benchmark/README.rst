@@ -1,4 +1,7 @@
-# Throughput Benchmark C++ Sample {#openvino_inference_engine_samples_throughput_benchmark_README}
+.. {#openvino_inference_engine_samples_throughput_benchmark_README}
+
+Throughput Benchmark C++ Sample
+===============================
 
 
 .. meta::

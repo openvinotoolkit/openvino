@@ -1,4 +1,7 @@
-# NonZero {#openvino_docs_ops_condition_NonZero_3}
+.. {#openvino_docs_ops_condition_NonZero_3}
+
+NonZero
+=======
 
 
 .. meta::

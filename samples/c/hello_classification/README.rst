@@ -1,4 +1,7 @@
-# Hello Classification C Sample {#openvino_inference_engine_ie_bridges_c_samples_hello_classification_README}
+.. {#openvino_inference_engine_ie_bridges_c_samples_hello_classification_README}
+
+Hello Classification C Sample
+=============================
 
 
 .. meta::

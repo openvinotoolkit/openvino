@@ -1,4 +1,7 @@
-# ReorgYolo Layer {#openvino_docs_ops_detection_ReorgYolo_1}
+.. {#openvino_docs_ops_detection_ReorgYolo_1}
+
+ReorgYolo Layer
+===============
 
 
 .. meta::

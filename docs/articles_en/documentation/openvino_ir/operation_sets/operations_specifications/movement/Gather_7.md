@@ -1,4 +1,7 @@
-# Gather {#openvino_docs_ops_movement_Gather_7}
+.. {#openvino_docs_ops_movement_Gather_7}
+
+Gather
+======
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# AccuracyAwareQuantization Parameters {#accuracy_aware_README}
+.. {#accuracy_aware_README}
+
+AccuracyAwareQuantization Parameters
+====================================
 
 
 Introduction

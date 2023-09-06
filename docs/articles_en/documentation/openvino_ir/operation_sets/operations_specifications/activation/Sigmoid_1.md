@@ -1,4 +1,7 @@
-# Sigmoid {#openvino_docs_ops_activation_Sigmoid_1}
+.. {#openvino_docs_ops_activation_Sigmoid_1}
+
+Sigmoid
+=======
 
 
 .. meta::

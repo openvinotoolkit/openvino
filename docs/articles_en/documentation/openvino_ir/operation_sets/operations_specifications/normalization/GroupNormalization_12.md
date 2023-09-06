@@ -1,4 +1,7 @@
-# GroupNormalization {#openvino_docs_ops_normalization_GroupNormalization_12}
+.. {#openvino_docs_ops_normalization_GroupNormalization_12}
+
+GroupNormalization
+==================
 
 
 .. meta::

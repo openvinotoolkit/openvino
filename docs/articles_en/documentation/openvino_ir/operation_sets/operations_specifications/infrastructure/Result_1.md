@@ -1,4 +1,7 @@
-# Result {#openvino_docs_ops_infrastructure_Result_1}
+.. {#openvino_docs_ops_infrastructure_Result_1}
+
+Result
+======
 
 
 .. meta::

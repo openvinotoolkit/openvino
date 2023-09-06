@@ -1,4 +1,7 @@
-# Supported Devices {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
+.. {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
+
+Supported Devices
+=================
 
 
 

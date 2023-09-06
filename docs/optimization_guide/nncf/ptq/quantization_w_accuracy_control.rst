@@ -1,4 +1,7 @@
-# Quantizing with Accuracy Control {#quantization_w_accuracy_control}
+.. {#quantization_w_accuracy_control}
+
+Quantizing with Accuracy Control
+================================
 
 
 Introduction

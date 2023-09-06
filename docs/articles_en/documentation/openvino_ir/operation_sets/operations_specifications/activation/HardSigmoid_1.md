@@ -1,4 +1,7 @@
-# HardSigmoid {#openvino_docs_ops_activation_HardSigmoid_1}
+.. {#openvino_docs_ops_activation_HardSigmoid_1}
+
+HardSigmoid
+===========
 
 
 .. meta::

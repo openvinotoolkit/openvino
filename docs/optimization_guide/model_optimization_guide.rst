@@ -1,4 +1,7 @@
-# Model Optimization Guide {#openvino_docs_model_optimization_guide}
+.. {#openvino_docs_model_optimization_guide}
+
+Model Optimization Guide
+========================
 
 
 .. toctree::

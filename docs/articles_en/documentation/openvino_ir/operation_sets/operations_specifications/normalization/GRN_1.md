@@ -1,4 +1,7 @@
-# GRN {#openvino_docs_ops_normalization_GRN_1}
+.. {#openvino_docs_ops_normalization_GRN_1}
+
+GRN
+===
 
 
 .. meta::

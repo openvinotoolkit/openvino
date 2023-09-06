@@ -1,4 +1,7 @@
-# Legal Information {#openvino_docs_Legal_Information}
+.. {#openvino_docs_Legal_Information}
+
+Legal Information
+=================
 
 
 .. meta::

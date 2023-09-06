@@ -1,4 +1,7 @@
-# AdaptiveAvgPool {#openvino_docs_ops_pooling_AdaptiveAvgPool_8}
+.. {#openvino_docs_ops_pooling_AdaptiveAvgPool_8}
+
+AdaptiveAvgPool
+===============
 
 
 .. meta::

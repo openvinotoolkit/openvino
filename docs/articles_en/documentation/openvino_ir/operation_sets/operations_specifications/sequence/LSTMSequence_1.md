@@ -1,4 +1,7 @@
-# LSTMSequence {#openvino_docs_ops_sequence_LSTMSequence_1}
+.. {#openvino_docs_ops_sequence_LSTMSequence_1}
+
+LSTMSequence
+============
 
 
 .. meta::

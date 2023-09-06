@@ -1,4 +1,7 @@
-# Elu {#openvino_docs_ops_activation_Elu_1}
+.. {#openvino_docs_ops_activation_Elu_1}
+
+Elu
+===
 
 
 .. meta::

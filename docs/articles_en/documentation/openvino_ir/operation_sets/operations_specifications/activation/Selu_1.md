@@ -1,4 +1,7 @@
-# Selu {#openvino_docs_ops_activation_Selu_1}
+.. {#openvino_docs_ops_activation_Selu_1}
+
+Selu
+====
 
 
 .. meta::

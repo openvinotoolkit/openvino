@@ -1,4 +1,7 @@
-# opset11 {#openvino_docs_ops_opset11}
+.. {#openvino_docs_ops_opset11}
+
+opset11
+=======
 
 
 .. meta::

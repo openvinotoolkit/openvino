@@ -1,4 +1,7 @@
-# (Deprecated) Post-training Quantization with POT {#pot_introduction}
+.. {#pot_introduction}
+
+(Deprecated) Post-training Quantization with POT
+================================================
 
 
 .. toctree::

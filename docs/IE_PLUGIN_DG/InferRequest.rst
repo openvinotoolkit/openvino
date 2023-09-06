@@ -1,4 +1,7 @@
-# Synchronous Inference Request {#openvino_docs_ov_plugin_dg_infer_request}
+.. {#openvino_docs_ov_plugin_dg_infer_request}
+
+Synchronous Inference Request
+=============================
 
 
 .. meta::

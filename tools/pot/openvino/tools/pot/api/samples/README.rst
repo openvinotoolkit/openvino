@@ -1,4 +1,7 @@
-# Post-training Optimization Tool API Examples {#pot_example_README}
+.. {#pot_example_README}
+
+Post-training Optimization Tool API Examples
+============================================
 
 
 .. toctree::

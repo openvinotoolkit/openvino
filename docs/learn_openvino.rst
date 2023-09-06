@@ -1,4 +1,7 @@
-# Learn OpenVINO {#learn_openvino}
+.. {#learn_openvino}
+
+Learn OpenVINO
+==============
 
 
 .. meta::

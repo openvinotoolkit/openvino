@@ -1,4 +1,7 @@
-# Converting a TensorFlow Neural Collaborative Filtering Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow}
+
+Converting a TensorFlow Neural Collaborative Filtering Model
+============================================================
 
 
 .. meta::

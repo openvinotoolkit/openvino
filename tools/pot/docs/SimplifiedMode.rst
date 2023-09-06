@@ -1,4 +1,7 @@
-# Optimization with Simplified Mode {#pot_docs_simplified_mode}
+.. {#pot_docs_simplified_mode}
+
+Optimization with Simplified Mode
+=================================
 
 
 Introduction

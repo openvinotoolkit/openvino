@@ -1,4 +1,7 @@
-# GET STARTED {#get_started}
+.. {#get_started}
+
+GET STARTED
+===========
 
 
 .. meta::

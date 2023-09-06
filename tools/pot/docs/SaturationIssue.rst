@@ -1,4 +1,7 @@
-# Saturation (overflow) Issue Workaround {#pot_saturation_issue}
+.. {#pot_saturation_issue}
+
+Saturation (overflow) Issue Workaround
+======================================
 
 
 Introduction

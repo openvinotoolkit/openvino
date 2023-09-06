@@ -1,4 +1,7 @@
-# Remote Tensor {#openvino_docs_ov_plugin_dg_remote_tensor}
+.. {#openvino_docs_ov_plugin_dg_remote_tensor}
+
+Remote Tensor
+=============
 
 
 .. meta::

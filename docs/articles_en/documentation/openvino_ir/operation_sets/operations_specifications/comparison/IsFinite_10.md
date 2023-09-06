@@ -1,4 +1,7 @@
-# IsFinite {#openvino_docs_ops_comparison_IsFinite_10}
+.. {#openvino_docs_ops_comparison_IsFinite_10}
+
+IsFinite
+========
 
 
 .. meta::

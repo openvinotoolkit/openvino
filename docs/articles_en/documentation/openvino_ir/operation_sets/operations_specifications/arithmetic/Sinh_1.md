@@ -1,4 +1,7 @@
-# Sinh {#openvino_docs_ops_arithmetic_Sinh_1}
+.. {#openvino_docs_ops_arithmetic_Sinh_1}
+
+Sinh
+====
 
 
 .. meta::

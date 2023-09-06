@@ -1,4 +1,7 @@
-# MaxPool {#openvino_docs_ops_pooling_MaxPool_1}
+.. {#openvino_docs_ops_pooling_MaxPool_1}
+
+MaxPool
+=======
 
 
 .. meta::

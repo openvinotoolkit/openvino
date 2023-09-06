@@ -1,4 +1,7 @@
-# Post-training Optimization Tool FAQ {#pot_docs_FrequentlyAskedQuestions}
+.. {#pot_docs_FrequentlyAskedQuestions}
+
+Post-training Optimization Tool FAQ
+===================================
 
 
 .. note:: 

@@ -1,4 +1,7 @@
-# GridSample {#openvino_docs_ops_image_GridSample_9}
+.. {#openvino_docs_ops_image_GridSample_9}
+
+GridSample
+==========
 
 
 .. meta::

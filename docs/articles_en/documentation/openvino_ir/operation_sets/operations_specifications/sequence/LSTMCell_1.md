@@ -1,4 +1,7 @@
-# LSTMCell  {#openvino_docs_ops_sequence_LSTMCell_1}
+.. {#openvino_docs_ops_sequence_LSTMCell_1}
+
+LSTMCell
+========
 
 
 .. meta::

@@ -1,4 +1,7 @@
-# SoftSign {#openvino_docs_ops_activation_SoftSign_9}
+.. {#openvino_docs_ops_activation_SoftSign_9}
+
+SoftSign
+========
 
 
 .. meta::

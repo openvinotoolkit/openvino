@@ -1,4 +1,7 @@
-# SpaceToDepth {#openvino_docs_ops_movement_SpaceToDepth_1}
+.. {#openvino_docs_ops_movement_SpaceToDepth_1}
+
+SpaceToDepth
+============
 
 
 .. meta::

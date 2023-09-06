@@ -1,4 +1,7 @@
-# opset2 {#openvino_docs_ops_opset2}
+.. {#openvino_docs_ops_opset2}
+
+opset2
+======
 
 
 .. meta::

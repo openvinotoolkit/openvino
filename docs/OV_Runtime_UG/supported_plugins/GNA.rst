@@ -1,4 +1,7 @@
-# GNA Device {#openvino_docs_OV_UG_supported_plugins_GNA}
+.. {#openvino_docs_OV_UG_supported_plugins_GNA}
+
+GNA Device
+==========
 
 
 

@@ -1,4 +1,7 @@
-# Inference with OpenVINO Runtime {#openvino_docs_OV_UG_OV_Runtime_User_Guide}
+.. {#openvino_docs_OV_UG_OV_Runtime_User_Guide}
+
+Inference with OpenVINO Runtime
+===============================
 
 
 .. _deep learning openvino runtime:
