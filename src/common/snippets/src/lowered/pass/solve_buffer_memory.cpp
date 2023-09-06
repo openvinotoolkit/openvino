@@ -32,7 +32,7 @@ std::vector<MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateBuffe
                 const auto consumers = buffer_out->get_consumers();
                 for (const auto& consumer : consumers) {
                     const auto consumer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(consumer.get_expr()->get_node()));
-                    e_finish = std::max(e_finish, consumer_order);
+                    e_finish = std::max(e_finish, consumer_order);  // the last consumer
                 }
             }
             e_start = e_finish;
@@ -40,7 +40,7 @@ std::vector<MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateBuffe
             const auto buffer_ins = buffer_expr->get_input_port_connectors();
             for (const auto& buffer_in : buffer_ins) {
                 const auto& source = buffer_in->get_source();
-                auto local_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(source.get_expr()->get_node()));
+                e_start = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(source.get_expr()->get_node()));
 
                 const auto buffer_siblings = buffer_in->get_consumers();
                 for (const auto& sibling : buffer_siblings) {
@@ -49,11 +49,11 @@ std::vector<MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateBuffe
                         continue;
                     const auto loop_end_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end));
                     if (loop_end_order < buffer_order) {
-                        local_order = std::min(local_order, static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end->get_loop_begin())));
+                        e_start = std::min(e_start, static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end->get_loop_begin())));
                     }
                 }
-                e_start = std::min(e_start, local_order);
             }
+            OPENVINO_ASSERT(e_start <= e_finish, "Incorrect life time of buffer!");
 
             // TODO: Added support of Dynamic Buffers
             auto buffer_size = static_cast<int64_t>(buffer->get_byte_size());
@@ -80,7 +80,7 @@ bool SolveBufferMemory::run(LinearIR& linear_ir) {
     // Set offsets for Buffers
     for (const auto& box : boxes) {
         for (const auto& buffer : m_clusters[box.id]) {
-            int64_t offset = memSolver.getOffset(box.id);
+            const auto offset = static_cast<size_t>(memSolver.getOffset(box.id));
             AllocateBufferMemory::set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
         }
     }
