@@ -399,7 +399,7 @@ static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::en
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, brgconv_avx512_1x1);
 
         if (found)
-            return prim_desc;
+            return std::move(prim_desc);
     }
 
     // fallback to normal inner product primitive
@@ -441,9 +441,9 @@ static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::en
     const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
     if (found)
-        return prim_desc;
+        return std::move(prim_desc);
 
-    return first_desc;
+    return std::move(first_desc);
 }
 
 #if defined(OV_CPU_WITH_ACL)
