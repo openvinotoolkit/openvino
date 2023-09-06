@@ -674,15 +674,13 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     backend_passes_post_common.run(linear_ir);
 
-    lowered::pass::AllocateBufferMemory buffer_solver;
-    buffer_solver.run(linear_ir);
-
     lowered::pass::PassPipeline final_pipeline;
+    final_pipeline.register_pass<lowered::pass::AllocateBufferMemory>();
     final_pipeline.register_pass<lowered::pass::PropagateLayout>();
     final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     final_pipeline.run(linear_ir);
 
-    m_buffer_scratchpad = buffer_solver.get_scratchpad_size();
+    m_buffer_scratchpad = final_pipeline.get_pass<lowered::pass::AllocateBufferMemory>()->get_scratchpad_size();
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& output_shapes,

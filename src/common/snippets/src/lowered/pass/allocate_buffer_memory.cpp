@@ -79,16 +79,14 @@ bool AllocateBufferMemory::run(lowered::LinearIR& linear_ir) {
         return  m_buffer_scratchpad_size > 0;
     }
 
-    auto cluster_pass = std::make_shared<DefineBufferClusters>();
-
     PassPipeline pipeline;
     pipeline.register_pass<EnumerateExprs>();
     pipeline.register_pass<IdentifyBuffers>();
-    pipeline.register_pass(cluster_pass);
+    pipeline.register_pass<DefineBufferClusters>();
     pipeline.register_pass<CleanRepeatedDataPointerShifts>();
     pipeline.run(linear_ir);
 
-    auto memory_solver_pass = SolveBufferMemory(cluster_pass->get_clusters());
+    auto memory_solver_pass = SolveBufferMemory(pipeline.get_pass<DefineBufferClusters>()->get_clusters());
     memory_solver_pass.run(linear_ir);
 
     m_buffer_scratchpad_size = memory_solver_pass.get_scratchpad_size();
