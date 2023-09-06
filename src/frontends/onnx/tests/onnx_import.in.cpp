@@ -25,6 +25,7 @@
 // clang-format on
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "ngraph/file_util.hpp"
 #include "default_opset.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "common_test_utils/test_case.hpp"
