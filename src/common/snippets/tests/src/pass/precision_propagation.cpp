@@ -5,6 +5,8 @@
 #include "pass/precision_propagation.hpp"
 
 #include <gtest/gtest.h>
+
+#include "snippets/lowered/expression.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -23,14 +25,14 @@ public:
         const std::set<std::vector<element::Type>>& op2_supported_precisions)
         : DummyTargetMachine() {
         jitters[DummyAdd::get_type_info_static()] = ov::snippets::jitters_value {
-            [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<DummyEmitter>(); },
+            [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
             [op1_supported_precisions](const std::shared_ptr<ov::Node>& n) { return op1_supported_precisions; }};
         jitters[op::v1::Maximum::get_type_info_static()] = ov::snippets::jitters_value{
-            [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<DummyEmitter>(); },
+            [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
             [op2_supported_precisions](const std::shared_ptr<ov::Node>&n) { return op2_supported_precisions; }};
 
         auto default_jitter = ov::snippets::jitters_value{
-            [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<DummyEmitter>(); },
+            [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
             [](const std::shared_ptr<ov::Node>& n) { return std::set<std::vector<element::Type>>{};} };
         jitters[ov::snippets::op::ConvertSaturation::get_type_info_static()] = default_jitter;
     }

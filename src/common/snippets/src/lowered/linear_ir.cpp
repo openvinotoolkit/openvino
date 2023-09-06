@@ -152,7 +152,7 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
 void LinearIR::init_emitters(const std::shared_ptr<TargetMachine>& target) {
     for (auto& expr : m_expressions) {
         if (!expr->get_emitter())
-            expr->init_emitter(target);
+            expr->m_emitter = target->get(expr->get_node()->get_type_info())(expr);
     }
 }
 
