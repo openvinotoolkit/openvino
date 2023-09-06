@@ -31,7 +31,7 @@ Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
         auto idx = std::distance(inputs.begin(), in_it);
         const auto& signature_name = decoder->get_input_signature_name(idx);
         m_names.push_back(signature_name);
-        
+
         auto type_any = simplified_type_interpret(decoder->get_input_type(idx));
         if (type_any.is<element::Type>()) {
             m_type = type_any.as<element::Type>();
