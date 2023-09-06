@@ -22,7 +22,8 @@
     "eslint": "^8.39.0",
     "node-addon-api": "^3.0.0",
     "node-gyp": "^9.3.0",
-    "typescript": "^5.0.4"
+    "typescript": "^5.0.4",
+    "random-bigint": "^0.0.1"
   },
   "engines": {
     "node": ">=18.16.0"
