@@ -209,12 +209,14 @@ Here comparison of preprocessing between MO and OVC.
                  :force:
       
                  from openvino.tools import mo
+
                  ov_model = mo.convert_model(model, input_shape=[[1, 3, 100, 100],[1]])
       
             - .. code-block:: py
                  :force:
 
                  import openvino as ov
+
                  ov_model = ov.convert_model(model, input=[[1, 3, 100, 100],[1]])
 
     .. tab-item:: CLI
@@ -251,15 +253,18 @@ Here comparison of preprocessing between MO and OVC.
                  :force:
       
                  from openvino.tools import mo
+
                  ov_model = mo.convert_model(model, batch=2)
       
-            -    In this example [batch_dim, dim1, dim2, ... dimN] - is original model shape.
-
-              .. code-block:: py
+            - .. code-block:: py
                  :force:
 
                  import openvino as ov
-                 ov_model = ov.convert_model(model, input=[2, dim1, dim2, dim3])
+
+                 ov_model = ov.convert_model(model)
+                 input_shape = ov_model.inputs[0].partial_shape
+                 input_shape[0] = 2 # batch size
+                 ov_model.reshape(input_shape)
 
     .. tab-item:: CLI
        :sync: cli
@@ -292,12 +297,14 @@ Here comparison of preprocessing between MO and OVC.
                  :force:
       
                  from openvino.tools import mo
+
                  ov_model = mo.convert_model(model, mean_values=[0.5, 0.5, 0.5])
       
             - .. code-block:: py
                  :force:
 
                  import openvino as ov
+
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
@@ -336,12 +343,14 @@ Here comparison of preprocessing between MO and OVC.
                  :force:
       
                  from openvino.tools import mo
+
                  ov_model = mo.convert_model(model, scale_value=[255., 255., 255.])
       
             - .. code-block:: py
                  :force:
 
                  import openvino as ov
+
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
@@ -380,12 +389,14 @@ Here comparison of preprocessing between MO and OVC.
                  :force:
       
                  from openvino.tools import mo
+
                  ov_model = mo.convert_model(model, reverse_input_channels=True)
       
             - .. code-block:: py
                  :force:
 
                  import openvino as ov
+
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
@@ -432,6 +443,7 @@ Here comparison of preprocessing between MO and OVC.
                  :force:
 
                  import openvino as ov
+
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
@@ -477,6 +489,7 @@ Here comparison of preprocessing between MO and OVC.
                  :force:
 
                  import openvino as ov
+
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
@@ -514,12 +527,14 @@ Here comparison of preprocessing between MO and OVC.
                  :force:
       
                  from openvino.tools import mo
+
                  ov_model = mo.convert_model(model, layout={input_name: mo.LayoutMap("nchw", "nhwc")})
       
             - .. code-block:: py
                  :force:
 
                  import openvino as ov
+
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
