@@ -1,7 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import gc
 import os
+import shutil
 
 import numpy as np
 import pytest
@@ -9,6 +11,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
+from models_hub_common.constants import tf_hub_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 
@@ -79,14 +82,34 @@ class TestTFHubConvertModel(TestConvertModel):
             fw_outputs[internal_name] = out_value
         return fw_outputs
 
-    @pytest.mark.parametrize("model_name,model_link",
+    def teardown_method(self):
+        # remove all downloaded files for TF Hub models
+        for file_name in os.listdir(tf_hub_cache_dir):
+            file_path = os.path.join(tf_hub_cache_dir, file_name)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                pass
+        # deallocate memory after each test case
+        gc.collect()
+
+    @pytest.mark.parametrize("model_name,model_link,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "precommit_models")))
     @pytest.mark.precommit
-    def test_convert_model_precommit(self, model_name, model_link, ie_device):
+    def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
+        assert mark is None or mark == 'skip', "Incorrect test case: {}, {}".format(model_name, model_link)
+        if mark == 'skip':
+            pytest.skip(reason)
         self.run(model_name, model_link, ie_device)
 
-    @pytest.mark.parametrize("model_name,model_link",
+    @pytest.mark.parametrize("model_name,model_link,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "nightly_models")))
     @pytest.mark.nightly
-    def test_convert_model_all_models(self, model_name, model_link, ie_device):
+    def test_convert_model_all_models(self, model_name, model_link, mark, reason, ie_device):
+        assert mark is None or mark == 'skip', "Incorrect test case: {}, {}".format(model_name, model_link)
+        if mark == 'skip':
+            pytest.skip(reason)
         self.run(model_name, model_link, ie_device)
