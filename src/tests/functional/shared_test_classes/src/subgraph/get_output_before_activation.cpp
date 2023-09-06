@@ -102,15 +102,23 @@ std::ostream& operator<<(std::ostream& os, const midOutputType& oType) {
 std::string OutputBeforeActivationNew::getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationParams> &obj) {
     std::string targetDevice;
     ov::element::Type type;
-    size_t inputSize;
+    std::vector<InputShape> shapes;
     midOutputType outputType;
     std::map<std::string, std::string> config;
-    std::tie(targetDevice, type, inputSize, outputType, config) = obj.param;
+    std::tie(targetDevice, type, shapes, outputType, config) = obj.param;
     std::ostringstream result;
 
     result << "IT=" << type.get_type_name() << "_";
-    result << "IS=" << inputSize << "_";
-    result << "OutputType=" << outputType << "_";
+    result << "IS=(";
+    for (const auto& shape : shapes) {
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
+    }
+    result << ")_TS=(";
+    for (const auto& shape : shapes) {
+        for (const auto& item : shape.second) {
+            result << ov::test::utils::vec2str(item) << "_";
+        }
+    }    result << "OutputType=" << outputType << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : config) {
         result << "_configItem=" << configItem.first << "_" << configItem.second;
@@ -120,15 +128,14 @@ std::string OutputBeforeActivationNew::getTestCaseName(const testing::TestParamI
 
 void OutputBeforeActivationNew::SetUp() {
     std::map<std::string, std::string> config;
-    size_t inputSize;
+    std::vector<InputShape> shapes;
     midOutputType outputType;
-    std::tie(targetDevice, inType, inputSize, outputType, config) = this->GetParam();
+    std::tie(targetDevice, inType, shapes, outputType, config) = this->GetParam();
+    init_input_shapes(shapes);
     configuration.insert(config.begin(), config.end());
 
-    std::vector<size_t> input_dims { 1, inputSize };
-
-    auto input0 = std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(input_dims));
-    auto input1 = std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(input_dims));
+    auto input0 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front());
+    auto input1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front());
     ov::ParameterVector params {input0, input1};
 
     ngraph::OutputVector outputs;
@@ -153,12 +160,6 @@ void OutputBeforeActivationNew::SetUp() {
     auto act = ngraph::builder::makeActivation(midLayer, inType, ngraph::helpers::ActivationTypes::Tanh);
     outputs.insert(outputs.end(), {midLayer, act});
     function = std::make_shared<ov::Model>(outputs, params, "output_before_activation");
-
-    std::vector<ov::test::InputShape> input_shapes;
-    for (const auto& param : params) {
-        input_shapes.push_back({{}, {param->get_shape()}});
-    }
-    init_input_shapes(input_shapes);
 }
 
 void OutputBeforeActivationNew::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

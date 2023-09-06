@@ -45,7 +45,7 @@ enum class midOutputType {
 typedef std::tuple<
     std::string,                        // Target device name
     ov::element::Type,                  // Network precision
-    size_t,                             // Input size
+    std::vector<InputShape>,            // Input shape
     midOutputType,                      // Type of layer that will be an output
     std::map<std::string, std::string>  // Configuration
 > OutputBeforeActivationParams;

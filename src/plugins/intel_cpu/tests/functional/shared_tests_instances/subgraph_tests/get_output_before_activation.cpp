@@ -9,11 +9,11 @@ using ov::test::OutputBeforeActivationNew;
 using ov::test::midOutputType;
 
 namespace {
-    std::vector<size_t> input_sizes = {
-        80,
-        32,
-        64,
-        100
+    const std::vector<std::vector<ov::Shape>> shapes_static = {
+        {{1, 80}},
+        {{1, 32}},
+        {{1, 64}},
+        {{1, 100}}
     };
 
     std::vector<midOutputType> midLayerTypes {
@@ -29,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(OutputBeforeActivationNew, OutputBeforeActivationNew,
     ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(ov::element::f32),
-        ::testing::ValuesIn(input_sizes),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes_static)),
         ::testing::ValuesIn(midLayerTypes),
         ::testing::Values(additional_config)),
     OutputBeforeActivationNew::getTestCaseName);
