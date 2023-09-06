@@ -36,20 +36,22 @@ OutputVector blackmanwindow(const Node& node) {
             std::make_shared<default_opset::Multiply>(
                 pi,
                 std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{2})),
-            periodic ? size
-                     : std::make_shared<default_opset::Subtract>(
-                           size,
-                           std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}))));
+            periodic
+                ? size
+                : std::make_shared<default_opset::Subtract>(
+                      size,
+                      std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}))));
     const auto factor_2 = std::make_shared<default_opset::Multiply>(
         range,
         std::make_shared<default_opset::Divide>(
             std::make_shared<default_opset::Multiply>(
                 pi,
                 std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{4})),
-            periodic ? size
-                     : std::make_shared<default_opset::Subtract>(
-                           size,
-                           std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}))));
+            periodic
+                ? size
+                : std::make_shared<default_opset::Subtract>(
+                      size,
+                      std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}))));
     const auto cos_1 = std::make_shared<default_opset::Cos>(factor_1);
     const auto cos_2 = std::make_shared<default_opset::Cos>(factor_2);
     const auto scaled_cos_1 = std::make_shared<default_opset::Multiply>(cos_1, a_1);

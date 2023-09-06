@@ -35,10 +35,11 @@ OutputVector hannwindow(const Node& node) {
             std::make_shared<default_opset::Multiply>(
                 pi,
                 std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{2})),
-            periodic ? size
-                     : std::make_shared<default_opset::Subtract>(
-                           size,
-                           std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}))));
+            periodic
+                ? size
+                : std::make_shared<default_opset::Subtract>(
+                      size,
+                      std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}))));
 
     const auto cos = std::make_shared<default_opset::Cos>(factor);
     const auto scaled_cos = std::make_shared<default_opset::Multiply>(cos, a_1);
