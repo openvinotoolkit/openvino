@@ -5,10 +5,10 @@
 #include "place.hpp"
 
 #include "input_model.hpp"
-#include "utils.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/util/log.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
