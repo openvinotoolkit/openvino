@@ -14,29 +14,6 @@
    * offers the Python API only
    * does not offer support for GNA and NPU inference
    * is dedicated to users of all major OSs: Windows, Linux, macOS
-   * may offer different hardware support under different operating systems
-     (see the drop-down below for more details)
-
-   .. dropdown:: Inference Options 
-
-      The PyPi distribution for macOS supports arm64 and x86_64 architectures.
-      
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Operating System     CPU    GPU    GNA    NPU    AUTO      Auto-batch     HETERO    MULTI  
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Debian9 armhf         V     n/a    n/a    n/a     V            V            V        n/a   
-       Debian9 arm64         V     n/a    n/a    n/a     V            V            V        n/a   
-       CentOS7 x86_64        V      V     n/a    n/a     V            V            V         V    
-       Ubuntu18 x86_64       V      V     n/a    n/a     V            V            V         V    
-       Ubuntu20 x86_64       V      V     n/a    n/a     V            V            V         V    
-       Ubuntu22 x86_64       V      V     n/a    n/a     V            V            V         V    
-       RHEL8 x86_64          V      V     n/a    n/a     V            V            V         V    
-       Windows x86_64        V      V     n/a    n/a     V            V            V         V    
-       MacOS x86_64          V     n/a    n/a    n/a     V            V            V        n/a   
-       MacOS arm64           V     n/a    n/a    n/a     V            V            V        n/a   
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-
-
 
 .. tab-set::
 
