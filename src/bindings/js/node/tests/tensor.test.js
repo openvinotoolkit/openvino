@@ -2,25 +2,25 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-let ov = require('../build/Release/ov_node_addon.node');
+const ov = require('../build/Release/ov_node_addon.node');
 const assert = require('assert');
 const { test, describe, it } = require('node:test');
-const random = require('random-bigint');
+const getRandomBigInt = require('random-bigint');
 
 const shape = [1, 3, 224, 224];
 const elemNum = 1 * 3 * 224 * 224;
-const data = Float32Array.from({length: elemNum}, () => Math.random() );
-const ets = [
-  [ov.element.i8, 'i8', Int8Array.from({length: elemNum}, () => Math.random() )],
-  [ov.element.u8, 'u8', Uint8Array.from({length: elemNum}, () => Math.random() )],
-  [ov.element.i16, 'i16', Int16Array.from({length: elemNum}, () => Math.random() )],
-  [ov.element.u16, 'u16', Uint16Array.from({length: elemNum}, () => Math.random() )],
-  [ov.element.i32, 'i32', Int32Array.from({length: elemNum}, () => Math.random() )],
-  [ov.element.u32, 'u32', Uint32Array.from({length: elemNum}, () => Math.random() )],
-  [ov.element.f32, 'f32', Float32Array.from({length: elemNum}, () => Math.random() )],
-  [ov.element.f64, 'f64', Float64Array.from({length: elemNum}, () => Math.random() )],
-  [ov.element.i64, 'i64', BigInt64Array.from({length: elemNum}, () => random(10) )],
-  [ov.element.u64, 'u64', BigUint64Array.from({length: elemNum}, () => random(10) )],
+const data = Float32Array.from({ length: elemNum }, () => Math.random() );
+const params = [
+  [ov.element.i8, 'i8', Int8Array.from({ length: elemNum }, () => Math.random() )],
+  [ov.element.u8, 'u8', Uint8Array.from({ length: elemNum }, () => Math.random() )],
+  [ov.element.i16, 'i16', Int16Array.from({ length: elemNum }, () => Math.random() )],
+  [ov.element.u16, 'u16', Uint16Array.from({ length: elemNum }, () => Math.random() )],
+  [ov.element.i32, 'i32', Int32Array.from({ length: elemNum }, () => Math.random() )],
+  [ov.element.u32, 'u32', Uint32Array.from({ length: elemNum }, () => Math.random() )],
+  [ov.element.f32, 'f32', Float32Array.from({ length: elemNum }, () => Math.random() )],
+  [ov.element.f64, 'f64', Float64Array.from({ length: elemNum }, () => Math.random() )],
+  [ov.element.i64, 'i64', BigInt64Array.from({ length: elemNum }, () => getRandomBigInt(10) )],
+  [ov.element.u64, 'u64', BigUint64Array.from({ length: elemNum }, () => getRandomBigInt(10) )],
 ];
 
 test('Test for number of arguments in tensor', () => {
@@ -30,7 +30,7 @@ test('Test for number of arguments in tensor', () => {
 
 describe('Tensor data', () => {
 
-  ets.forEach(([type, stringType, data]) => {
+  params.forEach(([type, stringType, data]) => {
     it(`Set tensor data with ${stringType} precision`, () => {
       const tensor = new ov.Tensor(type, shape, data);
       assert.deepStrictEqual(tensor.data, data);
@@ -118,13 +118,13 @@ describe('Tensor shape', () => {
 });
 
 describe('Tensor element type', () => {
-  ets.forEach(([elemType, val]) => {
+  params.forEach(([elemType, val]) => {
     it(`Comparison of ov.element.${elemType} to string ${val}`, () => {
       assert.strictEqual(elemType, val);
     });
   });
 
-  ets.forEach(([elemType, , data]) => {
+  params.forEach(([elemType, , data]) => {
     it(`Comparison of ov.element ${elemType} got from Tensor object`, () => {
       const tensor = new ov.Tensor(elemType, shape, data);
       assert.strictEqual(tensor.getPrecision(), elemType);
