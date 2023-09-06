@@ -19,13 +19,6 @@ InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_m
         for (const auto& name : in_place->get_names()) {
             m_name_to_place.emplace(name, std::dynamic_pointer_cast<frontend::Place>(in_place));
         }
-        auto type_any = simplified_type_interpret(m_model_decoder->get_input_type(i));
-        auto dtype = element::dynamic;
-        if (type_any.is<element::Type>()) {
-            dtype = type_any.as<element::Type>();
-        }
-        in_place->m_pshape = m_model_decoder->get_input_shape(i);
-        in_place->m_type = dtype;
         m_inputs.push_back(in_place);
     }
     const auto& outputs = m_model_decoder->outputs();
@@ -35,13 +28,6 @@ InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_m
         for (const auto& name : out_place->get_names()) {
             m_name_to_place.emplace(name, std::dynamic_pointer_cast<frontend::Place>(out_place));
         }
-        auto type_any = simplified_type_interpret(m_model_decoder->get_output_type(i));
-        auto dtype = element::dynamic;
-        if (type_any.is<element::Type>()) {
-            dtype = type_any.as<element::Type>();
-        }
-        out_place->m_pshape = m_model_decoder->get_output_shape(i);
-        out_place->m_type = dtype;
         m_outputs.push_back(out_place);
     }
 }

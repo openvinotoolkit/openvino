@@ -93,7 +93,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 
         if (input_model) {
             // When we have input model we should use its inputs order to create Parameters
-            for (auto input_p : input_model->get_inputs()) {
+            // We use m_inputs instead of get_inputs() because latter doesn't have "self" input
+            for (auto input_p : input_model->m_inputs) {
                 auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(input_p);
                 FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported.");
                 auto tensor_id = pytorch_place->get_tensor_index();
