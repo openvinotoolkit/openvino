@@ -61,28 +61,6 @@
        Multi            V           n/a      n/a       n/a        n/a         n/a
       ===============  ==========  ======  =========  ========  ============ ==========
 
-
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Operating System     CPU    GPU    GNA    NPU    AUTO      Auto-batch     HETERO    MULTI  
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Debian9 armhf         V     n/a    n/a    n/a     V            V            V        n/a 
-       Debian9 arm64         V     n/a    n/a    n/a     V            V            V        n/a 
-       CentOS7 x86_64        V      V      V     n/a     V            V            V         V  
-       Ubuntu18 x86_64       V      V      V     n/a     V            V            V         V  
-       Ubuntu20 x86_64       V      V      V      V      V            V            V         V  
-       Ubuntu22 x86_64       V      V      V      V      V            V            V         V  
-       RHEL8 x86_64          V      V      V     n/a     V            V            V         V  
-       Windows x86_64        V      V      V      V      V            V            V         V  
-       MacOS x86_64          V     n/a    n/a    n/a     V            V            V        n/a 
-       MacOS arm64           V     n/a    n/a    n/a     V            V            V        n/a 
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-
-
-
-
-
-
-
 | **Build OpenVINO from source**
 |    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform, 
      follow the `OpenVINO Build Instructions <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .

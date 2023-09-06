@@ -13,25 +13,7 @@
    * offers both C++ and Python APIs
    * does not offer support for GNA and NPU inference
    * additionally includes code samples 
-   * is dedicated to Linux users (may offer different hardware support under different 
-     operating systems, see the drop-down below for more details).
-
-   .. dropdown:: Inference Options 
-
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Operating System     CPU    GPU    GNA    NPU    AUTO      Auto-batch     HETERO    MULTI  
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Debian9 armhf         V     n/a    n/a    n/a     V            V            V        n/a   
-       Debian9 arm64         V     n/a    n/a    n/a     V            V            V        n/a   
-       CentOS7 x86_64        V      V      V     n/a     V            V            V         V    
-       Ubuntu18 x86_64       V      V      V     n/a     V            V            V         V    
-       Ubuntu20 x86_64       V      V      V      V      V            V            V         V    
-       Ubuntu22 x86_64       V      V      V      V      V            V            V         V    
-       RHEL8 x86_64          V      V      V     n/a     V            V            V         V    
-       Windows x86_64        V      V      V      V      V            V            V         V    
-       MacOS x86_64          V     n/a    n/a    n/a     V            V            V        n/a   
-       MacOS arm64           V     n/a    n/a    n/a     V            V            V        n/a   
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
+   * is dedicated to Linux users.
 
 .. tab-set::
 
