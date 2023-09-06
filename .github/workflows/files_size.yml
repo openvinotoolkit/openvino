@@ -9,7 +9,7 @@ jobs:
   Check_Files_Size:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: git ls-tree
         run: git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4
