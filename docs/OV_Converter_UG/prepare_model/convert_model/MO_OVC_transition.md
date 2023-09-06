@@ -6,7 +6,7 @@
    :description: Transition guide from MO / mo.convert_model() to OVC / ov.convert_model().
 
 In 2023.1 OpenVino release a new OVC (OpenVINO Model Converter) tool was introduced with the corresponding Python API: ``openvino.convert_model`` method. ``ovc`` and ``openvino.convert_model`` represent
-a lightweight alternative of ``mo`` and ``openvino.tools.mo.convert_model`` which are considered legacy API now. In this article, all the differences between ``mo`` and ``ovc`` are summarized and help in the transition from the legacy API to the new API is provided.
+a lightweight alternative of ``mo`` and ``openvino.tools.mo.convert_model`` which are considered legacy API now. In this article, all the differences between ``mo`` and ``ovc`` are summarized and transition guide from the legacy API to the new API is provided.
 
 MO vs OVC parameters comparison
 ###############################
@@ -17,8 +17,8 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
    :widths: 20 25 55
    :header-rows: 1
 
-   * - Parameter name in mo.convert_model() / MO
-     - Parameter name in ov.convert_model() / OVC
+   * - mo.convert_model() / MO
+     - ov.convert_model() / OVC
      - Differences description
    * - input_model
      - input_model
@@ -37,34 +37,34 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - ov.convert_model() does not allow output cut.
    * - input_shape
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by ``input`` parameter.
    * - example_input
      - example_input
      - -
    * - batch
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by model reshape functionality. See details below.
    * - mean_values
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - scale_values
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - scale
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - reverse_input_channels
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - source_layout
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - target_layout
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - layout
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - compress_to_fp16
      - compress_to_fp16
      - OVC provides 'compress_to_fp16' for command line tool only, as compression is performed during saving a model to IR (Intermediate Representation).
@@ -73,43 +73,43 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - -
    * - transform
      - -
-     - -
+     - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - transformations_config
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - static_shape
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - freeze_placeholder_with_value
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - use_legacy_frontend
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - use_legacy_frontend
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - silent
      - verbose
      - OVC / ov.convert_model provides 'verbose' parameter instead of 'silent' for printing of detailed conversion information if 'verbose' is set to True.
    * - log_level
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - version
      - version
      - -
    * - progress
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - stream_output
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - share_weights
      - share_weights
      - -
    * - framework
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - help / -h
      - help / -h
      - OVC provides help parameter only in command line tool.
@@ -118,7 +118,7 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - OVC / ov.convert_model 'output' parameter includes capabilities of MO 'example_output' parameter.
    * - input_model_is_text
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - input_checkpoint
      - input_model
      - All supported model formats can be passed to 'input_model'.
@@ -130,61 +130,61 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - All supported model formats can be passed to 'input_model'.
    * - saved_model_tags
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - tensorflow_custom_operations_config_update
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - tensorflow_object_detection_api_pipeline_config
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - tensorboard_logdir
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - tensorflow_custom_layer_libraries
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - input_symbol
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - nd_prefix_name
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - pretrained_model_name
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - save_params_from_nd
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - legacy_mxnet_model
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - enable_ssd_gluoncv
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - input_proto
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - caffe_parser_path
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - k
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - disable_omitting_optional
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - enable_flattening_nested_params
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - counts
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - remove_output_softmax
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
    * - remove_memory
      - -
-     - -
+     - Not available in ov.convert_model() / OVC.
 
 Preprocessing of model using mo.convert_model() vs using ov.convert_model().
 ############################################################################
