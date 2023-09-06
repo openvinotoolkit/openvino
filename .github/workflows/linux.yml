@@ -1,8 +1,8 @@
 name: Tests on Linux (Ubuntu 22.04, Python 3.11)
 on:
   schedule:
-    # - cron: '0 20/72 * * *'
-    - cron: '10 * * * *'
+    # at 00:00 on Wednesday and Saturday
+    - cron: '00 00 * * 3,6'
   workflow_dispatch:
   pull_request:
     paths-ignore:
