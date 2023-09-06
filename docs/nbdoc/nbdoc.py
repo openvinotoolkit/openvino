@@ -80,7 +80,6 @@ class NbProcessor:
             "owner": repo_owner,
             "repo": repo_name,
             "folder": repo_directory,
-            "tutorials_file": main_tutorials_file,
         }
         self.colab_data = {
             "owner": repo_owner,
@@ -147,8 +146,7 @@ class NbProcessor:
                 raise FileNotFoundError("Unable to modify file")
 
 class PrepareToctree:
-
-
+    @staticmethod
     def add_glob_directive(tutorials_file):
         try:
             with open(tutorials_file,'r', encoding='cp437') as mainfile:
