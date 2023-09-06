@@ -508,7 +508,7 @@ jobs:
       image: openvino.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
-      options: -u 1001:1001
+      options: -u 1771:1771
 
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
