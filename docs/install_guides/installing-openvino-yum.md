@@ -1,35 +1,19 @@
 # Install OpenVINO™ Runtime on Linux From YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
 
-
-
 @sphinxdirective
 
 .. meta::
    :description: Learn how to install OpenVINO™ Runtime on Linux operating 
-                 system, using the YUM repository, which is a recommended 
-                 installation method for C++ developers.
+                 system, using the YUM repository.
 
-
-With the OpenVINO™ 2023.0 release, you can install OpenVINO Runtime on Linux using the YUM repository. 
-OpenVINO™ Development Tools can be installed via PyPI only. See 
-`Installing Additional Components <#step-3-optional-install-additional-components>`__ for more information.
-
-See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ 
-for more information on updates in the latest release.
-
-Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you are working with Python, 
-the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the 
-:doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` 
-page for instructions on how to install OpenVINO Runtime for Python using PyPI.
-
-.. warning:: 
-
-   By downloading and using this container and the included software, you agree to the terms and conditions of the 
-   `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`__.
-
-
-Prerequisites
-#############
+.. note::
+   
+   Note that the YUM distribution:
+   
+   * offers both C++ and Python APIs
+   * does not offer support for GNA and NPU inference
+   * additionally includes code samples 
+   * is dedicated to Linux users.
 
 .. tab-set::
 
@@ -46,8 +30,8 @@ Prerequisites
    .. tab-item:: Processor Notes
       :sync: processor-notes
    
-      Processor graphics are not included in all processors.
-      See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
+      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
+      | `Product Specifications <https://ark.intel.com/>`__
    
    .. tab-item:: Software
       :sync: software
@@ -146,27 +130,15 @@ Run the following command:
    yum list installed 'openvino*'
 
 
-Step 3 (Optional): Install Additional Components
-+++++++++++++++++++++++++++++++++++++++++++++++++
 
-OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. 
-It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and 
-Open Model Zoo Downloader. If you installed OpenVINO Runtime using YUM, OpenVINO Development 
-Tools must be installed separately.
+Congratulations! You've just Installed OpenVINO! For some use cases you may still 
+need to install additional components. Check the 
+:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+to see if your case needs any of them.
 
-See **For C++ Developers** section on the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
-
-
-Step 4 (Optional): Configure Inference on Non-CPU Devices
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in 
-:doc:`GPU Setup Guide <openvino_docs_install_guides_configurations_for_intel_gpu>`.
-
-Step 5: Build Samples
-++++++++++++++++++++++
-
-To build the C++ or C sample applications for Linux, run the ``build_samples.sh`` script:
+With the YUM distribution, you can build OpenVINO sample files, as explained in the 
+:doc:`guide for OpenVINO sample applications <openvino_docs_OV_UG_Samples_Overview>`.
+For C++ and C, just run the ``build_samples.sh`` script:
 
 .. tab-set::
 
@@ -184,8 +156,6 @@ To build the C++ or C sample applications for Linux, run the ``build_samples.sh`
    
          /usr/share/openvino/samples/c/build_samples.sh
 
-
-For more information, refer to :doc:`Build the Sample Applications on Linux <openvino_docs_OV_UG_Samples_Overview>`.
 
 
 Uninstalling OpenVINO Runtime
@@ -243,8 +213,6 @@ You can also try the following things:
 * Learn more about :doc:`Inference with OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
 * Take a glance at the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
-
-
 
 
 @endsphinxdirective
