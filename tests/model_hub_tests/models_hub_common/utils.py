@@ -10,6 +10,9 @@ def get_models_list(file_name: str):
     models = []
     with open(file_name) as f:
         for model_info in f:
+            # skip comment in model scope file
+            if model_info.startswith('#'):
+                continue
             mark = None
             reason = None
             assert len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
