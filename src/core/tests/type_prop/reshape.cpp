@@ -642,6 +642,17 @@ TEST(type_prop, reshape_to_scalar_3) {
         HasSubstr("The value of scalar shape pattern should be equal to 1"));
 }
 
+TEST(type_prop, reshape_to_scalar_4) {
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(param,
+                                              op::v0::Constant::create(element::i64, {}, std::vector<int64_t>{1}),
+                                              false),
+        NodeValidationFailure,
+        HasSubstr("Requested output shape [] is incompatible with input shape"));
+}
+
 TEST(type_prop, reshape_dynamic_shape_propagation_with_i32_precision) {
     auto param = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1, -1});
     auto shape_of = make_shared<op::v3::ShapeOf>(param, element::i32);
@@ -703,10 +714,10 @@ TEST(type_prop, reshape_when_pattern_has_interval_shape_only) {
 TEST(type_prop, reshape_when_pattern_has_scalar_shape_only) {
     auto param = make_shared<op::v0::Parameter>(element::f32, Shape{3, 4});
     auto shape_pattern = make_shared<op::v0::Parameter>(element::u64, PartialShape{});
-    auto r = make_shared<op::v1::Reshape>(param, shape_pattern, false);
 
-    EXPECT_EQ(r->get_element_type(), element::f32);
-    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape());
+    OV_EXPECT_THROW(ignore = make_shared<op::v1::Reshape>(param, shape_pattern, false),
+                    NodeValidationFailure,
+                    HasSubstr("Input must be scalar as pattern is scalar!"));
 }
 
 TEST(type_prop, reshape_label_propagation) {
@@ -718,11 +729,8 @@ TEST(type_prop, reshape_label_propagation) {
     const auto data = make_shared<op::v0::Parameter>(element::f32, param_shape);
     const auto out = make_shared<op::v0::Parameter>(element::f32, out_shape);
     const auto shape_of = make_shared<op::v3::ShapeOf>(out);
-    auto dims_from_out_shape = make_shared<op::v1::Gather>(shape_of,
-                                                           op::v0::Constant::create(element::i64, {4}, {0, 1, 2, 3}),
-                                                           op::v0::Constant::create(element::i64, {}, {0}));
     const auto special_volume = op::v0::Constant::create(element::i64, {1}, {-1});
-    const auto shape = make_shared<op::v0::Concat>(OutputVector{dims_from_out_shape, special_volume}, 0);
+    const auto shape = make_shared<op::v0::Concat>(OutputVector{shape_of, special_volume}, 0);
 
     const auto op = make_shared<op::v1::Reshape>(data, shape, true);
 
@@ -739,11 +747,8 @@ TEST(type_prop, reshape_label_propagation_dynamic_pattern_got_same_label_as_inpu
     const auto data = make_shared<op::v0::Parameter>(element::f32, param_shape);
     const auto out = make_shared<op::v0::Parameter>(element::f32, out_shape);
     const auto shape_of = make_shared<op::v3::ShapeOf>(out);
-    auto dims_from_out_shape = make_shared<op::v1::Gather>(shape_of,
-                                                           op::v0::Constant::create(element::i64, {5}, {0, 1, 2, 3, 4}),
-                                                           op::v0::Constant::create(element::i64, {}, {0}));
     const auto special_volume = op::v0::Constant::create(element::i64, {1}, {-1});
-    const auto shape = make_shared<op::v0::Concat>(OutputVector{dims_from_out_shape, special_volume}, 0);
+    const auto shape = make_shared<op::v0::Concat>(OutputVector{shape_of, special_volume}, 0);
 
     const auto op = make_shared<op::v1::Reshape>(data, shape, true);
 
@@ -760,11 +765,8 @@ TEST(type_prop, reshape_label_propagation_minus_one_corner_case_zero_div_by_inf)
     const auto data = make_shared<op::v0::Parameter>(element::f32, param_shape);
     const auto out = make_shared<op::v0::Parameter>(element::f32, out_shape);
     const auto shape_of = make_shared<op::v3::ShapeOf>(out);
-    auto dims_from_out_shape = make_shared<op::v1::Gather>(shape_of,
-                                                           op::v0::Constant::create(element::i64, {2}, {0, 1}),
-                                                           op::v0::Constant::create(element::i64, {}, {0}));
     const auto special_volume = op::v0::Constant::create(element::i64, {1}, {-1});
-    const auto shape = make_shared<op::v0::Concat>(OutputVector{special_volume, dims_from_out_shape}, 0);
+    const auto shape = make_shared<op::v0::Concat>(OutputVector{special_volume, shape_of}, 0);
 
     const auto op = make_shared<op::v1::Reshape>(data, shape, true);
 
@@ -781,11 +783,8 @@ TEST(type_prop, reshape_default_ctor) {
     const auto data = make_shared<op::v0::Parameter>(element::f32, param_shape);
     const auto out = make_shared<op::v0::Parameter>(element::f32, out_shape);
     const auto shape_of = make_shared<op::v3::ShapeOf>(out);
-    auto dims_from_out_shape = make_shared<op::v1::Gather>(shape_of,
-                                                           op::v0::Constant::create(element::i64, {4}, {0, 1, 2, 3}),
-                                                           op::v0::Constant::create(element::i64, {}, {0}));
     const auto special_volume = op::v0::Constant::create(element::i64, {1}, {-1});
-    const auto shape = make_shared<op::v0::Concat>(OutputVector{dims_from_out_shape, special_volume}, 0);
+    const auto shape = make_shared<op::v0::Concat>(OutputVector{shape_of, special_volume}, 0);
 
     const auto op = make_shared<op::v1::Reshape>();
     op->set_arguments(OutputVector{data, shape});

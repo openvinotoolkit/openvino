@@ -257,7 +257,7 @@ std::vector<TRShape> shape_infer(const Reshape* op,
 
         reshape::set_pattern_labels(op, output_pattern);
 
-        if (pattern_shape_rank.is_static() && pattern_shape_rank.get_length() == 0) {
+        if (pattern_shape_rank.get_max_length() == 0) {
             NODE_VALIDATION_CHECK(op,
                                   output_pattern[0] == 1,
                                   "The value of scalar shape pattern should be equal to 1!");
@@ -343,10 +343,16 @@ std::vector<TRShape> shape_infer(const Reshape* op,
                                    " is incompatible with input shape");
         }
     } else if (pattern_shape_rank.is_static()) {
-        auto out_rank = pattern_shape_rank.get_length() == 0
-                            ? Rank(0)
-                            : Rank(pattern_shape[0].get_min_length(), pattern_shape[0].get_max_length());
-        output_shape = PartialShape::dynamic(out_rank);
+        std::cout << "temp\n";
+        if (pattern_shape_rank.get_length() == 0) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   input_rank.compatible(0),
+                                   "Input must be scalar as pattern is scalar!");
+        } else {
+            output_shape =
+                PartialShape::dynamic(Rank(pattern_shape[0].get_min_length(), pattern_shape[0].get_max_length()));
+        }
     } else {
         output_shape = PartialShape::dynamic();
     }
