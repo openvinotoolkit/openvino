@@ -94,7 +94,7 @@ inline std::shared_ptr<ov::Node> create_ov_node_by_name(const std::string& ov_ty
                                 "name ",
                                 op_name);
     }
-    return std::shared_ptr<ngraph::Node>(opset.create(op_name));
+    return std::shared_ptr<ov::Node>(opset.create(op_name));
 }
 
 // One-to-one operation mapping for OVOpType != void which means OV type is specified by OVOpType
