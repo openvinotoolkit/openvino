@@ -122,13 +122,13 @@ TEST_P(ConcatReshapeConcatSubgraphTest, CompareWithRefs) {
 namespace {
 
 const std::vector<std::vector<InputShape>> inputShapes = {
-    // {
-    //     // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-    //     {{2, 64}, {{2, 64}}}, // input 0
-    //     {{2, 64}, {{2, 64}}}, // input 1
-    //     {{2, 64}, {{2, 64}}}, // input 2
-    //     {{2, 64}, {{2, 64}}}  // input 3
-    // },
+    {
+        // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+        {{2, 64}, {{2, 64}}}, // input 0
+        {{2, 64}, {{2, 64}}}, // input 1
+        {{2, 64}, {{2, 64}}}, // input 2
+        {{2, 64}, {{2, 64}}}  // input 3
+    },
     {
         // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
         {{2, -1}, {{2, 64}}}, // input 0
