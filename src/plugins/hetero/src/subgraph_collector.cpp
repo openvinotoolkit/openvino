@@ -15,20 +15,20 @@ namespace {
 template <typename Set>
 static Set intersection(const Set& lhs, const Set& rhs) {
     Set result;
-    const auto& minSizeSet = (lhs.size() < rhs.size()) ? lhs : rhs;
-    const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
-    for (auto&& val : minSizeSet)
-        if (maxSizeSet.find(val) != maxSizeSet.end())
+    const auto& min_size_set = (lhs.size() < rhs.size()) ? lhs : rhs;
+    const auto& max_size_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
+    for (auto&& val : min_size_set)
+        if (max_size_set.find(val) != max_size_set.end())
             result.insert(val);
     return result;
 }
 
 template <typename Set>
 static bool intersects(const Set& lhs, const Set& rhs) {
-    const auto& minSizeSet = (lhs.size() < rhs.size()) ? lhs : rhs;
-    const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
-    for (auto&& val : minSizeSet)
-        if (maxSizeSet.find(val) != maxSizeSet.end())
+    const auto& min_size_set = (lhs.size() < rhs.size()) ? lhs : rhs;
+    const auto& max_size_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
+    for (auto&& val : min_size_set)
+        if (max_size_set.find(val) != max_size_set.end())
             return true;
     return false;
 }

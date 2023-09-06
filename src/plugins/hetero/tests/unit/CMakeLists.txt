@@ -21,7 +21,6 @@ ov_add_test_target(
         DEPENDENCIES
             mock_engine
             ngraphFunctions
-        ADD_CPPLINT
         ADD_CLANG_FORMAT
         LABELS
             HETERO
