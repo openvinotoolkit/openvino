@@ -8,6 +8,7 @@ const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
 const util = require('node:util');
 
+const epsilon = 0.5; // To avoid very small numbers
 const testXml = getModelPath();
 const core = new ov.Core();
 const model = core.readModel(testXml);
@@ -15,7 +16,7 @@ const compiledModel = core.compileModel(model, 'CPU');
 
 const inferRequest = compiledModel.createInferRequest();
 
-const tensorData = Float32Array.from({ length: 3072 }, () => Math.floor(Math.random() * 3072));
+const tensorData = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
 const tensor = new ov.Tensor(
   ov.element.f32,
   [1, 3, 32, 32],
