@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
 #include "openvino/pass/pass.hpp"
 

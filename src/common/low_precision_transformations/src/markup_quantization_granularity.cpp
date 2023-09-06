@@ -7,7 +7,7 @@
 #include <cassert>
 #include <memory>
 #include <vector>
-#include <openvino/core/node.hpp>
+#include "openvino/core/node.hpp"
 #include "itt.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
 

@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 

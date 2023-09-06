@@ -10,7 +10,7 @@
 #include <iterator>
 #include <vector>
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/layer_transformation.hpp"
 

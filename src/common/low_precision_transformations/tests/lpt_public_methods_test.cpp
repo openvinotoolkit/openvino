@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 

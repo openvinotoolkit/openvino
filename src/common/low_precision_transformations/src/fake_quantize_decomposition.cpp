@@ -5,10 +5,10 @@
 #include "low_precision/fake_quantize_decomposition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include <low_precision/lpt_itt.hpp>
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"

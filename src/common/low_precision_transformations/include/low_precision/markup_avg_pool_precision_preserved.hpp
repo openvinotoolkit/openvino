@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "openvino/pass/pass.hpp"
 

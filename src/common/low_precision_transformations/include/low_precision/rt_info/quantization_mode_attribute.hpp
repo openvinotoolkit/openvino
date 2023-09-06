@@ -6,7 +6,7 @@
 
 #include <string>
 #include "openvino/core/runtime_attribute.hpp"
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 
 namespace ov {
 

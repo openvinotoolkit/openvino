@@ -10,9 +10,9 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include <low_precision/normalize_l2.hpp>
+#include "low_precision/normalize_l2.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 

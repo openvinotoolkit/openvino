@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "shared_value_attribute.hpp"
 #include "attribute_parameters.hpp"
 

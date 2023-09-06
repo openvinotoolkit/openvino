@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <openvino/pass/pass.hpp>
+#include "openvino/pass/pass.hpp"
 #include "low_precision/lpt_visibility.hpp"
 
 namespace ov {

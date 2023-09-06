@@ -8,8 +8,8 @@
 #include <sstream>
 #include <gtest/gtest.h>
 
-#include <transformations/init_node_info.hpp>
-#include <low_precision/assign_and_read_value.hpp>
+#include "transformations/init_node_info.hpp"
+#include "low_precision/assign_and_read_value.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"

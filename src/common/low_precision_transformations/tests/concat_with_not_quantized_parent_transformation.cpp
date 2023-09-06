@@ -10,19 +10,19 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 
-#include <low_precision/low_precision.hpp>
+#include "low_precision/low_precision.hpp"
 
-#include <low_precision/concat.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
-#include <low_precision/align_quantization_parameters.hpp>
-#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/markup_can_be_quantized.hpp>
-#include <low_precision/markup_quantization_granularity.hpp>
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/align_quantization_parameters.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/markup_can_be_quantized.hpp"
+#include "low_precision/markup_quantization_granularity.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"

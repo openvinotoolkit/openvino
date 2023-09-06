@@ -8,7 +8,7 @@
 #include <sstream>
 #include <memory>
 
-#include <low_precision/low_precision.hpp>
+#include "low_precision/low_precision.hpp"
 
 #include <gtest/gtest.h>
 #include "lpt_ngraph_functions/common/builders.hpp"

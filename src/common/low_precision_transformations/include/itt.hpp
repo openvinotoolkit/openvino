@@ -9,9 +9,9 @@
 
 #pragma once
 
-#include <openvino/cc/selective_build.h>
-#include <openvino/itt.hpp>
-#include <openvino/cc/ngraph/itt.hpp>
+#include "openvino/cc/selective_build.h"
+#include "openvino/itt.hpp"
+#include "openvino/cc/ngraph/itt.hpp"
 
 namespace ov {
 namespace pass {

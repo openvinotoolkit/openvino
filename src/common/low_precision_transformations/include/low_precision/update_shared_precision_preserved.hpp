@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include <openvino/pass/pass.hpp>
+#include "openvino/pass/pass.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/lpt_itt.hpp"

@@ -11,8 +11,8 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <low_precision/network_helper.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/compose_fake_quantize_function.hpp"

@@ -10,9 +10,9 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/opsets/opset4.hpp>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "openvino/opsets/opset4.hpp"
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/interpolate.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"

@@ -6,8 +6,8 @@
 
 #include <exception>
 #include <string>
-#include <openvino/core/node.hpp>
-#include <low_precision/lpt_visibility.hpp>
+#include "openvino/core/node.hpp"
+#include "low_precision/lpt_visibility.hpp"
 
 /**
 * @def THROW_TRANSFORMATION_EXCEPTION_LPT

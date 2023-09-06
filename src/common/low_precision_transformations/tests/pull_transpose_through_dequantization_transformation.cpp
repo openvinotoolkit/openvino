@@ -4,14 +4,14 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/pull_reshape_through_dequantization.hpp>
-#include <low_precision/pull_transpose_through_dequantization.hpp>
+#include "low_precision/pull_reshape_through_dequantization.hpp"
+#include "low_precision/pull_transpose_through_dequantization.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"

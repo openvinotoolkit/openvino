@@ -9,8 +9,8 @@
 #include <utility>
 #include <vector>
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"

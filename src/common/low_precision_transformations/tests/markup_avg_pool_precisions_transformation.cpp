@@ -4,19 +4,19 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/avg_pool.hpp>
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include <low_precision/low_precision.hpp>
-#include <low_precision/max_pool.hpp>
-#include <low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp>
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/low_precision.hpp"
+#include "low_precision/max_pool.hpp"
+#include "low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp"
 #include <memory>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"

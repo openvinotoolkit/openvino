@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include <openvino/core/node.hpp>
+#include "openvino/core/node.hpp"
 
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"

@@ -10,10 +10,10 @@
 #include <vector>
 #include <cassert>
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
-#include <transformations/rt_info/disable_constant_folding.hpp>
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "itt.hpp"
 
 namespace ov {

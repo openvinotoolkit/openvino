@@ -8,10 +8,10 @@
 #include <memory>
 #include <vector>
 
-#include <openvino/core/node.hpp>
+#include "openvino/core/node.hpp"
 
-#include <low_precision/lpt_visibility.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "low_precision/network_helper.hpp"
 #include "lpt_itt.hpp"
 

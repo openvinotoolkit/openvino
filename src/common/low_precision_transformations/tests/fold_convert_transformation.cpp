@@ -11,13 +11,13 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include <low_precision/fold_convert.hpp>
+#include "low_precision/fold_convert.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 

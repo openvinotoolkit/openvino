@@ -9,7 +9,7 @@
 #include <memory>
 
 #include <gtest/gtest.h>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 

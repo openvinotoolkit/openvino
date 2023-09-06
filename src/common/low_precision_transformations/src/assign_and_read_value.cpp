@@ -4,12 +4,12 @@
 
 #include "low_precision/assign_and_read_value.hpp"
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/op/util/assign_base.hpp>
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/op/util/assign_base.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "itt.hpp"
 

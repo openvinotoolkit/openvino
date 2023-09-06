@@ -9,13 +9,13 @@
 #include <set>
 #include <vector>
 
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/opsets/opset6.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset5.hpp"
+#include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset12.hpp"
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"

@@ -10,10 +10,10 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/prelu.hpp>
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/max_pool.hpp>
+#include "low_precision/prelu.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/max_pool.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/fake_quantize_precision_selection_function.hpp"

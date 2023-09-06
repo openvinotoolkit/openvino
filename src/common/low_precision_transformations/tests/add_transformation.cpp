@@ -4,12 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/add.hpp>
+#include "low_precision/add.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 #include <utility>
 
 #include "common_test_utils/ov_test_utils.hpp"

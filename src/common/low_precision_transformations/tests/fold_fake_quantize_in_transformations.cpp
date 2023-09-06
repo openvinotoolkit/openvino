@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/fake_quantize.hpp>
+#include "low_precision/fake_quantize.hpp"
 #include <map>
 #include <memory>
 #include <string>

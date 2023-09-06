@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace ov;

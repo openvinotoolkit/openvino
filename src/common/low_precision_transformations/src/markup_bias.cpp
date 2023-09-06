@@ -5,8 +5,8 @@
 #include "low_precision/markup_bias.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "itt.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"

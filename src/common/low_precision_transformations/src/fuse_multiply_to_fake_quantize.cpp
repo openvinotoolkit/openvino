@@ -4,7 +4,7 @@
 
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include <memory>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"

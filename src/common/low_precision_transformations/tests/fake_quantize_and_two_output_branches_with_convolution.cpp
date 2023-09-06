@@ -11,8 +11,8 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 

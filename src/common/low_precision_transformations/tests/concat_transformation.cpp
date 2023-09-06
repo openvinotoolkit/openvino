@@ -9,7 +9,7 @@
 #include <vector>
 #include <gtest/gtest.h>
 
-#include <low_precision/concat.hpp>
+#include "low_precision/concat.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"

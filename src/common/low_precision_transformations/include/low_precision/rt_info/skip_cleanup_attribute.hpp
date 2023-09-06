@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openvino/core/node.hpp>
+#include "openvino/core/node.hpp"
 
 #include "low_precision/rt_info/attribute_parameters.hpp"
 

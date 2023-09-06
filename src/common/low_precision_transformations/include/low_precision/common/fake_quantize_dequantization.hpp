@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <tuple>
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset1.hpp"
 

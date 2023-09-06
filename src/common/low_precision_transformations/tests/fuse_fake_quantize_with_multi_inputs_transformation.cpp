@@ -10,9 +10,9 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/fake_quantize.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/fake_quantize.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 

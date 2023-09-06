@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 
 
-#include <low_precision/pad.hpp>
+#include "low_precision/pad.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"

@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#include <openvino/core/node.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "rt_info/attribute_parameters.hpp"
 
 namespace ov {

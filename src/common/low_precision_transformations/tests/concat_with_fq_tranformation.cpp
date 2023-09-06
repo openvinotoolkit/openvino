@@ -4,15 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/common/precisions_restriction.hpp>
-#include <low_precision/common/quantization_granularity_restriction.hpp>
-#include <low_precision/concat.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
-#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/common/quantization_granularity_restriction.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include <memory>
 #include <sstream>
 #include <vector>

@@ -7,9 +7,9 @@
 #include <memory>
 
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
-#include <openvino/op/util/pad_base.hpp>
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "itt.hpp"
 

@@ -10,8 +10,8 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <low_precision/fake_quantize.hpp>
-#include <low_precision/low_precision.hpp>
+#include "low_precision/fake_quantize.hpp"
+#include "low_precision/low_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"

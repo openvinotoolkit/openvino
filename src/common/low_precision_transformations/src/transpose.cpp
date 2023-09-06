@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"

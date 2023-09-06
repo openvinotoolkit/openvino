@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <openvino/pass/pass.hpp>
+#include "openvino/pass/pass.hpp"
 #include "low_precision/common/port_quantization_granularity_restriction.hpp"
 #include "low_precision/common/quantization_granularity_restriction.hpp"
 #include "low_precision/lpt_visibility.hpp"

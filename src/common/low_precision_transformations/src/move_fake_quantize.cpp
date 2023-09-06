@@ -4,13 +4,13 @@
 
 #include "low_precision/move_fake_quantize.hpp"
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 #include <memory>
-#include <openvino/core/node.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 
 #include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"

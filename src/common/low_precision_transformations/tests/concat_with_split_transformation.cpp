@@ -10,17 +10,17 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/concat.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/split.hpp>
-#include <low_precision/align_quantization_parameters.hpp>
-#include <low_precision/align_quantization_intervals.hpp>
-#include <low_precision/propagate_precisions.hpp>
-#include <low_precision/markup_avg_pool_precision_preserved.hpp>
-#include <low_precision/markup_precisions.hpp>
-#include <low_precision/markup_quantization_granularity.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/split.hpp"
+#include "low_precision/align_quantization_parameters.hpp"
+#include "low_precision/align_quantization_intervals.hpp"
+#include "low_precision/propagate_precisions.hpp"
+#include "low_precision/markup_avg_pool_precision_preserved.hpp"
+#include "low_precision/markup_precisions.hpp"
+#include "low_precision/markup_quantization_granularity.hpp"
 #include "low_precision/common/precisions_restriction.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"

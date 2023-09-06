@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "attribute_parameters.hpp"

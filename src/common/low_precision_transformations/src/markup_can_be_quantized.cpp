@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"

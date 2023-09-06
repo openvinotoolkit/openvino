@@ -4,11 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/weightable_layer_transformation.hpp>
+#include "low_precision/weightable_layer_transformation.hpp"
 #include <memory>
 #include <sstream>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 #include <utility>
 
 #include "layer_transformation.hpp"

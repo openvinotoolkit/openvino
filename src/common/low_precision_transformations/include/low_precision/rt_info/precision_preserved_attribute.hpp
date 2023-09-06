@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include <openvino/core/node.hpp>
+#include "openvino/core/node.hpp"
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 

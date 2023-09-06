@@ -6,9 +6,9 @@
 
 #include <memory>
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"

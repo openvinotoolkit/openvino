@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "openvino/core/node.hpp"
 
 namespace ov {

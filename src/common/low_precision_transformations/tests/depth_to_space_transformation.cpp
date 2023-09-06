@@ -10,8 +10,8 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/depth_to_space.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"

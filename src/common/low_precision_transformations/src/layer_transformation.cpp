@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <low_precision/layer_transformation.hpp>
-#include <low_precision/network_helper.hpp>
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include <algorithm>
 #include <cmath>

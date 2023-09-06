@@ -4,15 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/concat.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/low_precision.hpp>
-#include <low_precision/relu.hpp>
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/low_precision.hpp"
+#include "low_precision/relu.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"

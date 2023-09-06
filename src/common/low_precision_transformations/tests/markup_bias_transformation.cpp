@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/markup_bias.hpp>
-#include <low_precision/rt_info/bias_attribute.hpp>
+#include "low_precision/markup_bias.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include <memory>
 #include <string>
 

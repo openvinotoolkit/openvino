@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/fold_fake_quantize.hpp>
-#include <openvino/pass/constant_folding.hpp>
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/fold_fake_quantize.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"

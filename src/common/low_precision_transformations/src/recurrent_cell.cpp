@@ -4,14 +4,14 @@
 
 #include "low_precision/recurrent_cell.hpp"
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 #include <memory>
-#include <openvino/core/node.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset5.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/skip_cleanup_attribute.hpp"

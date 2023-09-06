@@ -8,20 +8,20 @@
 #include <memory>
 
 // one place to include all Low Precision Transformations from ov::pass::low_precision
-#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
-#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
-#include <low_precision/rt_info/precisions_attribute.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "low_precision/rt_info/precisions_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
-#include <low_precision/markup_precisions.hpp>
-#include <low_precision/markup_avg_pool_precision_preserved.hpp>
-#include <low_precision/propagate_precisions.hpp>
-#include <low_precision/align_quantization_intervals.hpp>
+#include "low_precision/markup_precisions.hpp"
+#include "low_precision/markup_avg_pool_precision_preserved.hpp"
+#include "low_precision/propagate_precisions.hpp"
+#include "low_precision/align_quantization_intervals.hpp"
 
 
-#include <low_precision/lpt_visibility.hpp>
-#include <low_precision/common/quantization_granularity_restriction.hpp>
-#include <low_precision/common/precisions_restriction.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "low_precision/common/quantization_granularity_restriction.hpp"
+#include "low_precision/common/precisions_restriction.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/markup_precisions.hpp"
 #include "openvino/pass/graph_rewrite.hpp"

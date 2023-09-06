@@ -4,15 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/common/precisions_restriction.hpp>
-#include <low_precision/recurrent_cell.hpp>
-#include <low_precision/fold_convert.hpp>
-#include <low_precision/fuse_convert.hpp>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
-#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/recurrent_cell.hpp"
+#include "low_precision/fold_convert.hpp"
+#include "low_precision/fuse_convert.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -23,7 +23,7 @@
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/recurrent_cell_function.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include <openvino/opsets/opset5.hpp>
+#include "openvino/opsets/opset5.hpp"
 
 using namespace testing;
 using namespace ov;

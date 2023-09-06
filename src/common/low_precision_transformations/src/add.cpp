@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"

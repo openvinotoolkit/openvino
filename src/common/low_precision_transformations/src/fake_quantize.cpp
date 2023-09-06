@@ -6,8 +6,8 @@
 
 #include <cmath>
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"

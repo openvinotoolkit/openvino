@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"

@@ -4,10 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/avg_pool.hpp>
-#include <low_precision/common/precisions_restriction.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/low_precision.hpp>
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/low_precision.hpp"
 #include <memory>
 #include <sstream>
 #include <string>

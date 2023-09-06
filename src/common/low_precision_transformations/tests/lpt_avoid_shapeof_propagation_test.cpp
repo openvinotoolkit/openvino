@@ -7,7 +7,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "low_precision/add.hpp"

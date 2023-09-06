@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openvino/core/type/element_type.hpp>
+#include "openvino/core/type/element_type.hpp"
 #include "low_precision/lpt_visibility.hpp"
 
 class LP_TRANSFORMATIONS_API AttributeParameters {

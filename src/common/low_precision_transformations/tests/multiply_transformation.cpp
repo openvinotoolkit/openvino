@@ -11,8 +11,8 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/multiply.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 

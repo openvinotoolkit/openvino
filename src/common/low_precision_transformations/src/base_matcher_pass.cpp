@@ -3,7 +3,7 @@
 //
 
 #include "low_precision/base_matcher_pass.hpp"
-#include <openvino/core/node.hpp>
+#include "openvino/core/node.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
 
 using namespace ov;

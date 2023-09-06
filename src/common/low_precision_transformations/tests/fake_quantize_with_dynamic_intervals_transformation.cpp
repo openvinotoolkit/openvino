@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <low_precision/fake_quantize.hpp>
+#include "low_precision/fake_quantize.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"

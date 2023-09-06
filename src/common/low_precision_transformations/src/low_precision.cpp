@@ -6,16 +6,16 @@
 
 #include <memory>
 
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <ov_ops/type_relaxed.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset6.hpp>
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset6.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
-#include <transformations/utils/utils.hpp>
-#include <low_precision/lpt_itt.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/lpt_itt.hpp"
 
 #include "low_precision/align_quantization_intervals.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
@@ -23,7 +23,7 @@
 #include "low_precision/markup_precisions.hpp"
 #include "low_precision/markup_can_be_quantized.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
-#include <low_precision/markup_quantization_granularity.hpp>
+#include "low_precision/markup_quantization_granularity.hpp"
 #include "low_precision/propagate_precisions.hpp"
 #include "low_precision/align_quantization_parameters.hpp"
 

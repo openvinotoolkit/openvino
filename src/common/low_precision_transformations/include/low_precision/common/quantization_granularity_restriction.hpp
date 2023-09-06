@@ -6,11 +6,11 @@
 
 #include <vector>
 
-#include <openvino/core/node.hpp>
+#include "openvino/core/node.hpp"
 
-#include <low_precision/lpt_visibility.hpp>
-#include <low_precision/rt_info/quantization_granularity_attribute.hpp>
-#include <low_precision/common/port_quantization_granularity_restriction.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "low_precision/rt_info/quantization_granularity_attribute.hpp"
+#include "low_precision/common/port_quantization_granularity_restriction.hpp"
 
 
 namespace ov {

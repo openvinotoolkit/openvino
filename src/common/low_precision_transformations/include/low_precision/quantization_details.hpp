@@ -8,7 +8,7 @@
 #include <ostream>
 #include <vector>
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "openvino/opsets/opset1.hpp"
 
 namespace ov {

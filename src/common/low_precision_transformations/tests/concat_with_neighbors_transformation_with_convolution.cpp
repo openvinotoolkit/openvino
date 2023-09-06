@@ -8,11 +8,11 @@
 #include <memory>
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <low_precision/concat.hpp>
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/max_pool.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/max_pool.hpp"
 
 #include "lpt_ngraph_functions/precision_propagation_function.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <low_precision/quantization_details.hpp>
+#include "low_precision/quantization_details.hpp"
 #include <math.h>
 
 #include <algorithm>
@@ -17,9 +17,9 @@
 
 #include "low_precision/lpt_itt.hpp"
 
-#include <low_precision/common/ie_lpt_exception.hpp>
-#include <low_precision/network_helper.hpp>
-#include <low_precision/layer_transformation.hpp>
+#include "low_precision/common/ie_lpt_exception.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ov {
 namespace pass {

@@ -9,7 +9,7 @@
 #include <memory>
 
 #include <gtest/gtest.h>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
 // general transformations
 #include "low_precision/add.hpp"

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include <memory>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <openvino/pass/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov {
 namespace pass {

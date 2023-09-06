@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"

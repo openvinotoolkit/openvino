@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <low_precision/network_helper.hpp>
+#include "low_precision/network_helper.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -16,7 +16,7 @@
 #include <queue>
 #include <numeric>
 
-#include <openvino/core/rt_info.hpp>
+#include "openvino/core/rt_info.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"

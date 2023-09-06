@@ -10,9 +10,9 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/weightable_layer_transformation.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/weightable_layer_transformation.hpp"
 #include "lpt_ngraph_functions/convolution_function.hpp"
 
 using namespace testing;

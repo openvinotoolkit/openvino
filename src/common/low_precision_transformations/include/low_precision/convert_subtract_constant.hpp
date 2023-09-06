@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
