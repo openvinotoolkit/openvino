@@ -765,20 +765,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gemm_abc) {
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 2>({{1, 2, 3, 4, 5, 6}, {7, 8, 9, 10, 11, 12}, {13, 14, 15, 16, 17, 18}}).get_vector());
+        ov::test::NDArray<float, 2>({{1, 2, 3, 4, 5, 6}, {7, 8, 9, 10, 11, 12}, {13, 14, 15, 16, 17, 18}})
+            .get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 2>({{19, 20, 21, 22},
-                                                 {23, 24, 25, 26},
-                                                 {27, 28, 29, 30},
-                                                 {31, 32, 33, 34},
-                                                 {35, 36, 37, 38},
-                                                 {39, 40, 41, 42}})
+    inputs.emplace_back(ov::test::NDArray<float, 2>({{19, 20, 21, 22},
+                                                     {23, 24, 25, 26},
+                                                     {27, 28, 29, 30},
+                                                     {31, 32, 33, 34},
+                                                     {35, 36, 37, 38},
+                                                     {39, 40, 41, 42}})
                             .get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 2>({{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}).get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 2>({{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}).get_vector());
 
     auto expected_output =
-        test::NDArray<float, 2>({{340, 350.5, 361, 371.5}, {862, 890.5, 919, 947.5}, {1384, 1430.5, 1477, 1523.5}})
+        ov::test::NDArray<float, 2>({{340, 350.5, 361, 371.5}, {862, 890.5, 919, 947.5}, {1384, 1430.5, 1477, 1523.5}})
             .get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -793,11 +794,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul) {
 
     std::vector<std::vector<float>> inputs;
 
-    inputs.emplace_back(test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 2>({{13, 14, 15}, {16, 17, 18}, {19, 20, 21}, {22, 23, 24}}).get_vector());
+    inputs.emplace_back(
+        ov::test::NDArray<float, 2>({{13, 14, 15}, {16, 17, 18}, {19, 20, 21}, {22, 23, 24}}).get_vector());
 
-    auto expected_output = test::NDArray<float, 2>({{190, 200, 210}, {470, 496, 522}, {750, 792, 834}}).get_vector();
+    auto expected_output =
+        ov::test::NDArray<float, 2>({{190, 200, 210}, {470, 496, 522}, {750, 792, 834}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -997,11 +1000,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_sub) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/sub.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 2, 3}}}).get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 3>({{{1, 2, 3}}}).get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 3>({{{4, 5, 7}}}).get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 3>({{{4, 5, 7}}}).get_vector());
 
-    auto expected_output = test::NDArray<float, 3>({{{-3, -3, -4}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 3>({{{-3, -3, -4}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1014,10 +1017,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_div) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/div.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 2, 3}}}).get_vector());
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 4, 12}}}).get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 3>({{{1, 2, 3}}}).get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 3>({{{1, 4, 12}}}).get_vector());
 
-    auto expected_output = test::NDArray<float, 3>({{{1, 0.5, 0.25}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 3>({{{1, 0.5, 0.25}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1030,17 +1033,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_add_bcast) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_bcast.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                                 {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                                 {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
-                            .get_vector());
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 1>({1, 2, 3, 4, 5}).get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 1>({1, 2, 3, 4, 5}).get_vector());
 
     auto expected_output =
-        test::NDArray<float, 4>({{{{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}},
-                                  {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}},
-                                  {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}}}})
+        ov::test::NDArray<float, 4>({{{{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}},
+                                      {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}},
+                                      {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}}}})
             .get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1177,10 +1181,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/reduce_log_sum.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{2.77258872f}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{2.77258872f}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1194,10 +1199,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp) {
                                                                         "onnx/reduce_log_sum_exp.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{3.77258872f}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{3.77258872f}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1210,10 +1216,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/reduce_l1.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1226,10 +1233,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/reduce_l2.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{4}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{4}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1243,10 +1251,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max) {
 
     // input data shape (1, 1, 4, 4)
     Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}}).get_vector()};
+        ov::test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1266,10 +1274,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_mean) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/reduce_mean.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{1}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1283,10 +1292,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min) {
 
     // input data shape (1, 1, 4, 4)
     Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}}).get_vector()};
+        ov::test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{1}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1299,10 +1308,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_prod) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/reduce_prod.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{1}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1315,10 +1325,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/reduce_sum.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1344,10 +1355,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/reduce_sum_square.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1360,10 +1372,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reduce_sum_13_axes_as_constant.onnx"));
 
-    Inputs inputs{test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f}}}})
+    Inputs inputs{ov::test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
+                                                 {1.0f, 1.0f, 1.0f, 1.0f},
+                                                 {1.0f, 1.0f, 1.0f, 1.0f},
+                                                 {1.0f, 1.0f, 1.0f, 1.0f}}}})
                       .get_vector()};
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1380,7 +1392,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant_single_
                                                             SERIALIZED_ZOO,
                                                             "onnx/reduce_sum_13_axes_as_constant_single_axis.onnx"));
 
-    Inputs inputs{test::NDArray<float, 3>({{{1, 2, 3}, {4, 5, 6}}, {{7, 8, 9}, {10, 11, 12}}}).get_vector()};
+    Inputs inputs{ov::test::NDArray<float, 3>({{{1, 2, 3}, {4, 5, 6}}, {{7, 8, 9}, {10, 11, 12}}}).get_vector()};
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -1397,10 +1409,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant_keepdim
                                                             "onnx/reduce_sum_13_axes_as_constant_keepdims_off.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f}}}})
+    Inputs inputs{ov::test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
+                                                 {1.0f, 1.0f, 1.0f, 1.0f},
+                                                 {1.0f, 1.0f, 1.0f, 1.0f},
+                                                 {1.0f, 1.0f, 1.0f, 1.0f}}}})
                       .get_vector()};
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -2174,10 +2186,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/shape.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                                 {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                                 {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
-                            .get_vector());
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -2191,13 +2204,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_elu) {
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ov::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                     {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                     {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ov::test::NDArray<float, 3>(
             {{{-1.999753180391830f, -1.999329074744190f, -1.998176236068890f, -1.995042495646670f, -1.986524106001830f},
               {-1.963368722222530f, -1.900425863264270f, -1.729329433526770f, -1.264241117657120f, 0},
               {1, 2, 3, 4, 5},
@@ -2224,13 +2237,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_leaky_relu) {
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ov::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                     {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                     {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ov::test::NDArray<float, 3>(
             {{{-0.9f, -0.8f, -0.7f, -0.6f, -0.5f}, {-0.4f, -0.3f, -0.2f, -0.1f, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
              {{-0.4f, -0.3f, -0.2f, -0.1f, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
              {{1, 1, 1, 1, 1}, {-0.1f, -0.1f, -0.1f, -0.1f, -0.1f}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
@@ -2248,20 +2261,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_nd) {
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ov::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                     {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                     {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}},
-                                                 {{0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}},
-                                                 {{1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}}})
-                            .get_vector());
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}},
+                                     {{0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}},
+                                     {{1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}}})
+            .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>({{{-9, 0, -7, 0, -5}, {0, -3, 0, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{0, -3, 0, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {0, -1, 0, -1, 0}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ov::test::NDArray<float, 3>({{{-9, 0, -7, 0, -5}, {0, -3, 0, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                     {{0, -3, 0, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                     {{1, 1, 1, 1, 1}, {0, -1, 0, -1, 0}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -2376,13 +2390,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_selu) {
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ov::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                     {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                     {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ov::test::NDArray<float, 3>(
             {{{-5.99925954117548f, -5.99798722423258f, -5.99452870820667f, -5.98512748694000f, -5.95957231800549f},
               {-5.89010616666759f, -5.70127758979282f, -5.18798830058032f, -3.79272335297135f, 0},
               {3, 6, 9, 12, 15},
@@ -2409,13 +2423,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_sigmoid) {
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ov::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                     {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                     {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ov::test::NDArray<float, 3>(
             {{{0.00012339457598623f,
                0.00033535013046648f,
                0.00091105119440065f,
@@ -2446,13 +2460,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_tanh) {
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ov::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                     {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                     {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ov::test::NDArray<float, 3>(
             {{{-0.999999969540041f, -0.999999774929676f, -0.999998336943945f, -0.999987711650796f, -0.999909204262595f},
               {-0.999329299739067f, -0.995054753686731f, -0.964027580075817f, -0.761594155955765f, 0},
               {0.761594155955765f, 0.964027580075817f, 0.995054753686731f, 0.999329299739067f, 0.999909204262595f},
@@ -2479,15 +2493,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_thresholded_relu) {
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ov::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                     {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                     {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>({{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{0, 0, 0, 0, 0}, {0, 0, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}}})
+        ov::test::NDArray<float, 3>({{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                     {{0, 0, 0, 0, 0}, {0, 0, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                     {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}}})
             .get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -2502,9 +2516,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_vec_ten3d) {
 
     Inputs inputs;
     inputs.emplace_back(std::vector<float>{0.f, 1.f});
-    inputs.emplace_back(test::NDArray<float, 3>{{{0.f}, {1.f}}, {{2.f}, {3.f}}, {{4.f}, {5.f}}}.get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 3>{{{0.f}, {1.f}}, {{2.f}, {3.f}}, {{4.f}, {5.f}}}.get_vector());
 
-    auto expected_output = test::NDArray<float, 2>{{1.f}, {3.f}, {5.f}}.get_vector();
+    auto expected_output = ov::test::NDArray<float, 2>{{1.f}, {3.f}, {5.f}}.get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -2574,15 +2588,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_sum_opset8) {
 
     Inputs inputs;
     inputs.emplace_back(std::vector<float>{1.0f, 2.0f, 3.0f});
-    inputs.emplace_back(test::NDArray<float, 2>{{10.0f}, {20.0f}, {30.0f}}.get_vector());
-    inputs.emplace_back(test::NDArray<float, 3>{{{100.0f}}, {{200.0f}}, {{300.0f}}}.get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 2>{{10.0f}, {20.0f}, {30.0f}}.get_vector());
+    inputs.emplace_back(ov::test::NDArray<float, 3>{{{100.0f}}, {{200.0f}}, {{300.0f}}}.get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>{{{111.0f, 112.0f, 113.0f}, {121.0f, 122.0f, 123.0f}, {131.0f, 132.0f, 133.0f}},
+        ov::test::NDArray<float, 3>{{{111.0f, 112.0f, 113.0f}, {121.0f, 122.0f, 123.0f}, {131.0f, 132.0f, 133.0f}},
 
-                                {{211.0f, 212.0f, 213.0f}, {221.0f, 222.0f, 223.0f}, {231.0f, 232.0f, 233.0f}},
+                                    {{211.0f, 212.0f, 213.0f}, {221.0f, 222.0f, 223.0f}, {231.0f, 232.0f, 233.0f}},
 
-                                {{311.0f, 312.0f, 313.0f}, {321.0f, 322.0f, 323.0f}, {331.0f, 332.0f, 333.0f}}}
+                                    {{311.0f, 312.0f, 313.0f}, {321.0f, 322.0f, 323.0f}, {331.0f, 332.0f, 333.0f}}}
             .get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -2903,13 +2917,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_erf) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/erf.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 2>{
+    inputs.emplace_back(ov::test::NDArray<float, 2>{
         {-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()},
         {-3.141592f, 0.0f},
         {0.5f, 1.0f}}.get_vector());
 
     const std::vector<float> expected_output =
-        test::NDArray<float, 2>{{-1.0f, 1.0f}, {-0.99999112f, 0.0f}, {0.52049988f, 0.84270079f}}.get_vector();
+        ov::test::NDArray<float, 2>{{-1.0f, 1.0f}, {-0.99999112f, 0.0f}, {0.52049988f, 0.84270079f}}.get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -5512,15 +5526,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_ai_onnx_domain) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/unsqueeze_ai_onnx_domain.onnx"));
 
-    auto input = test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+    auto input = ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                              {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                              {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
                      .get_vector();
 
     auto expected_output =
-        test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                      {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                      {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
             .get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -5534,15 +5548,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_default_domain) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/unsqueeze_default_domain.onnx"));
 
-    auto input = test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+    auto input = ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                              {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                              {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
                      .get_vector();
 
     auto expected_output =
-        test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                      {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                      {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
             .get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -5556,14 +5570,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_default_domain_opset13) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/unsqueeze_default_domain_opset13.onnx"));
 
-    auto input = test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+    auto input = ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                              {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                              {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
                      .get_vector();
     auto expected_output =
-        test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                      {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                      {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
             .get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -5577,14 +5591,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_ai_onnx_domain_opset13) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/unsqueeze_ai_onnx_domain_opset13.onnx"));
 
-    auto input = test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+    auto input = ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                              {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                              {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
                      .get_vector();
     auto expected_output =
-        test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                      {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                      {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
             .get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -6458,10 +6472,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze_default_domain_opset13) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/squeeze_default_domain_opset13.onnx"));
 
-    auto input =
-        test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}).get_vector();
+    auto input = ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+                     .get_vector();
     auto expected_output =
-        test::NDArray<float, 2>({{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}).get_vector();
+        ov::test::NDArray<float, 2>({{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}).get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(input);
