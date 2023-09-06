@@ -17,7 +17,7 @@
    For GNA <openvino_docs_install_guides_configurations_for_intel_gna>
 
 
-For certain use cases, you may need to instal additional software, to get the full 
+For certain use cases, you may need to install additional software, to get the full 
 potential of OpenVINO™. Check the following list for components pertaining to your 
 workflow:
 
