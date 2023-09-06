@@ -527,7 +527,7 @@ jobs:
     steps:
       - name: Create Directories
         run: |
-          mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
 
       - name: Install git
         run: |
