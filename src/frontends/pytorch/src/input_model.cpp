@@ -162,8 +162,7 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
             auto no_self = std::all_of(inputs.cbegin(), inputs.cend(), [&](const Place::Ptr& p) {
                 return !p->is_equal(self_place);
             });
-            FRONT_END_GENERAL_CHECK(no_self,
-                                    "Unexpected input of 'self' was provided to override_all_inputs.");
+            FRONT_END_GENERAL_CHECK(no_self, "Unexpected input of 'self' was provided to override_all_inputs.");
             m_inputs = std::vector<ov::frontend::Place::Ptr>{self_place};
             m_inputs.insert(m_inputs.cend(), inputs.cbegin(), inputs.cend());
             return;
