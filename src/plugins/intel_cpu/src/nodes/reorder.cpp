@@ -189,10 +189,61 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     if (!selectedPD)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
+    // How to query what data_types are supported by dnnl::reorder
+    auto isSupportedDataType = [](dnnl::memory::data_type data_type) {
+        switch (data_type) {
+        case dnnl::memory::data_type::f32:
+        case dnnl::memory::data_type::s32:
+        case dnnl::memory::data_type::bf16:
+        case dnnl::memory::data_type::s8:
+        case dnnl::memory::data_type::u8:
+        case dnnl::memory::data_type::f16:
+            return true;
+        default:
+            return false;
+        }
+        return false;
+    };
+
     const auto engine = getEngine();
     src_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
-
     dst_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
+
+    isPreConvert = !isSupportedDataType(srcDesc.get_data_type());
+    isPostConvert = !isSupportedDataType(dstDesc.get_data_type());
+    if (isPreConvert) {
+        // Do data type conversion if input data type is not supported by dnnl::reorder
+        // Conversion target data type is aligned with Reorder's output data type if dnnl::reorder support, else apply a
+        // common data type: fp32.
+        pre_convert_input = src_blocked;
+        auto _data_type =
+            isSupportedDataType(dstDesc.get_data_type()) ? dstDesc.get_data_type() : dnnl::memory::data_type::f32;
+        auto _desc =
+            src_blocked->getDesc().cloneWithNewPrecision(DnnlExtensionUtils::DataTypeToIEPrecision(_data_type));
+        if (pre_convert_output) {
+            pre_convert_output->redefineDesc(_desc);
+        } else {
+            pre_convert_output = std::make_shared<Memory>(engine, _desc, nullptr, false);
+        }
+        OPENVINO_ASSERT(pre_convert_output->getData(), "PreConvertMem's memory shouldn't be null.");
+        src_blocked = pre_convert_output;
+    }
+
+    if (isPostConvert) {
+        // Do data type conversion if output data type is not supported by dnnl::reorder
+        // Conversion input data type is aligned with Reorder's input data type if dnnl::reorder support.
+        post_convert_output = dst_blocked;
+        auto _data_type = isPreConvert ? pre_convert_output->getDataType() : srcDesc.get_data_type();
+        auto _desc =
+            dst_blocked->getDesc().cloneWithNewPrecision(DnnlExtensionUtils::DataTypeToIEPrecision(_data_type));
+        if (post_convert_input) {
+            post_convert_input->redefineDesc(_desc);
+        } else {
+            post_convert_input = std::make_shared<Memory>(engine, _desc, nullptr, false);
+        }
+        OPENVINO_ASSERT(post_convert_input->getData(), "PostConvertMem's memory shouldn't be null.");
+        dst_blocked = post_convert_input;
+    }
 
     auto src_desc = src_blocked->getPrimitive().get_desc();
     if (!src_permutation.empty()) {
@@ -225,14 +276,17 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             src_blocked->getDataType(),
                                             newFormat);
-        src_blocked = std::make_shared<Memory>(getEngine(), DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
+        auto _srcPtr = src_blocked->getData();
+        src_blocked = std::make_shared<Memory>(getEngine(), DnnlExtensionUtils::makeDescriptor(newDesc), _srcPtr, false);
 
         src_desc = src_blocked->getPrimitive().get_desc();
     }
 
     auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
     if (!result) {
-        IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
+        IE_THROW() << "Cannot create reorder primitive: unsupported reorder, srcPrec ="
+                   << DnnlExtensionUtils::DataTypeToIEPrecision(src_desc.get_data_type())
+                   << ", dstPrec = " << DnnlExtensionUtils::DataTypeToIEPrecision(dst_desc.get_data_type());
     }
     prim = result;
 
@@ -241,6 +295,11 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+
+    if (isPreConvert)
+        src = src_blocked->getPrimitive();
+    if (isPostConvert)
+        dst = dst_blocked->getPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 
 #ifdef CPU_DEBUG_CAPS
@@ -325,6 +384,42 @@ void Reorder::optimizedNspc2Ncsp() {
     });
 }
 
+void Reorder::preConvert() {
+    if (!isPreConvert)
+        return;
+
+    OPENVINO_ASSERT(pre_convert_input, "pre_convert_input is null");
+    OPENVINO_ASSERT(pre_convert_output, "pre_convert_output is null");
+
+    auto src = static_cast<const uint8_t*>(pre_convert_input->getData());
+    auto dst = pre_convert_output->getData();
+
+    const auto srcPrc = input->getPrecision();
+    const auto dstPrc = DnnlExtensionUtils::DataTypeToIEPrecision(pre_convert_output->getDataType());
+    size_t size = pre_convert_input->getSize() / pre_convert_input->getDesc().getPrecision().size();
+
+    DEBUG_LOG("Reorder::preConvert(): ", srcPrc, " to ", dstPrc);
+    cpu_convert(src, dst, srcPrc, dstPrc, size);
+}
+
+void Reorder::postConvert() {
+    if (!isPostConvert)
+        return;
+
+    OPENVINO_ASSERT(post_convert_input, "post_convert_input is null");
+    OPENVINO_ASSERT(post_convert_output, "post_convert_output is null");
+
+    auto src = static_cast<const uint8_t*>(post_convert_input->getData());
+    auto dst = post_convert_output->getData();
+
+    const auto srcPrc = DnnlExtensionUtils::DataTypeToIEPrecision(post_convert_input->getDataType());
+    const auto dstPrc = output->getPrecision();
+    size_t size = post_convert_input->getSize() / post_convert_input->getDesc().getPrecision().size();
+
+    DEBUG_LOG("Reorder::postConvert(): ", srcPrc, " to ", dstPrc);
+    cpu_convert(src, dst, srcPrc, dstPrc, size);
+}
+
 void Reorder::execute(dnnl::stream strm) {
     if (isOptimized) {
         DEBUG_LOG("#", getExecIndex(), " Reorder ", getName(), "  is Optimized.",
@@ -339,7 +434,9 @@ void Reorder::execute(dnnl::stream strm) {
         optimizedNcsp2Nspc();
     } else {
         if (prim) {
+            preConvert();
             prim.execute(strm, primArgs);
+            postConvert();
         } else {
             IE_THROW() << "Reorder node with name " << getName() << " doesn't have an initialized primitive";
         }

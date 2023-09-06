@@ -80,9 +80,21 @@ private:
     bool canUseNspc2Ncsp = false;
     bool canUseNcsp2Nspc = false;
 
+    // Whether need do convert before or after reorder
+    bool isPreConvert = false;
+    bool isPostConvert = false;
+
+    // MemoryPtr for data type convert
+    MemoryPtr pre_convert_output;
+    MemoryPtr post_convert_input;
+    MemoryPtr pre_convert_input;
+    MemoryPtr post_convert_output;
+
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const dnnl::memory::desc &srcDesc, void* srcPtr, const dnnl::memory::desc &dstDesc, void* dstPtr);
+    void preConvert();
+    void postConvert();
 };
 
 }   // namespace node

@@ -50,6 +50,18 @@ inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
             ASSERT_EQ(s, d) << "mismatch at position " << i;
             break;
         }
+        case InferenceEngine::Precision::FP64: {
+            auto s = *(static_cast<double*>(srcData) + srcOffset);
+            auto d = *(static_cast<double*>(dstData) + dstOffset);
+            ASSERT_EQ(s, d) << "mismatch at position " << i;
+            break;
+        }
+        case InferenceEngine::Precision::I64: {
+            auto s = *(static_cast<uint64_t*>(srcData) + srcOffset);
+            auto d = *(static_cast<uint64_t*>(dstData) + dstOffset);
+            ASSERT_EQ(s, d) << "mismatch at position " << i;
+            break;
+        }
         default:
             FAIL() << "Unsupported data precision in the test" << prescision.name();
         }
@@ -82,6 +94,14 @@ inline void fillData(const ov::intel_cpu::IMemory& inputMemory, const InferenceE
         for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i);
         break;
+    case InferenceEngine::Precision::FP64:
+        for (int64_t i = 0; i < elemNum; ++i)
+            *(static_cast<double*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<double>(i);
+        break;
+    case InferenceEngine::Precision::I64:
+        for (int64_t i = 0; i < elemNum; ++i)
+            *(static_cast<uint64_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<uint64_t>(i);
+        break;
     default:
         FAIL() << "Unsupported data precision in the test" << prec.name();
     }
@@ -101,7 +121,8 @@ struct ReorderCPUTestParamSet {
     std::vector<std::vector<size_t>> inputShapes;
     LayoutType srcLayout;
     LayoutType dstLayout;
-    InferenceEngine::Precision prec;
+    InferenceEngine::Precision inputPrec;
+    InferenceEngine::Precision outputPrec;
 };
 
 class ReorderCPUTestGraph {
@@ -136,6 +157,9 @@ public:
         auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, inputDesc);
         auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, outputDesc);
 
+        auto desc = inputDesc.cloneWithNewPrecision(outputDesc.getPrecision());
+        expectedMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, desc);
+
         parentEdge->reuse(parentMemory);
         childEdge->reuse(childMemory);
 
@@ -157,7 +181,9 @@ protected:
     std::shared_ptr<ov::intel_cpu::node::Input> outputNode;
     std::shared_ptr<ov::intel_cpu::Edge> parentEdge;
     std::shared_ptr<ov::intel_cpu::Edge> childEdge;
-    InferenceEngine::Precision prec;
+    InferenceEngine::Precision inputPrec;
+    InferenceEngine::Precision outputPrec;
+    std::shared_ptr<ov::intel_cpu::IMemory> expectedMemory;
 };
 
 }// namespace ReorderCPUTest
@@ -202,7 +228,8 @@ protected:
             // The custom NSPC2NCSP  impl is used only if an input shape complies with:
             ASSERT_TRUE(srcDims[1] <= 64 && srcDims[1] >= 16 && (getNumElems(srcDims) / srcDims[1]) >= 128);
             // The custom NSPC2NCSP impl is used only for FP32
-            prec = InferenceEngine::Precision::FP32;
+            inputPrec = InferenceEngine::Precision::FP32;
+            outputPrec = InferenceEngine::Precision::FP32;
             srcOrder = std::vector<size_t>{0, 2, 3, 1};
             dstOrder = std::vector<size_t>{0, 1, 2, 3};
         } else {
@@ -210,7 +237,8 @@ protected:
             srcOrder = std::vector<size_t>{0, 1, 2, 3};
             dstOrder = std::vector<size_t>{0, 2, 3, 1};
             // The custom NSPC2NCSP  impl is used only for U8
-            prec = InferenceEngine::Precision::I8;
+            inputPrec = InferenceEngine::Precision::I8;
+            outputPrec = InferenceEngine::Precision::I8;
         }
         dstDims = srcDims;
         // Create strided dst layout for the inPlace case,
@@ -240,7 +268,7 @@ protected:
         const std::vector<size_t> dstBlockedDims = getBlockedDims(dstDims, dstOrder);
         const std::vector<size_t> dstStrides = getStrides(dstBlockedDims);
 
-        const ov::intel_cpu::CpuBlockedMemoryDesc inputDesc(prec,
+        const ov::intel_cpu::CpuBlockedMemoryDesc inputDesc(inputPrec,
                                                             ov::intel_cpu::Shape(srcDims),
                                                             srcBlockedDims,
                                                             srcOrder,
@@ -248,7 +276,7 @@ protected:
                                                             offsetPaddingToData,
                                                             srcStrides);
 
-        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc(prec,
+        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc(outputPrec,
                                                              ov::intel_cpu::Shape(srcDims),
                                                              getBlockedDims(srcDims, dstOrder),
                                                              dstOrder,
@@ -265,13 +293,13 @@ protected:
     }
 
     void validate(void) {
-        checkReorder(parentEdge->getMemory(), childEdge->getMemory(), prec);
+        checkReorder(parentEdge->getMemory(), childEdge->getMemory(), outputPrec);
     }
 
     // Fill srcData so that the results of NSPC2NCSP and NCSP2NSPC reorders are incremental numbers 0,1,2,...
     // Fill dstData with zeros
     void generateInput() {
-        fillData(parentEdge->getMemory(), prec);
+        fillData(parentEdge->getMemory(), inputPrec);
         memset(childEdge->getMemory().getData(), 0, childEdge->getMemory().getSize());
     }
 
@@ -324,8 +352,8 @@ public:
         }
         result << "_InputLayoutType:" << layoutName(p.srcLayout) << ".";
         result << "_OutputLayoutType:" << layoutName(p.dstLayout) << ".";
-        result << "_InputDataType:" << p.prec.name();
-        result << "_OutputDataType:" << p.prec.name();
+        result << "_InputDataType:" << p.inputPrec.name();
+        result << "_OutputDataType:" << p.outputPrec.name();
         result << ")";
         return result.str();
     }
@@ -341,7 +369,8 @@ public:
 protected:
     void generate_inputs(const std::vector<size_t>& inputShape) {
         parentEdge->getParent()->redefineOutputMemory({inputShape});
-        fillData(parentEdge->getMemory(), prec);
+        fillData(parentEdge->getMemory(), inputPrec);
+        fillData(*expectedMemory, outputPrec);
     }
     void infer() {
         reorderNode->updateShapes();
@@ -349,7 +378,7 @@ protected:
         reorderNode->executeDynamic(stream);
     }
     void validate(void) {
-        checkReorder(parentEdge->getMemory(), childEdge->getMemory(), prec);
+        checkReorder(*expectedMemory, childEdge->getMemory(), outputPrec);
     }
 
     struct BuildReorderParams {
@@ -367,7 +396,8 @@ protected:
         reorderParams.srcShape = ov::intel_cpu::Shape(reorderTestParam.inputPartialShape);
         reorderParams.dstShape = reorderParams.srcShape;
         inputShapes = reorderTestParam.inputShapes;
-        prec = reorderTestParam.prec;
+        inputPrec = reorderTestParam.inputPrec;
+        outputPrec = reorderTestParam.outputPrec;
 
         buildReorderDynamismGraph(reorderParams);
     }
@@ -378,10 +408,10 @@ protected:
         auto dstBlockedDescCreator = blockCreatorMap[reorderParams.dstLayout];
 
         const ov::intel_cpu::CpuBlockedMemoryDesc inputDesc =
-            srcBlockedDescCreator->createDesc(prec, reorderParams.srcShape);
+            srcBlockedDescCreator->createDesc(inputPrec, reorderParams.srcShape);
 
         const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc =
-            dstBlockedDescCreator->createDesc(prec, reorderParams.dstShape);
+            dstBlockedDescCreator->createDesc(outputPrec, reorderParams.dstShape);
 
         buildReorderGraph(inputDesc, outputDesc);
     }
@@ -399,24 +429,107 @@ const auto reorderCpuTestDynamismParams =
                                              {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
                                              LayoutType::nspc,
                                              LayoutType::ncsp,
+                                             InferenceEngine::Precision::FP32,
                                              InferenceEngine::Precision::FP32},
                       ReorderCPUTestParamSet{{-1, -1, -1, -1},
                                              {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
                                              LayoutType::ncsp,
                                              LayoutType::nspc,
+                                             InferenceEngine::Precision::FP32,
                                              InferenceEngine::Precision::FP32},
                       ReorderCPUTestParamSet{{2, 32, -1, 4},
                                              {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
                                              LayoutType::ncsp,
                                              LayoutType::nCsp8c,
+                                             InferenceEngine::Precision::FP32,
                                              InferenceEngine::Precision::FP32},
                       ReorderCPUTestParamSet{{-1, 32, -1, -1},
                                              {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
                                              LayoutType::nCsp16c,
                                              LayoutType::nspc,
+                                             InferenceEngine::Precision::I8,
                                              InferenceEngine::Precision::I8});
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestDynamism,
                          ReorderDynamismCPUTest,
                          reorderCpuTestDynamismParams,
+                         ReorderDynamismCPUTest::getTestCaseName);
+
+const auto reorderCpuTestDynamismDifferentPrecisionParams =
+    ::testing::Values(ReorderCPUTestParamSet{{2, 16, 8, -1},
+                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                             LayoutType::nspc,
+                                             LayoutType::ncsp,
+                                             InferenceEngine::Precision::FP32,
+                                             InferenceEngine::Precision::FP64},
+                      ReorderCPUTestParamSet{{2, 16, 8, -1},
+                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                             LayoutType::nspc,
+                                             LayoutType::ncsp,
+                                             InferenceEngine::Precision::FP64,
+                                             InferenceEngine::Precision::FP32},
+                      ReorderCPUTestParamSet{{2, 16, 8, -1},
+                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                             LayoutType::nspc,
+                                             LayoutType::ncsp,
+                                             InferenceEngine::Precision::FP64,
+                                             InferenceEngine::Precision::FP64},
+                      ReorderCPUTestParamSet{{-1, -1, -1, -1},
+                                             {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
+                                             LayoutType::ncsp,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::FP32,
+                                             InferenceEngine::Precision::FP64},
+                      ReorderCPUTestParamSet{{-1, -1, -1, -1},
+                                             {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
+                                             LayoutType::ncsp,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::FP64,
+                                             InferenceEngine::Precision::FP32},
+                      ReorderCPUTestParamSet{{-1, -1, -1, -1},
+                                             {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
+                                             LayoutType::ncsp,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::FP64,
+                                             InferenceEngine::Precision::FP64},
+                      ReorderCPUTestParamSet{{2, 32, -1, 4},
+                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
+                                             LayoutType::ncsp,
+                                             LayoutType::nCsp8c,
+                                             InferenceEngine::Precision::FP32,
+                                             InferenceEngine::Precision::FP64},
+                      ReorderCPUTestParamSet{{2, 32, -1, 4},
+                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
+                                             LayoutType::ncsp,
+                                             LayoutType::nCsp8c,
+                                             InferenceEngine::Precision::FP64,
+                                             InferenceEngine::Precision::FP32},
+                      ReorderCPUTestParamSet{{2, 32, -1, 4},
+                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
+                                             LayoutType::ncsp,
+                                             LayoutType::nCsp8c,
+                                             InferenceEngine::Precision::FP64,
+                                             InferenceEngine::Precision::FP64},
+                      ReorderCPUTestParamSet{{-1, 32, -1, -1},
+                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
+                                             LayoutType::nCsp16c,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::I8,
+                                             InferenceEngine::Precision::I64},
+                      ReorderCPUTestParamSet{{-1, 32, -1, -1},
+                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
+                                             LayoutType::nCsp16c,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::I64,
+                                             InferenceEngine::Precision::I8},
+                      ReorderCPUTestParamSet{{-1, 32, -1, -1},
+                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
+                                             LayoutType::nCsp16c,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::I64,
+                                             InferenceEngine::Precision::I64});
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestDynamismDifferentPrecision,
+                         ReorderDynamismCPUTest,
+                         reorderCpuTestDynamismDifferentPrecisionParams,
                          ReorderDynamismCPUTest::getTestCaseName);
