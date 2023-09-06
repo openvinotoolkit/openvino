@@ -186,11 +186,11 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - -
      - Not available in ov.convert_model() / OVC.
 
-Preprocessing of model using mo.convert_model() vs using ov.convert_model().
+Transition from legacy API to new API
 ############################################################################
 
 mo.convert_model() provides a wide range of preprocessing parameters. Most of these parameters have analogs in OVC or can be replaced with functionality from ``ov.PrePostProcessor`` class.
-Here comparison of preprocessing between MO and OVC.
+Here is the guide to transition from legacy model preprocessing to new API preprocessing.
 
 
 ``input_shape`` parameter:
@@ -602,11 +602,11 @@ Here comparison of preprocessing between MO and OVC.
       
             - Not available in OVC tool. Please check Python API.
 
-MO vs OVC model formats
+Supported frameworks in MO vs OVC 
 #######################
 
 ov.convert_model() and OVC tool support conversion from PyTorch, TF, TF Lite, ONNX, PaddlePaddle.
-Following frameworks are supported only in MO and mo.convert_model(): Caffe, MxNet, Kaldi, which are deprecated.
+Following frameworks are supported only in MO and mo.convert_model(): Caffe, MxNet, Kaldi.
 
 @endsphinxdirective
 
