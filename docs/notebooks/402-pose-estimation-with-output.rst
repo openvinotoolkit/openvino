@@ -1,7 +1,7 @@
 Live Human Pose Estimation with OpenVINO™
 =========================================
 
-.. _top:
+
 
 This notebook demonstrates live pose estimation with OpenVINO, using the
 OpenPose
@@ -17,6 +17,8 @@ Additionally, you can also upload a video file.
    computer with a webcam. If you run on a server, the webcam will not
    work. However, you can still do inference on a video in the final
    step.
+
+.. _top:
 
 **Table of contents**:
 

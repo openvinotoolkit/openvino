@@ -1,7 +1,7 @@
 Image Background Removal with U^2-Net and OpenVINO™
 ===================================================
 
-.. _top:
+
 
 This notebook demonstrates background removal in images using
 U\ :math:`^2`-Net and OpenVINO.
@@ -16,6 +16,8 @@ The PyTorch U\ :math:`^2`-Net model is converted to OpenVINO IR format.
 The model source is available
 `here <https://github.com/xuebinqin/U-2-Net>`__. 
 
+
+.. _top:
 
 **Table of contents**:
 
@@ -221,7 +223,7 @@ repository <https://github.com/xuebinqin/U-2-Net/>`__ and multiplied by
 255 to support images with pixel values from 0-255.
 
 For more information about model conversion, refer to this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 
 Executing the following command may take a while.
 
@@ -420,7 +422,7 @@ References `⇑ <#top>`__
 -  `PIP install
    openvino-dev <https://github.com/openvinotoolkit/openvino/blob/releases/2021/3/docs/install_guides/pypi-openvino-dev.md>`__
 -  `Model Conversion
-   API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+   API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 -  `U^2-Net <https://github.com/xuebinqin/U-2-Net>`__
 -  U^2-Net research paper: `U^2-Net: Going Deeper with Nested
    U-Structure for Salient Object

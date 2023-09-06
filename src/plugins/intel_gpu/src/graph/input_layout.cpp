@@ -40,20 +40,24 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
 
     check_memory_to_set(*mem, ol);
     event::ptr ev = nullptr;
-    if (mem->is_allocated_by(get_network().get_engine())) {
+    auto& engine = get_network().get_engine();
+    auto& stream = get_network().get_stream();
+
+    if (mem->is_allocated_by(engine)) {
         OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
         _outputs[0] = mem;
-        ev = get_network().get_stream().create_user_event(true);
+        ev = stream.create_user_event(true);
     } else {
-        if ((mem->get_allocation_type() == allocation_type::usm_host) ||
-            (mem->get_allocation_type() == allocation_type::usm_device)) {
-            ev = _outputs[0]->copy_from(get_network().get_stream(), *mem, false);
-        } else {
-            mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
-            mem_lock<char, mem_lock_type::write> dst(_outputs[0], get_network().get_stream());
-            std::copy(src.begin(), src.end(), dst.begin());
-            ev = get_network().get_stream().create_user_event(true);
+        if (_outputs.empty() || !_outputs[0]) {
+            _outputs.resize(1);
+            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
         }
+
+        if (ol.is_dynamic() && _outputs[0]->size() < mem->size()) {
+            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
+        }
+        mem_lock<uint8_t> src(mem, stream);
+        ev = _outputs[0]->copy_from(stream, src.data(), false);
     }
     _has_valid_input = true;
     _output_changed = true;
