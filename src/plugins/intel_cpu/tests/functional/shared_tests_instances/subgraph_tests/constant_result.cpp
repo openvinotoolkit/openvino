@@ -17,9 +17,9 @@ const std::vector<ConstantSubgraphType> types = {
     ConstantSubgraphType::SEVERAL_COMPONENT
 };
 
-const std::vector<std::vector<size_t>> shapes = {
-    {1, 3, 10, 10},
-    {2, 3, 4, 5}
+const std::vector<std::vector<ov::Shape>> shapes_static = {
+    {{1, 3, 10, 10}},
+    {{2, 3, 4, 5}}
 };
 
 const std::vector<ov::element::Type> precisions = {
@@ -37,7 +37,7 @@ const std::vector<ov::element::Type> precisions = {
 INSTANTIATE_TEST_SUITE_P(smoke_Check, ConstantResultSubgraphTestNew,
                         ::testing::Combine(
                             ::testing::ValuesIn(types),
-                            ::testing::ValuesIn(shapes),
+                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes_static)),
                             ::testing::ValuesIn(precisions),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConstantResultSubgraphTestNew::getTestCaseName);

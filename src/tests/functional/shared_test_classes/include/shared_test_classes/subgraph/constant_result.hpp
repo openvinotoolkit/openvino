@@ -52,16 +52,16 @@ std::ostream& operator<<(std::ostream &os, ConstantSubgraphType type);
 
 typedef std::tuple <
     ConstantSubgraphType,
-    std::vector<size_t>, // input shape
-    ov::element::Type,   // input precision
-    std::string          // Device name
+    std::vector<InputShape>, // input shape
+    ov::element::Type,       // input precision
+    std::string              // Device name
 > constResultParams;
 
 class ConstantResultSubgraphTestNew : public testing::WithParamInterface<constResultParams>,
                                       virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<constResultParams>& obj);
-    void createGraph(const ConstantSubgraphType type, const std::vector<size_t>& inputShape);
+    void createGraph(const ConstantSubgraphType type);
 protected:
     void SetUp() override;
 };

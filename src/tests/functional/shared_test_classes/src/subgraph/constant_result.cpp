@@ -97,35 +97,42 @@ std::ostream& operator<<(std::ostream &os, ConstantSubgraphType type) {
 
 std::string ConstantResultSubgraphTestNew::getTestCaseName(const testing::TestParamInfo<constResultParams>& obj) {
     ConstantSubgraphType type;
-    std::vector<size_t> IS;
+    std::vector<InputShape> shapes;
     ov::element::Type input_type;
     std::string targetDevice;
 
-    std::tie(type, IS, input_type, targetDevice) = obj.param;
+    std::tie(type, shapes, input_type, targetDevice) = obj.param;
     std::ostringstream result;
     result << "SubgraphType=" << type << "_";
-    result << "IS=" << ov::test::utils::vec2str(IS) << "_";
-    result << "IT=" << input_type.get_type_name() << "_";
+    result << "IS=(";
+    for (const auto& shape : shapes) {
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
+    }
+    result << ")_TS=(";
+    for (const auto& shape : shapes) {
+        for (const auto& item : shape.second) {
+            result << ov::test::utils::vec2str(item) << "_";
+        }
+    }    result << "IT=" << input_type.get_type_name() << "_";
     result << "Device=" << targetDevice;
     return result.str();
 }
 
-void ConstantResultSubgraphTestNew::createGraph(const ConstantSubgraphType type,
-                                                const std::vector<size_t>& inputShape) {
+void ConstantResultSubgraphTestNew::createGraph(const ConstantSubgraphType type) {
     ParameterVector params;
     ResultVector results;
     switch (type) {
         case ConstantSubgraphType::SINGLE_COMPONENT: {
-            auto tensor = ov::test::utils::create_and_fill_tensor(inType, inputShape);
+            auto tensor = ov::test::utils::create_and_fill_tensor(inType, targetStaticShapes.front()[0]);
             auto input = std::make_shared<ov::op::v0::Constant>(tensor);
             results.push_back(std::make_shared<opset3::Result>(input));
             break;
         }
         case ConstantSubgraphType::SEVERAL_COMPONENT: {
-            auto tensor1 = ov::test::utils::create_and_fill_tensor(inType, inputShape);
+            auto tensor1 = ov::test::utils::create_and_fill_tensor(inType, targetStaticShapes.front()[0]);
             auto input1 = std::make_shared<ov::op::v0::Constant>(tensor1);
             results.push_back(std::make_shared<opset3::Result>(input1));
-            auto tensor2 = ov::test::utils::create_and_fill_tensor(inType, inputShape);
+            auto tensor2 = ov::test::utils::create_and_fill_tensor(inType, targetStaticShapes.front()[0]);
             auto input2 = std::make_shared<ov::op::v0::Constant>(tensor2);
             results.push_back(std::make_shared<opset3::Result>(input2));
             break;
@@ -139,14 +146,12 @@ void ConstantResultSubgraphTestNew::createGraph(const ConstantSubgraphType type,
 
 void ConstantResultSubgraphTestNew::SetUp() {
     ConstantSubgraphType type;
-    std::vector<size_t> IS;
-    std::tie(type, IS, inType, targetDevice) = this->GetParam();
+    std::vector<InputShape> shapes;
+    std::tie(type, shapes, inType, targetDevice) = this->GetParam();
+    init_input_shapes(shapes);
     outType = inType;
 
-    createGraph(type, IS);
-
-    std::vector<ov::test::InputShape> input_shapes;
-    init_input_shapes(input_shapes);
+    createGraph(type);
 }
 } //  namespace test
 } //  namespace ov
