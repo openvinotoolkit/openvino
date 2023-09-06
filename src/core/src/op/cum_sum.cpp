@@ -62,12 +62,12 @@ template <element::Type_t DATA_ET, element::Type_t AXIS_ET>
 bool evaluate_cum_sum(TensorVector& outputs, const TensorVector& inputs, const bool exclusive, const bool reverse) {
     using data_t = fundamental_type_for<DATA_ET>;
     using axis_t = fundamental_type_for<AXIS_ET>;
-    ngraph::runtime::reference::cumsum<data_t, axis_t>(inputs[0].data<data_t>(),
-                                                       inputs[1].data<axis_t>(),
-                                                       outputs[0].data<data_t>(),
-                                                       inputs[0].get_shape(),
-                                                       exclusive,
-                                                       reverse);
+    ov::reference::cumsum<data_t, axis_t>(inputs[0].data<data_t>(),
+                                          inputs[1].data<axis_t>(),
+                                          outputs[0].data<data_t>(),
+                                          inputs[0].get_shape(),
+                                          exclusive,
+                                          reverse);
     return true;
 }
 
