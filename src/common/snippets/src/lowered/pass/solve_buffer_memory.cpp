@@ -1,0 +1,93 @@
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "snippets/lowered/pass/solve_buffer_memory.hpp"
+
+#include "snippets/pass/tokenization.hpp"
+#include "snippets/utils.hpp"
+#include "snippets/itt.hpp"
+
+
+namespace ov {
+namespace snippets {
+namespace lowered {
+namespace pass {
+
+std::vector<MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateBufferMemory::BufferClusters& buffer_clusters) {
+    std::vector<MemorySolver::Box> boxes;
+    const auto count = static_cast<int>(buffer_clusters.size());
+    for (int i = 0; i < count; i++) {
+        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
+        int64_t box_size = 0;
+        for (const auto& buffer_expr : buffer_clusters[i]) {
+            int e_start = 0, e_finish = 0;
+            const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(buffer_expr->get_node());
+            OPENVINO_ASSERT(buffer != nullptr, "BufferSolver expects Buffer ops in clusters");
+            const auto buffer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(buffer));
+
+            // life finish time - order of LoopEnd / MemoryAccess ops
+            const auto buffer_outs = buffer_expr->get_output_port_connectors();
+            for (const auto& buffer_out : buffer_outs) {
+                const auto consumers = buffer_out->get_consumers();
+                for (const auto& consumer : consumers) {
+                    const auto consumer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(consumer.get_expr()->get_node()));
+                    e_finish = std::max(e_finish, consumer_order);
+                }
+            }
+            e_start = e_finish;
+
+            const auto buffer_ins = buffer_expr->get_input_port_connectors();
+            for (const auto& buffer_in : buffer_ins) {
+                const auto& source = buffer_in->get_source();
+                auto local_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(source.get_expr()->get_node()));
+
+                const auto buffer_siblings = buffer_in->get_consumers();
+                for (const auto& sibling : buffer_siblings) {
+                    const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(sibling.get_expr()->get_node());
+                    if (!loop_end)
+                        continue;
+                    const auto loop_end_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end));
+                    if (loop_end_order < buffer_order) {
+                        local_order = std::min(local_order, static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end->get_loop_begin())));
+                    }
+                }
+                e_start = std::min(e_start, local_order);
+            }
+
+            // TODO: Added support of Dynamic Buffers
+            auto buffer_size = static_cast<int64_t>(buffer->get_byte_size());
+            box_size = std::max(buffer_size, box_size);
+
+            box.start = std::min(e_start, box.start);
+            box.finish = std::max(e_finish, box.finish);
+        }
+
+        box.size = utils::div_up(box_size, m_alignment);
+        boxes.push_back(box);
+    }
+    return boxes;
+}
+
+
+bool SolveBufferMemory::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SolveBufferMemory");
+
+    const auto boxes = init_boxes(m_clusters);
+    MemorySolver memSolver(boxes);
+    m_buffer_scratchpad_size = static_cast<size_t>(memSolver.solve()) * m_alignment;  // alignment in byte
+
+    // Set offsets for Buffers
+    for (const auto& box : boxes) {
+        for (const auto& buffer : m_clusters[box.id]) {
+            int64_t offset = memSolver.getOffset(box.id);
+            AllocateBufferMemory::set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
+        }
+    }
+    return m_buffer_scratchpad_size > 0;
+}
+
+} // namespace pass
+} // namespace lowered
+} // namespace snippets
+} // namespace ov

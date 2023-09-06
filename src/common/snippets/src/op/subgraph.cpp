@@ -22,7 +22,6 @@
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/buffer_solver.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/split_loops.hpp"
@@ -31,7 +30,7 @@
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
-#include "snippets/lowered/pass/allocate_buffers.hpp"
+#include "snippets/lowered/pass/allocate_buffer_memory.hpp"
 #include "snippets/lowered/pass/propagate_layout.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/softmax_decomposition.hpp"
@@ -675,13 +674,15 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     backend_passes_post_common.run(linear_ir);
 
-    lowered::BufferSolver buffer_solver;
-    m_buffer_scratchpad = buffer_solver.solve(linear_ir);
+    lowered::pass::AllocateBufferMemory buffer_solver;
+    buffer_solver.run(linear_ir);
 
     lowered::pass::PassPipeline final_pipeline;
     final_pipeline.register_pass<lowered::pass::PropagateLayout>();
     final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     final_pipeline.run(linear_ir);
+
+    m_buffer_scratchpad = buffer_solver.get_scratchpad_size();
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& output_shapes,

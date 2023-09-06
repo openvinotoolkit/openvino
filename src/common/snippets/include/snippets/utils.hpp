@@ -12,6 +12,8 @@
 #include "emitter.hpp"
 #include "shape_types.hpp"
 
+#include <cassert>
+
 
 namespace ov {
 namespace snippets {
