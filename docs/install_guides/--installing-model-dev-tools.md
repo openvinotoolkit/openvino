@@ -16,7 +16,7 @@ OpenVINO Development Tools is a set of utilities that make it easy to develop an
 
 The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI. If you are developing in C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools.
 
-In both cases, Python 3.7 - 3.11 needs to be installed on your machine before starting.
+In both cases, Python 3.8 - 3.11 needs to be installed on your machine before starting.
 
 .. note:: 
 
