@@ -38,7 +38,7 @@ See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articl
       :sync: software
    
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
+      * `Python 3.8 - 3.11, 64-bit <https://www.python.org/downloads/>`__
       * GCC:
       
       .. tab-set::

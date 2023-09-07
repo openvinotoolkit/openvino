@@ -29,7 +29,7 @@ See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articl
       :sync: software-requirements
    
       * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
-      * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
+      * `Python 3.8 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.8 - 3.11). Install and add to path.
       * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
       * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 

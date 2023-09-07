@@ -54,7 +54,7 @@ Prerequisites
    
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
       * GCC 8.2.0
-      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`_
+      * `Python 3.8 - 3.11, 64-bit <https://www.python.org/downloads/>`_
 
 
 Install OpenVINO Runtime
