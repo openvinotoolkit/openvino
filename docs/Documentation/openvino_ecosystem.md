@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-   :description: OpenVINO™ is an ecosystem of utilities that have advanced capabilities, which help develop deep learning solutions.
+   :description: OpenVINO™ ecosystem offers various resources for developing deep learning solutions.
 
 
 .. toctree::
@@ -61,7 +61,6 @@ More resources:
 * `Documentation <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__ 
 
 **Compile Tool** 
-
 
 Compile tool is now deprecated. If you need to compile a model for inference on a specific device, use the following script: 
 

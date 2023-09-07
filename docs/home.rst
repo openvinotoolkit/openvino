@@ -131,7 +131,7 @@ Feature Overview
    LEARN OPENVINO <learn_openvino>
    OPENVINO WORKFLOW <openvino_workflow>
    DOCUMENTATION <documentation>
-   MODEL ZOO <model_zoo>
+   LEGACY FEATURES <openvino_legacy_features>
    RESOURCES <resources>
    RELEASE NOTES <release_notes>
 

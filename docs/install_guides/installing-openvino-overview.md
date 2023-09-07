@@ -13,8 +13,7 @@
 
    OpenVINO Runtime on Linux <openvino_docs_install_guides_installing_openvino_linux_header>
    OpenVINO Runtime on Windows <openvino_docs_install_guides_installing_openvino_windows_header>
-   OpenVINO Runtime on macOS <openvino_docs_install_guides_installing_openvino_macos_header> 
-   OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools> 
+   OpenVINO Runtime on macOS <openvino_docs_install_guides_installing_openvino_macos_header>  
    Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
 
 
