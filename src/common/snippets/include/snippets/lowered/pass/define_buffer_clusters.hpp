@@ -48,6 +48,7 @@ public:
     AllocateBufferMemory::BufferClusters get_clusters() const { return m_clusters; }
 
 private:
+    using BufferPorts = std::unordered_map<ExpressionPtr, std::set<size_t>>;
     /**
      * @brief Finds Buffer cluster in set of clusters which contains the target expression with Buffer
      * @param target target expression with Buffer op
@@ -87,21 +88,17 @@ private:
     /**
      * @brief Gets input and outputs buffers of Loop
      * @param input_buffers unordered map [Expression -> set of input ports] which represents input Buffers of Loop
-     * @param output_buffers unordered map [Expression -> output port] which represents output Buffers of Loop
+     * @param output_buffers unordered map [Expression -> set of output ports (one)] which represents output Buffers of Loop
      * @param loop_expr expression with LoopEnd op
      */
-    void get_io_buffers(std::unordered_map<ExpressionPtr, std::set<size_t>>& input_buffers,
-                        std::unordered_map<ExpressionPtr, size_t>& output_buffers,
-                        const ExpressionPtr& loop_expr) const;
+    void get_io_buffers(BufferPorts& input_buffers, BufferPorts& output_buffers, const ExpressionPtr& loop_expr) const;
     /**
      * @brief Analyzes nested Loops: unite nested buffer clusters if they can reproduce `window` sliding
      * @param input_buffers unordered map [Expression -> set of input ports] which represents input Buffers of Loop
-     * @param output_buffers unordered map [Expression -> output port] which represents output Buffers of Loop
+     * @param output_buffers unordered map [Expression -> set of output ports (one)] which represents output Buffers of Loop
      * @param outer_loop_end_expr_it iterator of Linear IR which refers to the expression with outer LoopEnd
      */
-    void unite_clusters_in_nested_loops(const std::unordered_map<ExpressionPtr, std::set<size_t>>& input_buffers,
-                                        const std::unordered_map<ExpressionPtr, size_t>& output_buffers,
-                                        const LinearIR::constExprIt& outer_loop_end_expr_it);
+    void parse_nested_loops(const BufferPorts& input_buffers, const BufferPorts& output_buffers, const LinearIR::constExprIt& outer_loop_end_expr_it);
     /**
      * @brief Finds the last connected Loop to the target Buffer and returns the corresponding finalization offset
      * @param buffer_expr expression with Buffer op
@@ -117,6 +114,16 @@ private:
      * @return Return True if the Buffers are connected to the same Loop
      */
     static bool are_buffer_neighbours(const ExpressionPtr& up, const ExpressionPtr& down, ExpressionPtr& loop, size_t& up_idx, size_t& down_idx);
+    /**
+     * @brief Unite clusters
+     * @param inner_cluster_it iterator to inner cluster - buffer cluster is in the loop
+     * @param outer_cluster buffer clusters with buffers outside the Loop
+     * @param outer_buffer target Buffer from outer_cluster
+     * @param is_outer_up true if outer buffer is upper in Linear IR than inner Buffers
+     * @return Return True if clusters have been united
+     */
+    bool unite_nested_clusters(const AllocateBufferMemory::BufferClusters::iterator& inner_cluster_it, AllocateBufferMemory::BufferCluster& outer_cluster,
+                               const ExpressionPtr& outer_buffer, bool is_outer_up);
 
     AllocateBufferMemory::BufferClusters m_clusters;
 };
