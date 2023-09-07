@@ -13,6 +13,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 using namespace ov;
@@ -249,4 +250,42 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_non_static_rank) {
 
         model_ref = std::make_shared<ov::Model>(NodeVector{gather}, ParameterVector{data});
     }
+}
+
+TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_out_of_bound) {
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 15, 128});
+        auto indices = opset8::Constant::create(element::i32, Shape{}, {-20});
+        auto axis = opset8::Constant::create(element::i32, Shape{}, {1});
+
+        auto gather = std::make_shared<opset8::Gather>(data, indices, axis, 0);
+
+        model = std::make_shared<ov::Model>(NodeVector{gather}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::GatherNegativeConstIndicesNormalize>();
+    }
+
+    {
+        auto indices_type = element::i32;
+
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 15, 128});
+        auto indices = opset8::Constant::create(indices_type, Shape{}, {-20});
+        auto axis = opset8::Constant::create(element::i32, Shape{}, {1});
+
+        auto shape_of = std::make_shared<opset8::ShapeOf>(data, indices_type);
+        auto input_gather = std::make_shared<opset8::Gather>(shape_of,
+                                                             opset8::Constant::create(indices_type, Shape{}, {1}),
+                                                             opset8::Constant::create(indices_type, Shape{}, {0}));
+        auto add = std::make_shared<opset8::Add>(input_gather, indices);
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        auto const_add = get_constant_from_source(add);
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (const_add == nullptr)
+            OPENVINO_THROW("indices should've been constant folded");
+        auto gather = std::make_shared<opset8::Gather>(data, const_add, axis);
+
+        model_ref = std::make_shared<ov::Model>(NodeVector{gather}, ParameterVector{data});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
