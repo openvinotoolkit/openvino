@@ -49,14 +49,16 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
         int64_t in_low = -(levels / 2), in_high = levels + in_low - 1;
 
         const auto& input_low = ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {in_low});
-        const auto& input_high = ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {in_high});        
+        const auto& input_high = ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {in_high});
         std::shared_ptr<ov::op::v0::Constant> zero_point;
-        if(pattern_map.count(sub_c)) {
+        if (pattern_map.count(sub_c)) {
             const auto& sub_c_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sub_c));
             zero_point = sub_c_node;
-        } else if(pattern_map.count(sub_c_integer)){
+        } else if (pattern_map.count(sub_c_integer)) {
             const auto& sub_c_integer_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sub_c_integer));
-            zero_point = ov::op::v0::Constant::create(convert_node->get_element_type(), sub_c_integer_node->get_output_shape(0), sub_c_integer_node->cast_vector<int8_t>());
+            zero_point = ov::op::v0::Constant::create(convert_node->get_element_type(),
+                                                      sub_c_integer_node->get_output_shape(0),
+                                                      sub_c_integer_node->cast_vector<int8_t>());
         } else {
             zero_point = ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {0});
         }
@@ -85,7 +87,7 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
 
         if (ov::constant_folding_is_disabled(convert_node))
             ov::enable_constant_folding(convert_node);
-        if(pattern_map.count(convert_sub_c_integer)) {
+        if (pattern_map.count(convert_sub_c_integer)) {
             const auto& convert_sub_node = pattern_map.at(convert_sub_c_integer);
             if (ov::constant_folding_is_disabled(convert_sub_node))
                 ov::enable_constant_folding(convert_sub_node);
