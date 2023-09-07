@@ -138,7 +138,6 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
 
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
-    m_manager->set_pass_visualization(true);
     m_manager->run_passes(m);
     ov::remove_symbolic_info(m);
     return true;
