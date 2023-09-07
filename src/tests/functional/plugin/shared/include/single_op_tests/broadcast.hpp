@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/broadcast.hpp"
+#include "shared_test_classes/single_op/broadcast.hpp"
 
-namespace LayerTestsDefinitions {
-
+namespace ov {
+namespace test {
 TEST_P(BroadcastLayerTest, CompareWithRefs) {
-    Run();
+    run();
 }
-}  // namespace LayerTestsDefinitions
+} //  namespace test
+} //  namespace ov
