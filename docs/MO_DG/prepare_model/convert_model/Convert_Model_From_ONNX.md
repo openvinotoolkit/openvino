@@ -17,9 +17,9 @@ Introduction to ONNX
 Converting an ONNX Model
 ########################
 
-This page provides instructions on model conversion from the ONNX format to the OpenVINO IR format. To use model conversion API, install OpenVINO Development Tools by following the :doc:`installation instructions <openvino_docs_install_guides_install_dev_tools>`.
+This page provides instructions on model conversion from the ONNX format to the OpenVINO IR format.
 
-Model conversion process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
+The model conversion process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
 
 .. tab-set::
 
@@ -48,7 +48,7 @@ Model conversion process assumes you have an ONNX model that was directly downlo
          mo --input_model <INPUT_MODEL>.onnx
 
 
-There are no ONNX specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the *General Conversion Parameters* section in the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+There are no ONNX-specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the *General Conversion Parameters* section in the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 Supported ONNX Layers
 #####################
