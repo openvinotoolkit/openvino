@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 
 namespace ov {
 namespace test {
