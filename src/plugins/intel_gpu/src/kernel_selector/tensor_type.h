@@ -161,6 +161,7 @@ enum WeightsLayout {
     os_is_yx_isa8_osv8_isv2,
     is_os_yx_isa8_osv8_isv2,
     is_os_yx_isa8_osv8_isv4,
+    is_os_yx_osv8_isv4,
     is_os_yx_osa8_isv16_osv4,
     is_os_yx_isa2_osa8_isv8_osv2,
     g_os_is_yx_osa2_isa8_osv16_isv4,

@@ -150,6 +150,7 @@ struct format {
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
         is_os_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D deconvolution
+        is_os_yx_osv8_isv4,                           ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv16,                         ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv8,                          ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv4,                          ///< format used for weights for blocked deconvolution
