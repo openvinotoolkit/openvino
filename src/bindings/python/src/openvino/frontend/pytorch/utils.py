@@ -212,7 +212,8 @@ def prepare_example_inputs_and_model(inputs, input_params, model):
     input_is_list = False
     input_signature = list(input_params)
     if isinstance(inputs, dict):
-        return *process_dict_inputs(inputs, input_params, model), input_is_list
+        examples, ordered, wrapped = process_dict_inputs(inputs, input_params, model)
+        return examples, ordered, wrapped, input_is_list
     if isinstance(inputs, list) and len(inputs) == 1 and isinstance(inputs[0], torch.Tensor):
         if "typing.List" in str(input_params[input_signature[0]].annotation):
             inputs = inputs[0].unsqueeze(0)
