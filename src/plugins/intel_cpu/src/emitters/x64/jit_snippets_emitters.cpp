@@ -13,7 +13,6 @@
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 #include "snippets/op/rank_normalization.hpp"
-#include "jit_perf_count_emitters.hpp"
 
 using namespace InferenceEngine;
 using namespace Xbyak;

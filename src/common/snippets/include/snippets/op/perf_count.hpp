@@ -22,7 +22,11 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
+    // used for chrono call
     std::chrono::high_resolution_clock::time_point start_time_stamp = {};
+
+    // used for rdtsc
+    uint64_t start_count = 0ul;
 };
 
 /**
@@ -45,8 +49,9 @@ public:
     // in each call, PerfCountEnd get end_time_stamp, then total_duration += end_time_stamp - start_time_stamp, and iteration++.
     // in destructor of PerfCountEnd, output the perf info
     PerfCountBegin& perf_count_start;
-    uint64_t accumulation;
-    uint32_t iteration;
+    // accumulation is time in nanosecond for chrono call, cycle count for rdtsc
+    uint64_t accumulation = 0ul;
+    uint32_t iteration = 0u;
 };
 
 } // namespace op

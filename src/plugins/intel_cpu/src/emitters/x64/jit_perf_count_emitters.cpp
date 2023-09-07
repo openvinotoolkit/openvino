@@ -13,9 +13,13 @@ using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
+// if CHRONO_CALL is defined, use std::chrono::high_resolution_clock as timer, otherwise read tsc as cycle counters
+#define CHRONO_CALL
+
 namespace ov {
 namespace intel_cpu {
 
+#ifdef CHRONO_CALL
 static void get_current_time(std::chrono::high_resolution_clock::time_point* current_time) {
     *current_time = std::chrono::high_resolution_clock::now();
 }
@@ -25,11 +29,16 @@ static void get_accumulated_time(std::chrono::high_resolution_clock::time_point*
     *accumulation += std::chrono::duration_cast<std::chrono::nanoseconds>(current_time - *start_time).count();
     (*num)++;
 }
+#endif
 
 jit_perf_count_start_emitter::jit_perf_count_start_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                                            const std::shared_ptr<ov::Node>& n) : jit_emitter(host, host_isa, n) {
+                                            const std::shared_ptr<ov::Node>& n) : jit_emitter(host, host_isa) {
     auto start_op = ov::as_type_ptr<snippets::op::PerfCountBegin>(n);
+#ifdef CHRONO_CALL
     m_current_time = &(start_op->start_time_stamp);
+#else
+    m_current_count = &(start_op->start_count);
+#endif
 }
 
 size_t jit_perf_count_start_emitter::get_inputs_num() const {
@@ -37,6 +46,7 @@ size_t jit_perf_count_start_emitter::get_inputs_num() const {
 }
 
 void jit_perf_count_start_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
+#ifdef CHRONO_CALL
     internal_call_preamble();
 
     h->push(h->rax);
@@ -53,15 +63,36 @@ void jit_perf_count_start_emitter::emit_impl(const std::vector<size_t> &in_idxs,
     h->pop(h->rax);
 
     internal_call_postamble();
+#else
+    h->push(h->rax);
+    h->push(h->rdx);
+
+    // The EDX register is loaded with the high-order 32 bits of the MSR and the EAX register is loaded with the low-order 32 bits.
+    h->lfence();
+    h->rdtsc();
+    h->lfence();
+    h->shl(h->rdx, 0x20);     // shift to higher half of rdx 0x20(32)
+    h->or_(h->rdx, h->rax);   // rdx has current tsc
+
+    h->mov(h->rax, reinterpret_cast<size_t>(m_current_count));
+    h->mov(qword[h->rax], h->rdx);
+
+    h->pop(h->rdx);
+    h->pop(h->rax);
+#endif
 }
 
 ///////////////////jit_perf_count_end_emitter////////////////////////////////////
 jit_perf_count_end_emitter::jit_perf_count_end_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-    const std::shared_ptr<ov::Node>& n) : jit_emitter(host, host_isa, n) {
+    const std::shared_ptr<ov::Node>& n) : jit_emitter(host, host_isa) {
         auto end_op = ov::as_type_ptr<snippets::op::PerfCountEnd>(n);
         m_accumulation = &(end_op->accumulation);
         m_iteration = &(end_op->iteration);
+#ifdef CHRONO_CALL
         m_start = &(end_op->perf_count_start.start_time_stamp);
+#else
+        m_start_count = &(end_op->perf_count_start.start_count);
+#endif
 }
 
 size_t jit_perf_count_end_emitter::get_inputs_num() const {
@@ -69,6 +100,7 @@ size_t jit_perf_count_end_emitter::get_inputs_num() const {
 }
 
 void jit_perf_count_end_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
+#ifdef CHRONO_CALL
     internal_call_preamble();
 
     h->push(h->rax);
@@ -91,6 +123,34 @@ void jit_perf_count_end_emitter::emit_impl(const std::vector<size_t> &in_idxs, c
     h->pop(h->rax);
 
     internal_call_postamble();
+#else
+    h->push(h->rax);
+    h->push(h->rdx);
+
+    h->lfence();
+    h->rdtsc();
+    h->lfence();
+    h->shl(h->rdx, 0x20);
+    h->or_(h->rdx, h->rax);  // rdx has current tsc
+
+    // tsc duration
+    h->mov(h->rax, reinterpret_cast<size_t>(m_start_count));
+    h->sub(h->rdx, qword[h->rax]);  // rdx has tsc duration
+
+    // m_accumulation = m_accumulation + tsc duration
+    h->mov(h->rax, reinterpret_cast<size_t>(m_accumulation));
+    h->add(h->rdx, qword[h->rax]);
+    h->mov(qword[h->rax], h->rdx);
+
+    // iteration++
+    h->mov(h->rax, reinterpret_cast<size_t>(m_iteration));
+    h->mov(h->rdx, qword[h->rax]);
+    h->add(h->rdx, 0x01);
+    h->mov(qword[h->rax], h->rdx);
+
+    h->pop(h->rdx);
+    h->pop(h->rax);
+#endif
 }
 
 }   // namespace intel_cpu
