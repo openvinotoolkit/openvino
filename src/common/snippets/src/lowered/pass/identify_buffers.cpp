@@ -20,6 +20,12 @@ inline size_t index(size_t col_num, size_t row, size_t col) {
 }
 } // namespace
 
+bool IdentifyBuffers::can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs) {
+    const auto equal_ptr_params_shifting = lhs.ptr_increment == rhs.ptr_increment && lhs.finalization_offset == rhs.finalization_offset;
+    const auto equal_element_type_sizes = lhs.data_size == rhs.data_size;
+    return equal_ptr_params_shifting && (equal_element_type_sizes || (lhs.ptr_increment == 0 && lhs.finalization_offset == 0));
+}
+
 std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linear_ir, const BufferSet& buffers) const {
     // There are several sync points for adjacency check:
     // 1. Loop because only in Loop we increment pointers. So if some Buffers in the one Loop have conflict
@@ -31,9 +37,6 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
     for (size_t i = 0; i < size; ++i)
         adj[index(size, i, i)] = true;
 
-    // < ptr_increment, finalization_offset >
-    using ShiftPtrParams = std::pair<int64_t, int64_t>;
-
     auto get_buffer_idx = [&](const ExpressionPtr& buffer) {
         const auto iter = std::find(buffers.cbegin(), buffers.cend(), buffer);
         NGRAPH_CHECK(iter != buffers.cend(), "Buffer wasn't find in Buffer system of Subgraph");
@@ -42,10 +45,8 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
 
     auto update_adj_matrix = [&](const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
                                  const std::pair<ExpressionPtr, ShiftPtrParams>& rhs) {
-        const auto equal_ptr_params_shifting = lhs.second == rhs.second;
-        const auto equal_element_type_sizes = lhs.first->get_node()->get_element_type().size() == rhs.first->get_node()->get_element_type().size();
         const auto equal_loop_ids = lhs.first->get_loop_ids() == rhs.first->get_loop_ids();
-        if (!equal_loop_ids || !equal_ptr_params_shifting || ((lhs.second.first != 0 || lhs.second.second != 0) && !equal_element_type_sizes)) {
+        if (!equal_loop_ids || !can_reuse_id(lhs.second, rhs.second)) {
             const auto lhs_idx = get_buffer_idx(lhs.first);
             const auto rhs_idx = get_buffer_idx(rhs.first);
             adj[index(size, rhs_idx, lhs_idx)] = adj[index(size, lhs_idx, rhs_idx)] = true;
@@ -102,11 +103,12 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
             const auto& parent_output = expr->get_input_port_connector(i)->get_source().get_expr();
             if (ov::is_type<op::Buffer>(parent_output->get_node())) {
                 if (buffer_neighbours.count(parent_output) > 0) {
-                    OPENVINO_ASSERT(buffer_neighbours[parent_output] == std::make_pair(ptr_increments[i], finalization_offsets[i]),
+                    OPENVINO_ASSERT(buffer_neighbours[parent_output].ptr_increment == ptr_increments[i] &&
+                                    buffer_neighbours[parent_output].finalization_offset == finalization_offsets[i],
                                     "Invalid data pointer shifts: If Buffer has several consumers, this consumers must have the same shifts or zero");
                     continue;
                 }
-                buffer_neighbours[parent_output] = { ptr_increments[i], finalization_offsets[i] };
+                buffer_neighbours[parent_output] = { parent_output->get_node()->get_element_type().size(), ptr_increments[i], finalization_offsets[i] };
             }
         }
         for (size_t i = 0; i < output_count; ++i) {
@@ -118,7 +120,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
             for (const auto& consumer_input : consumer_inputs) {
                 const auto& child_expr = consumer_input.get_expr();
                 if (ov::is_type<op::Buffer>(child_expr->get_node())) {
-                    buffer_neighbours[child_expr] = { ptr_increments[index], finalization_offsets[index] };
+                    buffer_neighbours[child_expr] = { child_expr->get_node()->get_element_type().size(), ptr_increments[index], finalization_offsets[index] };
                 } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
                     loop_count++;
                 }

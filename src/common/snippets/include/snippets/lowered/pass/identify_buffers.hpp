@@ -35,6 +35,19 @@ public:
 
     bool run(LinearIR& linear_ir) override;
 
+    // < data_size, ptr_increment, finalization_offset >
+    struct ShiftPtrParams {
+        ShiftPtrParams() = default;
+        ShiftPtrParams(size_t ds, int64_t pi, int64_t fo)
+            : data_size(std::move(ds)), ptr_increment(std::move(pi)), finalization_offset(std::move(fo)) {}
+
+        size_t data_size;
+        int64_t ptr_increment;
+        int64_t finalization_offset;
+    };
+
+    static bool can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);
+
 private:
     using BufferSet = std::vector<ExpressionPtr>;
 
