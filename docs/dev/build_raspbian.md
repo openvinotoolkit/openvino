@@ -35,6 +35,7 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
         -DARM_COMPUTE_SCONS_JOBS=$(nproc --all) \
   .. && cmake --build . --parallel 
   ```
+
 ## Additional Build Options
 
 - To build Python API, install `libpython3-dev:armhf` and `python3-pip`
