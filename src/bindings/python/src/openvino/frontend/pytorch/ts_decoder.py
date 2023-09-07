@@ -12,7 +12,6 @@ from openvino.runtime import opset11 as ops
 
 import typing
 import torch
-import numpy as np
 
 
 class TorchScriptPythonDecoder (Decoder):
@@ -34,9 +33,9 @@ class TorchScriptPythonDecoder (Decoder):
                     "conversion without 'example_input'."
                 else:
                     msg = "scripting"
-                    help_msg = "\nTracing sometimes provide better results, please provide valid 'example_input' argument. "
+                    help_msg = "\nTracing sometimes provide better results, please provide valid 'example_input' argument."
                 raise RuntimeError(
-                    f"Couldn't get TorchScript module by {msg}. With exception:\n{e}\n {help_msg}"
+                    f"Couldn't get TorchScript module by {msg}. With exception:\n{e}\n{help_msg} "
                     "You can also provide TorchScript module that you obtained"
                     " yourself, please refer to PyTorch documentation: "
                     "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html.")
