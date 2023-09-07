@@ -160,24 +160,21 @@ class PytorchLayerTest:
     def _prepare_input(self):
         raise RuntimeError("Please provide inputs generation function")
 
-    def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs):
-        import torch
+    def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
         from openvino.tools.ovc import convert_model
-        kwargs = {"example_input": example_input if len(
-            example_input) > 1 else example_input[0], "compress_to_fp16": False}
-        with torch.no_grad():
-            if trace_model:
-                model = torch.jit.trace(model, example_input)
-            else:
-                model = torch.jit.script(model)
-            model = torch.jit.freeze(model)
-            print(model)
-            if not dynamic_shapes:
-                input_shapes = [inp.shape for inp in ov_inputs]
-                kwargs["input_shape"] = input_shapes
-            om = convert_model(model, **kwargs)
+        kwargs = {"example_input": example_input if len(example_input) > 1 else example_input[0]}
+        if trace_model:
+            decoder = TorchScriptPythonDecoder(model, example_input=example_input, skip_freeze=not freeze_model)
+        else:
+            decoder = TorchScriptPythonDecoder(model, skip_freeze=not freeze_model)
+        smodel = decoder.pt_module
+        print(smodel.inlined_graph)
+        if not dynamic_shapes:
+            input_shapes = [inp.shape for inp in ov_inputs]
+            kwargs["input"] = input_shapes
+        om = convert_model(decoder, **kwargs)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
-        return model, om
+        return smodel, om
 
     def convert_directly_via_frontend(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
         fe_manager = FrontEndManager()
@@ -187,12 +184,12 @@ class PytorchLayerTest:
             decoder = TorchScriptPythonDecoder(model, example_input=example_input, skip_freeze=not freeze_model)
         else:
             decoder = TorchScriptPythonDecoder(model, skip_freeze=not freeze_model)
-        model = decoder.pt_module
-        print(model.inlined_graph)
+        smodel = decoder.pt_module
+        print(smodel.inlined_graph)
         im = fe.load(decoder)
         om = fe.convert(im)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
-        return model, om
+        return smodel, om
 
     def _resolve_input_shape_dtype(self, om, ov_inputs, dynamic_shapes):
         params = list(om.inputs)
