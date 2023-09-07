@@ -580,11 +580,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, optimize_data);
 
-    if (!is_internal) {
-        // ToDo remove hidden dependencies from propagate_constants pass
-        apply_opt_pass<propagate_constants>();
-    }
-
     // try to fuse buffers (i.e. depth_concat in bfyx format) after padding calculations
     if (optimize_data) {
         apply_opt_pass<prepare_buffer_fusing>();
@@ -592,6 +587,10 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
+
+    // Modify fused post operation to resolve overflow of fp16 output by adding clamp activation
+    // Currently, 'gemm-softmax' case is applied for clamping
+    apply_opt_pass<clamp_fp16_output>();
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();

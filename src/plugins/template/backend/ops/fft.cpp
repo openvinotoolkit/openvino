@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/fft.hpp"
+#include "openvino/reference/fft.hpp"
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
@@ -28,9 +28,8 @@ InfoForFFT7 get_info_for_fft7_eval(const std::vector<std::shared_ptr<ngraph::Hos
 
     int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
     int64_t complex_data_rank = input_rank - 1;
-    auto canonicalized_axes = ngraph::runtime::reference::canonicalize_axes(result.axes_data.data(),
-                                                                            result.axes_data_shape,
-                                                                            complex_data_rank);
+    auto canonicalized_axes =
+        ov::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, complex_data_rank);
 
     size_t num_of_axes = result.axes_data.size();
     auto signal_size = get_signal_size(inputs, num_of_axes);
@@ -57,16 +56,16 @@ bool evaluate(const std::shared_ptr<ngraph::op::v7::DFT>& op,
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> fft_result(ngraph::shape_size(info.output_shape), 0.0f);
-    ngraph::runtime::reference::fft(info.input_data.data(),
-                                    info.input_data_shape,
-                                    info.axes_data.data(),
-                                    info.axes_data_shape,
-                                    fft_result.data(),
-                                    info.output_shape,
-                                    ngraph::runtime::reference::FFTKind::Forward);
+    ov::reference::fft(info.input_data.data(),
+                       info.input_data_shape,
+                       info.axes_data.data(),
+                       info.axes_data_shape,
+                       fft_result.data(),
+                       info.output_shape,
+                       ov::reference::FFTKind::Forward);
 
     const auto output_type = op->get_input_element_type(0);
-    ngraph::runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
+    ov::reference::fft_postprocessing(outputs, output_type, fft_result);
     return true;
 }
 
@@ -78,16 +77,16 @@ bool evaluate(const std::shared_ptr<ngraph::op::v7::IDFT>& op,
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> fft_result(ngraph::shape_size(info.output_shape), 0.0f);
-    ngraph::runtime::reference::fft(info.input_data.data(),
-                                    info.input_data_shape,
-                                    info.axes_data.data(),
-                                    info.axes_data_shape,
-                                    fft_result.data(),
-                                    info.output_shape,
-                                    ngraph::runtime::reference::FFTKind::Inverse);
+    ov::reference::fft(info.input_data.data(),
+                       info.input_data_shape,
+                       info.axes_data.data(),
+                       info.axes_data_shape,
+                       fft_result.data(),
+                       info.output_shape,
+                       ov::reference::FFTKind::Inverse);
 
     const auto output_type = op->get_input_element_type(0);
-    ngraph::runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
+    ov::reference::fft_postprocessing(outputs, output_type, fft_result);
     return true;
 }
 

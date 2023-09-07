@@ -10,7 +10,7 @@
 #include <numeric>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 
 namespace handle_transpose_before_matmul {

@@ -97,7 +97,7 @@ ngraph::pass::low_precision::LowPrecision::LowPrecision(
 using namespace ngraph::pass::low_precision;
 
 template <typename BaseOp>
-void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
+void make_matcher_type_relaxed(ov::pass::GraphRewrite* transformation) {
     MATCHER_SCOPE(TypeRelaxedReplacer);
     using namespace ngraph;
 
@@ -187,7 +187,7 @@ MarkupOptimizations::MarkupOptimizations(
 
 bool ngraph::pass::low_precision::MarkupOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupOptimizations);
-    ngraph::pass::Manager markup(get_pass_config());
+    ov::pass::Manager markup(get_pass_config());
     markup.set_per_pass_validation(false);
     markup.register_pass<low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
     if (!precisionRestrictions.empty()) {
@@ -214,9 +214,9 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
     auto passConfig = get_pass_config();
-    ngraph::pass::Manager manager(passConfig);
+    ov::pass::Manager manager(passConfig);
 
-    auto prerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto prerequisites = manager.register_pass<ov::pass::GraphRewrite>();
     const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
     ADD_MATCHER(prerequisites, PullReshapeThroughDequantization, supportedTypes)
     ADD_MATCHER(prerequisites, PullTransposeThroughDequantization, supportedTypes)
@@ -232,7 +232,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
                                                                             quantizationRestrictions,
                                                                             attributeParams);
 
-    std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
+    std::shared_ptr<ov::pass::GraphRewrite> common = manager.register_pass<ov::pass::GraphRewrite>();
 
     ADD_MATCHER(common, AddTransformation, params)
     ADD_MATCHER(common, AssignAndReadValueTransformation, f, params)
@@ -269,7 +269,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     ADD_MATCHER(common, UnsqueezeTransformation, params)
     ADD_MATCHER(common, VariadicSplitTransformation, params)
 
-    std::shared_ptr<ngraph::pass::GraphRewrite> cleanup = manager.register_pass<ngraph::pass::GraphRewrite>();
+    std::shared_ptr<ov::pass::GraphRewrite> cleanup = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(cleanup, EliminateFakeQuantizeTransformation, params)
     ADD_MATCHER(cleanup, FoldConvertTransformation, params)
     ADD_MATCHER(cleanup, FuseConvertTransformation, params)
