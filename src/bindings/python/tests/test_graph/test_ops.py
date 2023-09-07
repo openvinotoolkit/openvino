@@ -117,9 +117,13 @@ def test_broadcast():
 @pytest.mark.parametrize("node", [
     Constant(Type.f32, Shape([3, 3]), list(range(9))),
     ov.constant(np.arange(9).reshape(3, 3), Type.f32),
-    ov.constant(np.arange(9).reshape(3, 3), np.float32)
+    ov.constant(np.arange(9).reshape(3, 3), np.float32),
+    None
 ])
 def test_constant(node):
+    if node is None:
+        with pytest.raises(ValueError):
+            ov.constant(None)
     assert node.get_type_name() == "Constant"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 3]
