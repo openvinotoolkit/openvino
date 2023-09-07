@@ -319,10 +319,12 @@ void Graph::Replicate(const CNNNetwork &network) {
     for (auto &input : inputNodesMap) {
         const auto& inputNode = input.second;
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
+        DEBUG_LOG("precToSet", precToSet);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
             const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
+            DEBUG_LOG("child_prec", child_prec);
             if (!one_of(child_prec, Precision::BF16, Precision::FP16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child)) {
@@ -1716,7 +1718,7 @@ void Graph::EnforceInferencePrecision() {
 
     if (inferPrec == Precision::FP32)
         return; // nothing to do, only precision reduction is currently allowed
-
+    DEBUG_LOG("====================");
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {

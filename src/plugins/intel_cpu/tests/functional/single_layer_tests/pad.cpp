@@ -3,6 +3,7 @@
 //
 
 #include <shared_test_classes/single_layer/pad.hpp>
+#include "openvino/runtime/system_conf.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -96,18 +97,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        if (dataType == ElementType::i8) {
-            selectedType = makeSelectedTypeStr("ref", ElementType::i8);
-        } else if (dataType == ElementType::bf16) {
-            selectedType = makeSelectedTypeStr("ref", ElementType::bf16);
-        } else if (dataType == ElementType::f16) {
-            selectedType = makeSelectedTypeStr("ref", ElementType::f16);
-        } else if (additionalConfig.count(ov::hint::inference_precision.name()) &&
-                additionalConfig[ov::hint::inference_precision.name()] == "f16") {
-            selectedType = makeSelectedTypeStr("ref", ElementType::f16);
-        } else {
-            selectedType = makeSelectedTypeStr("ref", dataType);
-        }
+        selectedType = makeSelectedTypeStr("ref", get_default_imp_precision_type(dataType));
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
         for (auto& targetShapes : targetStaticShapes) {

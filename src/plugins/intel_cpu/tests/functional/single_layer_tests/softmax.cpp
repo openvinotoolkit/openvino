@@ -77,18 +77,7 @@ protected:
             rel_threshold = 2e-2f;
         }
 
-        if (inType == ElementType::i8) {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::i8);
-        } else if (inType == ElementType::bf16) {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
-        } else if (inType == ElementType::f16) {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::f16);
-        } else if (additionalConfig.count(ov::hint::inference_precision.name()) &&
-                additionalConfig[ov::hint::inference_precision.name()] == "f16") {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::f16);
-        } else {
-            selectedType = makeSelectedTypeStr(selectedType, inType);
-        }
+        selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(inType));
 
         init_input_shapes({config.inputShape});
         ov::ParameterVector params;

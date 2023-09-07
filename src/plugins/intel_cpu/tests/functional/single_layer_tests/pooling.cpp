@@ -115,11 +115,8 @@ protected:
         }
         if (isInt8) {
             selectedType = selectedType + "_I8";
-        } else if (additionalConfig.count(ov::hint::inference_precision.name()) &&
-                additionalConfig[ov::hint::inference_precision.name()] == "f16") {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::f16);
         } else {
-            selectedType = makeSelectedTypeStr(selectedType, inPrc);
+            selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(inPrc));
         }
 
         init_input_shapes({inputShapes});
@@ -218,20 +215,8 @@ protected:
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        if (inPrc == ElementType::i8) {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::i8);
-        } else if (inPrc == ElementType::bf16) {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
-        } else if (inPrc == ElementType::f16) {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::f16);
-        } else if (additionalConfig.count(ov::hint::inference_precision.name()) &&
-                additionalConfig[ov::hint::inference_precision.name()] == "f16") {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::f16);
-        } else {
-            selectedType = makeSelectedTypeStr(selectedType, inPrc);
-        }
 
-
+        selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(inPrc));
 
         init_input_shapes({inputShapes});
 
