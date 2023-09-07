@@ -1028,7 +1028,6 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         N = weightDims[0];
         if (weightMemPtr->getSize() >= (16 * 1 << 20))
             retVal = false;
-
         if (!(widthInConv >= 2 && widthInConv <= 3136 &&
               K >= 96 && K <= 4096 &&
               N >= 96 && N <= K * 4))
