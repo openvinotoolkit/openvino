@@ -36,7 +36,7 @@ jobs:
     container:
       # image: openvino.azurecr.io/openvino_ci/ubuntu2004:python_311
       # image: ubuntu:22.04
-      image: openvino.azurecr.io/dockerhub/ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -300,7 +300,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: openvino.azurecr.io/dockerhub/ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -505,7 +505,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: openvino.azurecr.io/dockerhub/ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
       options: -u 1771:1771
@@ -796,7 +796,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: openvino.azurecr.io/dockerhub/ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
