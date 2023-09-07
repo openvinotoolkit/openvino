@@ -1080,6 +1080,20 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 INSTANTIATE_TEST_SUITE_P(
+    smoke_fully_connected_gpu_bs_f_bsv16_af8_vload,
+    fully_connected_random_test_f16,
+    ::testing::Combine(
+        ::testing::Values(16),
+        ::testing::Values(shared_dims{3, 1, 1},
+                          shared_dims{17, 1, 1}),
+        ::testing::Values(3, 32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values("fully_connected_gpu_bs_f_bsv16_af8_vload"),
+        ::testing::Values(false))
+);
+
+INSTANTIATE_TEST_SUITE_P(
     smoke,
     fully_connected_random_test_f16,
     ::testing::Combine(
