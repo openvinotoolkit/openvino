@@ -235,14 +235,15 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     ov::AnyMap properties;
     auto heteroConfigsNode = heteroNode.child("hetero_config");
-    FOREACH_CHILD (heteroConfigNode, heteroConfigsNode, "config") {
+    // clang-format off
+    FOREACH_CHILD(heteroConfigNode, heteroConfigsNode, "config") {
         properties.emplace(GetStrAttr(heteroConfigNode, "key"), GetStrAttr(heteroConfigNode, "value"));
     }
 
     m_cfg = ov::hetero::Configuration(properties, m_cfg);
 
     pugi::xml_node subnetworksNode = heteroNode.child("compiled_submodels");
-    FOREACH_CHILD (subnetworkNode, subnetworksNode, "compiled_submodel") {
+    FOREACH_CHILD(subnetworkNode, subnetworksNode, "compiled_submodel") {
         auto device = GetStrAttr(subnetworkNode, "device");
 
         auto meta_devices = get_hetero_plugin()->get_properties_per_device(device, m_cfg.get_device_properties());
@@ -282,23 +283,24 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     }
 
     auto inputs_map_node = heteroNode.child("inputs_to_submodels_inputs");
-    FOREACH_CHILD (xml_node, inputs_map_node, "pair") {
+    FOREACH_CHILD(xml_node, inputs_map_node, "pair") {
         m_inputs_to_submodels_inputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
                                                   GetUInt64Attr(xml_node, "node_idx"));
     }
     auto outputs_map_node = heteroNode.child("outputs_to_submodels_outputs");
-    FOREACH_CHILD (xml_node, outputs_map_node, "pair") {
+    FOREACH_CHILD(xml_node, outputs_map_node, "pair") {
         m_outputs_to_submodels_outputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
                                                     GetUInt64Attr(xml_node, "node_idx"));
     }
     auto submodels_input_to_prev_output_node = heteroNode.child("submodels_input_to_prev_output");
-    FOREACH_CHILD (xml_node, submodels_input_to_prev_output_node, "record") {
+    FOREACH_CHILD(xml_node, submodels_input_to_prev_output_node, "record") {
         std::pair<uint64_t, uint64_t> in_pair = {GetUInt64Attr(xml_node, "in_submodel_idx"),
                                                  GetUInt64Attr(xml_node, "in_node_idx")};
         std::pair<uint64_t, uint64_t> out_pair = {GetUInt64Attr(xml_node, "out_submodel_idx"),
                                                   GetUInt64Attr(xml_node, "out_node_idx")};
         m_submodels_input_to_prev_output.emplace(in_pair, out_pair);
     }
+    // clang-format on
     set_inputs_and_outputs();
 }
 
