@@ -100,6 +100,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          su - ${{ env.TEST_USER_NAME }}
           whoami
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           apt update
@@ -600,7 +601,6 @@ jobs:
           export USER_GID=$USER_UID
           groupadd --gid $USER_GID ${{ env.TEST_USER_NAME }}
           useradd --uid $USER_UID --gid $USER_GID -m ${{ env.TEST_USER_NAME }}
-          su - ${{ env.TEST_USER_NAME }}
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -660,7 +660,8 @@ jobs:
 
       - name: Model Optimizer UT
         run: |
-
+          su - ${{ env.TEST_USER_NAME }}
+          whoami
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:${INSTALL_DIR}/python/python3.11:$PYTHONPATH
 
           # TODO: figure out why they need to be reinstalled
