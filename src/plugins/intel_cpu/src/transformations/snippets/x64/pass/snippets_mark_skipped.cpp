@@ -7,6 +7,7 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
+#include <transformations/utils/utils.hpp>
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
 
@@ -253,7 +254,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     ov::PartialShape matmul_shape;
     for (const auto &parent_out : node->input_values()) {
         const auto parent = parent_out.get_node_shared_ptr();
-        if (ov::is_type<ov::op::v0::Constant>(parent) || ov::is_type<ov::op::v0::Convert>(parent)) {
+        if (ov::op::util::is_on_constant_path(parent_out)) {
             bias_shape = parent_out.get_shape();
             num_non_const_inputs++;
         } else {
@@ -264,8 +265,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
             // first check that weights are constant and both activations and weights have static shape
             if (grandparents.size() == 2 &&
                 grandparents[1].get_partial_shape().is_static() &&
-                (ov::is_type<ov::op::v0::Constant>(grandparents[1].get_node_shared_ptr())
-                    || ov::is_type<ov::op::v0::Convert>(grandparents[1].get_node_shared_ptr()))) {
+                (ov::op::util::is_on_constant_path(grandparents[1]))) {
                 auto rank_a = grandparents[0].get_partial_shape().rank().get_length();
                 auto rank_w = grandparents[1].get_partial_shape().rank().get_length();
                 if (rank_a != 1 && rank_w != 1 && rank_a <= 3 && rank_w <= 3)
@@ -396,6 +396,11 @@ bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &no
 bool isSuitableReduceChild(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
     return node->get_output_element_type(0) == ov::element::f32 && isSuitableChildForFusingSimple(node, channelAxis);
 }
+bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
+    return ov::is_type<ov::opset1::MatMul>(node) &&
+           !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
+           ov::op::util::is_on_constant_path(node->input_value(1));
+}
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
 void PropagateIfHasOnlyChild(const std::shared_ptr<Node> &node, NodeFusingType nodeType) {
@@ -464,6 +469,15 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (auto &node : m->get_ordered_ops()) {
         if (is_skipped_op(node))
             continue;
+        // We perform this check separately because we mark here only weights path
+        // Matmul itself will be checked further
+        if (isSuitableMatMulWithConstantPath(node)) {
+            auto markup_func = [](Node* node) {
+                SetSnippetsNodeType(node->shared_from_this(), snippets::pass::SnippetsNodeType::SkippedByPlugin);
+            };
+            std::unordered_set<Node*> visited;
+            ov::op::util::visit_shape_path(node->get_input_node_ptr(1), visited, markup_func);
+        }
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);

@@ -2,13 +2,30 @@ Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware
 ==============================================================================
 
 
+
+|image0|
+
+.. _top:
+
+**Table of contents**:
+
+- `Showing Info Available Devices <#showing-info-available-devices>`__
+- `Using full precision model in CPU with StableDiffusionPipeline <#using-full-precision-model-in-cpu-with-stablediffusionpipeline>`__
+- `Using full precision model in CPU with OVStableDiffusionPipeline <#using-full-precision-model-in-cpu-with-ovstablediffusionpipeline>`__
+- `Using full precision model in dGPU with OVStableDiffusionPipeline <#using-full-precision-model-in-dgpu-with-ovstablediffusionpipeline>`__
+
+.. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
+
 Optimum Intel is the interface between the Transformers and Diffusers
 libraries and the different tools and libraries provided by Intel to
 accelerate end-to-end pipelines on Intel architectures. More details in
 this
 `repository <https://github.com/huggingface/optimum-intel#openvino>`__.
 
-``Note: We suggest you to create a different environment and run the following installation command there.``
+.. note::
+
+    We suggest you to create a different environment and run the following installation command there.
+
 
 .. code:: ipython3
 
@@ -19,8 +36,9 @@ this
     import warnings
     warnings.filterwarnings('ignore')
 
-Showing Info Available Devices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Showing Info Available Devices `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -30,11 +48,14 @@ you have integrated GPU (iGPU) and discrete GPU (dGPU), it will show
 If you just have either an iGPU or dGPU that will be assigned to
 ``"GPU"``
 
-Note: For more details about GPU with OpenVINO visit this
-`link <https://docs.openvino.ai/nightly/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__.
-If you have been facing any issue in Ubuntu 20.04 or Windows 11 read
-this
-`blog <https://blog.openvino.ai/blog-posts/install-gpu-drivers-windows-ubuntu>`__.
+.. note::
+
+   For more details about GPU with OpenVINO visit this
+   `link <https://docs.openvino.ai/nightly/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__.
+   If you have been facing any issue in Ubuntu 20.04 or Windows 11 read
+   this
+   `blog <https://blog.openvino.ai/blog-posts/install-gpu-drivers-windows-ubuntu>`__.
+
 
 .. code:: ipython3
 
@@ -54,8 +75,8 @@ this
     GPU: Intel(R) Data Center GPU Flex 170 (dGPU)
 
 
-Using full precision model in CPU with StableDiffusionPipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using full precision model in CPU with ``StableDiffusionPipeline``. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -106,8 +127,9 @@ Using full precision model in CPU with StableDiffusionPipeline
 
 
 
-Using full precision model in CPU with OVStableDiffusionPipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using full precision model in CPU with ``OVStableDiffusionPipeline``. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -195,8 +217,9 @@ Using full precision model in CPU with OVStableDiffusionPipeline
 
 
 
-Using full precision model in dGPU with OVStableDiffusionPipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using full precision model in dGPU with ``OVStableDiffusionPipeline``. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The model in this notebook is FP32 precision. And thanks to the new
 feature of OpenVINO 2023.0 you do not need to convert the model to FP16

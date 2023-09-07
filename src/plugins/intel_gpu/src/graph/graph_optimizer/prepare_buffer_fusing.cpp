@@ -12,6 +12,7 @@
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
+#include "strided_slice_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "border_inst.h"
@@ -58,7 +59,8 @@ auto available_pred = [](const program_node& input) {
     if (!input.is_type<pooling>() && !input.is_type<convolution>() && !input.is_type<quantize>() &&
         !input.is_type<activation>() && !input.is_type<deconvolution>() && !input.is_type<concatenation>() &&
         !input.is_type<crop>() && !input.is_type<eltwise>() && !input.is_type<resample>() &&
-        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()))
+        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()) &&
+        !input.is_type<strided_slice>())
         return false;
     return true;
 };
@@ -115,7 +117,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
-        if (pred.first->is_dynamic() && is_runtime) {
+        if (!pred.first->is_dynamic() || is_runtime) {
             if (!pred.first->is_padding_supported(concat_axis, lower_padd_in_axis))
                 return false;
         }
@@ -475,6 +477,10 @@ void prepare_buffer_fusing::run(program& p) {
                 if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
                     return;
             }
+
+            // do not optimize crop, that must be calculated in propagate_constants
+            if (node.is_constant())
+                return;
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
                 if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {

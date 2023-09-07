@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "eye_shape_inference.hpp"
-#include "gtest/gtest.h"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset10.hpp"
 
@@ -355,6 +356,7 @@ TEST_F(TypePropEyeV9Test, default_ctor) {
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
     auto op = make_op();
     op->set_out_type(element::i32);

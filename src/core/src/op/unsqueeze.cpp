@@ -11,7 +11,8 @@
 #include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/copy.hpp"
+#include "ngraph/validation_util.hpp"
+#include "openvino/reference/copy.hpp"
 #include "unsqueeze_shape_inference.hpp"
 
 using namespace std;
@@ -45,6 +46,7 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace op {
 namespace unsqueeze {
@@ -53,7 +55,7 @@ struct Evaluate : element::NoAction<bool> {
 
     template <element::Type_t ET>
     static result_type visit(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-        ngraph::runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        ov::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
 };

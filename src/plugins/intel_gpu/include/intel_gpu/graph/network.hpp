@@ -70,7 +70,7 @@ public:
         using Ptr = std::shared_ptr<VariableState>;
 
         VariableState(cldnn::memory_ptr mem = nullptr) :
-            memory { mem }, is_set { false } {
+            memory { std::move(mem) }, is_set { false } {
         }
         void set_memory(cldnn::memory_ptr new_mem) {
             memory = new_mem;
@@ -248,6 +248,10 @@ public:
     const ExecutionConfig& get_config() const { return _config; }
 
     ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
+
+#ifdef GPU_DEBUG_CONFIG
+    int64_t get_current_iteration_num() { return iteration; }
+#endif
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;

@@ -13,14 +13,15 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/reference/topk.hpp"
 
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace topk {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
@@ -41,15 +42,15 @@ inline bool evaluate_execute(const HostTensorPtr& arg0,
     out_values->set_shape(out_shape);
     out_values->set_element_type(arg0->get_element_type());
 
-    runtime::reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
-                                   out_indices->get_data_ptr<INDEX_ET>(),
-                                   out_values->get_data_ptr<INPUT_ET>(),
-                                   in_shape,
-                                   out_shape,
-                                   axis,
-                                   k,
-                                   compute_max,
-                                   sort);
+    ov::reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
+                              out_indices->get_data_ptr<INDEX_ET>(),
+                              out_values->get_data_ptr<INPUT_ET>(),
+                              in_shape,
+                              out_shape,
+                              axis,
+                              k,
+                              compute_max,
+                              sort);
     return true;
 }
 

@@ -129,7 +129,7 @@ protected:
         Shape maxpoolShape{maxpoolPool};
         Strides maxpoolStrides{maxpoolStride};
 
-        auto input = builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto transposeInOrder = opset7::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());

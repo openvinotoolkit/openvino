@@ -18,6 +18,9 @@ public:
      * @return      Tensor to data at port.
      */
     virtual Tensor operator()(size_t port) const = 0;
+
+protected:
+    ~ITensorAccessor() = default;
 };
 
 /**

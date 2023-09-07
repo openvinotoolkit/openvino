@@ -20,7 +20,7 @@
 
 Following these steps, you can implement a typical OpenVINO™ Runtime inference 
 pipeline in your application. Before proceeding, make sure you have 
-:doc:`installed OpenVINO Runtime <openvino_docs_install_guides_install_runtime>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux or ``setupvars.bat`` for Windows, otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
+:doc:`installed OpenVINO Runtime <openvino_docs_install_guides_overview>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux or ``setupvars.bat`` for Windows, otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
 
 
 .. image:: _static/images/IMPLEMENT_PIPELINE_with_API_C.svg
@@ -437,9 +437,9 @@ To build your project using CMake with the default build tools currently availab
 Additional Resources
 ####################
 
-* See the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/2023.0/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
+* See the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/2023.1/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
 * :doc:`OpenVINO™ Runtime Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>`
 * :doc:`Using Encrypted Models with OpenVINO <openvino_docs_OV_UG_protecting_model_guide>`
-* `Open Model Zoo Demos <https://docs.openvino.ai/2023.0/omz_demos.html>`__
+* `Open Model Zoo Demos <https://docs.openvino.ai/2023.1/omz_demos.html>`__
 
 @endsphinxdirective

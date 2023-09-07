@@ -9,8 +9,8 @@
 #include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/reference/sigmoid.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -25,12 +25,13 @@ ov::op::v0::Sigmoid::Sigmoid(const Output<Node>& arg) : UnaryElementwiseArithmet
     constructor_validate_and_infer_types();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace sigmoid {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::sigmoid<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::sigmoid<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 

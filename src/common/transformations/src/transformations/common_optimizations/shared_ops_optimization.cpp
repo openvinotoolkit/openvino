@@ -2,30 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/gather_elements.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/slice.hpp>
-#include <openvino/op/tile.hpp>
-#include <openvino/op/util/sub_graph_base.hpp>
-#include <transformations/common_optimizations/shared_ops_optimization.hpp>
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 
 using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-bool shared_node_optimization(const shared_ptr<Model>& model,
-                              const unordered_map<Node::type_info_t, bool (*)(const Node*, const Node*)>& rules) {
+namespace {
+using rules_t = unordered_map<Node::type_info_t, bool (*)(const Node*, const Node*)>;
+
+bool shared_node_optimization(const shared_ptr<Model>& model, const rules_t& rules) {
     bool rewritten = false;
 
     for (const auto& op : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
         if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
-            for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); i++) {
-                if (auto sub_graph = multi_subgraph_op->get_function(i))
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                if (sub_graph)
                     rewritten |= shared_node_optimization(sub_graph, rules);
             }
         }
@@ -34,17 +41,15 @@ bool shared_node_optimization(const shared_ptr<Model>& model,
             if (target_inputs.size() <= 1)
                 continue;  // nothing to optimize
             unordered_map<Node::type_info_t, vector<Node*>> type_to_node;
-            for (const auto& input : target_inputs) {
-                auto node = input.get_node();
-                if (node && rules.count(node->get_type_info()))
-                    type_to_node[node->get_type_info()].push_back(node);
-            }
+            for (const auto& input : target_inputs)
+                if (auto node = input.get_node())
+                    if (rules.count(node->get_type_info()))
+                        type_to_node[node->get_type_info()].push_back(node);
             for (auto& item : type_to_node) {
-                const auto& shared_nodes = item.second;
+                auto& shared_nodes = item.second;
                 if (shared_nodes.size() < 2)
                     continue;
-                const auto& ops_type = item.first;
-                const auto& are_equal = rules.at(ops_type);
+                const auto& are_equal = rules.at(item.first);
 
                 std::vector<bool> visited_nodes(shared_nodes.size(), false);
                 for (size_t i = 0; i < visited_nodes.size(); ++i) {
@@ -70,6 +75,8 @@ bool shared_node_optimization(const shared_ptr<Model>& model,
 
 bool inputs_from_same_source_or_equal_constants(const Node* lhs, const Node* rhs) {
     if (lhs->get_input_size() != rhs->get_input_size())
+        return false;
+    if (lhs->get_type_info() != rhs->get_type_info())
         return false;
     size_t input_size = lhs->get_input_size();
     for (size_t i = 0; i < input_size; ++i) {
@@ -122,21 +129,86 @@ bool reshapes_are_equal(const Node* lhs, const Node* rhs) {
            inputs_from_same_source_or_equal_constants(lhs, rhs);
 }
 
+bool shapeof_are_equal(const Node* lhs, const Node* rhs) {
+    auto lhs_output_et = element::i64, rhs_output_et = element::i64;
+    if (const auto shape = as_type<const v3::ShapeOf>(lhs)) {
+        lhs_output_et = shape->get_output_type();
+    } else if (!as_type<const v0::ShapeOf>(lhs)) {
+        return false;
+    }
+    if (const auto shape = as_type<const v3::ShapeOf>(rhs)) {
+        rhs_output_et = shape->get_output_type();
+    } else if (!as_type<const v0::ShapeOf>(rhs)) {
+        return false;
+    }
+    return lhs_output_et == rhs_output_et && inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
+bool gathers_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_gather = as_type<const op::util::GatherBase>(lhs);
+    const auto r_gather = as_type<const op::util::GatherBase>(rhs);
+    if (!l_gather || !r_gather)
+        return false;
+    return l_gather->get_batch_dims() == r_gather->get_batch_dims() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
+bool converts_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_convert = as_type<const v0::Convert>(lhs);
+    const auto r_convert = as_type<const v0::Convert>(rhs);
+    if (!l_convert || !r_convert)
+        return false;
+    return l_convert->get_destination_type() == r_convert->get_destination_type() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
+bool shape_of_upgrade(const shared_ptr<Model>& model) {
+    bool rewritten = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                if (sub_graph)
+                    rewritten |= shape_of_upgrade(sub_graph);
+            }
+        } else if (auto v1_shape_of = ov::as_type_ptr<v0::ShapeOf>(op)) {
+            auto v3_shape_of = std::make_shared<v3::ShapeOf>(v1_shape_of->input_value(0), element::i64);
+            v3_shape_of->set_friendly_name(v1_shape_of->get_friendly_name());
+            ov::replace_output_update_name(v1_shape_of, v3_shape_of);
+            rewritten = true;
+        }
+    }
+    return rewritten;
+}
+
+}  // namespace
 bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedOpOptimization);
+#define RECORD_NO_ATTRIBUTES(operation) \
+    { operation::get_type_info_static(), inputs_from_same_source_or_equal_constants }
 #define RECORD(operation, func) \
     { operation::get_type_info_static(), func }
 
-    const unordered_map<Node::type_info_t, bool (*)(const Node*, const Node*)> rules = {
+    const rules_t rules = {
         // no attributes
-        RECORD(v8::Slice, inputs_from_same_source_or_equal_constants),
-        RECORD(v0::Tile, inputs_from_same_source_or_equal_constants),
+        RECORD_NO_ATTRIBUTES(v8::Slice),
+        RECORD_NO_ATTRIBUTES(v0::Squeeze),
+        RECORD_NO_ATTRIBUTES(v0::Tile),
+        RECORD_NO_ATTRIBUTES(v0::Unsqueeze),
 
         // with attributes
         RECORD(v0::Concat, concats_are_equal),
+        RECORD(v0::Convert, converts_are_equal),
+        RECORD(v1::Gather, gathers_are_equal),
+        RECORD(v7::Gather, gathers_are_equal),
+        RECORD(v8::Gather, gathers_are_equal),
         RECORD(v6::GatherElements, gather_elements_are_equal),
         RECORD(v1::Reshape, reshapes_are_equal),
-
+        RECORD(v0::ShapeOf, shapeof_are_equal),
+        RECORD(v3::ShapeOf, shapeof_are_equal),
     };  // TODO: use visit_attributes to uniformly perform attributes check in the future and get rid of rules table
-    return shared_node_optimization(model, rules);
+
+    bool rewritten = shape_of_upgrade(model);
+    rewritten |= shared_node_optimization(model, rules);
+    return rewritten;
 }

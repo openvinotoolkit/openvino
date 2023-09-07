@@ -39,9 +39,9 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph_reference
-                                             ngraph_builders
-                                             ov_shape_inference
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
+                                             openvino::builders
+                                             openvino::shape_inference
                                              openvino::pugixml
                                              ${CMAKE_DL_LIBS}
                                              Threads::Threads)
@@ -64,8 +64,8 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
-set_ie_threading_interface_for(${TARGET_NAME})
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 # must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME} EXTRA ${TBB_IMPORTED_TARGETS})
@@ -107,7 +107,7 @@ target_compile_definitions(${TARGET_NAME}_dev INTERFACE
 
 target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::core::dev)
 
-set_ie_threading_interface_for(${TARGET_NAME}_dev)
+ov_set_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
 
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::runtime::dev)
@@ -266,20 +266,35 @@ if(ENABLE_PKGCONFIG_GEN)
     file(RELATIVE_PATH PKGCONFIG_OpenVINO_PREFIX "/${OV_CPACK_RUNTIMEDIR}/pkgconfig" "/")
 
     set(pkgconfig_in "${OpenVINO_SOURCE_DIR}/cmake/templates/openvino.pc.in")
-    set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
-    configure_file("${pkgconfig_in}" "${pkgconfig_out}" @ONLY)
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.20 AND OV_GENERATOR_MULTI_CONFIG)
+        set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/$<CONFIG>/openvino.pc")
+    else()
+        set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
+    endif()
 
-    install(FILES "${pkgconfig_out}"
-            DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
-            COMPONENT ${OV_CPACK_COMP_CORE_DEV})
-
-    if (PKG_CONFIG_VERSION_STRING VERSION_LESS 0.29)
+    if(PKG_CONFIG_VERSION_STRING VERSION_LESS 0.29)
         set(pkgconfig_option "--exists")
     else()
         set(pkgconfig_option "--validate")
     endif()
+
     add_custom_command(TARGET openvino PRE_BUILD
+        COMMAND "${CMAKE_COMMAND}" --config $<CONFIG>
+                -D PKG_CONFIG_IN_FILE=${pkgconfig_in}
+                -D PKG_CONFIG_OUT_FILE=${pkgconfig_out}
+                -D PKGCONFIG_OpenVINO_PREFIX=${PKGCONFIG_OpenVINO_PREFIX}
+                -D OV_CPACK_RUNTIMEDIR=${OV_CPACK_RUNTIMEDIR}
+                -D OV_CPACK_INCLUDEDIR=${OV_CPACK_INCLUDEDIR}
+                -D OpenVINO_VERSION=${OpenVINO_VERSION}
+                -D PKGCONFIG_OpenVINO_DEFINITIONS=${PKGCONFIG_OpenVINO_DEFINITIONS}
+                -D PKGCONFIG_OpenVINO_FRONTENDS=${PKGCONFIG_OpenVINO_FRONTENDS}
+                -D PKGCONFIG_OpenVINO_PRIVATE_DEPS=${PKGCONFIG_OpenVINO_PRIVATE_DEPS}
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pkg_config_gen.cmake"
         COMMAND "${PKG_CONFIG_EXECUTABLE}" "${pkgconfig_option}" "${pkgconfig_out}"
-        COMMENT "[pkg-config] validating openvino.pc"
+        COMMENT "[pkg-config] creation and validation of openvino.pc"
         VERBATIM)
+
+    install(FILES "${pkgconfig_out}"
+            DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
+            COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 endif()

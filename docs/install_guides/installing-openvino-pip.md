@@ -7,26 +7,39 @@
                  macOS operating systems, using a PyPi package.
 
 
-Using the PyPI repository, you can install either OpenVINO™ Runtime or OpenVINO Development Tools on Windows, Linux, and macOS systems.
-This article focuses on OpenVINO™ Runtime.
+.. note::
+   
+   Note that the PyPi distribution:
+   
+   * offers the Python API only
+   * does not offer support for GNA and NPU inference
+   * is dedicated to users of all major OSs: Windows, Linux, macOS
 
-.. note
+.. tab-set::
 
-   If you install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install it separately.
+   .. tab-item:: System Requirements
+      :sync: system-requirements
+
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      | 'PyPi OpenVINO page <https://pypi.org/project/openvino/>`__
+   
+   
+   .. tab-item:: Processor Notes
+      :sync: processor-notes
+   
+      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
+      | `Product Specifications <https://ark.intel.com/>`__
 
 
 Installing OpenVINO Runtime
 ###########################
 
-For system requirements and troubleshooting, see https://pypi.org/project/openvino/
-
 Step 1. Set Up Python Virtual Environment
 +++++++++++++++++++++++++++++++++++++++++
 
 Use a virtual environment to avoid dependency conflicts.
-
 To create a virtual environment, use the following command:
-
 
 .. tab-set::
 
@@ -100,7 +113,15 @@ Run the command below:
 
    python -c "from openvino.runtime import Core; print(Core().available_devices)"
 
-If installation was successful, you will see the list of available devices. Congratulations! You have finished installing OpenVINO Runtime.
+If installation was successful, you will see the list of available devices.
+
+
+Congratulations! You've just Installed OpenVINO! For some use cases you may still 
+need to install additional components. Check the 
+:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+to see if your case needs any of them.
+
+
 
 
 What's Next?
@@ -111,21 +132,18 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :width: 400
 
-Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+Try the `Python Quick Start Example <https://docs.openvino.ai/2023.1/notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
 Get started with Python
 +++++++++++++++++++++++
 
 Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
-* `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
-* `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
+* `OpenVINO Python API Tutorial <https://docs.openvino.ai/2023.1/notebooks/002-openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2023.1/notebooks/001-hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2023.1/notebooks/205-vision-background-removal-with-output.html>`__
 
-Run OpenVINO on accelerated devices
-+++++++++++++++++++++++++++++++++++
 
-OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs and GNAs. Visit the :doc:`Additional Configurations <openvino_docs_install_guides_configurations_header>` page for instructions on how to configure your hardware devices to work with OpenVINO.
 
 Additional Resources
 ####################

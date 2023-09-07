@@ -8,6 +8,7 @@
 #include <transformations/snippets/x64/op/fused_mul_add.hpp>
 #include "snippets/op/scalar.hpp"
 #include "lowering_utils.hpp"
+#include "snippets/pass_manager.hpp"
 
 namespace ov {
 namespace test {
@@ -117,29 +118,37 @@ public:
 
 protected:
     void SetUp() override {
+        using PassPosition = ov::snippets::pass::Manager::PassPosition;
         LoweringTests::SetUp();
         std::vector<PartialShape> inputShapes(3);
         size_t add_input_idx;
         std::tie(inputShapes[0], inputShapes[1], inputShapes[2], master_shape, add_input_idx) = this->GetParam();
         const bool scalar_input = ov::shape_size(inputShapes[2].to_shape()) == 1;
-        snippets_function = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
+        snippets_model = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
 
-        cpu_manager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+        // Note: this inserts MulAddToFMA at the end of the pipeline
+        backend_passes.emplace_back(PassPosition(PassPosition::Place::PipelineEnd),
+                                    std::make_shared<ov::intel_cpu::pass::MulAddToFMA>());
 
         std::vector<ov::Node::type_info_t> custom_opset{ov::intel_cpu::FusedMulAdd::get_type_info_static()};
         auto target_machine = std::make_shared<DummyTargetMachine>(custom_opset);
         generator = std::make_shared<DummyGenerator>(target_machine);
     }
 
-    std::shared_ptr<SnippetsFunctionBase> snippets_function;
+    std::shared_ptr<SnippetsFunctionBase> snippets_model;
     std::shared_ptr<ov::snippets::Generator> generator;
-    ov::pass::Manager cpu_manager;
+    std::vector<ov::snippets::pass::Manager::PositionedPass> backend_passes;
 };
 
 TEST_P(MulAddToFMATests, MulAddToFMATests) {
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape, {}, {}, cpu_manager, {}, generator);
+    auto subgraph = getLoweredSubgraph(snippets_model->getOriginal(),
+                                       master_shape,
+                                       backend_passes,
+                                       {},
+                                       {},
+                                       generator);
     model = subgraph->body_ptr();
-    model_ref = snippets_function->getLowered();
+    model_ref = snippets_model->getLowered();
 }
 
 namespace MulAddToFMATestsInstantiation {

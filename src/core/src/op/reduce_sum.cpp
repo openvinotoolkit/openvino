@@ -12,8 +12,8 @@
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/sum.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -29,6 +29,7 @@ shared_ptr<Node> op::v1::ReduceSum::clone_with_new_inputs(const OutputVector& ne
     return make_shared<ReduceSum>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reduce_sum {
 namespace {
 template <element::Type_t ET>
@@ -36,7 +37,7 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet&
     OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
     OPENVINO_SUPPRESS_DEPRECATED_END
-    runtime::reference::sum(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+    ov::reference::sum(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
     return true;
 }
 

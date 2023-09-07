@@ -4,8 +4,6 @@
 
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
-#include <openvino/op/util/pad_base.hpp>
-
 #include "itt.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -39,6 +37,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -285,18 +284,23 @@ public:
         MATCHER_SCOPE(MarkDivWithEps);
 
         // to detect the following patterns where eps is used to prevent division by zero:
-        // input_1/Maximum(input_2, eps)
-        // input_1/Add(input_2, eps)
-        // input_1/Sqrt(Maximum(input_2, eps))
-        // input_1/Sqrt(Add(input_2, eps))
-        // input_1*Pow(Maximum(input_2, eps), -z)
-        // input_1*Pow(Add(input_2, eps), -z)
+        // input_1 / Maximum(input_2, eps)
+        // input_1 / Add(input_2, eps)
+        // input_1 / Sqrt(Maximum(input_2, eps))
+        // input_1 / Sqrt(Add(input_2, eps))
+        // input_1 * Pow(Maximum(input_2, eps), -z)
+        // input_1 * Pow(Add(input_2, eps), -z)
+
         auto input_1 = pattern::any_input();
         auto input_2 = pattern::any_input();
 
         auto eps_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
+        auto convert_eps_pattern = pattern::wrap_type<ov::op::v0::Convert>({eps_const_pattern});
+        auto eps_const_or_convert =
+            std::make_shared<pattern::op::Or>(OutputVector{eps_const_pattern, convert_eps_pattern});
+
         auto max_or_add =
-            pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, eps_const_pattern});
+            pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, eps_const_or_convert});
 
         auto sqrt = std::make_shared<ov::op::v0::Sqrt>(max_or_add);
         auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, sqrt});

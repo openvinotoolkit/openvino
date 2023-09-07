@@ -12,7 +12,8 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/reference/copy.hpp"
+#include "ngraph/validation_util.hpp"
+#include "openvino/reference/copy.hpp"
 #include "squeeze_shape_inference.hpp"
 
 using namespace std;
@@ -56,6 +57,7 @@ shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Squeeze_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -75,14 +77,15 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensor
         auto out_shape = output_shapes[0].get_shape();
         outputs[0]->set_shape(out_shape);
 
-        ngraph::runtime::reference::copy(inputs[0]->get_data_ptr<char>(),
-                                         outputs[0]->get_data_ptr<char>(),
-                                         shape_size(out_shape) * outputs[0]->get_element_type().size());
+        ov::reference::copy(inputs[0]->get_data_ptr<char>(),
+                            outputs[0]->get_data_ptr<char>(),
+                            shape_size(out_shape) * outputs[0]->get_element_type().size());
 
         return true;
     }
     return false;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v0::Squeeze::has_evaluate() const {
     OV_OP_SCOPE(v0_Squeeze_has_evaluate);

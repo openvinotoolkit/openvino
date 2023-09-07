@@ -110,17 +110,16 @@ std::string pack_detailed_failure_report(const std::map<std::string, std::string
 }
 }  // namespace
 
-FrontEnd::FrontEnd() {
-    const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
-    if ((torch_tracing_mode != nullptr) && std::strcmp(torch_tracing_mode, "TORCHFX") == 0) {
-        m_op_translators = get_supported_ops_fx();
-    } else {
-        m_op_translators = get_supported_ops_ts();
-    }
-}
+FrontEnd::FrontEnd() {}
 
-std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
-    auto converted_model = convert_partially(model);
+std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
+    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
+    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
+    std::shared_ptr<Model> converted_model;
+    {
+        TranslateSession translate_session(model, supported_ops, m_telemetry);
+        converted_model = translate_session.get_converted_model();
+    }
 
     std::string norm_err;
     try {
@@ -146,14 +145,20 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
-    try {
-        TranslateSession translate_session(model, m_op_translators, m_telemetry);
-        return translate_session.get_converted_model();
-    } catch (const std::runtime_error& e) {
-        std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
-        std::cerr << "Rethrowing. Misleading error message from pybind11 may come next. TODO.";
-        throw;
+    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
+    std::shared_ptr<Model> partial_model;
+    {
+        TranslateSession translate_session(model, supported_ops, m_telemetry);
+        partial_model = translate_session.get_converted_model();
     }
+    try {
+        normalize(partial_model);
+    } catch (...) {
+        // normalize can fail on transformation, but the model is still valid. We can return such model.
+        // If model can be validated we suppress normalize exception.
+        partial_model->validate_nodes_and_infer_types();
+    }
+    return partial_model;
 }
 
 std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
@@ -221,12 +226,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
-        m_op_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
+        m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);
         };
     } else if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::pytorch::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
-        m_op_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
+        m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);
         };
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
@@ -254,10 +259,24 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                             "PyTorch Frontend supports exactly one parameter in model representation, got ",
                             std::to_string(variants.size()),
                             " instead.");
+    FRONT_END_GENERAL_CHECK(variants[0].is<std::shared_ptr<IDecoder>>(),
+                            "PyTorch Frontend doesn't support provided model type. Please provide supported model "
+                            "object using Python API.");
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
     auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
     FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast ov::Any to TorchDecoder");
     return std::make_shared<pytorch::InputModel>(tdecoder);
+}
+
+std::map<std::string, CreatorFunction> FrontEnd::get_supported_ops(const ov::frontend::InputModel::Ptr& model) const {
+    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops_fx();
+    if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx")
+        supported_ops = get_supported_ops_fx();
+    else
+        supported_ops = get_supported_ops_ts();
+    for (auto i = m_op_extension_translators.begin(); i != m_op_extension_translators.end(); i++)
+        supported_ops[i->first] = i->second;
+    return supported_ops;
 }
 
 }  // namespace pytorch

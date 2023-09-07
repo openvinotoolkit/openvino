@@ -70,7 +70,7 @@ bool WeightableLayerTransformation::canConvolutionBeTransformed(const Transforma
     if (dequantization.empty()) {
         const auto fqOnWeights = getFakeQuantizeOnWeights(layer);
         const auto dataPrecision = getDataPrecisionOnWeights(layer, defaultPrecisions);
-        if ((dataPrecision.precision == ngraph::element::undefined) || (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision))) {
+        if ((dataPrecision.empty()) || (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision))) {
             return false;
         }
     } else {
