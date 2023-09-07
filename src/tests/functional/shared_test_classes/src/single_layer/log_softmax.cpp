@@ -39,7 +39,7 @@ void LogSoftmaxLayerTest::SetUp() {
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     const auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
