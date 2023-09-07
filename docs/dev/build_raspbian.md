@@ -35,13 +35,6 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
         -DARM_COMPUTE_SCONS_JOBS=$(nproc --all) \
   .. && cmake --build . --parallel 
   ```
-  
-> **HINT**: **Generating PDB Files and Debugging Your Build** <br>
-> If you intend to generate PDB files and debug your build, it is essential to set the CMake build type appropriately.
-> You should utilize one of the following CMake build type options: <br>
->* `-DCMAKE_BUILD_TYPE=RelWithDebInfo`: This option generates PDB files with release information, making it suitable for debugging optimized builds. <br>
->* `-DCMAKE_BUILD_TYPE=Debug`: This option generates PDB files optimized for debugging, providing comprehensive debugging information. 
-
 ## Additional Build Options
 
 - To build Python API, install `libpython3-dev:armhf` and `python3-pip`
