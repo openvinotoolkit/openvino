@@ -8,8 +8,8 @@
 In 2023.1 OpenVino release a new OVC (OpenVINO Model Converter) tool was introduced with the corresponding Python API: ``openvino.convert_model`` method. ``ovc`` and ``openvino.convert_model`` represent
 a lightweight alternative of ``mo`` and ``openvino.tools.mo.convert_model`` which are considered legacy API now. In this article, all the differences between ``mo`` and ``ovc`` are summarized and transition guide from the legacy API to the new API is provided.
 
-MO vs OVC parameters comparison
-###############################
+Parameters comparison
+#####################
 
 The comparison of parameters between ov.convert_model() / OVC and mo.convert_model() / MO.
 
@@ -36,79 +36,79 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - output
      - ov.convert_model() does not allow output cut.
    * - input_shape
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by ``input`` parameter.
    * - example_input
      - example_input
-     - -
+     - No differences.
    * - batch
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by model reshape functionality. See details below.
    * - mean_values
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - scale_values
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - scale
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - reverse_input_channels
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - source_layout
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - target_layout
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - layout
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - compress_to_fp16
      - compress_to_fp16
      - OVC provides 'compress_to_fp16' for command line tool only, as compression is performed during saving a model to IR (Intermediate Representation).
    * - extensions
      - extension
-     - -
+     - No differences.
    * - transform
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC. Can be replaced by functionality from ``PrePostProcessor``. See details below.
    * - transformations_config
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - static_shape
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - freeze_placeholder_with_value
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - use_legacy_frontend
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - use_legacy_frontend
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - silent
      - verbose
      - OVC / ov.convert_model provides 'verbose' parameter instead of 'silent' for printing of detailed conversion information if 'verbose' is set to True.
    * - log_level
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - version
      - version
-     - -
+     - N/A
    * - progress
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - stream_output
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - share_weights
      - share_weights
-     - -
+     - No differences.
    * - framework
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - help / -h
      - help / -h
@@ -117,7 +117,7 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - output
      - OVC / ov.convert_model 'output' parameter includes capabilities of MO 'example_output' parameter.
    * - input_model_is_text
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - input_checkpoint
      - input_model
@@ -129,61 +129,61 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - input_model
      - All supported model formats can be passed to 'input_model'.
    * - saved_model_tags
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - tensorflow_custom_operations_config_update
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - tensorflow_object_detection_api_pipeline_config
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - tensorboard_logdir
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - tensorflow_custom_layer_libraries
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - input_symbol
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - nd_prefix_name
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - pretrained_model_name
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - save_params_from_nd
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - legacy_mxnet_model
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - enable_ssd_gluoncv
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - input_proto
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - caffe_parser_path
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - k
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - disable_omitting_optional
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - enable_flattening_nested_params
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - counts
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - remove_output_softmax
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
    * - remove_memory
-     - -
+     - N/A
      - Not available in ov.convert_model() / OVC.
 
 Transition from legacy API to new API
@@ -194,6 +194,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 
 ``input_shape`` parameter:
+##########################
 
 .. tab-set::
 
@@ -238,6 +239,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  ovc MODEL_NAME --input [1,3,100,100],[1] --output_model OUTPUT_MODEL
 
 ``batch`` parameter:
+####################
 
 .. tab-set::
 
@@ -282,6 +284,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
             - Not available in OVC tool. Please check Python API.
 
 ``mean_values`` parameter:
+##########################
 
 .. tab-set::
 
@@ -308,9 +311,11 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
-                 prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
+                 prep.input(input_name).tensor().set_layout(ov.Layout("NHWC"))
                  prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
                  ov_model = prep.build()
+
+              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also [Layout API Overview](./OV_Runtime_UG/layout_overview.md).
 
     .. tab-item:: CLI
        :sync: cli
@@ -328,6 +333,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
             - Not available in OVC tool. Please check Python API.
 
 ``scale_values`` parameter:
+###########################
 
 .. tab-set::
 
@@ -354,9 +360,11 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
-                 prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
+                 prep.input(input_name).tensor().set_layout(ov.Layout("NHWC"))
                  prep.input(input_name).preprocess().scale([255., 255., 255.])
                  ov_model = prep.build()
+
+              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also [Layout API Overview](./OV_Runtime_UG/layout_overview.md).
 
     .. tab-item:: CLI
        :sync: cli
@@ -374,6 +382,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
             - Not available in OVC tool. Please check Python API.
 
 ``reverse_input_channels`` parameter:
+#####################################
 
 .. tab-set::
 
@@ -400,9 +409,11 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
-                 prep.input(input_name).tensor().set_layout(ov.Layout(layout_value))
+                 prep.input(input_name).tensor().set_layout(ov.Layout("NHWC"))
                  prep.input(input_name).preprocess().reverse_channels()
                  ov_model = prep.build()
+
+              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also [Layout API Overview](./OV_Runtime_UG/layout_overview.md).
 
     .. tab-item:: CLI
        :sync: cli
@@ -420,6 +431,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
             - Not available in OVC tool. Please check Python API.
 
 ``source_layout`` parameter:
+############################
 
 .. tab-set::
 
@@ -437,7 +449,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  import openvino as ov
                  from openvino.tools import mo
          
-                 ov_model = mo.convert_model(model, source_layout={input_name: ov.Layout("nhwc")})
+                 ov_model = mo.convert_model(model, source_layout={input_name: ov.Layout("NHWC")})
       
             - .. code-block:: py
                  :force:
@@ -447,7 +459,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
-                 prep.input(input_name).model().set_layout(ov.Layout("nhwc"))
+                 prep.input(input_name).model().set_layout(ov.Layout("NHWC"))
                  ov_model = prep.build()
 
     .. tab-item:: CLI
@@ -461,11 +473,12 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
           * - .. code-block:: sh
                  :force:
 
-                 mo --input_model MODEL_NAME --source_layout input_name(nhwc) --output_dir OUTPUT_DIR
+                 mo --input_model MODEL_NAME --source_layout input_name(NHWC) --output_dir OUTPUT_DIR
       
             - Not available in OVC tool. Please check Python API.
 
 ``target_layout`` parameter:
+############################
 
 .. tab-set::
 
@@ -483,7 +496,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  import openvino as ov
                  from openvino.tools import mo
          
-                 ov_model = mo.convert_model(model, target_layout={input_name: ov.Layout("nhwc")})
+                 ov_model = mo.convert_model(model, target_layout={input_name: ov.Layout("NHWC")})
       
             - .. code-block:: py
                  :force:
@@ -493,7 +506,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
-                 prep.input(input_name).tensor().set_layout(ov.Layout("nhwc"))
+                 prep.input(input_name).tensor().set_layout(ov.Layout("NHWC"))
                  ov_model = prep.build()
 
     .. tab-item:: CLI
@@ -507,11 +520,12 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
           * - .. code-block:: sh
                  :force:
 
-                 mo --input_model MODEL_NAME --target_layout input_name(nhwc) --output_dir OUTPUT_DIR
+                 mo --input_model MODEL_NAME --target_layout input_name(NHWC) --output_dir OUTPUT_DIR
       
             - Not available in OVC tool. Please check Python API.
 
 ``layout`` parameter:
+#####################
 
 .. tab-set::
 
@@ -528,7 +542,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
                  from openvino.tools import mo
 
-                 ov_model = mo.convert_model(model, layout={input_name: mo.LayoutMap("nchw", "nhwc")})
+                 ov_model = mo.convert_model(model, layout={input_name: mo.LayoutMap("NCHW", "NHWC")})
       
             - .. code-block:: py
                  :force:
@@ -538,8 +552,8 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  ov_model = ov.convert_model(model)
 
                  prep = ov.preprocess.PrePostProcessor(ov_model)
-                 prep.input(input_name).model().set_layout(ov.Layout("nchw"))
-                 prep.input(input_name).tensor().set_layout(ov.Layout("nhwc"))
+                 prep.input(input_name).model().set_layout(ov.Layout("NCHW"))
+                 prep.input(input_name).tensor().set_layout(ov.Layout("NHWC"))
                  ov_model = prep.build()
 
     .. tab-item:: CLI
@@ -553,11 +567,12 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
           * - .. code-block:: sh
                  :force:
 
-                 mo --input_model MODEL_NAME --layout "input_name(nchw->nhwc)" --output_dir OUTPUT_DIR
+                 mo --input_model MODEL_NAME --layout "input_name(NCHW->NHWC)" --output_dir OUTPUT_DIR
       
             - Not available in OVC tool. Please check Python API.
 
 ``transform`` parameter:
+########################
 
 .. tab-set::
 
