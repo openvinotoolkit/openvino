@@ -193,8 +193,8 @@ mo.convert_model() provides a wide range of preprocessing parameters. Most of th
 Here is the guide to transition from legacy model preprocessing to new API preprocessing.
 
 
-``input_shape`` parameter:
-##########################
+``input_shape``:
+################
 
 .. tab-set::
 
@@ -238,8 +238,8 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
                  ovc MODEL_NAME --input [1,3,100,100],[1] --output_model OUTPUT_MODEL
 
-``batch`` parameter:
-####################
+``batch``:
+##########
 
 .. tab-set::
 
@@ -283,8 +283,8 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
             - Not available in OVC tool. Please check Python API.
 
-``mean_values`` parameter:
-##########################
+``mean_values``:
+################
 
 .. tab-set::
 
@@ -315,7 +315,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
                  ov_model = prep.build()
 
-              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also [Layout API Overview](./OV_Runtime_UG/layout_overview.md).
+              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`.
 
     .. tab-item:: CLI
        :sync: cli
@@ -332,8 +332,8 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
             - Not available in OVC tool. Please check Python API.
 
-``scale_values`` parameter:
-###########################
+``scale_values``:
+#################
 
 .. tab-set::
 
@@ -364,7 +364,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  prep.input(input_name).preprocess().scale([255., 255., 255.])
                  ov_model = prep.build()
 
-              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also [Layout API Overview](./OV_Runtime_UG/layout_overview.md).
+              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`.
 
     .. tab-item:: CLI
        :sync: cli
@@ -381,8 +381,8 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
             - Not available in OVC tool. Please check Python API.
 
-``reverse_input_channels`` parameter:
-#####################################
+``reverse_input_channels``:
+###########################
 
 .. tab-set::
 
@@ -413,7 +413,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  prep.input(input_name).preprocess().reverse_channels()
                  ov_model = prep.build()
 
-              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also [Layout API Overview](./OV_Runtime_UG/layout_overview.md).
+              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`.
 
     .. tab-item:: CLI
        :sync: cli
@@ -430,8 +430,8 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
             - Not available in OVC tool. Please check Python API.
 
-``source_layout`` parameter:
-############################
+``source_layout``:
+##################
 
 .. tab-set::
 
@@ -477,8 +477,8 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
             - Not available in OVC tool. Please check Python API.
 
-``target_layout`` parameter:
-############################
+``target_layout``:
+##################
 
 .. tab-set::
 
@@ -524,8 +524,8 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
             - Not available in OVC tool. Please check Python API.
 
-``layout`` parameter:
-#####################
+``layout``:
+###########
 
 .. tab-set::
 
@@ -571,8 +571,8 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
       
             - Not available in OVC tool. Please check Python API.
 
-``transform`` parameter:
-########################
+``transform``:
+##############
 
 .. tab-set::
 
