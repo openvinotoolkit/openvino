@@ -61,10 +61,12 @@ public:
 
     void safeAddExtension(ov::Core& core) {
         try {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto extension = std::make_shared<InferenceEngine::Extension>(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                    std::string("template_extension") + IE_BUILD_POSTFIX));
             core.add_extension(extension);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const ov::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }
