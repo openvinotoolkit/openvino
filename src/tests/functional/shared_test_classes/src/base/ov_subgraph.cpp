@@ -171,7 +171,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
                 }
             }
             auto it = compareMap.find(inputNode->get_type_info());
-            ASSERT_NE(it, compareMap.end());
+            ASSERT_NE(it, compareMap.end()) << inputNode->get_type_info();
             it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
         }
     }
