@@ -335,6 +335,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
         set(arm_compute_full_path "${arm_compute}")
     endif()
 
+    list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
+
     add_custom_command(
         OUTPUT
             ${arm_compute_full_path}
