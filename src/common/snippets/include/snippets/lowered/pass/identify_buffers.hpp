@@ -22,7 +22,8 @@ namespace pass {
  *          - Loops, Brgemm (the same other ops) - are "edges" between Buffers (hub of edges).
  *                   The buffers are connected to the same Loop - are adjacent in graph sense bounds.
  *          - The vertices (buffers) are adjacent if they are connected to the same Loop and
- *            their data pointers cannot be proportionally incremented in Loops: different ptr increments or data sizes;
+ *            their data pointers cannot be proportionally incremented in Loops: different ptr increments or data sizes -
+ *            or one of them is in some Loop but another buffer - not;
  *          - Firstly, create adjacency matrix using the definition above;
  *          - Secondly, assign the same color to non-adjacent vertices of graph (buffers), and use different colors otherwise.
  *        Note: should be called before ResetBuffer() pass to have correct offsets
@@ -38,12 +39,11 @@ public:
     // < data_size, ptr_increment, finalization_offset >
     struct ShiftPtrParams {
         ShiftPtrParams() = default;
-        ShiftPtrParams(size_t ds, int64_t pi, int64_t fo)
+        ShiftPtrParams(int64_t ds, int64_t pi, int64_t fo)
             : data_size(std::move(ds)), ptr_increment(std::move(pi)), finalization_offset(std::move(fo)) {}
-
-        size_t data_size;
-        int64_t ptr_increment;
-        int64_t finalization_offset;
+        int64_t data_size = 0;
+        int64_t ptr_increment = 0;
+        int64_t finalization_offset = 0;
     };
 
     static bool can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);

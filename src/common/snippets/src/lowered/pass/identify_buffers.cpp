@@ -95,6 +95,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
 
         const auto ptr_increments = loop_end->get_ptr_increments();
         const auto finalization_offsets = loop_end->get_finalization_offsets();
+        const auto data_sizes = loop_end->get_element_type_sizes();
 
         // Buffer -> <ptr increment, finalization_offsets>
         std::map<ExpressionPtr, ShiftPtrParams> buffer_neighbours;
@@ -108,19 +109,18 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
                                     "Invalid data pointer shifts: If Buffer has several consumers, this consumers must have the same shifts or zero");
                     continue;
                 }
-                buffer_neighbours[parent_output] = { parent_output->get_node()->get_element_type().size(), ptr_increments[i], finalization_offsets[i] };
+                buffer_neighbours[parent_output] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
             }
         }
-        for (size_t i = 0; i < output_count; ++i) {
+        for (size_t i = input_count; i < input_count + output_count; ++i) {
             // The consumers of the corresponding Store ops
-            const auto index = input_count + i;
-            const auto consumer_inputs = expr->get_input_port_connector(index)->get_consumers();
+            const auto consumer_inputs = expr->get_input_port_connector(i)->get_consumers();
             size_t buffer_count = 0;
             size_t loop_count = 0;
             for (const auto& consumer_input : consumer_inputs) {
                 const auto& child_expr = consumer_input.get_expr();
                 if (ov::is_type<op::Buffer>(child_expr->get_node())) {
-                    buffer_neighbours[child_expr] = { child_expr->get_node()->get_element_type().size(), ptr_increments[index], finalization_offsets[index] };
+                    buffer_neighbours[child_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
                 } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
                     loop_count++;
                 }

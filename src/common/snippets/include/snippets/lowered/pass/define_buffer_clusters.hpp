@@ -108,6 +108,15 @@ private:
      * @return finalization offset - int64_t value
      */
     int64_t get_buffer_finalization_offset(const ExpressionPtr& buffer_expr) const;
+    /**
+     * @brief Check if two Buffer expressions are connected to the same Loop. Set common LoopEnd as `loop` parameter and
+     *        indexes of Loop ports `up_idx` and `down_idx` if Buffers are really neighbours
+     * @param up expression with upper Buffer op
+     * @param down expression with lower Buffer op
+     * @param loop expression with common LoopEnd op
+     * @return Return True if the Buffers are connected to the same Loop
+     */
+    static bool are_buffer_neighbours(const ExpressionPtr& up, const ExpressionPtr& down, ExpressionPtr& loop, size_t& up_idx, size_t& down_idx);
 
     AllocateBufferMemory::BufferClusters m_clusters;
 };
