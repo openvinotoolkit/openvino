@@ -16,10 +16,7 @@ namespace pytorch {
 
 Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
     : m_input_model(input_model),
-      m_tensor_index(tensor_index),
-      m_is_input(false),
-      m_is_output(false),
-      m_type(element::dynamic) {
+      m_tensor_index(tensor_index) {
     const auto im = dynamic_cast<const ov::frontend::pytorch::InputModel*>(&m_input_model);
     FRONT_END_GENERAL_CHECK(im, "PyTorch Place requires PyTorch InputModel class.");
     auto decoder = im->get_decoder();

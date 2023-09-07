@@ -55,10 +55,10 @@ private:
     const ov::frontend::InputModel& m_input_model;
     const size_t m_tensor_index;
     std::vector<std::string> m_names;
-    element::Type m_type;
+    element::Type m_type = element::dynamic;
     PartialShape m_pshape;
-    bool m_is_input;
-    bool m_is_output;
+    bool m_is_input = false;
+    bool m_is_output = false;
 };
 
 }  // namespace pytorch
