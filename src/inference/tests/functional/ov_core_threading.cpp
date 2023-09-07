@@ -14,6 +14,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
+#include "ie_extension.h"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #ifdef __GLIBC__
