@@ -526,14 +526,6 @@ jobs:
       TEST_USER_NAME: "ga_runner"
 
     steps:
-      - name: Build Docker (${{ matrix.BUILD_TYPE }})
-        uses: actions/build_test_image@v2
-        with:
-          context: ./openvino
-          load: true
-          file: ${{ env.OPENVINO_REPO }}/.ci/openvino-onnx/Dockerfile
-          tags: openvino-onnx-ci-image:latest
-
       - name: Create Directories
         run: |
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
