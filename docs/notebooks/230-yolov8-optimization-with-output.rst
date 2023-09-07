@@ -1,7 +1,7 @@
 Convert and Optimize YOLOv8 with OpenVINO™
 ==========================================
 
-.. _top:
+
 
 The YOLOv8 algorithm developed by Ultralytics is a cutting-edge,
 state-of-the-art (SOTA) model that is designed to be fast, accurate, and
@@ -38,6 +38,8 @@ The tutorial consists of the following steps:
 -  Prepare and run optimization pipeline.
 -  Compare performance of the FP32 and quantized models.
 -  Compare accuracy of the FP32 and quantized models.
+
+.. _top:
 
 **Table of contents**:
 
@@ -685,9 +687,12 @@ in the YOLOv8 repo, we also need to download annotations in the format
 used by the author of the model, for use with the original model
 evaluation function.
 
-   **Note**: The initial dataset download may take a few minutes to
+.. note::
+
+   The initial dataset download may take a few minutes to
    complete. The download speed will vary depending on the quality of
    your internet connection.
+
 
 .. code:: ipython3
 
@@ -863,13 +868,19 @@ validator class instance.
 
 
 After definition test function and validator creation, we are ready for
-getting accuracy metrics >\ **Note**: Model evaluation is time consuming
-process and can take several minutes, depending on the hardware. For
-reducing calculation time, we define ``num_samples`` parameter with
-evaluation subset size, but in this case, accuracy can be noncomparable
-with originally reported by the authors of the model, due to validation
-subset difference. *To validate the models on the full dataset set
-``NUM_TEST_SAMPLES = None``.*
+getting accuracy metrics.
+
+.. note::
+
+   Model evaluation is time consuming
+   process and can take several minutes, depending on the hardware. For
+   reducing calculation time, we define ``num_samples`` parameter with
+   evaluation subset size, but in this case, accuracy can be noncomparable
+   with originally reported by the authors of the model, due to validation
+   subset difference.
+
+To validate the models on the full dataset set
+``NUM_TEST_SAMPLES = None``.
 
 .. code:: ipython3
 
@@ -1005,8 +1016,11 @@ asymmetric quantization of activations. For more accurate results, we
 should keep the operation in the postprocessing subgraph in floating
 point precision, using the ``ignored_scope`` parameter.
 
-   **Note**: Model post-training quantization is time-consuming process.
+.. note::
+
+   Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
+
 
 .. code:: ipython3
 
@@ -1185,11 +1199,13 @@ Compare Performance of the Original and Quantized Models `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
-   **Note**: For more accurate performance, it is recommended to run
+.. note::
+
+   For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run
    ``benchmark_app -m <model_path> -d CPU -shape "<input_shape>"`` to
@@ -1197,6 +1213,7 @@ models.
    minute. Change ``CPU`` to ``GPU`` to benchmark on GPU. Run
    ``benchmark_app --help`` to see an overview of all command-line
    options.
+
 
 Compare performance object detection models `⇑ <#top>`__
 -------------------------------------------------------------------------------------------------------------------------------
@@ -1637,13 +1654,13 @@ meets passing criteria.
 Next steps `⇑ <#top>`__
 ###############################################################################################################################
 
- This section contains suggestions on how to
+This section contains suggestions on how to
 additionally improve the performance of your application using OpenVINO.
 
 Async inference pipeline `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- The key advantage of the Async
+The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to
@@ -1663,8 +1680,7 @@ on a selected device (CPU/GPU etc.) rather than always being executed on
 CPU as part of an application. This will improve selected device
 utilization.
 
-For more information, refer to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+For more information, refer to the overview of `Preprocessing API <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Preprocessing_Overview.html>`__ .
 
 For example, we can integrate converting input data layout and
 normalization defined in ``image_to_tensor`` function.
@@ -1692,7 +1708,7 @@ preprocessing and postprocessing steps for a model.
 Define input data format `⇑ <#top>`__
 -------------------------------------------------------------------------------------------------------------------------------
 
- To address particular input of
+To address particular input of
 a model/preprocessor, the ``input(input_id)`` method, where ``input_id``
 is a positional index or input tensor name for input in
 ``model.inputs``, if a model has a single input, ``input_id`` can be
@@ -1917,12 +1933,15 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering,
 set \ ``use_popup=True``.
 
-   **NOTE**: To use this notebook with a webcam, you need to run the
+.. note::
+
+   To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
    remote server (for example, in Binder or Google Colab service), the
    webcam will not work. By default, the lower cell will run model
    inference on a video file. If you want to try live inference on your
    webcam set ``WEBCAM_INFERENCE = True``
+
 
 Run the object detection:
 

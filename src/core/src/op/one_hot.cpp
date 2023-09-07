@@ -9,9 +9,9 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/one_hot.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -80,14 +80,14 @@ bool evaluate(const HostTensorVector& output_values, const HostTensorVector& inp
     const auto& on_value = input_values[2];
     const auto& off_value = input_values[3];
     const auto& out = output_values[0];
-    runtime::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
-                                            indices->get_shape(),
-                                            out->get_data_ptr<char>(),
-                                            out->get_element_type().size(),
-                                            out->get_shape()[axis],
-                                            axis,
-                                            on_value->get_data_ptr<char>(),
-                                            off_value->get_data_ptr<char>());
+    ov::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
+                                       indices->get_shape(),
+                                       out->get_data_ptr<char>(),
+                                       out->get_element_type().size(),
+                                       out->get_shape()[axis],
+                                       axis,
+                                       on_value->get_data_ptr<char>(),
+                                       off_value->get_data_ptr<char>());
     return true;
 }
 bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVector& input_values, const int64_t axis) {

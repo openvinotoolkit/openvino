@@ -4,10 +4,10 @@
 
 #include "ngraph/op/prelu.hpp"
 
-#include <ngraph/runtime/reference/prelu.hpp>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
+#include "openvino/reference/prelu.hpp"
 
 using namespace std;
 
@@ -37,11 +37,11 @@ namespace prelu {
 namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& slope, const ngraph::HostTensorPtr& out) {
-    ngraph::runtime::reference::prelu(arg->get_data_ptr<ET>(),
-                                      slope->get_data_ptr<ET>(),
-                                      out->get_data_ptr<ET>(),
-                                      arg->get_shape(),
-                                      slope->get_shape());
+    ov::reference::prelu(arg->get_data_ptr<ET>(),
+                         slope->get_data_ptr<ET>(),
+                         out->get_data_ptr<ET>(),
+                         arg->get_shape(),
+                         slope->get_shape());
     return true;
 }
 

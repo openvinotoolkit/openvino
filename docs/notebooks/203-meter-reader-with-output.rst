@@ -1,7 +1,7 @@
 Industrial Meter Reader
 =======================
 
-.. _top:
+
 
 This notebook shows how to create a industrial meter reader with
 OpenVINO Runtime. We use the pre-trained
@@ -20,6 +20,8 @@ to build up a multiple inference task pipeline:
    :alt: workflow
 
    workflow
+
+.. _top:
 
 **Table of contents**:
 
@@ -569,7 +571,7 @@ Select device from dropdown list for running inference using OpenVINO:
 The number of detected meter from detection network can be arbitrary in
 some scenarios, which means the batch size of segmentation network input
 is a `dynamic
-dimension <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_DynamicShapes.html>`__,
+dimension <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_DynamicShapes.html>`__,
 and it should be specified as ``-1`` or the ``ov::Dimension()`` instead
 of a positive number used for static dimensions. In this case, for
 memory consumption optimization, we can specify the lower and/or upper

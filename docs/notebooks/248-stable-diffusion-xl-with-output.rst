@@ -1,7 +1,7 @@
 Image generation with Stable Diffusion XL and OpenVINO
 ======================================================
 
-.. _top:
+
 
 Stable Diffusion XL or SDXL is the latest image generation model that is
 tailored towards more photorealistic outputs with more detailed imagery
@@ -62,10 +62,12 @@ The tutorial consists of the following steps:
    Optimum <https://huggingface.co/blog/openvino>`__.
 -  Run 2-stages Stable Diffusion XL pipeline
 
-..
+.. note::
 
-   **Note**: Some demonstrated models can require at least 64GB RAM for
+   Some demonstrated models can require at least 64GB RAM for
    conversion and running.
+
+.. _top:
 
 **Table of contents**:
 

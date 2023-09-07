@@ -1,8 +1,6 @@
 Post-Training Quantization of PyTorch models with NNCF
 ======================================================
 
-.. _top:
-
 The goal of this tutorial is to demonstrate how to use the NNCF (Neural
 Network Compression Framework) 8-bit quantization in post-training mode
 (without the fine-tuning pipeline) to optimize a PyTorch model for the
@@ -20,10 +18,15 @@ downsized to 64×64 colored images. The tutorial will demonstrate that
 only a tiny part of the dataset is needed for the post-training
 quantization, not demanding the fine-tuning of the model.
 
-   **NOTE**: This notebook requires that a C++ compiler is accessible on
+.. note::
+
+   This notebook requires that a C++ compiler is accessible on
    the default binary search path of the OS you are running the
-   notebook. 
-   
+   notebook.
+
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -355,8 +358,7 @@ Create and load original uncompressed model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-ResNet-50 from the ```torchivision``
-repository <https://github.com/pytorch/vision>`__ is pre-trained on
+ResNet-50 from the `torchivision repository <https://github.com/pytorch/vision>`__ is pre-trained on
 ImageNet with more prediction classes than Tiny ImageNet, so the model
 is adjusted by swapping the last FC layer to one with fewer output
 values.
@@ -472,7 +474,7 @@ framework is designed so that modifications to your original training
 code are minor. Quantization is the simplest scenario and requires a few
 modifications. For more information about NNCF Post Training
 Quantization (PTQ) API, refer to the `Basic Quantization Flow
-Guide <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-qauntization-flow>`__.
+Guide <https://docs.openvino.ai/2023.1/basic_quantization_flow.html#doxid-basic-quantization-flow>`__.
 
 1. Create a transformation function that accepts a sample from the
    dataset and returns data suitable for model inference. This enables
@@ -553,7 +555,7 @@ Python API . The models will be saved to the ‘OUTPUT’ directory for
 later benchmarking.
 
 For more information about model conversion, refer to this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 Before converting models, export them to ONNX. Executing the following
 command may take a while.
@@ -666,19 +668,22 @@ IV. Compare performance of INT8 model and FP32 model in OpenVINO `⇑ <#top>`__
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - an inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
 throughput (frames per second) values.
 
-   **NOTE**: This notebook runs benchmark_app for 15 seconds to give a
+.. note::
+
+   This notebook runs benchmark_app for 15 seconds to give a
    quick indication of performance. For more accurate performance, it is
    recommended to run benchmark_app in a terminal/command prompt after
    closing other applications. Run ``benchmark_app -m model.xml -d CPU``
    to benchmark async inference on CPU for one minute. Change CPU to GPU
    to benchmark on GPU. Run ``benchmark_app --help`` to see an overview
    of all command-line options.
+
 
 .. code:: ipython3
 
