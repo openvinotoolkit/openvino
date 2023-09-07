@@ -1,7 +1,7 @@
 Convert a Tensorflow Lite Model to OpenVINO™
 ============================================
 
-.. _top:
+
 
 `TensorFlow Lite <https://www.tensorflow.org/lite/guide>`__, often
 referred to as TFLite, is an open source library developed for deploying
@@ -10,12 +10,14 @@ machine learning models to edge devices.
 This short tutorial shows how to convert a TensorFlow Lite
 `EfficientNet-Lite-B0 <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
 image classification model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
+Representation <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_IR_and_opsets.html>`__
 (OpenVINO IR) format, using `Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+Optimizer <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
-Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
+Runtime <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image. 
+
+.. _top:
 
 **Table of contents**:
 
@@ -109,9 +111,9 @@ using ``serialize`` function, reducing loading time for next running.
 Optionally, we can apply compression to the FP16 model weights, using
 the ``compress_to_fp16=True`` option and integrate preprocessing using
 this approach. For more information about model conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 For TensorFlow Lite models support, refer to this
-`tutorial <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
+`tutorial <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
 
 .. code:: ipython3
 
@@ -220,7 +222,7 @@ Select device from dropdown list for running inference using OpenVINO:
 Estimate Model Performance `⇑ <#top>`__
 ###############################################################################################################################
 
-`Benchmark Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__ 
+`Benchmark Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__ 
 is used to measure the inference performance of the model on CPU and
 GPU.
 

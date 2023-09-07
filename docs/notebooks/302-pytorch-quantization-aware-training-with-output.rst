@@ -1,7 +1,7 @@
 Quantization Aware Training with NNCF, using PyTorch framework
 ==============================================================
 
-.. _top:
+
 
 This notebook is based on `ImageNet training in
 PyTorch <https://github.com/pytorch/examples/blob/master/imagenet/main.py>`__.
@@ -33,6 +33,8 @@ hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
 
    This notebook requires a C++ compiler.
 
+
+.. _top:
 
 **Table of contents**:
 
@@ -701,7 +703,7 @@ scale the input with the standard deviation by the ``mean_values`` and
 before propagating it through the network with these options.
 
 For more information about model conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -731,7 +733,7 @@ Benchmark Model Performance by Computing Inference Time `⇑ <#top>`__
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
