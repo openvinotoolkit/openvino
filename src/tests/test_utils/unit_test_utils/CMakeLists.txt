@@ -14,7 +14,7 @@ addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        ADD_CPPLINT
+        ADD_CLANG_FORMAT
         DEVELOPER_PACKAGE
             tests
         LINK_LIBRARIES

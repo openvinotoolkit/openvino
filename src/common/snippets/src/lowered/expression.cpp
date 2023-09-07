@@ -78,10 +78,6 @@ void Expression::set_reg_info(RegInfo rinfo) {
     }
 }
 
-void Expression::init_emitter(const std::shared_ptr<const TargetMachine>& target) {
-    m_emitter = target->get(m_source_node->get_type_info())(m_source_node);
-}
-
 void Expression::validate() const {
     OPENVINO_ASSERT(m_input_port_descriptors.size() == m_input_port_connectors.size(),
                     "The count of input ports and input port connectors must be equal");
