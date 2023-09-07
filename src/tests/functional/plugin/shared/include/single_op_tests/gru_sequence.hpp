@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/gru_sequence.hpp"
+#include "shared_test_classes/single_op/gru_sequence.hpp"
 
-namespace LayerTestsDefinitions {
-
+namespace ov {
+namespace test {
 TEST_P(GRUSequenceTest, CompareWithRefs) {
-    Run();
+    run();
 };
-
-}  // namespace LayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
