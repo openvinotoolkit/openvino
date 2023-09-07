@@ -7,8 +7,6 @@
 #include <map>
 #include <fstream>
 
-#include "openvino/openvino.hpp"
-
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/common_utils.hpp"
 

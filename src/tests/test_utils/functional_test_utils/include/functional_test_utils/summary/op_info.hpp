@@ -12,6 +12,7 @@ namespace functional {
 
 // todo: reuse in summary
 std::string get_node_version(const std::shared_ptr<ov::Node>& node, const std::string& postfix = "");
+
 }  // namespace functional
 }  // namespace test
 }  // namespace ov

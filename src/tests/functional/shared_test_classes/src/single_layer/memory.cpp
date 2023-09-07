@@ -66,7 +66,7 @@ namespace LayerTestsDefinitions {
 
         auto &s = ov::test::utils::OpSummary::getInstance();
         s.setDeviceName(targetDevice);
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        if (ov::test::utils::current_test_is_disabled()) {
             s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {

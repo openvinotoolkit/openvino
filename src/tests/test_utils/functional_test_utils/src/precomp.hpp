@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/ops.hpp>
-#include <ngraph/type/float16.hpp>
+#include "openvino/openvino.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/core/type/float16.hpp"
 
 #include <algorithm>
 #include <functional>
