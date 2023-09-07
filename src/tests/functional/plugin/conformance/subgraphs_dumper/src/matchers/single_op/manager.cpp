@@ -18,7 +18,7 @@ iMatcherConfig::Ptr MatchersManager::get_config(const std::shared_ptr<ov::Node> 
 }
 
 bool MatchersManager::match(const std::shared_ptr<ov::Node> &node,
-                            const std::shared_ptr<ov::Node> &ref) {
+                            const std::shared_ptr<ov::Node> &ref) const {
     for (const auto &it : m_matchers) {
         if (it.second->match(node, ref)) {
             return true;

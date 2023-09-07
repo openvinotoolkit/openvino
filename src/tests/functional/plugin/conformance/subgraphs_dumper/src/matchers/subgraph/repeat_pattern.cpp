@@ -92,7 +92,14 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
         for (size_t i = 0; i < start_node_idx.size(); ++i) {
             try {
-                to_cache.push_back(generate_model(nodes[i], checked_ops, extractor_name));
+                auto extracted_pattern = generate_model(nodes[i], checked_ops, extractor_name);
+                auto extracted_model = std::get<0>(extracted_pattern);
+                auto secondary_patterns = extract(std::get<0>(extracted_pattern), is_extract_body);
+                if (secondary_patterns.size() > 1) {
+                    to_cache.insert(to_cache.end(), secondary_patterns.begin(), secondary_patterns.end());
+                } else {
+                    to_cache.push_back(extracted_pattern);
+                }
                 nodes[i].clear();
             } catch(std::exception& e) {
                 if (std::string(e.what()) != "Incorrect node number to create model") {

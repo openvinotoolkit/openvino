@@ -51,7 +51,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
             try {
                 matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name));
             } catch(std::exception& e) {
-                if (std::string(e.what()) != "Incorrect node number to create model") {
+                if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
                     std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
                 }
             }

@@ -81,6 +81,10 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                 model_to_update = cached_model.first;
                 break;
             }
+            // continue in case that extracted model is part of other subgraph
+            if (m_manager.is_subgraph(extracted_model, cached_model.first)) {
+                return;
+            }
         }
     }
 
@@ -110,16 +114,13 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 }
 
 void GraphCache::serialize_cache() {
-    // for (const auto& cache_item : m_graph_cache) {
-        auto it = m_graph_cache.begin();
-        while (it != m_graph_cache.end()) {
-            auto rel_dir = ov::util::path_join({m_cache_subdir, it->second.get_any_extractor() });
-            serialize_model(*it, rel_dir);
-            m_graph_cache.erase(it->first);
-            it = m_graph_cache.begin();
-        }
-        auto a = 0;
-    // }
+    auto it = m_graph_cache.begin();
+    while (it != m_graph_cache.end()) {
+        auto rel_dir = ov::util::path_join({m_cache_subdir, it->second.get_any_extractor() });
+        serialize_model(*it, rel_dir);
+        m_graph_cache.erase(it->first);
+        it = m_graph_cache.begin();
+    }
 }
 
 }  // namespace subgraph_dumper

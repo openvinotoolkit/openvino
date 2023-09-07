@@ -19,6 +19,8 @@ public:
                const std::shared_ptr<ov::Model> &ref,
                std::map<std::string, InputInfo> &in_info,
                const std::map<std::string, InputInfo> &in_info_ref);
+    bool is_subgraph(const std::shared_ptr<ov::Model> &model,
+                     const std::shared_ptr<ov::Model> &ref);
     std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
                                         bool is_extract_body = true);
 

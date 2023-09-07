@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <chrono>
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "matchers/subgraph/manager.hpp"
 
 using namespace ov::tools::subgraph_dumper;
@@ -10,6 +12,16 @@ bool ExtractorsManager::match(const std::shared_ptr<ov::Model> &model,
                               const std::shared_ptr<ov::Model> &ref) {
     for (const auto &it : m_extractors) {
         if (it.second->match(model, ref)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ExtractorsManager::is_subgraph(const std::shared_ptr<ov::Model> &model,
+                                    const std::shared_ptr<ov::Model> &ref) {
+    for (const auto &it : m_extractors) {
+        if (it.second->is_subgraph(model, ref)) {
             return true;
         }
     }
@@ -74,10 +86,18 @@ std::list<ExtractedPattern>
 ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model, bool is_extract_body) {
     std::list<ExtractedPattern> result;
     for (const auto &it : m_extractors) {
+        // extract patterns from original models
         auto start = std::chrono::high_resolution_clock::now();
         it.second->set_extractor_name(it.first);
         auto extracted_patterns = it.second->extract(model, is_extract_body);
         result.insert(result.end(), extracted_patterns.begin(), extracted_patterns.end());
+
+        // extract patterns from models after `constant_folding` pass
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::ConstantFolding>();
+        manager.run_passes(model);
+        extracted_patterns = it.second->extract(model, is_extract_body);
+
         auto end = std::chrono::high_resolution_clock::now();
         auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         std::cout << "[ INFO ][ EXTRACTOR DURATION ] " << it.first << " " << delta << "ms" << std::endl;
