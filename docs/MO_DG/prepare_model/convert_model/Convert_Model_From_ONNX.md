@@ -17,17 +17,38 @@ Introduction to ONNX
 Converting an ONNX Model
 ########################
 
-This page provides instructions on model conversion from the ONNX format to the OpenVINO IR format. To use model conversion API, install OpenVINO Development Tools by following the :doc:`installation instructions <openvino_docs_install_guides_install_dev_tools>`.
+This page provides instructions on model conversion from the ONNX format to the OpenVINO IR format.
 
-Model conversion process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
+The model conversion process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
 
-To convert an ONNX model, run model conversion with the path to the input model ``.onnx`` file:
+.. tab-set::
 
-.. code-block:: sh
+   .. tab-item:: Python
+      :sync: py
 
-   mo --input_model <INPUT_MODEL>.onnx
+      To convert an ONNX model, run ``convert_model()`` method with the path to the ``<INPUT_MODEL>.onnx`` file:
 
-There are no ONNX specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the *General Conversion Parameters* section in the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+      .. code-block:: py
+         :force:
+
+         ov_model = convert_model("<INPUT_MODEL>.onnx")
+         compiled_model = core.compile_model(ov_model, "AUTO")
+
+      .. important::
+
+         The ``convert_model()`` method returns ``ov.Model`` that you can optimize, compile, or save to a file for subsequent use.
+
+   .. tab-item:: CLI
+      :sync: cli
+
+      You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
+
+      .. code-block:: sh
+
+         mo --input_model <INPUT_MODEL>.onnx
+
+
+There are no ONNX-specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the *General Conversion Parameters* section in the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 Supported ONNX Layers
 #####################

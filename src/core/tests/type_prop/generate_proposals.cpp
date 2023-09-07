@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/generate_proposals.hpp"
+
+#include <gtest/gtest.h>
+
 #include <vector>
 
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 using GenerateProposals = op::v9::GenerateProposals;
@@ -37,10 +39,10 @@ TEST(type_prop, generate_proposals_default_ctor) {
     attrs.post_nms_count = static_cast<int64_t>(s.post_nms_count);
     attrs.pre_nms_count = 1000;
 
-    auto im_info = std::make_shared<op::Parameter>(element::f32, s.im_info_shape);
-    auto anchors = std::make_shared<op::Parameter>(element::f32, s.anchors_shape);
-    auto deltas = std::make_shared<op::Parameter>(element::f32, s.deltas_shape);
-    auto scores = std::make_shared<op::Parameter>(element::f32, s.scores_shape);
+    auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, s.im_info_shape);
+    auto anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, s.anchors_shape);
+    auto deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, s.deltas_shape);
+    auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, s.scores_shape);
 
     auto proposals = std::make_shared<GenerateProposals>();
     proposals->set_arguments(OutputVector{im_info, anchors, deltas, scores});
@@ -65,10 +67,10 @@ TEST(type_prop, generate_proposals) {
 
     const auto dyn_dim = Dimension::dynamic();
 
-    auto im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 4});
-    auto anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
-    auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 336});
-    auto scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 200, 336});
+    auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4});
+    auto anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    auto deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 12, 200, 336});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 200, 336});
 
     auto proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs);
 
@@ -79,10 +81,10 @@ TEST(type_prop, generate_proposals) {
     EXPECT_EQ(proposals->get_output_partial_shape(1), (PartialShape{{0, 1000}}));
     EXPECT_EQ(proposals->get_output_partial_shape(2), (PartialShape{1}));
 
-    im_info = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
-    anchors = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    deltas = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    scores = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
+    anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    scores = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
     proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32);
 
@@ -94,49 +96,49 @@ TEST(type_prop, generate_proposals) {
     EXPECT_EQ(proposals->get_output_partial_shape(2), (PartialShape{dyn_dim}));
 
     // assert throw
-    im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 4});
-    anchors = std::make_shared<op::Parameter>(element::f32, Shape{100, 336, 3, 4});
-    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 336});
-    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 200, 336});
+    im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4});
+    anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{100, 336, 3, 4});
+    deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 12, 200, 336});
+    scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 
-    im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 4});
-    anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
-    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 300});
-    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 200, 336});
+    im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4});
+    anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 12, 200, 300});
+    scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 
-    im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 4});
-    anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
-    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 336});
-    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 4, 200, 336});
+    im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4});
+    anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 12, 200, 336});
+    scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 
-    im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 2});
-    anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
-    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 336});
-    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 4, 200, 336});
+    im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2});
+    anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 12, 200, 336});
+    scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 
-    im_info = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
-    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 336});
-    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 4, 200, 336});
+    im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 12, 200, 336});
+    scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 }
 
@@ -285,10 +287,10 @@ TEST(type_prop, generate_proposals_dynamic) {
                 ? 10
                 : s.deltas_shape.rank().is_static() ? 30 : s.scores_shape.rank().is_static() ? 40 : ov::no_label;
 
-        auto im_info = std::make_shared<op::Parameter>(element::f32, s.im_info_shape);
-        auto anchors = std::make_shared<op::Parameter>(element::f32, s.anchors_shape);
-        auto deltas = std::make_shared<op::Parameter>(element::f32, s.deltas_shape);
-        auto scores = std::make_shared<op::Parameter>(element::f32, s.scores_shape);
+        auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, s.im_info_shape);
+        auto anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, s.anchors_shape);
+        auto deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, s.deltas_shape);
+        auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, s.scores_shape);
 
         auto proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs);
 

@@ -1,6 +1,8 @@
 Industrial Meter Reader
 =======================
 
+
+
 This notebook shows how to create a industrial meter reader with
 OpenVINO Runtime. We use the pre-trained
 `PPYOLOv2 <https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.4/configs/ppyolo>`__
@@ -19,8 +21,28 @@ to build up a multiple inference task pipeline:
 
    workflow
 
-Import
-------
+.. _top:
+
+**Table of contents**:
+
+- `Import <#import>`__
+- `Prepare the Model and Test Image <#prepare-the-model-and-test-image>`__
+- `Configuration <#configuration>`__
+- `Load the Models <#load-the-models>`__
+- `Data Process <#data-process>`__
+- `Main Function <#main-function>`__
+
+  - `Initialize the model and parameters. <#initialize-the-model-and-parameters>`__
+  - `Run meter detection model <#run-meter-detection-model>`__
+  - `Run meter segmentation model <#run-meter-segmentation-model>`__
+  - `Postprocess the models result and calculate the final readings <#postprocess-the-models-result-and-calculate-the-final-readings>`__
+  - `Get the reading result on the meter picture <#get-the-reading-result-on-the-meter-picture>`__
+
+- `Try it with your meter photos! <#try-it-with-your-meter-photos>`__
+
+Import `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -37,18 +59,17 @@ Import
     sys.path.append("../utils")
     from notebook_utils import download_file, segmentation_map_to_image
 
-Prepare the Model and Test Image
---------------------------------
+Prepare the Model and Test Image `⇑ <#top>`__
+###############################################################################################################################
 
-Download PPYolov2 and DeepLabV3P pre-trained models from PaddlePaddle
-community.
+Download PPYOLOv2 and DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. code:: ipython3
 
     MODEL_DIR = "model"
     DATA_DIR = "data"
-    DET_MODEL_LINK = "https://bj.bcebos.com/paddlex/examples2/meter_reader/meter_det_model.tar.gz"
-    SEG_MODEL_LINK = "https://bj.bcebos.com/paddlex/examples2/meter_reader/meter_seg_model.tar.gz"
+    DET_MODEL_LINK = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/meter-reader/meter_det_model.tar.gz"
+    SEG_MODEL_LINK = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/meter-reader/meter_seg_model.tar.gz"
     DET_FILE_NAME = DET_MODEL_LINK.split("/")[-1]
     SEG_FILE_NAME = SEG_MODEL_LINK.split("/")[-1]
     IMG_LINK = "https://user-images.githubusercontent.com/91237924/170696219-f68699c6-1e82-46bf-aaed-8e2fc3fa5f7b.jpg"
@@ -113,8 +134,8 @@ community.
     Test Image Saved to "./data".
 
 
-Configuration
--------------
+Configuration `⇑ <#top>`__
+###############################################################################################################################
 
 Add parameter configuration for reading calculation.
 
@@ -142,8 +163,8 @@ Add parameter configuration for reading calculation.
     
     SEG_LABEL = {'background': 0, 'pointer': 1, 'scale': 2}
 
-Load the Models
----------------
+Load the Models `⇑ <#top>`__
+###############################################################################################################################
 
 Define a common class for model loading and inference
 
@@ -185,8 +206,8 @@ Define a common class for model loading and inference
             result = self.compiled_model(input_image)[self.output_layer]
             return result
 
-Data Process
-------------
+Data Process `⇑ <#top>`__
+###############################################################################################################################
 
 Including the preprocessing and postprocessing tasks of each model.
 
@@ -515,13 +536,15 @@ Including the preprocessing and postprocessing tasks of each model.
             readings.append(reading)
         return readings
 
-Main Function
--------------
+Main Function `⇑ <#top>`__
+###############################################################################################################################
 
-Initialize the model and parameters.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-select device from dropdown list for running inference using OpenVINO
+Initialize the model and parameters. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -548,7 +571,7 @@ select device from dropdown list for running inference using OpenVINO
 The number of detected meter from detection network can be arbitrary in
 some scenarios, which means the batch size of segmentation network input
 is a `dynamic
-dimension <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_DynamicShapes.html>`__,
+dimension <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_DynamicShapes.html>`__,
 and it should be specified as ``-1`` or the ``ov::Dimension()`` instead
 of a positive number used for static dimensions. In this case, for
 memory consumption optimization, we can specify the lower and/or upper
@@ -581,7 +604,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fc73dea8c70>
+    <matplotlib.image.AxesImage at 0x7f41e01e70a0>
 
 
 
@@ -589,11 +612,10 @@ bounds of input batch size.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_15_1.png
 
 
-Run meter detection model
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Run meter detection model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Detect the location of the meter and prepare the ROI images for
-segmentation.
+Detect the location of the meter and prepare the ROI images for segmentation.
 
 .. code:: ipython3
 
@@ -634,8 +656,8 @@ segmentation.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_17_1.png
 
 
-Run meter segmentation model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run meter segmentation model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Get the results of segmentation task on detected ROI.
 
@@ -674,10 +696,11 @@ Get the results of segmentation task on detected ROI.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_19_1.png
 
 
-Postprocess the models result and calculate the final readings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Postprocess the models result and calculate the final readings `⇑ <#top>`__ 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Use OpenCV function to find the location of the pointer in a scale map.
+Use OpenCV function to find the location of the pointer in a
+scale map.
 
 .. code:: ipython3
 
@@ -711,8 +734,9 @@ Use OpenCV function to find the location of the pointer in a scale map.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_21_1.png
 
 
-Get the reading result on the meter picture
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Get the reading result on the meter picture `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -742,4 +766,6 @@ Get the reading result on the meter picture
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_23_1.png
 
 
-## Try it with your meter photos!
+Try it with your meter photos! `⇑ <#top>`__
+###############################################################################################################################
+

@@ -7,13 +7,17 @@
                  PyTorch format to the OpenVINO Intermediate Representation. 
 
 
-This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format using Model Optimizer.
-Model Optimizer Python API allows the conversion of PyTorch models using the ``convert_model()`` method.
+This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format.
 
-(Experimental) Converting a PyTorch model with PyTorch Frontend 
+The conversion is a required step to run inference using OpenVINO API.
+It is not required if you choose to work with OpenVINO under the PyTorch framework, 
+using its :doc:`torch.compile feature <pytorch_2_0_torch_compile>`.
+
+Converting a PyTorch model with PyTorch Frontend
 ###############################################################
 
-Example of PyTorch model conversion:
+To convert a PyTorch model to the OpenVINO IR format, use the OVC API (superseding the previously used tool, MO). To do so, use the ``convert_model()`` method, like so:
+
 
 .. code-block:: py
    :force:
@@ -31,12 +35,8 @@ Following PyTorch model formats are supported:
 * ``torch.jit.ScriptModule``
 * ``torch.jit.ScriptFunction``
 
-Converting certain PyTorch models may require model tracing, which needs ``input_shape`` or ``example_input`` parameters to be set.
-
-``example_input`` is used as example input for model tracing.
-``input_shape`` is used for constructing a float zero-filled torch.Tensor for model tracing.
-
-Example of using ``example_input``:
+Converting certain PyTorch models may require model tracing, which needs the ``example_input`` 
+parameter to be set, for example:
 
 .. code-block:: py
    :force:
@@ -46,7 +46,7 @@ Example of using ``example_input``:
    from openvino.tools.mo import convert_model
    
    model = torchvision.models.resnet50(pretrained=True)
-   ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100))
+   ov_model = convert_model(model, example_input=torch.randn(1, 3, 100, 100))
 
 ``example_input`` accepts the following formats:
 
@@ -56,10 +56,18 @@ Example of using ``example_input``:
 * ``list`` or ``tuple`` with tensors (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 * ``dictionary`` where key is the input name, value is the tensor (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 
+Sometimes ``convert_model`` will produce inputs of the model with dynamic rank or dynamic type. 
+Such model may not be supported by the hardware chosen for inference. To avoid this issue,
+use the ``input`` argument of ``convert_model``. For more information, refer to `Convert Models Represented as Python Objects <openvino_docs_MO_DG_Python_API>`. 
+
+.. important::
+
+   The ``convert_model()`` method returns ``ov.Model`` that you can optimize, compile, or save to a file for subsequent use.
+
 Exporting a PyTorch Model to ONNX Format
 ########################################
 
-Currently, the most robust method of converting PyTorch models is exporting a PyTorch model to ONNX and then converting it to IR. To convert and deploy a PyTorch model, follow these steps:
+It is also possible to export a PyTorch model to ONNX and then convert it to OpenVINO IR. To convert and deploy a PyTorch model this way, follow these steps:
 
 1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
 2. :doc:`Convert the ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.
@@ -85,12 +93,6 @@ To export a PyTorch model, you need to obtain the model as an instance of ``torc
    # Call the export function
    torch.onnx.export(model, (dummy_input, ), 'model.onnx')
 
-
-Known Issues
-####################
-
-As of version 1.8.1, not all PyTorch operations can be exported to ONNX opset 9 which is used by default.
-It is recommended to export models to opset 11 or higher when export to default opset 9 is not working. In that case, use ``opset_version`` option of the ``torch.onnx.export``. For more information about ONNX opset, refer to the `Operator Schemas <https://github.com/onnx/onnx/blob/master/docs/Operators.md>`__ page.
 
 Additional Resources
 ####################

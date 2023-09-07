@@ -9,12 +9,17 @@
 
 
 The OpenVINO runtime can infer various models of different input and output formats. Here, you can find configurations 
-supported by OpenVINO devices, which are CPU, GPU, and GNA (Gaussian Neural Accelerator coprocessor).
+supported by OpenVINO devices, which are CPU, GPU, NPU, and GNA (Gaussian Neural Accelerator coprocessor).
 Currently, processors of the 11th generation and later (up to the 13th generation at the moment) provide a further performance boost, especially with INT8 models.
 
 .. note::
 
-   With OpenVINO™ 2023.0 release, support has been cancelled for all VPU accelerators based on Intel® Movidius™.
+   With OpenVINO™ 2023.0 release, support has been cancelled for:
+   - Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X
+   - Intel® Vision Accelerator Design with Intel® Movidius™
+   
+   To keep using the MYRIAD and HDDL plugins with your hardware, revert to the OpenVINO 2022.3 LTS release.
+   
 
 
 +---------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
@@ -31,7 +36,7 @@ Currently, processors of the 11th generation and later (up to the 13th generatio
 || :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`             | Intel® Processor Graphics including Intel® HD Graphics and Intel® Iris® Graphics,                    |
 ||                                                                    | Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU Max Series |                                 
 +---------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
-|| :doc:`GNA plugin <openvino_docs_OV_UG_supported_plugins_GNA>`      | Intel® Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel®          |
+|| :doc:`GNA <openvino_docs_OV_UG_supported_plugins_GNA>`             | Intel® Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel®          |
 || (available in the Intel® Distribution of OpenVINO™ toolkit)        | Pentium® Silver J5005 Processor, Intel® Pentium® Silver N5000 Processor, Intel®                      |
 ||                                                                    | Celeron® J4005 Processor, Intel® Celeron® J4105 Processor, Intel® Celeron®                           |
 ||                                                                    | Processor N4100, Intel® Celeron® Processor N4000, Intel® Core™ i3-8121U Processor,                   |
@@ -41,7 +46,15 @@ Currently, processors of the 11th generation and later (up to the 13th generatio
 ||                                                                    | Intel® Core™ i3-1005G1 Processor, Intel® Core™ i3-1000G1 Processor,                                  |
 ||                                                                    | Intel® Core™ i3-1000G4 Processor                                                                     |
 +---------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
-
+|| :doc:`NPU <openvino_docs_OV_UG_supported_plugins_NPU>`             |                                                                                                      |
+||                                                                    |                                                                                                      |
+||                                                                    |                                                                                                      |
+||                                                                    |                                                                                                      |
+||                                                                    |                                                                                                      |
+||                                                                    |                                                                                                      |
+||                                                                    |                                                                                                      |
+||                                                                    |                                                                                                      |
++---------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
 
 Beside inference using a specific device, OpenVINO offers three inference modes for automated inference management. These are:
 
