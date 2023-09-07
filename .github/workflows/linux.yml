@@ -59,6 +59,7 @@ jobs:
       CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_Release
       CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
       CCACHE_MAXSIZE: 50G
+      TEST_USER_NAME: "ga_runner"
     steps:
       - name: Install git
         run: |
@@ -89,9 +90,17 @@ jobs:
       #
       # Dependencies
       #
+      - name: Create test user
+        run: |
+          export USER_UID=1000
+          export USER_GID=$USER_UID
+          groupadd --gid $USER_GID ${{ env.TEST_USER_NAME }}
+          useradd --uid $USER_UID --gid $USER_GID -m ${{ env.TEST_USER_NAME }}
+          su - ${{ env.TEST_USER_NAME }}
 
       - name: Install build dependencies
         run: |
+          whoami
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           apt update
           apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
@@ -587,7 +596,7 @@ jobs:
 
       - name: Create test user
         run: |
-          export USER_GID=1000
+          export USER_UID=1000
           export USER_GID=$USER_UID
           groupadd --gid $USER_GID ${{ env.TEST_USER_NAME }}
           useradd --uid $USER_UID --gid $USER_GID -m ${{ env.TEST_USER_NAME }}
@@ -607,6 +616,7 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
+
           pushd ${INSTALL_DIR}
             tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
           popd
