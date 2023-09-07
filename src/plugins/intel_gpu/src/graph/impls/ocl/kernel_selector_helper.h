@@ -263,7 +263,9 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
                 auto dep_shape = dep_layout.get_partial_shape();
 
                 if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
-                    dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                    // In particular, as in the case of 1D tensor,
+                    // the shape should be expanded by rank from the end to avoid unintentional extension
+                    dep_layout.set_partial_shape(extend_shape_to_rank_from_end(dep_shape, out_pshape.size()));
                 }
             }
         }
