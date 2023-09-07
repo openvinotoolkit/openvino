@@ -1,19 +1,19 @@
-# Install OpenVINO™ Runtime via Homebrew {#openvino_docs_install_guides_installing_openvino_brew}
+# Install OpenVINO™ Runtime via VCPKG {#openvino_docs_install_guides_installing_openvino_vcpkg}
 
 @sphinxdirective
 
 .. meta::
-   :description: Learn how to install OpenVINO™ Runtime on Linux and macOS 
-                 operating systems, using Homebrew.
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and macOS 
+                 operating systems, using VCPKG.
 
 .. note::
    
-   Note that the `Homebrew <https://brew.sh/>`__ distribution:
+   Note that the VCPKG distribution:
 
-   * offers both C++ and Python APIs
+   * offers C++ API only
    * does not offer support for GNA and NPU inference
-   * is dedicated to macOS users.
-
+   * is dedicated to users of all major OSs: Windows, Linux, macOS.
+   * may offer different hardware support under different operating systems.
 
 .. tab-set::
 
@@ -32,44 +32,34 @@
    .. tab-item:: Software Requirements
       :sync: software-requirements
 
-      .. tab-set::
+      * `vcpkg <https://vcpkg.io/en/getting-started>`__
 
-         .. tab-item:: Linux
-            :sync: linux
-         
-            * `Homebrew <https://brew.sh/>`_
-            * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-            * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
-            * `Python 3.8 - 3.10, 64-bit <https://www.python.org/downloads/>`__
 
-         .. tab-item:: macOS
-            :sync: macos
-         
-            * `Homebrew <https://brew.sh/>`_
-            * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation). 
-            * `Python 3.8 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ . Install and add it to path.
-            * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
-            * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
-         
 
 Installing OpenVINO Runtime
 ###########################
 
-1. Make sure that you have installed Homebrew on your system. If not, follow the instructions on `the Homebrew website <https://brew.sh/>`__ to install and configure it.
+1. Make sure that you have installed VCPKG on your system. If not, follow the 
+   `VCPKG installation instructions <https://vcpkg.io/en/getting-started>`__.
 
-2. Run the following command in the terminal:
 
-   .. code-block:: sh
-
-      brew install openvino
-
-3. Check if the installation was successful by listing all Homebrew packages:
+2. Install OpenVINO using the following terminal command:
 
    .. code-block:: sh
 
-      brew list
+      vcpkg install openvino
 
+   VCPKG also enables you to install only selected components, by specifying them in the command.
+   See the list of `available features <https://vcpkg.link/ports/openvino>`__, for example: 
 
+   .. code-block:: sh
+
+      vcpkg install openvino[cpu,ir]
+
+Note that the VCPKG installation means building all packages and dependencies from source, 
+which means the compiler stage will require additional time to complete the process. 
+
+ 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still 
 need to install additional components. Check the 
 :doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
@@ -77,14 +67,15 @@ to see if your case needs any of them.
 
 
 
+
 Uninstalling OpenVINO
 #####################
 
-To uninstall OpenVINO via Homebrew, use the following command:
+To uninstall OpenVINO via VCPKG, use the following command:
 
 .. code-block:: sh
 
-   brew uninstall openvino
+   vcpkg uninstall openvino
 
 
 What's Next?
