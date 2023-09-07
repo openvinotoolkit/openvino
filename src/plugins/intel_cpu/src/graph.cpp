@@ -1807,7 +1807,7 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                     return InplaceDirectionType::NONE;
                 };
                 auto result = searchNonCyclicDirection(node, inPlaceInpPort);
-                if (one_of(result, InplaceDirectionType::UP, InplaceDirectionType::NONE)) {
+                if (InplaceDirectionType::UP == result) {
                     auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
                     config.inConfs[inpPort].inPlace(-1);
                     node->initDescriptor(config);
@@ -1815,6 +1815,58 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                     auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
                     config.outConfs[inPlaceInpPort].inPlace(-1);
                     node->initDescriptor(config);
+                } else if (InplaceDirectionType::NONE == result) {
+                    // resolve cyclic inplace to downstream instead of upstream for the node
+                    // when there is only one output referencing to the edges of it,
+                    // thus benefits zero-copy of outputs.
+                    int numConflicts = 0;
+
+                    // search descendants
+                    // note: there are only non-inplace or cyclic-inplace descendants at the moment.
+                    std::function<void(const NodePtr& node, int portIdx)> searchReferencingOutput;
+                    searchReferencingOutput = [&](const NodePtr& node, int portIdx) -> void {
+                        if (numConflicts > 1) return;  // early stop
+                        auto& childEdges = node->getChildEdgesAtPort(portIdx);
+                        for (auto& edge : childEdges) {
+                            auto pChild = edge->getChild();
+                            if (Type::Output == pChild->getType()) {
+                                numConflicts++;
+                            } else {
+                                auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
+                                if (InplaceDirectionType::CYCLIC == result) {
+                                    return searchReferencingOutput(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
+                                }
+                            }
+                        }
+                    };
+                    searchReferencingOutput(node, inPlaceInpPort);
+
+                    // search siblings
+                    if (numConflicts <= 1) {
+                        // note: the parent node does not use inPlace memory at the moment, let's check the siblings
+                        for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
+                            auto peerNode = peerEdge->getChild();
+                            if (peerNode == node) continue;
+                            if (Type::Output == peerNode->getType()) {
+                                numConflicts++;
+                            } else {
+                                auto result = inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum());
+                                if (one_of(result, InplaceDirectionType::DOWN, InplaceDirectionType::CYCLIC)) {
+                                    numConflicts++;
+                                }
+                            }
+                        }
+                    }
+
+                    if (numConflicts == 1) { // downstream to make the only output edge be referenced.
+                        auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
+                        config.outConfs[inPlaceInpPort].inPlace(-1);
+                        node->initDescriptor(config);
+                    } else { // the default direction of upstream
+                        auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
+                        config.inConfs[inpPort].inPlace(-1);
+                        node->initDescriptor(config);
+                    }
                 } else {
                     OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");
                 }
