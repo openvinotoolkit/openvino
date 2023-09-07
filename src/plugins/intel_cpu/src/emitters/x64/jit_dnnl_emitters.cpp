@@ -18,7 +18,7 @@ std::set<std::vector<element::Type>> jit_dnnl_emitter::get_supported_precisions(
 }
 
 jit_dnnl_emitter::jit_dnnl_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, InferenceEngine::Precision exec_prc)
-    : jit_emitter(host, host_isa, node, exec_prc) {
+    : jit_emitter(host, host_isa, exec_prc) {
 
     kind = dnnl_eltwise_tanh;
     alpha = 0.f;
