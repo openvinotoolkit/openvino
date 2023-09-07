@@ -473,17 +473,26 @@ void FullyConnected::prepareParams() {
         }
 
         if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+#ifdef CPU_DEBUG_CAPS
+            // execPtr expects different weight layout.
             if (prevExecPtr) {
-                const Shape lastInputShape{getLastInputDims()[0]};
-                const Shape inputShape{srcMemPtr->getStaticDims()};
-                DEBUG_LOG("##", getName(), " weight desc changes!!!");
-                DEBUG_LOG("##",  prevExecPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1, " : "FullyConnnect, ",
-                        execPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1:" : "FullyConnnect:",
-                        " input_shape from: ", lastInputShape.toString(),
-                       " to ", inputShape.toString(), ", element_num from : ", lastInputShape.getElementsCount(),
-                       " to ", inputShape.getElementsCount(), ",  weight_desc from: ", *prevExecPtr->getWeightDesc(), " to ",
-                       *execPtr->getWeightDesc(), " memorysize(MB): \t\t", static_cast<float>(execPtr->getWeightDesc()->getMaxMemSize()) / (1024.0*1024.0));
+                const Shape weiShape{getParentEdgesAtPort(1)[0]->getMemoryPtr()->getStaticDims()};
+                // DEBUG_LOG("##", getName(), " weight desc is not compatible with previous inner product execPtr!");
+                // DEBUG_LOG("##",  prevExecPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1, " : "FullyConnnect, ",
+                //         execPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1:" : "FullyConnnect:",
+                //         " input_shape from: ", lastInputShape.toString(),
+                //         " to ", inputShape.toString(), ", element_cnt from : ", lastInputShape.getElementsCount(),
+                //         " to ", inputShape.getElementsCount(), ",  weight_desc from: ", *prevExecPtr->getWeightDesc(), " to ",
+                //         *execPtr->getWeightDesc(), " memorysize(MB): \t",
+                //         static_cast<float>(execPtr->getWeightDesc()->getMaxMemSize()) / static_cast<float>(1<<20));
+                DEBUG_LOG("#", static_cast<float>(execPtr->getWeightDesc()->getMaxMemSize()) / static_cast<float>(1<<20),
+                           "#", weiShape.toString(),
+                          "#", prevExecPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1," : "FullyConnnect,",
+                          "#", execPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1," : "FullyConnnect,",
+                          "#", *prevExecPtr->getWeightDesc(),
+                          "#", *execPtr->getWeightDesc());
             }
+#endif
             if (weightsNonTransposed) {
                 primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc(), makeTransposedWeightDescriptor())->getPrimitive();
             } else {
@@ -1015,6 +1024,9 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         widthInConv = srcDims[inRank - 2];
         K = srcDims[inRank - 1];
         N = weightDims[0];
+        auto weight_size = std::getenv("WEIGHT_SIZE");
+        if (weight_size && weightMemPtr->getSize() >= (static_cast<size_t>(atoi(weight_size)) * 1 << 20))
+            retVal = false;
 
         if (!(widthInConv >= 2 && widthInConv <= 3136 &&
               K >= 96 && K <= 4096 &&
