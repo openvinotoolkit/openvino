@@ -392,7 +392,7 @@ createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
     }
 }
 
-static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::engine engine) {
+static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::engine& engine) {
     // use conv1x1 primitive for computation
     if (key.useConv1x1) {
         auto prim_desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out, key.attr, engine);
@@ -452,31 +452,14 @@ static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::en
  * Do it in scope of compile_model using dummy shapes
  */
 void FullyConnected::prepareWeightsUsingDummyShape() {
-    auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-    auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory hasn't been allocated.";
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << "Input memory hasn't been allocated.";
-    MemoryPtr biasMemPtr = nullptr;
-    if (withBiases) {
-        biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
-        if (!biasMemPtr || !biasMemPtr->isAllocated())
-            IE_THROW() << "Input memory hasn't been allocated.";
-    }
     NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    DnnlMemoryDescPtr weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
-    DnnlMemoryDescCPtr biasDesc = nullptr;
-    if (biasMemPtr) {
-        biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
-    }
-    DnnlMemoryDescCPtr inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(
-        MemoryDescUtils::makeDummyDesc(*srcMemPtr->getDescWithType<DnnlMemoryDesc>()));
-    DnnlMemoryDescCPtr outDesc = MemoryDescUtils::convertToDnnlMemoryDesc(
-        MemoryDescUtils::makeDummyDesc(*dstMemPtr->getDescWithType<DnnlMemoryDesc>()));
+    auto inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(MemoryDescUtils::makeDummyDesc(*getBaseMemDescAtInputPort(DATA_ID)));
+    auto weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(getBaseMemDescAtInputPort(WEIGHTS_ID));
+    auto biasDesc = withBiases ? MemoryDescUtils::convertToDnnlMemoryDesc(getBaseMemDescAtInputPort(BIAS_ID)) : nullptr;
+    auto outDesc = MemoryDescUtils::convertToDnnlMemoryDesc(MemoryDescUtils::makeDummyDesc(*getBaseMemDescAtOutputPort(0)));
 
     const FCKey key = {inDesc,
                        weightDesc,
@@ -485,6 +468,7 @@ void FullyConnected::prepareWeightsUsingDummyShape() {
                        attr,
                        selected_pd->getImplementationType(),
                        false};
+
     auto prim_desc = createPrimitiveDesc(key, getEngine());
     auto weights = DnnlExtensionUtils::makeDescriptor(prim_desc.weights_desc());
     // ignore the result since we just need to put the reordered weights into the cache
