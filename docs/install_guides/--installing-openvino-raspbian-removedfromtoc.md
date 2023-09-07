@@ -23,7 +23,7 @@ Development and Target Systems
       :sync: software-requirements
     
       * CMake 3.10 or higher
-      * Python 3.8 - 3.11
+      * Python 3.7 - 3.11
 
 
 .. _install-openvino:
