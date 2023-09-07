@@ -25,8 +25,8 @@ ov::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNormali
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto gather = pattern_to_output.at(gather_node).get_node_shared_ptr();
-        // do not normalize negative indices in case of v8::Gather because according to Gather-8 specification output values must be filled with zero
-        // in case of out of bound indices
+        // do not normalize negative indices in case of v8::Gather because according to Gather-8 specification output
+        // values must be filled with zero in case of out of bound indices
         if (is_type<ov::op::v8::Gather>(gather)) {
             return false;
         }
