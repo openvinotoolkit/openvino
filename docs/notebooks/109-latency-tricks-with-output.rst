@@ -1,8 +1,6 @@
 Performance tricks in OpenVINO for latency mode
 ===============================================
 
-.. _top:
-
 The goal of this notebook is to provide a step-by-step tutorial for
 improving performance for inferencing in a latency mode. Low latency is
 especially desired in real-time applications when the results are needed
@@ -50,6 +48,10 @@ optimize performance on OpenVINO IR files in
 
 A similar notebook focused on the throughput mode is available
 `here <109-throughput-tricks-with-output.html>`__.
+
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -512,7 +514,7 @@ OpenVINO IR model + more inference threads `⇑ <#top>`__
 There is a possibility to add a config for any device (CPU in this
 case). We will increase the number of threads to an equal number of our
 cores. It should help us a lot. There are `more
-options <https://docs.openvino.ai/2023.0/groupov_runtime_cpp_prop_api.html>`__
+options <https://docs.openvino.ai/2023.1/groupov_runtime_cpp_prop_api.html>`__
 to be changed, so it’s worth playing with them to see what works best in
 our case.
 
@@ -544,7 +546,7 @@ OpenVINO IR model in latency mode `⇑ <#top>`__
 
 
 OpenVINO offers a virtual device called
-`AUTO <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
+`AUTO <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
 which can select the best device for us based on a performance hint.
 There are three different hints: ``LATENCY``, ``THROUGHPUT``, and
 ``CUMULATIVE_THROUGHPUT``. As this notebook is focused on the latency
@@ -663,6 +665,6 @@ object detection model. Even if you experience much better performance
 after running this notebook, please note this may not be valid for every
 hardware or every model. For the most accurate results, please use
 ``benchmark_app`` `command-line
-tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_samples_benchmark_app_README.html>`__.
+tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_samples_benchmark_app_README.html>`__.
 Note that ``benchmark_app`` cannot measure the impact of some tricks
 above, e.g., shared memory.

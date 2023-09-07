@@ -28,11 +28,12 @@ public:
     MOCK_METHOD(StatusCode, SetUserData, (void*, ResponseDesc*), (noexcept));
     MOCK_METHOD(StatusCode, SetCompletionCallback, (IInferRequest::CompletionCallback), (noexcept));
     MOCK_METHOD(StatusCode, Infer, (ResponseDesc*), (noexcept));
-    MOCK_METHOD(StatusCode, GetPerformanceCounts,
-        ((std::map<std::string, InferenceEngineProfileInfo> &), ResponseDesc*), (const, noexcept));
+    MOCK_METHOD(StatusCode,
+                GetPerformanceCounts,
+                ((std::map<std::string, InferenceEngineProfileInfo>&), ResponseDesc*),
+                (const, noexcept));
     MOCK_METHOD(StatusCode, GetBlob, (const char*, Blob::Ptr&, ResponseDesc*), (noexcept));
-    MOCK_METHOD(StatusCode, GetPreProcess,
-        (const char*, const PreProcessInfo**, ResponseDesc*), (const, noexcept));
+    MOCK_METHOD(StatusCode, GetPreProcess, (const char*, const PreProcessInfo**, ResponseDesc*), (const, noexcept));
     MOCK_METHOD(StatusCode, SetBlob, (const char*, const Blob::Ptr&, ResponseDesc*), (noexcept));
     MOCK_METHOD(StatusCode, Cancel, (ResponseDesc*), (noexcept));
 };

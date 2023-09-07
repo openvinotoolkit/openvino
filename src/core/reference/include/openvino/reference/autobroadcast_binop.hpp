@@ -8,9 +8,9 @@
 #include <numeric>
 #include <utility>
 
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {
@@ -44,7 +44,6 @@ inline void numpy_autobroadcast_binop(const T* arg0,
                                       const size_t axis,
                                       const size_t stride,
                                       Functor elementwise_functor) {
-    using ngraph::CoordinateIterator;
     for (CoordinateIterator it(output_shape), ite = CoordinateIterator::end();;) {
         for (size_t i = 0; i < stride; ++i)
             *out++ = elementwise_functor(arg0[i * A0], arg1[i * A1]);
@@ -264,9 +263,9 @@ void autobroadcast_binop(const T* arg0,
             }
 
             NGRAPH_SUPPRESS_DEPRECATED_START
-            ngraph::CoordinateTransform arg0_transform(arg0_shape);
-            ngraph::CoordinateTransform arg1_transform(arg1_squeezed_shape);
-            ngraph::CoordinateTransform output_transform(arg0_shape);
+            CoordinateTransform arg0_transform(arg0_shape);
+            CoordinateTransform arg1_transform(arg1_squeezed_shape);
+            CoordinateTransform output_transform(arg0_shape);
 
             for (const Coordinate& output_coord : output_transform) {
                 Coordinate arg1_coord = ngraph::reduce(output_coord, arg1_squeezed_axes, false);
@@ -309,8 +308,6 @@ void autobroadcast_select(const U* arg0,
                           const Shape& arg2_shape,
                           const op::AutoBroadcastSpec& broadcast_spec,
                           Functor elementwise_functor) {
-    using ngraph::CoordinateTransformBasic;
-
     switch (broadcast_spec.m_type) {
     case op::AutoBroadcastType::NONE:
         for (size_t i = 0; i < shape_size(arg0_shape); i++) {

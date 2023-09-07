@@ -1,7 +1,7 @@
 Handwritten Chinese and Japanese OCR with OpenVINO™
 ===================================================
 
-.. _top:
+
 
 In this tutorial, we perform optical character recognition (OCR) for
 handwritten Chinese (simplified) and Japanese. An OCR tutorial using the
@@ -10,14 +10,16 @@ Latin alphabet is available in `notebook
 This model is capable of processing only one line of symbols at a time.
 
 The models used in this notebook are
-`handwritten-japanese-recognition-0001 <https://docs.openvino.ai/2023.0/omz_models_model_handwritten_japanese_recognition_0001.html>`__
+`handwritten-japanese-recognition-0001 <https://docs.openvino.ai/2023.1/omz_models_model_handwritten_japanese_recognition_0001.html>`__
 and
-`handwritten-simplified-chinese-0001 <https://docs.openvino.ai/2023.0/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
+`handwritten-simplified-chinese-0001 <https://docs.openvino.ai/2023.1/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
 To decode model outputs as readable text
 `kondate_nakayosi <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/kondate_nakayosi.txt>`__
 and
 `scut_ept <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/scut_ept.txt>`__
 charlists are used. Both models are available on `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
+
+.. _top:
 
 **Table of contents**:
 

@@ -7,6 +7,7 @@
 #include <list>
 
 #include "expression.hpp"
+#include "snippets/target_machine.hpp"
 
 namespace ov {
 namespace snippets {
