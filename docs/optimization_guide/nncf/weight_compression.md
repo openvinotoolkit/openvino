@@ -1,4 +1,4 @@
-# Weights Compression {#weight_compression}
+# Weight Compression {#weight_compression}
 
 @sphinxdirective
 
