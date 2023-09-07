@@ -32,13 +32,14 @@
 #        define _ARM64_
 #    endif
 
-#    include <fileapi.h>
-#    include <sys/stat.h>
-#    include <sys/types.h>
-#    include <winbase.h>
-#    include <windef.h>
-
+// clang-format off
 #    include <string>
+#    include <windef.h>
+#    include <fileapi.h>
+#    include <winbase.h>
+#    include <sys/types.h>
+#    include <sys/stat.h>
+// clang-format on
 
 // Copied from linux libc sys/stat.h:
 #    define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
