@@ -12,7 +12,7 @@ set(OBJ_NAME ${TARGET_NAME}_obj)
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-add_library(${OBJ_NAME} STATIC ${SOURCES} ${HEADERS})
+add_library(${OBJ_NAME} OBJECT ${SOURCES} ${HEADERS})
 
 ov_add_version_defines(src/plugin.cpp ${OBJ_NAME})
 
