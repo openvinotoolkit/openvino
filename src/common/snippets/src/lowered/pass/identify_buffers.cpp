@@ -34,20 +34,21 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
     // < ptr_increment, finalization_offset >
     using ShiftPtrParams = std::pair<int64_t, int64_t>;
 
-    auto get_buffer_idx = [&](const std::shared_ptr<op::Buffer>& buffer) {
+    auto get_buffer_idx = [&](const ExpressionPtr& buffer) {
         const auto iter = std::find(buffers.cbegin(), buffers.cend(), buffer);
         NGRAPH_CHECK(iter != buffers.cend(), "Buffer wasn't find in Buffer system of Subgraph");
         return std::distance(buffers.cbegin(), iter);
     };
 
-    auto update_adj_matrix = [&](const std::pair<std::shared_ptr<op::Buffer>, ShiftPtrParams>& buffer,
-                                 const std::pair<std::shared_ptr<op::Buffer>, ShiftPtrParams>& neighbour_buffer) {
-        const bool equal_ptr_params_shifting = buffer.second == neighbour_buffer.second;
-        const bool equal_element_type_sizes = buffer.first->get_element_type().size() == neighbour_buffer.first->get_element_type().size();
-        if (!equal_ptr_params_shifting || ((buffer.second.first != 0 || buffer.second.second != 0) && !equal_element_type_sizes)) {
-            const auto buffer_idx = get_buffer_idx(buffer.first);
-            const auto neighbour_idx = get_buffer_idx(neighbour_buffer.first);
-            adj[index(size, neighbour_idx, buffer_idx)] = adj[index(size, buffer_idx, neighbour_idx)] = true;
+    auto update_adj_matrix = [&](const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
+                                 const std::pair<ExpressionPtr, ShiftPtrParams>& rhs) {
+        const auto equal_ptr_params_shifting = lhs.second == rhs.second;
+        const auto equal_element_type_sizes = lhs.first->get_node()->get_element_type().size() == rhs.first->get_node()->get_element_type().size();
+        const auto equal_loop_ids = lhs.first->get_loop_ids() == rhs.first->get_loop_ids();
+        if (!equal_loop_ids || !equal_ptr_params_shifting || ((lhs.second.first != 0 || lhs.second.second != 0) && !equal_element_type_sizes)) {
+            const auto lhs_idx = get_buffer_idx(lhs.first);
+            const auto rhs_idx = get_buffer_idx(rhs.first);
+            adj[index(size, rhs_idx, lhs_idx)] = adj[index(size, lhs_idx, rhs_idx)] = true;
         }
     };
 
@@ -71,13 +72,13 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
                 continue;
             OPENVINO_ASSERT(std::count_if(consumers.begin(), consumers.end(), is_buffer) == 1, "Brgemm mustn't have more than 1 consumer buffer");
 
-            std::vector<std::shared_ptr<op::Buffer>> adjacency_buffers;
-            adjacency_buffers.push_back(ov::as_type_ptr<op::Buffer>(buffer_it->get_expr()->get_node()));
+            BufferSet adjacency_buffers;
+            adjacency_buffers.push_back(buffer_it->get_expr());
 
             for (const auto& input_connector : expr->get_input_port_connectors()) {
-                const auto parent_node = input_connector->get_source().get_expr()->get_node();
-                if (const auto neighbour_buffer = ov::as_type_ptr<op::Buffer>(parent_node)) {
-                    adjacency_buffers.push_back(neighbour_buffer);
+                const auto parent_expr = input_connector->get_source().get_expr();
+                if (ov::is_type<op::Buffer>(parent_expr->get_node())) {
+                    adjacency_buffers.push_back(parent_expr);
                 }
             }
             for (auto buffer_it = adjacency_buffers.begin(); buffer_it != adjacency_buffers.end(); ++buffer_it) {
@@ -101,17 +102,17 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
         const auto finalization_offsets = loop_end->get_finalization_offsets();
 
         // Buffer -> <ptr increment, finalization_offsets>
-        std::map<std::shared_ptr<op::Buffer>, ShiftPtrParams> buffer_neighbours;
+        std::map<ExpressionPtr, ShiftPtrParams> buffer_neighbours;
 
         for (size_t i = 0; i < input_count; ++i) {
             const auto& parent_output = expr->get_input_port_connector(i)->get_source().get_expr();
-            if (const auto buffer = ov::as_type_ptr<op::Buffer>(parent_output->get_node())) {
-                if (buffer_neighbours.count(buffer) > 0) {
-                    update_ptr_shift(buffer_neighbours[buffer].first, ptr_increments[i]);
-                    update_ptr_shift(buffer_neighbours[buffer].second, finalization_offsets[i]);
+            if (ov::is_type<op::Buffer>(parent_output->get_node())) {
+                if (buffer_neighbours.count(parent_output) > 0) {
+                    update_ptr_shift(buffer_neighbours[parent_output].first, ptr_increments[i]);
+                    update_ptr_shift(buffer_neighbours[parent_output].second, finalization_offsets[i]);
                     continue;
                 }
-                buffer_neighbours[buffer] = { ptr_increments[i], finalization_offsets[i] };
+                buffer_neighbours[parent_output] = { ptr_increments[i], finalization_offsets[i] };
             }
         }
         for (size_t i = 0; i < output_count; ++i) {
@@ -121,10 +122,10 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
             size_t buffer_count = 0;
             size_t loop_count = 0;
             for (const auto& consumer_input : consumer_inputs) {
-                const auto& child_node = consumer_input.get_expr()->get_node();
-                if (const auto buffer = ov::as_type_ptr<op::Buffer>(child_node)) {
-                    buffer_neighbours[buffer] = { ptr_increments[index], finalization_offsets[index] };
-                } else if (ov::is_type<op::LoopEnd>(child_node)) {
+                const auto& child_expr = consumer_input.get_expr();
+                if (ov::is_type<op::Buffer>(child_expr->get_node())) {
+                    buffer_neighbours[child_expr] = { ptr_increments[index], finalization_offsets[index] };
+                } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
                     loop_count++;
                 }
             }
@@ -197,8 +198,8 @@ bool IdentifyBuffers::run(LinearIR& linear_ir) {
     BufferSet buffer_exprs;
 
     for (const auto& expr : linear_ir) {
-        if (const auto buffer = ov::as_type_ptr<op::Buffer>(expr->get_node())) {
-            buffer_exprs.push_back(buffer);
+        if (ov::is_type<op::Buffer>(expr->get_node())) {
+            buffer_exprs.push_back(expr);
         }
     }
 
@@ -211,8 +212,8 @@ bool IdentifyBuffers::run(LinearIR& linear_ir) {
     for (const auto& pair : color_groups) {
         const auto color = pair.first;
         const auto& united_buffers = pair.second;
-        for (const auto& buffer : united_buffers) {
-            buffer->set_id(color);
+        for (const auto& buffer_expr : united_buffers) {
+            ov::as_type_ptr<op::Buffer>(buffer_expr->get_node())->set_id(color);
         }
     }
 
