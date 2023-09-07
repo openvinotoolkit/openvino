@@ -4,9 +4,12 @@
 
 #include <exec_graph_info.hpp>
 #include <fstream>
+#include <openvino/core/preprocess/pre_post_process.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/serialize.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "behavior/ov_executable_network/get_metric.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -90,7 +93,7 @@ TEST_P(OVCompiledModelBaseTest, canCompileModel) {
 }
 
 TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
- std::string model = R"V0G0N(
+    std::string model = R"V0G0N(
         <net name="Network" version="10">
             <layers>
                 <layer name="in1" type="Parameter" id="0" version="opset8">
@@ -157,11 +160,11 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
             </edges>
         </net>
         )V0G0N";
-    EXPECT_NO_THROW(auto execNet = core ->compile_model(model, ov::Tensor(), target_device, configuration));
+    EXPECT_NO_THROW(auto execNet = core->compile_model(model, ov::Tensor(), target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
- std::string model = R"V0G0N(
+    std::string model = R"V0G0N(
         <net name="Network" version="10">
             <layers>
                 <layer name="in1" type="Parameter" id="0" version="opset8">
@@ -269,6 +272,114 @@ TEST_P(OVCompiledModelBaseTest, CanGetInputsInfo) {
 TEST_P(OVCompiledModelBaseTest, CanGetProperty) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto inInfo = execNet.get_property(ov::supported_properties));
+}
+
+TEST_P(OVCompiledModelBaseTest, smoke_ImportNetworkNoThrowWithDeviceName) {  // multi, auto and hetero failed
+    std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConcat();
+    ov::Core ie = createCoreWithTemplate();
+    std::stringstream strm;
+    ov::CompiledModel executableNetwork;
+    OV_ASSERT_NO_THROW(executableNetwork = ie.compile_model(actualNetwork, target_device));
+    OV_ASSERT_NO_THROW(executableNetwork.export_model(strm));
+    OV_ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, target_device));
+    OV_ASSERT_NO_THROW(executableNetwork.create_infer_request());
+}
+
+TEST_P(OVCompiledModelBaseTest, ThrowsUnsupported_GetMetricThrow) {  // multi and hetero failed
+    ov::Core ie = createCoreWithTemplate();
+
+    std::shared_ptr<ngraph::Function> simpleNetwork = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+
+    ASSERT_THROW(compiled_model.get_property("unsupported_property"), ov::Exception);
+}
+
+TEST_P(OVCompiledModelBaseTest, SetConfigThrows) {  // multi and hetero failed
+    ov::Core ie = createCoreWithTemplate();
+    std::shared_ptr<ngraph::Function> simpleNetwork = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+
+    ASSERT_THROW(compiled_model.set_property({{"unsupported_config", "some_value"}}), ov::Exception);
+}
+
+// TEST_P(OVCompiledModelBaseTest, SupportedConfigWorks) {
+//     ov::Core ie = createCoreWithTemplate();
+//     ov::Any p;
+//     std::shared_ptr<ngraph::Function> simpleNetwork = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+//     auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+//     OV_ASSERT_NO_THROW(compiled_model.set_property({{ov::num_streams, 4}}));
+//     OV_ASSERT_NO_THROW(p = compiled_model.get_property(ov::num_streams));
+//     ASSERT_EQ(p, 4);
+// }
+
+TEST_P(OVCompiledModelBaseTest, GetConfigNoEmptyNoThrow) {  // multi and hetero failed
+    ov::Core ie = createCoreWithTemplate();
+    std::shared_ptr<ngraph::Function> simpleNetwork = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    std::vector<ov::PropertyName> dev_property_names;
+    OV_ASSERT_NO_THROW(dev_property_names = ie.get_property(target_device, ov::supported_properties));
+
+    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+
+    std::vector<ov::PropertyName> model_property_names;
+    OV_ASSERT_NO_THROW(model_property_names = compiled_model.get_property(ov::supported_properties));
+}
+
+// TEST_P(OVCompiledModelBaseTest, GetMetricNoThrow) {
+//     ov::Core ie = createCoreWithTemplate();
+//     std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConcat();
+//     auto heteroExeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
+//     auto deviceExeNetwork = ie.compile_model(actualNetwork, target_device);
+
+//     std::vector<ov::PropertyName> heteroConfigValues, deviceConfigValues;
+//     OV_ASSERT_NO_THROW(heteroConfigValues = heteroExeNetwork.get_property(ov::supported_properties));
+//     OV_ASSERT_NO_THROW(deviceConfigValues = deviceExeNetwork.get_property(ov::supported_properties));
+
+//     std::cout << "Supported config keys: " << std::endl;
+//     for (auto&& conf : heteroConfigValues) {
+//         std::cout << conf << std::endl;
+//         ASSERT_LT(0, conf.size());
+//     }
+//     ASSERT_LE(0, heteroConfigValues.size());
+
+//     // check that all device config values are present in hetero case
+//     for (auto&& deviceConf : deviceConfigValues) {
+//         auto it = std::find(heteroConfigValues.begin(), heteroConfigValues.end(), deviceConf);
+//         ASSERT_TRUE(it != heteroConfigValues.end());
+
+//         ov::Any heteroConfigValue = heteroExeNetwork.get_property(deviceConf);
+//         ov::Any deviceConfigValue = deviceExeNetwork.get_property(deviceConf);
+
+//         // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
+//         if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
+//             std::stringstream strm;
+//             deviceConfigValue.print(strm);
+//             strm << " ";
+//             heteroConfigValue.print(strm);
+//             ASSERT_EQ(deviceConfigValue, heteroConfigValue) << deviceConf << " " << strm.str();
+//         }
+//     }
+// }
+
+TEST_P(OVCompiledModelBaseTest, canSetInputPrecisionForNetwork) {
+    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    ov::Core core = createCoreWithTemplate();
+    // auto network = core.read_model(model);
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    ov::preprocess::InputInfo& input = ppp.input();
+    // input.tensor().set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES);
+    input.tensor().set_spatial_static_shape(448, 448);
+    // need to specify H and W dimensions in model, others are not important
+    input.model().set_layout("??HW");
+    // scale to model shape
+    input.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    // ov::CompiledModel compiled_model;
+    // {
+    //     ov::Core tmp_core = createCoreWithTemplate();
+    //     compiled_model = tmp_core.compile_model(model, ov::Tensor(), target_device, configuration);
+    // }
+    // EXPECT_NO_THROW(compiled_model.get_property(ov::optimal_number_of_infer_requests));
 }
 
 TEST_P(OVCompiledModelBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
@@ -556,7 +667,8 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
         concat->output(0).get_tensor().set_names({"concat"});
         auto result = std::make_shared<ov::op::v0::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        function =
+            std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(10);
         function->set_friendly_name("SimpleConcat");
     }
@@ -579,7 +691,8 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
         concat->output(0).get_tensor().set_names({"concat"});
         auto result = std::make_shared<ov::op::v0::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        function =
+            std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(11);
         function->set_friendly_name("SimpleConcat");
     }
@@ -591,9 +704,9 @@ TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrec
     for (const auto& confItem : configuration) {
         config.emplace(confItem.first, confItem.second);
     }
-    bool is_meta_devices =
-        target_device.find("AUTO") != std::string::npos || target_device.find("MULTI") != std::string::npos ||
-        target_device.find("HETERO") != std::string::npos;
+    bool is_meta_devices = target_device.find("AUTO") != std::string::npos ||
+                           target_device.find("MULTI") != std::string::npos ||
+                           target_device.find("HETERO") != std::string::npos;
     if (is_meta_devices) {
         EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, config));
     } else {
