@@ -94,10 +94,12 @@ ul#navbar-main-elements > li:hover {
     font-weight: bold;
 }
 
+/* Move sidebar menu arrows to the left */
 .bd-sidebar label {
     left: 0px;
     height: 20px;
     width: 20px;
+    top: 5px;
 }
 
 
