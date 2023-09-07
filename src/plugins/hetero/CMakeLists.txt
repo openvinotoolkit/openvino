@@ -6,21 +6,42 @@ if (NOT ENABLE_HETERO)
     return()
 endif()
 
-set (TARGET_NAME "openvino_hetero_plugin")
+set(TARGET_NAME openvino_hetero_plugin)
+set(OBJ_NAME ${TARGET_NAME}_obj)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
+add_library(${OBJ_NAME} STATIC ${SOURCES} ${HEADERS})
+
+ov_add_version_defines(src/plugin.cpp ${OBJ_NAME})
+
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
               PSEUDO_DEVICE
-              SOURCES ${SOURCES} ${HEADERS}
+              OBJECT_LIBRARIES ${OBJ_NAME}
               VERSION_DEFINES_FOR src/plugin.cpp
               ADD_CLANG_FORMAT)
 
 ie_faster_build(${TARGET_NAME}
     UNITY
 )
+
+target_include_directories(${OBJ_NAME}
+    PRIVATE
+        $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
+
+set_ie_threading_interface_for(${OBJ_NAME})
+
+target_compile_definitions(${OBJ_NAME}
+    PRIVATE
+        USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API
+        $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
+        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 

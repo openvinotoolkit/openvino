@@ -4,19 +4,21 @@
 
 set(TARGET_NAME ov_hetero_unit_tests)
 
-set(CI_BUILD_NUMBER "unittest")
-set(HETERO_SOURCE_DIR ${OpenVINO_SOURCE_DIR}/src/plugins/hetero/src)
+if(BUILD_SHARED_LIBS)
+    set (OBJ_LIB $<TARGET_OBJECTS:openvino_hetero_plugin_obj>)
+endif()
 
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
         ROOT
             ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS
-            ${HETERO_SOURCE_DIR}
         INCLUDES
+            PUBLIC
+                $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src
             ${CMAKE_CURRENT_SOURCE_DIR}
-            ${HETERO_SOURCE_DIR}
+        OBJECT_FILES
+            ${OBJ_LIB}
         LINK_LIBRARIES
             unit_test_utils
             ngraphFunctions
@@ -27,6 +29,3 @@ ov_add_test_target(
         LABELS
             HETERO
 )
-ov_add_version_defines(${HETERO_SOURCE_DIR}/plugin.cpp ${TARGET_NAME})
-
-set_ie_threading_interface_for(${TARGET_NAME})
