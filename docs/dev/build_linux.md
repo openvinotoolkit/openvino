@@ -55,7 +55,7 @@ The software was validated on:
    ```
 > **HINT**: **Generating PDB Files and Debugging Your Build** <br>
 > If you intend to generate PDB files and debug your build, it is essential to set the CMake build type appropriately.
-> you should utilize one of the following CMake build type options: <br>
+> You should utilize one of the following CMake build type options: <br>
 >* `-DCMAKE_BUILD_TYPE=RelWithDebInfo`: This option generates PDB files with release information, making it suitable for debugging optimized builds. <br>
 >* `-DCMAKE_BUILD_TYPE=Debug`: This option generates PDB files optimized for debugging, providing comprehensive debugging information. 
    
