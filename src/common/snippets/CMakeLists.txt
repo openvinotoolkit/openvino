@@ -36,7 +36,7 @@ target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEAD
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 if(ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(tests)
