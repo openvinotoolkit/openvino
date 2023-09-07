@@ -676,6 +676,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     lowered::pass::PassPipeline final_pipeline;
     final_pipeline.register_pass<lowered::pass::AllocateBufferMemory>();
+    final_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     final_pipeline.register_pass<lowered::pass::PropagateLayout>();
     final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     final_pipeline.run(linear_ir);

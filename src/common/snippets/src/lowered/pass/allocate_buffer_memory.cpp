@@ -9,7 +9,6 @@
 #include "snippets/lowered/pass/init_buffers.hpp"
 #include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/lowered/pass/define_buffer_clusters.hpp"
-#include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/itt.hpp"
 
@@ -83,7 +82,6 @@ bool AllocateBufferMemory::run(lowered::LinearIR& linear_ir) {
     pipeline.register_pass<EnumerateExprs>();
     pipeline.register_pass<IdentifyBuffers>();
     pipeline.register_pass<DefineBufferClusters>();
-    pipeline.register_pass<CleanRepeatedDataPointerShifts>();
     pipeline.run(linear_ir);
 
     auto memory_solver_pass = SolveBufferMemory(pipeline.get_pass<DefineBufferClusters>()->get_clusters());

@@ -91,38 +91,6 @@ void InitLoops::init_element_type_sizes(std::vector<LoopPort>& loop_inputs,
     }
 }
 
-void InitLoops::clean_repeated_data_ptr_shifts(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs) {
-    // We count expressions only on inputs of Loop because we can only read from the same data but not write to the same data.
-    //  Parameter|Buffer
-    //         |    |
-    //     Load_0  Load_1
-    // Note: The pass verifies only data reading since Parameter or Buffer may have several consumers to read data
-    //       but Result node may has only on source to store data.
-    std::set<size_t> resetting_data_indexes;
-    std::set<ExpressionPtr> read_data_exprs;
-    for (size_t i = 0; i < loop_inputs.size(); ++i) {
-        const auto& expr_port = loop_inputs[i].expr_port;
-        const auto source_port = *(expr_port->get_connected_ports().begin());
-        const auto parent = source_port.get_expr();
-        // Remember the current expression if missed
-        if (read_data_exprs.count(parent) == 0) {
-            read_data_exprs.insert(parent);
-        } else {
-            // Otherwise we have several Load-semantic expressions which read from the same data.
-            // Have to zero ptr increments and finalization offsets for all expression except one.
-            resetting_data_indexes.insert(i);
-        }
-    }
-
-    if (resetting_data_indexes.empty())
-        return;
-
-    for (const auto& idx_to_drop : resetting_data_indexes) {
-        loop_inputs[idx_to_drop].ptr_increment = 0;
-        loop_inputs[idx_to_drop].finalization_offset = 0;
-    }
-}
-
 bool InitLoops::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InitLoops")
     if (linear_ir.empty())
@@ -139,7 +107,6 @@ bool InitLoops::run(LinearIR& linear_ir) {
         init_ptr_increments(loop_info->entry_points, loop_info->exit_points, work_amount, dim_idx);
         init_finalization_offsets(loop_info->entry_points, loop_info->exit_points, work_amount);
         init_element_type_sizes(loop_info->entry_points, loop_info->exit_points);
-        clean_repeated_data_ptr_shifts(loop_info->entry_points);
     }
 
     return true;
