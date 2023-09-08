@@ -44,7 +44,7 @@
 #include "transformations/utils/utils.hpp"
 
 #include "snippets/pass_manager.hpp"
-#include "ngraph/pass/constant_folding.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
 
@@ -104,7 +104,7 @@ auto Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
 
     for (const auto& op : ops) {
         if (const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(op)) {
-            // At the moment Transposes are supported only on Results and Parameters but
+            // At the moment Transposes are supported only on Results and Parameters, but
             // then we should have the different Buffers for Transpose as well (Transpose isn't inplace)
             const auto consumers = transpose->get_output_target_inputs(0);
             // If after Transpose there is Result it means that there won't be Buffer after Transpose.
@@ -119,7 +119,7 @@ auto Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
             }
         } else if (ov::is_type<ov::op::v1::Softmax>(op) || ov::is_type<ov::op::v8::Softmax>(op)) {
             // Softmax always uses 2 FP32 Buffers after decomposition.
-            // They are inplace and the same so we can push precision size only once
+            // They are inplace and the same, so we can push precision size only once
             push_prc_size(ov::element::f32.size());
         } else if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
             // Since all buffers around Matmul must be unique, we explicitely add values to the vector without any checks
@@ -195,7 +195,7 @@ void Subgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::validate_and_infer_types")
     ov::ParameterVector old_parameters;
-    for (auto op : body_ptr()->get_parameters()) {
+    for (const auto& op : body_ptr()->get_parameters()) {
         old_parameters.push_back(op);
     }
 
@@ -257,7 +257,7 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
     }
 
     ov::ResultVector body_results;
-    for (auto output : node->outputs()) {
+    for (const auto& output : node->outputs()) {
         body_results.push_back(std::make_shared<ov::opset1::Result>(body_node->output(output.get_index())));
     }
 
@@ -469,6 +469,75 @@ bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noex
         (elementwise->get_autob().m_type != ov::op::AutoBroadcastType::PDPD);
 }
 
+IShapeInferSnippets::Result Subgraph::shape_infer(const std::vector<VectorDimsRef>& input_shapes) {
+    if (!m_shape_infer && !m_linear_ir) {
+        OPENVINO_ASSERT(body_ptr(), "Can't create shape infer for Subgraph with an empty body");
+        m_shape_infer = std::make_shared<NgraphShapeInfer>(body_ptr());
+    } else if (!std::dynamic_pointer_cast<LIRShapeInfer>(m_shape_infer) && m_linear_ir) {
+        m_shape_infer = std::make_shared<LIRShapeInfer>(m_linear_ir);
+    }
+    return m_shape_infer->infer(input_shapes);
+}
+
+Subgraph::NgraphShapeInfer::NgraphShapeInfer(const std::shared_ptr<ov::Model>& body) :
+    m_ngraph_body(body), m_parameters(body->get_parameters()), m_results(body->get_results()) {
+}
+
+IShapeInferSnippets::Result Subgraph::NgraphShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(m_parameters.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
+    for (size_t i = 0; i < m_parameters.size(); ++i)
+        m_parameters[i]->set_partial_shape(utils::vdims_to_pshape(input_shapes[i].get()));
+    m_ngraph_body->validate_nodes_and_infer_types();
+    std::vector<VectorDims> outputDims;
+    for (const auto& res : m_results)
+        outputDims.emplace_back(utils::pshape_to_vdims(res->get_input_partial_shape(0)));
+    m_last_result = {outputDims, ShapeInferStatus::success};
+    return m_last_result;
+}
+
+Subgraph::LIRShapeInfer::LIRShapeInfer(const std::shared_ptr<lowered::LinearIR>& body) :
+        m_lir_body(body) {
+    for (const auto& io_expr : m_lir_body->get_IO_ops()) {
+        switch (io_expr->get_type()) {
+            case IOExpression::io_type::INPUT : m_param_exprs.push_back(io_expr); break;
+            case IOExpression::io_type::OUTPUT : m_result_exprs.push_back(io_expr); break;
+            default : OPENVINO_THROW("Undefined io expression type");
+        }
+    }
+}
+
+IShapeInferSnippets::Result
+Subgraph::LIRShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(m_param_exprs.size() == input_shapes.size(), "Got invalid number of input shapes in LIR ShapeInfer");
+    // todo: check that order of param_exprs is always the same as that of input_shapes
+    //  if not use io_expr index to sort in constructor
+
+    for (size_t i = 0; i < m_param_exprs.size(); ++i) {
+        m_param_exprs[i]->get_output_port_descriptor(0)->set_shape(input_shapes[i]);
+    }
+    for (const auto& expr : *m_lir_body) {
+        if (expr->needShapeInfer())
+            expr->updateShapes();
+    }
+    std::vector<VectorDims> outputDims;
+    outputDims.reserve(m_result_exprs.size());
+    for (const auto& r : m_result_exprs) {
+        outputDims.push_back(r->get_input_port_descriptor(0)->get_shape());
+    }
+    m_last_result = {outputDims, ShapeInferStatus::success};
+    return m_last_result;
+}
+
+std::shared_ptr<lowered::LinearIR>
+Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) const {
+    lowered::Config lowering_config;
+    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
+    lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
+    lowering_config.m_loop_depth = tileRank;
+
+    return std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
+}
+
 void Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                    const BlockedShapeVector& inputShapes) {
     // We should insert Convert before Results to set original output element type if needed
@@ -632,18 +701,21 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& output_shapes,
                                       const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
                                       const lowered::pass::PassPipeline& control_flow_passes_pre_common,
                                       const lowered::pass::PassPipeline& control_flow_passes_post_common,
+                                      const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory,
                                       const void* compile_params) {
     canonicalize(output_shapes, input_shapes);
-    return generate(data_flow_passes, control_flow_passes_pre_common, control_flow_passes_post_common, compile_params);
+    return generate(data_flow_passes, control_flow_passes_pre_common, control_flow_passes_post_common,
+                    shape_infer_factory, compile_params);
 }
 
 snippets::Schedule Subgraph::generate(const void* compile_params) {
-    return generate({}, {}, {}, compile_params);
+    return generate({}, {}, {}, nullptr, compile_params);
 }
 
 snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
                                       const lowered::pass::PassPipeline& control_flow_passes_pre_common,
                                       const lowered::pass::PassPipeline& control_flow_passes_post_common,
+                                      const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory,
                                       const void* compile_params) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
@@ -651,16 +723,11 @@ snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::Positione
 
     data_flow_transformations(data_flow_passes);
 
-    lowered::Config lowering_config;
-    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
-    lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
-    lowering_config.m_loop_depth = tileRank;
-
-    lowered::LinearIR linear_ir = lowered::LinearIR(body_ptr(), lowering_config);
+    lowered::LinearIR linear_ir = *convert_body_to_linear_ir(shape_infer_factory);
     control_flow_transformations(linear_ir, control_flow_passes_pre_common, control_flow_passes_post_common);
 
     // actual code emission
-    const auto& lowering_result = m_generator->generate(linear_ir, lowering_config, compile_params);
+    const auto& lowering_result = m_generator->generate(linear_ir, linear_ir.get_config(), compile_params);
     const auto ptr = lowering_result.binary_code;
 
     return {master_shape, false /*canBeLinearized*/, ptr};
@@ -691,66 +758,6 @@ void Subgraph::print() const {
     }
 }
 
-void Subgraph::print_statistics(bool verbose) {
-    INTERNAL_OP_SCOPE(Subgraph);
-    auto getNodeInventory = [](std::shared_ptr<ov::Node> n) -> size_t {
-        size_t total = 0;
-
-        for (auto input : n->inputs()) {
-            total += input.get_tensor().size();
-        }
-
-        for (auto output : n->outputs()) {
-            total += output.get_tensor().size();
-        }
-
-        if (auto subgraph = ov::as_type_ptr<op::Subgraph>(n)) {
-            for (auto op : subgraph->body_ptr()->get_ordered_ops()) {
-                if (ov::as_type_ptr<ov::opset1::Constant>(op)) {
-                    total += op->output(0).get_tensor().size();
-                }
-            }
-        }
-
-        return total;
-    };
-
-    auto getModelInventory = [getNodeInventory](const ov::Model& f) -> size_t {
-        size_t total = 0;
-        for (auto op : f.get_ordered_ops()) {
-            // Results and parameters are artificially introduced,
-            // while Constants are already considered if they are inputs of other operation
-            // this should lead to 1:1 inventory for single node operations
-            if (!ov::as_type_ptr<ov::opset1::Parameter>(op)
-                && !ov::as_type_ptr<ov::opset1::Result>(op)
-                && !ov::as_type_ptr<ov::opset1::Constant>(op)) {
-                total += getNodeInventory(op);
-            }
-        }
-        return total;
-    };
-
-    auto countConstants = [](const ov::Model& f) -> size_t {
-        size_t count = 0;
-        for (auto op : f.get_ordered_ops()) {
-            count += !!ov::as_type_ptr<ov::opset1::Constant>(op) ? 1 : 0;
-        }
-        return count;
-    };
-
-    std::cout << get_friendly_name()
-                << ";" << this
-                << ";" << body_ptr()->get_ops().size()
-                << ";" << body_ptr()->get_parameters().size()
-                << ";" << body_ptr()->get_results().size()
-                << ";" << countConstants(body())
-                << ";" << getModelInventory(body())
-                << ";" << getNodeInventory(shared_from_this()) << std::endl;
-
-    if (verbose) {
-        this->print();
-    }
-}
 
 void Subgraph::serialize() const {
     std::stringstream xmlFile, binFile;
