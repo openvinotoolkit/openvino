@@ -64,8 +64,13 @@ class TestTFHubConvertModel(TestConvertModel):
         return inputs_info
 
     def infer_fw_model(self, model_obj, inputs):
+        # repack input dictionary to tensorflow constants
+        tf_inputs = {}
+        for input_name, input_value in inputs.items():
+            tf_inputs[input_name] = tf.constant(input_value)
+
         output_dict = {}
-        for out_name, out_value in model_obj(**inputs).items():
+        for out_name, out_value in model_obj(**tf_inputs).items():
             output_dict[out_name] = out_value.numpy()
 
         return output_dict
