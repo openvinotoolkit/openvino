@@ -6,7 +6,6 @@ import sys
 import os
 import io
 import importlib
-import logging as log
 from contextlib import redirect_stdout
 
 
@@ -19,12 +18,14 @@ def import_python_modules(directory, subdirectory=""):
             if subdirectory != "":
                 imported_item=subdirectory + "." + imported_item
             mod = importlib.import_module(imported_item)
+
             try:
                 with redirect_stdout(io.StringIO()) as f:
                     mod.main()
             except AttributeError as e:
                 pass
-            log.info(f"Snippet {item} succesfully executed.")
+            print(f"Snippet {item} succesfully executed.")
+
         
         if os.path.isdir(os.path.join(directory, item)):
             dir_path = os.path.join(directory, item)
