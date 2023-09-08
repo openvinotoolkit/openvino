@@ -48,6 +48,38 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
         if (!gather_v8_node)
             return false;
 
+        auto data = gather_v8_node->input_value(0);
+        auto indices_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_v8_node->input_value(1).get_node_shared_ptr());
+        auto axis_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_v8_node->input_value(2).get_node_shared_ptr());
+        if (!indices_constant || !axis_constant)
+            return false;
+
+        auto axis = axis_constant->cast_vector<int64_t>();
+        if (axis.size() != 1) {
+            return false;
+        }
+        auto axis_value = axis[0];
+        // normalize `axis` value if it is negative
+        if (axis_value < 0) {
+            axis_value = axis_value + data.get_partial_shape().rank().get_length();
+        }
+        if (data.get_partial_shape().rank().get_length() < axis_value) {
+            return false;
+        }
+        // check `axis` dimension of data tensor is static
+        if (!data.get_partial_shape()[axis_value].is_static()) {
+            return false;
+        }
+        auto axis_dim = data.get_partial_shape()[axis_value].get_length();
+
+        auto indices = indices_constant->cast_vector<int32_t>();
+        // check all the indices are not negative and not out of bound
+        for (int i = 0; i < indices.size(); i++) {
+            if (indices[i] < 0 || indices[i] >= axis_dim) {
+                return false;
+            }
+        }
+
         auto gather_v7_node = make_shared<ov::op::v7::Gather>(gather_v8_node->input_value(0),
                                                               gather_v8_node->input_value(1),
                                                               gather_v8_node->input_value(2),
