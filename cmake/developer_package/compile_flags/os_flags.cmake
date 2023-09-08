@@ -380,7 +380,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     # Enable __FILE__ trim, use path with forward and backward slash as directory separator
     if(NOT DEFINED ENV{GITHUB_ACTIONS})
-        add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>")
+        add_compile_options(
+            "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OpenVINO_SOURCE_DIR}/>")
     endif()
 
     #
