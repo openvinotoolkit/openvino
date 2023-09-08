@@ -1,7 +1,7 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
     "name": "openvino",
-    "version": "2023.0.0",
+    "version": "2023.2.0",
     "maintainers": "OpenVINO Developers <openvino@intel.com>",
     "summary": "This is a port for Open Visual Inference And Optimization toolkit for AI inference",
     "description": [
@@ -14,7 +14,7 @@
     "homepage": "https://github.com/openvinotoolkit/openvino",
     "documentation": "https://docs.openvino.ai/latest/index.html",
     "license": "Apache-2.0",
-    "builtin-baseline": "63366443439398a62afc9a63b34b9a3ba63b1cae",
+    "builtin-baseline": "db95d1c098a728ce39ef232bee95391cbd350561",
     "dependencies": [
         "ade",
         {
@@ -24,17 +24,7 @@
         "pugixml",
         {
             "name": "tbb",
-            "platform": "static | osx",
-            "version>=": "2021.9.0#2"
-        },
-        {
-            "name": "tbb",
-            "features": [
-                "hwloc"
-            ],
-            "$TODO": "Remove condition for static once static tbbbind can work in oneTBB",
-            "platform": "!static & !osx",
-            "version>=": "2021.9.0#2"
+            "version>=": "2021.10.0#2"
         },
         {
             "name": "xbyak",
@@ -166,5 +156,10 @@
                 }
             ]
         }
-    }
+    },
+    "overrides": [
+        {
+            "name": "onnx", "version": "1.13.1", "port-version": 0
+        }
+    ]
 }
