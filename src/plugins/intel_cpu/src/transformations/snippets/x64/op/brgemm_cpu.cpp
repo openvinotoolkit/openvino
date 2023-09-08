@@ -7,6 +7,7 @@
 #include "snippets/utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "utils/general_utils.h"
+#include "snippets/utils.hpp"
 
 
 namespace ov {
@@ -78,19 +79,19 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
     // So we use port descs from source inputs
     const auto brgemm_copy = is_with_data_repacking() ? get_brgemm_copy() : nullptr;
     const auto planar_input_shapes =
-        std::vector<ov::PartialShape>{ snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_a),
-                                       brgemm_copy ? snippets::utils::get_port_planar_shape(brgemm_copy->input(0))
-                                                   : snippets::utils::get_reordered_planar_shape(get_input_partial_shape(1), layout_b) };
+        std::vector<ov::PartialShape>{ snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
+                                       brgemm_copy ? snippets::utils::get_planar_pshape(brgemm_copy->input(0))
+                                                   : snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
     auto output_shape = get_output_partial_shape(planar_input_shapes);
-    set_output_type(0, get_output_type(), snippets::utils::get_reordered_planar_shape(output_shape, layout_c));
+    set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
 
     // Additional check for 3rd input
     validate_with_scratchpad(planar_input_shapes[1].get_shape());
 }
 
 void BrgemmCPU::compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n) {
-    const auto input_shape_0 = snippets::utils::get_port_planar_shape(input(0)).get_shape();
-    const auto input_shape_1 = snippets::utils::get_port_planar_shape(input(1)).get_shape();
+    const auto input_shape_0 = snippets::utils::get_planar_pshape(input(0)).get_shape();
+    const auto input_shape_1 = snippets::utils::get_planar_pshape(input(1)).get_shape();
     m_M_blk = blk_size_m != 0 ? blk_size_m : *(input_shape_0.rbegin() + 1);
     m_K_blk = blk_size_k != 0 ? blk_size_k : *input_shape_0.rbegin();
     m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape_1.rbegin();
@@ -178,6 +179,14 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
 size_t BrgemmCPU::get_offset_scratch() const {
     OPENVINO_ASSERT(is_with_scratchpad() && get_input_size() == 3, "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
+}
+
+BrgemmCPU::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) : Brgemm::ShapeInfer(n) {
+    const auto& brg = ov::as_type_ptr<BrgemmCPU>(n);
+    OPENVINO_ASSERT(brg, "Got invalid node in BrgemmCPU::ShapeInfer");
+    const auto brgemm_copy = brg->is_with_data_repacking() ? brg->get_brgemm_copy() : nullptr;
+    if (brgemm_copy)
+        m_io_layouts[1] = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_copy->input(0))->get_layout();
 }
 
 } // namespace intel_cpu

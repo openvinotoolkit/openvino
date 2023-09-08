@@ -24,7 +24,7 @@ namespace node {
 /// precision: fp32
 class Snippet : public Node {
 public:
-    Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr& context);
     ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};
@@ -32,10 +32,6 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     void initOptimalPrimitiveDescriptor() override;
     InferenceEngine::Precision getRuntimePrecision() const override;
-
-    // to avoid collisions in throughput mode with copy of TypeRelaxed nodes
-    // we should have common shared mutex between streams
-    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex);
 
     // Here we convert to canonical for & jit everything
     void prepareParams() override;
