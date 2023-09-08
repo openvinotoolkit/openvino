@@ -27,8 +27,6 @@ using binConvSpecificParams = std::tuple<
 using binaryConvolutionTestParamsSet = std::tuple<
     binConvSpecificParams,          //
     ov::element::Type,              // Network precision
-    ov::element::Type,              // Input precision
-    ov::element::Type,              // Output precision
     std::vector<InputShape>,        // Input shape
     std::string>;                   // Device name
 

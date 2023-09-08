@@ -54,8 +54,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         binConv2DParams_ExplicitPadding,
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
@@ -65,8 +63,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         binConv2DParams_ValidPadding,
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);

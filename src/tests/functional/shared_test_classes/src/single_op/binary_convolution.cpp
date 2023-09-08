@@ -12,11 +12,10 @@ namespace test {
 std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<binaryConvolutionTestParamsSet>& obj) {
     binConvSpecificParams bin_conv_params;
     ov::element::Type model_type;
-    ov::element::Type in_type, out_type;
     std::vector<InputShape> shapes;
     std::string target_device;
 
-    std::tie(bin_conv_params, model_type, in_type, out_type, shapes, target_device) = obj.param;
+    std::tie(bin_conv_params, model_type, shapes, target_device) = obj.param;
 
     ov::op::PadType pad_type;
     std::vector<size_t> kernel, stride, dilation;
@@ -47,8 +46,6 @@ std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParam
     result << "AP=" << pad_type << "_";
     result << "PV=" << pad_value << "_";
     result << "netPRC=" << model_type.get_type_name() << "_";
-    result << "inPRC=" << in_type.get_type_name() << "_";
-    result << "outPRC=" << out_type.get_type_name() << "_";
     result << "trgDev=" << target_device;
     return result.str();
 }
@@ -68,7 +65,7 @@ void BinaryConvolutionLayerTest::SetUp() {
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
 
-    std::tie(bin_conv_params, model_type, inType, outType, shapes, targetDevice) = this->GetParam();
+    std::tie(bin_conv_params, model_type, shapes, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
 
     ov::op::PadType pad_type;
