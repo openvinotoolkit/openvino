@@ -860,7 +860,7 @@ jobs:
 
       - name: Find test reports
         run: |
-          find / -depth -name 'TEST*'
+          find / -depth -name 'disabled_tests.log'
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
