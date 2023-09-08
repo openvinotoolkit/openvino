@@ -1,19 +1,18 @@
-# Install OpenVINO™ Runtime via VCPKG {#openvino_docs_install_guides_installing_openvino_vcpkg}
+# Install OpenVINO™ Runtime via vcpkg {#openvino_docs_install_guides_installing_openvino_vcpkg}
 
 @sphinxdirective
 
 .. meta::
    :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and macOS 
-                 operating systems, using VCPKG.
+                 operating systems, using vcpkg .
 
 .. note::
    
-   Note that the VCPKG distribution:
+   Note that the vcpkg distribution:
 
-   * offers C++ API only
+   * offers C/C++ API only
    * does not offer support for GNA and NPU inference
    * is dedicated to users of all major OSs: Windows, Linux, macOS.
-   * may offer different hardware support under different operating systems.
 
 .. tab-set::
 
@@ -39,8 +38,8 @@
 Installing OpenVINO Runtime
 ###########################
 
-1. Make sure that you have installed VCPKG on your system. If not, follow the 
-   `VCPKG installation instructions <https://vcpkg.io/en/getting-started>`__.
+1. Make sure that you have installed vcpkg on your system. If not, follow the 
+   `vcpkg installation instructions <https://vcpkg.io/en/getting-started>`__.
 
 
 2. Install OpenVINO using the following terminal command:
@@ -49,29 +48,35 @@ Installing OpenVINO Runtime
 
       vcpkg install openvino
 
-   VCPKG also enables you to install only selected components, by specifying them in the command.
+   vcpkg  also enables you to install only selected components, by specifying them in the command.
    See the list of `available features <https://vcpkg.link/ports/openvino>`__, for example: 
 
    .. code-block:: sh
 
       vcpkg install openvino[cpu,ir]
 
-Note that the VCPKG installation means building all packages and dependencies from source, 
+Note that the vcpkg installation means building all packages and dependencies from source, 
 which means the compiler stage will require additional time to complete the process. 
 
+After installation, you can use OpenVINO in your product by running: 
+
+   .. code-block:: sh
+
+      find_package(OpenVINO)
+
+   .. code-block:: sh
+
+      cmake -B [build directory] -S . -DCMAKE_TOOLCHAIN_FILE=[path to vcpkg]/scripts/buildsystems/vcpkg.cmake
  
 Congratulations! You've just Installed OpenVINO! For some use cases you may still 
 need to install additional components. Check the 
 :doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
 to see if your case needs any of them.
 
-
-
-
 Uninstalling OpenVINO
 #####################
 
-To uninstall OpenVINO via VCPKG, use the following command:
+To uninstall OpenVINO via vcpkg, use the following command:
 
 .. code-block:: sh
 

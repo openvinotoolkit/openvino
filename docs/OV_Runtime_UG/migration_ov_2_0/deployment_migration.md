@@ -24,7 +24,7 @@ process even simpler.
 
    These instructions are largely deprecated and should be used for versions prior to 2023.1.
 
-   OpenVINO Development Tools is being deprecated and will be discontinued entirely in 2025.
+   The OpenVINO Development Tools package is being deprecated and will be discontinued entirely in 2025.
    With this change, the OpenVINO Runtime package has become the default choice for installing the 
    software. It now includes all components necessary to utilize OpenVINO's functionality. 
 

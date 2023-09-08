@@ -13,6 +13,7 @@
    Post-training Optimization Tool <pot_introduction>
 
 
+
 Since OpenVINO has grown very rapidly in recent years, some of its features 
 and components have been replaced by other solutions. Some of them are still 
 supported to assure OpenVINO users are given enough time to adjust their projects,
@@ -25,7 +26,7 @@ offering.
 
 | **OpenVINO Development Tools Package**
 |   *New solution:* OpenVINO Runtime includes all supported components
-|   *Old solution:* discontinuation planned for OpenVINO 2024.0
+|   *Old solution:* discontinuation planned for OpenVINO 2025.0
 |
 |   OpenVINO Development Tools used to be the OpenVINO package with tools for 
     advanced operations on models, such as Model conversion API, Benchmark Tool, 
@@ -37,7 +38,7 @@ offering.
 
 | **Model Optimizer**
 |   *New solution:* Direct model support and OpenVINO Converter (OVC)
-|   *Old solution:* Model Optimizer discontinuation planned for 2024
+|   *Old solution:* Model Optimizer discontinuation planned for OpenVINO 2025.0
 |
 |   Model Optimizer's role was largely reduced when all major model frameworks became
     supported directly. For the sole purpose of converting model files explicitly, 
@@ -56,16 +57,16 @@ offering.
     Since the tools have been mostly replaced by other solutions and several
     other model repositories have recently grown in size and popularity,
     Open Model ZOO will no longer be maintained. You may still use its resources
-    until they are fully removed.  
+    until they are fully removed.
 |   :doc:`See the Open Model ZOO documentation <model_zoo>`
 |   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
 
 
 | **Apache MXNet, Caffe, and Kaldi model formats**
-|   *New solution:* conversion to ONNX will be the only option
-|   *Old solution:* conversion of these models to OpenVINO IR will be unsupported  
+|   *New solution:* conversion to ONNX via external tools
+|   *Old solution:* model support will be discontinued with OpenVINO 2024.0
 |
-|   Since these three model formats proved to be far less popular among OpenVINO users 
+|   Since these three model formats proved to be far less popular among OpenVINO users
     than the remaining ones, their support has been discontinued. Converting them to the
     ONNX format is a possible way of retaining them in the OpenVINO-based pipeline.
 |   :doc:`See the previous conversion instructions <mxnet_caffe_kaldi>`
@@ -83,7 +84,7 @@ offering.
 |   :doc:`See how to use NNCF for model optimization <openvino_docs_model_optimization_guide>`
 |   `Check the NNCF GitHub project, including documentation <https://github.com/openvinotoolkit/nncf>`__
 
-| **old API 1.0**
+| **Old Inference API 1.0**
 |   *New solution:* API 2.0 launched in OpenVINO 2022.1
 |   *Old solution:* discontinuation planned for OpenVINO 2024.0
 |
@@ -91,5 +92,48 @@ offering.
     used but is not recommended. Its discontinuation is planned for 2024.
 |   :doc:`See how to transition to API 2.0 <openvino_2_0_transition_guide>`
 
+| **Compile tool**
+|   *New solution:* the tool is no longer needed
+|   *Old solution:* deprecated in OpenVINO 2023.0
+|
+|   Compile tool is now deprecated. If you need to compile a model for inference on 
+    a specific device, use the following script:
+
+    .. tab-set::
+
+        .. tab-item:: Python
+            :sync: py
+
+            .. doxygensnippet:: docs/snippets/export_compiled_model.py
+                :language: python
+                :fragment: [export_compiled_model]
+
+        .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+                :language: cpp
+                :fragment: [export_compiled_model]
+
+|   :doc:`see which devices support import / export <openvino_docs_OV_UG_Working_with_devices>`
+|   :doc:`Learn more on preprocessing steps <openvino_docs_OV_UG_Preprocessing_Overview>`
+|   :doc:`See how to integrate and save preprocessing steps into OpenVINO IR <openvino_docs_OV_UG_Preprocess_Usecase_save>`
+
+| **DL Workbench**
+|   *New solution:* DevCloud version
+|   *Old solution:* local distribution discontinued in OpenVINO 2022.3
+|
+|   The stand-alone version of DL Workbench, a GUI tool for previewing and benchmarking 
+    deep learning models, has been discontinued. You can use its cloud version:
+|   `Intel® Developer Cloud for the Edge <https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html>`__.
+
+| **OpenVINO™ integration with TensorFlow (OVTF)**
+|   *New solution:* Direct model support and OpenVINO Converter (OVC)
+|   *Old solution:* discontinued in OpenVINO 2023.0
+|
+|   OpenVINO™ Integration with TensorFlow is longer supported, as OpenVINO now features a 
+    native TensorFlow support, significantly enhancing user experience with no need for 
+    explicit model conversion. 
+|   :doc:`Learn more <openvino_docs_MO_DG_TensorFlow_Frontend>`
 
 @endsphinxdirective

@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit {#openvino_docs_install_guides_overview}
+# Install OpenVINO™ 2023.1 {#openvino_docs_install_guides_overview}
 
 @sphinxdirective
 
@@ -48,16 +48,12 @@
    .. dropdown:: Distribution Comparison for OpenVINO 2023.1
    
       ===============  ==========  ======  =========  ========  ============ ==========
-       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     VCPKG
+       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg
       ===============  ==========  ======  =========  ========  ============ ==========
        CPU              V           V        V         V          V           V
        GPU              V           V        V         V          V           V
-       GNA              V           V        V         V          V           V
-       NPU              V           V        V         V          V           V
-       Auto             V           V        V         V          V           V
-       Auto-Batch       V           V        V         V          V           V
-       Hetero           V           n/a      n/a       n/a        n/a         n/a
-       Multi            V           n/a      n/a       n/a        n/a         n/a
+       GNA              V          n/a      n/a       n/a        n/a         n/a
+       NPU              V          n/a      n/a       n/a        n/a         n/a 
       ===============  ==========  ======  =========  ========  ============ ==========
 
 | **Build OpenVINO from source**

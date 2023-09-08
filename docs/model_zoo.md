@@ -16,6 +16,8 @@
    :hidden:
 
    omz_tools_downloader
+   omz_tools_accuracy_checker
+   omz_data_datasets
    omz_demos
 
 .. toctree::

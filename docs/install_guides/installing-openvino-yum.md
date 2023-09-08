@@ -10,7 +10,7 @@
    
    Note that the YUM distribution:
    
-   * offers both C++ and Python APIs
+   * offers C/C++ APIs only
    * does not offer support for GNA and NPU inference
    * additionally includes code samples 
    * is dedicated to Linux users.
@@ -129,7 +129,9 @@ Run the following command:
 
    yum list installed 'openvino*'
 
+.. note::
 
+   You can additionally install Python APIs using one of the alternative methods (:doc:`conda <openvino_docs_install_guides_installing_openvino_conda>` or :doc:`pip <openvino_docs_install_guides_installing_openvino_pip>`).
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still 
 need to install additional components. Check the 
