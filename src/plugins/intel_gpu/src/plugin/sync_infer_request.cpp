@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <map>
 #include <functional>
@@ -311,9 +312,13 @@ void SyncInferRequest::check_tensors() const {
     }
 }
 
-// // ----------------------------------------------------------------------------------------- //
-// // ---------------------------- internal pipeline stages ----------------------------------- //
-// // ----------------------------------------------------------------------------------------- //
+// ----------------------------------------------------------------------------------------- //
+// ---------------------------- internal pipeline stages ----------------------------------- //
+// ----------------------------------------------------------------------------------------- //
+void SyncInferRequest::set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor) {
+    m_stream_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(task_executor);
+}
+
 void SyncInferRequest::enqueue_notify() {
     m_graph->wait(Graph::Stage::EXECUTE);
     enqueue();
@@ -443,13 +448,13 @@ void SyncInferRequest::wait() {
 // ----------------------------------------------------------------------------------------- //
 void SyncInferRequest::setup_stream_graph() {
     int stream_id = 0;
-    auto& strea_graphs = std::static_pointer_cast<const CompiledModel>(get_compiled_model())->get_graphs();
+    auto& stream_graphs = std::static_pointer_cast<const CompiledModel>(get_compiled_model())->get_graphs();
     if (nullptr != m_stream_executor) {
         stream_id = m_stream_executor->get_stream_id();
-        auto numGraphs = strea_graphs.size();
-        stream_id = stream_id % numGraphs;
+        auto num_graphs = stream_graphs.size();
+        stream_id = stream_id % num_graphs;
     }
-    m_graph = strea_graphs[stream_id];
+    m_graph = stream_graphs[stream_id];
 }
 
 std::shared_ptr<ov::ITensor> SyncInferRequest::create_host_tensor(const ov::PartialShape& port_shape, const ov::element::Type& port_element_type) const {

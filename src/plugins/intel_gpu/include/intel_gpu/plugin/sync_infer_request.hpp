@@ -46,6 +46,7 @@ public:
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
+    void set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor);
     void setup_stream_graph();
     void enqueue_notify();
     void wait_notify();
