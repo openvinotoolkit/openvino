@@ -32,7 +32,8 @@ class TestTFHubConvertModel(TestConvertModel):
 
     def get_inputs_info(self, model_obj):
         inputs_info = []
-        for input_info in model_obj.inputs:
+        assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
+        for input_name, input_info in model_obj.structured_input_signature[1].items():
             input_shape = []
             try:
                 for dim in input_info.shape.as_list():
@@ -59,7 +60,7 @@ class TestTFHubConvertModel(TestConvertModel):
                 # skip inputs corresponding to variables
                 continue
             assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
-            inputs_info.append((input_info.name, input_shape, type_map[input_info.dtype]))
+            inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
 
         return inputs_info
 

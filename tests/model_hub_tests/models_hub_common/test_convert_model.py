@@ -4,8 +4,8 @@ import gc
 
 import numpy as np
 from models_hub_common.multiprocessing_utils import multiprocessing_run
+from openvino import convert_model
 from openvino.runtime import Core
-from openvino.tools.mo import convert_model
 
 
 class TestConvertModel:
