@@ -633,6 +633,19 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
+      - name: PyTorch Model Tests
+        run: |
+          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
+
+          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-torch_models.xml --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_models.html --self-contained-html
+        env:
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TEST_DEVICE: CPU
+
       - name: TensorFlow 1 Layer Tests - TF FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
