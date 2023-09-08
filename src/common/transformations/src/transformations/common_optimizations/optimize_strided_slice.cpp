@@ -308,7 +308,7 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>
         if (!get_scalar(op->get_input_node_shared_ptr(i), value))
             return false;
         value = value >= 0 ? value : value + dimension;
-        value = std::min(value, dimension);
+        value = std::max<int64_t>(std::min(value, dimension), 0);
         if (i == START)
             attrs.start = value;
         else if (i == STOP)

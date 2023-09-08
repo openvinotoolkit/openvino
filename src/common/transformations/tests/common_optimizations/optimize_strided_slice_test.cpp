@@ -1181,7 +1181,7 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitNegativeStartStop) {
         auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 5, -1, -1});
         auto relu = std::make_shared<ov::opset8::Relu>(data);
 
-        auto slice_0 = make_slice(relu, -5, 1, 1, -3);
+        auto slice_0 = make_slice(relu, -50, 1, 1, -3);
         auto slice_1 = make_slice(relu, -4, -2, 1, 1);
         auto slice_2 = make_slice(relu, -2, INT32_MAX, 1, 1);
 
