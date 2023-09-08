@@ -18,15 +18,8 @@ class GraphIteratorTFGraph(GraphIterator):
         self.m_decoders = []
         self.m_inner_graph = inner_graph
         self.m_share_weights = share_weights
-        if input_names_map is None:
-            self.m_input_names_map = {}
-        else:
-            self.m_input_names_map = input_names_map
-        if output_names_map is None:
-            self.m_output_names_map = {}
-        else:
-            self.m_output_names_map = output_names_map
-
+        self.m_input_names_map = input_names_map or {}
+        self.m_output_names_map = output_names_map or {}
         self.m_vars = None
         if hasattr(tf_graph, "variables"):
             # This field is needed to keep the link to graph variables,

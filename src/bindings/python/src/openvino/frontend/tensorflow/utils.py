@@ -246,11 +246,15 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
                 if func_input.dtype == tf.resource and func_input.name.startswith('unknown'):
                     continue
                 internal_tensor_names.append(func_input.name)
+            assert len(input_model.structured_input_signature) > 1, \
+                "[TensorFlow Frontend] internal error or inconsistent model: " \
+                "`structured_input_signature` must contain at least two elements."
             assert len(internal_tensor_names) == len(input_model.structured_input_signature[1]), \
                 "[TensorFlow Frontend] internal error or inconsistent model: " \
                 "numbers of internal and external input tensor names are different."
             external_tensor_names = sorted(input_model.structured_input_signature[1].keys())
             for internal_name, external_name in zip(internal_tensor_names, external_tensor_names):
+                input_names_map = input_names_map or {}
                 input_names_map[internal_name] = external_name
 
         output_names_map = None
@@ -259,8 +263,7 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
             internal_names = sorted([tensor.name for tensor in input_model.outputs])
             if len(external_names) == len(internal_names):
                 for external_name, internal_name in zip(external_names, internal_names):
-                    if output_names_map is None:
-                        output_names_map = {}
+                    output_names_map = output_names_map or {}
                     output_names_map[internal_name] = external_name
         return GraphIteratorTFGraph(input_model.graph, share_weights, False, input_names_map, output_names_map)
     raise Exception("Could not wrap model of type {} to GraphIteratorTFGraph.".format(type(input_model)))
