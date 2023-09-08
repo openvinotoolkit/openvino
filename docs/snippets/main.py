@@ -6,7 +6,7 @@ import sys
 import os
 import io
 import importlib
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, redirect_stderr
 
 
 skip_snippets = ["main.py", "__init__.py", "utils.py", "ie_common.py", "ov_common.py"]
@@ -17,13 +17,15 @@ def import_python_modules(directory, subdirectory=""):
             imported_item = item[:-3]
             if subdirectory != "":
                 imported_item=subdirectory + "." + imported_item
+            print(f"Snippet {item} is executing...")
             mod = importlib.import_module(imported_item)
 
             try:
-                with redirect_stdout(io.StringIO()) as f:
+                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                     mod.main()
             except AttributeError as e:
                 pass
+
             print(f"Snippet {item} succesfully executed.")
 
         
