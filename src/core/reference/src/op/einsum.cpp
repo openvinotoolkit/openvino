@@ -352,7 +352,7 @@ void reduce_input(HostTensorVector& inputs,
 
     HostTensorPtr output_ptr = std::shared_ptr<HostTensor>(new HostTensor(input_ptr->get_element_type(), output_shape));
 
-    reference::sum<T>(input_ptr->get_data_ptr<T>(), output_ptr->get_data_ptr<T>(), input_shape, reduced_axes);
+    reference::sum(input_ptr->get_data_ptr<T>(), output_ptr->get_data_ptr<T>(), input_shape, reduced_axes);
 
     // update a vector of inputs and input subscripts
     inputs[input_ind] = output_ptr;
@@ -598,7 +598,7 @@ void extract_diagonal(HostTensorVector& inputs, std::vector<std::string>& input_
                            ngraph::op::AutoBroadcastType::NUMPY);
 
     HostTensorPtr result = std::shared_ptr<HostTensor>(new HostTensor(input_ptr->get_element_type(), result_shape));
-    reference::sum<T>(mul_output->get_data_ptr<T>(), result->get_data_ptr<T>(), mul_output->get_shape(), reduced_axes);
+    reference::sum(mul_output->get_data_ptr<T>(), result->get_data_ptr<T>(), mul_output->get_shape(), reduced_axes);
     inputs[input_ind] = result;
     input_subscripts[input_ind] = resultant_subscript;
 }
