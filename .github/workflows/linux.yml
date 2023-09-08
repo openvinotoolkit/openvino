@@ -61,13 +61,7 @@ jobs:
       CCACHE_MAXSIZE: 50G
       TEST_USER_NAME: "ga_runner"
     steps:
-      - name: Create test user
-        run: |
-          export USER_UID=1000 && export USER_GID=$USER_UID && groupadd --gid $USER_GID ${{ env.TEST_USER_NAME }} && useradd --uid $USER_UID --gid $USER_GID -m ${{ env.TEST_USER_NAME }}
-          su - ${{ env.TEST_USER_NAME }} && whoami
-
       - name: Install git
-        shell: su - $TEST_USER_NAME && bash -e {0}
         run: |
           apt-get update
           apt-get install -y git git-lfs
@@ -98,7 +92,6 @@ jobs:
       #
       - name: Install build dependencies
         run: |
-          su - ${{ env.TEST_USER_NAME }} && whoami
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           apt update
           apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
@@ -657,8 +650,6 @@ jobs:
 
       - name: Model Optimizer UT
         run: |
-          su - ${{ env.TEST_USER_NAME }}
-          whoami
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:${INSTALL_DIR}/python/python3.11:$PYTHONPATH
 
           # TODO: figure out why they need to be reinstalled
@@ -671,8 +662,7 @@ jobs:
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
-              --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
+          su - ${{ env.TEST_USER_NAME }} -c "python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml"
 
       - name: PyTorch Layer Tests
         run: |
