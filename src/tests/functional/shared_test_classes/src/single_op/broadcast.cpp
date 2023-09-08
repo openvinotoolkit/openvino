@@ -43,15 +43,12 @@ void BroadcastLayerTest::SetUp() {
     ov::AxisSet axes_mapping;
     ov::op::BroadcastType mode;
     std::vector<InputShape> shapes;
-    std::tie(target_shape, axes_mapping, mode, shapes, inType, targetDevice) = this->GetParam();
+    ov::element::Type model_type;
+    std::tie(target_shape, axes_mapping, mode, shapes, model_type, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
-    outType = inType;
-    if (inType == ElementType::bf16 || inType == ElementType::f16) {
-        rel_threshold = 1e-2;
-    }
 
     auto target_shape_const = ov::op::v0::Constant::create(ov::element::i64, {target_shape.size()}, target_shape);
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
     std::shared_ptr<ov::Node> broadcast;
     if (mode == ngraph::op::BroadcastType::NONE) {

@@ -17,7 +17,7 @@ using BroadcastParamsTuple = typename std::tuple<
         ov::AxisSet,               // axes mapping
         ov::op::BroadcastType,     // broadcast mode
         std::vector<InputShape>,   // Input shape
-        ov::element::Type,         // Network precision
+        ov::element::Type,         // Model type
         std::string>;              // Device name
 
 class BroadcastLayerTest : public testing::WithParamInterface<BroadcastParamsTuple>,

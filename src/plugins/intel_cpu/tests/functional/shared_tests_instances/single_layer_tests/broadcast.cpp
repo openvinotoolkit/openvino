@@ -106,23 +106,23 @@ const auto numpyBroadcast3DInputParams = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast3D, BroadcastLayerTest, numpyBroadcast3DInputParams, BroadcastLayerTest::getTestCaseName);
 
-const std::vector<std::vector<ov::Shape>> ngraph_evaluate_shapes_static = {
+const std::vector<std::vector<ov::Shape>> evaluate_shapes_static = {
         {{ 1, 2, 1, 4, 1, 6, 1, 8, 1, 10 }}
 };
 
-// NGRAPH EVALUATE
-const auto numpyBroadcastNgraphEvaluateParams = ::testing::Combine(
+// EVALUATE
+const auto numpyBroadcastEvaluateParams = ::testing::Combine(
         ::testing::Values(std::vector<size_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
         ::testing::Values(ov::AxisSet{}), //not used in numpy mode
         ::testing::Values(ov::op::BroadcastType::NUMPY),
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(ngraph_evaluate_shapes_static)),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(evaluate_shapes_static)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcastNgraphEvaluate,
+INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcastEvaluate,
                         BroadcastLayerTest,
-                        numpyBroadcastNgraphEvaluateParams,
+                        numpyBroadcastEvaluateParams,
                         BroadcastLayerTest::getTestCaseName);
 // END NUMPY MODE //////////////////////////////////////
 
