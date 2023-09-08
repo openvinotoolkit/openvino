@@ -725,7 +725,7 @@ bool Reorder::ReorderExecutor::isSupportedCombinatedDataType(const dnnl::engine&
     // auto src_dnnl_desc = create_dnnl_desc_mem(src, combinated_data_type.first);
     // auto dst_dnnl_desc = create_dnnl_desc(dst, combinated_data_type.second);
 
-    auto create_dnnl_desc_with_format = [&engine](const dnnl::memory::dims& dims,
+    auto create_dnnl_desc_with_format = [](const dnnl::memory::dims& dims,
                                                   const dnnl::memory::data_type& new_data_type,
                                                   const dnnl::memory::format_tag& format) {
         return dnnl::memory::desc(dims, new_data_type, format);
