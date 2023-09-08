@@ -45,8 +45,16 @@ extensions = [
     'cpplexer',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'openvino_custom_sphinx_sitemap'
+    'openvino_custom_sphinx_sitemap',
+    'myst_parser'
 ]
+
+myst_enable_extensions = ["colon_fence"]
+
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
 
 html_baseurl = 'https://docs.openvino.ai/canonical/'
 

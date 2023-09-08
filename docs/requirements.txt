@@ -15,6 +15,7 @@ ipython==8.10.0
 Jinja2==3.1.2
 lxml>=4.9.2
 MarkupSafe==2.1.1
+myst-parser
 mistune==2.0.3
 packaging==23.0
 pluggy==0.13.1
