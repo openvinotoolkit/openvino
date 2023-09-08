@@ -49,8 +49,10 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
             return false;
 
         auto data = gather_v8_node->input_value(0);
-        auto indices_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_v8_node->input_value(1).get_node_shared_ptr());
-        auto axis_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_v8_node->input_value(2).get_node_shared_ptr());
+        auto indices_constant =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_v8_node->input_value(1).get_node_shared_ptr());
+        auto axis_constant =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_v8_node->input_value(2).get_node_shared_ptr());
         if (!indices_constant || !axis_constant)
             return false;
 
