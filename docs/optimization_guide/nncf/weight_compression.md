@@ -32,4 +32,3 @@ Additional Resources
 - :doc:`Training-time Optimization <tmo_introduction>`
 
 @endsphinxdirective
-
