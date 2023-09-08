@@ -10,6 +10,8 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
+static std::mutex mtx_ifunc;
+
 inline VectorDims reshape_sizes(VectorDims dims) {
     const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
     VectorDims result_dims(MAX_NUM_SHAPE - 1);
@@ -494,6 +496,7 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
         default:
             IE_THROW() << "Unsupported operation type for ACL Eltwise executor: " << static_cast<int>(aclEltwiseAttrs.algorithm);
     }
+    std::lock_guard<std::mutex> _lock {mtx_ifunc};
     ifunc = exec_func();
     return true;
 }
