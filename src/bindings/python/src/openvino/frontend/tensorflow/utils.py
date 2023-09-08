@@ -243,7 +243,7 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
         if hasattr(input_model, 'inputs') and hasattr(input_model, 'structured_input_signature'):
             internal_tensor_names = []
             for func_input in input_model.inputs:
-                if func_input.dtype == tf.resource and func_input.name.startswith('unknown'):
+                if func_input.dtype == tf.resource:
                     continue
                 internal_tensor_names.append(func_input.name)
             assert len(input_model.structured_input_signature) > 1, \
