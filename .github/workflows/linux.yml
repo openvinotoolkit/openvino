@@ -868,10 +868,10 @@ jobs:
         with:
           name: test-results-functional-cpu
           path: |
-            ${INSTALL_TEST_DIR}/TEST*.xml
-            ${INSTALL_TEST_DIR}/logs/failed/*.log
-            ${INSTALL_TEST_DIR}/logs/crashed/*.log
-            ${INSTALL_TEST_DIR}/logs/hanged/*.log
-            ${INSTALL_TEST_DIR}/logs/interapted/*.log
-            ${INSTALL_TEST_DIR}/logs/disabled_tests.log
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
           if-no-files-found: 'error'
