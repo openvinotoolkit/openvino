@@ -7,8 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 typename std::enable_if<std::is_floating_point<T>::value, void>::type
@@ -54,5 +53,4 @@ typename std::enable_if<std::is_class<T>::value, void>::type is_inf(const T* inp
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

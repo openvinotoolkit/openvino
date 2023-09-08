@@ -1,7 +1,7 @@
 Image In-painting with OpenVINO™
 --------------------------------
 
-.. _top:
+
 
 This notebook demonstrates how to use an image in-painting model with
 OpenVINO, using `GMCNN
@@ -10,6 +10,8 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. This model,
 given a tampered image, is able to create something very similar to the
 original image. The Following pipeline will be used in this notebook.
 |pipeline|
+
+.. _top:
 
 **Table of contents**:
 
@@ -48,7 +50,7 @@ Download ``gmcnn-places2-tf``\ model (this step will be skipped if the model is 
 unzip it. Downloaded model stored in TensorFlow frozen graph format. The
 steps how this frozen graph can be obtained from original model
 checkpoint can be found in this
-`instruction <https://docs.openvino.ai/2023.0/omz_models_model_gmcnn_places2_tf.html#steps-to-reproduce-conversion-to-frozen-graph>`__
+`instruction <https://docs.openvino.ai/2023.1/omz_models_model_gmcnn_places2_tf.html#steps-to-reproduce-conversion-to-frozen-graph>`__
 
 .. code:: ipython3
 
@@ -80,7 +82,7 @@ Convert Tensorflow model to OpenVINO IR format `⇑ <#top>`__
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format with model conversion API. For more
 information about model conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 This step is also skipped if the model is already converted.
 
 .. code:: ipython3
