@@ -76,7 +76,7 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
 
         auto indices = indices_constant->cast_vector<int32_t>();
         // check all the indices are not negative and not out of bound
-        for (int i = 0; i < indices.size(); i++) {
+        for (size_t i = 0; i < indices.size(); i++) {
             if (indices[i] < 0 || indices[i] >= axis_dim) {
                 return false;
             }
