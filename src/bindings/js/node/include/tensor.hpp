@@ -36,9 +36,9 @@ public:
      * @return Napi::Function representing the constructor function for the Javascript Tensor class.
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
-    
-    /** @brief This method is called during initialization of OpenVino native add-on. 
-     * It exports JavaScript Tensor class. 
+
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript Tensor class.
      */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 

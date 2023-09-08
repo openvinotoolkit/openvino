@@ -6,7 +6,15 @@
 #include <iostream>
 
 TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TensorWrap>(info) {
-    if (info.Length() != 3 && info.Length() != 0)  // default contructor takes 0 args
+    if (info.Length() == 2) {
+        const auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
+        const auto shape_vec =
+                js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
+        const auto& shape = ov::Shape(shape_vec);
+
+        this->_tensor = ov::Tensor(type, shape);
+    }
+    else if (info.Length() != 3 && info.Length() != 0)  // default contructor takes 0 args
         reportError(info.Env(), "Invalid number of arguments for Tensor constructor.");
     else if (info.Length() == 3) {
         if (!info[2].IsTypedArray()) {
@@ -20,7 +28,6 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
             const auto& shape = ov::Shape(shape_vec);
             const auto data = info[2].As<Napi::TypedArray>();
             this->_tensor = cast_to_tensor(data, shape, type);
-
         } catch (std::invalid_argument& e) {
             reportError(info.Env(), std::string("Invalid tensor argument. ") + e.what());
         } catch (std::exception& e) {

@@ -12,6 +12,7 @@ Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
                                "Output",
                                {Output<ov::Node>::InstanceMethod("getShape", &Output<ov::Node>::get_shape),
                                 Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_shape>("shape"),
+                                Output<ov::Node>::InstanceMethod("getPartialShape", &Output<ov::Node>::get_partial_shape),
                                 Output<ov::Node>::InstanceMethod("getAnyName", &Output<ov::Node>::get_any_name),
                                 Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_any_name>("anyName"),
                                 Output<ov::Node>::InstanceMethod("setNames", &Output<ov::Node>::set_names),
@@ -46,6 +47,10 @@ Napi::Value Output<ov::Node>::get_shape(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::Shape, Napi::Array>(info, _output.get_shape());
 }
 
+Napi::Value Output<ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) {
+    return cpp_to_js<ov::PartialShape, Napi::Array>(info, _output.get_partial_shape());
+}
+
 Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
     return Napi::String::New(info.Env(), _output.get_any_name());
 }
@@ -70,6 +75,7 @@ Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
         "Output",
         {Output<const ov::Node>::InstanceMethod("getShape", &Output<const ov::Node>::get_shape),
          Output<const ov::Node>::InstanceAccessor<&Output<const ov::Node>::get_shape>("shape"),
+         Output<const ov::Node>::InstanceMethod("getPartialShape", &Output<const ov::Node>::get_partial_shape),
          Output<const ov::Node>::InstanceMethod("getAnyName", &Output<const ov::Node>::get_any_name),
          Output<const ov::Node>::InstanceAccessor<&Output<const ov::Node>::get_any_name>("anyName"),
          Output<const ov::Node>::InstanceMethod("toString", &Output<const ov::Node>::get_any_name)});
@@ -102,6 +108,9 @@ Napi::Value Output<const ov::Node>::get_shape(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::Shape, Napi::Array>(info, _output.get_shape());
 }
 
+Napi::Value Output<const ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) {
+    return cpp_to_js<ov::PartialShape, Napi::Array>(info, _output.get_partial_shape());
+}
 
 Napi::Value Output<const ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
     return Napi::String::New(info.Env(), _output.get_any_name());
