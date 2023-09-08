@@ -14,7 +14,7 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> multiConfigs = {
-            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , ov::test::utils::DEVICE_CPU}}
+            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , ov::test::utils::DEVICE_TEMPLATE}}
     };
 
     const std::vector<InferenceEngine::Precision> ioPrecisions = {

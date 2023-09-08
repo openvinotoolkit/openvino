@@ -7,25 +7,20 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-
-    const std::vector<std::map<std::string, std::string>> configs = {
-            {},
-    };
-    const std::vector<std::map<std::string, std::string>> multiConfigs = {
-            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , ov::test::utils::DEVICE_CPU}},
-            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , ov::test::utils::DEVICE_GPU}},
+    const std::vector<std::map<std::string, std::string>> auto_configs = {
+            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , ov::test::utils::DEVICE_TEMPLATE}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(multiConfigs)),
+                                    ::testing::ValuesIn(auto_configs)),
                             ExecutableNetworkBaseTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(multiConfigs)),
+                                    ::testing::ValuesIn(auto_configs)),
                             ExecutableNetworkBaseTest::getTestCaseName);
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -35,32 +30,17 @@ namespace {
             InferenceEngine::Precision::U16
     };
 
-    const std::vector<std::map<std::string, std::string>> AutoConfigsSetPrc = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_CPU}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU}},
-    };
-
-    const std::vector<std::map<std::string, std::string>> MultiConfigsSetPrc = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_CPU}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
-    };
-
-
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecNetSetPrecision,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(MultiConfigsSetPrc)),
+                                    ::testing::ValuesIn(auto_configs)),
                             ExecNetSetPrecision::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetSetPrecision,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(AutoConfigsSetPrc)),
+                                    ::testing::ValuesIn(auto_configs)),
                             ExecNetSetPrecision::getTestCaseName);
 }  // namespace

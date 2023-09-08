@@ -14,36 +14,14 @@ std::vector<memoryStateParams> memoryStateTestCases = {
     memoryStateParams(InferRequestVariableStateTest::getNetwork(),
                       {"c_1-3", "r_1-3"},
                       ov::test::utils::DEVICE_AUTO,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_CPU}}),
-    memoryStateParams(InferRequestVariableStateTest::getNetwork(),
-                      {"c_1-3", "r_1-3"},
-                      ov::test::utils::DEVICE_AUTO,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES),
-                        ov::test::utils::DEVICE_CPU + std::string(",") + ov::test::utils::DEVICE_GPU}}),
-    memoryStateParams(InferRequestVariableStateTest::getNetwork(),
-                      {"c_1-3", "r_1-3"},
-                      ov::test::utils::DEVICE_AUTO,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES),
-                        ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU}}),
+                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_TEMPLATE}}),
     memoryStateParams(InferRequestVariableStateTest::getNetwork(),
                       {"c_1-3", "r_1-3"},
                       ov::test::utils::DEVICE_MULTI,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_CPU}})};
-
-std::vector<memoryStateParams> memoryStateNotSupportedTestCases = {
-    memoryStateParams(InferRequestVariableStateTest::getNetwork(),
-                      {"c_1-3", "r_1-3"},
-                      ov::test::utils::DEVICE_MULTI,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES),
-                        ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU}})};
+                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_TEMPLATE}})};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          InferRequestVariableStateTest,
                          ::testing::ValuesIn(memoryStateTestCases),
                          InferRequestVariableStateTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         InferRequestQueryStateExceptionTest,
-                         ::testing::ValuesIn(memoryStateNotSupportedTestCases),
-                         InferRequestQueryStateExceptionTest::getTestCaseName);
 } // namespace

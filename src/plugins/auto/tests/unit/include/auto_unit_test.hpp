@@ -59,6 +59,7 @@ namespace tests {
 class BaseTest {
 public:
     std::shared_ptr<ov::Model>                      model;
+    std::shared_ptr<ov::Model>                      model_can_batch;
     std::shared_ptr<NiceMock<MockPluginBase>> mock_plugin_cpu;
     std::shared_ptr<NiceMock<MockPluginBase>> mock_plugin_gpu;
     std::shared_ptr<NiceMock<MockAutoPlugin>>       plugin;
@@ -87,28 +88,6 @@ public:
     std::shared_ptr<NiceMock<ov::MockICore>>           core;
     AutoTest();
     ~AutoTest();
-};
-
-// for unit tests which requires real core, batch support or remote context
-// mock plugin name: MOCK_CPU,MOCK_HARDWARE
-// please extend as needed
-
-class AutoTestWithRealCore : public BaseTest {
-public:
-    AutoTestWithRealCore();
-    ~AutoTestWithRealCore() = default;
-    ov::Core core;
-
-protected:
-    void register_plugin_simple(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
-    void register_plugin_support_batch_and_context(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
-    std::vector<std::shared_ptr<ov::IRemoteContext>> m_mock_contexts;
-    std::shared_ptr<void> m_so;
-    std::shared_ptr<ov::ICompiledModel> compiled_model;
-    void reg_plugin(ov::Core& core,
-                    std::shared_ptr<ov::IPlugin> plugin,
-                    const std::string& device_name,
-                    const ov::AnyMap& properties);
 };
 }  // namespace tests
 }  // namespace mock_auto_plugin

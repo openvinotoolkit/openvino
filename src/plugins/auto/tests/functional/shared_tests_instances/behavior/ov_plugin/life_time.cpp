@@ -7,19 +7,13 @@
 using namespace ov::test::behavior;
 namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTest,
-            ::testing::Values("AUTO:CPU",
-                              "MULTI:CPU",
-                              "AUTO:GPU",
-                              "MULTI:GPU"),
+            ::testing::Values("AUTO:TEMPLATE",
+                              "MULTI:TEMPLATE"),
             OVHoldersTest::getTestCaseName);
 
 const std::vector<std::string> device_names_and_priorities = {
-        "MULTI:GPU", // GPU via MULTI,
-        "AUTO:GPU",  // GPU via AUTO,
-        "AUTO:GPU,CPU", // GPU+CPU
-        "AUTO:CPU,GPU", // CPU+GPU
-        "MULTI:GPU,CPU", // GPU+CPU
-        "MULTI:CPU,GPU", // CPU+GPU
+        "MULTI:TEMPLATE", // GPU via MULTI,
+        "AUTO:TEMPLATE",  // GPU via AUTO,
 };
     INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTestWithConfig,
                     ::testing::ValuesIn(device_names_and_priorities),

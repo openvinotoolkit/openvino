@@ -22,8 +22,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
-        R"(.*OVCompiledModelBaseTest.*(CanGetInputsInfoAndCheck|canSetConfigToCompiledModel).*)",
-        R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
@@ -85,6 +83,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Not expected behavior
         R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
         R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+        // template plugin doesn't support this case
+        R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)"
     };
 
 #if !defined(OPENVINO_ARCH_X86_64)
@@ -95,6 +95,5 @@ std::vector<std::string> disabledTestPatterns() {
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
 #endif
-
     return retVector;
 }

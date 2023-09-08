@@ -10,8 +10,7 @@ using namespace ov::test::behavior;
 
 namespace {
 const std::vector<ov::AnyMap> multiConfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)},
-        {ov::device::priorities(ov::test::utils::DEVICE_GPU)},
+        {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCallbackTests,

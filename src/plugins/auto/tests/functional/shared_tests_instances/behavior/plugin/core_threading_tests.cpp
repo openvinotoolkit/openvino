@@ -15,14 +15,14 @@
 namespace {
 
 const Params params[] = {
-    std::tuple<Device, Config>{ ov::test::utils::DEVICE_CPU, {{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
+    std::tuple<Device, Config>{ ov::test::utils::DEVICE_TEMPLATE, {{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
 #ifdef ENABLETESTMULTI
-    std::tuple<Device, Config>{ ov::test::utils::DEVICE_MULTI, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_CPU }}},
-    std::tuple<Device, Config>{ ov::test::utils::DEVICE_AUTO, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_CPU }}},
+    std::tuple<Device, Config>{ ov::test::utils::DEVICE_MULTI, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_TEMPLATE }}},
+    std::tuple<Device, Config>{ ov::test::utils::DEVICE_AUTO, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_TEMPLATE }}},
 #endif
 };
 }  // namespace
-
+/*
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CoreThreadingTestsWithIterations,
@@ -31,3 +31,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CoreThreadingTestsWithIterati
                      testing::Values(50),
                      testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);
+*/

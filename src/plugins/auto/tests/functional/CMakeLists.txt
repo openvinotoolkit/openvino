@@ -4,6 +4,18 @@
 
 set(TARGET_NAME ov_auto_func_tests)
 
+set(DEPENDENCIES
+    mock_engine
+    openvino::runtime
+    func_test_utils
+    openvino_auto_plugin
+)
+
+if(ENABLE_AUTO_BATCH)
+    list(APPEND DEPENDENCIES openvino_auto_batch_plugin)
+    list(APPEND COMPILE_DEFINITIONS ENABLE_AUTO_BATCH)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4305)
 endif()
@@ -12,15 +24,14 @@ ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            openvino_auto_plugin
-            openvino_intel_cpu_plugin
-            openvino_intel_gpu_plugin
+            ${DEPENDENCIES}
         LINK_LIBRARIES
-            openvino::funcSharedTests
             openvino::runtime::dev
+            gtest
+            gtest_main
+            openvino::funcSharedTests
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
-            $<TARGET_PROPERTY:openvino_auto_plugin,SOURCE_DIR>/include/
             ${TEST_COMMON_INCLUDE_DIR}
         # ADD_CPPLINT
         LABELS

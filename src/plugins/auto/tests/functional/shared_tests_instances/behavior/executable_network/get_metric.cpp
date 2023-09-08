@@ -16,21 +16,21 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("AUTO:CPU", "MULTI:GPU", "AUTO:GPU,CPU"));
+        ::testing::Values("AUTO:TEMPLATE", "MULTI:TEMPLATE"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("AUTO:CPU", "MULTI:GPU", "AUTO:GPU,CPU"));
+        ::testing::Values("AUTO:TEMPLATE", "MULTI:TEMPLATE"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("MULTI:CPU", "AUTO:CPU", "MULTI:GPU", "AUTO:GPU,CPU"));
+        ::testing::Values("MULTI:TEMPLATE", "AUTO:TEMPLATE"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-        ::testing::Values("MULTI:CPU", "AUTO:CPU", "MULTI:GPU", "AUTO:GPU,CPU"));
+        ::testing::Values("MULTI:TEMPLATE", "AUTO:TEMPLATE"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
-        ::testing::Values("MULTI:CPU", "AUTO:CPU", "MULTI:GPU", "AUTO:GPU,CPU"));
+        ::testing::Values("MULTI:TEMPLATE", "AUTO:TEMPLATE"));
 } // namespace

@@ -22,7 +22,7 @@ const std::vector<ov::element::Type_t> netPrecisions = {
 };
 
 const std::vector<ov::AnyMap> auto_configs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}};
+        {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,

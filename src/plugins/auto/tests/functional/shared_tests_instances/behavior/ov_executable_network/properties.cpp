@@ -11,12 +11,12 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> inproperties = {
-    {ov::num_streams(-100)},
+    {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI, "AUTO:CPU"),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI, "AUTO:TEMPLATE"),
                                             ::testing::ValuesIn(inproperties)),
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
@@ -43,13 +43,9 @@ auto default_affinity = [] {
 }();
 #endif
 
-const std::vector<ov::AnyMap> default_properties = {
-    {ov::affinity(default_affinity)},
-};
-
 const std::vector<ov::AnyMap> multi_properties = {
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU), ov::num_streams(ov::streams::AUTO)},
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::num_streams(ov::streams::AUTO)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
       InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
 };
@@ -60,15 +56,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                                             ::testing::ValuesIn(multi_properties)),
                          OVClassCompiledModelPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice, OVCompiledModelIncorrectDevice, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice, OVCompiledModelIncorrectDevice, ::testing::Values("TEMPLATE"));
 
 
 const std::vector<ov::AnyMap> auto_multi_device_properties = {
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU), ov::device::properties("CPU", ov::num_streams(4))},
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-     ov::device::properties("CPU", ov::num_streams(4), ov::enable_profiling(true))},
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-     ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{{ov::num_streams(4), ov::enable_profiling(true)}}}})}};
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::properties("TEMPLATE", ov::num_streams(4))},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
+     ov::device::properties("TEMPLATE", ov::num_streams(4), ov::enable_profiling(true))},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
+     ov::device::properties(ov::AnyMap{{"TEMPLATE", ov::AnyMap{{ov::num_streams(4), ov::enable_profiling(true)}}}})}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsNoThrow,
                          OVClassCompiledModelPropertiesTests,
@@ -78,67 +74,40 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsNoThrow,
                          OVClassCompiledModelPropertiesTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
-    {ov::device::properties("CPU", ov::num_streams(4))},
-    {ov::device::properties("CPU",
+    {ov::device::properties("TEMPLATE", ov::num_streams(4))},
+    {ov::device::properties("TEMPLATE",
                             ov::num_streams(4),
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
-    {ov::device::properties("CPU",
-                            ov::num_streams(4),
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
-     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))}};
 
-const std::vector<ov::AnyMap> multiConfigsWithSecondaryProperties = {
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-     ov::device::properties("CPU",
-                            ov::num_streams(4),
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-     ov::device::properties("CPU",
-                            ov::num_streams(4),
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
-     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
 
 const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::device::properties("AUTO",
                             ov::enable_profiling(false),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-     ov::device::properties("CPU",
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
+     ov::device::properties("TEMPLATE",
                             ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-     ov::device::properties("CPU",
-                            ov::num_streams(4),
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
-     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))},
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::device::properties("AUTO",
                             ov::enable_profiling(false),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
-     ov::device::properties("CPU",
+     ov::device::properties("TEMPLATE",
                             ov::num_streams(4),
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
-    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
-     ov::device::properties("AUTO",
-                            ov::enable_profiling(false),
-                            ov::device::priorities(ov::test::utils::DEVICE_CPU),
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
-     ov::device::properties("CPU",
-                            ov::num_streams(4),
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
-     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))}
+    };
 
 // IE Class Load network
 INSTANTIATE_TEST_SUITE_P(smoke_CPUOVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values("AUTO:CPU", "MULTI:CPU"),
+                         ::testing::Combine(::testing::Values("AUTO:TEMPLATE", "MULTI:TEMPLATE"),
                                             ::testing::ValuesIn(configsWithSecondaryProperties)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("MULTI"),
-                                            ::testing::ValuesIn(multiConfigsWithSecondaryProperties)));
+                                            ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
@@ -146,7 +115,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassCompileModelWithCorrectPropertiesTest
                                             ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
 
 const std::vector<std::pair<ov::AnyMap, std::string>> automultiExeDeviceConfigs = {
-    std::make_pair(ov::AnyMap{{ov::device::priorities(ov::test::utils::DEVICE_CPU)}}, "CPU")};
+    std::make_pair(ov::AnyMap{{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}}, "TEMPLATE")};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                          OVCompileModelGetExecutionDeviceTests,
@@ -156,7 +125,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}};
+        {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY,
@@ -172,6 +141,6 @@ const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
-                         ::testing::Combine(::testing::Values("AUTO:CPU"),
+                         ::testing::Combine(::testing::Values("AUTO:TEMPLATE"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
 }  // namespace

@@ -9,12 +9,8 @@
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<ov::AnyMap> Multiconfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
-};
-
 const std::vector<ov::AnyMap> Autoconfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
+        {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}
 };
 
 const std::vector<ov::AnyMap> emptyConfigs = {{}};
@@ -23,7 +19,7 @@ const std::vector<ov::AnyMap> emptyConfigs = {{}};
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorTest,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(Multiconfigs)),
+                                ::testing::ValuesIn(Autoconfigs)),
                         OVInferRequestIOTensorTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorTest,
@@ -55,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorSetPre
                          ::testing::Combine(
                                  ::testing::ValuesIn(prcs),
                                  ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(Multiconfigs)),
+                                 ::testing::ValuesIn(Autoconfigs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
@@ -69,7 +65,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCheckTensorPre
                          ::testing::Combine(
                                  ::testing::ValuesIn(prcs),
                                  ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(Multiconfigs)),
+                                 ::testing::ValuesIn(Autoconfigs)),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestCheckTensorPrecision,

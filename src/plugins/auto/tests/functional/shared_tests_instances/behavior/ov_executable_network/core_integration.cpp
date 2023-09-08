@@ -17,7 +17,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassCompiledModelGetPropertyTest, OVClassCompiledModelGetPropertyTest,
-        ::testing::Values("MULTI:CPU", "AUTO:CPU"));
+        ::testing::Values("MULTI:TEMPLATE", "AUTO:TEMPLATE"));
 
 //
 // Executable Network GetConfig / SetConfig
@@ -25,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassCompiledModelGetIncorrectPropertyTest, OVClassCompiledModelGetIncorrectPropertyTest,
-        ::testing::Values("MULTI:CPU", "AUTO:CPU"));
+        ::testing::Values("MULTI:TEMPLATE", "AUTO:TEMPLATE"));
 //////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace
