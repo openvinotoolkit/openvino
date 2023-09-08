@@ -62,6 +62,7 @@ jobs:
       TEST_USER_NAME: "ga_runner"
     steps:
       - name: Install git
+        shell: sudo -H -u ${{ env.TEST_USER_NAME }} bash -e {0}
         run: |
           apt-get update
           apt-get install -y git git-lfs
