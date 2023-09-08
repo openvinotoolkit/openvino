@@ -205,7 +205,7 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const ExpressionPtr
         OPENVINO_ASSERT(it != loop_inputs.cend(), "Buffer output PortConnector has not been found in target LoopEnd inputs");
         return std::distance(loop_inputs.cbegin(), it);
     };
-    int64_t final_offset;
+    int64_t final_offset = 0;
     int64_t last_loop_exec_order = 0;
     const auto buffer_outs = buffer_expr->get_output_port_connectors();
     for (const auto& buffer_out : buffer_outs) {
