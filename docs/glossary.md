@@ -82,7 +82,7 @@ Glossary of terms used in OpenVINO™
 |   In OpenVINO, both terms are treated synonymously. To avoid confusion, "layer" is being pushed out and "operation" is the currently accepted term.
 
 | *Model conversion API*
-|   A component of OpenVINO Development Tools. The API is used to import, convert, and optimize models trained in popular frameworks to a format usable by other OpenVINO components. Model conversion API is represented by a Python ``openvino.convert_model()`` method  and ``ovc`` command-line tool.
+|   The Conversion API is used to import and convert models trained in popular frameworks to a format usable by other OpenVINO components. Model conversion API is represented by a Python ``openvino.convert_model()`` method  and ``ovc`` command-line tool.
 
 | *OpenVINO™ Core*
 |   OpenVINO™ Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, GNA, etc.
