@@ -70,7 +70,7 @@ jobs:
           su - ${{ env.TEST_USER_NAME }} && whoami
 
       - name: Install git
-        shell: sudo -H -u ${{ env.TEST_USER_NAME }} bash -e {0}
+        shell: sudo -H -u $TEST_USER_NAME bash -e {0}
         run: |
           apt-get update
           apt-get install -y git git-lfs
