@@ -145,25 +145,23 @@ class NbProcessor:
             if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
                 raise FileNotFoundError("Unable to modify file")
 
-class PrepareToctree:
-    @staticmethod
-    def add_glob_directive(tutorials_file):
-        try:
-            with open(tutorials_file,'r', encoding='cp437') as mainfile:
-                readfile = mainfile.read()
-                if readfile.find(':glob:') == -1:
-                    add_glob = readfile\
-                        .replace("   :hidden:", "   :hidden:\n   :glob:")\
-                        .replace("   notebooks_installation", "   notebooks_installation\n   notebooks/*\n")
-                    with open(tutorials_file, 'w', encoding='cp437') as mainfile:
-                        mainfile.writelines(add_glob)
-        except OSError as e:
-                print(f"Unable to open {tutorials_file}: {e}", file=sys.stderr)
-                return
+def add_glob_directive(tutorials_file):
+    try:
+        with open(tutorials_file,'r', encoding='cp437') as mainfile:
+            readfile = mainfile.read()
+            if readfile.find(':glob:') == -1:
+                add_glob = readfile\
+                    .replace("   :hidden:", "   :hidden:\n   :glob:")\
+                    .replace("   notebooks_installation", "   notebooks_installation\n   notebooks/*\n")
+                with open(tutorials_file, 'w', encoding='cp437') as mainfile:
+                    mainfile.writelines(add_glob)
+    except OSError as e:
+            print(f"Unable to open {tutorials_file}: {e}", file=sys.stderr)
+            return
 
 def main():
 
-    PrepareToctree.add_glob_directive(main_tutorials_file)
+    glob_dir = add_glob_directive(main_tutorials_file)
     parser = argparse.ArgumentParser()
     parser.add_argument('sourcedir', type=Path)
     parser.add_argument('outdir', type=Path)
