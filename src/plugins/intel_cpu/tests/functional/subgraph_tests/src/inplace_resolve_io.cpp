@@ -15,6 +15,8 @@ using namespace ov::test;
 
 namespace SubgraphTestsDefinitions {
 
+using VectorShapes = std::vector<InputShape>;
+
 class SoftmaxAddReshapeOutputSubgraphTest : virtual public ov::test::SubgraphBaseTest {
 /*This test runs the following subgraph:
 
@@ -66,7 +68,8 @@ TEST_F(SoftmaxAddReshapeOutputSubgraphTest, smoke_CompareWithRefs) {
 }
 
 
-class SoftmaxAddReshapeTwoOutputsSubgraphTest : virtual public ov::test::SubgraphBaseTest {
+class SoftmaxAddReshapeTwoOutputsSubgraphTest : public testing::WithParamInterface<VectorShapes>,
+                                                virtual public ov::test::SubgraphBaseTest {
 /*This test runs the following subgraph:
 
                       param
@@ -85,12 +88,33 @@ class SoftmaxAddReshapeTwoOutputsSubgraphTest : virtual public ov::test::Subgrap
 
 Edge Reshape1 -> Result1 cannot be referenced by its upstreams as there are more than one outputs referencing it.
 */
-protected:
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<VectorShapes> obj) {
+        VectorShapes& inputShapes = obj.param;
+
+        std::ostringstream result;
+        result << "IS=";
+        for (const auto& shape : inputShapes) {
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
+        }
+        result << "TS=";
+        for (const auto& shape : inputShapes) {
+            result << "(";
+            if (!shape.second.empty()) {
+                for (const auto& itr : shape.second) {
+                    result << ov::test::utils::vec2str(itr);
+                }
+            }
+            result << ")";
+        }
+        return result.str();
+    }
+
     void SetUp() override {
         constexpr size_t softmax_axis = 1ul;
         targetDevice = ov::test::utils::DEVICE_CPU;
         const auto precision = ov::element::f32;
-        ov::test::InputShape input_shape{{-1, 16}, {{3, 16}}};
+        auto& input_shape = this->GetParam();
         init_input_shapes({input_shape});
 
         ov::ParameterVector params;
@@ -119,9 +143,27 @@ protected:
     }
 };
 
-TEST_F(SoftmaxAddReshapeTwoOutputsSubgraphTest, smoke_CompareWithRefs) {
+TEST_P(SoftmaxAddReshapeTwoOutputsSubgraphTest, smoke_CompareWithRefs) {
     run();
 }
+
+namespace {
+
+const std::vector<std::vector<InputShape>> inputShapes = {
+    {
+        // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+        {{2, 64}, {{2, 64}}}
+    },
+    {
+        // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+        {{2, -1}, {{2, 64}}}
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Softmax_Add_Reshape_TwoOutputs, SoftmaxAddReshapeTwoOutputsSubgraphTest,
+                        ::testing::ValuesIn(inputShapes),
+                        SoftmaxAddReshapeTwoOutputsSubgraphTest::getTestCaseName);
+} // namespace
 
 class InputReshapeOutputSubgraphTest : virtual public ov::test::SubgraphBaseTest {
 /*This test runs the following subgraph:
@@ -138,7 +180,6 @@ Edge Reshape0 -> Result0 cannot be referenced by its upstreams as its upstream i
 */
 protected:
     void SetUp() override {
-        constexpr size_t softmax_axis = 1ul;
         targetDevice = ov::test::utils::DEVICE_CPU;
         const auto precision = ov::element::f32;
         ov::test::InputShape input_shape{{-1, 16}, {{3, 16}}};
