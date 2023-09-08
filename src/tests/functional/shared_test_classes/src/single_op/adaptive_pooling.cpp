@@ -12,9 +12,9 @@ std::string AdaPoolLayerTest::getTestCaseName(const testing::TestParamInfo<adapo
     std::vector<int> pooled_spatial_shape;
 
     std::string pooling_mode;
-    ov::element::Type type;
+    ov::element::Type model_type;
     std::string target_device;
-    std::tie(shapes, pooled_spatial_shape, pooling_mode, type, target_device) = obj.param;
+    std::tie(shapes, pooled_spatial_shape, pooling_mode, model_type, target_device) = obj.param;
 
     std::ostringstream result;
 
@@ -30,7 +30,7 @@ std::string AdaPoolLayerTest::getTestCaseName(const testing::TestParamInfo<adapo
     }
     result << "pooled_spatial_shape=" << ov::test::utils::vec2str(pooled_spatial_shape) << "_";
     result << "mode=" << pooling_mode << "_";
-    result << "IT=" << type.get_type_name() << "_";
+    result << "IT=" << model_type.get_type_name() << "_";
     result << "dev=" << target_device;
     return result.str();
 }
@@ -39,11 +39,11 @@ void AdaPoolLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     std::vector<int> pooled_spatial_shape;
     std::string pooling_mode;
-    std::tie(shapes, pooled_spatial_shape, pooling_mode, inType, targetDevice) = this->GetParam();
+    ov::element::Type model_type;
+    std::tie(shapes, pooled_spatial_shape, pooling_mode, model_type, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
-    outType = inType;
 
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
     ngraph::Shape pooled_shape = {pooled_spatial_shape.size()};
     auto pooled_param = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, pooled_shape, pooled_spatial_shape);

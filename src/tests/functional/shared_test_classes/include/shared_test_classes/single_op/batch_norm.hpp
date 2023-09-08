@@ -10,7 +10,7 @@ namespace ov {
 namespace test {
 typedef std::tuple<
         double,                        // epsilon
-        ov::element::Type,             // Input type
+        ov::element::Type,             // Model type
         std::vector<InputShape>,       // Input shape
         std::string                    // Target device name
 > BatchNormLayerTestParams;

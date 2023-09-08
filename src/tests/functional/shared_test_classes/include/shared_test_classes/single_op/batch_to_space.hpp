@@ -17,7 +17,7 @@ using batchToSpaceParamsTuple = typename std::tuple<
         std::vector<int64_t>,              // crops begin
         std::vector<int64_t>,              // crops end
         std::vector<InputShape>,           // Input shapes
-        ov::element::Type,                 // Input precision
+        ov::element::Type,                 // Model type
         std::string>;                      // Device name>;
 
 class BatchToSpaceLayerTest : public testing::WithParamInterface<batchToSpaceParamsTuple>,

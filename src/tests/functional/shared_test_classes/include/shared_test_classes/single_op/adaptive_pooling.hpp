@@ -12,7 +12,7 @@ using adapoolParams = std::tuple<
         std::vector<InputShape>,            // feature map shape
         std::vector<int>,                   // pooled spatial shape
         std::string,                        // pooling mode
-        ov::element::Type,                  // net type
+        ov::element::Type,                  // model type
         std::string>;                       // device name
 
 class AdaPoolLayerTest : public testing::WithParamInterface<adapoolParams>,

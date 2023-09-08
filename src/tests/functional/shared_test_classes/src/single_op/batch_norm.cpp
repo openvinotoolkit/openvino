@@ -9,11 +9,11 @@
 namespace ov {
 namespace test {
 std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<BatchNormLayerTestParams>& obj) {
-    ov::element::Type in_type;
+    ov::element::Type model_type;
     std::vector<InputShape> shapes;
     double epsilon;
     std::string target_device;
-    std::tie(epsilon, in_type, shapes, target_device) = obj.param;
+    std::tie(epsilon, model_type, shapes, target_device) = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -26,7 +26,7 @@ std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<Bat
             result << ov::test::utils::vec2str(item) << "_";
         }
     }
-    result << "inT=" << in_type.get_type_name() << "_";
+    result << "inT=" << model_type.get_type_name() << "_";
     result << "epsilon=" << epsilon << "_";
     result << "trgDev=" << target_device;
     return result.str();
@@ -43,26 +43,25 @@ void BatchNormLayerTest::generate_inputs(const std::vector<ov::Shape>& target_in
 }
 
 void BatchNormLayerTest::SetUp() {
-    ov::element::Type inType;
+    ov::element::Type model_type;
     std::vector<InputShape> shapes;
     double epsilon;
-    std::tie(epsilon, inType, shapes, targetDevice) = this->GetParam();
+    std::tie(epsilon, model_type, shapes, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
-    outType = inType;
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
     auto constant_shape = ov::Shape{params[0]->get_shape().at(1)};
-    auto gamma_tensor = ov::test::utils::create_and_fill_tensor(inType, constant_shape, 1, 0);
+    auto gamma_tensor = ov::test::utils::create_and_fill_tensor(model_type, constant_shape, 1, 0);
     auto gamma = std::make_shared<ov::op::v0::Constant>(gamma_tensor);
 
-    auto beta_tensor = ov::test::utils::create_and_fill_tensor(inType, constant_shape, 1, 0);
+    auto beta_tensor = ov::test::utils::create_and_fill_tensor(model_type, constant_shape, 1, 0);
     auto beta = std::make_shared<ov::op::v0::Constant>(beta_tensor);
 
-    auto mean_tensor = ov::test::utils::create_and_fill_tensor(inType, constant_shape, 1, 0);
+    auto mean_tensor = ov::test::utils::create_and_fill_tensor(model_type, constant_shape, 1, 0);
     auto mean = std::make_shared<ov::op::v0::Constant>(mean_tensor);
 
     // Fill the vector for variance with positive values
-    auto variance_tensor = ov::test::utils::create_and_fill_tensor(inType, constant_shape, 10, 0);
+    auto variance_tensor = ov::test::utils::create_and_fill_tensor(model_type, constant_shape, 10, 0);
     auto variance = std::make_shared<ov::op::v0::Constant>(variance_tensor);
     auto batch_norm = std::make_shared<ov::op::v5::BatchNormInference>(params[0], gamma, beta, mean, variance, epsilon);
 

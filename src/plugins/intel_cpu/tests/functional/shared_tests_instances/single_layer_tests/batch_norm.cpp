@@ -9,7 +9,7 @@
 namespace {
 using ov::test::BatchNormLayerTest;
 
-const std::vector<ov::element::Type> in_type = {
+const std::vector<ov::element::Type> model_type = {
         ov::element::f32,
         ov::element::f16
 };
@@ -31,7 +31,7 @@ const std::vector<std::vector<ov::Shape>> input_shapes_static = {
 
 const auto batch_norm_params = testing::Combine(
         testing::ValuesIn(epsilon),
-        testing::ValuesIn(in_type),
+        testing::ValuesIn(model_type),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
         testing::Values(ov::test::utils::DEVICE_CPU)
 );
