@@ -1,8 +1,6 @@
 Quantize Speech Recognition Models using NNCF PTQ API
 =====================================================
 
-.. _top:
-
 This tutorial demonstrates how to use the NNCF (Neural Network
 Compression Framework) 8-bit quantization in post-training mode (without
 the fine-tuning pipeline) to optimize the speech recognition model,
@@ -20,6 +18,10 @@ steps:
 -  Prepare the model for quantization and quantize.
 -  Compare performance of the original and quantized models.
 -  Compare Accuracy of the Original and Quantized Models.
+
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -342,11 +344,11 @@ Create a quantized model from the pre-trained ``FP16`` model and the
 calibration dataset. The optimization process contains the following
 steps:
 
-::
 
-   1. Create a Dataset for quantization.
-   2. Run `nncf.quantize` for getting an optimized model. The `nncf.quantize` function provides an interface for model quantization. It requires an instance of the OpenVINO Model and quantization dataset. Optionally, some additional parameters for the configuration quantization process (number of samples for quantization, preset, ignored scope, etc.) can be provided. For more accurate results, we should keep the operation in the postprocessing subgraph in floating point precision, using the `ignored_scope` parameter. `advanced_parameters` can be used to specify advanced quantization parameters for fine-tuning the quantization algorithm. In this tutorial we pass range estimator parameters for activations. For more information see [Tune quantization parameters](https://docs.openvino.ai/2023.0/basic_quantization_flow.html#tune-quantization-parameters).
-   3. Serialize OpenVINO IR model using `openvino.runtime.serialize` function.
+1. Create a Dataset for quantization.
+2. Run ``nncf.quantize`` for getting an optimized model. The ``nncf.quantize`` function provides an interface for model quantization. It requires an instance of the OpenVINO Model and quantization dataset. Optionally, some additional parameters for the configuration quantization process (number of samples for quantization, preset, ignored scope, etc.) can be provided. For more accurate results, we should keep the operation in the postprocessing subgraph in floating point precision, using the ``ignored_scope`` parameter. ``advanced_parameters`` can be used to specify advanced quantization parameters for fine-tuning the quantization algorithm. In this tutorial we pass range estimator parameters for activations. For more information see 
+`Tune quantization parameters <https://docs.openvino.ai/2023.1/basic_quantization_flow.html#tune-quantization-parameters>`__.
+3. Serialize OpenVINO IR model using ``openvino.runtime.serialize`` function.
 
 .. code:: ipython3
 
@@ -659,11 +661,13 @@ Compare Performance of the Original and Quantized Models `⇑ <#top>`__
 ###############################################################################################################################
 
 `Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 is used to measure the inference performance of the ``FP16`` and
 ``INT8`` models.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+
+   For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to

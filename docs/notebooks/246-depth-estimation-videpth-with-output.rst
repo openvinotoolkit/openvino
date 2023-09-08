@@ -64,7 +64,7 @@ repository <https://github.com/isl-org/VI-Depth>`__ for the
 pre-processing, model transformations and basic utility code. A part of
 it has already been kept as it is in the `utils <utils>`__ directory. At
 the same time we will learn how to perform `model
-conversion <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+conversion <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
 for converting a model in a different format to the standard OpenVINO™
 IR model representation *via* another format.
 
@@ -312,7 +312,7 @@ Dummy input creation
 ^^^^^^^^^^^^^^^^^^^^
 
 Dummy inputs are necessary for `PyTorch to
-ONNX <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#exporting-a-pytorch-model-to-onnx-format>`__
+ONNX <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#exporting-a-pytorch-model-to-onnx-format>`__
 conversion. Although
 `torch.onnx.export <https://pytorch.org/docs/stable/onnx.html>`__
 accepts any dummy input for a single pass through the model and thereby
@@ -1011,17 +1011,17 @@ directories and files which were created during the download process.
 Concluding notes
 ~~~~~~~~~~~~~~~~
 
-   1. The code for this tutorial is adapted from the `VI-Depth
-      repository <https://github.com/isl-org/VI-Depth>`__.
-   2. Users may choose to download the original and raw datasets from
-      the `VOID
-      dataset <https://github.com/alexklwong/void-dataset/>`__.
-   3. The `isl-org/VI-Depth <https://github.com/isl-org/VI-Depth>`__
-      works on a slightly older version of released model assets from
-      its `MiDaS sibling
-      repository <https://github.com/isl-org/MiDaS>`__. However, the new
-      releases beginning from
-      `v3.1 <https://github.com/isl-org/MiDaS/releases/tag/v3_1>`__
-      directly have OpenVINO™ ``.xml`` and ``.bin`` model files as their
-      assets thereby rendering the **major pre-processing and model
-      compilation step irrelevant**.
+1. The code for this tutorial is adapted from the `VI-Depth
+   repository <https://github.com/isl-org/VI-Depth>`__.
+2. Users may choose to download the original and raw datasets from
+   the `VOID
+   dataset <https://github.com/alexklwong/void-dataset/>`__.
+3. The `isl-org/VI-Depth <https://github.com/isl-org/VI-Depth>`__
+   works on a slightly older version of released model assets from
+   its `MiDaS sibling
+   repository <https://github.com/isl-org/MiDaS>`__. However, the new
+   releases beginning from
+   `v3.1 <https://github.com/isl-org/MiDaS/releases/tag/v3_1>`__
+   directly have OpenVINO™ ``.xml`` and ``.bin`` model files as their
+   assets thereby rendering the **major pre-processing and model
+   compilation step irrelevant**.

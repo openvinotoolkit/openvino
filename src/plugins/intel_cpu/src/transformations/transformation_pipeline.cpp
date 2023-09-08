@@ -19,7 +19,6 @@
 // Common transformations
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
-#include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
@@ -157,13 +156,10 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& 
     return false;
 }
 
-void Transformations::UpToCpuSpecificOpSet() {
+void Transformations::UpToLpt() {
     const bool useLpt = enableLpt &&
         ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(model) &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
-
-    const bool useSnippets = snippetsMode != Config::SnippetsMode::Disable &&
-        CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
 
     auto defaultPrecisions = useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
     bool hasINT16orINT32Levels = false;
@@ -183,11 +179,6 @@ void Transformations::UpToCpuSpecificOpSet() {
 
     if (useLpt)
         Lpt(hasINT16orINT32Levels, defaultPrecisions);
-
-    PostLpt();
-
-    if (useSnippets)
-        Snippets();
 }
 
 void Transformations::CpuSpecificOpSet(void) {
@@ -266,7 +257,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::BroadcastTransition);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
@@ -675,10 +665,14 @@ void Transformations::MainSnippets(void) {
         }, snippets::pass::ExtractReshapesFromMHA);
         CPU_SET_CALLBACK_X64(snippetsManager,
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                if (n->is_dynamic())
+                    return true;
                 // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
                 const bool is_unsupported_swish =
                         ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
                         !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+                if (is_unsupported_swish)
+                    return true;
                 // todo: general tokenization flow is not currently supported for these operations.
                 //  they can be tokenized only as a part of complex patterns
                 const bool is_disabled_tokenization = (ov::is_type<const ov::op::v1::Softmax>(n) ||
@@ -687,6 +681,8 @@ void Transformations::MainSnippets(void) {
                                                        ov::is_type<const ov::op::v1::Transpose>(n) ||
                                                        ov::is_type<const ov::op::v1::Broadcast>(n) ||
                                                        ov::is_type<const ov::op::v3::Broadcast>(n));
+                if (is_disabled_tokenization)
+                    return true;
                 const auto& inputs = n->inputs();
                 // todo: clarify whether we can evaluate snippets on const paths
                 const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
@@ -694,6 +690,8 @@ void Transformations::MainSnippets(void) {
                                                                    return ov::is_type<ov::op::v0::Constant>(
                                                                            in.get_source_output().get_node_shared_ptr());
                                                                });
+                if (has_only_const_inputs)
+                    return true;
                 // todo: clarify whether we can evaluate snippets on inputs with larger ranks
                 auto rank_is_too_large = [](const ov::descriptor::Tensor& t) {
                     // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
@@ -703,13 +701,17 @@ void Transformations::MainSnippets(void) {
                                                         [&](const ov::Input<const ov::Node>& in) {
                                                             return rank_is_too_large(in.get_tensor());
                                                         });
+                if (bad_input_rank)
+                    return true;
                 const auto& outputs = n->outputs();
                 const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
                                                         [&](const ov::Output<const ov::Node>& out) {
                                                             return rank_is_too_large(out.get_tensor());
                                                         });
-                return has_only_const_inputs || bad_input_rank || bad_output_rank || is_unsupported_swish ||
-                    is_disabled_tokenization;
+                if (bad_output_rank)
+                    return true;
+
+                return false;
             },
             snippets::pass::TokenizeSnippets);
     }
@@ -731,8 +733,12 @@ void Transformations::PostSnippets(void) {
 }
 
 void Transformations::Snippets(void) {
-    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
+    const bool useSnippets = snippetsMode != Config::SnippetsMode::Disable &&
+        CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
+    if (!useSnippets)
+        return;
 
+    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
     MainSnippets();
     PostSnippets();
 }

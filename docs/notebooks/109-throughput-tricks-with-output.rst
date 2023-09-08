@@ -1,7 +1,7 @@
 Performance tricks in OpenVINO for throughput mode
 ==================================================
 
-.. _top:
+
 
 The goal of this notebook is to provide a step-by-step tutorial for
 improving performance for inferencing in a throughput mode. High
@@ -26,12 +26,14 @@ The quantization and pre-post-processing API are not included here as
 they change the precision (quantization) or processing graph
 (prepostprocessor). You can find examples of how to apply them to
 optimize performance on OpenVINO IR files in
-`111-detection-quantization <../111-detection-quantization>`__ and
-`118-optimize-preprocessing <../118-optimize-preprocessing>`__.
+`111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__ and
+`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
 
 |image0|
 
-   **NOTE**: Many of the steps presented below will give you better
+.. note::
+
+   Many of the steps presented below will give you better
    performance. However, some of them may not change anything if they
    are strongly dependent on either the hardware or the model. Please
    run this notebook on your computer with your model to learn which of
@@ -42,7 +44,11 @@ optimize performance on OpenVINO IR files in
    result in different performance.
 
 A similar notebook focused on the latency mode is available
-`here <109-latency-tricks.ipynb>`__.
+`here <109-latency-tricks-with-output.html>`__.
+
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -180,7 +186,9 @@ Hardware `⇑ <#top>`__
 The code below lists the available hardware we will use in the
 benchmarking process.
 
-   **NOTE**: The hardware you have is probably completely different from
+.. note::
+
+   The hardware you have is probably completely different from
    ours. It means you can see completely different results.
 
 .. code:: ipython3
@@ -492,7 +500,7 @@ configuration of the device. There are three different hints:
 notebook is focused on the throughput mode, we will use the latter two.
 The hints can be used with other devices as well. Throughput mode
 implicitly triggers using the `Automatic
-Batching <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Automatic_Batching.html>`__
+Batching <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Automatic_Batching.html>`__
 feature, which sets the batch size to the optimal level.
 
 .. code:: ipython3
@@ -548,7 +556,7 @@ OpenVINO IR model in throughput mode on AUTO `⇑ <#top>`__
 
 
 OpenVINO offers a virtual device called
-`AUTO <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
+`AUTO <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
 which can select the best device for us based on the aforementioned
 performance hint.
 
@@ -616,7 +624,9 @@ automatically spawns the pool of InferRequest objects (also called
 “jobs”) and provides synchronization mechanisms to control the flow of
 the pipeline.
 
-   **NOTE**: Asynchronous processing cannot guarantee outputs to be in
+.. note::
+
+   Asynchronous processing cannot guarantee outputs to be in
    the same order as inputs, so be careful in case of applications when
    the order of frames matters, e.g., videos.
 
@@ -661,10 +671,10 @@ There are other tricks for performance improvement, such as advanced
 options, quantization and pre-post-processing or dedicated to latency
 mode. To get even more from your model, please visit `advanced
 throughput
-options <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput_advanced.html>`__,
-`109-latency-tricks <109-latency-tricks.ipynb>`__,
-`111-detection-quantization <../111-detection-quantization>`__, and
-`118-optimize-preprocessing <../118-optimize-preprocessing>`__.
+options <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_tput_advanced.html>`__,
+`109-latency-tricks <109-latency-tricks-with-output.html>`__,
+`111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__, and
+`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
 
 Performance comparison `⇑ <#top>`__
 ###############################################################################################################################
@@ -712,6 +722,6 @@ object detection model. Even if you experience much better performance
 after running this notebook, please note this may not be valid for every
 hardware or every model. For the most accurate results, please use
 ``benchmark_app`` `command-line
-tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_samples_benchmark_app_README.html>`__.
+tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_samples_benchmark_app_README.html>`__.
 Note that ``benchmark_app`` cannot measure the impact of some tricks
 above.

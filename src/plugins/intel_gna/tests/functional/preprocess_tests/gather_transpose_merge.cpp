@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -103,7 +103,7 @@ protected:
 class TransposeGatherTest : public GatherTransposeMergeTest {
 protected:
     void init_test_model() {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(m_net_type, ov::Shape(m_input_shape))};
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         std::vector<size_t> transpose_order = make_transpose_order(m_input_shape);
@@ -133,7 +133,7 @@ protected:
 class GatherTransposeTest : public GatherTransposeMergeTest {
 protected:
     void init_test_model() {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(m_net_type, ov::Shape(m_input_shape))};
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         std::vector<int8_t> shape_in = {1, -1};

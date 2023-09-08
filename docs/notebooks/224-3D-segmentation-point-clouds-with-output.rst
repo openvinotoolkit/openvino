@@ -1,7 +1,7 @@
 Part Segmentation of 3D Point Clouds with OpenVINO™
 ===================================================
 
-.. _top:
+
 
 This notebook demonstrates how to process `point
 cloud <https://en.wikipedia.org/wiki/Point_cloud>`__ data and run 3D
@@ -23,6 +23,8 @@ architecture for applications ranging from object classification, part
 segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
+
+.. _top:
 
 **Table of contents**:
 
@@ -77,7 +79,7 @@ function returns an OpenVINO model ready to load on a device and start
 making predictions. We can save it on a disk for next usage with
 ``openvino.runtime.serialize``. For more information about model
 conversion Python API, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
