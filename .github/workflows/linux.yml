@@ -513,8 +513,8 @@ jobs:
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
-      INSTALL_DIR: ${HOME}/install
-      INSTALL_TEST_DIR: ${HOME}/install/tests
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
