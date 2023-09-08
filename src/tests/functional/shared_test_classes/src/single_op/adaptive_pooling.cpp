@@ -41,6 +41,7 @@ void AdaPoolLayerTest::SetUp() {
     std::string pooling_mode;
     std::tie(shapes, pooled_spatial_shape, pooling_mode, inType, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
+    outType = inType;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
 

@@ -9,7 +9,7 @@
 namespace ov {
 namespace test {
 
-TEST_P(BatchToSpaceLayerTest, CompareWithRefs) {
+TEST_P(BatchToSpaceLayerTest, Inference) {
     run();
 };
 

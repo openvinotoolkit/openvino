@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-TEST_P(BatchNormLayerTest, CompareWithRefs) {
+TEST_P(BatchNormLayerTest, Inference) {
     run();
 }
 }  // namespace test

@@ -34,8 +34,6 @@ const auto batch_to_space_2d_tests = ::testing::Combine(
         ::testing::ValuesIn(crops_2D),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(data_shapes_2D_static)),
         ::testing::ValuesIn(net_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -73,8 +71,6 @@ const auto batch_to_space_4d_spatial_dims_tests = ::testing::Combine(
         ::testing::ValuesIn(crops_end_4D),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(data_shapes_4D_static)),
         ::testing::ValuesIn(net_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto batch_to_space_4d_channel_dim_tests = ::testing::Combine(
@@ -83,8 +79,6 @@ const auto batch_to_space_4d_channel_dim_tests = ::testing::Combine(
         ::testing::Values(crops_end_4D[0]),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(data_shapes_4D_static)),
         ::testing::ValuesIn(net_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -126,8 +120,6 @@ const auto batch_to_space_5d_spatial_dims_tests = ::testing::Combine(
         ::testing::ValuesIn(crops_end_5D),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(data_shapes_5D_static)),
         ::testing::ValuesIn(net_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto batch_to_space_5d_channel_dim_tests = ::testing::Combine(
@@ -136,8 +128,6 @@ const auto batch_to_space_5d_channel_dim_tests = ::testing::Combine(
         ::testing::Values(crops_end_5D[0]),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(data_shapes_5D_static)),
         ::testing::ValuesIn(net_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(

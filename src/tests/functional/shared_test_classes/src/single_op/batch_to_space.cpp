@@ -9,10 +9,9 @@ namespace test {
 std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple> &obj) {
     std::vector<InputShape> shapes;
     std::vector<int64_t> block_shape, crops_begin, crops_end;
-    ov::element::Type model_type;
-    ov::element::Type in_type, out_type;
+    ov::element::Type in_type;
     std::string target_name;
-    std::tie(block_shape, crops_begin, crops_end, shapes, model_type, in_type, out_type, target_name) = obj.param;
+    std::tie(block_shape, crops_begin, crops_end, shapes, in_type, target_name) = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (const auto& shape : shapes) {
@@ -24,9 +23,7 @@ std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
             result << ov::test::utils::vec2str(item) << "_";
         }
     }
-    result << "IT=" << model_type.get_type_name() << "_";
     result << "inT=" << in_type.get_type_name() << "_";
-    result << "outT=" << out_type.get_type_name() << "_";
     result << "BS=" << ov::test::utils::vec2str(block_shape) << "_";
     result << "CB=" << ov::test::utils::vec2str(crops_begin) << "_";
     result << "CE=" << ov::test::utils::vec2str(crops_end) << "_";
@@ -37,11 +34,11 @@ std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
 void BatchToSpaceLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     std::vector<int64_t> block_shape, crops_begin, crops_end;
-    ov::element::Type model_type;
-    std::tie(block_shape, crops_begin, crops_end, shapes, model_type, inType, outType, targetDevice) = this->GetParam();
+    std::tie(block_shape, crops_begin, crops_end, shapes, inType, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
+    outType = inType;
 
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
 
     auto const_shape = ov::Shape{inputDynamicShapes.front().size()};
     auto block_shape_node = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, const_shape, block_shape.data());

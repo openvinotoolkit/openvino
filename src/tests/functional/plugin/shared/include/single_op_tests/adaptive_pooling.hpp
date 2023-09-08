@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-TEST_P(AdaPoolLayerTest, CompareWithRefs) {
+TEST_P(AdaPoolLayerTest, Inference) {
     run();
 }
 }  // namespace test
