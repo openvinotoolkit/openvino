@@ -33,7 +33,6 @@ private:
                                           size_t work_amount);
     static void init_element_type_sizes(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
                                         std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs);
-    static void clean_repeated_data_ptr_shifts(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs);
 };
 
 } // namespace pass
