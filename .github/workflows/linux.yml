@@ -495,6 +495,10 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml
 
+      - name: Find test reports
+        run: |
+          find / -depth -name 'TEST*'
+
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
@@ -772,6 +776,10 @@ jobs:
 
           python3 -m pytest -s ${OPENVINO_REPO}/tools/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
+      - name: Find test reports
+        run: |
+          find / -depth -name 'TEST*'
+
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
@@ -850,6 +858,9 @@ jobs:
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 40
 
+      - name: Find test reports
+        run: |
+          find / -depth -name 'TEST*'
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
