@@ -48,13 +48,17 @@ interface TensorConstructor {
 }
 
 interface InferRequest {
+  setTensor(name: string, tensor: Tensor): void;
+  setInputTensor(idxOrTensor: number | Tensor, tensor?: Tensor): void;
+  setOutputTensor(idxOrTensor: number | Tensor, tensor?: Tensor): void;
+  getTensor(nameOrOutput: string | Output): Tensor;
+  getInputTensor(idx?: number): Tensor;
+  getOutputTensor(idx?: number): Tensor;
+  getOutputTensors(): { [outputName: string] : Tensor};
   // FIXME: are we going to add index parameter for this method?
-  getOutputTensor(): Tensor;
-  getOutputTensors(): Tensor[];
-  getTensor(output: Output): Tensor;
   infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
     | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
-  setInputTensor(tensor: Tensor): void;
+  getCompiledModel(): CompiledModel;
 }
 
 interface Output {
