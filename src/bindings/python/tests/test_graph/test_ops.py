@@ -118,7 +118,7 @@ def test_broadcast():
     Constant(Type.f32, Shape([3, 3]), list(range(9))),
     ov.constant(np.arange(9).reshape(3, 3), Type.f32),
     ov.constant(np.arange(9).reshape(3, 3), np.float32),
-    None
+    ov.constant(None)
 ])
 def test_constant(node):
     if node is None:
