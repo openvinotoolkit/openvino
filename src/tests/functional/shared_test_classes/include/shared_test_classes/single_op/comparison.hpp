@@ -17,11 +17,9 @@ namespace test {
 
 typedef std::tuple<
     std::vector<InputShape>,             // Input shapes tuple
-    ov::element::Type,                   // NG Inputs precision
     ngraph::helpers::ComparisonTypes,    // Comparison op type
     ngraph::helpers::InputLayerType,     // Second input type
-    ov::element::Type,                   // IE in precision
-    ov::element::Type,                   // IE out precision
+    ov::element::Type,                   // In type
     std::string,                         // Device name
     std::map<std::string, std::string>   // Additional network configuration
 > ComparisonTestParams;

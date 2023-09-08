@@ -9,10 +9,10 @@ namespace test {
 std::string ClampLayerTest::getTestCaseName(const testing::TestParamInfo<clampParamsTuple>& obj) {
     std::vector<InputShape> shapes;
     std::pair<float, float> interval;
-    ov::element::Type model_type;
+    ov::element::Type in_type;
     std::string target_device;
 
-    std::tie(shapes, interval, model_type, target_device) = obj.param;
+    std::tie(shapes, interval, in_type, target_device) = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -29,7 +29,7 @@ std::string ClampLayerTest::getTestCaseName(const testing::TestParamInfo<clampPa
     }
     result << "min=" << interval.first << "_";
     result << "max=" << interval.second << "_";
-    result << "netPrc=" << model_type.get_type_name() << "_";
+    result << "netPrc=" << in_type.get_type_name() << "_";
     result << "trgDev=" << target_device;
     return result.str();
 }
@@ -37,11 +37,11 @@ std::string ClampLayerTest::getTestCaseName(const testing::TestParamInfo<clampPa
 void ClampLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     std::pair<float, float> interval;
-    ov::element::Type model_type;
-    std::tie(shapes, interval, model_type, targetDevice) = this->GetParam();
+    std::tie(shapes, interval, inType, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
+    outType = inType;
 
-    auto input = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
+    auto input = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front());
     auto clamp = std::make_shared<ov::op::v0::Clamp>(input, interval.first, interval.second);
     auto result = std::make_shared<ov::op::v0::Result>(clamp);
     function = std::make_shared<ov::Model>(result, ngraph::ParameterVector{input});

@@ -15,7 +15,7 @@ namespace test {
 using clampParamsTuple = std::tuple<
     std::vector<InputShape>,        // Input shape
     std::pair<float, float>,        // Interval [min, max]
-    ov::element::Type,              // Net precision
+    ov::element::Type,              // In precision
     std::string>;                   // Device name
 
 class ClampLayerTest : public testing::WithParamInterface<clampParamsTuple>,

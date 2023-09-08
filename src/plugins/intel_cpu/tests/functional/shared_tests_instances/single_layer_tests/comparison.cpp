@@ -30,7 +30,7 @@ auto converter = [] (const std::vector<std::pair<ov::Shape, ov::Shape>>& shapes)
 
 auto input_shapes_static = converter(input_shapes_pair_vector);
 
-std::vector<ov::element::Type> inputsPrecisions = {
+std::vector<ov::element::Type> inputs_type = {
         ov::element::f32,
         ov::element::f16,
         ov::element::i32,
@@ -55,11 +55,9 @@ std::map<std::string, std::string> additional_config = {};
 
 const auto ComparisonTestParams = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
-        ::testing::ValuesIn(inputsPrecisions),
         ::testing::ValuesIn(comparisonOpTypes),
         ::testing::ValuesIn(secondInputTypes),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
+        ::testing::ValuesIn(inputs_type),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
@@ -90,11 +88,9 @@ std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypesIs = {
 
 const auto ComparisonTestParamsIs = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_is_ops_static)),
-        ::testing::Values(ov::element::f32),
         ::testing::ValuesIn(comparisonOpTypesIs),
         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::f32),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
