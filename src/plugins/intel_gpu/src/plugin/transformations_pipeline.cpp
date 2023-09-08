@@ -54,7 +54,6 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
-#include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
@@ -103,6 +102,10 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/smart_reshape/matmul_sr.hpp"
+
+#include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -209,7 +212,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MVNFusion>();
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
-        manager.register_pass<ov::pass::BroadcastTransition>();
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
@@ -252,6 +254,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertGather0D>();
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+        manager.register_pass<ov::pass::TransposeMatMul>();
 
         precisions_map int_convert_precision_map {
                 {ov::element::i64, ov::element::i32},
@@ -603,6 +606,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return num_iter >= 16;
             });
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
+
+        manager.run_passes(func);
+    }
+
+    {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+        manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
 
         manager.run_passes(func);
     }
