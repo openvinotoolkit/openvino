@@ -74,7 +74,7 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         size_t batch = inputShape[inputShape.size() - 2];
         size_t elemNum = inputShape[inputShape.size() - 1];
@@ -139,7 +139,7 @@ protected:
         std::tie(inputDataMin, inputDataMax) = inputMinMax;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         auto inputLowNode =
             ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1}, std::vector<float>{inputDataMin});

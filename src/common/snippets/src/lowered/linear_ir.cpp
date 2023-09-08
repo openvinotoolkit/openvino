@@ -18,8 +18,8 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, Config config)
-        : m_io_expressions{}, m_config{std::move(config)}, m_loop_manager(std::make_shared<LoopManager>()) {
+LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config)
+        : m_io_expressions{}, m_config{config}, m_loop_manager(std::make_shared<LoopManager>()), m_shape_infer_factory(factory) {
     constExprIt last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
         constExprIt insertion_pos = m_expressions.end();
@@ -48,7 +48,7 @@ ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const 
 }
 
 ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) {
-    return ExpressionFactory::build(n, inputs);
+    return ExpressionFactory::build(n, inputs, *this);
 }
 
 ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
@@ -66,7 +66,7 @@ ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
     return ov::topological_sort(nodes);
 }
 
-void LinearIR::serialize(const std::string& xml, const std::string& bin) {
+void LinearIR::serialize(const std::string& xml, const std::string& bin) const {
     auto first_node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     first_node->set_friendly_name("Start");
     first_node->get_rt_info()["execTimeMcs"] = 0;
@@ -152,7 +152,7 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
 void LinearIR::init_emitters(const std::shared_ptr<TargetMachine>& target) {
     for (auto& expr : m_expressions) {
         if (!expr->get_emitter())
-            expr->init_emitter(target);
+            expr->m_emitter = target->get(expr->get_node()->get_type_info())(expr);
     }
 }
 

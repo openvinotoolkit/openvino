@@ -17,10 +17,10 @@
 #include "ngraph/node.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/strided_slice.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -170,7 +170,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                                            AxisSet(),
                                            AxisSet(),
                                            AxisSet());
-    runtime::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
+    ov::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
     OPENVINO_SUPPRESS_DEPRECATED_END
     return true;
 }

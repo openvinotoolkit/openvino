@@ -49,6 +49,7 @@ public:
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
+            {"tflite", "tensorflow_lite"},
             {"paddle", "paddle"},
             {"pytorch", "pytorch"},
         };

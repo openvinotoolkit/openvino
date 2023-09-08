@@ -9,7 +9,7 @@
 #include <transformations/rt_info/decompression.hpp>
 #include <transformations/rt_info/dequantization_node.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace ov;
 
@@ -77,7 +77,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
                                                            CoordinateDiff{0, 0},
                                                            CoordinateDiff{0, 0},
                                                            Strides{1, 1});
-        function = std::make_shared<Model>(conv, ParameterVector{parameter});
+        model = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
     manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8, element::i8});
@@ -127,7 +127,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
                                                            CoordinateDiff{0, 0},
                                                            CoordinateDiff{0, 0},
                                                            Strides{1, 1});
-        function_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
+        model_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -189,7 +189,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
                                                            CoordinateDiff{0, 0},
                                                            CoordinateDiff{0, 0},
                                                            Strides{1, 1});
-        function = std::make_shared<Model>(conv, ParameterVector{parameter});
+        model = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
     manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8, element::i8});
@@ -229,7 +229,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
                                                            CoordinateDiff{0, 0},
                                                            CoordinateDiff{0, 0},
                                                            Strides{1, 1});
-        function_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
+        model_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -295,7 +295,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
                                                            CoordinateDiff{0, 0},
                                                            CoordinateDiff{0, 0},
                                                            Strides{1, 1});
-        function = std::make_shared<Model>(conv, ParameterVector{parameter});
+        model = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
     manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8, element::i8});
@@ -340,7 +340,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
                                                            CoordinateDiff{0, 0},
                                                            CoordinateDiff{0, 0},
                                                            Strides{1, 1});
-        function_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
+        model_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -412,7 +412,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNotConstant
                                                            CoordinateDiff{0, 0},
                                                            CoordinateDiff{0, 0},
                                                            Strides{1, 1});
-        function = std::make_shared<Model>(conv, ParameterVector{parameter});
+        model = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
     manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8, element::i8});
@@ -463,7 +463,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNotConstant
                                                            CoordinateDiff{0, 0},
                                                            CoordinateDiff{0, 0},
                                                            Strides{1, 1});
-        function_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
+        model_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -497,7 +497,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationFoldSubCons
         auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
         auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
         auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
-        function = std::make_shared<ov::Model>(ov::OutputVector{multiply});
+        model = std::make_shared<ov::Model>(ov::OutputVector{multiply});
     }
 
     manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8}, true);
@@ -513,7 +513,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationFoldSubCons
         auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
         auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
         mark_as_dequantization_node(multiply);
-        function_ref = std::make_shared<ov::Model>(ov::OutputVector{multiply});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{multiply});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);

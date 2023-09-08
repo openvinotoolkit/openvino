@@ -14,7 +14,6 @@
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "ngraph/util.hpp"
 
 #include "samples/args_helper.hpp"
 #include "samples/common.hpp"
@@ -74,8 +73,8 @@ ov::Tensor read_weights(const std::string& filepath) {
 }
 
 /**
- * @brief Create ngraph function
- * @return Ptr to ngraph function
+ * @brief Create ov::Model
+ * @return Ptr to ov::Model
  */
 std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
     const ov::Tensor weights = read_weights(path_to_weights);

@@ -14,14 +14,15 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/reference/strided_slice.hpp"
 #include "strided_slice_shape_inference.hpp"
 
 using namespace std;
@@ -197,11 +198,11 @@ inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTen
 {
     auto in_shape = in->get_shape();
     out->set_shape(sp.reshape_out_shape);
-    runtime::reference::strided_slice(in->get_data_ptr<char>(),
-                                      out->get_data_ptr<char>(),
-                                      in_shape,
-                                      sp,
-                                      in->get_element_type().size());
+    ov::reference::strided_slice(in->get_data_ptr<char>(),
+                                 out->get_data_ptr<char>(),
+                                 in_shape,
+                                 sp,
+                                 in->get_element_type().size());
     return true;
 }
 
