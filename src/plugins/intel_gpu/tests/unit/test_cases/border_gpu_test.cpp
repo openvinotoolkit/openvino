@@ -1684,12 +1684,12 @@ public:
         blt_size_f = p.lt[1];
         blt_size_y = p.lt[2];
         blt_size_x = p.lt[3];
-    
+
         brb_size_b = p.rb[0];
         brb_size_f = p.rb[1];
         brb_size_y = p.rb[2];
         brb_size_x = p.rb[3];
-    
+
         out_size_b = in_size_b + blt_size_b + brb_size_b;
         out_size_f = in_size_f + blt_size_f + brb_size_f;
         out_size_y = in_size_y + blt_size_y + brb_size_y;
@@ -1825,5 +1825,98 @@ TEST_P(border_dynamic_test, border_dynamic_test) {}
 INSTANTIATE_TEST_SUITE_P(border_dynamic_test,
                          border_dynamic_test,
                          ::testing::ValuesIn(dynamic_params));
-};  // namespace
 
+TEST(border_gpu, basic_zero_input_dynamic) {
+    auto& engine = get_test_engine();
+
+    // WA to avoid crash due to attempt to allocate 0 bytes for USM memory
+    layout fake_input_layout = {{1}, data_types::bin, format::bfyx};
+    auto input = engine.allocate_memory(fake_input_layout);
+
+    layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};
+    input = engine.reinterpret_buffer(*input, zero_input_layout);
+
+    layout input_layout_dynamic = {ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+
+    ov::CoordinateDiff pads_begin = {4, 0};
+    ov::CoordinateDiff pads_end = {0, 0};
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(border("border", {input_info("input")}, 0, pads_begin, pads_end, ov::op::PadMode::CONSTANT, 1.0f));
+
+    std::vector<float> ref_output = {
+        1, 1, 1, 1
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("border");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "border");
+
+    auto output = outputs.at("border").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(ref_output.size(), output_ptr.size());
+
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(ref_output[i], output_ptr[i]);
+    }
+}
+
+TEST(border_gpu, basic_zero_input) {
+    auto& engine = get_test_engine();
+
+    // WA to avoid crash due to attempt to allocate 0 bytes for USM memory
+    layout fake_input_layout = {{1}, data_types::bin, format::bfyx};
+    auto input = engine.allocate_memory(fake_input_layout);
+
+    layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};
+    input = engine.reinterpret_buffer(*input, zero_input_layout);
+
+    ov::CoordinateDiff pads_begin = {4, 0};
+    ov::PartialShape pads_begin_shape = { ov::Dimension(pads_begin.size()) };
+    auto pads_begin_input = engine.allocate_memory({pads_begin_shape, data_types::i32, format::bfyx});
+    set_values(pads_begin_input, pads_begin);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("pads_begin", pads_begin_input->get_layout()));
+    topology.add(border("border", {input_info("input"), input_info("pads_begin")},
+                        border::PAD_NON_CONST_INPUT::BEGIN,
+                        /*pads_begin*/{}, /*pads_end*/{0, 0},
+                        ov::op::PadMode::CONSTANT,
+                        2.0f));
+
+    std::vector<float> ref_output = {
+        2, 2, 2, 2
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("pads_begin", pads_begin_input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("border").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(ref_output.size(), output_ptr.size());
+
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(ref_output[i], output_ptr[i]);
+    }
+}
+};  // namespace
