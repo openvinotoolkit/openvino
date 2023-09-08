@@ -7,6 +7,7 @@
 #include <mutex>
 #include <vector>
 #include <set>
+#include <string>
 
 namespace ov {
 namespace intel_gpu {
