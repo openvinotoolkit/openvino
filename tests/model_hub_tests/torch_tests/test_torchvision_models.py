@@ -3,10 +3,13 @@
 
 import pytest
 import torch
+import tempfile
 import torchvision.transforms.functional as F
 from models_hub_common.test_convert_model import TestConvertModel
-from openvino.tools.ovc import convert_model
+from openvino import convert_model
 
+# set temp dir for torch cache
+torch.hub.set_dir(tempfile.mkdtemp())
 
 def get_all_models() -> list:
     m_list = torch.hub.list("pytorch/vision")
@@ -21,7 +24,6 @@ def get_video():
     Using free video from pexels.com, credits go to Pavel Danilyuk.
     Initially used in https://pytorch.org/vision/stable/auto_examples/plot_optical_flow.html
     """
-    import tempfile
     from pathlib import Path
     from urllib.request import urlretrieve
     from torchvision.io import read_video
@@ -90,7 +92,7 @@ class TestTorchHubConvertModel(TestConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    @pytest.mark.parametrize("model_name", ["raft_small", "efficientnet_b7", "swin_v2_s"])
+    @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.run(model_name, None, ie_device)

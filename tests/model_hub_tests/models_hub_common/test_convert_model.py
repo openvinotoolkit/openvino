@@ -95,5 +95,4 @@ class TestConvertModel:
         self.compare_results(fw_outputs, ov_outputs)
 
     def run(self, model_name, model_link, ie_device):
-        multiprocessing_run(
-            self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)
+        multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)

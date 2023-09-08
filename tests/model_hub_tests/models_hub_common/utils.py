@@ -17,14 +17,12 @@ def get_models_list(file_name: str):
             mark = None
             reason = None
             assert len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
-                "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(
-                    model_info)
+                "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(model_info)
             if len(model_info.split(',')) == 2:
                 model_name, model_link = model_info.split(',')
             elif len(model_info.split(',')) == 4:
                 model_name, model_link, mark, reason = model_info.split(',')
-                assert mark == "skip", "Incorrect failure mark for model info {}".format(
-                    model_info)
+                assert mark == "skip", "Incorrect failure mark for model info {}".format(model_info)
             models.append((model_name, model_link, mark, reason))
 
     return models
