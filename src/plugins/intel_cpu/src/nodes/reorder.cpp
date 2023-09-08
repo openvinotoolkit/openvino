@@ -175,136 +175,71 @@ void Reorder::prepareParams() {
             IE_THROW() << "Input memory didn't allocate.";
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
-
-        createReorderPrimitive(srcMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->getData(),
-                               dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->getData());
+        createReorderExecutor(srcMemPtr, dstMemPtr);
     }
 }
 
-void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
-                                     void* srcPtr,
-                                     const dnnl::memory::desc& dstDesc,
-                                     void* dstPtr) {
+struct ReorderExecutorKey {
+    dnnl::memory::desc src;
+    dnnl::memory::desc dst;
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
+    size_t hash() const;
+    bool operator==(const ReorderExecutorKey& rhs) const;
+};
+
+size_t ReorderExecutorKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, get_md_hash(*src.get()));
+    seed = hash_combine(seed, get_md_hash(*dst.get()));
+    seed = hash_combine(seed, src_prc.getPrecVal());
+    seed = hash_combine(seed, dst_prc.getPrecVal());
+
+    return seed;
+}
+
+bool ReorderExecutorKey::operator==(const ReorderExecutorKey& rhs) const {
+    bool retVal = true;
+    retVal = src == rhs.src && dst == rhs.dst && src_prc == rhs.src_prc && dst_prc == rhs.dst_prc;
+    return retVal;
+}
+
+void Reorder::createReorderExecutor(const ov::intel_cpu::MemoryCPtr& src, const ov::intel_cpu::MemoryCPtr& dst) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    // How to query what data_types are supported by dnnl::reorder
-    auto isSupportedDataType = [](dnnl::memory::data_type data_type) {
-        switch (data_type) {
-        case dnnl::memory::data_type::f32:
-        case dnnl::memory::data_type::s32:
-        case dnnl::memory::data_type::bf16:
-        case dnnl::memory::data_type::s8:
-        case dnnl::memory::data_type::u8:
-        case dnnl::memory::data_type::f16:
-            return true;
-        default:
-            return false;
-        }
-        return false;
+    auto src_dnnl_desc = src->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    auto dst_dnnl_desc = dst->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+
+    // getDescWithType<DnnlMemoryDesc>() contains data type conversion from MemoryDesc to DnnlMemoryDescPtr, the latter
+    // range is limited which causes some MemoryDesc precision lost. But MemoryDesc precision is important for reorder
+    // executor, need send to reorder executor.
+    auto src_prc = src->getDesc().getPrecision();
+    auto dst_prc = dst->getDesc().getPrecision();
+
+    auto engine = getEngine();
+    auto cache = context->getParamsCache();
+    ReorderExecutorKey exec_key = {src_dnnl_desc, dst_dnnl_desc, src_prc, dst_prc};
+    auto builder = [&engine, &cache](const ReorderExecutorKey& key) -> ExecutorPtr {
+        auto executor = std::make_shared<ReorderExecutor>(engine, cache, key.src, key.dst, key.src_prc, key.dst_prc);
+        return executor;
     };
 
-    const auto engine = getEngine();
-    src_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
-    dst_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
+    auto result = cache->getOrCreate(exec_key, builder);
+    executor_ptr = result.first;
+    OPENVINO_ASSERT(executor_ptr, "Cannot creat reorder executor!");
 
-    isPreConvert = !isSupportedDataType(srcDesc.get_data_type());
-    isPostConvert = !isSupportedDataType(dstDesc.get_data_type());
-    if (isPreConvert) {
-        // Do data type conversion if input data type is not supported by dnnl::reorder
-        // Conversion target data type is aligned with Reorder's output data type if dnnl::reorder support, else apply a
-        // common data type: fp32.
-        pre_convert_input = src_blocked;
-        auto _data_type =
-            isSupportedDataType(dstDesc.get_data_type()) ? dstDesc.get_data_type() : dnnl::memory::data_type::f32;
-        auto _desc =
-            src_blocked->getDesc().cloneWithNewPrecision(DnnlExtensionUtils::DataTypeToIEPrecision(_data_type));
-        if (pre_convert_output) {
-            pre_convert_output->redefineDesc(_desc);
-        } else {
-            pre_convert_output = std::make_shared<Memory>(engine, _desc, nullptr, false);
-        }
-        OPENVINO_ASSERT(pre_convert_output->getData(), "PreConvertMem's memory shouldn't be null.");
-        src_blocked = pre_convert_output;
-    }
-
-    if (isPostConvert) {
-        // Do data type conversion if output data type is not supported by dnnl::reorder
-        // Conversion input data type is aligned with Reorder's input data type if dnnl::reorder support.
-        post_convert_output = dst_blocked;
-        auto _data_type = isPreConvert ? pre_convert_output->getDataType() : srcDesc.get_data_type();
-        auto _desc =
-            dst_blocked->getDesc().cloneWithNewPrecision(DnnlExtensionUtils::DataTypeToIEPrecision(_data_type));
-        if (post_convert_input) {
-            post_convert_input->redefineDesc(_desc);
-        } else {
-            post_convert_input = std::make_shared<Memory>(engine, _desc, nullptr, false);
-        }
-        OPENVINO_ASSERT(post_convert_input->getData(), "PostConvertMem's memory shouldn't be null.");
-        dst_blocked = post_convert_input;
-    }
-
-    auto src_desc = src_blocked->getPrimitive().get_desc();
-    if (!src_permutation.empty()) {
-        // reorder requires exact matching of logical dimensions between src & dst
-        // sometime we have to permute source's logical dimensions to satisfy
-        // this requirement, this dosn't affect plugin's node input memory desc.
-        /// for (i = 0; i < ndims(); i++)
-        ///     new_desc.dims()[permutation[i]] = dims()[i];
-        src_desc = src_desc.permute_axes(src_permutation);
-    }
-
-    auto dst_desc = dst_blocked->getPrimitive().get_desc();
-
-    // TODO: We should keep shape consistency for const and expected shape for node.
-    //       If it requires reshape operation it should explicitly injected into graph.
-    //
-    // There is a limitation for IE representing of weights for grouped convolutions. IE doesn't
-    // split group dimension in separate shape dimension. IE use OIHW, but onednn expect GOIHW.
-    // So we will perform implicit reshape to dst shape.
-    //
-    // oneDNN doesn't support direct reorders for tensors of different rank. The code below tries to
-    // perform such conversion if the source tensor can be reshaped to the destination rank. This is
-    // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
-    // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
-    if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
-        src_blocked->getShape().getRank() != dst_blocked->getShape().getRank()) {
-        const auto newDims = dst_blocked->getStaticDims();
-        const auto newFormat = DnnlExtensionUtils::GetPlainFormatByRank(newDims.size());
-
-        auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
-                                            src_blocked->getDataType(),
-                                            newFormat);
-        auto _srcPtr = src_blocked->getData();
-        src_blocked = std::make_shared<Memory>(getEngine(), DnnlExtensionUtils::makeDescriptor(newDesc), _srcPtr, false);
-
-        src_desc = src_blocked->getPrimitive().get_desc();
-    }
-
-    auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
-    if (!result) {
-        IE_THROW() << "Cannot create reorder primitive: unsupported reorder, srcPrec ="
-                   << DnnlExtensionUtils::DataTypeToIEPrecision(src_desc.get_data_type())
-                   << ", dstPrec = " << DnnlExtensionUtils::DataTypeToIEPrecision(dst_desc.get_data_type());
-    }
-    prim = result;
-
+    executor_ptr->prepareParams(engine, cache, src, dst, src_permutation);
     selectedPD->setImplementationType(
-        parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
-
-    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
-    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
-
-    if (isPreConvert)
-        src = src_blocked->getPrimitive();
-    if (isPostConvert)
-        dst = dst_blocked->getPrimitive();
-    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+        parse_impl_name(DnnlExtensionUtils::query_impl_info_str(executor_ptr->getPrimitive().get_primitive_desc())));
 
 #ifdef CPU_DEBUG_CAPS
-    if (prim) {
-        auto pd = prim.get_primitive_desc();
+    if (executor_ptr->getPrimitive()) {
+        auto pd = executor_ptr->getPrimitive().get_primitive_desc();
         DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
     }
 #endif
@@ -384,42 +319,6 @@ void Reorder::optimizedNspc2Ncsp() {
     });
 }
 
-void Reorder::preConvert() {
-    if (!isPreConvert)
-        return;
-
-    OPENVINO_ASSERT(pre_convert_input, "pre_convert_input is null");
-    OPENVINO_ASSERT(pre_convert_output, "pre_convert_output is null");
-
-    auto src = static_cast<const uint8_t*>(pre_convert_input->getData());
-    auto dst = pre_convert_output->getData();
-
-    const auto srcPrc = input->getPrecision();
-    const auto dstPrc = DnnlExtensionUtils::DataTypeToIEPrecision(pre_convert_output->getDataType());
-    size_t size = pre_convert_input->getSize() / pre_convert_input->getDesc().getPrecision().size();
-
-    DEBUG_LOG("Reorder::preConvert(): ", srcPrc, " to ", dstPrc);
-    cpu_convert(src, dst, srcPrc, dstPrc, size);
-}
-
-void Reorder::postConvert() {
-    if (!isPostConvert)
-        return;
-
-    OPENVINO_ASSERT(post_convert_input, "post_convert_input is null");
-    OPENVINO_ASSERT(post_convert_output, "post_convert_output is null");
-
-    auto src = static_cast<const uint8_t*>(post_convert_input->getData());
-    auto dst = post_convert_output->getData();
-
-    const auto srcPrc = DnnlExtensionUtils::DataTypeToIEPrecision(post_convert_input->getDataType());
-    const auto dstPrc = output->getPrecision();
-    size_t size = post_convert_input->getSize() / post_convert_input->getDesc().getPrecision().size();
-
-    DEBUG_LOG("Reorder::postConvert(): ", srcPrc, " to ", dstPrc);
-    cpu_convert(src, dst, srcPrc, dstPrc, size);
-}
-
 void Reorder::execute(dnnl::stream strm) {
     if (isOptimized) {
         DEBUG_LOG("#", getExecIndex(), " Reorder ", getName(), "  is Optimized.",
@@ -433,12 +332,13 @@ void Reorder::execute(dnnl::stream strm) {
     } else if (canUseNcsp2Nspc) {
         optimizedNcsp2Nspc();
     } else {
-        if (prim) {
-            preConvert();
-            prim.execute(strm, primArgs);
-            postConvert();
+        if (executor_ptr) {
+            executor_ptr->setDescs(input, output);
+            if (!executor_ptr->exec(strm)) {
+                OPENVINO_THROW("Reorder node with name ", getName(), " doesn't have an initialized primitive");
+            }
         } else {
-            IE_THROW() << "Reorder node with name " << getName() << " doesn't have an initialized primitive";
+            OPENVINO_THROW(getName(), "Reorder node didn't create ReorderExecutor!");
         }
     }
 }
@@ -512,6 +412,380 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
             IE_THROW() << "Could not make onednn reorder.";
         }
     }
+}
+
+void Reorder::reorderData2(const IMemory& input, const IMemory& output, MultiCachePtr cache) {
+    if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
+        IE_THROW() << "Can't reorder data with dynamic shapes";
+
+    if (input.getShape().hasZeroDims() || output.getShape().hasZeroDims()) {
+        return;
+    }
+
+    if (input.getDesc().isCompatible(output.getDesc())) {
+        auto srcPtr = static_cast<uint8_t*>(input.getData());
+        auto dstPtr = static_cast<uint8_t*>(output.getData());
+
+        auto copySize = output.getSize();
+        cpu_memcpy(dstPtr, srcPtr, copySize);
+    } else {
+        auto engine = output.getPrimitive().get_engine();
+        ReorderExecutorKey exec_key = {input.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
+                                       output.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
+                                       input.getDesc().getPrecision(),
+                                       output.getDesc().getPrecision()};
+        auto builder = [&](const ReorderExecutorKey& key) -> ExecutorPtr {
+            auto executor =
+                std::make_shared<ReorderExecutor>(engine, cache, key.src, key.dst, key.src_prc, key.dst_prc);
+            return executor;
+        };
+
+        auto result = cache->getOrCreate(exec_key, builder);
+        auto executor = result.first;
+        OPENVINO_ASSERT(executor, "Cannot creat reorder executor!");
+
+        executor->prepareParams(engine, cache, static_cast<MemoryCPtr>(&input), static_cast<MemoryCPtr>(&output), {});
+        dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+        executor->exec(loc_stream);
+    }
+}
+
+//
+// ReorderExecutor implement
+//
+Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
+                                          MultiCachePtr& cache,
+                                          const dnnl::memory::desc src_dnnl_desc,
+                                          const dnnl::memory::desc dst_dnnl_desc,
+                                          const InferenceEngine::Precision src_prc,
+                                          const InferenceEngine::Precision dst_prc) {
+    //  Dnnl data types is a limited precision range comparing with MemoryDesc precision
+    //  Need to choose the supported dnnl data type from src/dst MemoryDesc, strict same precison or a near precision
+    //  1. check MemoryDesc precision whether is supported by dnnl type
+    //        If doesn't support, need add convert before or/and after reorder and find intermediate data type(near
+    //        precision)
+    //  2. check data type whether is supported by dnnl::reorder
+    //        If doesn't support, need add convert before or/and after reorder and find intermediate data type(near
+    //        precision)
+    //  3. Find intermediate data type
+    //        If input and output data type neither is supported:
+    //            1) They have different data size, choose the data size with smaller data size
+    //            2) They have the same data size, choose one specified data type
+    //         If one of both is supported and another is not suppoerted, then choose the supported data type
+    auto find_near_data_type = [](const InferenceEngine::Precision& prec_a, const InferenceEngine::Precision& prec_b) {
+        InferenceEngine::Precision prec = prec_a.bitsSize() < prec_b.bitsSize() ? prec_a : prec_b;
+        bool is_float = prec_a.is_float() && prec_b.is_float();
+
+        dnnl::memory::data_type data_type = dnnl::memory::data_type::f32;
+        size_t type_size = (prec.bitsSize() + 7) / 8;
+
+        // If same size data type still need intermedian data type, it means this data size is not supported,
+        // it need find a proper data size. For example {f64, f64}, will choose {f32, f32}
+        if (prec_a.bitsSize() == prec_b.bitsSize())
+            type_size = type_size >= 2 ? 4 : 1;
+
+        switch (type_size) {
+        case 1:
+            if (prec.isSigned())
+                data_type = dnnl::memory::data_type::s8;
+            else
+                data_type = dnnl::memory::data_type::u8;
+            break;
+        case 2:
+            data_type = dnnl::memory::data_type::f16;
+            break;
+        case 4:
+            if (is_float)
+                data_type = dnnl::memory::data_type::f32;
+            else
+                data_type = dnnl::memory::data_type::s32;
+            break;
+        case 8:
+            if (is_float)
+                data_type = dnnl::memory::data_type::f64;
+            else
+                data_type = dnnl::memory::data_type::s32;
+            break;
+        default:
+            OPENVINO_THROW("Incorrect data size!");
+            break;
+        }
+        return data_type;
+    };
+
+    OPENVINO_ASSERT(src_prc != InferenceEngine::Precision::UNSPECIFIED,
+                    "ReorderExecutor input precision is unspecified!");
+    OPENVINO_ASSERT(dst_prc != InferenceEngine::Precision::UNSPECIFIED,
+                    "ReorderExecutor output precision is unspecified!");
+
+    auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src_prc);
+    auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst_prc);
+    DnnlMemoryDescPtr src = DnnlExtensionUtils::makeDescriptor(src_dnnl_desc);
+    DnnlMemoryDescPtr dst = DnnlExtensionUtils::makeDescriptor(dst_dnnl_desc);
+
+    uint8_t mask = 0;
+    // dnnl doesn't support this input precision, need pre_convert
+    if ((src_data_type == memory::data_type::undef) || !isSupportedDataType(engine, cache, src, src_data_type)) {
+        mask |= 1;
+    }
+
+    // dnnl doesn't support this output precision, need post_convert
+    if ((dst_data_type == memory::data_type::undef) || !isSupportedDataType(engine, cache, dst, dst_data_type)) {
+        mask |= 2;
+    }
+
+    // dnnl support src/dst precision, but dnnl::reorder doesn't support this combination precision
+    if (mask == 0) {
+        if (!isSupportedCombinatedDataType(engine, cache, src, dst, {src_data_type, dst_data_type})) {
+            mask |= 0x3;
+        }
+    }
+
+    dnnl::memory::data_type near_data_type;
+    switch (mask & 0x3) {
+    case 0:
+        // No need converter
+        break;
+    case 1:
+        // Only need pre_converter
+        pre_converter = std::make_shared<IntermConverter>();
+        pre_converter->setInputPrec(src_prc);
+        pre_converter->setOutputPrec(dst_prc);
+        break;
+    case 2:
+        // Only need post_converter
+        post_converter = std::make_shared<IntermConverter>();
+        post_converter->setOutputPrec(dst_prc);
+        post_converter->setInputPrec(src_prc);
+        break;
+    case 3:
+        // Input and output both are not supported
+        pre_converter = std::make_shared<IntermConverter>();
+        pre_converter->setInputPrec(src_prc);
+
+        post_converter = std::make_shared<IntermConverter>();
+        post_converter->setOutputPrec(dst_prc);
+
+        // Choose data type with the smallest data size
+        near_data_type = find_near_data_type(src_prc, dst_prc);
+        OPENVINO_ASSERT(isSupportedDataType(engine, cache, src, near_data_type));
+        pre_converter->setOutputPrec(DnnlExtensionUtils::DataTypeToIEPrecision(near_data_type));
+        post_converter->setInputPrec(DnnlExtensionUtils::DataTypeToIEPrecision(near_data_type));
+        break;
+    default:
+        OPENVINO_THROW("Incorrect converter mask!");
+        break;
+    }
+}
+
+void Reorder::ReorderExecutor::prepareParams(const dnnl::engine& engine,
+                                             MultiCachePtr& cache,
+                                             const ov::intel_cpu::MemoryCPtr& src,
+                                             const ov::intel_cpu::MemoryCPtr& dst,
+                                             const std::vector<int> src_permutation) {
+    src_blocked = std::make_shared<Memory>(engine, src->getDesc(), src->getData(), false);
+    dst_blocked = std::make_shared<Memory>(engine, dst->getDesc(), dst->getData(), false);
+
+    if (pre_converter) {
+        // Set input memory
+        pre_converter->setInputMem(src_blocked);
+
+        // Allocate or resize output memeory
+        auto dst_desc = src->getDesc().cloneWithNewPrecision(pre_converter->getOutputPrec());
+        auto dst_mem = pre_converter->getOutputMem();
+        if (dst_mem) {
+            dst_mem->redefineDesc(dst_desc);
+        } else {
+            auto mem = std::make_shared<Memory>(engine, dst_desc, nullptr, false);
+            pre_converter->setOutputMem(mem);
+        }
+        src_blocked = pre_converter->getOutputMem();
+    }
+
+    if (post_converter) {
+        // Set output memory
+        post_converter->setOutputMem(dst_blocked);
+
+        // Allocate or resize input memeory
+        auto src_desc = dst->getDesc().cloneWithNewPrecision(post_converter->getInputPrec());
+        auto src_mem = post_converter->getInputMem();
+        if (src_mem) {
+            src_mem->redefineDesc(src_desc);
+        } else {
+            auto mem = std::make_shared<Memory>(engine, src_desc, nullptr, false);
+            post_converter->setInputMem(mem);
+        }
+        dst_blocked = post_converter->getInputMem();
+    }
+
+    auto src_desc = src_blocked->getPrimitive().get_desc();
+    if (!src_permutation.empty()) {
+        // reorder requires exact matching of logical dimensions between src & dst
+        // sometime we have to permute source's logical dimensions to satisfy
+        // this requirement, this dosn't affect plugin's node input memory desc.
+        /// for (i = 0; i < ndims(); i++)
+        ///     new_desc.dims()[permutation[i]] = dims()[i];
+        src_desc = src_desc.permute_axes(src_permutation);
+    }
+
+    auto dst_desc = dst_blocked->getPrimitive().get_desc();
+    // TODO: We should keep shape consistency for const and expected shape for node.
+    //       If it requires reshape operation it should explicitly injected into graph.
+    //
+    // There is a limitation for IE representing of weights for grouped convolutions. IE doesn't
+    // split group dimension in separate shape dimension. IE use OIHW, but onednn expect GOIHW.
+    // So we will perform implicit reshape to dst shape.
+    //
+    // oneDNN doesn't support direct reorders for tensors of different rank. The code below tries to
+    // perform such conversion if the source tensor can be reshaped to the destination rank. This is
+    // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
+    // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
+    if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
+        src_blocked->getShape().getRank() != dst_blocked->getShape().getRank()) {
+        const auto newDims = dst_blocked->getStaticDims();
+        const auto newFormat = DnnlExtensionUtils::GetPlainFormatByRank(newDims.size());
+
+        auto newDesc =
+            dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims), src_blocked->getDataType(), newFormat);
+        auto _srcPtr = src_blocked->getData();
+        src_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(newDesc), _srcPtr, false);
+
+        src_desc = src_blocked->getPrimitive().get_desc();
+    }
+
+    auto result = getReorderPrim(cache, engine, src_desc, dst_desc);
+    if (!result) {
+        IE_THROW() << "Cannot create reorder primitive: unsupported reorder, srcPrec = "
+                   << DnnlExtensionUtils::DataTypeToIEPrecision(src_desc.get_data_type())
+                   << ", dstPrec = " << DnnlExtensionUtils::DataTypeToIEPrecision(dst_desc.get_data_type());
+    }
+    prim = result;
+
+    auto dnnl_mem_src = src_blocked->getPrimitive();
+    auto dnnl_mem_dst = dst_blocked->getPrimitive();
+    primArgs = {{DNNL_ARG_SRC, dnnl_mem_src}, {DNNL_ARG_DST, dnnl_mem_dst}};
+}
+
+void Reorder::ReorderExecutor::IntermConverter::convert() {
+    OPENVINO_ASSERT(src_mem && dst_mem, "ReorderExecutor::IntermConverter has no input/output!");
+    OPENVINO_ASSERT(src_mem->isAllocated());
+    OPENVINO_ASSERT(dst_mem->isAllocated());
+
+    auto src = static_cast<const uint8_t*>(src_mem->getData());
+    auto dst = dst_mem->getData();
+    size_t size = src_mem->getSize() / src_mem->getDesc().getPrecision().size();
+
+    auto _src_prec = src_prec;
+    auto _dst_prec = dst_prec;
+    if (_src_prec == InferenceEngine::Precision::BIN)
+        _src_prec = InferenceEngine::Precision::I8;
+    if (_dst_prec == InferenceEngine::Precision::BIN)
+        _dst_prec = InferenceEngine::Precision::I8;
+    cpu_convert(src, dst, _src_prec, _dst_prec, size);
+}
+
+bool Reorder::ReorderExecutor::isSupportedCombinatedDataType(const dnnl::engine& engine,
+                                                             MultiCachePtr& cache,
+                                                             const DnnlMemoryDescPtr& src,
+                                                             const DnnlMemoryDescPtr& dst,
+                                                             const CombinatedDataType& combinated_data_type) {
+    if (std::find(supported_combinated_data_types.begin(),
+                  supported_combinated_data_types.end(),
+                  combinated_data_type) != supported_combinated_data_types.end()) {
+        return true;
+    }
+
+    // Create dnnl_desc from stride will fail: "could not construct a memory descriptor using strides"
+    //
+    // auto create_dnnl_desc = [](const DnnlMemoryDescPtr& origin_desc, const dnnl::memory::data_type& new_data_type) {
+    //    auto origin_dnnl_desc = origin_desc->getDnnlDesc();
+    //    auto strides = origin_dnnl_desc.get_strides();
+    //    auto old_datasize = DnnlExtensionUtils::sizeOfDataType(origin_dnnl_desc.get_data_type());
+    //    auto new_datasize = DnnlExtensionUtils::sizeOfDataType(new_data_type);
+    //
+    //    if (old_datasize > 0) {
+    //        std::transform(strides.begin(),
+    //                       strides.end(),
+    //                       strides.begin(),
+    //                       [&old_datasize, &new_datasize](dnnl_dim_t v) {
+    //                           return static_cast<dnnl_dim_t>(v * new_datasize / old_datasize);
+    //                       });
+    //    }
+    //    return dnnl::memory::desc(origin_dnnl_desc.get_dims(), new_data_type, strides);
+    // };
+    //
+    // Create temp Memory and get dnnl_desc can work, but it impacts performance
+    //
+    // auto create_dnnl_desc_with_mem = [&engine](const DnnlMemoryDescPtr& origin_desc,
+    //                                            const dnnl::memory::data_type& new_data_type) {
+    //     auto src_desc = origin_desc->cloneWithNewPrecision(DnnlExtensionUtils::DataTypeToIEPrecision(new_data_type));
+    //     Memory src_mem(engine, std::move(src_desc));
+    //     return src_mem.getPrimitive().get_desc();
+    // };
+    // auto src_dnnl_desc = create_dnnl_desc_mem(src, combinated_data_type.first);
+    // auto dst_dnnl_desc = create_dnnl_desc(dst, combinated_data_type.second);
+
+    auto create_dnnl_desc_with_format = [&engine](const dnnl::memory::dims& dims,
+                                                  const dnnl::memory::data_type& new_data_type,
+                                                  const dnnl::memory::format_tag& format) {
+        return dnnl::memory::desc(dims, new_data_type, format);
+    };
+
+    dnnl::memory::dims dim = {2, 10, 8};
+    auto src_dnnl_desc = create_dnnl_desc_with_format(dim, combinated_data_type.first, dnnl::memory::format_tag::abc);
+    auto dst_dnnl_desc = create_dnnl_desc_with_format(dim, combinated_data_type.second, dnnl::memory::format_tag::acb);
+    dnnl::reorder result = getReorderPrim(cache, engine, src_dnnl_desc, dst_dnnl_desc);
+
+    if (result) {
+        supported_combinated_data_types.emplace_back(combinated_data_type);
+        DEBUG_LOG("** (",
+                  DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.first),
+                  ", ",
+                  DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.second),
+                  ")",
+                  " is supported reorder");
+        return true;
+    }
+    DEBUG_LOG("## (",
+              DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.first),
+              ", ",
+              DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.second),
+              ")",
+              " is not supported reorder");
+    return false;
+}
+
+bool Reorder::ReorderExecutor::isSupportedDataType(const dnnl::engine& engine,
+                                                   MultiCachePtr& cache,
+                                                   const DnnlMemoryDescPtr& src,
+                                                   const dnnl::memory::data_type& data_type) {
+    return isSupportedCombinatedDataType(engine, cache, src, src, {data_type, data_type});
+}
+
+void Reorder::ReorderExecutor::preConvert() {
+    if (!pre_converter)
+        return;
+    if (input)
+        pre_converter->setInputPrec(input->getPrecision());
+    pre_converter->convert();
+}
+
+void Reorder::ReorderExecutor::postConvert() {
+    if (!post_converter)
+        return;
+    if (output)
+        post_converter->setOutputPrec(output->getPrecision());
+    post_converter->convert();
+}
+
+bool Reorder::ReorderExecutor::exec(dnnl::stream strm) {
+    if (prim) {
+        preConvert();
+        prim.execute(strm, primArgs);
+        postConvert();
+        return true;
+    }
+    return false;
 }
 
 }   // namespace node
