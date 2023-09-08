@@ -246,19 +246,16 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
                 if func_input.dtype == tf.resource:
                     continue
                 internal_tensor_names.append(func_input.name)
-            assert len(input_model.structured_input_signature) > 1, \
-                "[TensorFlow Frontend] internal error or inconsistent model: " \
-                "`structured_input_signature` must contain at least two elements."
-            assert len(internal_tensor_names) == len(input_model.structured_input_signature[1]), \
-                "[TensorFlow Frontend] internal error or inconsistent model: " \
-                "numbers of internal and external input tensor names are different."
-            external_tensor_names = sorted(input_model.structured_input_signature[1].keys())
-            for internal_name, external_name in zip(internal_tensor_names, external_tensor_names):
-                input_names_map = input_names_map or {}
-                input_names_map[internal_name] = external_name
+            if len(input_model.structured_input_signature) > 1 and \
+                    len(internal_tensor_names) == len(input_model.structured_input_signature[1]):
+                external_tensor_names = sorted(input_model.structured_input_signature[1].keys())
+                for internal_name, external_name in zip(internal_tensor_names, external_tensor_names):
+                    input_names_map = input_names_map or {}
+                    input_names_map[internal_name] = external_name
 
         output_names_map = None
-        if hasattr(input_model, 'outputs') and hasattr(input_model, 'structured_outputs'):
+        if hasattr(input_model, 'outputs') and hasattr(input_model, 'structured_outputs') and \
+                isinstance(input_model.structured_outputs, dict):
             external_names = sorted(list(input_model.structured_outputs.keys()))
             internal_names = sorted([tensor.name for tensor in input_model.outputs])
             if len(external_names) == len(internal_names):
