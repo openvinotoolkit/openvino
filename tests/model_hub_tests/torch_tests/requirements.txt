@@ -4,3 +4,4 @@ pytest
 pytest-html
 torch
 torchvision
+av
