@@ -13,9 +13,6 @@ using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
-// if CHRONO_CALL is defined, use std::chrono::high_resolution_clock as timer, otherwise read tsc as cycle counters
-#define CHRONO_CALL
-
 namespace ov {
 namespace intel_cpu {
 
