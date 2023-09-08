@@ -59,6 +59,8 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 
     std::shared_ptr<ov::Model> model_to_update = nullptr;
     // if cached model was serialized
+    auto this_op_cnt = extracted_model->get_ops().size() -
+        extracted_model->get_parameters().size() - extracted_model->get_results().size();
     if (!serialized_model_path.empty()) {
         std::cout << "[ GRAPH CACHE ][ INFO ] Reading cached model: " << serialized_model_path << std::endl;
         auto bin_path = ov::test::utils::replaceExt(serialized_model_path, ".bin");
@@ -83,13 +85,17 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
             }
             // continue in case that extracted model is part of other subgraph
             if (m_manager.is_subgraph(extracted_model, cached_model.first)) {
+                m_graph_cache[cached_model.first].update(
+                    model_path,
+                    input_info,
+                    model_op_cnt,
+                    this_op_cnt,
+                    extractor_name);
                 return;
             }
         }
     }
 
-    auto this_op_cnt = extracted_model->get_ops().size() -
-        extracted_model->get_parameters().size() - extracted_model->get_results().size();
     if (model_to_update == nullptr) {
         MetaInfo meta;
         if (from_cache) {
@@ -114,13 +120,11 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 }
 
 void GraphCache::serialize_cache() {
-    auto it = m_graph_cache.begin();
-    while (it != m_graph_cache.end()) {
-        auto rel_dir = ov::util::path_join({m_cache_subdir, it->second.get_any_extractor() });
-        serialize_model(*it, rel_dir);
-        m_graph_cache.erase(it->first);
-        it = m_graph_cache.begin();
+    for (const auto& cache_item : m_graph_cache) {
+        auto rel_dir = ov::util::path_join({ m_cache_subdir, cache_item.second.get_any_extractor() });
+        serialize_model(cache_item, rel_dir);
     }
+    m_graph_cache.clear();
 }
 
 }  // namespace subgraph_dumper

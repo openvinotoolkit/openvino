@@ -14,6 +14,8 @@ bool ExtractorsManager::match(const std::shared_ptr<ov::Model> &model,
         if (it.second->match(model, ref)) {
             return true;
         }
+        // remove after `match` will be different for both extractors
+        return false;
     }
     return false;
 }
@@ -24,6 +26,8 @@ bool ExtractorsManager::is_subgraph(const std::shared_ptr<ov::Model> &model,
         if (it.second->is_subgraph(model, ref)) {
             return true;
         }
+        // remove after `is_subgraph` will be different for both extractors
+        return false;
     }
     return false;
 }
