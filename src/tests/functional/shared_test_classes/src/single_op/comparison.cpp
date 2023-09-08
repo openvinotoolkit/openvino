@@ -16,13 +16,13 @@ std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<Co
     std::vector<InputShape> shapes;
     ComparisonTypes comparison_op_type;
     InputLayerType second_input_type;
-    ov::element::Type in_type;
+    ov::element::Type model_type;
     std::string device_name;
     std::map<std::string, std::string> additional_config;
     std::tie(shapes,
              comparison_op_type,
              second_input_type,
-             in_type,
+             model_type,
              device_name,
              additional_config) = obj.param;
 
@@ -41,7 +41,7 @@ std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<Co
     }
     result << "comparisonOpType=" << comparison_op_type << "_";
     result << "secondInputType=" << second_input_type << "_";
-    result << "in_type=" << in_type.get_type_name() << "_";
+    result << "in_type=" << model_type.get_type_name() << "_";
     result << "targetDevice=" << device_name;
     return result.str();
 }
@@ -50,24 +50,24 @@ void ComparisonLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     InputLayerType second_input_type;
     std::map<std::string, std::string> additional_config;
+    ov::element::Type model_type;
     std::tie(shapes,
              comparison_op_type,
              second_input_type,
-             inType,
+             model_type,
              targetDevice,
              additional_config) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
     init_input_shapes(shapes);
-    outType = inType;
 
-    ov::ParameterVector inputs {std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0])};
+    ov::ParameterVector inputs {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
 
     std::shared_ptr<ov::Node> second_input;
     if (second_input_type == InputLayerType::PARAMETER) {
-        second_input = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
+        second_input = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1]);
         inputs.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(second_input));
     } else {
-        ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(inType, targetStaticShapes.front()[1]);
+        ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(model_type, targetStaticShapes.front()[1]);
         second_input = std::make_shared<ov::op::v0::Constant>(tensor);
     }
 

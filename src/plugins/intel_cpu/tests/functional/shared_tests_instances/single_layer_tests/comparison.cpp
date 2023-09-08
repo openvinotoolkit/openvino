@@ -30,7 +30,7 @@ auto converter = [] (const std::vector<std::pair<ov::Shape, ov::Shape>>& shapes)
 
 auto input_shapes_static = converter(input_shapes_pair_vector);
 
-std::vector<ov::element::Type> inputs_type = {
+std::vector<ov::element::Type> model_type = {
         ov::element::f32,
         ov::element::f16,
         ov::element::i32,
@@ -57,7 +57,7 @@ const auto ComparisonTestParams = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
         ::testing::ValuesIn(comparisonOpTypes),
         ::testing::ValuesIn(secondInputTypes),
-        ::testing::ValuesIn(inputs_type),
+        ::testing::ValuesIn(model_type),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 

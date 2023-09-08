@@ -19,7 +19,7 @@ typedef std::tuple<
     std::vector<InputShape>,             // Input shapes tuple
     ngraph::helpers::ComparisonTypes,    // Comparison op type
     ngraph::helpers::InputLayerType,     // Second input type
-    ov::element::Type,                   // In type
+    ov::element::Type,                   // Model type
     std::string,                         // Device name
     std::map<std::string, std::string>   // Additional network configuration
 > ComparisonTestParams;

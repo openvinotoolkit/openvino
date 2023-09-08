@@ -29,7 +29,7 @@ const std::vector<std::pair<float, float>> intervals_unsigned = {
     {10.6, 20.6}
 };
 
-const std::vector<ov::element::Type> netPrc = {
+const std::vector<ov::element::Type> model_type = {
     ov::element::f32,
     ov::element::f16,
     ov::element::i64,
@@ -39,7 +39,7 @@ const std::vector<ov::element::Type> netPrc = {
 const auto test_Clamp_signed = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
     ::testing::ValuesIn(intervals),
-    ::testing::ValuesIn(netPrc),
+    ::testing::ValuesIn(model_type),
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
