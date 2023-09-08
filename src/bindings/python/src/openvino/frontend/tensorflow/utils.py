@@ -237,20 +237,21 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
     if isinstance(input_model, tf.Graph):
         return GraphIteratorTFGraph(input_model, share_weights)
     elif isinstance(input_model, tf.types.experimental.ConcreteFunction):
-        # ConcreteFunction has inputs and outputs signatures with mapping from external tensor names to internal ones
-        # create input_names_map and output_names_map for creation of GraphIteratorTFGraph
+        # create a map for inputs to map internal tensor name to external one
+        # collect all internal tensor names in a given order
         input_names_map = None
-        if hasattr(input_model, 'structured_input_signature') and \
-                isinstance(input_model.structured_input_signature, tuple):
-            for item in input_model.structured_input_signature:
-                if not isinstance(item, dict):
+        if hasattr(input_model, 'inputs') and hasattr(input_model, 'structured_input_signature'):
+            internal_tensor_names = []
+            for func_input in input_model.inputs:
+                if func_input.dtype == tf.resource and func_input.name.startswith('unknown'):
                     continue
-                for external_name, internal_tensor in item.items():
-                    if not isinstance(external_name, str) or not isinstance(internal_tensor, TensorSpec):
-                        continue
-                    if input_names_map is None:
-                        input_names_map = {}
-                    input_names_map[internal_tensor.name] = external_name
+                internal_tensor_names.append(func_input.name)
+            assert len(internal_tensor_names) == len(input_model.structured_input_signature[1]), \
+                "[TensorFlow Frontend] internal error or inconsistent model: " \
+                "numbers of internal and external input tensor names are different."
+            external_tensor_names = sorted(input_model.structured_input_signature[1].keys())
+            for internal_name, external_name in zip(internal_tensor_names, external_tensor_names):
+                input_names_map[internal_name] = external_name
 
         output_names_map = None
         if hasattr(input_model, 'outputs') and hasattr(input_model, 'structured_outputs'):

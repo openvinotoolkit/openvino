@@ -32,9 +32,9 @@ class TestConvertModel:
             assert False, "Unsupported type {}".format(input_type)
 
     def prepare_inputs(self, inputs_info):
-        inputs = []
-        for input_shape, input_type in inputs_info:
-            inputs.append(self.prepare_input(input_shape, input_type))
+        inputs = {}
+        for input_name, input_shape, input_type in inputs_info:
+            inputs[input_name] = self.prepare_input(input_shape, input_type)
         return inputs
 
     def convert_model(self, model_obj):
