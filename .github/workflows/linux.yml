@@ -61,6 +61,14 @@ jobs:
       CCACHE_MAXSIZE: 50G
       TEST_USER_NAME: "ga_runner"
     steps:
+      - name: Create test user
+        run: |
+          export USER_UID=1000
+          export USER_GID=$USER_UID
+          groupadd --gid $USER_GID ${{ env.TEST_USER_NAME }}
+          useradd --uid $USER_UID --gid $USER_GID -m ${{ env.TEST_USER_NAME }}
+          su - ${{ env.TEST_USER_NAME }} && whoami
+
       - name: Install git
         shell: sudo -H -u ${{ env.TEST_USER_NAME }} bash -e {0}
         run: |
@@ -91,14 +99,6 @@ jobs:
       #
       # Dependencies
       #
-      - name: Create test user
-        run: |
-          export USER_UID=1000
-          export USER_GID=$USER_UID
-          groupadd --gid $USER_GID ${{ env.TEST_USER_NAME }}
-          useradd --uid $USER_UID --gid $USER_GID -m ${{ env.TEST_USER_NAME }}
-          su - ${{ env.TEST_USER_NAME }} && whoami
-
       - name: Install build dependencies
         run: |
           su - ${{ env.TEST_USER_NAME }} && whoami
