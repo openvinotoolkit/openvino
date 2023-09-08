@@ -12,10 +12,6 @@
 #    include <dlfcn.h>
 #    include <limits.h>
 #    include <unistd.h>
-#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#        include <codecvt>
-#        include <locale>
-#    endif
 #else
 #    if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
 #        error "Only WINAPI_PARTITION_DESKTOP is supported, because of GetModuleHandleEx[A|W]"
