@@ -27,14 +27,16 @@ std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParam
 
     std::ostringstream result;
     result << "IS=(";
-    for (const auto& shape : shapes) {
-        result << ov::test::utils::partialShape2str({shape.first}) << "_";
+    for (size_t i = 0lu; i < shapes.size(); i++) {
+        result << ov::test::utils::partialShape2str({shapes[i].first}) << (i < shapes.size() - 1lu ? "_" : "");
     }
-    result << ")_TS=(";
-    for (const auto& shape : shapes) {
-        for (const auto& item : shape.second) {
-            result << ov::test::utils::vec2str(item) << "_";
+    result << ")_TS=";
+    for (size_t i = 0lu; i < shapes.front().second.size(); i++) {
+        result << "{";
+        for (size_t j = 0lu; j < shapes.size(); j++) {
+            result << ov::test::utils::vec2str(shapes[j].second[i]) << (j < shapes.size() - 1lu ? "_" : "");
         }
+        result << "}_";
     }
     result << "KS=" << ov::test::utils::vec2str(kernel) << "_";
     result << "S=" << ov::test::utils::vec2str(stride) << "_";
