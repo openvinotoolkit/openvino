@@ -190,7 +190,7 @@ ov::Output<ov::Node> alternative_source_from_concat_input_sources(const LTS_map&
 
             if (lhs_alternative.get_node_shared_ptr() && rhs_alternative.get_node_shared_ptr()) {
                 alternative_source = std::make_shared<ov::op::v1::Add>(lhs_alternative, rhs_alternative);
-                ov::copy_output_runtime_info({original_output}, {alternative_source});
+                ov::copy_runtime_info(original_output.get_node_shared_ptr(), alternative_source.get_node_shared_ptr());
                 alternative_source.get_tensor().set_value_label({label});
                 label_value_source[label] = alternative_source;
             }
