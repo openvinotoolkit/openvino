@@ -106,8 +106,8 @@ bool Assign::evaluate(TensorVector& outputs,
     buffer.set_shape(inputs[0].get_shape());
     outputs[0].set_shape(inputs[0].get_shape());
 
-    inputs[0].copy_to(outputs[0]);
-    inputs[0].copy_to(buffer);
+    std::memcpy(outputs[0].data(), inputs[0].data(), inputs[0].get_byte_size());
+    std::memcpy(buffer.data(), inputs[0].data(), inputs[0].get_byte_size());
 
     return true;
 }
