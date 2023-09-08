@@ -267,13 +267,14 @@ bool DefineBufferClusters::are_buffer_neighbours(const ExpressionPtr& up, const 
     };
     auto find = [&](const std::vector<PortConnectorPtr>::const_iterator& begin,
                     const std::vector<PortConnectorPtr>::const_iterator& end,
+                    const std::vector<PortConnectorPtr>::const_iterator& orig_begin,
                     const ExpressionPort& loop_port,
                     bool is_input) -> bool {
         const auto in_buffer_it = is_input ? std::find_if(begin, end, find_input)
                                            : std::find_if(begin, end, find_output);
         if (in_buffer_it != end) {
             up_idx = loop_port.get_index();
-            down_idx = std::distance(begin, in_buffer_it);
+            down_idx = std::distance(orig_begin, in_buffer_it);
             loop = loop_port.get_expr();
             return true;
         }
@@ -286,8 +287,8 @@ bool DefineBufferClusters::are_buffer_neighbours(const ExpressionPtr& up, const 
             if (!loop_end)
                 continue;
             const auto& loop_inputs = buffer_consumer_expr->get_input_port_connectors();
-            if (find(loop_inputs.cbegin(), loop_inputs.cbegin() + loop_end->get_input_num(), buffer_consumer, true)) return true;
-            if (find(loop_inputs.cbegin() + loop_end->get_input_num(), loop_inputs.cend(), buffer_consumer, false)) return true;
+            if (find(loop_inputs.cbegin(), loop_inputs.cbegin() + loop_end->get_input_num(), loop_inputs.cbegin(), buffer_consumer, true)) return true;
+            if (find(loop_inputs.cbegin() + loop_end->get_input_num(), loop_inputs.cend(), loop_inputs.cbegin(), buffer_consumer, false)) return true;
         }
     }
     return false;
