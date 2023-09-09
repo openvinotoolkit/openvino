@@ -4,7 +4,7 @@
 
 .. meta::
    :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and macOS 
-                 operating systems, using vcpkg .
+                 operating systems, using vcpkg.
 
 .. note::
    

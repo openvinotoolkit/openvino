@@ -131,7 +131,7 @@ Run the following command:
 
 .. note::
 
-   You can additionally install Python APIs using one of the alternative methods (:doc:`conda <openvino_docs_install_guides_installing_openvino_conda>` or :doc:`pip <openvino_docs_install_guides_installing_openvino_pip>`).
+   You can additionally install Python API using one of the alternative methods (:doc:`conda <openvino_docs_install_guides_installing_openvino_conda>` or :doc:`pip <openvino_docs_install_guides_installing_openvino_pip>`).
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still 
 need to install additional components. Check the 
