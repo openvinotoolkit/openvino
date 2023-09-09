@@ -10,9 +10,9 @@
    
    Note that the `Homebrew <https://brew.sh/>`__ distribution:
 
-   * offers both C++ and Python APIs
+   * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
-   * is dedicated to macOS users.
+   * is dedicated to macOS and Linux users.
 
 
 .. tab-set::

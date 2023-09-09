@@ -12,9 +12,10 @@
    :hidden:
 
    API Reference <api/api_reference>
+   OpenVINO IR format and Operation Sets <openvino_ir>  
    Tool Ecosystem <openvino_ecosystem>
+   Legacy Features <openvino_legacy_features>
    OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>
-   OpenVINO IR format and Operation Sets <openvino_ir>
    Media Processing and CV Libraries <media_processing_cv_libraries>
    OpenVINO™ Security <openvino_docs_security_guide_introduction>
 

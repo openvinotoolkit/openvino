@@ -13,7 +13,6 @@
 
    Supported_Model_Formats
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
-   omz_tools_downloader
 
 
 Every deep learning workflow begins with obtaining a model. You can choose to prepare a custom one, use a ready-made solution and adjust it to your needs, or even download and run a pre-trained network from an online database, such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__, or `Torchvision models <https://pytorch.org/hub/>`__.
