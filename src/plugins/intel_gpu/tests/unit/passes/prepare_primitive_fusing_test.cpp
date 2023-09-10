@@ -561,7 +561,8 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
     topology topology(
         input_layout("input", input->get_layout()),
         data("weights", weights),
-        reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
+        reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
         permute("permute", input_info("reorder_dt"), {1, 0}),
         fully_connected("fc", input_info("input"), { "permute" }, "", data_types::f16)
     );

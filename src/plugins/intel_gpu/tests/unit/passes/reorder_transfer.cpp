@@ -19,7 +19,8 @@ TEST(reorder_transfer, transfer_per_permute) {
     topology topology(
         input_layout("input", input->get_layout()),
         data("weights", weights),
-        reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
+        reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
         permute("permute", input_info("reorder_dt"), {1, 0}),
         fully_connected("fc", input_info("input"), { "permute" }, "", data_types::f16)
     );
@@ -28,6 +29,11 @@ TEST(reorder_transfer, transfer_per_permute) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
+
+    for (auto& node : prog->get_processing_order()) {
+        if (!node->is_type<data>())
+            node->get_output_layouts();
+    }
 
     program_wrapper::apply_opt_pass<reorder_transfer>(*prog);
     auto& processing_order = prog->get_processing_order();

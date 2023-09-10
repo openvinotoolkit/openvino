@@ -19,21 +19,12 @@ void reorder_transfer::run(program& p) {
 
         auto& reorder_node = node->as<reorder>();
 
-        bool is_simple_reorder = reorder_node.is_constant() &&
-                                 !reorder_node.is_output() &&
-                                 reorder_node.get_users().size() == 1 &&
-                                 reorder_node.get_dependencies().size() == 1 &&
-                                 !reorder_node.has_mean() &&
-                                 reorder_node.get_primitive()->subtract_per_feature.empty();
-        if (!is_simple_reorder)
-            continue;
-
-        layout input_layout = reorder_node.get_input_layout();
-        layout output_layout = reorder_node.get_output_layout();
-        bool only_precision_changed = input_layout.get_partial_shape() == output_layout.get_partial_shape() &&
-                                      input_layout.format == output_layout.format &&
-                                      input_layout.data_type != output_layout.data_type;
-        if (!only_precision_changed)
+        bool is_simple_type_conversion_reorder = reorder_node.is_constant() &&
+                                                 !reorder_node.is_output() &&
+                                                 reorder_node.get_users().size() == 1 &&
+                                                 reorder_node.get_dependencies().size() == 1 &&
+                                                 reorder_node.is_type_conversion_only();
+        if (!is_simple_type_conversion_reorder)
             continue;
 
         auto transfer_through_node = [](cldnn::program_node* node) -> bool { // Conditions can be extended to other ops
