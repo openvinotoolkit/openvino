@@ -2,13 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_library(rapidjson INTERFACE)
+find_package(RapidJSON QUIET)
 
-set_target_properties(rapidjson PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/rapidjson>
-)
+if(NOT TARGET rapidjson)
+    # sometimes RapidJSONConfig.cmake defines only RAPIDJSON_INCLUDE_DIRS
+    add_library(rapidjson INTERFACE)
 
-ov_install_static_lib(rapidjson gpu)
+    if(RapidJSON_FOUND)
+        if(TARGET RapidJSON)
+            target_link_libraries(rapidjson INTERFACE RapidJSON)
+        elseif(DEFINED RAPIDJSON_INCLUDE_DIRS)
+            target_include_directories(rapidjson INTERFACE $<BUILD_INTERFACE:${RAPIDJSON_INCLUDE_DIRS}>)
+        else()
+            message(FATAL_ERROR "RapidJSON does not define RAPIDJSON_INCLUDE_DIRS nor RapidJSON / rapidjson targets")
+        endif()
+    else()
+        target_include_directories(rapidjson INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/rapidjson>)
+    endif()
+endif()
 
 #
 # oneDNN for GPU plugin
