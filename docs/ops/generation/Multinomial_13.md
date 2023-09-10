@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-  :description: Learn about Multinomial-13 - a generation operation, that creates sequence of indices of sampled classes from Multinomial distribution.
+  :description: Learn about Multinomial-13 - a generation operation, that creates a sequence of indices of sampled classes from Multinomial distribution.
 
 **Versioned name**: *Multinomial-13*
 
@@ -11,8 +11,21 @@
 
 **Short description**: *Multinomial* operation generates a sequence of class indices sampled from Multinomial distribution.
 
-**Detailed description**: *Multinomial* operation generates a sequence of class indices sampled from Multinomial distribution.
-Values in *input* indicate probabilities for every class that could be randomly sampled from Multinominal distribution. When specific class is sampled, it's indice in *input* is appended to *output* sequence in corresponding batch value.
+**Detailed description**: *Multinomial* operation generates a sequence of class indices sampled from a Multinomial distribution. In this context, the *input* values represent the probabilities associated with each class within the Multinomial distribution. When performing the operation, it randomly selects a class based on these probabilities. Subsequently, the index of the chosen class in the *input* array is appended to the *output* sequence in the corresponding batch.
+
+**Algorithm formulation**:
+
+Given a list of probabilities x1,x2, ..., xn:
+* If *log_probs* is true:
+  * For each probability x, replace it with a value e^x
+* Create a cumulative sum (prefix sum) of those probabilities, ie. create an array of values where the ith value is the sum of the probabilities x1, ..., xi
+* Divide the created array by the final (maximum) value to normalize the cumulative probabilities between [0, 1]
+* Randomly generate a sequence of floats in range [0,1]
+* For each generated number, assign the class with the lowest index for which the cumulative probability is less or equal the generated value.
+* If *replacement* is False (sampling without replacement)
+  * Set the class probability to 0 and adjust the cumulative sum accordingly
+* Convert the output indices to *output_type*
+* Return output indices
 
 **Attributes**:
 
@@ -25,10 +38,10 @@ Values in *input* indicate probabilities for every class that could be randomly 
 
 * ``replacement``
 
-  * **Description**: allows to control whether classes could repeat in sampled sequence.
+  * **Description**: controls whether to sample with replacement (classes can be sampled multiple times).
   * **Range of values**: `true`, `false`
-      * ``true`` - class indices can repeat in sampled sequence.
-      * ``false`` - class indices will not repeat in sequence and size of *input* ``class_size`` dimension is required to be larger or equal to *num_samples* value.
+      * ``true`` - class indices can be sampled multiple times.
+      * ``false`` - class indices will not repeat in the output and size of *input*'s ``class_size`` dimension is required to be larger or equal to *num_samples* value.
   * **Type**: `bool`
   * **Required**: *Yes*
 
@@ -36,8 +49,8 @@ Values in *input* indicate probabilities for every class that could be randomly 
 
   * **Description**: allows to control whether *inputs* should be treated as probabilities or unnormalized log probabilities.
   * **Range of values**: `true`, `false`
-    * ``true`` - set values in *inputs* are unnormalized log probabilites that can be any real number.
-    * ``false`` - probabilities in *inputs* are expected to be non-negative, finite and have non-zero sum.
+      * ``true`` - set values in *inputs* are unnormalized log probabilities that can be any real number.
+      * ``false`` - probabilities in *inputs* are expected to be non-negative, finite and have non-zero-sum.
   * **Type**: `bool`
   * **Required**: *Yes*
 
@@ -59,9 +72,9 @@ Values in *input* indicate probabilities for every class that could be randomly 
 
 **Inputs**:
 
-*   **1**: ``input`` - 1D or 2D tensor of type `T_IN` and shape `[class_size]` or `[batch_size, class_size]` containing probabilities. Allowed values depend on *log_probs* attribute and are internally normalized to have values in range of `[0, 1]`, sum of all probabilities in given batch is equal to 1. **Required.**
+*   **1**: ``input`` - 1D or 2D tensor of type `T_IN` and shape `[class_size]` or `[batch_size, class_size]` containing probabilities. Allowed values depend on the *log_probs* attribute and are internally normalized to have values in the range of `[0, 1]`, sum of all probabilities in the given batch is equal to 1. **Required.**
 
-*   **2**: ``num_samples`` - scalar or 1D tensor with 1 element of type `T_SAMPLES` specifying number of samples to draw from Multinomial distribution. **Required.**
+*   **2**: ``num_samples`` - scalar or 1D tensor with 1 element of type `T_SAMPLES` specifying the number of samples to draw from Multinomial distribution. **Required.**
 
 **Outputs**:
 
