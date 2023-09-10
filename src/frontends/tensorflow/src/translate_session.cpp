@@ -66,31 +66,40 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
     // 2. find a set of clean-up names and aligned with the model signature
     const auto& tensor_names = ov_output.get_names();
     std::unordered_set<std::string> cleanup_names;
+    bool signature_passed = true;
     if (is_input_tensor) {
-        for (const auto& tensor_name : tensor_names) {
-            if (saved_model_input_names->count(tensor_name) > 0) {
-                cleanup_names.insert(saved_model_input_names->at(tensor_name));
-                param_node->set_friendly_name(saved_model_input_names->at(tensor_name));
+        if (saved_model_input_names) {
+            for (const auto& tensor_name : tensor_names) {
+                if (saved_model_input_names->count(tensor_name) > 0) {
+                    cleanup_names.insert(saved_model_input_names->at(tensor_name));
+                    param_node->set_friendly_name(saved_model_input_names->at(tensor_name));
+                }
             }
+        } else {
+            signature_passed = false;
         }
     }
 
     if (is_output_tensor) {
-        std::vector<std::string> result_names;
-        for (const auto& tensor_name : tensor_names) {
-            if (saved_model_output_names->count(tensor_name) > 0) {
-                cleanup_names.insert(saved_model_output_names->at(tensor_name));
-                result_names.push_back(saved_model_output_names->at(tensor_name));
+        if (saved_model_output_names) {
+            std::vector<std::string> result_names;
+            for (const auto& tensor_name : tensor_names) {
+                if (saved_model_output_names->count(tensor_name) > 0) {
+                    cleanup_names.insert(saved_model_output_names->at(tensor_name));
+                    result_names.push_back(saved_model_output_names->at(tensor_name));
+                }
             }
-        }
-        // align the Result node names as many as possible
-        // it is not bad if we remain it as is because OV API 2.0 relies only on tensor names
-        size_t result_names_size = result_names.size();
-        if (result_names_size > 0) {
-            for (size_t ind = 0; ind < results.size(); ++ind) {
-                auto new_result_name = result_names[ind % result_names_size];
-                results[ind]->set_friendly_name(new_result_name);
+            // align the Result node names as many as possible
+            // it is not bad if we remain it as is because OV API 2.0 relies only on tensor names
+            size_t result_names_size = result_names.size();
+            if (result_names_size > 0) {
+                for (size_t ind = 0; ind < results.size(); ++ind) {
+                    auto new_result_name = result_names[ind % result_names_size];
+                    results[ind]->set_friendly_name(new_result_name);
+                }
             }
+        } else {
+            signature_passed = false;
         }
     }
 
@@ -98,7 +107,7 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
     // otherwise, the tensor corresponds to unused Parameter or Result nodes
     if (cleanup_names.size() > 0) {
         ov_output.set_names(cleanup_names);
-    } else {
+    } else if (signature_passed) {
         // this is unused tensor that should be removed
         // because it not present in the signature
         ov_output.add_names({"saved_model_unused"});
