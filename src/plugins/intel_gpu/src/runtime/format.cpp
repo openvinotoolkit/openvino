@@ -352,22 +352,26 @@ format format::find_format(const std::vector<uint64_t>& order,
                            bool is_image_2d,
                            bool is_winograd,
                            bool is_nv12) {
-    auto filter = [&](const std::pair<cldnn::format::type, cldnn::format_traits>& trait) -> bool {
-        return trait.second._order == order &&
-               trait.second.block_sizes == block_sizes &&
-               format::is_weights_format(trait.first) == is_weights &&
-               format::is_grouped(trait.first) == is_grouped &&
-               format::is_image_2d(trait.first) == is_image_2d &&
-               format::is_winograd(trait.first) == is_winograd &&
-               format::is_nv12(trait.first) == is_nv12;
+    auto is_suitable_traits = [&](const std::pair<format::type, format_traits>& traits) -> bool {
+        return traits.second._order == order &&
+               traits.second.block_sizes == block_sizes &&
+               format::is_weights_format(traits.first) == is_weights &&
+               format::is_grouped(traits.first) == is_grouped &&
+               format::is_image_2d(traits.first) == is_image_2d &&
+               format::is_winograd(traits.first) == is_winograd &&
+               format::is_nv12(traits.first) == is_nv12;
     };
-    const auto& finded_format = std::find_if(format_traits_map.begin(), format_traits_map.end(), filter);
-    OPENVINO_ASSERT(finded_format != format_traits_map.end(), "[GPU] Cannot find a format with the specified parameters");
 
-    const auto& finded_format_from_end = std::find_if(format_traits_map.rbegin(), format_traits_map.rend(), filter);
-    OPENVINO_ASSERT(finded_format->first == finded_format_from_end->first, "[GPU] Cannot find a format. Specified parameters are ambiguous");
+    std::vector<format> finded_formats;
+    for (auto& traits : format_traits_map) {
+        if (is_suitable_traits(traits))
+            finded_formats.emplace_back(traits.first);
+    }
 
-    return finded_format->first;
+    OPENVINO_ASSERT(!finded_formats.empty(), "[GPU] Cannot find a format with the specified parameters");
+    OPENVINO_ASSERT(finded_formats.size() == 1, "[GPU] Cannot find a format. Specified parameters are ambiguous");
+
+    return finded_formats.front();
 }
 
 }  // namespace cldnn

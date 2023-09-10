@@ -555,8 +555,8 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
     auto input_data = rg.generate_random_2d<FLOAT16>(2, 32, -1, 1);
     auto weights_data = rg.generate_random_2d<float>(32, 2, -1, 1);
 
-    set_values(input, input_data);
-    set_values(weights, weights_data);
+    set_values(input, flatten_2d(format::bfyx, input_data));
+    set_values(weights, flatten_2d(format::bfyx, weights_data));
 
     topology topology(
         input_layout("input", input->get_layout()),

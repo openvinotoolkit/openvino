@@ -395,8 +395,10 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
         case format::oyxi:
         case format::byxf:
             return kernel_selector::weights_layout::oyxi;
+        case format::oyix:
         case format::byfx:
             return kernel_selector::weights_layout::oyix;
+        case format::oxiy:
         case format::bxfy:
             return kernel_selector::weights_layout::oxiy;
         case format::yxfb:

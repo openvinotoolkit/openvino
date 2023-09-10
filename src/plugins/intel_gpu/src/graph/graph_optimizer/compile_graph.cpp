@@ -14,7 +14,6 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "condition_inst.h"
-#include "permute_inst.h"
 #include "program_node.h"
 
 #include <iostream>

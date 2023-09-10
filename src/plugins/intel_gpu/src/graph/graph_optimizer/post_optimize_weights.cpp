@@ -87,11 +87,11 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
             if (can_be_fused) {
                 // Need to update input data_type for correct merging format reorder with precision reorder
                 auto updated_input_layout = weights_reorder_params->get_input_layout();
-                data_types input_dtype = prev_node.get_input_layouts()[0].data_type;
+                data_types input_dtype = prev_node.get_input_layout().data_type;
                 updated_input_layout.data_type = input_dtype;
 
                 // Need to update input format in case of fusing weights constant with transpose
-                format input_fmt = prev_node.get_input_layouts()[0].format;
+                format input_fmt = prev_node.get_input_layout().format;
                 updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
 
                 weights_reorder_params->set_input_layout(updated_input_layout);
