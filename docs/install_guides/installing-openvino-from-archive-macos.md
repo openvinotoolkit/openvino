@@ -4,18 +4,17 @@
 
 .. meta::
    :description: Learn how to install OpenVINO™ Runtime on macOS operating 
-                 system, using an archive file, which is a recommended 
-                 installation method for C++ developers.
+                 system, using an archive file.
 
-With the OpenVINO™ 2023.0 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples.
-
-Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
-
-See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ for more information on updates in the latest release.
 
 .. note::
+   
+   Note that the Archive distribution:
+   
+   * offers both C/C++ and Python APIs
+   * additionally includes code samples 
+   * is dedicated to users of all major OSs: Windows, Linux, macOS
 
-   Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via `pypi.org <https://pypi.org/project/openvino-dev/>`__ only.
 
 .. tab-set::
 
@@ -24,7 +23,7 @@ See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articl
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
-   
+
    .. tab-item:: Software Requirements
       :sync: software-requirements
    
@@ -108,12 +107,23 @@ Step 1: Install OpenVINO Core Components
       If you have already installed a previous release of OpenVINO 2023, a symbolic link to the ``openvino_2023`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2023``, and then re-run the command above.
 
 
-Congratulations, you finished the installation! The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO. If you used a different path in Step 2, you will find the ``openvino_2023`` folder there. The path to the ``openvino_2023`` directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
+Congratulations, you have finished the installation! For some use cases you may still 
+need to install additional components. Check the description below, as well as the 
+:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+to see if your case needs any of them.
+
+The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO. 
+If you used a different path in Step 2, for example, ``/home/<USER>/intel/``, 
+OpenVINO is now in ``/home/<USER>/intel/openvino_2023``. The path to the ``openvino_2023`` 
+directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
+
 
 Step 2: Configure the Environment
 +++++++++++++++++++++++++++++++++
 
-You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the ``setupvars.sh`` script as shown below to temporarily set your environment variables. If your ``<INSTALL_DIR>`` is not ``/opt/intel/openvino_2023``, use the correct one instead.
+You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the ``setupvars.sh`` 
+script as shown below to temporarily set your environment variables. If your ``<INSTALL_DIR>`` (the folder you used to install OpenVINO) is not 
+the default ``/opt/intel/openvino_2023``, use the correct one instead.
 
 .. code-block:: sh
 
@@ -127,16 +137,7 @@ If you have more than one OpenVINO™ version on your machine, you can easily sw
 
    The above command must be re-run every time you start a new terminal session. To set up macOS to automatically run the command every time a new terminal is opened, open ``~/.zshrc`` in your favorite editor and add ``source /opt/intel/openvino_2023/setupvars.sh`` after the last line. Next time when you open a terminal, you will see ``[setupvars.sh] OpenVINO™ environment initialized``. Changing ``~/.zshrc`` is not recommended when you have multiple OpenVINO versions on your machine and want to switch among them.
 
-The environment variables are set. Continue to the next section if you want to download any additional components.
 
-Step 3 (Optional): Install Additional Components
-++++++++++++++++++++++++++++++++++++++++++++++++
-
-OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
-
-See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
-
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on GitHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__.
 
 What's Next?
 ####################
@@ -201,14 +202,6 @@ Additional Resources
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
 * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__
 
-<!---
-   To learn more about converting models from specific frameworks, go to:
-   * :ref:`Convert Your Caffe Model <convert model caffe>`
-   * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your TensorFlow Lite Model <convert model tfl>`
-   * :ref:`Convert Your Apache MXNet Model <convert model mxnet>`
-   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
-   * :ref:`Convert Your ONNX Model <convert model onnx>`
---->
+
 
 @endsphinxdirective
