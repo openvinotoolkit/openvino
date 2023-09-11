@@ -340,6 +340,6 @@ std::ostream& operator<<(std::ostream& os, op::v8::MatrixNms::DecayFunction type
     return os;
 }
 
-}  // namespace helpers
-}  // namespace helpers
-}  // namespace ngraph
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
