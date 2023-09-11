@@ -26,7 +26,6 @@ protected:
     void run_workloads(std::vector<Workload> &workloads) override;
 private:
     void schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors);
-    mutable arm_compute::Mutex mtx;
 };
 }  //  namespace intel_cpu
 }  //  namespace ov
