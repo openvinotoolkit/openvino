@@ -1,5 +1,8 @@
 name: Tests on Linux (Ubuntu 22.04, Python 3.11)
 on:
+  schedule:
+    # at 00:00 on Wednesday and Saturday
+    - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
     paths-ignore:
@@ -49,20 +52,20 @@ jobs:
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
           submodules: 'recursive'
 
       - name: Clone testdata for C API tests
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -129,9 +132,9 @@ jobs:
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
-          key: ${{ github.job }}-linux
+          key: linux-ubuntu
           restore-keys: |
-            ${{ github.job }}-linux
+            linux-ubuntu
 
       - name: Get tools versions
         run: |
@@ -141,7 +144,7 @@ jobs:
           cmake --version || exit 1
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: CMake configure
@@ -505,7 +508,7 @@ jobs:
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'recursive'
@@ -674,8 +677,9 @@ jobs:
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml --html=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.html --self-contained-html
         env:
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
@@ -741,7 +745,9 @@ jobs:
         if: ${{ always() }}
         with:
           name: test-results-python
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
   CPU_Functional_Tests:

@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/frontend/extension/op.hpp>
-#include <openvino/frontend/manager.hpp>
+#include "openvino/frontend/extension/op.hpp"
+#include "openvino/frontend/manager.hpp"
 
 struct OpExtensionFEParam {
     std::string m_frontEndName;
