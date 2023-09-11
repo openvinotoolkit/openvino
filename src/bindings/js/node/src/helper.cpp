@@ -166,6 +166,20 @@ Napi::Array cpp_to_js<ov::Shape, Napi::Array>(const Napi::CallbackInfo& info, co
     return arr;
 }
 
+template <>
+Napi::Array cpp_to_js<ov::PartialShape, Napi::Array>(const Napi::CallbackInfo& info, const ov::PartialShape shape) {
+    auto arr = Napi::Array::New(info.Env(), shape.size());
+    for (size_t i = 0; i < shape.size(); ++i) {
+        int64_t value;
+
+        if (shape[i].is_dynamic()) value = -1;
+        else value = shape[i].get_length();
+
+        arr[i] = value;
+    }
+    return arr;
+}
+
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key) {
     return infer_request.get_tensor(key);
 }

@@ -24,8 +24,15 @@ const params = [
 ];
 
 test('Test for number of arguments in tensor', () => {
-  assert.throws( () => new ov.Tensor(ov.element.f32, shape),
+  assert.throws( () => new ov.Tensor(ov.element.f32),
     {message: 'Invalid number of arguments for Tensor constructor.'});
+});
+
+describe('Tensor without data parameters', () => {
+  it('Tensor should have array with zeros and numbers of elements according to the shape', () => {
+    const tensor = new ov.Tensor(ov.element.f32, shape);
+    assert.strictEqual(tensor.data.length, elemNum);
+  });
 });
 
 describe('Tensor data', () => {

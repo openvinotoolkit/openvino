@@ -7,26 +7,38 @@
   "types": "./types/index.d.ts",
   "scripts": {
     "build": "node-gyp build",
-    "preinstall": "echo ${INTEL_OPENVINO_DIR?\\$INTEL_OPENVINO_DIR should set before installation. Please execute 'source ~/intel/openvino/setupvars.sh' and run 'npm i' again.}",
+    "preinstall": "npm run download_runtime -- --ignore-if-exists",
     "install": "node-gyp configure",
     "postinstall": "npm run build & npm run tsc",
     "lint": "eslint .",
     "rebuild": "node-gyp rebuild",
     "test": "node --test",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "download_runtime": "node ./scripts/download_runtime.js"
+  },
+  "dependencies": {
+    "node-gyp": "^9.3.0",
+    "typescript": "^5.0.4",
+    "decompress": "^4.2.1",
+    "node-fetch": "^3.3.2",
+    "node-addon-api": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.5.0",
     "@typescript-eslint/eslint-plugin": "^5.59.1",
     "@typescript-eslint/parser": "^5.59.1",
     "eslint": "^8.39.0",
-    "node-addon-api": "^3.0.0",
-    "node-gyp": "^9.3.0",
-    "typescript": "^5.0.4",
     "random-bigint": "^0.0.1"
   },
   "engines": {
     "node": ">=18.16.0"
   },
-  "gypfile": true
+  "gypfile": true,
+  "binary": {
+    "version": "2023.1.0.dev20230811",
+    "module_path": "./ov_runtime/",
+    "package_name": "{letter}_openvino_toolkit_{os}_{version}_{arch}.{extension}",
+    "host": "https://storage.openvinotoolkit.org/",
+    "remote_path": "repositories/openvino/packages/master/2023.1.0.dev20230811/"
+  }
 }

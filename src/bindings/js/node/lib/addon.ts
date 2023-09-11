@@ -1,3 +1,6 @@
+import os from 'node:os';
+import path from 'node:path';
+
 type SupportedTypedArray =
   | Int8Array
   | Uint8Array
@@ -41,7 +44,7 @@ interface Tensor {
 interface TensorConstructor {
   new(type: element,
       shape: number[],
-      tensorData: number[] | SupportedTypedArray): Tensor;
+      tensorData?: number[] | SupportedTypedArray): Tensor;
 }
 
 interface InferRequest {
@@ -52,11 +55,10 @@ interface InferRequest {
   getInputTensor(idx?: number): Tensor;
   getOutputTensor(idx?: number): Tensor;
   getOutputTensors(): { [outputName: string] : Tensor};
-
+  // FIXME: are we going to add index parameter for this method?
   infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
     | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
   getCompiledModel(): CompiledModel;
-
 }
 
 interface Output {
@@ -65,6 +67,7 @@ interface Output {
   toString(): string;
   getAnyName(): string;
   getShape(): number[];
+  getPartialShape(): number[];
   setNames(names: string[]): void;
   getNames(): string[];
 }
@@ -118,7 +121,22 @@ export interface NodeAddon {
   ): void;
 }
 
+setPath();
+
 export default
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     require('../build/Release/ov_node_addon.node') as
     NodeAddon;
+
+function setPath() {
+  const { delimiter } = path;
+
+  if (os.platform() === 'win32')
+    process.env.PATH = [
+      process.env.PATH,
+      path.join(__dirname,
+        ...'../ov_runtime/runtime/bin/intel64/Release'.split('/')),
+      path.join(__dirname,
+        ...'../ov_runtime/runtime/3rdparty/tbb/bin'.split('/')),
+    ].join(delimiter) + delimiter;
+}
