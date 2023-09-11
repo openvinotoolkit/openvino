@@ -18,10 +18,10 @@ RUN groupadd --gid $USER_GID $USERNAME \
 # * Anything else you want to do like clean up goes here *
 # ********************************************************
 
+RUN chown $USERNAME /github
+
 # [Optional] Set the default user. Omit if you want to keep the default as root.
 USER $USERNAME
-
-RUN mkdir -p /github/file_commands && chown $USERNAME /github/file_commands
 
 # Copies your code file from your action repository to the filesystem path `/` of the container
 COPY entrypoint.sh /entrypoint.sh
