@@ -18,7 +18,7 @@ RUN groupadd --gid $USER_GID $USERNAME \
 # * Anything else you want to do like clean up goes here *
 # ********************************************************
 
-RUN chown $USERNAME /github
+RUN mkdir -p /github/file_commands && chown $USERNAME /github/file_commands
 
 # [Optional] Set the default user. Omit if you want to keep the default as root.
 USER $USERNAME
