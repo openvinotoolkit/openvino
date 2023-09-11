@@ -1,8 +1,6 @@
 Part Segmentation of 3D Point Clouds with OpenVINO™
 ===================================================
 
-
-
 This notebook demonstrates how to process `point
 cloud <https://en.wikipedia.org/wiki/Point_cloud>`__ data and run 3D
 Part Segmentation with OpenVINO. We use the
@@ -24,21 +22,19 @@ segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
 
-.. _top:
+Table of content:- `Imports <#Imports-Uparrow>`__
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Table of contents**:
+-  `Prepare the Model <#Prepare-the-Model-Uparrow>`__
+-  `Data Processing Module <#Data-Processing-Module-Uparrow>`__
+-  `Visualize the original 3D
+   data <#Visualize-the-original-3D-data-Uparrow>`__
+-  `Run inference <#Run-inference-Uparrow>`__
 
-- `Imports <#imports>`__
-- `Prepare the Model <#prepare-the-model>`__
-- `Data Processing Module <#data-processing-module>`__
-- `Visualize the original 3D data <#visualize-the-original-3d-data>`__
-- `Run inference <#run-inference>`__
+   -  `Select inference device <#Select-inference-device-Uparrow>`__
 
-  - `Select inference device <#select-inference-device>`__
-
-Imports `⇑ <#top>`__
-###############################################################################################################################
-
+Imports `:math:`\Uparrow` <#Table-of-content:>`__
+-------------------------------------------------
 
 .. code:: ipython3
 
@@ -54,12 +50,12 @@ Imports `⇑ <#top>`__
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Prepare the Model `⇑ <#top>`__
-###############################################################################################################################
+Prepare the Model `:math:`\Uparrow` <#Table-of-content:>`__
+-----------------------------------------------------------
 
-Download the pre-trained PointNet ONNX model. This pre-trained model is provided by
-`axinc-ai <https://github.com/axinc-ai>`__, and you can find more
-point clouds examples
+Download the pre-trained PointNet ONNX model. This pre-trained model is
+provided by ```axinc-ai`` <https://github.com/axinc-ai>`__, and you can
+find more point clouds examples
 `here <https://github.com/axinc-ai/ailia-models/tree/master/point_segmentation>`__.
 
 .. code:: ipython3
@@ -79,7 +75,7 @@ function returns an OpenVINO model ready to load on a device and start
 making predictions. We can save it on a disk for next usage with
 ``openvino.runtime.serialize``. For more information about model
 conversion Python API, see this
-`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -97,9 +93,8 @@ conversion Python API, see this
         model = core.read_model(model=ir_model_xml)
         
 
-Data Processing Module `⇑ <#top>`__
-###############################################################################################################################
-
+Data Processing Module `:math:`\Uparrow` <#Table-of-content:>`__
+----------------------------------------------------------------
 
 .. code:: ipython3
 
@@ -153,8 +148,8 @@ Data Processing Module `⇑ <#top>`__
     
         return ax
 
-Visualize the original 3D data `⇑ <#top>`__
-###############################################################################################################################
+Visualize the original 3D data `:math:`\Uparrow` <#Table-of-content:>`__
+------------------------------------------------------------------------
 
 The point cloud data can be downloaded from
 `ShapeNet <https://shapenet.cs.stanford.edu/ericyi/shapenetcore_partanno_segmentation_benchmark_v0.zip>`__,
@@ -179,14 +174,14 @@ chair for example.
 .. image:: 224-3D-segmentation-point-clouds-with-output_files/224-3D-segmentation-point-clouds-with-output_10_0.png
 
 
-Run inference `⇑ <#top>`__
-###############################################################################################################################
+Run inference `:math:`\Uparrow` <#Table-of-content:>`__
+-------------------------------------------------------
 
-Run inference and visualize the results of 3D segmentation. - The input data is a point cloud with
-``1 batch size``\ ，\ ``3 axis value`` (x, y, z) and
-``arbitrary number of points`` (dynamic shape). - The output data is a
-mask with ``1 batch size`` and ``4 classification confidence`` for each
-input point.
+Run inference and visualize the results of 3D segmentation. - The input
+data is a point cloud with ``1 batch size``\ ，\ ``3 axis value`` (x, y,
+z) and ``arbitrary number of points`` (dynamic shape). - The output data
+is a mask with ``1 batch size`` and ``4 classification confidence`` for
+each input point.
 
 .. code:: ipython3
 
@@ -208,11 +203,10 @@ input point.
     output shape: [1,?,4]
 
 
-Select inference device `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 

@@ -1,8 +1,6 @@
 Machine translation demo
 ========================
 
-
-
 This demo utilizes Intel’s pre-trained model that translates from
 English to German. More information about the model can be found
 `here <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/machine-translation-nar-en-de-0002/README.md>`__.
@@ -16,20 +14,14 @@ following structure: ``<s>`` + *tokenized sentence* + ``<s>`` +
 ``<pad>`` (``<pad>`` tokens pad the remaining blank spaces).
 
 **Output** After the inference, we have a sequence of up to 200 tokens.
-The structure is the same as the one for the input. 
-
-.. _top:
-
-**Table of contents**:
-
-- `Downloading model <#downloading-model>`__
-- `Load and configure the model <#load-and-configure-the-model>`__
-- `Select inference device <#select-inference-device>`__
-- `Load tokenizers <#load-tokenizers>`__
-- `Perform translation <#perform-translation>`__
-- `Translate the sentence <#translate-the-sentence>`__
-
-  - `Test your translation <#test-your-translation>`__
+The structure is the same as the one for the input. #### Table of
+content:- `Downloading model <#Downloading-model-Uparrow>`__ - `Load and
+configure the model <#Load-and-configure-the-model-Uparrow>`__ - `Select
+inference device <#Select-inference-device-Uparrow>`__ - `Load
+tokenizers <#Load-tokenizers-Uparrow>`__ - `Perform
+translation <#Perform-translation-Uparrow>`__ - `Translate the
+sentence <#Translate-the-sentence-Uparrow>`__ - `Test your
+translation <#Test-your-translation-Uparrow>`__
 
 .. code:: ipython3
 
@@ -52,11 +44,11 @@ The structure is the same as the one for the input.
     import itertools
     from tokenizers import SentencePieceBPETokenizer
 
-Downloading model `⇑ <#top>`__
-###############################################################################################################################
+Downloading model `:math:`\Uparrow` <#Table-of-content:>`__
+-----------------------------------------------------------
 
-The following command will download the model to the current directory. Make sure you have run
-``pip install openvino-dev`` beforehand.
+The following command will download the model to the current directory.
+Make sure you have run ``pip install openvino-dev`` beforehand.
 
 .. code:: ipython3
 
@@ -67,37 +59,37 @@ The following command will download the model to the current directory. Make sur
 
     ################|| Downloading machine-translation-nar-en-de-0002 ||################
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/vocab.json
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/vocab.json
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/merges.txt
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/merges.txt
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/vocab.json
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/vocab.json
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.xml
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.xml
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.bin
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.bin
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.xml
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.xml
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.bin
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.bin
     
     
 
 
-Load and configure the model `⇑ <#top>`__
-###############################################################################################################################
+Load and configure the model `:math:`\Uparrow` <#Table-of-content:>`__
+----------------------------------------------------------------------
 
-The model is now available in the ``intel/`` folder. Below, we load and configure its inputs and
-outputs.
+The model is now available in the ``intel/`` folder. Below, we load and
+configure its inputs and outputs.
 
 .. code:: ipython3
 
@@ -108,11 +100,10 @@ outputs.
     model.output(output_name)
     max_tokens = model.input(input_name).shape[1]
 
-Select inference device `⇑ <#top>`__
-###############################################################################################################################
+Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+-----------------------------------------------------------------
 
-
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -142,9 +133,8 @@ Select device from dropdown list for running inference using OpenVINO:
 
     compiled_model = core.compile_model(model, device.value)
 
-Load tokenizers `⇑ <#top>`__
-###############################################################################################################################
-
+Load tokenizers `:math:`\Uparrow` <#Table-of-content:>`__
+---------------------------------------------------------
 
 NLP models usually take a list of tokens as standard input. A token is a
 single word converted to some integer. To provide the proper input, we
@@ -170,8 +160,8 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
         'intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt'
     )
 
-Perform translation `⇑ <#top>`__
-###############################################################################################################################
+Perform translation `:math:`\Uparrow` <#Table-of-content:>`__
+-------------------------------------------------------------
 
 The following function translates a sentence in English to German.
 
@@ -219,8 +209,8 @@ The following function translates a sentence in English to German.
         sentence = " ".join(key for key, _ in itertools.groupby(sentence))
         return sentence
 
-Translate the sentence `⇑ <#top>`__
-###############################################################################################################################
+Translate the sentence `:math:`\Uparrow` <#Table-of-content:>`__
+----------------------------------------------------------------
 
 The following function is a basic loop that translates sentences.
 
@@ -249,10 +239,11 @@ The following function is a basic loop that translates sentences.
     # uncomment the following line for a real time translation of your input
     # run_translator()
 
-Test your translation `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Test your translation `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Run the following cell with an English sentence to have it translated to German
+Run the following cell with an English sentence to have it translated to
+German
 
 .. code:: ipython3
 

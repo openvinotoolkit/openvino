@@ -1,8 +1,6 @@
 Speech to Text with OpenVINO™
 =============================
 
-
-
 This tutorial demonstrates speech-to-text recognition with OpenVINO.
 
 This tutorial uses the `QuartzNet
@@ -13,43 +11,45 @@ with Connectionist Temporal Classification (CTC) loss. The model is
 available from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
-.. _top:
+Table of content:- `Imports <#Imports-Uparrow>`__
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Table of contents**:
+-  `Settings <#Settings-Uparrow>`__
+-  `Download and Convert Public
+   Model <#Download-and-Convert-Public-Model-Uparrow>`__
 
-- `Imports <#imports>`__
-- `Settings <#settings>`__
-- `Download and Convert Public Model <#download-and-convert-public-model>`__
+   -  `Download Model <#Download-Model-Uparrow>`__
+   -  `Convert Model <#Convert-Model-Uparrow>`__
 
-  - `Download Model <#download-model>`__
-  - `Convert Model <#convert-model>`__
+-  `Audio Processing <#Audio-Processing-Uparrow>`__
 
-- `Audio Processing <#audio-processing>`__
+   -  `Define constants <#Define-constants-Uparrow>`__
+   -  `Available Audio Formats <#Available-Audio-Formats-Uparrow>`__
+   -  `Load Audio File <#Load-Audio-File-Uparrow>`__
+   -  `Visualize Audio File <#Visualize-Audio-File-Uparrow>`__
+   -  `Change Type of Data <#Change-Type-of-Data-Uparrow>`__
+   -  `Convert Audio to Mel
+      Spectrum <#Convert-Audio-to-Mel-Spectrum-Uparrow>`__
+   -  `Run Conversion from Audio to Mel
+      Format <#Run-Conversion-from-Audio-to-Mel-Format-Uparrow>`__
+   -  `Visualize Mel Spectrogram <#Visualize-Mel-Spectrogram-Uparrow>`__
+   -  `Adjust Mel scale to Input <#Adjust-Mel-scale-to-Input-Uparrow>`__
 
-  - `Define constants <#define-constants>`__
-  - `Available Audio Formats <#available-audio-formats>`__
-  - `Load Audio File <#load-audio-file>`__
-  - `Visualize Audio File <#visualize-audio-file>`__
-  - `Change Type of Data <#change-type-of-data>`__
-  - `Convert Audio to Mel Spectrum <#convert-audio-to-mel-spectrum>`__
-  - `Run Conversion from Audio to Mel Format <#run-conversion-from-audio-to-mel-format>`__
-  - `Visualize Mel Spectrogram <#visualize-mel-spectrogram>`__
-  - `Adjust Mel scale to Input <#adjust-mel-scale-to-input>`__
+-  `Load the Model <#Load-the-Model-Uparrow>`__
 
-- `Load the Model <#load-the-model>`__
+   -  `Do Inference <#Do-Inference-Uparrow>`__
+   -  `Read Output <#Read-Output-Uparrow>`__
+   -  `Implementation of
+      Decoding <#Implementation-of-Decoding-Uparrow>`__
+   -  `Run Decoding and Print
+      Output <#Run-Decoding-and-Print-Output-Uparrow>`__
 
-  - `Do Inference <#do-inference>`__
-  - `Read Output <#read-output>`__
-  - `Implementation of Decoding <#implementation-of-decoding>`__
-  - `Run Decoding and Print Output <#run-decoding-and-print-output>`__
-
-Imports `⇑ <#top>`__
-###############################################################################################################################
-
+Imports `:math:`\Uparrow` <#Table-of-content:>`__
+-------------------------------------------------
 
 .. code:: ipython3
 
-    !pip install -q "librosa>=0.8.1"
+    !pip install -q "librosa>=0.8.1" "openvino-dev==2023.1.0.dev20230811" "onnx"
 
 .. code:: ipython3
 
@@ -64,12 +64,10 @@ Imports `⇑ <#top>`__
     import librosa.display
     import numpy as np
     import scipy
-    from openvino.runtime import Core, serialize, Tensor
-    from openvino.tools import mo
+    import openvino as ov
 
-Settings `⇑ <#top>`__
-###############################################################################################################################
-
+Settings `:math:`\Uparrow` <#Table-of-content:>`__
+--------------------------------------------------
 
 In this part, all variables used in the notebook are set.
 
@@ -82,16 +80,15 @@ In this part, all variables used in the notebook are set.
     precision = "FP16"
     model_name = "quartznet-15x5-en"
 
-Download and Convert Public Model `⇑ <#top>`__
-###############################################################################################################################
+Download and Convert Public Model `:math:`\Uparrow` <#Table-of-content:>`__
+---------------------------------------------------------------------------
 
-If it is your first run, models will be downloaded and converted here. It my take a few minutes.
-Use ``omz_downloader`` and ``omz_converter``, which are command-line
-tools from the ``openvino-dev`` package.
+If it is your first run, models will be downloaded and converted here.
+It my take a few minutes. Use ``omz_downloader`` and ``omz_converter``,
+which are command-line tools from the ``openvino-dev`` package.
 
-Download Model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Download Model `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``omz_downloader`` tool automatically creates a directory structure
 and downloads the selected model. This step is skipped if the model is
@@ -109,9 +106,8 @@ Representation (OpenVINO IR).
         download_command = f"omz_downloader --name {model_name} --output_dir {download_folder} --precision {precision}"
         ! $download_command
 
-Convert Model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Convert Model `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In previous step, model was downloaded in PyTorch format. Currently,
 PyTorch models supported in OpenVINO via ONNX exporting,
@@ -213,9 +209,9 @@ Intermediate Representation format for applying optimizations.
             dynamic_axes={"audio_signal": {0: "batch_size", 2: "wave_len"}, "output": {0: "batch_size", 2: "wave_len"}}
         )
         # convert model to OpenVINO Model using model conversion API
-        ov_model = mo.convert_model(str(onnx_model_path))
-        # serialize model to IR for next usage
-        serialize(ov_model, str(converted_model_path))
+        ov_model = ov.convert_model(str(onnx_model_path))
+        # save model in IR format for next usage
+        ov.save_model(ov_model, str(converted_model_path))
 
 .. code:: ipython3
 
@@ -227,15 +223,13 @@ Intermediate Representation format for applying optimizations.
         downloaded_model_path = Path("output/public/quartznet-15x5-en/models")
         convert_model(downloaded_model_path, path_to_converted_model)
 
-Audio Processing `⇑ <#top>`__
-###############################################################################################################################
-
+Audio Processing `:math:`\Uparrow` <#Table-of-content:>`__
+----------------------------------------------------------
 
 Now that the model is converted, load an audio file.
 
-Define constants `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Define constants `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, locate an audio file and define the alphabet used by the model.
 This tutorial uses the Latin alphabet beginning with a space symbol and
@@ -247,9 +241,8 @@ could be any other character.
     audio_file_name = "edge_to_cloud.ogg"
     alphabet = " abcdefghijklmnopqrstuvwxyz'~"
 
-Available Audio Formats `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Available Audio Formats `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are multiple supported audio formats that can be used with the
 model:
@@ -259,9 +252,8 @@ model:
 ``RF64``, ``SD2``, ``SDS``, ``IRCAM``, ``VOC``, ``W64``, ``WAV``,
 ``NIST``, ``WAVEX``, ``WVE``, ``XI``
 
-Load Audio File `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Load Audio File `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Load the file after checking a file extension. Pass ``sr`` (stands for a
 ``sampling rate``) as an additional parameter. The model supports files
@@ -291,9 +283,8 @@ Now, you can play your audio file.
 
 
 
-Visualize Audio File `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Visualize Audio File `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can visualize how your audio file presents on a wave plot and
 spectrogram.
@@ -329,9 +320,8 @@ spectrogram.
 .. image:: 211-speech-to-text-with-output_files/211-speech-to-text-with-output_21_3.png
 
 
-Change Type of Data `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Change Type of Data `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The file loaded in the previous step may contain data in ``float`` type
 with a range of values between -1 and 1. To generate a viable input,
@@ -344,9 +334,8 @@ multiply each value by the max value of ``int16`` and convert it to
         audio = (audio * (2**15 - 1))
     audio = audio.astype(np.int16)
 
-Convert Audio to Mel Spectrum `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Convert Audio to Mel Spectrum `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Next, convert the pre-pre-processed audio to `Mel
 Spectrum <https://medium.com/analytics-vidhya/understanding-the-mel-spectrogram-fca2afa2ce53>`__.
@@ -385,9 +374,8 @@ article <https://towardsdatascience.com/audio-deep-learning-made-simple-part-2-w
             return np.pad(normalized, ((0, 0), (0, padding - remainder)))[None]
         return normalized[None]
 
-Run Conversion from Audio to Mel Format `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Run Conversion from Audio to Mel Format `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In this step, convert a current audio file into `Mel
 scale <https://en.wikipedia.org/wiki/Mel_scale>`__.
@@ -396,9 +384,8 @@ scale <https://en.wikipedia.org/wiki/Mel_scale>`__.
 
     mel_basis, spec = audio_to_mel(audio=audio.flatten(), sampling_rate=sampling_rate)
 
-Visualize Mel Spectrogram `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Visualize Mel Spectrogram `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For more information about Mel spectrogram, refer to this
 `article <https://towardsdatascience.com/getting-to-know-the-mel-spectrogram-31bca3e2d9d0>`__.
@@ -421,9 +408,8 @@ presents filter bank for converting Hz to Mels.
 .. image:: 211-speech-to-text-with-output_files/211-speech-to-text-with-output_29_1.png
 
 
-Adjust Mel scale to Input `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Adjust Mel scale to Input `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Before reading the network, make sure that the input is ready.
 
@@ -431,26 +417,25 @@ Before reading the network, make sure that the input is ready.
 
     audio = mel_to_input(mel_basis=mel_basis, spec=spec)
 
-Load the Model `⇑ <#top>`__
-###############################################################################################################################
-
+Load the Model `:math:`\Uparrow` <#Table-of-content:>`__
+--------------------------------------------------------
 
 Now, you can read and load the network.
 
 .. code:: ipython3
 
-    ie = Core()
+    core = ov.Core()
 
 You may run the model on multiple devices. By default, it will load the
 model on CPU (you can choose manually CPU, GPU etc.) or let the engine
 choose the best available device (AUTO).
 
 To list all available devices that can be used, run
-``print(ie.available_devices)`` command.
+``print(core.available_devices)`` command.
 
 .. code:: ipython3
 
-    print(ie.available_devices)
+    print(core.available_devices)
 
 
 .. parsed-literal::
@@ -464,8 +449,6 @@ Select device from dropdown list
 
     import ipywidgets as widgets
     
-    core = Core()
-    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
@@ -477,18 +460,17 @@ Select device from dropdown list
 
 .. code:: ipython3
 
-    model = ie.read_model(
+    model = core.read_model(
         model=f"{model_folder}/public/{model_name}/{precision}/{model_name}.xml"
     )
     model_input_layer = model.input(0)
     shape = model_input_layer.partial_shape
     shape[2] = -1
     model.reshape({model_input_layer: shape})
-    compiled_model = ie.compile_model(model=model, device_name=device.value)
+    compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Do Inference `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Do Inference `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Everything is set up. Now, the only thing that remains is passing input
 to the previously loaded network and running inference.
@@ -497,11 +479,10 @@ to the previously loaded network and running inference.
 
     output_layer_ir = compiled_model.output(0)
     
-    character_probabilities = compiled_model([Tensor(audio)])[output_layer_ir]
+    character_probabilities = compiled_model([ov.Tensor(audio)])[output_layer_ir]
 
-Read Output `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Read Output `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 After inference, you need to reach out the output. The default output
 format for ``QuartzNet 15x5`` are per-frame probabilities (after
@@ -530,9 +511,8 @@ The last step is getting symbols from corresponding indexes in charlist.
     # Run argmax to pick most possible symbols
     character_probabilities = np.argmax(character_probabilities, axis=1)
 
-Implementation of Decoding `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Implementation of Decoding `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To decode previously explained output, you need the `Connectionist
 Temporal Classification (CTC)
@@ -550,9 +530,8 @@ function. This solution will remove consecutive letters from the output.
             previous_letter_id = letter_index
         return ''.join(transcription)
 
-Run Decoding and Print Output `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Run Decoding and Print Output `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
