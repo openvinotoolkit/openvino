@@ -5,8 +5,8 @@ import gc
 import numpy as np
 from models_hub_common.multiprocessing_utils import multiprocessing_run
 from models_hub_common.utils import compare_two_tensors
+from openvino import convert_model
 from openvino.runtime import Core
-from openvino.tools.mo import convert_model
 
 
 class TestConvertModel:
@@ -33,9 +33,9 @@ class TestConvertModel:
             assert False, "Unsupported type {}".format(input_type)
 
     def prepare_inputs(self, inputs_info):
-        inputs = []
-        for input_shape, input_type in inputs_info:
-            inputs.append(self.prepare_input(input_shape, input_type))
+        inputs = {}
+        for input_name, input_shape, input_type in inputs_info:
+            inputs[input_name] = self.prepare_input(input_shape, input_type)
         return inputs
 
     def convert_model(self, model_obj):
