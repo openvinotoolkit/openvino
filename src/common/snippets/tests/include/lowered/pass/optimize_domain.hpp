@@ -11,9 +11,9 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-struct DomainOptimizationParams {
-    DomainOptimizationParams() = default;
-    DomainOptimizationParams(size_t, size_t, std::vector<ov::PartialShape>, ov::snippets::VectorDims, size_t);
+struct OptimizeDomainParams {
+    OptimizeDomainParams() = default;
+    OptimizeDomainParams(size_t, size_t, std::vector<ov::PartialShape>, ov::snippets::VectorDims, size_t);
     size_t min_jit_work_amount = 0;                   // Min jit work amount
     size_t min_parallel_work_amount = 0;              // Min parallel work amount
     std::vector<ov::PartialShape> input_shapes;       // Input shapes
@@ -21,14 +21,14 @@ struct DomainOptimizationParams {
     size_t exp_loop_depth = 0;                        // Expected loop depth (aka tile rank)
 };
 
-class DomainOptimizationTest : public testing::TestWithParam<DomainOptimizationParams> {
+class OptimizeDomainTest : public testing::TestWithParam<OptimizeDomainParams> {
 public:
     using VectorDims = ov::snippets::VectorDims;
-    static std::string getTestCaseName(testing::TestParamInfo<DomainOptimizationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<OptimizeDomainParams> obj);
 protected:
     void SetUp() override;
     std::shared_ptr<ov::Model> m_model;
-    DomainOptimizationParams m_domain_opt_params;
+    OptimizeDomainParams m_domain_opt_params;
 };
 
 }  // namespace snippets

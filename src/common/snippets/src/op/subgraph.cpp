@@ -40,7 +40,7 @@
 #include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
-#include "snippets/lowered/pass/domain_optimization.hpp"
+#include "snippets/lowered/pass/optimize_domain.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -630,9 +630,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
     size_t loop_depth = 1;
-    lowered::pass::PassPipeline domain_optimization_pipeline;
-    domain_optimization_pipeline.register_pass<lowered::pass::DomainOptimization>(loop_depth);
-    domain_optimization_pipeline.run(linear_ir);
+    lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
     // todo: for discussion on review: we can move control_flow_transformations to LinearIR
     //  then we won't have to introduce this method
     linear_ir.set_loop_depth(loop_depth);
@@ -718,17 +716,7 @@ snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::Positione
     const auto ptr = lowering_result.binary_code;
 
 
-    VectorDims work_domain{1};
-    for (const auto& expr : linear_ir.get_IO_ops()) {
-        if (expr->get_type() == snippets::lowered::IOExpression::io_type::OUTPUT) {
-            const auto& shape = utils::get_planar_vdims(expr->get_input_port_descriptor(0));
-            OPENVINO_ASSERT(std::none_of(shape.begin(), shape.end(),
-                                         [](size_t d) {return d == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION; }),
-                            "Failed to calculate work_domain for dynamic shapes");
-            OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(work_domain, shape),
-                            "Failed to merge input shapes into work_domain");
-        }
-    }
+    VectorDims work_domain = linear_ir.get_master_shape();
     const size_t loop_depth = linear_ir.get_config().m_loop_depth;
     for (size_t i = 0; i < loop_depth; i++)
         work_domain[work_domain.size() - 1 - i] = 1;

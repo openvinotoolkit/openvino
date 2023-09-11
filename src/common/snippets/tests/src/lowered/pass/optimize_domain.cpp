@@ -4,16 +4,16 @@
 
 #include <gtest/gtest.h>
 #include "common_test_utils/common_utils.hpp"
-#include "snippets/lowered/pass/domain_optimization.hpp"
+#include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/pass.hpp"
-#include "lowered/pass/domain_optimization.hpp"
+#include "lowered/pass/optimize_domain.hpp"
 #include "subgraph_simple.hpp"
 #include "lowering_utils.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
-DomainOptimizationParams::DomainOptimizationParams(size_t min_jit_work_amount,
+OptimizeDomainParams::OptimizeDomainParams(size_t min_jit_work_amount,
                                                    size_t min_parallel_work_amount,
                                                    std::vector<ov::PartialShape> input_shapes,
                                                    ov::snippets::VectorDims exp_master_shape,
@@ -25,8 +25,8 @@ DomainOptimizationParams::DomainOptimizationParams(size_t min_jit_work_amount,
                                                    exp_loop_depth(exp_loop_depth) {
 }
 
-std::string DomainOptimizationTest::getTestCaseName(testing::TestParamInfo<DomainOptimizationParams> obj) {
-    DomainOptimizationParams domain_opt_params = obj.param;
+std::string OptimizeDomainTest::getTestCaseName(testing::TestParamInfo<OptimizeDomainParams> obj) {
+    OptimizeDomainParams domain_opt_params = obj.param;
     std::ostringstream result;
     result << "MinJitWork=" << domain_opt_params.min_jit_work_amount << "_";
     result << "MinParWork=" << domain_opt_params.min_parallel_work_amount << "_";
@@ -37,28 +37,26 @@ std::string DomainOptimizationTest::getTestCaseName(testing::TestParamInfo<Domai
     return result.str();
 }
 
-void DomainOptimizationTest::SetUp() {
+void OptimizeDomainTest::SetUp() {
     m_domain_opt_params = this->GetParam();
     m_model = std::make_shared<EltwiseFunction>(m_domain_opt_params.input_shapes)->getOriginal();
 }
 
-TEST_P(DomainOptimizationTest, DomainOptimization) {
+TEST_P(OptimizeDomainTest, DomainOptimization) {
     auto subgraph = LoweringTests::getTokenizedSubgraph(m_model);
     subgraph->set_min_jit_work_amount(m_domain_opt_params.min_jit_work_amount);
     subgraph->set_min_parallel_work_amount(m_domain_opt_params.min_parallel_work_amount);
     auto linear_ir = *subgraph->convert_body_to_linear_ir();
     size_t loop_depth = 1;
-    ov::snippets::lowered::pass::PassPipeline domain_optimization_pipeline;
-    domain_optimization_pipeline.register_pass<ov::snippets::lowered::pass::DomainOptimization>(loop_depth);
-    domain_optimization_pipeline.run(linear_ir);
+    ov::snippets::lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
     const auto& master_shape = linear_ir.get_master_shape();
     EXPECT_EQ(loop_depth, m_domain_opt_params.exp_loop_depth) << "Inconsistent loop depth detected";
     EXPECT_THAT(master_shape, testing::ContainerEq(m_domain_opt_params.exp_master_shape)) << "Inconsistent master_shape detected";
 }
 
-namespace DomainOptimizationTestsInstantiation {
+namespace OptimizeDomainTestsInstantiation {
 
-std::vector<DomainOptimizationParams> dopt_params = {
+std::vector<OptimizeDomainParams> dopt_params = {
         // todo: Discuss on review: we collapse 3 dims here and we've never done it before. concerns?
         // No broadcasting => dimensions collapsed
         {256, 4, {{14, 15, 1, 17}, {14, 15, 1, 17}}, {1, 1, 14, 255}, 1},
@@ -83,13 +81,17 @@ std::vector<DomainOptimizationParams> dopt_params = {
         {256, 18, {{4, 5, 6, 7}, {4, 5, 6, 7}}, {1, 4, 5, 42}, 1},
         // Same dims, but higher parallel work amount => do not collapse to load all the threads
         {256, 32, {{4, 5, 6, 7}, {4, 5, 6, 7}}, {4, 5, 6, 7}, 1},
+
+        // 2D and 1D shapes are too small, so no collapsing should be done in such cases
+        {256, 32, {{4, 5}, {4, 5}}, {4, 5}, 1},
+        {256, 32, {{5}, {5}}, {5}, 1},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DomainOptimization, DomainOptimizationTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DomainOptimization, OptimizeDomainTest,
                          ::testing::ValuesIn(dopt_params),
-                         DomainOptimizationTest::getTestCaseName);
+                         OptimizeDomainTest::getTestCaseName);
 
-} // namespace DomainOptimizationTestsInstantiation
+} // namespace OptimizeDomainTestsInstantiation
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

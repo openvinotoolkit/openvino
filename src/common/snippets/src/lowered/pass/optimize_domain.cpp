@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/domain_optimization.hpp"
+#include "snippets/lowered/pass/optimize_domain.hpp"
 
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -15,9 +15,9 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-DomainOptimization::DomainOptimization(size_t& tile_rank) : Pass(), m_tile_rank(tile_rank) {
+OptimizeDomain::OptimizeDomain(size_t& tile_rank) : Pass(), m_tile_rank(tile_rank) {
 }
-bool DomainOptimization::optimize(std::vector<VectorDims>& input_shapes,
+bool OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
                                   VectorDims& master_shape,
                                   const size_t total_work_amount,
                                   const size_t min_parallel_work_amount,
@@ -27,8 +27,8 @@ bool DomainOptimization::optimize(std::vector<VectorDims>& input_shapes,
 
     auto CollapseLastDim = [](VectorDims& dims) {
         OPENVINO_ASSERT(dims.size() >= 2, "CollapseLastDim can't process shape with less than two dims");
-        dims[dims.size() - 2] *= dims.back();
-        for (auto i = dims.size() - 1; i > 0; i--)
+        dims[dims.size() - 1] *= dims[dims.size() - 2];
+        for (auto i = dims.size() - 2; i > 0; i--)
             dims[i] = dims[i - 1];
         dims[0] = 1;
     };
@@ -44,26 +44,30 @@ bool DomainOptimization::optimize(std::vector<VectorDims>& input_shapes,
     };
 
     size_t jit_work_amount = master_shape.back();
-    size_t next_jit_work_amount = jit_work_amount * master_shape[master_shape.size() - 2];
     bool some_dims_collapsed {false};
     while (jit_work_amount < min_jit_work_amount &&
-           next_jit_work_amount * min_parallel_work_amount < total_work_amount &&
-           master_shape.size() > 2 &&
+           can_increase_jit_work_amount(master_shape, min_parallel_work_amount, total_work_amount) &&
            LastDimsNotBroadcasted(input_shapes, master_shape)) {
         for (auto &s : input_shapes)
             CollapseLastDim(s);
 
         CollapseLastDim(master_shape);
 
-        jit_work_amount = next_jit_work_amount;
-        next_jit_work_amount *= master_shape[master_shape.size() - 2];
+        jit_work_amount = master_shape.back();
         some_dims_collapsed = true;
     }
     return some_dims_collapsed;
 }
 
-bool DomainOptimization::run(snippets::lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::DomainOptimization")
+inline bool OptimizeDomain::can_increase_jit_work_amount(const VectorDims& master_shape,
+                                                         const size_t min_parallel_work_amount,
+                                                         const size_t total_work_amount) {
+    return master_shape.size() > 2 &&
+           master_shape[master_shape.size() - 1] * master_shape[master_shape.size() - 2] *
+           min_parallel_work_amount <= total_work_amount;
+}
+bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::OptimizeDomain")
     const auto& config = linear_ir.get_config();
     if (linear_ir.empty())
         return false;
@@ -82,9 +86,9 @@ bool DomainOptimization::run(snippets::lowered::LinearIR& linear_ir) {
             const auto& shape = expr->get_output_port_descriptor(0)->get_shape();
             OPENVINO_ASSERT(std::none_of(shape.begin(), shape.end(),
                                         [](size_t d) {return d == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION; }),
-                            "DomainOptimization pass does not support dynamic shapes");
+                            "OptimizeDomain pass does not support dynamic shapes");
             OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(master_shape, shape),
-                            "Failed to merge input shapes in DomainOptimization pass");
+                            "Failed to merge input shapes in OptimizeDomain pass");
             input_shapes.emplace_back(shape);
         }
     }
@@ -106,12 +110,8 @@ bool DomainOptimization::run(snippets::lowered::LinearIR& linear_ir) {
         linear_ir.shape_infer(infer_shapes);
     }
     // We can still try to increment tile rank after dimension collapsing
-    if (master_shape.size() > 2) {
-        const auto tile2D_work_amount = master_shape[master_shape.size() - 1] * master_shape[master_shape.size() - 2];
-        if (total_work_amount >= tile2D_work_amount * config.m_min_parallel_work_amount) {
+    if (can_increase_jit_work_amount(master_shape, config.m_min_parallel_work_amount, total_work_amount))
             m_tile_rank++;
-        }
-    }
     return some_dims_collapsed;
 }
 
