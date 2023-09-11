@@ -50,8 +50,7 @@ inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
             ASSERT_EQ(s, d) << "mismatch at position " << i;
             break;
         }
-        case InferenceEngine::Precision::I8:
-        case InferenceEngine::Precision::BIN: {
+        case InferenceEngine::Precision::I8: {
             auto s = *(static_cast<int8_t*>(srcData) + srcOffset);
             auto d = *(static_cast<int8_t*>(dstData) + dstOffset);
             ASSERT_EQ(s, d) << "mismatch at position " << i;
@@ -102,29 +101,28 @@ inline void fillData(const ov::intel_cpu::IMemory& inputMemory, const InferenceE
     switch (prec) {
     case InferenceEngine::Precision::FP32:
         for (int64_t i = 0; i < elemNum; ++i)
-            *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<float>(i);
+            *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<float>(i % 256);
         break;
     case InferenceEngine::Precision::I32:
         for (int64_t i = 0; i < elemNum; ++i)
-            *(static_cast<int32_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int32_t>(i);
+            *(static_cast<int32_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int32_t>(i % 256);
         break;
     case InferenceEngine::Precision::I8:
-    case InferenceEngine::Precision::BIN:
         for (int64_t i = 0; i < elemNum; ++i)
-            *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i);
+            *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i % 256);
         break;
     case InferenceEngine::Precision::U8:
     case InferenceEngine::Precision::BOOL:
         for (int64_t i = 0; i < elemNum; ++i)
-            *(static_cast<uint8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<uint8_t>(i);
+            *(static_cast<uint8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<uint8_t>(i % 256);
         break;
     case InferenceEngine::Precision::FP64:
         for (int64_t i = 0; i < elemNum; ++i)
-            *(static_cast<double*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<double>(i);
+            *(static_cast<double*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<double>(i % 256);
         break;
     case InferenceEngine::Precision::I64:
         for (int64_t i = 0; i < elemNum; ++i)
-            *(static_cast<uint64_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<uint64_t>(i);
+            *(static_cast<uint64_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<uint64_t>(i % 256);
         break;
     default:
         FAIL() << "Unsupported data precision in the test" << prec.name();
@@ -394,6 +392,9 @@ protected:
     void generate_inputs(const std::vector<size_t>& inputShape) {
         parentEdge->getParent()->redefineOutputMemory({inputShape});
         fillData(parentEdge->getMemory(), inputPrec);
+
+        auto desc = parentEdge->getMemory().getDesc().cloneWithNewPrecision(outputPrec);
+        expectedMemory->redefineDesc(desc);
         fillData(*expectedMemory, outputPrec);
     }
     void infer() {
@@ -532,22 +533,52 @@ const auto reorderCpuTestDynamismDifferentPrecisionParams =
                                              {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
                                              LayoutType::nspc,
                                              LayoutType::ncsp,
-                                             InferenceEngine::Precision::FP32,
+                                             InferenceEngine::Precision::I32,
                                              InferenceEngine::Precision::BOOL},
                       ReorderCPUTestParamSet{{2, 16, 8, -1},
                                              {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
                                              LayoutType::nspc,
                                              LayoutType::ncsp,
                                              InferenceEngine::Precision::BOOL,
-                                             InferenceEngine::Precision::FP32},
-                      ReorderCPUTestParamSet{{2, 16, 8, -1},
-                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
-                                             LayoutType::nspc,
-                                             LayoutType::ncsp,
-                                             InferenceEngine::Precision::FP32,
-                                             InferenceEngine::Precision::BIN});
+                                             InferenceEngine::Precision::I32});
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestDynamismDifferentPrecision,
                          ReorderDynamismCPUTest,
                          reorderCpuTestDynamismDifferentPrecisionParams,
+                         ReorderDynamismCPUTest::getTestCaseName);
+
+const auto reorderCpuTestDynamismDifferentPrecisionNoReorderParams =
+    ::testing::Values(ReorderCPUTestParamSet{{2, 16, 8, -1},
+                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                             LayoutType::nspc,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::FP32,
+                                             InferenceEngine::Precision::FP64},
+                      ReorderCPUTestParamSet{{2, 16, 8, -1},
+                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                             LayoutType::nspc,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::FP64,
+                                             InferenceEngine::Precision::FP32},
+                      ReorderCPUTestParamSet{{2, 16, 8, -1},
+                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                             LayoutType::nspc,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::I32,
+                                             InferenceEngine::Precision::BOOL},
+                      ReorderCPUTestParamSet{{2, 16, 8, -1},
+                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                             LayoutType::ncsp,
+                                             LayoutType::ncsp,
+                                             InferenceEngine::Precision::I64,
+                                             InferenceEngine::Precision::I32},
+                      ReorderCPUTestParamSet{{2, 16, 8, -1},
+                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                             LayoutType::ncsp,
+                                             LayoutType::ncsp,
+                                             InferenceEngine::Precision::I32,
+                                             InferenceEngine::Precision::I64});
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestDynamismDifferentPrecisionNoReorder,
+                         ReorderDynamismCPUTest,
+                         reorderCpuTestDynamismDifferentPrecisionNoReorderParams,
                          ReorderDynamismCPUTest::getTestCaseName);

@@ -189,8 +189,10 @@ void Reorder::createReorderExecutor(const ov::intel_cpu::MemoryCPtr& src, const 
 
     executor_ptr = std::make_shared<ReorderExecutor>(engine, cache, src, dst, src_permutation);
     executor_ptr->prepareParams(engine, cache, src, dst);
-    selectedPD->setImplementationType(
-        parse_impl_name(DnnlExtensionUtils::query_impl_info_str(executor_ptr->getPrimitive().get_primitive_desc())));
+    if (executor_ptr->getPrimitive()) {
+        selectedPD->setImplementationType(parse_impl_name(
+            DnnlExtensionUtils::query_impl_info_str(executor_ptr->getPrimitive().get_primitive_desc())));
+    }
 
 #ifdef CPU_DEBUG_CAPS
     if (executor_ptr->getPrimitive()) {
@@ -419,7 +421,7 @@ Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
     //      for example:
     //            I64->I64, U64->U64, I4->I4, U4->U4, I64->I64, etc
     //
-    // [case 2]: Input/output precision are the different precision, supposed PrecisionX -> precisionY reorder:
+    // [case 2]: Input/output precision are the different precision with different layout, supposed PrecisionX -> precisionY reorder:
     // 1. Convert PrecisionX--> data_type::x, PrecisionY--> data_type::y
     //        Check whether dnnl::reorder support x->y reorder, if support there will no other additional operation
     // 2. If dnnl::reorder doesn't support x->y reorder or there is corresponding dnnl data type
@@ -438,6 +440,9 @@ Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
     //                input(PrecX) --> reorder(PrecX) --> conversion(PrecX->PrecY) --> output(PrecY)
     //            If PrecisionZ == PrecisionY, do data conversion before dnnl::reorder
     //                input(PreX) --> conversion(PrecX->PrecY) -> reorder(PrecY) --> output(PrecY)
+    // [case 3]: Input/output precision are the different precision with same layout, in this case only precision is needed
+    //    Don't need do reorder, only do data conversion
+    //
 
     auto src_prc = src->getDesc().getPrecision();
     auto dst_prc = dst->getDesc().getPrecision();
@@ -445,6 +450,20 @@ Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
                     "ReorderExecutor input precision is unspecified!");
     OPENVINO_ASSERT(dst_prc != InferenceEngine::Precision::UNSPECIFIED,
                     "ReorderExecutor output precision is unspecified!");
+
+    prim = dnnl::reorder();
+    if (src_prc != dst_prc) {
+        auto temp_desc = src->getDesc().cloneWithNewPrecision(dst_prc);
+        if (temp_desc->isCompatible(dst->getDesc())) {
+            need_reorder = false;
+            src_blocked = std::make_shared<Memory>(engine, src->getDescPtr(), src->getData(), false);
+            dst_blocked = std::make_shared<Memory>(engine, dst->getDescPtr(), dst->getData(), false);
+            pre_converter = std::make_shared<IntermConverter>(src_blocked, src_prc, dst_blocked, dst_prc);
+            return;
+        }
+    }
+    need_reorder = true;
+
     auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src_prc);
     auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst_prc);
 
@@ -575,7 +594,9 @@ void Reorder::ReorderExecutor::prepareParams(const dnnl::engine& engine,
                                              MultiCachePtr& cache,
                                              const ov::intel_cpu::MemoryCPtr& src,
                                              const ov::intel_cpu::MemoryCPtr& dst) {
-    OPENVINO_ASSERT(prim, "ReorderExecutor::preprareParams prim == nullptr!");
+    if (!need_reorder)
+        return;
+
     auto dnnl_mem_src = src_blocked->getPrimitive();
     auto dnnl_mem_dst = dst_blocked->getPrimitive();
     if (!pre_converter)
@@ -614,13 +635,16 @@ void Reorder::ReorderExecutor::postConvert() {
 }
 
 bool Reorder::ReorderExecutor::exec(dnnl::stream strm) {
-    if (prim) {
-        preConvert();
-        prim.execute(strm, primArgs);
-        postConvert();
-        return true;
+    preConvert();
+    if (need_reorder) {
+        if (prim) {
+            prim.execute(strm, primArgs);
+        } else {
+            return false;
+        }
     }
-    return false;
+    postConvert();
+    return true;
 }
 
 }   // namespace node

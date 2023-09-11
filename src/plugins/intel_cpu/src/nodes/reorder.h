@@ -126,6 +126,7 @@ private:
         MemoryDescPtr input;
         MemoryDescPtr output;
 
+        bool need_reorder;
         dnnl::reorder::primitive prim;
         std::unordered_map<int, dnnl::memory> primArgs;
     };
