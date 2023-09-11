@@ -1,4 +1,6 @@
-<form class="searchForm bd-search d-flex align-items-center" action="{{ pathto('search') }}" method="get">
-    <i class="icon fas fa-search"></i>
-    <input type="search" class="form-control" name="query" id="search-input" placeholder="{{ _(theme_search_bar_text) }}" aria-label="{{ theme_search_bar_text }}" autocomplete="off" >
-</form>
+<div>
+<atomic-search-interface id="sa-search">
+  <atomic-search-box redirection-url="search.html">
+  </atomic-search-box>
+</atomic-search-interface>
+</div>
