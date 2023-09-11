@@ -924,7 +924,7 @@ def create_pytorch_module_with_nested_inputs5(tmp_dir):
     mul = ov.opset10.multiply(concat2, param4)
     ref_model = Model([mul, add], [param0, param1, param2, param4], "test")
     return net, ref_model, {
-        "example_input": [torch.ones((1, 10)), (torch.zeros((1, 10)), torch.ones((1, 5, 10))), torch.ones((1,))],
+        "example_input": [torch.ones((1, 10)), (torch.zeros((1, 9)), torch.ones((1, 5, 10))), torch.ones((1,))],
         "compress_to_fp16": False}
 
 
