@@ -37,6 +37,8 @@ macro(ov_set_msvc_runtime var value)
     endif()
 endmacro()
 
+# ade
+ov_set_msvc_runtime(BUILD_WITH_STATIC_CRT ${use_static_runtime})
 # static TBBBind_2_5 is built with dynamic CRT runtime
 ov_set_msvc_runtime(ENABLE_TBBBIND_2_5 ${use_dynamic_runtime})
 # ONNX
