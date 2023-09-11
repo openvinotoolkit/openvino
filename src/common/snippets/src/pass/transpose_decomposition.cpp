@@ -14,7 +14,7 @@ namespace snippets {
 namespace pass {
 using namespace lowered;
 
-const std::set<std::vector<int>> TransposeDecomposition::supported_cases = {{0, 2, 3, 1}};
+const std::set<std::vector<int>> TransposeDecomposition::supported_cases = {{0, 2, 3, 1}, {1, 2, 0}};
 
 TransposeDecomposition::TransposeDecomposition() {
     MATCHER_SCOPE(TransposeDecomposition);
