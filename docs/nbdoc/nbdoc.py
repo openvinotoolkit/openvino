@@ -28,7 +28,6 @@ from requests import get
 import os
 import sys
 
-main_tutorials_file = Path(os.path.join(os.path.dirname(os.path.dirname(__file__)),'tutorials.md'))
 
 class NbTravisDownloader:
     @staticmethod
@@ -146,22 +145,17 @@ class NbProcessor:
                 raise FileNotFoundError("Unable to modify file")
 
 def add_glob_directive(tutorials_file):
-    try:
-        with open(tutorials_file,'r', encoding='cp437') as mainfile:
+        with open(tutorials_file, 'r+', encoding='cp437') as mainfile:
             readfile = mainfile.read()
-            if readfile.find(':glob:') == -1:
+            if ':glob:' not in readfile:
                 add_glob = readfile\
-                    .replace("   :hidden:", "   :hidden:\n   :glob:")\
-                    .replace("   notebooks_installation", "   notebooks_installation\n   notebooks/*\n")
-                with open(tutorials_file, 'w', encoding='cp437') as mainfile:
-                    mainfile.writelines(add_glob)
-    except OSError as e:
-            print(f"Unable to open {tutorials_file}: {e}", file=sys.stderr)
-            return
+                    .replace(":hidden:\n", ":hidden:\n   :glob:\n")\
+                    .replace("notebooks_installation\n", "notebooks_installation\n   notebooks/*\n")
+                mainfile.seek(0)
+                mainfile.write(add_glob)
+                mainfile.truncate()
 
 def main():
-
-    glob_dir = add_glob_directive(main_tutorials_file)
     parser = argparse.ArgumentParser()
     parser.add_argument('sourcedir', type=Path)
     parser.add_argument('outdir', type=Path)
@@ -169,6 +163,10 @@ def main():
     args = parser.parse_args()
     sourcedir = args.sourcedir
     outdir = args.outdir
+
+    main_tutorials_file = Path('../../docs/tutorials.md').resolve(strict=True)
+    add_glob_directive(main_tutorials_file)
+
     if args.download:
         outdir.mkdir(parents=True, exist_ok=True)
         # Step 2. Run default pipeline for downloading
