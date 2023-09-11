@@ -36,8 +36,7 @@ jobs:
     container:
       # image: openvino.azurecr.io/openvino_ci/ubuntu2004:python_311
       # image: ubuntu:22.04
-      # image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
-      dockerfile: .ci/dockerfiles/ubuntu
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
