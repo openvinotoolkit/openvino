@@ -237,7 +237,32 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
     if isinstance(input_model, tf.Graph):
         return GraphIteratorTFGraph(input_model, share_weights)
     elif isinstance(input_model, tf.types.experimental.ConcreteFunction):
-        return GraphIteratorTFGraph(input_model.graph, share_weights)
+        # create a map for inputs to map internal tensor name to external one
+        # collect all internal tensor names in a given order
+        input_names_map = None
+        if hasattr(input_model, 'inputs') and hasattr(input_model, 'structured_input_signature'):
+            internal_tensor_names = []
+            for func_input in input_model.inputs:
+                if func_input.dtype == tf.resource:
+                    continue
+                internal_tensor_names.append(func_input.name)
+            if len(input_model.structured_input_signature) > 1 and \
+                    len(internal_tensor_names) == len(input_model.structured_input_signature[1]):
+                external_tensor_names = sorted(input_model.structured_input_signature[1].keys())
+                for internal_name, external_name in zip(internal_tensor_names, external_tensor_names):
+                    input_names_map = input_names_map or {}
+                    input_names_map[internal_name] = external_name
+
+        output_names_map = None
+        if hasattr(input_model, 'outputs') and hasattr(input_model, 'structured_outputs') and \
+                isinstance(input_model.structured_outputs, dict):
+            external_names = sorted(list(input_model.structured_outputs.keys()))
+            internal_names = sorted([tensor.name for tensor in input_model.outputs])
+            if len(external_names) == len(internal_names):
+                for external_name, internal_name in zip(external_names, internal_names):
+                    output_names_map = output_names_map or {}
+                    output_names_map[internal_name] = external_name
+        return GraphIteratorTFGraph(input_model.graph, share_weights, False, input_names_map, output_names_map)
     raise Exception("Could not wrap model of type {} to GraphIteratorTFGraph.".format(type(input_model)))
 
 

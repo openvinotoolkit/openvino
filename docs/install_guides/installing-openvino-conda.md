@@ -11,7 +11,7 @@
    
    Note that the Conda Forge distribution:
 
-   * offers both C++ and Python APIs
+   * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
    * is dedicated to users of all major OSs: Windows, Linux, macOS.
 

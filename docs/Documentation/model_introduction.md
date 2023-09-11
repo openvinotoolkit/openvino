@@ -15,6 +15,7 @@
    openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
 
+
 Every deep learning workflow begins with obtaining a model. You can choose to prepare a custom one, use a ready-made solution and adjust it to your needs, or even download and run a pre-trained network from an online database, such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__, or `Torchvision models <https://pytorch.org/hub/>`__.
 
 OpenVINO™ :doc:`supports several model representations <Supported_Model_Formats>` and allows converting them to it's own representation, `openvino.Model <api/ie_python_api/_autosummary/openvino.Model.html>`__ (`ov.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__), providing a conversion API to this task. Converted model can be used for inference using one or multiple OpenVINO Hardware plugins. This chapter describes two variants of using conversion API: using a Python program or calling ``ovc`` command line tool.
