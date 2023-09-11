@@ -41,7 +41,22 @@ public:
 };
 
 /**
- * @brief calls SubstituteGNAConvolution and SubstituteGNAMaxPool together
+ * @brief Substitites ngraph::AvgPool (NCHW) -> GNAAvgPool (NHWC)
+ *
+ *                              Transpose (NCHW -> NHWC)
+ *                                       |
+ * AvgPool (NCHW) ->               GNAAvgPool (NHWC)
+ *                                       |
+ *                              Transpose (NHWC -> NCHW)
+ */
+class SubstituteGNAAvgPool : public ov::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    SubstituteGNAAvgPool();
+};
+
+/**
+ * @brief calls SubstituteGNAConvolution and SubstituteGNAMaxPool and SubstituteGNAAvgPool together
  */
 class ReplaceGnaNHWCLayers : public ov::pass::ModelPass {
 public:

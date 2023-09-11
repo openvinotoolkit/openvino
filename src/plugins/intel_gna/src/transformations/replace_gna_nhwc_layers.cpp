@@ -12,7 +12,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ops/gna_convolution.hpp"
-#include "ops/gna_max_pool.hpp"
+#include "ops/gna_pool.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -25,6 +25,7 @@ using namespace ov::intel_gna::pass::helper;
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::ReplaceGnaNHWCLayers, "ReplaceGnaNHWCLayers");
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAConvolution, "SubstituteGNAConvolution");
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAMaxPool, "SubstituteGNAMaxPool");
+NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAAvgPool, "SubstituteGNAAvgPool");
 
 namespace {
 ov::Shape make_transpose_order_nchw2nhwc(size_t shape_size);
@@ -160,6 +161,47 @@ bool do_transformation(std::shared_ptr<ov::Node> max_pool) {
 
 // ----------------------------------------------------------------------------
 
+namespace SubstituteGNAAvgPoolNS {
+
+bool do_transformation(std::shared_ptr<ov::Node> convolution);
+
+bool do_transformation(std::shared_ptr<ov::Node> avg_pool) {
+    auto avg_pool_node = std::dynamic_pointer_cast<ov::op::v1::AvgPool>(avg_pool);
+    auto avg_pool_input_data_node = avg_pool_node->input_value(0);
+    const ov::Shape avgpool_input_shape = avg_pool_node->get_input_shape(0);
+
+    const ov::Shape transpose_before_order = make_transpose_order_nchw2nhwc(avgpool_input_shape.size());
+
+    auto transpose_const =
+        Constant::create(element::i32, ov::Shape{transpose_before_order.size()}, transpose_before_order);
+
+    auto transpose_before = std::make_shared<Transpose>(avg_pool_input_data_node, transpose_const);
+
+    auto pool_new = std::make_shared<ov::intel_gna::op::GNAAvgPool>(transpose_before,
+                                                                    avg_pool_node->get_strides(),
+                                                                    avg_pool_node->get_pads_begin(),
+                                                                    avg_pool_node->get_pads_end(),
+                                                                    avg_pool_node->get_kernel(),
+                                                                    avg_pool_node->get_rounding_type(),
+                                                                    avg_pool_node->get_auto_pad());
+
+    const ov::Shape transpose_after_order = make_transpose_order_nhwc2nchw(pool_new->get_output_shape(0).size());
+
+    auto transpose_after = std::make_shared<Transpose>(
+        pool_new,
+        Constant::create(element::i32, ov::Shape{transpose_after_order.size()}, transpose_after_order));
+
+    ov::copy_runtime_info(avg_pool_node, {transpose_before, transpose_const, pool_new, transpose_after});
+
+    ov::replace_output_update_name(avg_pool->output(0), transpose_after->output(0));
+
+    return true;
+}
+
+}  // namespace SubstituteGNAAvgPoolNS
+
+// ----------------------------------------------------------------------------
+
 ov::intel_gna::pass::SubstituteGNAConvolution::SubstituteGNAConvolution() {
     MATCHER_SCOPE(SubstituteGNAConvolution);
 
@@ -196,12 +238,31 @@ ov::intel_gna::pass::SubstituteGNAMaxPool::SubstituteGNAMaxPool() {
     this->register_matcher(m, callback);
 }
 
+ov::intel_gna::pass::SubstituteGNAAvgPool::SubstituteGNAAvgPool() {
+    MATCHER_SCOPE(SubstituteGNAAvgPool);
+
+    auto avg_pool = wrap_type<ov::op::v1::AvgPool>();
+
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto avg_pool_node = std::dynamic_pointer_cast<ov::op::v1::AvgPool>(m.get_match_root());
+        if (!avg_pool_node) {
+            return false;
+        }
+
+        return SubstituteGNAAvgPoolNS::do_transformation(avg_pool_node);
+    };
+
+    auto m = std::make_shared<Matcher>(avg_pool, matcher_name);
+    this->register_matcher(m, callback);
+}
+
 bool ov::intel_gna::pass::ReplaceGnaNHWCLayers::run_on_model(const std::shared_ptr<Model>& function) {
     RUN_ON_MODEL_SCOPE(ReplaceGnaNHWCLayers);
 
     ov::pass::Manager manager(get_pass_config());
     manager.register_pass<ov::intel_gna::pass::SubstituteGNAConvolution>();
     manager.register_pass<ov::intel_gna::pass::SubstituteGNAMaxPool>();
+    manager.register_pass<ov::intel_gna::pass::SubstituteGNAAvgPool>();
     manager.run_passes(function);
 
     return false;

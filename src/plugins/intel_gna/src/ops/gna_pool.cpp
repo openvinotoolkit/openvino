@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gna_max_pool.hpp"
+#include "gna_pool.hpp"
 
 #include <assert.h>
 
@@ -126,13 +126,13 @@ ov::PartialShape infer_batched_pooling_forward(const ov::Node* node,
     return data_batch_output_shape;
 }
 
-GNAMaxPool::GNAMaxPool(const ov::Output<ov::Node>& arg,
-                       const ov::Strides& strides,
-                       const ov::Shape& pads_begin,
-                       const ov::Shape& pads_end,
-                       const ov::Shape& kernel,
-                       const ov::op::RoundingType rounding_type,
-                       const ov::op::PadType auto_pad)
+GNAPoolBase::GNAPoolBase(const ov::Output<ov::Node>& arg,
+                         const ov::Strides& strides,
+                         const ov::Shape& pads_begin,
+                         const ov::Shape& pads_end,
+                         const ov::Shape& kernel,
+                         const ov::op::RoundingType rounding_type,
+                         const ov::op::PadType auto_pad)
     : Op({arg}),
       m_kernel(kernel),
       m_strides(strides),
@@ -143,7 +143,7 @@ GNAMaxPool::GNAMaxPool(const ov::Output<ov::Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-bool GNAMaxPool::visit_attributes(ov::AttributeVisitor& visitor) {
+bool GNAPoolBase::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
@@ -153,7 +153,7 @@ bool GNAMaxPool::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-void GNAMaxPool::validate_and_infer_types() {
+void GNAPoolBase::validate_and_infer_types() {
     if (0 == m_strides.size()) {
         m_strides = ov::Strides(m_kernel.size(), 1);
     }
@@ -199,7 +199,7 @@ void GNAMaxPool::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
-ov::PartialShape GNAMaxPool::infer_output_shape(const ov::Strides& dilations) {
+ov::PartialShape GNAPoolBase::infer_output_shape(const ov::Strides& dilations) {
     const auto& arg_shape = get_input_partial_shape(0);
 
     bool update_auto_padding_succeed = true;
@@ -241,10 +241,10 @@ ov::PartialShape GNAMaxPool::infer_output_shape(const ov::Strides& dilations) {
     return output_shape;
 }
 
-bool GNAMaxPool::update_auto_padding(const ov::PartialShape& in_shape,
-                                     const ov::Strides& filter_dilations,
-                                     ov::Shape& new_pads_end,
-                                     ov::Shape& new_pads_begin) const {
+bool GNAPoolBase::update_auto_padding(const ov::PartialShape& in_shape,
+                                      const ov::Strides& filter_dilations,
+                                      ov::Shape& new_pads_end,
+                                      ov::Shape& new_pads_begin) const {
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == ov::op::PadType::SAME_UPPER || m_auto_pad == ov::op::PadType::SAME_LOWER) {
         ov::CoordinateDiff pads_end, pads_begin;
@@ -261,15 +261,15 @@ bool GNAMaxPool::update_auto_padding(const ov::PartialShape& in_shape,
     return update_auto_padding_succeed;
 }
 
-std::shared_ptr<ov::Node> GNAMaxPool::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+std::shared_ptr<ov::Node> GNAPoolBase::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<GNAMaxPool>(new_args.at(0),
-                                        m_strides,
-                                        m_pads_begin,
-                                        m_pads_end,
-                                        m_kernel,
-                                        m_rounding_type,
-                                        m_auto_pad);
+    return std::make_shared<GNAPoolBase>(new_args.at(0),
+                                         m_strides,
+                                         m_pads_begin,
+                                         m_pads_end,
+                                         m_kernel,
+                                         m_rounding_type,
+                                         m_auto_pad);
 }
 
 }  // namespace op

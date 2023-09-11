@@ -20,7 +20,7 @@
 #include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
 #include "gna_convolution.hpp"
-#include "gna_max_pool.hpp"
+#include "gna_pool.hpp"
 #include "ie_legacy_itt.hpp"
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
@@ -594,7 +594,7 @@ CNNLayerCreator::CNNLayerCreator() {
                                Builder::asString(axis < 0 ? axis + node->get_input_shape(0).size() : axis);
                            return res;
                        });
-    addSpecificCreator({"AvgPool", "MaxPool", "GNAMaxPool"},
+    addSpecificCreator({"AvgPool", "MaxPool", "GNAMaxPool", "GNAAvgPool"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
                            LayerParams attrs = {node->get_friendly_name(),
@@ -611,7 +611,7 @@ CNNLayerCreator::CNNLayerCreator() {
                                res->params.erase("exclude_pad");
                            }
 
-                           if (node->description() == "MaxPool" || node->description() == "GNAMaxPool") {
+                           if (node->description() == "MaxPool" || node->description() == "GNAMaxPool" || node->description() == "GNAAvgPool") {
                                res->params["pool-method"] = "max";
                            } else if (node->description() == "AvgPool") {
                                res->params["pool-method"] = "avg";
@@ -2040,7 +2040,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (((::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
               ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer) ||
               ::ngraph::as_type_ptr<ov::intel_gna::op::GNAConvolution>(consumerLayer) ||
-              ::ngraph::as_type_ptr<ov::intel_gna::op::GNAMaxPool>(consumerLayer)) &&
+              ::ngraph::as_type_ptr<ov::intel_gna::op::GNAMaxPool>(consumerLayer) ||
+              ::ngraph::as_type_ptr<ov::intel_gna::op::GNAAvgPool>(consumerLayer)) &&
              !keep_constants) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||

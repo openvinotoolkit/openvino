@@ -8,7 +8,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <ops/gna_convolution.hpp>
-#include <ops/gna_max_pool.hpp>
+#include <ops/gna_pool.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -118,6 +118,57 @@ TEST(TransposeNCHW, MaxPool) {
         auto transpose_after_const = Constant::create(element::i32, Shape{4}, {0, 3, 1, 2});
 
         auto transpose_after = std::make_shared<Transpose>(max_pool, transpose_after_const);
+
+        const auto result = std::make_shared<Result>(transpose_after);
+        reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(function, reference_function);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransposeNCHW, AvgPool) {
+    std::shared_ptr<Model> function;
+    {
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
+
+        auto pool = std::make_shared<ov::op::v1::AvgPool>(input_params,
+                                                          Strides{2, 1},
+                                                          Shape{0, 0},
+                                                          Shape{0, 0},
+                                                          Shape{4, 1},
+                                                          false);
+
+        const auto result = std::make_shared<Result>(pool);
+        function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
+    }
+
+    std::shared_ptr<Model> orig_function = function->clone();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::intel_gna::pass::SubstituteGNAAvgPool>();
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
+
+    std::shared_ptr<Model> reference_function;
+    {
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
+
+        auto transpose_before_const = Constant::create(element::i32, Shape{4}, {0, 2, 3, 1});
+
+        auto transpose_before = std::make_shared<Transpose>(input_params, transpose_before_const);
+
+        auto pool = std::make_shared<ov::intel_gna::op::GNAAvgPool>(transpose_before,
+                                                                    Strides{2, 1},
+                                                                    Shape{0, 0},
+                                                                    Shape{0, 0},
+                                                                    Shape{4, 1});
+
+        auto transpose_after_const = Constant::create(element::i32, Shape{4}, {0, 3, 1, 2});
+
+        auto transpose_after = std::make_shared<Transpose>(pool, transpose_after_const);
 
         const auto result = std::make_shared<Result>(transpose_after);
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});

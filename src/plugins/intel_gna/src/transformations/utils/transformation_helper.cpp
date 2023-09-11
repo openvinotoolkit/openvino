@@ -10,7 +10,7 @@
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ops/gna_convolution.hpp"
-#include "ops/gna_max_pool.hpp"
+#include "ops/gna_pool.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov::opset12;
