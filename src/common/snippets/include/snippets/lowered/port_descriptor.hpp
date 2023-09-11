@@ -65,6 +65,13 @@ private:
     VectorDims m_subtensor_shape{};
     /// \brief The corresponding abstract/physical register
     size_t m_reg = 0;
+
+    /// Notes: m_tensor_shape is dense shape which is controled by expression outputs.
+    ///        It means that the result of data writing of expression outputs should be read using this shape by the next expression inputs.
+    ///        Also if Port is input port of expression:
+    ///         - m_layout shows how the data should be read (by which strides) using m_tensor_shape.
+    ///        If Port is output port of expression:
+    ///         - m_layout shows how the data should be written (by which strides) to get m_tensor_shape.
 };
 
 class PortDescriptorUtils {
