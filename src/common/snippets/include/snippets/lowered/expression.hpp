@@ -8,7 +8,6 @@
 #include <openvino/opsets/opset1.hpp>
 
 #include "snippets/emitter.hpp"
-#include "snippets/target_machine.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/expression_port.hpp"
 
@@ -47,7 +46,6 @@ public:
     size_t get_output_count() const { return m_output_port_connectors.size(); }
 
     void validate() const;
-    void init_emitter(const std::shared_ptr<const TargetMachine>& target);
 
     ExpressionPort get_input_port(size_t i);
     ExpressionPort get_output_port(size_t i);

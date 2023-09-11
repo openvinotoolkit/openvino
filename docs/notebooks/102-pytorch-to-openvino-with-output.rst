@@ -1,7 +1,7 @@
 Convert a PyTorch Model to OpenVINO™ IR
 =======================================
 
-.. _top:
+
 
 This tutorial demonstrates step-by-step instructions on how to do
 inference on a PyTorch classification model using OpenVINO Runtime.
@@ -30,6 +30,10 @@ overall process is analogous to the classic manual design of networks
 but elevated to the design space level. The RegNet design space provides
 simple and fast networks that work well across a wide range of flop
 regimes. 
+
+
+
+.. _top:
 
 **Table of contents**:
 
@@ -235,7 +239,7 @@ Starting from the 2023.0 release OpenVINO supports direct PyTorch models
 conversion to OpenVINO Intermediate Representation (IR) format. Model
 Optimizer Python API should be used for these purposes. More details
 regarding PyTorch model conversion can be found in OpenVINO
-`documentation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+`documentation <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
 
 .. note::
 
@@ -264,7 +268,7 @@ parameters, such as:
 
 and any other advanced options supported by model conversion Python API.
 More details can be found on this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+`page <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 
 .. code:: ipython3
 
