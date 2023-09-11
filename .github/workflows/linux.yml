@@ -816,7 +816,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-8-cores
+    runs-on: ubuntu-20.04
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -837,11 +837,6 @@ jobs:
       #
       # Dependencies
       #
-
-      - name: Install dependencies
-        run: |
-          sudo -E apt update
-          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
       - uses: actions/setup-python@v4
         with:
@@ -875,6 +870,11 @@ jobs:
           pushd ${{ env.INSTALL_TEST_DIR }}
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
+
+      - name: Install dependencies
+        run: |
+          sudo -E apt update
+          sudo -E ${{ env.INSTALL_DIR }}/install_dependencies/install_openvino_dependencies.sh
 
       - name: Install Python wheels
         run: |
