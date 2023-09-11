@@ -828,12 +828,6 @@ jobs:
         run: |
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: 'openvino'
-          submodules: 'recursive'
-
       #
       # Dependencies
       #
@@ -841,13 +835,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-
-      - name: Install python dependencies
-        run: |
-          # For Python API
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -878,7 +865,7 @@ jobs:
 
       - name: Install Python wheels
         run: |
-          python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
+          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
 
       - name: TensorFlow Hub Tests - TF FE
         run: |
