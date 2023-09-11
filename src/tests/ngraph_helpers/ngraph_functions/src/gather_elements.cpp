@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/gather_elements.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -26,7 +27,7 @@ std::shared_ptr<Node> makeGatherElements(const Output<Node>& dataNode,
     auto indicesValues = NGraphFunctions::Utils::generateVector<element::Type_t::i32>(indicesSize, axisDim - 1, 0);
     auto indicesNode = ov::op::v0::Constant::create(indicesType, indicesShape, indicesValues);
 
-    auto gatherElNode = std::make_shared<op::v6::GatherElements>(dataNode, indicesNode, axis);
+    auto gatherElNode = std::make_shared<ov::op::v6::GatherElements>(dataNode, indicesNode, axis);
     gatherElNode->set_friendly_name("GatherElements");
 
     return gatherElNode;

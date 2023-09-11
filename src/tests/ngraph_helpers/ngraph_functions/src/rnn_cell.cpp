@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
 
 namespace ngraph {
 namespace builder {

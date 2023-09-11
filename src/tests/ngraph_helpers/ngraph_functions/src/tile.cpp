@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/tile.hpp"
 
 namespace ngraph {
 namespace builder {

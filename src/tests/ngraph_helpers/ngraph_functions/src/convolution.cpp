@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -28,7 +30,7 @@ std::shared_ptr<Node> makeConvolution(const ov::Output<Node>& in,
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
     auto conv =
-        std::make_shared<opset1::Convolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations, autoPad);
+        std::make_shared<ov::op::v1::Convolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations, autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
         auto biasesWeightsNode = makeConstant(type, {1, numOutChannels, 1, 1}, biasesWeights, randomBiases);
@@ -53,7 +55,7 @@ std::shared_ptr<Node> makeConvolution(const ov::Output<Node>& in_data,
                                       const std::vector<float>& biasesWeights) {
     auto shape = in_data.get_partial_shape();
     auto conv =
-        std::make_shared<opset1::Convolution>(in_data, in_weights, strides, padsBegin, padsEnd, dilations, autoPad);
+        std::make_shared<ov::op::v1::Convolution>(in_data, in_weights, strides, padsBegin, padsEnd, dilations, autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
         auto biasesWeightsNode = makeConstant(type, {1, numOutChannels, 1, 1}, biasesWeights, randomBiases);

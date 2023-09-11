@@ -8,7 +8,6 @@
 #include <random>
 #include <vector>
 
-#include "ngraph_helpers.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
 namespace NGraphFunctions {

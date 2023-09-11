@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/embeddingbag_packedsum.hpp"
 
 namespace ngraph {
 namespace builder {

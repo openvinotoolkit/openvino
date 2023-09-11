@@ -10,7 +10,7 @@ namespace builder {
 std::shared_ptr<ov::Node> makeSpaceToDepth(const ov::Output<Node>& in,
                                            ov::op::v0::SpaceToDepth::SpaceToDepthMode mode,
                                            size_t blockSize) {
-    auto dtsNode = std::make_shared<op::v0::SpaceToDepth>(in, mode, blockSize);
+    auto dtsNode = std::make_shared<ov::op::v0::SpaceToDepth>(in, mode, blockSize);
     return dtsNode;
 }
 

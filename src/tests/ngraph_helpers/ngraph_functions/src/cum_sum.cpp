@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/cum_sum.hpp"
 
 namespace ngraph {
 namespace builder {

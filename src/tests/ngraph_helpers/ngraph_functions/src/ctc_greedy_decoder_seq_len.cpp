@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -26,7 +27,7 @@ std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inp
         throw std::logic_error("Unsupported index precision");
     }();
 
-    return std::make_shared<op::v6::CTCGreedyDecoderSeqLen>(inputData,
+    return std::make_shared<ov::op::v6::CTCGreedyDecoderSeqLen>(inputData,
                                                             sequenceLengthData,
                                                             blankIndexNode,
                                                             mergeRepeated,

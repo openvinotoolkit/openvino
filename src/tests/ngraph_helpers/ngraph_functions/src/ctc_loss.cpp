@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/ctc_loss.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -33,7 +34,7 @@ std::shared_ptr<Node> makeCTCLoss(const ov::Output<Node>& logitsNode,
     auto labelsLengthNode = makeConstant(iType, {N}, labelsLength);
     auto blankIndexNode = makeConstant<int>(iType, {}, {blankIndex});
 
-    auto ctcLossNode = std::make_shared<op::v4::CTCLoss>(logitsNode,
+    auto ctcLossNode = std::make_shared<ov::op::v4::CTCLoss>(logitsNode,
                                                          logitsLengthNode,
                                                          labelsNode,
                                                          labelsLengthNode,

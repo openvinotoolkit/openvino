@@ -15,6 +15,7 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/detection_output.hpp"
 #include "openvino/op/space_to_depth.hpp"
 
 namespace ngraph {

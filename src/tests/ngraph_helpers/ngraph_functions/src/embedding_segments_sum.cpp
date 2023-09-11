@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/embedding_segments_sum.hpp"
 
 namespace ngraph {
 namespace builder {

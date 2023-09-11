@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/gather_nd.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -35,7 +36,7 @@ std::shared_ptr<Node> makeGatherND(const ov::Output<Node>& dataNode,
         return op::v0::Constant::create(indicesType, indicesShape, indicesValues);
     }();
 
-    auto gatherNdNode = std::make_shared<op::v5::GatherND>(dataNode, indices, batchDims);
+    auto gatherNdNode = std::make_shared<ov::op::v5::GatherND>(dataNode, indices, batchDims);
     gatherNdNode->set_friendly_name("GatherND");
 
     return gatherNdNode;
@@ -65,7 +66,7 @@ std::shared_ptr<Node> makeGatherND8(const ov::Output<Node>& dataNode,
         return op::v0::Constant::create(indicesType, indicesShape, indicesValues);
     }();
 
-    auto gatherNdNode = std::make_shared<op::v8::GatherND>(dataNode, indices, batchDims);
+    auto gatherNdNode = std::make_shared<ov::op::v8::GatherND>(dataNode, indices, batchDims);
     gatherNdNode->set_friendly_name("GatherND");
 
     return gatherNdNode;

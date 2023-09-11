@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/space_to_batch.hpp"
 
 namespace ngraph {
 namespace builder {

@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -57,7 +59,7 @@ std::shared_ptr<Node> makeGroupConvolution(const ov::Output<Node>& in,
                                            bool addBiases,
                                            const std::vector<float>& biasesWeights) {
     auto conv =
-        std::make_shared<op::v1::GroupConvolution>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
+        std::make_shared<ov::op::v1::GroupConvolution>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
         auto biasesWeightsNode = makeConstant(type, {}, biasesWeights, randomBiases);

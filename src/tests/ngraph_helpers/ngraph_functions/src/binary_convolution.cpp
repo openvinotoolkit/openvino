@@ -7,6 +7,7 @@
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/data_utils.hpp"
+#include "openvino/op/binary_convolution.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -36,13 +37,13 @@ std::shared_ptr<Node> makeBinaryConvolution(const Output<Node>& in,
             buffer[i] = filterWeihgts[i];
     }
     auto conv =
-        std::make_shared<opset1::BinaryConvolution>(in,
+        std::make_shared<ov::op::v1::BinaryConvolution>(in,
                                                     filterWeightsNode,
                                                     strides,
                                                     padsBegin,
                                                     padsEnd,
                                                     dilations,
-                                                    opset1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
+                                                    ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
                                                     padValue,
                                                     autoPad);
     return conv;

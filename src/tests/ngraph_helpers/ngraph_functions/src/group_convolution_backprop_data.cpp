@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -59,7 +61,7 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
                                                        bool addBiases,
                                                        const std::vector<ptrdiff_t>& outputPadding,
                                                        const std::vector<float>& biasesWeights) {
-    auto deconv = std::make_shared<opset1::GroupConvolutionBackpropData>(in,
+    auto deconv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(in,
                                                                          weights,
                                                                          strides,
                                                                          padsBegin,
@@ -68,7 +70,7 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
                                                                          autoPad);
 
     if (!outputPadding.empty()) {
-        deconv = std::make_shared<opset1::GroupConvolutionBackpropData>(in,
+        deconv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(in,
                                                                         weights,
                                                                         strides,
                                                                         padsBegin,
@@ -113,7 +115,7 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
-    auto deconv = std::make_shared<opset1::GroupConvolutionBackpropData>(in,
+    auto deconv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(in,
                                                                          filterWeightsNode,
                                                                          outputShape,
                                                                          strides,
@@ -123,7 +125,7 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
                                                                          autoPad);
 
     if (!outputPadding.empty()) {
-        deconv = std::make_shared<opset1::GroupConvolutionBackpropData>(in,
+        deconv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(in,
                                                                         filterWeightsNode,
                                                                         outputShape,
                                                                         strides,

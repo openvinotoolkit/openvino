@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/proposal.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -47,7 +48,7 @@ std::shared_ptr<Node> makeProposal(const ov::Output<Node>& class_probs,
 
     auto image_shape = makeConstant(ov::element::Type_t::f32, {3}, image_info);
 
-    return std::make_shared<op::v4::Proposal>(class_probs, class_logits, image_shape, attrs);
+    return std::make_shared<ov::op::v4::Proposal>(class_probs, class_logits, image_shape, attrs);
 }
 
 }  // namespace builder

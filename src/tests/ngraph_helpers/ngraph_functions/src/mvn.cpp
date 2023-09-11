@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/mvn.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -35,10 +36,10 @@ std::shared_ptr<Node> makeMVN6(const Output<Node>& in,
                                bool normalizeVariance,
                                float eps,
                                std::string& epsMode) {
-    op::MVNEpsMode nEpsMode = op::MVNEpsMode::INSIDE_SQRT;
+    ov::op::MVNEpsMode nEpsMode = ov::op::MVNEpsMode::INSIDE_SQRT;
     if (epsMode == "outside_sqrt")
-        nEpsMode = op::MVNEpsMode::OUTSIDE_SQRT;
-    auto mvnNode = std::make_shared<op::v6::MVN>(in, axesNode, normalizeVariance, eps, nEpsMode);
+        nEpsMode = ov::op::MVNEpsMode::OUTSIDE_SQRT;
+    auto mvnNode = std::make_shared<ov::op::v6::MVN>(in, axesNode, normalizeVariance, eps, nEpsMode);
 
     return mvnNode;
 }

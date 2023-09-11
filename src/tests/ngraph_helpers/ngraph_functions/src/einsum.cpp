@@ -6,6 +6,7 @@
 #include <string>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/einsum.hpp"
 
 namespace ngraph {
 namespace builder {

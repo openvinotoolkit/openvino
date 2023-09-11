@@ -3,6 +3,8 @@
 //
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 
 namespace ngraph {
 namespace builder {

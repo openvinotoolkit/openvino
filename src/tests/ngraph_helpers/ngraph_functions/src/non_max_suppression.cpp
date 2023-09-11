@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 
 namespace ngraph {
 namespace builder {

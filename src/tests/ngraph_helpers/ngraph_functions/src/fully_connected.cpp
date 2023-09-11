@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
 
 namespace ngraph {
 namespace builder {
