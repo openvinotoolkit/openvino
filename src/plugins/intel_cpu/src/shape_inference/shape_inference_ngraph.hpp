@@ -17,8 +17,12 @@ namespace intel_cpu {
  */
 class NgraphShapeInfer : public IShapeInfer {
 public:
+    NgraphShapeInfer(std::shared_ptr<IStaticShapeInfer> shape_infer, IShapeInfer::port_mask_t port_mask)
+        : m_shape_infer(shape_infer),
+          m_port_mask(port_mask) {}
+
     NgraphShapeInfer(std::shared_ptr<IStaticShapeInfer> shape_infer)
-        : m_shape_infer(shape_infer) {}
+        : m_shape_infer(shape_infer), m_port_mask(EMPTY_PORT_MASK) {}
 
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
@@ -32,8 +36,13 @@ public:
         return m_shape_infer->get_pads_end();
     }
     port_mask_t get_port_mask() const override {
-        return m_shape_infer->get_port_mask();
+        if (EMPTY_PORT_MASK != m_port_mask) {
+            return m_port_mask;
+        } else {
+            return m_shape_infer->get_port_mask();
+        }
     }
+
 private:
     std::shared_ptr<IStaticShapeInfer> m_shape_infer;
     IShapeInfer::port_mask_t m_port_mask;
