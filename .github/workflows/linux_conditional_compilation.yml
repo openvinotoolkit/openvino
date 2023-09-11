@@ -4,24 +4,24 @@ on:
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#  push:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#    branches:
-#      - master
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}-linux-cc
@@ -82,14 +82,8 @@ jobs:
       # Build
       #
 
-      - name: Get tools versions
-        run: |
-          ninja --version || exit 1
-          python3 --version || exit 1
-          cmake --version || exit 1
-
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: CMake configure CC COLLECT
@@ -114,6 +108,12 @@ jobs:
 
       - name: Show ccache stats
         run: ccache --show-stats
+
+      - name: Check Dir
+        run: ls -laR ${{ env.OPENVINO_REPO }}/bin/intel64/Release
+
+      - name: Check Models Dir
+        run: ls -laR ${{ env.MODELS_PATH }}
 
       - name: Code usage analysis
         run: |
