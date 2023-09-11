@@ -36,7 +36,8 @@ endif()
 
 if(NOT EXIT_CODE EQUAL 0)
     set(paddlepaddle_FOUND OFF)
-    message(WARNING "Python requirement file ${PADDLE_REQ} is not installed, PaddlePaddle frontend unit tests will be skipped")
+    message(WARNING "Python requirement file ${PADDLE_REQ} is not installed, PaddlePaddle testing models weren't generated, 
+                     some tests will fail due models not found")
 else()
     set(paddlepaddle_FOUND ON)
 endif()
