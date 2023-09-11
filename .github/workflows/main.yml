@@ -1,4 +1,5 @@
-on: [push]
+name: Test workflow
+on: [pull_request]
 
 jobs:
   hello_world_job:
