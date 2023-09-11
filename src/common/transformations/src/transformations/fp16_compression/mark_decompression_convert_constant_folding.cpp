@@ -14,7 +14,7 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
-#include "transformations/rt_info/keep_fp16_const.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 using namespace ov;
 
@@ -69,7 +69,7 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
 
         if (!is_type<ov::op::v0::Constant>(node->input_value(0).get_node_shared_ptr()))
             return false;
-        enable_keep_fp16_const(node->input_value(0).get_node_shared_ptr());
+        enable_keep_const_precision(node->input_value(0).get_node_shared_ptr());
 
         return false;
     };
@@ -88,7 +88,7 @@ pass::KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts
             return false;
         }
 
-        enable_keep_fp16_const(const_node);
+        enable_keep_const_precision(const_node);
 
         const auto& constant_target_inputs = const_node->get_output_target_inputs(0);
         const auto& next_node = constant_target_inputs.begin()->get_node()->shared_from_this();
