@@ -39,9 +39,9 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
       .. code-block:: py
          :force:
 
+            import openvino as ov
             import torch
             from torchvision.models import resnet50
-            import openvino as ov
 
             model = resnet50(pretrained=True)
 
@@ -87,7 +87,7 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          # compile model
          compiled_model = ov.compile_model(ov_model)
 
-         # prepare input_data your way using HF tokenizer or your own tokenizer
+         # prepare input_data using HF tokenizer or your own tokenizer
          # encoded_input is reused here for simplicity
 
          # run the inference
@@ -113,7 +113,7 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          # compile model
          compiled_model = ov.compile_model(ov_model)
 
-         # prepare input_data your way
+         # prepare input_data
          import numpy as np
          input_data = np.random.rand(1, 224, 224, 3)
 
@@ -146,7 +146,7 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
 
          compiled_model = ov.compile_model(ov_model)
 
-         # prepare input_data your way
+         # prepare input_data
          import numpy as np
          input_data = np.random.rand(1, 224, 224, 3)
 
@@ -175,7 +175,7 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          # compile model
          compiled_model = ov.compile_model(ov_model)
 
-         # prepare input_data your way
+         # prepare input_data
          import numpy as np
          input_data = np.random.rand(1, 3, 224, 224)
 
