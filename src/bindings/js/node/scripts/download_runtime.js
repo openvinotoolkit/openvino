@@ -19,11 +19,11 @@ async function main() {
   if (isRuntimeDirExists && !process.argv.includes('-f')) {
     if (process.argv.includes('--ignore-if-exists')) {
       console.error(`Directory '${modulePath}' exists, `
-        + `skip '--ignore-if-exists' flag passed`);
+        + `skip runtime init because '--ignore-if-exists' flag passed`);
       return;
     }
 
-    console.error(`Directory '${modulePath}' is already exist, to force `
+    console.error(`Directory '${modulePath}' already exists, to force `
       + `runtime installation run 'npm run download_runtime -- -f'`);
     process.exit(1);
   }
@@ -33,6 +33,8 @@ async function main() {
   let packageName = originalPackageName.replace('{letter}', osInfo.letter);
   packageName = packageName.replace('{os}', osInfo.os);
   packageName = packageName.replace('{extension}', osInfo.extension);
+  packageName = packageName.replace('{arch}', osInfo.arch);
+  packageName = packageName.replace('{version}', packageJson.binary.version);
 
   const binaryUrl = packageJson.binary.host + packageJson.binary['remote_path']
     + packageName;
@@ -88,7 +90,19 @@ async function detectOS() {
     platformMapping.linux.os = os;
   }
 
-  return { platform, ...platformMapping[platform] };
+  const arch = os.arch();
+
+  if (!['arm64', 'x64'].includes(arch)) {
+    console.error(`Architecture '${arch}' doesn't support`);
+    process.exit(1);
+  }
+
+  const archMapping = {
+    arm64: 'arm64',
+    x64: 'x86_64',
+  };
+
+  return { platform, arch: archMapping[arch], ...platformMapping[platform] };
 }
 
 async function checkDirExistence(pathToDir) {
