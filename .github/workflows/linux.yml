@@ -313,8 +313,8 @@ jobs:
       volumes:
         - /mount/caches:/mount/caches
     env:
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_DIR: /__w/openvino/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
 
     steps:
       - name: Create Directories
@@ -517,17 +517,17 @@ jobs:
       volumes:
         - /mount/caches:/mount/caches
     env:
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
-      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
-      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
-      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-      BUILD_DIR: ${{ github.workspace }}/build
-      DATA_PATH: ${{ github.workspace }}/testdata
-      MODELS_PATH: ${{ github.workspace }}/testdata
-      OV_TEMP: ${{ github.workspace }}/openvino_temp
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
+      INSTALL_DIR: /__w/openvino/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
+      SAMPLES_INSTALL_DIR: /__w/openvino/openvino/install/samples
+      LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/model_hub_tests
+      BUILD_DIR: /__w/openvino/openvino/build
+      DATA_PATH: /__w/openvino/openvino/testdata
+      MODELS_PATH: /__w/openvino/openvino/testdata
+      OV_TEMP: /__w/openvino/openvino/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
 
     steps:
@@ -800,10 +800,10 @@ jobs:
       volumes:
         - /mount/caches:/mount/caches
     env:
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/run_parallel.py
-      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
+      INSTALL_DIR: /__w/openvino/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
+      PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/run_parallel.py
+      PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
 
     steps:
       - name: Create Directories
