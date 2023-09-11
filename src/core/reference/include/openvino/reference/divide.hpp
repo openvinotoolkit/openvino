@@ -9,13 +9,12 @@
 #include <type_traits>
 
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
+#include "openvino/reference/autobroadcast_binop.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 // NOTE: Execution throws `std::domain_error` if either a non-integral value or an
 // out-of-bounds value is detected in the input tensor.
@@ -110,5 +109,4 @@ divide(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
