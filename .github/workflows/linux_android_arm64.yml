@@ -52,13 +52,13 @@ jobs:
       ANDROID_ABI_CONFIG: arm64-v8a
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'recursive'
 
       - name: Clone VCPKG
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'microsoft/vcpkg'
           path: 'vcpkg'
@@ -133,7 +133,7 @@ jobs:
           echo "set(VCPKG_BUILD_TYPE release)" >> ${{ env.VCPKG_ROOT }}/triplets/community/arm64-android.cmake
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: CMake configure
