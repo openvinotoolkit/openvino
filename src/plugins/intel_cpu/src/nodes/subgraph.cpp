@@ -18,7 +18,7 @@
 #include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>
-#include <snippets/lowered/pass/domain_optimization.hpp>
+#include <snippets/lowered/pass/optimize_domain.hpp>
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
 #include "emitters/x64/cpu_generator.hpp"
@@ -500,8 +500,7 @@ Snippet::SnippetExecutor::SnippetExecutor(const SnippetAttrs& attrs, bool is_can
     : snippetAttrs(attrs), is_canonicalized(is_canonicalized), is_dynamic(is_dynamic), enforceBF16(enforceBF16) {}
 
 Snippet::SnippetJitExecutor::SnippetJitExecutor(const SnippetAttrs& attrs, bool is_canonicalized, bool is_dynamic, bool enforceBF16) :
-    SnippetExecutor(attrs, is_canonicalized, is_dynamic, enforceBF16),
-    min_parallel_work_amount{static_cast<size_t>(parallel_get_max_threads())} {
+    SnippetExecutor(attrs, is_canonicalized, is_dynamic, enforceBF16) {
     numInput = snippetAttrs.inMemBlockedDims.size();
     numOutput = snippetAttrs.outMemBlockedDims.size();
     start_offset_in.resize(numInput);
@@ -549,8 +548,10 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(const SnippetAttrs& attrs, bool 
 
     if (canonicalShape.is_dynamic())
         IE_THROW() << "Snippets: Canonicalization returned dynamic shape in static pipeline";
-    snippet_for_generation->set_min_parallel_work_amount(min_parallel_work_amount);
-    snippet_for_generation->set_min_jit_work_amount(min_jit_work_amount);
+    snippet_for_generation->set_min_parallel_work_amount(static_cast<size_t>(parallel_get_max_threads()));
+    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
+    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
+    snippet_for_generation->set_min_jit_work_amount(256);
 
     // generate
     jit_snippets_compile_args jcp;
@@ -609,7 +610,7 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
 
     ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert)
-    // Note: we need to pass valid shapeInfer factory to generate, so it can be used in DomainOptimization pass
+    // Note: we need to pass valid shapeInfer factory to generate, so it can be used in OptimizeDomain pass
     // in all other cases nGraph shape inference will be used until ticket # 113209 (PR 18563) is merged
     schedule = snippet_for_generation->generate(backend_passes,
                                                 control_flow_markup_pipeline,
