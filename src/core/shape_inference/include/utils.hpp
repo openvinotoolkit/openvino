@@ -98,8 +98,8 @@ OPENVINO_SUPPRESS_DEPRECATED_END
  *
  * \return Object of TResult with data from tensor.
  */
-template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(const Tensor& t, UnaryOperation&& func) {
+template <class T, class TResult = std::vector<T>, class UnaryOperation = ov::util::Cast<T>>
+TResult get_tensor_data_as(const Tensor& t, UnaryOperation&& func = ov::util::Cast<T>()) {
     return get_raw_data_as<T, TResult>(t.get_element_type(),
                                        t.data(),
                                        t.get_size(),
