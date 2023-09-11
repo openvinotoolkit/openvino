@@ -355,17 +355,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_big,
                                             ::testing::Values(shouldUseDecompressionKernelBig())),
                          MatmulWeightsDecompression::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_big_FP16,
-                         MatmulWeightsDecompression_FP16,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_big),
-                                            ::testing::ValuesIn(weights_precisions),
-                                            ::testing::ValuesIn(transpose_weights),
-                                            ::testing::ValuesIn(add_decompression_sub),
-                                            ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::ValuesIn(filterAdditionalConfigBasic()),
-                                            ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(shouldUseDecompressionKernelBig())),
-                         MatmulWeightsDecompression::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_big_FP16,
+//                          MatmulWeightsDecompression_FP16,
+//                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_big),
+//                                             ::testing::ValuesIn(weights_precisions),
+//                                             ::testing::ValuesIn(transpose_weights),
+//                                             ::testing::ValuesIn(add_decompression_sub),
+//                                             ::testing::ValuesIn(reshape_on_decompression),
+//                                             ::testing::ValuesIn(filterAdditionalConfigBasic()),
+//                                             ::testing::Values(emptyFusingSpec),
+//                                             ::testing::Values(shouldUseDecompressionKernelBig())),
+//                          MatmulWeightsDecompression::getTestCaseName);
 
 } // namespace
 

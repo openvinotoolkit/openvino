@@ -410,7 +410,9 @@ void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) 
 ElementType SubgraphBaseTest::get_default_imp_precision_type(ElementType type) {
     const std::string key = ov::hint::inference_precision.name();
     const std::string KEY_ENFORCE_BF16 = "ENFORCE_BF16";
-    if (configuration.count(key) && configuration[key] == "bf16") {
+    if (type != ElementType::f16 && type != ElementType::f32 && type != ElementType::bf16) {
+        return type;
+    } else if (configuration.count(key) && configuration[key] == "bf16") {
         return ov::with_cpu_x86_avx512_core() ? ElementType::bf16 : ElementType::f32;
     } else if (configuration.count(KEY_ENFORCE_BF16) && configuration[KEY_ENFORCE_BF16] == "YES") {
         return ov::with_cpu_x86_avx512_core() ? ElementType::bf16 : ElementType::f32;

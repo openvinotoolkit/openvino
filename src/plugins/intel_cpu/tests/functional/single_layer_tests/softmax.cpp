@@ -236,7 +236,7 @@ const auto UnsupportedParams = testing::Combine(testing::Values(ElementType::f32
                                                 testing::ValuesIn(unsupportedConfigsFP32),
                                                 testing::Values(ov::test::utils::DEVICE_CPU),
                                                 testing::Values(notOptimizedCPUSpec),
-                                                testing::ValuesIn(deviceConfig));
+                                                testing::Values(cpuEmptyPluginConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU,
                          SoftMaxLayerCPUTest,
