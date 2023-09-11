@@ -1,22 +1,20 @@
 Automatic Device Selection with OpenVINO™
 =========================================
 
-.. _top:
-
 The `Auto
-device <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+device <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 (or AUTO in short) selects the most suitable device for inference by
 considering the model precision, power efficiency and processing
 capability of the available `compute
-devices <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__.
+devices <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__.
 The model precision (such as ``FP32``, ``FP16``, ``INT8``, etc.) is the
 first consideration to filter out the devices that cannot run the
 network efficiently.
 
 Next, if dedicated accelerators are available, these devices are
 preferred (for example, integrated and discrete
-`GPU <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u>`__).
-`CPU <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_CPU.html>`__
+`GPU <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u>`__).
+`CPU <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_CPU.html>`__
 is used as the default “fallback device”. Keep in mind that AUTO makes
 this selection only once, during the loading of a model.
 
@@ -32,22 +30,26 @@ first inference.
 
    auto
 
+
+
+.. _top:
+
 **Table of contents**:
 
 - `Import modules and create Core <#import-modules-and-create-core>`__
 - `Convert the model to OpenVINO IR format <#convert-the-model-to-openvino-ir-format>`__
-- `(1) Simplify selection logic <#1-simplify-selection-logic>`__
+- `(1) Simplify selection logic <#simplify-selection-logic>`__
 
   - `Default behavior of Core::compile_model API without device_name <#default-behavior-of-core::compile_model-api-without-device_name>`__
   - `Explicitly pass AUTO as device_name to Core::compile_model API <#explicitly-pass-auto-as-device_name-to-core::compile_model-api>`__
 
-- `(2) Improve the first inference latency <#2-improve-the-first-inference-latency>`__
+- `(2) Improve the first inference latency <#improve-the-first-inference-latency>`__
 
   - `Load an Image <#load-an-image>`__
   - `Load the model to GPU device and perform inference <#load-the-model-to-gpu-device-and-perform-inference>`__
   - `Load the model using AUTO device and do inference <#load-the-model-using-auto-device-and-do-inference>`__
 
-- `(3) Achieve different performance for different targets <#3-achieve-different-performance-for-different-targets>`__
+- `(3) Achieve different performance for different targets <#achieve-different-performance-for-different-targets>`__
 
   - `Class and callback definition <#class-and-callback-definition>`__
   - `Inference with THROUGHPUT hint <#inference-with-throughput-hint>`__
@@ -98,7 +100,7 @@ with ``openvino.runtime.Core().compile_model`` or serialized for next
 usage with ``openvino.runtime.serialize``.
 
 For more information about model conversion API, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -310,8 +312,8 @@ hints do not require any device-specific settings and they are
 completely portable between devices – meaning AUTO can configure the
 performance hint on whichever device is being used.
 
-For more information, refer to the `Performance Hints <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints>`__
-section of `Automatic Device Selection <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+For more information, refer to the `Performance Hints <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints>`__
+section of `Automatic Device Selection <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 article.
 
 Class and callback definition `⇑ <#top>`__

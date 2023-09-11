@@ -50,13 +50,13 @@ void CanonicalizationTests::SetUp() {
     std::tie(inputs[0], inputs[1], output_blocked_shapes[0], expected_output_shape) = this->GetParam();
 
     input_blocked_shapes = {std::get<1>(inputs[0]), std::get<1>(inputs[1])};
-    snippets_function = std::make_shared<AddFunction>(std::vector<PartialShape>{std::get<0>(inputs[0]), std::get<0>(inputs[1])});
+    snippets_model = std::make_shared<AddFunction>(std::vector<PartialShape>{std::get<0>(inputs[0]), std::get<0>(inputs[1])});
 }
 
 TEST_P(CanonicalizationTests, Add) {
-    function = snippets_function->getOriginal();
-    function_ref = snippets_function->getReference();
-    auto subgraph =  getTokenizedSubgraph(function);
+    model = snippets_model->getOriginal();
+    model_ref = snippets_model->getReference();
+    auto subgraph =  getTokenizedSubgraph(model);
     subgraph->set_generator(std::make_shared<DummyGenerator>());
     auto canonical_output_shape = subgraph->canonicalize(output_blocked_shapes, input_blocked_shapes);
     ASSERT_TRUE(canonical_output_shape.is_static());

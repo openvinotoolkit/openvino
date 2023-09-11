@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/group_normalization.hpp"
+#include "openvino/reference/group_normalization.hpp"
 
 #include "evaluate_node.hpp"
 #include "openvino/op/group_normalization.hpp"

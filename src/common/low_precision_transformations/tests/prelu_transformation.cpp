@@ -11,7 +11,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/prelu_function.hpp"
@@ -20,22 +20,22 @@
 namespace {
 
 using namespace testing;
-using namespace ngraph::pass;
-using namespace ngraph;
+using namespace ov::pass;
+using namespace ov;
 
 class PReluTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -80,8 +80,8 @@ public:
     }
 
 protected:
-    std::shared_ptr<ngraph::Function> actualFunction;
-    std::shared_ptr<ngraph::Function> referenceFunction;
+    std::shared_ptr<ov::Model> actualFunction;
+    std::shared_ptr<ov::Model> referenceFunction;
 };
 
 TEST_P(PReluTransformation, CompareFunctions) {
@@ -99,20 +99,20 @@ const std::vector<ngraph::PartialShape> shapes = {{1, 3, 16, 16}, {-1, -1, -1, -
 const std::vector<PReluTransformationTestValues> testValues = {
     // U8: no subtract
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {0.1f}}},
-     {ngraph::element::u8, {{}, {}, {}}, ngraph::element::f32, {{}, {}, {0.1f}}}},
+     {ov::element::u8, {{ov::element::f32}, {}, {0.1f}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::f32, {{}, {}, {0.1f}}}},
     // I8: no subtract
     {LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8, {{ngraph::element::f32}, {}, {0.1f}}},
-     {ngraph::element::i8, {{}, {}, {}}, ngraph::element::f32, {{}, {}, {0.1f}}}},
+     {ov::element::i8, {{ov::element::f32}, {}, {0.1f}}},
+     {ov::element::i8, {{}, {}, {}}, ov::element::f32, {{}, {}, {0.1f}}}},
     // U8: with positive subtract value
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {128}, {0.1f}}},
-     {ngraph::element::u8, {{ngraph::element::f32}, {128}, {0.1f}}, ngraph::element::f32, {{}, {}, {}}}},
+     {ov::element::u8, {{ov::element::f32}, {128}, {0.1f}}},
+     {ov::element::u8, {{ov::element::f32}, {128}, {0.1f}}, ov::element::f32, {{}, {}, {}}}},
     // I8: with positive subtract value
     {LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8, {{ngraph::element::f32}, {127}, {0.1f}}},
-     {ngraph::element::i8, {{ngraph::element::f32}, {127}, {0.1f}}, ngraph::element::f32, {{}, {}, {}}}},
+     {ov::element::i8, {{ov::element::f32}, {127}, {0.1f}}},
+     {ov::element::i8, {{ov::element::f32}, {127}, {0.1f}}, ov::element::f32, {{}, {}, {}}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
@@ -126,8 +126,8 @@ const std::vector<ngraph::PartialShape> shapesWithDynamicRank = {PartialShape::d
 
 const std::vector<PReluTransformationTestValues> testValues = {
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {0.1f}}},
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {0.1f}}, ngraph::element::f32, {{}, {}, {}}}}};
+     {ov::element::u8, {{ov::element::f32}, {}, {0.1f}}},
+     {ov::element::u8, {{ov::element::f32}, {}, {0.1f}}, ov::element::f32, {{}, {}, {}}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          PReluTransformation,

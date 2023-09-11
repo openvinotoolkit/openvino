@@ -114,7 +114,7 @@ if(ENABLE_GAPI_PREPROCESSING)
         $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    set_ie_threading_interface_for(${TARGET_NAME}_obj)
+    ov_set_threading_interface_for(${TARGET_NAME}_obj)
 
     add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
@@ -135,7 +135,7 @@ endif()
 
 add_library(${TARGET_NAME} ${library_type} ${library_sources})
 
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 
 if(ENABLE_GAPI_PREPROCESSING)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
@@ -182,7 +182,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
                 $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-    set_ie_threading_interface_for(${TARGET_NAME}_s)
+    ov_set_threading_interface_for(${TARGET_NAME}_s)
 
     target_include_directories(${TARGET_NAME}_s INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 

@@ -10,8 +10,20 @@ def get_models_list(file_name: str):
     models = []
     with open(file_name) as f:
         for model_info in f:
-            model_name, model_link = model_info.split(',')
-            models.append((model_name, model_link))
+            # skip comment in model scope file
+            if model_info.startswith('#'):
+                continue
+            mark = None
+            reason = None
+            assert len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
+                "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(model_info)
+            if len(model_info.split(',')) == 2:
+                model_name, model_link = model_info.split(',')
+            elif len(model_info.split(',')) == 4:
+                model_name, model_link, mark, reason = model_info.split(',')
+                assert mark == "skip", "Incorrect failure mark for model info {}".format(model_info)
+            models.append((model_name, model_link, mark, reason))
+
     return models
 
 

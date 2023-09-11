@@ -1,7 +1,7 @@
 Quantization of Image Classification Models
 ===========================================
 
-.. _top:
+
 
 This tutorial demonstrates how to apply ``INT8`` quantization to Image
 Classification model using
@@ -20,6 +20,8 @@ This tutorial consists of the following steps:
 -  Compare accuracy of the original and quantized models.
 -  Compare performance of the original and quantized models.
 -  Compare results on one picture.
+
+.. _top:
 
 **Table of contents**:
 
@@ -98,7 +100,7 @@ static shape. The converted model is ready to be loaded on a device for
 inference and can be saved on a disk for next usage via the
 ``serialize`` function. More details about model conversion Python API
 can be found on this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -204,7 +206,7 @@ dataset for performing basic quantization. Optionally, additional
 parameters like ``subset_size``, ``preset``, ``ignored_scope`` can be
 provided to improve quantization result if applicable. More details
 about supported parameters can be found on this
-`page <https://docs.openvino.ai/2023.0/basic_quantization_flow.html#tune-quantization-parameters>`__
+`page <https://docs.openvino.ai/2023.1/basic_quantization_flow.html#tune-quantization-parameters>`__
 
 .. code:: ipython3
 
@@ -321,15 +323,18 @@ Compare Performance of the Original and Quantized Models `⇑ <#top>`__
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - an inference performance measurement tool in OpenVINO.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+
+   For more accurate performance, it is recommended to run
    benchmark_app in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change CPU to GPU to benchmark
    on GPU. Run ``benchmark_app --help`` to see an overview of all
    command-line options.
+
 
 .. code:: ipython3
 

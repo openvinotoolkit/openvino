@@ -37,13 +37,13 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                                    const std::vector<size_t>& parent_loop_ids,
                                    const ov::Output<ov::Node>& parent_output,
                                    const int allocation_rank) {
-    const auto port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(parent_output);
-    const auto planar_shape = utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(parent_output);
+    const auto planar_shape = utils::get_planar_vdims(port);
 
     const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size()) : planar_shape.size();
     ov::Shape allocation_shape(rank);
     for (size_t i = 0; i < rank; ++i) {
-        *(allocation_shape.rbegin() + i) = (planar_shape.rbegin() + i)->get_length();
+        *(allocation_shape.rbegin() + i) = *(planar_shape.rbegin() + i);
     }
 
     if (buffer_loop_ids.empty() || parent_loop_ids.empty()) {

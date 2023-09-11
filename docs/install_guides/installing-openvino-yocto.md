@@ -8,9 +8,6 @@
 
 This document provides instructions for creating a Yocto image with Intel® Distribution of OpenVINO™ toolkit.
 
-System Requirements
-###################
-
 Follow the `Yocto Project official documentation <https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution>`__ to set up and configure your host machine to be compatible with BitBake.
 
 Step 1: Set Up Environment

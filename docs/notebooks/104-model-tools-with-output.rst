@@ -1,12 +1,14 @@
 Working with Open Model Zoo Models
 ==================================
 
-.. _top:
+
 
 This tutorial shows how to download a model from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__, convert it
 to OpenVINO™ IR format, show information about the model, and benchmark
 the model. 
+
+.. _top:
 
 **Table of contents**:
 
@@ -210,9 +212,9 @@ Converting mobilenet-v2-pytorch…
     Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmp3q4nxrwu --model_name=mobilenet-v2-pytorch --input=data '--mean_values=data[123.675,116.28,103.53]' '--scale_values=data[58.624,57.12,57.375]' --reverse_input_channels --output=prob --input_model=model/public/mobilenet-v2-pytorch/mobilenet-v2.onnx '--layout=data(NCHW)' '--input_shape=[1, 3, 224, 224]' --compress_to_fp16=True
     
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument --compress_to_fp16 or set it to false --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/latest/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /tmp/tmp3q4nxrwu/mobilenet-v2-pytorch.xml
     [ SUCCESS ] BIN file: /tmp/tmp3q4nxrwu/mobilenet-v2-pytorch.bin
@@ -423,7 +425,9 @@ In the next cell, define the ``benchmark_model()`` function that calls
 ``benchmark_app``. This makes it easy to try different combinations. In
 the cell below that, you display available devices on the system.
 
-   **Note**: In this notebook, ``benchmark_app`` runs for 15 seconds to
+.. note::
+
+   In this notebook, ``benchmark_app`` runs for 15 seconds to
    give a quick indication of performance. For more accurate
    performance, it is recommended to run inference for at least one
    minute by setting the ``t`` parameter to 60 or higher, and run
@@ -431,6 +435,7 @@ the cell below that, you display available devices on the system.
    applications. Copy the **benchmark command** and paste it in a
    command prompt where you have activated the ``openvino_env``
    environment.
+
 
 .. code:: ipython3
 
@@ -523,9 +528,7 @@ Benchmark command:
 
 .. code:: ipython3
 
-    benchmark_model(model_path, device="GPU", seconds=15, api="async")
-
-
+   benchmark_model(model_path, device="GPU", seconds=15, api="async")
 
 .. raw:: html
 
@@ -534,8 +537,7 @@ Benchmark command:
 
 .. code:: ipython3
 
-    benchmark_model(model_path, device="MULTI:CPU,GPU", seconds=15, api="async")
-
+   benchmark_model(model_path, device="MULTI:CPU,GPU", seconds=15, api="async")
 
 
 .. raw:: html

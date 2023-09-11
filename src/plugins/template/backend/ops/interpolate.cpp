@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/interpolate.hpp"
+#include "openvino/reference/interpolate.hpp"
 
 #include "evaluate_node.hpp"
 #include "interpolate_shape_inference.hpp"
@@ -14,32 +14,32 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::Interpolate>& op,
     ngraph::element::Type input_et = op->get_input_element_type(0);
     switch (input_et) {
     case ngraph::element::Type_t::f64:
-        ngraph::runtime::reference::interpolate<double>(inputs[0]->get_data_ptr<double>(),
-                                                        op->get_input_partial_shape(0),
-                                                        outputs[0]->get_data_ptr<double>(),
-                                                        op->get_output_shape(0),
-                                                        op->get_attrs());
+        ov::reference::interpolate<double>(inputs[0]->get_data_ptr<double>(),
+                                           op->get_input_partial_shape(0),
+                                           outputs[0]->get_data_ptr<double>(),
+                                           op->get_output_shape(0),
+                                           op->get_attrs());
         break;
     case ngraph::element::Type_t::f32:
-        ngraph::runtime::reference::interpolate<float>(inputs[0]->get_data_ptr<float>(),
-                                                       op->get_input_partial_shape(0),
-                                                       outputs[0]->get_data_ptr<float>(),
-                                                       op->get_output_shape(0),
-                                                       op->get_attrs());
+        ov::reference::interpolate<float>(inputs[0]->get_data_ptr<float>(),
+                                          op->get_input_partial_shape(0),
+                                          outputs[0]->get_data_ptr<float>(),
+                                          op->get_output_shape(0),
+                                          op->get_attrs());
         break;
     case ngraph::element::Type_t::f16:
-        ngraph::runtime::reference::interpolate<ngraph::float16>(inputs[0]->get_data_ptr<ngraph::float16>(),
-                                                                 op->get_input_partial_shape(0),
-                                                                 outputs[0]->get_data_ptr<ngraph::float16>(),
-                                                                 op->get_output_shape(0),
-                                                                 op->get_attrs());
+        ov::reference::interpolate<ngraph::float16>(inputs[0]->get_data_ptr<ngraph::float16>(),
+                                                    op->get_input_partial_shape(0),
+                                                    outputs[0]->get_data_ptr<ngraph::float16>(),
+                                                    op->get_output_shape(0),
+                                                    op->get_attrs());
         break;
     case ngraph::element::Type_t::bf16:
-        ngraph::runtime::reference::interpolate<ngraph::bfloat16>(inputs[0]->get_data_ptr<ngraph::bfloat16>(),
-                                                                  op->get_input_partial_shape(0),
-                                                                  outputs[0]->get_data_ptr<ngraph::bfloat16>(),
-                                                                  op->get_output_shape(0),
-                                                                  op->get_attrs());
+        ov::reference::interpolate<ngraph::bfloat16>(inputs[0]->get_data_ptr<ngraph::bfloat16>(),
+                                                     op->get_input_partial_shape(0),
+                                                     outputs[0]->get_data_ptr<ngraph::bfloat16>(),
+                                                     op->get_output_shape(0),
+                                                     op->get_attrs());
         break;
     default:;
     }
@@ -209,8 +209,8 @@ static void pad_input_data(const uint8_t* data_ptr,
                            const ov::Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform input_transform(input_shape);
-    ngraph::CoordinateTransform padded_transform(padded_input_shape);
+    ov::CoordinateTransform input_transform(input_shape);
+    ov::CoordinateTransform padded_transform(padded_input_shape);
 
     for (const ngraph::Coordinate& input_coord : input_transform) {
         auto padded_coord = input_coord;
@@ -278,58 +278,58 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
 
     switch (input_et) {
     case element::Type_t::f32:
-        ngraph::runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
-                                                       padded_input_shape,
-                                                       scales,
-                                                       axes,
-                                                       outputs[0]->get_data_ptr<float>(),
-                                                       out_shape,
-                                                       m_attrs);
+        ov::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                          padded_input_shape,
+                                          scales,
+                                          axes,
+                                          outputs[0]->get_data_ptr<float>(),
+                                          out_shape,
+                                          m_attrs);
         break;
     case element::Type_t::bf16:
-        ngraph::runtime::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
-                                                          padded_input_shape,
-                                                          scales,
-                                                          axes,
-                                                          outputs[0]->get_data_ptr<bfloat16>(),
-                                                          out_shape,
-                                                          m_attrs);
+        ov::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
+                                             padded_input_shape,
+                                             scales,
+                                             axes,
+                                             outputs[0]->get_data_ptr<bfloat16>(),
+                                             out_shape,
+                                             m_attrs);
         break;
     case element::Type_t::f16:
-        ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                         padded_input_shape,
-                                                         scales,
-                                                         axes,
-                                                         outputs[0]->get_data_ptr<float16>(),
-                                                         out_shape,
-                                                         m_attrs);
+        ov::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                            padded_input_shape,
+                                            scales,
+                                            axes,
+                                            outputs[0]->get_data_ptr<float16>(),
+                                            out_shape,
+                                            m_attrs);
         break;
     case element::Type_t::u8:
-        ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
-                                                         padded_input_shape,
-                                                         scales,
-                                                         axes,
-                                                         outputs[0]->get_data_ptr<uint8_t>(),
-                                                         out_shape,
-                                                         m_attrs);
+        ov::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
+                                            padded_input_shape,
+                                            scales,
+                                            axes,
+                                            outputs[0]->get_data_ptr<uint8_t>(),
+                                            out_shape,
+                                            m_attrs);
         break;
     case element::Type_t::i8:
-        ngraph::runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
-                                                        padded_input_shape,
-                                                        scales,
-                                                        axes,
-                                                        outputs[0]->get_data_ptr<int8_t>(),
-                                                        out_shape,
-                                                        m_attrs);
+        ov::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                           padded_input_shape,
+                                           scales,
+                                           axes,
+                                           outputs[0]->get_data_ptr<int8_t>(),
+                                           out_shape,
+                                           m_attrs);
         break;
     case element::Type_t::i32:
-        ngraph::runtime::reference::interpolate<int32_t>(reinterpret_cast<int32_t*>(padded_data_ptr),
-                                                         padded_input_shape,
-                                                         scales,
-                                                         axes,
-                                                         outputs[0]->get_data_ptr<int32_t>(),
-                                                         out_shape,
-                                                         m_attrs);
+        ov::reference::interpolate<int32_t>(reinterpret_cast<int32_t*>(padded_data_ptr),
+                                            padded_input_shape,
+                                            scales,
+                                            axes,
+                                            outputs[0]->get_data_ptr<int32_t>(),
+                                            out_shape,
+                                            m_attrs);
         break;
     default:;
     }

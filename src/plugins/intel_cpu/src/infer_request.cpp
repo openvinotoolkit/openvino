@@ -226,6 +226,20 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
 void SyncInferRequest::change_default_ptr() {
     const auto& inputNodesMap = graph->GetInputNodesMap();
     const auto& outputNodesMap = graph->GetOutputNodesMap();
+
+    std::unordered_set<const void*> inputPtrs;
+    std::function<void(const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor)> changeInpPtr;
+    if (Graph::Status::ReadyDynamic == graph->getStatus()) {
+        changeInpPtr = [&inputPtrs](const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor) {
+            change_edge_ptr(edge, tensor);
+            inputPtrs.insert(tensor->data());
+        };
+    } else {
+        changeInpPtr = [](const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor) {
+            change_edge_ptr(edge, tensor);
+        };
+    }
+
     for (auto& it : external_ptr) {
         auto input = inputNodesMap.find(it.first);
         if (inputNodesMap.end() == input) {
@@ -272,7 +286,7 @@ void SyncInferRequest::change_default_ptr() {
                 auto e = edge.lock();
                 if (!e)
                     OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
-                change_edge_ptr(e, it.second);
+                changeInpPtr(e, it.second);
             }
         }
     }
@@ -331,17 +345,9 @@ void SyncInferRequest::change_default_ptr() {
                 OPENVINO_ASSERT(outputNodesMap.end() != output, "Node with name: ", name, " is absent in the outputNodesMap");
                 auto parentEdge = output->second->getParentEdgeAt(0);
                 //avoid cyclic memory use
-                auto parentNode = parentEdge->getParent();
-                const auto& parentNodeInpEdges = parentNode->getParentEdges();
-                std::unordered_set<const void*> parentInputPtrs(parentNodeInpEdges.size());
-                for (auto&& edge : parentNodeInpEdges) {
-                    if (auto edgePtr = edge.lock()) {
-                        parentInputPtrs.insert(edgePtr->getMemoryPtr()->getData());
-                    }
-                }
                 auto&& controlBlock = controlBlockItr->second;
 
-                std::shared_ptr<IMemoryMngr> memMngr = parentInputPtrs.count(controlBlock.rawPtr()) ? // same memory is used on the input and output
+                std::shared_ptr<IMemoryMngr> memMngr = inputPtrs.count(controlBlock.rawPtr()) ? // same memory is used on the input and output
                     controlBlock.nextMemMngr() : // then swap internal buffer to avoid data corruption
                     controlBlock.currentMemMngr(); // else reuse the existing buffer
 

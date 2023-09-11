@@ -1,6 +1,8 @@
 Object masks from prompts with SAM and OpenVINO
 ===============================================
 
+
+
 .. _top:
 
 **Table of contents**:
@@ -1425,7 +1427,9 @@ result, we will use a ``mixed`` quantization preset. It provides
 symmetric quantization of weights and asymmetric quantization of
 activations.
 
-   **Note**: Model post-training quantization is time-consuming process.
+.. note::
+
+   Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
 
 .. code:: ipython3
@@ -1958,7 +1962,7 @@ Compare Performance of the Original and Quantized Models `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
