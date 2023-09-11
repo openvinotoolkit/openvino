@@ -633,19 +633,6 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
-      - name: PyTorch Model Tests
-        run: |
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
-
-          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-torch_models.xml --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_models.html --self-contained-html
-        env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
-          TEST_DEVICE: CPU
-
       - name: TensorFlow 1 Layer Tests - TF FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -835,4 +822,65 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
+          if-no-files-found: 'error'
+
+  PyTorch_Models_Tests:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-22.04
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+
+    steps:
+      - name: Create Directories
+        run: |
+          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          popd
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          popd
+      - name: Install Python wheels
+        run: |
+          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+      - name: PyTorch Models Tests
+        run: |
+          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
+          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html
+        env:
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TEST_DEVICE: CPU
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-torch-models
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'

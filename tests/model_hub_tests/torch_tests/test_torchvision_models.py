@@ -8,8 +8,6 @@ import torchvision.transforms.functional as F
 from models_hub_common.test_convert_model import TestConvertModel
 from openvino import convert_model
 
-# set temp dir for torch cache
-torch.hub.set_dir(tempfile.mkdtemp())
 
 def get_all_models() -> list:
     m_list = torch.hub.list("pytorch/vision")
@@ -29,16 +27,16 @@ def get_video():
     from torchvision.io import read_video
 
     video_url = "https://download.pytorch.org/tutorial/pexelscom_pavel_danilyuk_basketball_hd.mp4"
-    video_path = Path(tempfile.mkdtemp()) / "basketball.mp4"
-    _ = urlretrieve(video_url, video_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        video_path = Path(tmp) / "basketball.mp4"
+        _ = urlretrieve(video_url, video_path)
 
-    frames, _, _ = read_video(str(video_path), output_format="TCHW")
+        frames, _, _ = read_video(str(video_path), output_format="TCHW")
     return frames
 
 
 def prepare_frames_for_raft(name, frames1, frames2):
-    w = torch.hub.load("pytorch/vision", "get_model_weights",
-                       name=name).DEFAULT
+    w = torch.hub.load("pytorch/vision", "get_model_weights", name=name).DEFAULT
     img1_batch = torch.stack(frames1)
     img2_batch = torch.stack(frames2)
     img1_batch = F.resize(img1_batch, size=[520, 960], antialias=False)
@@ -48,6 +46,11 @@ def prepare_frames_for_raft(name, frames1, frames2):
 
 
 class TestTorchHubConvertModel(TestConvertModel):
+    def setup_method(self):
+        self.cache_dir = tempfile.TemporaryDirectory()
+        # set temp dir for torch cache
+        torch.hub.set_dir(str(self.cache_dir.name))
+
     def load_model(self, model_name, model_link):
         m = torch.hub.load("pytorch/vision", model_name, weights='DEFAULT')
         m.eval()
@@ -91,6 +94,11 @@ class TestTorchHubConvertModel(TestConvertModel):
         else:
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
+
+    def teardown_method(self):
+        # cleanup tmpdir
+        self.cache_dir.cleanup()
+        super().teardown_method()
 
     @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
     @pytest.mark.precommit
