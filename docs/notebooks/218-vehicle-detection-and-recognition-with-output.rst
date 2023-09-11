@@ -1,8 +1,6 @@
 Vehicle Detection And Recognition with OpenVINO™
 ================================================
 
-
-
 This tutorial demonstrates how to use two pre-trained models from `Open
 Model Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__:
 `vehicle-detection-0200 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/vehicle-detection-0200>`__
@@ -19,30 +17,33 @@ As a result, you can get:
 
    result
 
-.. _top:
+Table of content:
+^^^^^^^^^^^^^^^^^
 
-**Table of contents**:
+-  `Imports <#Imports-Uparrow>`__
+-  `Download Models <#Download-Models-Uparrow>`__
+-  `Load Models <#Load-Models-Uparrow>`__
 
-- `Imports <#imports>`__
-- `Download Models <#download-models>`__
-- `Load Models <#load-models>`__
+   -  `Get attributes from model <#Get-attributes-from-model-Uparrow>`__
+   -  `Helper function <#Helper-function-Uparrow>`__
+   -  `Read and display a test
+      image <#Read-and-display-a-test-image-Uparrow>`__
 
-  - `Get attributes from model <#get-attributes-from-model>`__
-  - `Helper function <#helper-function>`__
-  - `Read and display a test image <#read-and-display-a-test-image>`__
+-  `Use the Detection Model to Detect
+   Vehicles <#Use-the-Detection-Model-to-Detect-Vehicles-Uparrow>`__
 
-- `Use the Detection Model to Detect Vehicles <#use-the-detection-model-to-detect-vehicles>`__
+   -  `Detection Processing <#Detection-Processing-Uparrow>`__
+   -  `Recognize vehicle
+      attributes <#Recognize-vehicle-attributes-Uparrow>`__
 
-  - `Detection Processing <#detection-processing>`__
-  - `Recognize vehicle attributes <#recognize-vehicle-attributes>`__
-  - `Recognition processing <#recognition-processing>`__
-  - `Combine two models <#combine-two-models>`__
+      -  `Recognition processing <#Recognition-processing-Uparrow>`__
+
+   -  `Combine two models <#Combine-two-models-Uparrow>`__
 
 .. |flowchart| image:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
 
-Imports `⇑ <#top>`__
-###############################################################################################################################
-
+Imports `:math:`\Uparrow` <#Table-of-content:>`__
+-------------------------------------------------
 
 Import the required modules.
 
@@ -61,9 +62,8 @@ Import the required modules.
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Download Models `⇑ <#top>`__
-###############################################################################################################################
-
+Download Models `:math:`\Uparrow` <#Table-of-content:>`__
+---------------------------------------------------------
 
 Use ``omz_downloader`` - a command-line tool from the ``openvino-dev``
 package. The ``omz_downloader`` tool automatically creates a directory
@@ -72,9 +72,7 @@ model is already downloaded. The selected model comes from the public
 directory, which means it must be converted into OpenVINO Intermediate
 Representation (OpenVINO IR).
 
-.. note::
-
-   To change the model, replace the name of the model in the
+   **Note**: To change the model, replace the name of the model in the
    code below, for example to ``"vehicle-detection-0201"`` or
    ``"vehicle-detection-0202"``. Keep in mind that they support
    different image input sizes in detection. Also, you can change the
@@ -84,7 +82,6 @@ Representation (OpenVINO IR).
    the precision, you need to modify the precision value in ``"FP32"``,
    ``"FP16"``, and ``"FP16-INT8"``. A different type has a different
    model size and a precision value.
-
 
 .. code:: ipython3
 
@@ -140,9 +137,8 @@ Representation (OpenVINO IR).
     
 
 
-Load Models `⇑ <#top>`__
-###############################################################################################################################
-
+Load Models `:math:`\Uparrow` <#Table-of-content:>`__
+-----------------------------------------------------
 
 This tutorial requires a detection model and a recognition model. After
 downloading the models, initialize OpenVINO Runtime, and use
@@ -201,9 +197,8 @@ specified device.
         output_keys = compiled_model.output(0)
         return input_keys, output_keys, compiled_model
 
-Get attributes from model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Get attributes from model `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``input_keys.shape`` to get data shapes.
 
@@ -221,9 +216,8 @@ Use ``input_keys.shape`` to get data shapes.
     # Get input size - Recognition.
     height_re, width_re = list(input_key_re.shape)[2:]
 
-Helper function `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Helper function `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``plt_show()`` function is used to show image.
 
@@ -240,9 +234,8 @@ The ``plt_show()`` function is used to show image.
         plt.axis("off")
         plt.imshow(raw_image)
 
-Read and display a test image `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Read and display a test image `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input shape of detection model is ``[1, 3, 256, 256]``. Therefore,
 you need to resize the image to ``256 x 256``, and expand the batch
@@ -273,9 +266,8 @@ channel with ``expand_dims`` function.
 .. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_13_0.png
 
 
-Use the Detection Model to Detect Vehicles `⇑ <#top>`__
-###############################################################################################################################
-
+Use the Detection Model to Detect Vehicles `:math:`\Uparrow` <#Table-of-content:>`__
+------------------------------------------------------------------------------------
 
 .. figure:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
    :alt: pipline
@@ -306,9 +298,8 @@ Delete unused dims and filter out results that are not used.
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-Detection Processing `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Detection Processing `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 With the function below, you change the ratio to the real position in
 the image and filter out low-confidence results.
@@ -356,9 +347,8 @@ the image and filter out low-confidence results.
     # Find the position of a car.
     car_position = crop_images(image_de, resized_image_de, boxes)
 
-Recognize vehicle attributes `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Recognize vehicle attributes `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Select one of the detected boxes. Then, crop to an area containing a
 vehicle to test with the recognition model. Again, you need to resize
@@ -380,8 +370,8 @@ the input image and run inference.
 .. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_20_0.png
 
 
-Recognition processing `⇑ <#top>`__
------------------------------------------------------------------------------------------------------------------------------------
+Recognition processing `:math:`\Uparrow` <#Table-of-content:>`__
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The result contains colors of the vehicles (white, gray, yellow, red,
 green, blue, black) and types of vehicles (car, bus, truck, van). Next,
@@ -429,9 +419,8 @@ determine the maximum probability as the result.
     Attributes:('Gray', 'Car')
 
 
-Combine two models `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Combine two models `:math:`\Uparrow` <#Table-of-content:>`__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Congratulations! You successfully used a detection model to crop an
 image with a vehicle and recognize the attributes of a vehicle.

@@ -4,27 +4,29 @@ OpenVINO™ Runtime API Tutorial
 This notebook explains the basics of the OpenVINO Runtime API. It
 covers:
 
--  `Loading OpenVINO Runtime and Showing Info <#loading-openvino-runtime-and-showing-info>`__
--  `Loading a Model <#loading-a-model>`__
+-  `Loading OpenVINO Runtime and Showing
+   Info <#Loading-OpenVINO-Runtime-and-Showing-Info>`__
+-  `Loading a Model <#Loading-a-Model>`__
 
-   -  `OpenVINO IR Model <#openvino-ir-model>`__
-   -  `ONNX Model <#onnx-model>`__
-   -  `PaddlePaddle Model <#paddlepaddle-model>`__
-   -  `TensorFlow Model <#tensorflow-model>`__
-   -  `TensorFlow Lite Model <#tensorflow-lite-model>`__
+   -  `OpenVINO IR Model <#OpenVINO-IR-Model>`__
+   -  `ONNX Model <#ONNX-Model>`__
+   -  `PaddlePaddle Model <#PaddlePaddle-Model>`__
+   -  `TensorFlow Model <#TensorFlow-Model>`__
+   -  `TensorFlow Lite Model <#TensorFlow-Lite-Model>`__
 
--  `Getting Information about a Model <#getting-information-about-a-model>`__
+-  `Getting Information about a
+   Model <#Getting-Information-about-a-Model>`__
 
-   -  `Model Inputs <#model-inputs>`__
-   -  `Model Outputs <#model-outputs>`__
+   -  `Model Inputs <#Model-Inputs>`__
+   -  `Model Outputs <#Model-Outputs>`__
 
--  `Doing Inference on a Model <#doing-inference-on-a-model>`__
--  `Reshaping and Resizing <#reshaping-and-resizing>`__
+-  `Doing Inference on a Model <#Doing-Inference-on-a-Model>`__
+-  `Reshaping and Resizing <#Reshaping-and-Resizing>`__
 
-   -  `Change Image Size <#change-image-size>`__
-   -  `Change Batch Size <#change-batch-size>`__
+   -  `Change Image Size <#Change-Image-Size>`__
+   -  `Change Batch Size <#Change-Batch-Size>`__
 
--  `Caching a Model <#caching-a-model>`__
+-  `Caching a Model <#Caching-a-Model>`__
 
 The notebook is divided into sections with headers. The next cell
 contains global requirements installation and imports. Each section is
@@ -37,7 +39,7 @@ same.
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
-    !pip install -q "openvino>=2023.0.0"
+    !pip install -q "openvino==2023.1.0.dev20230811"
     !pip install requests tqdm
     
     # Fetch `notebook_utils` module
@@ -52,12 +54,12 @@ same.
 
 .. parsed-literal::
 
-    Requirement already satisfied: requests in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.31.0)
-    Requirement already satisfied: tqdm in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (4.66.1)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (3.2.0)
-    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (3.4)
-    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (1.26.16)
-    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (2023.7.22)
+    Requirement already satisfied: requests in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.31.0)
+    Requirement already satisfied: tqdm in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (4.66.1)
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (3.2.0)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (3.4)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (1.26.16)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (2023.7.22)
 
 
 Loading OpenVINO Runtime and Showing Info
@@ -67,9 +69,9 @@ Initialize OpenVINO Runtime with Core()
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
 
 OpenVINO Runtime can load a network on a device. A device in this
 context means a CPU, an Intel GPU, a Neural Compute Stick 2, etc. The
@@ -104,7 +106,7 @@ After initializing OpenVINO Runtime, first read the model file with
 ``compile_model()`` method.
 
 `OpenVINO™ supports several model
-formats <https://docs.openvino.ai/2023.1/Supported_Model_Formats.html#doxid-supported-model-formats>`__
+formats <https://docs.openvino.ai/2023.0/Supported_Model_Formats.html#doxid-supported-model-formats>`__
 and enables developers to convert them to its own OpenVINO IR format
 using a tool dedicated to this task.
 
@@ -122,8 +124,8 @@ is the case, specifying the weights file is optional. If the weights
 file has a different filename, it can be specified using the ``weights``
 parameter in ``read_model()``.
 
-The OpenVINO `model conversion
-API <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html#doxid-openvino-docs-m-o-d-g-deep-learning-model-optimizer-dev-guide>`__
+The OpenVINO `Model Conversion
+API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 tool is used to convert models to OpenVINO IR format. Model conversion
 API reads the original model and creates an OpenVINO IR model (``.xml``
 and ``.bin`` files) so inference can be performed without delays due to
@@ -163,15 +165,15 @@ notebooks.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
 
 
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     classification_model_xml = "model/classification.xml"
     
     model = core.read_model(model=classification_model_xml)
@@ -210,27 +212,25 @@ points to the filename of an ONNX model.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/segmentation.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/segmentation.onnx')
 
 
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     onnx_model_path = "model/segmentation.onnx"
     
     model_onnx = core.read_model(model=onnx_model_path)
     compiled_model_onnx = core.compile_model(model=model_onnx, device_name="CPU")
 
-The ONNX model can be exported to OpenVINO IR with ``serialize()``:
+The ONNX model can be exported to OpenVINO IR with ``save_model()``:
 
 .. code:: ipython3
 
-    from openvino.runtime import serialize
-    
-    serialize(model_onnx, xml_path="model/exported_onnx_model.xml")
+    ov.save_model(model_onnx, output_model="model/exported_onnx_model.xml")
 
 PaddlePaddle Model
 ~~~~~~~~~~~~~~~~~~
@@ -238,7 +238,7 @@ PaddlePaddle Model
 `PaddlePaddle <https://www.paddlepaddle.org.cn/documentation/docs/en/guides/index_en.html>`__
 models saved for inference can also be passed to OpenVINO Runtime
 without any conversion step. Pass the filename with extension to
-``read_model`` and exported an OpenVINO IR with ``serialize``
+``read_model`` and exported an OpenVINO IR with ``save_model``
 
 .. code:: ipython3
 
@@ -266,15 +266,15 @@ without any conversion step. Pass the filename with extension to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/inference.pdiparams')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/inference.pdiparams')
 
 
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     paddle_model_path = 'model/inference.pdmodel'
     
     model_paddle = core.read_model(model=paddle_model_path)
@@ -282,9 +282,7 @@ without any conversion step. Pass the filename with extension to
 
 .. code:: ipython3
 
-    from openvino.runtime import serialize
-    
-    serialize(model_paddle, xml_path="model/exported_paddle_model.xml")
+    ov.save_model(model_paddle, output_model="model/exported_paddle_model.xml")
 
 TensorFlow Model
 ~~~~~~~~~~~~~~~~
@@ -292,15 +290,13 @@ TensorFlow Model
 TensorFlow models saved in frozen graph format can also be passed to
 ``read_model`` starting in OpenVINO 2022.3.
 
-.. note::
-
-   Directly loading TensorFlow models is available as a
+   **NOTE**: Directly loading TensorFlow models is available as a
    preview feature in the OpenVINO 2022.3 release. Fully functional
    support will be provided in the upcoming 2023 releases. Currently
    support is limited to only frozen graph inference format. Other
    TensorFlow model formats must be converted to OpenVINO IR using
-   `model conversion API <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
-
+   `model conversion
+   API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
 
 .. code:: ipython3
 
@@ -320,15 +316,15 @@ TensorFlow models saved in frozen graph format can also be passed to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.pb')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.pb')
 
 
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     tf_model_path = "model/classification.pb"
     
     model_tf = core.read_model(model=tf_model_path)
@@ -336,9 +332,7 @@ TensorFlow models saved in frozen graph format can also be passed to
 
 .. code:: ipython3
 
-    from openvino.runtime import serialize
-    
-    serialize(model_tf, xml_path="model/exported_tf_model.xml")
+    ov.save_model(model_tf, output_model="model/exported_tf_model.xml")
 
 TensorFlow Lite Model
 ~~~~~~~~~~~~~~~~~~~~~
@@ -346,7 +340,7 @@ TensorFlow Lite Model
 `TFLite <https://www.tensorflow.org/lite>`__ models saved for inference
 can also be passed to OpenVINO Runtime. Pass the filename with extension
 ``.tflite`` to ``read_model`` and exported an OpenVINO IR with
-``serialize``.
+``save_model``.
 
 This tutorial uses the image classification model
 `inception_v4_quant <https://tfhub.dev/tensorflow/lite-model/inception_v4_quant/1/default/1>`__.
@@ -372,24 +366,22 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.tflite')
 
 
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    import openvino as ov
     
-    ie = Core()
+    core = ov.Core()
     
     model_tflite = core.read_model(tflite_model_path)
     compiled_model_tflite = core.compile_model(model=model_tflite, device_name="CPU")
 
 .. code:: ipython3
 
-    from openvino.runtime import serialize
-    
-    serialize(model_tflite, xml_path="model/exported_tflite_model.xml")
+    ov.save_model(model_tflite, output_model="model/exported_tflite_model.xml")
 
 Getting Information about a Model
 ---------------------------------
@@ -421,7 +413,7 @@ Information about the inputs and outputs of the model are in
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
 
 
 
@@ -433,9 +425,9 @@ dictionary.
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     classification_model_xml = "model/classification.xml"
     model = core.read_model(model=classification_model_xml)
     model.inputs
@@ -503,9 +495,9 @@ Model Outputs
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    import openvino as ov
     
-    ie = Core()
+    core = ov.Core()
     classification_model_xml = "model/classification.xml"
     model = core.read_model(model=classification_model_xml)
     model.outputs
@@ -565,15 +557,13 @@ classes (``C``). The output is returned as 32-bit floating point.
 Doing Inference on a Model
 --------------------------
 
-.. note::
-
-   This notebook demonstrates only the basic synchronous
-   inference API. For an async inference example, please refer to 
-   `Async API notebook <115-async-api-with-output.html>`__
+   **NOTE** this notebook demonstrates only the basic synchronous
+   inference API. For an async inference example, please refer to `Async
+   API notebook <115-async-api-with-output.html>`__
 
 The diagram below shows a typical inference pipeline with OpenVINO
 
-.. figure:: https://docs.openvino.ai/2023.1/_images/IMPLEMENT_PIPELINE_with_API_C.svg
+.. figure:: https://docs.openvino.ai/2023.0/_images/IMPLEMENT_PIPELINE_with_API_C.svg
    :alt: image.png
 
    image.png
@@ -616,15 +606,15 @@ input, wrapping to a dictionary or list can be omitted.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
 
 
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    import openvino as ov
     
-    ie = Core()
+    core = ov.Core()
     classification_model_xml = "model/classification.xml"
     model = core.read_model(model=classification_model_xml)
     compiled_model = core.compile_model(model=model, device_name="CPU")
@@ -801,15 +791,15 @@ input shape.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/segmentation.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/segmentation.bin')
 
 
 
 .. code:: ipython3
 
-    from openvino.runtime import Core, PartialShape
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     segmentation_model_xml = "model/segmentation.xml"
     segmentation_model = core.read_model(model=segmentation_model_xml)
     segmentation_input_layer = segmentation_model.input(0)
@@ -819,7 +809,7 @@ input shape.
     print(f"input shape: {segmentation_input_layer.shape}")
     print(f"output shape: {segmentation_output_layer.shape}")
     
-    new_shape = PartialShape([1, 3, 544, 544])
+    new_shape = ov.PartialShape([1, 3, 544, 544])
     segmentation_model.reshape({segmentation_input_layer.any_name: new_shape})
     segmentation_compiled_model = core.compile_model(model=segmentation_model, device_name="CPU")
     # help(segmentation_compiled_model)
@@ -861,13 +851,13 @@ set ``new_shape = (2,3,544,544)`` in the cell above.
 
 .. code:: ipython3
 
-    from openvino.runtime import Core, PartialShape
+    import openvino as ov
     
     segmentation_model_xml = "model/segmentation.xml"
     segmentation_model = core.read_model(model=segmentation_model_xml)
     segmentation_input_layer = segmentation_model.input(0)
     segmentation_output_layer = segmentation_model.output(0)
-    new_shape = PartialShape([2, 3, 544, 544])
+    new_shape = ov.PartialShape([2, 3, 544, 544])
     segmentation_model.reshape({segmentation_input_layer.any_name: new_shape})
     segmentation_compiled_model = core.compile_model(model=segmentation_model, device_name="CPU")
     
@@ -888,14 +878,14 @@ input image through the network to see the result:
 .. code:: ipython3
 
     import numpy as np
-    from openvino.runtime import Core, PartialShape
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     segmentation_model_xml = "model/segmentation.xml"
     segmentation_model = core.read_model(model=segmentation_model_xml)
     segmentation_input_layer = segmentation_model.input(0)
     segmentation_output_layer = segmentation_model.output(0)
-    new_shape = PartialShape([2, 3, 544, 544])
+    new_shape = ov.PartialShape([2, 3, 544, 544])
     segmentation_model.reshape({segmentation_input_layer.any_name: new_shape})
     segmentation_compiled_model = core.compile_model(model=segmentation_model, device_name="CPU")
     input_data = np.random.rand(2, 3, 544, 544)
@@ -930,9 +920,7 @@ model will be loaded to the GPU. After running this cell once, the model
 will be cached, so subsequent runs of this cell will load the model from
 the cache.
 
-.. note::
-
-   Model Caching is also available on CPU devices
+*Note: Model Caching is also available on CPU devices*
 
 .. code:: ipython3
 
@@ -954,7 +942,7 @@ the cache.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
 
 
 
@@ -963,9 +951,9 @@ the cache.
     import time
     from pathlib import Path
     
-    from openvino.runtime import Core
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
     
     device_name = "GPU" 
     
