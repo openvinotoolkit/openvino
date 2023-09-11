@@ -133,7 +133,7 @@ jobs:
           echo "set(VCPKG_BUILD_TYPE release)" >> ${{ env.VCPKG_ROOT }}/triplets/community/arm64-android.cmake
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: CMake configure
