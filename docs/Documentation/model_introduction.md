@@ -135,7 +135,7 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          # Check model page for information about input shape: https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5
          model.build([None, 224, 224, 3])
 
-         model.save('mobilenet_v1_100_224')  # use temporary directory
+         model.save('mobilenet_v1_100_224')  # use a temporary directory
          ov_model = ov.convert_model('mobilenet_v1_100_224')
 
          ###### Option 1: Save to OpenVINO IR:

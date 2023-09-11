@@ -205,7 +205,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      model = tf.keras.applications.ResNet50(weights="imagenet")
      ov_model = ov.convert_model(model)
 
-* ``tf.keras.layers.Layer``. Requires setting the "input_shape".
+* ``tf.keras.layers.Layer``. Requires saving model to TensorFlow ``saved_model`` file format and then loading to ``openvino.convert_model``. Saving to the file and then restoring is required due to a known bug in ``openvino.convert_model`` that ignores model signature.
 
   .. code-block:: py
      :force:
@@ -214,9 +214,12 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      import openvino as ov
 
      model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
-     ov_model = ov.convert_model(model)
+     model.build([None, 224, 224, 3])
+     model.save('mobilenet_v1_100_224')  # use a temporary directory
 
-* ``tf.Module``. Requires setting the "input_shape".
+     ov_model = ov.convert_model('mobilenet_v1_100_224')
+
+* ``tf.Module``. Requires setting shapes in ``input`` parameter.
 
   .. code-block:: py
      :force:
@@ -233,7 +236,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
            return self.constant1 * x + self.constant2
 
      model = MyModule(name="simple_module")
-     ov_model = ov.convert_model(model, input_shape=[-1])
+     ov_model = ov.convert_model(model, input=[-1])
 
 .. note:: There is a known bug in ``openvino.convert_model`` on using ``tf.Variable`` nodes in the model graph. The results of the conversion of such models is unpredictable. It is recommended to save a model with ``tf.Variable`` into TensorFlow Saved Model format and load it with `openvino.convert_model`.
 
