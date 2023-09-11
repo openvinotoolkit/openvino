@@ -138,19 +138,14 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const Pa
     if (model->get_parameters().empty()) {
         return;
     }
-    bool isFunctionalGraph = false, isReportConvert = true;
+    bool isFunctionalGraph = false;
     for (const auto &op : model->get_ordered_ops()) {
         if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
             // find all features
-            if (!std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
-                isReportConvert = false;
-            }
             isFunctionalGraph = true;
-            if (!isReportConvert && isFunctionalGraph) {
-                break;
-            }
+            break;
         }
     }
 
@@ -159,14 +154,6 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const Pa
              std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
              std::dynamic_pointer_cast<ov::op::v0::Result>(op)) && isFunctionalGraph) {
             continue;
-        }
-        // todo: remove w/a to provide correct convert reporting after merge CVS-110714
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
-            if (!isReportConvert) {
-                continue;
-            } else {
-                isReportConvert = false;
-            }
         }
         if (extractBody) {
             if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
