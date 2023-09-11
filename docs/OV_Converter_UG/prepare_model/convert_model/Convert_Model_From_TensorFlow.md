@@ -70,7 +70,7 @@ Then follow the above instructions for the SavedModel format.
 
 .. note::
 
-   Do not use other hacks to resave TensorFlow 2 models into TensorFlow 1 formats.
+   Do not use any hacks to resave TensorFlow 2 models into TensorFlow 1 formats.
 
 Converting TensorFlow 1 Models
 ###############################

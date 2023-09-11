@@ -193,6 +193,7 @@ Before saving the model to OpenVINO IR, consider applying :doc:`Post-training Op
 The figure below illustrates the typical workflow for deploying a trained deep-learning model.
 
 **TODO: Update BASIC_FLOW_MO_simplified.svg and replace 'mo' with 'ovc'**
+
 .. image:: ./_static/images/model_conversion_diagram.svg
    :alt: model conversion diagram
 
