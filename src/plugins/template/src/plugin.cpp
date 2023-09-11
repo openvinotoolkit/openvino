@@ -33,8 +33,7 @@ ov::template_plugin::Plugin::Plugin() {
     m_backend = ov::runtime::Backend::create();
 
     // create default stream executor with a given name
-    // FIXME: revert back
-    // m_waitExecutor = get_executor_manager()->get_idle_cpu_streams_executor({wait_executor_name});
+    m_waitExecutor = get_executor_manager()->get_idle_cpu_streams_executor({wait_executor_name});
 }
 // ! [plugin:ctor]
 
@@ -107,11 +106,9 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
         model->clone(),
         shared_from_this(),
         context,
-        nullptr,
-        // FIXME: Revert back:
-        // fullConfig.exclusive_async_requests
-        //    ? get_executor_manager()->get_executor(template_exclusive_executor)
-        //    : get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
+        fullConfig.exclusive_async_requests
+            ? get_executor_manager()->get_executor(template_exclusive_executor)
+            : get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
         fullConfig);
     return compiled_model;
 }
