@@ -5,6 +5,12 @@
 .. meta::
    :description: Transition guide from MO / mo.convert_model() to OVC / ov.convert_model().
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
+
 In 2023.1 OpenVino release a new OVC (OpenVINO Model Converter) tool was introduced with the corresponding Python API: ``openvino.convert_model`` method. ``ovc`` and ``openvino.convert_model`` represent
 a lightweight alternative of ``mo`` and ``openvino.tools.mo.convert_model`` which are considered legacy API now. In this article, all the differences between ``mo`` and ``ovc`` are summarized and transition guide from the legacy API to the new API is provided.
 
@@ -200,19 +206,19 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-       
+
        .. list-table::
           :header-rows: 1
-          
+
           * - Legacy API
             - New API
           * - .. code-block:: py
                  :force:
-      
+
                  from openvino.tools import mo
 
                  ov_model = mo.convert_model(model, input_shape=[[1, 3, 100, 100],[1]])
-      
+
             - .. code-block:: py
                  :force:
 
@@ -225,17 +231,17 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: sh
                  :force:
 
                  mo --input_model MODEL_NAME --input_shape [1,3,100,100],[1] --output_dir OUTPUT_DIR
-      
+
             - .. code-block:: sh
                  :force:
-      
+
                  ovc MODEL_NAME --input [1,3,100,100],[1] --output_model OUTPUT_MODEL
 
 ``batch``:
@@ -245,19 +251,19 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-       
+
        .. list-table::
           :header-rows: 1
-          
+
           * - Legacy API
             - New API
           * - .. code-block:: py
                  :force:
-      
+
                  from openvino.tools import mo
 
                  ov_model = mo.convert_model(model, batch=2)
-      
+
             - .. code-block:: py
                  :force:
 
@@ -273,14 +279,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: sh
                  :force:
 
                  mo --input_model MODEL_NAME --batch 2 --output_dir OUTPUT_DIR
-      
+
             - Not available in OVC tool. Please check Python API.
 
 ``mean_values``:
@@ -290,19 +296,19 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-      
+
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: py
                  :force:
-      
+
                  from openvino.tools import mo
 
                  ov_model = mo.convert_model(model, mean_values=[0.5, 0.5, 0.5])
-      
+
             - .. code-block:: py
                  :force:
 
@@ -322,14 +328,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: sh
                  :force:
 
                  mo --input_model MODEL_NAME --mean_values [0.5,0.5,0.5] --output_dir OUTPUT_DIR
-      
+
             - Not available in OVC tool. Please check Python API.
 
 ``scale_values``:
@@ -339,19 +345,19 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-      
+
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: py
                  :force:
-      
+
                  from openvino.tools import mo
 
                  ov_model = mo.convert_model(model, scale_values=[255., 255., 255.])
-      
+
             - .. code-block:: py
                  :force:
 
@@ -371,14 +377,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: sh
                  :force:
 
                  mo --input_model MODEL_NAME --scale_values [255,255,255] --output_dir OUTPUT_DIR
-      
+
             - Not available in OVC tool. Please check Python API.
 
 ``reverse_input_channels``:
@@ -388,19 +394,19 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-      
+
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: py
                  :force:
-      
+
                  from openvino.tools import mo
 
                  ov_model = mo.convert_model(model, reverse_input_channels=True)
-      
+
             - .. code-block:: py
                  :force:
 
@@ -420,14 +426,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: sh
                  :force:
 
                  mo --input_model MODEL_NAME --reverse_input_channels --output_dir OUTPUT_DIR
-      
+
             - Not available in OVC tool. Please check Python API.
 
 ``source_layout``:
@@ -437,20 +443,20 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-      
+
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: py
                  :force:
-      
+
                  import openvino as ov
                  from openvino.tools import mo
-         
+
                  ov_model = mo.convert_model(model, source_layout={input_name: ov.Layout("NHWC")})
-      
+
             - .. code-block:: py
                  :force:
 
@@ -467,14 +473,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: sh
                  :force:
 
                  mo --input_model MODEL_NAME --source_layout input_name(NHWC) --output_dir OUTPUT_DIR
-      
+
             - Not available in OVC tool. Please check Python API.
 
 ``target_layout``:
@@ -484,20 +490,20 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-      
+
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: py
                  :force:
-      
+
                  import openvino as ov
                  from openvino.tools import mo
-         
+
                  ov_model = mo.convert_model(model, target_layout={input_name: ov.Layout("NHWC")})
-      
+
             - .. code-block:: py
                  :force:
 
@@ -514,14 +520,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: sh
                  :force:
 
                  mo --input_model MODEL_NAME --target_layout input_name(NHWC) --output_dir OUTPUT_DIR
-      
+
             - Not available in OVC tool. Please check Python API.
 
 ``layout``:
@@ -531,19 +537,19 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-      
+
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: py
                  :force:
-      
+
                  from openvino.tools import mo
 
                  ov_model = mo.convert_model(model, layout={input_name: mo.LayoutMap("NCHW", "NHWC")})
-      
+
             - .. code-block:: py
                  :force:
 
@@ -561,14 +567,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: sh
                  :force:
 
                  mo --input_model MODEL_NAME --layout "input_name(NCHW->NHWC)" --output_dir OUTPUT_DIR
-      
+
             - Not available in OVC tool. Please check Python API.
 
 ``transform``:
@@ -578,19 +584,19 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-      
+
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: py
                  :force:
-      
+
                  from openvino.tools import mo
 
                  ov_model = mo.convert_model(model, transform=[('LowLatency2', {'use_const_initializer': False}), 'Pruning', ('MakeStateful', {'param_res_names': {'input_name': 'output_name'}})])
-      
+
             - .. code-block:: py
                  :force:
 
@@ -607,17 +613,17 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
        .. list-table::
           :header-rows: 1
-      
+
           * - Legacy API
             - New API
           * - .. code-block:: sh
                  :force:
 
                  mo --input_model MODEL_NAME --transform LowLatency2[use_const_initializer=False],Pruning,MakeStateful[param_res_names={'input_name':'output_name'}] --output_dir OUTPUT_DIR
-      
+
             - Not available in OVC tool. Please check Python API.
 
-Supported frameworks in MO vs OVC 
+Supported frameworks in MO vs OVC
 #################################
 
 ov.convert_model() and OVC tool support conversion from PyTorch, TF, TF Lite, ONNX, PaddlePaddle.
