@@ -130,7 +130,7 @@ public:
         auto reshape_param_0 = ngraph::builder::makeConstant<int>(ov::element::i32, {1}, {0});
         auto reshape_0 = std::make_shared<ngraph::opset1::Unsqueeze>(soft_max, reshape_param_0);
         auto result_2 = std::make_shared<ngraph::opset3::Result>(reshape_0);    // dummy output
-    
+
         auto reshape_param_1 = ngraph::builder::makeConstant<int>(ov::element::i32, {1}, {0});
         auto reshape_1 = std::make_shared<ngraph::opset1::Unsqueeze>(reshape_0, reshape_param_1);
         auto result_1 = std::make_shared<ngraph::opset3::Result>(reshape_1);    // target output
