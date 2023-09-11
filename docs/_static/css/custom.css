@@ -94,8 +94,7 @@ ul#navbar-main-elements > li:hover {
     font-weight: bold;
 }
 
-<<<<<<< HEAD
-=======
+
 /* Move sidebar menu arrows to the left */
 .bd-sidebar label {
     left: 0px;
@@ -104,7 +103,6 @@ ul#navbar-main-elements > li:hover {
     top: 5px;
 }
 
->>>>>>> cb76db2e0e (center arrow)
 
 /* Second level items                 */
 #bd-docs-nav > div > ul > li > ul {
