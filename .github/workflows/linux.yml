@@ -538,11 +538,13 @@ jobs:
 
       - name: Create Directories
         run: |
-          su - ${{ env.TEST_USER_NAME }} -c "mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}"
+          su - ${{ env.TEST_USER_NAME }} -c "mkdir -p ${{ env.INSTALL_DIR }}"
+          su - ${{ env.TEST_USER_NAME }} -c "mkdir -p ${{ env.INSTALL_TEST_DIR }}"
 
       - name: Install git
         run: |
-          su - ${{ env.TEST_USER_NAME }} -c "sudo apt update && apt --assume-yes install git git-lfs"
+          sudo apt update
+          sudo apt --assume-yes install git git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -556,7 +558,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          su - ${{ env.TEST_USER_NAME }} -c "sudo apt update && apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers libsnappy-dev"
+          sudo apt update
+          sudo apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers libsnappy-dev
 
       - uses: actions/setup-python@v4
         with:
