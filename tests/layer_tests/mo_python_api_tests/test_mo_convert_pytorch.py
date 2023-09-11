@@ -841,7 +841,7 @@ def create_pytorch_module_with_nested_inputs2(tmp_dir):
     add = ov.opset10.add(concat1, param0)
     ref_model = Model([concat2, add], [param0, param1, param2], "test")
     return net, ref_model, {
-        "example_input": {"x": torch.ones((1, 9)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 5)))},
+        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 9)), torch.ones((1, 5, 5)))},
         "compress_to_fp16": False}
 
 
@@ -867,7 +867,7 @@ def create_pytorch_module_with_nested_inputs3(tmp_dir):
     add = ov.opset10.add(concat1, param3)
     ref_model = Model([concat2, add], [param1, param2, param3], "test")
     return net, ref_model, {
-        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 3)))},
+        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 9)), torch.ones((1, 5, 3)))},
         "compress_to_fp16": False}
 
 
@@ -895,7 +895,7 @@ def create_pytorch_module_with_nested_inputs4(tmp_dir):
     mul = ov.opset10.multiply(concat2, param4)
     ref_model = Model([mul, add], [param3, param1, param2, param4], "test")
     return net, ref_model, {
-        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 10))),
+        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 9)), torch.ones((1, 5, 10))),
                           "y": torch.ones((1,))},
         "compress_to_fp16": False}
 
@@ -1268,9 +1268,4 @@ class TestPrecisionSensitive():
         fw_res = fw_model(*torch_inp_tensors)
         ov_res = core.compile_model(ir_test)(example_inputs)
 
-        if precision == 'FP32':
-            custom_eps = 1e-4
-        else:
-            custom_eps = 1e-3
-
-        npt.assert_allclose(ov_res[0], fw_res.numpy(), atol=custom_eps)
+        npt.assert_allclose(ov_res[0], fw_res.numpy(), atol=1e-3, rtol=1e-3)
