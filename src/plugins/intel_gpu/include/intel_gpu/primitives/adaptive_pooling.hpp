@@ -20,8 +20,6 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
                          mode{adaptive_pooling_mode::average},
                          output_size{} {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs AdaptiveAvgPooling primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
