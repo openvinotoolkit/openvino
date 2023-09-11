@@ -187,7 +187,7 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
     cldnn::data_types mem_dtype = mem->get_layout().data_type;
     if (mem_dtype == data_types::f16 || mem_dtype == data_types::f32) {
         if (!std::is_floating_point<T>::value && !std::is_same<T, half_t>::value) {
-            OPENVINO_ASSERT(false, "[GPU] read_vector: attempt to convert floating point memory to non-floating point memory");
+            OPENVINO_THROW("[GPU] read_vector: attempt to convert floating point memory to non-floating point memory");
         }
     }
 
@@ -222,7 +222,7 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
                 }
                 break;
             }
-            default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
+            default: OPENVINO_THROW("[GPU] read_vector: unsupported data type");
         }
     } else {
         switch (mem_dtype) {
@@ -246,7 +246,7 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
                 out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
                 break;
             }
-            default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
+            default: OPENVINO_THROW("[GPU] read_vector: unsupported data type");
         }
     }
     return out_vecs;

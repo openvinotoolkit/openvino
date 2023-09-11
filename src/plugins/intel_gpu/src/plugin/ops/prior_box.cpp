@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreatePriorBoxClusteredOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::PriorBoxClustered>& op) {
-    OPENVINO_ASSERT(false, "[GPU] PriorBoxClustered op is not supported in GPU plugin yet.");
+    OPENVINO_THROW("[GPU] PriorBoxClustered op is not supported in GPU plugin yet.");
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);

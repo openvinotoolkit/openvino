@@ -132,7 +132,7 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
         case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::LITTLE; break;
         case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::ANY; break;
         case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::BIG; break;
-        default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
+        default: OPENVINO_THROW("[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
 
     adjust_num_cores(task_executor_config);

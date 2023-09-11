@@ -383,7 +383,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                                                       dims_padded.v(),
                                                       dims_padded.f()})});
         } else {
-            OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
+            OPENVINO_THROW("[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
     } else {
         // static dim

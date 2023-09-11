@@ -149,7 +149,7 @@ std::vector<int64_t> get_axes_vector(const ngraph::HostTensorVector& args,
             for (size_t i = 0; i < num_of_axes; ++i)
                 axes.push_back(axes_ptr[i]);
         } else {
-            OPENVINO_ASSERT(false, "Failed to process ", axes_arg->get_element_type());
+            OPENVINO_THROW("Failed to process ", axes_arg->get_element_type());
         }
     } else {
         for (size_t i = 0; i < default_size; ++i) {
@@ -175,7 +175,7 @@ std::vector<int64_t> get_target_shape_vector(const ngraph::HostTensorVector& arg
         for (size_t i = 0; i < num_of_axes; ++i)
             target_shape.push_back(target_shape_ptr[i]);
     } else {
-        OPENVINO_ASSERT(false, "Failed to process ", target_shape_arg->get_element_type());
+        OPENVINO_THROW("Failed to process ", target_shape_arg->get_element_type());
     }
 
     return target_shape;

@@ -349,7 +349,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
                 case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED; break;
                 case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH; break;
                 OPENVINO_SUPPRESS_DEPRECATED_END
-            default: OPENVINO_ASSERT(false, "Unsupported model priority value");
+            default: OPENVINO_THROW("Unsupported model priority value");
             }
         }
         return legacy_val;

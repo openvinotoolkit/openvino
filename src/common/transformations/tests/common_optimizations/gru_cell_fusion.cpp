@@ -29,7 +29,7 @@ Output<Node> create_activation_by_name(const string& activation_name, const Outp
     } else if (activation_name == "relu") {
         return make_shared<Relu>(input);
     }
-    OPENVINO_ASSERT(false, "Unsupported activation function");
+    OPENVINO_THROW("Unsupported activation function");
 }
 
 shared_ptr<Model> gen_model(WeightsFormat format,

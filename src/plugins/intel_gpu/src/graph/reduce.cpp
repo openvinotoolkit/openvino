@@ -185,7 +185,7 @@ std::vector<layout> reduce_inst::calc_output_layouts(reduce_node const& /*node*/
         case reduce_mode::log_sum_exp:
             // not implemented
         default:
-            OPENVINO_ASSERT(false, "Not supported reduce mode");
+            OPENVINO_THROW("Not supported reduce mode");
     }
 
     auto input_type = input0_layout.data_type;

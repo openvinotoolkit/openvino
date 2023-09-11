@@ -54,7 +54,7 @@ public:
                     params.poolIndexElementType = kernel_selector::Datatype::INT64;
                     break;
                 }
-                default: OPENVINO_ASSERT(false, "[GPU] Not supported index element type");
+                default: OPENVINO_THROW("[GPU] Not supported index element type");
             }
 
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));

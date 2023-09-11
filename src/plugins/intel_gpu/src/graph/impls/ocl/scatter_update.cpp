@@ -30,7 +30,7 @@ kernel_selector::scatter_update_axis convert_axis(int64_t axis, size_t rank) {
         case 3: return kernel_selector::scatter_update_axis::Y;
         case 4: return kernel_selector::scatter_update_axis::Z;
         case 5: return kernel_selector::scatter_update_axis::W;
-        default: OPENVINO_ASSERT(false, "[GPU] Unsupported scatter update axis");
+        default: OPENVINO_THROW("[GPU] Unsupported scatter update axis");
     }
     return kernel_selector::scatter_update_axis::X;
 }

@@ -115,7 +115,7 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_legacy_property(const s
                 converted_val = ov::hint::Priority::HIGH;
                 break;
             default:
-                OPENVINO_ASSERT(false, "[GPU] Unsupported queue priority value ", uVal);
+                OPENVINO_THROW("[GPU] Unsupported queue priority value ", uVal);
             }
         }
 
@@ -140,14 +140,14 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_legacy_property(const s
                 converted_val = ov::intel_gpu::hint::ThrottleLevel::HIGH;
                 break;
             default:
-                OPENVINO_ASSERT(false, "[GPU] Unsupported queue throttle value ", uVal);
+                OPENVINO_THROW("[GPU] Unsupported queue throttle value ", uVal);
             }
         }
 
         return { ov::intel_gpu::hint::queue_throttle.name(), converted_val };
     }
 
-    OPENVINO_ASSERT(false, "[GPU] Unhandled legacy property in convert_legacy_property method: ", legacy_property.first);
+    OPENVINO_THROW("[GPU] Unhandled legacy property in convert_legacy_property method: ", legacy_property.first);
 }
 
 std::pair<std::string, ov::Any> LegacyAPIHelper::convert_to_legacy_property(const std::pair<std::string, ov::Any>& property) {
@@ -169,7 +169,7 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_to_legacy_property(cons
             case ov::hint::Priority::LOW: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW; break;
             case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED; break;
             case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH; break;
-            default: OPENVINO_ASSERT(false, "[GPU] Unsupported model priority value ", val);
+            default: OPENVINO_THROW("[GPU] Unsupported model priority value ", val);
             }
         }
 
@@ -184,7 +184,7 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_to_legacy_property(cons
             case ov::hint::Priority::LOW: legacy_val = InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW; break;
             case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM; break;
             case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH; break;
-            default: OPENVINO_ASSERT(false, "[GPU] Unsupported host task priority value ", val);
+            default: OPENVINO_THROW("[GPU] Unsupported host task priority value ", val);
             }
         }
 
@@ -197,7 +197,7 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_to_legacy_property(cons
             case ov::hint::Priority::LOW: legacy_val = "1"; break;
             case ov::hint::Priority::MEDIUM: legacy_val = "2"; break;
             case ov::hint::Priority::HIGH: legacy_val = "3"; break;
-            default: OPENVINO_ASSERT(false, "[GPU] Unsupported queue throttle value ", val);
+            default: OPENVINO_THROW("[GPU] Unsupported queue throttle value ", val);
             }
         }
 
@@ -210,13 +210,13 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_to_legacy_property(cons
             case ov::intel_gpu::hint::ThrottleLevel::LOW: legacy_val = "1"; break;
             case ov::intel_gpu::hint::ThrottleLevel::MEDIUM: legacy_val = "2"; break;
             case ov::intel_gpu::hint::ThrottleLevel::HIGH: legacy_val = "3"; break;
-            default: OPENVINO_ASSERT(false, "[GPU] Unsupported queue throttle value ", val);
+            default: OPENVINO_THROW("[GPU] Unsupported queue throttle value ", val);
             }
         }
         return { InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, legacy_val };
     }
 
-    OPENVINO_ASSERT(false, "[GPU] Unhandled legacy property in convert_to_legacy_property method: ", property.first);
+    OPENVINO_THROW("[GPU] Unhandled legacy property in convert_to_legacy_property method: ", property.first);
 }
 
 std::vector<std::string> LegacyAPIHelper::get_supported_configs() {

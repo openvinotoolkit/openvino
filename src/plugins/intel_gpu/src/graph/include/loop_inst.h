@@ -294,7 +294,7 @@ public:
             // zero and the value will be set in execute_impl()
             if (back_edge.to != get_current_iteration_id() && input_map == input_primitive_maps.end()) {
                 std::string msg = "[GPU] No primitive mapping for backedge (internal_id: " + back_edge.to + ") for primitive " + this->id();
-                OPENVINO_ASSERT(false, msg.c_str());
+                OPENVINO_THROW(msg.c_str());
             }
 
             output_names.insert(back_edge.from);

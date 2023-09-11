@@ -29,7 +29,7 @@ public:
         if (parent_nodes.size() == 3) {
             return std::make_shared<Gather>(parent_nodes[0], parent_nodes[1], parent_nodes[2]);
         }
-        OPENVINO_ASSERT(false, "Unexpected number of inputs to Gather operation.");
+        OPENVINO_THROW("Unexpected number of inputs to Gather operation.");
     }
 };
 

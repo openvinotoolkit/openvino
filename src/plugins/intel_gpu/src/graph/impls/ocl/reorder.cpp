@@ -90,7 +90,7 @@ public:
                 case reorder_mean_mode::div:
                     params.mean_op = kernel_selector::mean_op::DIV;
                     break;
-                default: OPENVINO_ASSERT(false, "[GPU] Unsupported mean_mode value in primitive ", primitive->id);
+                default: OPENVINO_THROW("[GPU] Unsupported mean_mode value in primitive ", primitive->id);
             }
         }
 

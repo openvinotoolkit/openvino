@@ -554,7 +554,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                 }
                 return output_tensors;
             } else {
-                OPENVINO_ASSERT(false, "Evaluation failed on ", node);
+                OPENVINO_THROW("Evaluation failed on ", node);
             }
         });
     for (const auto& value : outputs) {
@@ -1110,7 +1110,7 @@ ov::Dimension ov::get_batch(const std::shared_ptr<const ov::Model>& f) {
             }
             stream << "---" << std::endl;
             stream << "Please ensure that N(Batch) dimension is set correctly for listed parameters";
-            OPENVINO_ASSERT(false, stream.str());
+            OPENVINO_THROW(stream.str());
         } else {
             merged_indexes.push_back(i);
         }
@@ -1128,7 +1128,7 @@ ov::Dimension ov::get_batch(const std::shared_ptr<const ov::Model>& f) {
         stream << "Please use 'set_layout' API to set layout with batch dimension, e.g. "
                   "`Model->get_parameters()[index]->set_layout(\"NCHW\");`";
 
-        OPENVINO_ASSERT(false, stream.str());
+        OPENVINO_THROW(stream.str());
     }
     return batch_size;
 }
@@ -1170,6 +1170,6 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         }
         stream << "---" << std::endl;
         stream << "Original error message is: " << e.what();
-        OPENVINO_ASSERT(false, stream.str());
+        OPENVINO_THROW(stream.str());
     }
 }

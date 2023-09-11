@@ -327,7 +327,7 @@ format format::adjust_to_rank(format fmt, size_t new_rank) {
             return candidate_tag;
     }
 
-    OPENVINO_ASSERT(false, "Can't adjust format ", fmt.to_string(), " to the new rank (", new_rank, ")");
+    OPENVINO_THROW("Can't adjust format ", fmt.to_string(), " to the new rank (", new_rank, ")");
 }
 
 // First : block_idx, Second : block_size

@@ -857,7 +857,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto ev = get_network().get_primitive_event(id);
                     dependencies.emplace_back(ev);
                 } catch (const std::out_of_range& oor) {
-                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+                    OPENVINO_THROW("[GPU] execution order corrupted: ", oor.what());
                 }
             }
         }

@@ -30,7 +30,7 @@ public:
         } else if (parent_nodes.size() == 1) {
             return std::make_shared<Squeeze>(parent_nodes[0]);
         }
-        OPENVINO_ASSERT(false, "Unexpected number of inputs to Squeeze operation.");
+        OPENVINO_THROW("Unexpected number of inputs to Squeeze operation.");
     }
 };
 

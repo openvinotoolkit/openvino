@@ -85,7 +85,7 @@ struct primitive_impl {
 
     virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
         OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
-        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
+        OPENVINO_THROW("[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);

@@ -1208,7 +1208,7 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
                                                                        casted->_out_shift);
     }
 
-    OPENVINO_ASSERT(false, "[GPU] Unhandled fused params type");
+    OPENVINO_THROW("[GPU] Unhandled fused params type");
 }
 
 void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations) {

@@ -83,7 +83,7 @@ Allocator::Allocator(const Allocator& other, const std::shared_ptr<void>& so) : 
     } catch (const std::exception& ex) {                                 \
         OPENVINO_THROW(ex.what());                                       \
     } catch (...) {                                                      \
-        OPENVINO_ASSERT(false, "Unexpected exception");                  \
+        OPENVINO_THROW("Unexpected exception");                          \
     }
 
 void* Allocator::allocate(const size_t bytes, const size_t alignment) {

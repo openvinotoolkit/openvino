@@ -109,7 +109,7 @@ inline std::ostream& operator<<(std::ostream& os, const pipeline_stage& stage) {
         case pipeline_stage::update_weights:        return os << "update_weights";
         case pipeline_stage::memory_allocation:     return os << "memory_allocation";
         case pipeline_stage::inference:             return os << "inference";
-        default: OPENVINO_ASSERT(false, "[GPU] Unexpected pipeline stage");
+        default: OPENVINO_THROW("[GPU] Unexpected pipeline stage");
     }
 }
 

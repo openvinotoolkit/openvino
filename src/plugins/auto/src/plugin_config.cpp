@@ -58,7 +58,7 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
                 }
             }
         } else {
-            OPENVINO_ASSERT(false, "property: ", name,  ": not supported");
+            OPENVINO_THROW("property: ", name,  ": not supported");
         }
     }
 }

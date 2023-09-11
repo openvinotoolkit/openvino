@@ -260,7 +260,7 @@ ov::op::util::LSTMWeightsFormat op::convert_lstm_weights_enums(op::LSTMWeightsFo
     case LSTMWeightsFormat::IOFC:
         return ov::op::util::LSTMWeightsFormat::IOFC;
     default:
-        OPENVINO_ASSERT(false, "Incorrect LSTM weights format");
+        OPENVINO_THROW("Incorrect LSTM weights format");
     }
 }
 }  // namespace ov

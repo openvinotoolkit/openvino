@@ -30,7 +30,7 @@ public:
                 return p.second;
             }
         }
-        OPENVINO_ASSERT(false, "\"", name, "\"", " is not a member of enum ", get().m_enum_name);
+        OPENVINO_THROW("\"", name, "\"", " is not a member of enum ", get().m_enum_name);
     }
 
     /// Converts enum values to strings
@@ -40,7 +40,7 @@ public:
                 return p.first;
             }
         }
-        OPENVINO_ASSERT(false, " invalid member of enum ", get().m_enum_name);
+        OPENVINO_THROW(" invalid member of enum ", get().m_enum_name);
     }
 
 private:

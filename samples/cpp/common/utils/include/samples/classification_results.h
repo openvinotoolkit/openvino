@@ -110,7 +110,7 @@ private:
             TENSOR_TOP_RESULT(i64);
             TENSOR_TOP_RESULT(u64);
         default:
-            OPENVINO_ASSERT(false, "cannot locate tensor with element type: ", input.get_element_type());
+            OPENVINO_THROW("cannot locate tensor with element type: ", input.get_element_type());
         }
 
 #undef TENSOR_TOP_RESULT

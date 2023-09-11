@@ -399,7 +399,7 @@ bool RemoveTransposeConsumers(const NodePtr& node) {
                 // should never happen
                 // the check that all consumers of the main node are Transposes is added
                 // to the pattern of the transformations
-                OPENVINO_ASSERT(false, "TransposeSinking error: attempted to remove not Transpose consumer.");
+                OPENVINO_THROW("TransposeSinking error: attempted to remove not Transpose consumer.");
             }
             out_idx_to_redundant_transposes[output_idx].push_back(transpose);
 

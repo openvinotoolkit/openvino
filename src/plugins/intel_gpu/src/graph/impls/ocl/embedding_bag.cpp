@@ -39,7 +39,7 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
         case embedding_bag::segments_sum:
             params.type = kernel_selector::EmbeddingBagType::SEGMENTS_SUM;
             break;
-        default: OPENVINO_ASSERT(false, "[GPU] Unknown embedding_bag type in primitive ", primitive->id);
+        default: OPENVINO_THROW("[GPU] Unknown embedding_bag type in primitive ", primitive->id);
         }
 
         for (size_t i = 1; i < inputs_count; i++) {

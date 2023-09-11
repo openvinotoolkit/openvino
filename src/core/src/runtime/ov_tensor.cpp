@@ -23,7 +23,7 @@ namespace ov {
     } catch (const std::exception& ex) {                              \
         OPENVINO_THROW(ex.what());                                    \
     } catch (...) {                                                   \
-        OPENVINO_ASSERT(false, "Unexpected exception");               \
+        OPENVINO_THROW("Unexpected exception");                       \
     }
 
 void Tensor::type_check(const Tensor&) {}

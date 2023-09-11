@@ -189,7 +189,7 @@ protected:
             }
             default:
             {
-                OPENVINO_ASSERT(false, "Not allowed other rank");
+                OPENVINO_THROW("Not allowed other rank");
             }
         }
         return ngraph::builder::makePooling(in, params.stride, params.pad_begin,
@@ -276,7 +276,7 @@ static std::shared_ptr<InnerBodyGenerator> get_inner_body_generator(InnerBodyGen
         }
         default:
         {
-            OPENVINO_ASSERT(false, "Not supported type");
+            OPENVINO_THROW("Not supported type");
         }
     }
 }
@@ -355,7 +355,7 @@ private:
             }
             default:
             {
-                OPENVINO_ASSERT(false, "Not supported type");
+                OPENVINO_THROW("Not supported type");
             }
         }
         return pred;

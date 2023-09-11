@@ -755,14 +755,14 @@ inline op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialSha
         } else if (input_shape_rank == 5) {
             attrs_v4.mode = InterpolateMode::LINEAR;
         } else {
-            OPENVINO_ASSERT(false, "Failed to process ", attrs_v0.mode);
+            OPENVINO_THROW("Failed to process ", attrs_v0.mode);
         }
     } else if (attrs_v0.mode == "cubic") {
         attrs_v4.mode = InterpolateMode::CUBIC;
     } else if (attrs_v0.mode == "linear_onnx") {
         attrs_v4.mode = InterpolateMode::LINEAR_ONNX;
     } else {
-        OPENVINO_ASSERT(false, "Failed to process ", attrs_v0.mode);
+        OPENVINO_THROW("Failed to process ", attrs_v0.mode);
     }
 
     attrs_v4.shape_calculation_mode = op::v4::Interpolate::ShapeCalcMode::SIZES;

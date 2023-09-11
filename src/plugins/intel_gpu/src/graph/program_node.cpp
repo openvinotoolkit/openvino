@@ -244,7 +244,7 @@ size_t program_node::get_user_index(const program_node& node) const {
             idx++;
     }
 
-    OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
+    OPENVINO_THROW("Search invalid user node" + node.id() + " node");
 }
 
 size_t program_node::get_dependency_index(const program_node& node) const {
@@ -252,7 +252,7 @@ size_t program_node::get_dependency_index(const program_node& node) const {
         if (dependencies[i].first == &node)
             return i;
 
-    OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
+    OPENVINO_THROW("Search invalid dependency node" + node.id() + " node");
 }
 
 bool program_node::is_detached(bool whole_branch) {
@@ -1077,7 +1077,7 @@ void program_node::init_onednn_primitive_attributes() {
                 std::stringstream error_msg;
                 error_msg << "Unsupported eltwise mode: " << static_cast<int>(desc.typed_desc<eltwise>()->mode) << ". ";
                 error_msg << desc.desc->id << " is fused node of " + this->id() + ".";
-                OPENVINO_ASSERT(false, error_msg.str());
+                OPENVINO_THROW(error_msg.str());
             }
         } else if (desc.is_type<quantize>()) {
             auto dep_idx = desc.outer_dep_start_idx;

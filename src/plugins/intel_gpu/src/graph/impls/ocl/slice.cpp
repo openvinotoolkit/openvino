@@ -40,7 +40,7 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
     case data_types::i64:
         return extractIntegerData<std::int64_t>(node, stream);
     default:
-        OPENVINO_ASSERT(false, "[GPU] Slice parameters should be of integral type for node ", node.id(), " while got ", dt);
+        OPENVINO_THROW("[GPU] Slice parameters should be of integral type for node ", node.id(), " while got ", dt);
     }
     return {};
 }

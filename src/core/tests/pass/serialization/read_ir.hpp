@@ -29,7 +29,7 @@ inline std::shared_ptr<ov::Model> readModel(const std::string& model_path, const
     if (inputModel)
         return FE->convert(inputModel);
 
-    OPENVINO_ASSERT(false, "Failed to read the model ", model_path);
+    OPENVINO_THROW("Failed to read the model ", model_path);
 }
 
 inline std::shared_ptr<ov::Model> readModel(const std::string& model) {
@@ -48,7 +48,7 @@ inline std::shared_ptr<ov::Model> readModel(const std::string& model) {
     if (inputModel)
         return FE->convert(inputModel);
 
-    OPENVINO_ASSERT(false, "Failed to read the model");
+    OPENVINO_THROW("Failed to read the model");
 }
 
 }  // namespace test

@@ -75,7 +75,7 @@ public:
                 return m_inputs[index];
             }
         }
-        OPENVINO_ASSERT(false, "Model doesn't have input with name ", tensor_name);
+        OPENVINO_THROW("Model doesn't have input with name ", tensor_name);
     }
 
     OutputInfo& find_output(const std::string& tensor_name) {
@@ -85,7 +85,7 @@ public:
                 return m_outputs[index];
             }
         }
-        OPENVINO_ASSERT(false, "Model doesn't have output with name ", tensor_name);
+        OPENVINO_THROW("Model doesn't have output with name ", tensor_name);
     }
 
     std::vector<InputInfo> m_inputs;

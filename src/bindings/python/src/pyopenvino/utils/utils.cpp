@@ -342,7 +342,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         case PY_TYPE::PARTIAL_SHAPE:
             return _list.cast<std::vector<ov::PartialShape>>();
         default:
-            OPENVINO_ASSERT(false, "Unsupported attribute type.");
+            OPENVINO_THROW("Unsupported attribute type.");
         }
         // OV types
     } else if (py_object_is_any_map(py_obj)) {
@@ -388,7 +388,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     } else if (py::isinstance<py::object>(py_obj)) {
         return py_obj;
     }
-    OPENVINO_ASSERT(false, "Unsupported attribute type.");
+    OPENVINO_THROW("Unsupported attribute type.");
 }
 };  // namespace utils
 };  // namespace Common

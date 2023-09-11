@@ -57,7 +57,7 @@ float device::get_gops(cldnn::data_types dt) const {
         break;
     }
 
-    default: OPENVINO_ASSERT(false, "[GPU] get_gops: unsupported precision: ", dt);
+    default: OPENVINO_THROW("[GPU] get_gops: unsupported precision: ", dt);
     }
 
     return freqGHz * opsPerComputeBlock * computeBlockIPC * numEUs;
