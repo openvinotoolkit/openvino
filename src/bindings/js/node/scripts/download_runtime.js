@@ -18,8 +18,8 @@ async function main() {
 
   if (isRuntimeDirExists && !process.argv.includes('-f')) {
     if (process.argv.includes('--ignore-if-exists')) {
-      console.error(`Directory '${modulePath}' exists, `
-        + `skip runtime init because '--ignore-if-exists' flag passed`);
+      console.log(`Directory '${modulePath}' exists, skip runtime init `
+        + 'because \'--ignore-if-exists\' flag passed');
       return;
     }
 
