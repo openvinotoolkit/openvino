@@ -6,6 +6,8 @@
 #include <iostream>
 
 TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TensorWrap>(info) {
+    if (info.Length() == 0) return;
+
     if (info.Length() == 1 || info.Length() > 3) {
         reportError(info.Env(), "Invalid number of arguments for Tensor constructor.");
         return;
@@ -27,7 +29,6 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
             }
 
             const auto data = info[2].As<Napi::TypedArray>();
-
             this->_tensor = cast_to_tensor(data, shape, type);
         }
     } catch (std::invalid_argument& e) {
