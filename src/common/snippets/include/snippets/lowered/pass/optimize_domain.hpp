@@ -13,16 +13,19 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface DomainOptimization
+ * @interface OptimizeDomain
  * @brief Collapse input/output dimensions to balance parallel/per-thread load
  * @ingroup snippets
  */
 
-class DomainOptimization : public snippets::lowered::pass::Pass {
+class OptimizeDomain : public snippets::lowered::pass::Pass {
     size_t& m_tile_rank;
+    inline static bool can_increase_jit_work_amount(const VectorDims& master_shape,
+                                                    size_t min_parallel_work_amount,
+                                                    size_t total_work_amount);
 public:
-    OPENVINO_RTTI("DomainOptimization", "Pass")
-    explicit DomainOptimization(size_t& tile_rank);
+    OPENVINO_RTTI("OptimizeDomain", "Pass")
+    explicit OptimizeDomain(size_t& tile_rank);
     bool run(LinearIR& linear_ir) override;
     static bool optimize(std::vector<VectorDims>& input_shapes,
                          VectorDims& master_shape,

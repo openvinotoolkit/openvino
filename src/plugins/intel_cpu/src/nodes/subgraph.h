@@ -107,9 +107,6 @@ private:
 
         private:
             static const size_t rank6D {6};
-            // Note: these are hint for domain optimization and tileRank selection
-            const size_t min_parallel_work_amount {16};
-            const size_t min_jit_work_amount {256};
 
             typedef void (*kernel)(const void *, const void *);
 
