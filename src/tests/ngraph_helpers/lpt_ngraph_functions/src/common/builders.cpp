@@ -285,7 +285,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
             fqOnData.inputLowValues,
             fqOnData.inputLowValues.empty());
         if (fqOnData.addConverts) {
-            inputLowNode = ngraph::builder::makeConversion(inputLowNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
+            inputLowNode = ngraph::builder::makeConversion(inputLowNode, ov::element::f32, ov::test::utils::ConversionTypes::CONVERT);
         }
 
         inputHighNode = ngraph::builder::makeConstant(
@@ -296,7 +296,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
             fqOnData.inputHighValues,
             fqOnData.inputHighValues.empty());
         if (fqOnData.addConverts) {
-            inputHighNode = ngraph::builder::makeConversion(inputHighNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
+            inputHighNode = ngraph::builder::makeConversion(inputHighNode, ov::element::f32, ov::test::utils::ConversionTypes::CONVERT);
         }
     }
 
@@ -308,7 +308,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.outputLowValues,
         fqOnData.outputLowValues.empty());
     if (fqOnData.addConverts) {
-        outputLowNode = ngraph::builder::makeConversion(outputLowNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
+        outputLowNode = ngraph::builder::makeConversion(outputLowNode, ov::element::f32, ov::test::utils::ConversionTypes::CONVERT);
     }
 
     auto outputHighNode = ngraph::builder::makeConstant(
@@ -319,7 +319,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.outputHighValues,
         fqOnData.outputHighValues.empty());
     if (fqOnData.addConverts) {
-        outputHighNode = ngraph::builder::makeConversion(outputHighNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
+        outputHighNode = ngraph::builder::makeConversion(outputHighNode, ov::element::f32, ov::test::utils::ConversionTypes::CONVERT);
     }
 
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fqOnData.quantizationLevel);

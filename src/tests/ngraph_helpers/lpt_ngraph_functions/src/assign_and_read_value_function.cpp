@@ -8,6 +8,8 @@
 
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/op/util/variable.hpp"
 #include <openvino/op/util/assign_base.hpp>
