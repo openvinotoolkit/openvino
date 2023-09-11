@@ -38,5 +38,14 @@ OPENVINO_API int64_t clip(const int64_t& value, const int64_t& min, const int64_
 ///
 /// \return Constant node or nullptr if unable to constantfold the subgraph
 OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Output<Node>& subgraph_sink);
+
+/**
+ * @brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
+ * they are the same returns Constant operation from the resulting bound, otherwise nullptr.
+ *
+ * @param source  Node output use to get its tensor data as constant.
+ * @return Shared pointer to constant data or nullptr.
+ */
+OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
 }  // namespace util
 }  // namespace ov
