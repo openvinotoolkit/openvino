@@ -23,6 +23,8 @@ USER $USERNAME
 
 VOLUME /github/file_commands
 
+RUN chown $USERNAME /github/file_commands
+
 # Copies your code file from your action repository to the filesystem path `/` of the container
 COPY entrypoint.sh /entrypoint.sh
 
