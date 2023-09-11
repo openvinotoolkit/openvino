@@ -200,7 +200,7 @@ The figure below illustrates the typical workflow for deploying a trained deep-l
 Convert a Model in CLI: ``ovc``
 ###############################
 
-Another option for model conversion is to use ``ovc`` command-line tool, which stands for OpenVINO Model Converter. The tool combines both ``openvino.convert_model`` and ``openvino.save_model`` functionalities. It is convenient to use when the original model is ready for inference and is in one of the supported formats: ONNX, TensorFlow, TensorFlow Lite, or PaddlePaddle. As a result, ``ovc`` produces an OpenVINO IR, consisting of ``.xml`` and ``.bin`` files, which needs to be read with the ``ov.read_model()`` method. You can compile and infer the ``ov.Model`` later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
+Another option for model conversion is to use ``ovc`` command-line tool, which stands for OpenVINO Model Converter. The tool combines both ``openvino.convert_model`` and ``openvino.save_model`` functionalities. It is convenient to use when the original model is ready for inference and is in one of the supported file formats: ONNX, TensorFlow, TensorFlow Lite, or PaddlePaddle. As a result, ``ovc`` produces an OpenVINO IR, consisting of ``.xml`` and ``.bin`` files, which needs to be read with the ``ov.read_model()`` method. You can compile and infer the ``ov.Model`` later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
 
 .. note::
    PyTorch models cannot be converted with ``ovc``, use ``openvino.convert_model`` instead.
