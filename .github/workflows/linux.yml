@@ -500,6 +500,14 @@ jobs:
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
 
     steps:
+      - name: Hello world action step
+        id: hello
+        uses: actions/cpu_func_tests@v1
+        with:
+          who-to-greet: 'Mona the Octocat'
+      - name: Get the output time
+        run: echo "The time was ${{ steps.hello.outputs.time }}
+
       - name: Create Directories
         run: |
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
