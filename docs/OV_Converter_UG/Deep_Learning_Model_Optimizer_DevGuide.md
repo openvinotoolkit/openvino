@@ -1,4 +1,4 @@
-# Conversion Parameters {#openvino_docs_OV_Converter_UG_Deep_Learning_Model_Optimizer_DevGuide}#openvino_docs_OV_Converter_UG_Conversion_Options
+# Conversion Parameters {#openvino_docs_OV_Converter_UG_Conversion_Options}
 
 @sphinxdirective
 

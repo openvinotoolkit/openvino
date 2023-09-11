@@ -9,7 +9,7 @@
    :maxdepth: 1
    :hidden:
 
-openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
+   openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
 
 In 2023.1 OpenVino release a new OVC (OpenVINO Model Converter) tool was introduced with the corresponding Python API: ``openvino.convert_model`` method. ``ovc`` and ``openvino.convert_model`` represent
 a lightweight alternative of ``mo`` and ``openvino.tools.mo.convert_model`` which are considered legacy API now. In this article, all the differences between ``mo`` and ``ovc`` are summarized and transition guide from the legacy API to the new API is provided.

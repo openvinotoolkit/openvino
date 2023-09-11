@@ -10,26 +10,26 @@
 .. note::
 
    Note that the Archive distribution:
-   
+
    * offers both C/C++ and Python APIs
-   * additionally includes code samples 
+   * additionally includes code samples
    * is dedicated to users of all major OSs: Windows, Linux, macOS
    * may offer different hardware support under different operating systems
      (see the drop-down below for more details).
 
    .. dropdown:: Inference Options
 
-      ===================  =====  =====  =====  =====  
-       Operating System     CPU    GPU    GNA    NPU    
-      ===================  =====  =====  =====  =====  
-       Debian9 armhf         V     n/a    n/a    n/a    
-       Debian9 arm64         V     n/a    n/a    n/a       
-       CentOS7 x86_64        V      V     n/a    n/a      
-       Ubuntu18 x86_64       V      V      V     n/a     
-       Ubuntu20 x86_64       V      V      V      V      
-       Ubuntu22 x86_64       V      V      V      V       
-       RHEL8 x86_64          V      V      V     n/a      
-      ===================  =====  =====  =====  =====  
+      ===================  =====  =====  =====  =====
+       Operating System     CPU    GPU    GNA    NPU
+      ===================  =====  =====  =====  =====
+       Debian9 armhf         V     n/a    n/a    n/a
+       Debian9 arm64         V     n/a    n/a    n/a
+       CentOS7 x86_64        V      V     n/a    n/a
+       Ubuntu18 x86_64       V      V      V     n/a
+       Ubuntu20 x86_64       V      V      V      V
+       Ubuntu22 x86_64       V      V      V      V
+       RHEL8 x86_64          V      V      V     n/a
+      ===================  =====  =====  =====  =====
 
 
 .. tab-set::
@@ -224,14 +224,14 @@ Step 1: Download and Install the OpenVINO Core Components
       Unlink the previous link with ``sudo unlink openvino_2023``, and then re-run the command above.
 
 
-Congratulations, you have finished the installation! For some use cases you may still 
-need to install additional components. Check the description below, as well as the 
+Congratulations, you have finished the installation! For some use cases you may still
+need to install additional components. Check the description below, as well as the
 :doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
 to see if your case needs any of them.
 
-The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO. 
-If you used a different path in Step 2, for example, ``/home/<USER>/intel/``, 
-OpenVINO is now in ``/home/<USER>/intel/openvino_2023``. The path to the ``openvino_2023`` 
+The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO.
+If you used a different path in Step 2, for example, ``/home/<USER>/intel/``,
+OpenVINO is now in ``/home/<USER>/intel/openvino_2023``. The path to the ``openvino_2023``
 directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
 
 
@@ -329,7 +329,7 @@ Additional Resources
 ###########################################################
 
 * :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <openvino_docs_get_started_guide_troubleshooting>`
-* Converting models for use with OpenVINO™: :doc:`Convert a Model <openvino_docs_OV_Converter_UG_Deep_Learning_Model_Optimizer_DevGuide>`
+* Converting models for use with OpenVINO™: :doc:`Convert a Model <openvino_docs_model_processing_introduction>`
 * Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
 * Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model_zoo>`

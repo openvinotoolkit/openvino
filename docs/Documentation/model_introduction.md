@@ -23,7 +23,7 @@ OpenVINO™ :doc:`supports several model formats <Supported_Model_Formats>` and 
 .. note::
 
    Prior OpenVINO 2023.1 release, model conversion API was exposed as ``openvino.tools.mo.convert_model`` function and ``mo`` command line tool.
-   Starting from 2023.1 release, a new simplified API was introduced: ``openvino.convert_model`` function and ``ovc`` command line tool as a replacement for ``openvino.tools.mo.convert_model```
+   Starting from 2023.1 release, a new simplified API was introduced: ``openvino.convert_model`` function and ``ovc`` command line tool as a replacement for ``openvino.tools.mo.convert_model``
    and ``mo`` correspondingly, which are considered to be legacy now. All new users are recommended to use these new methods instead of the old methods. Please note that the new API and old API do not
    provide the same level of features, that means the new tools are not always backward compatible with the old ones. Please consult with :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
@@ -217,8 +217,8 @@ Additional Resources
 
 The following articles describe in details how to obtain and prepare your model depending on the source model type:
 
-* :doc:`See the supported formats and how to use them in your project <Supported_Model_Formats>`.
-* :doc:`Convert different model formats to the ov.Model format <openvino_docs_OV_Converter_UG_Deep_Learning_Model_Optimizer_DevGuide>`.
+* :doc:`Convert different model formats to the ov.Model format <Supported_Model_Formats>`.
+* :doc:`Review all available conversion parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`.
 
 To achieve the best model inference performance and more compact OpenVINO IR representation follow:
 
