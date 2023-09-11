@@ -24,7 +24,7 @@ Here is the simplest example of PyTorch model conversion using a model from ``to
    model = torchvision.models.resnet50(pretrained=True)
    ov_model = ov.convert_model(model)
 
-`openvino.convert_model` function suppors following PyTorch model object types:
+``openvino.convert_model`` function suppors following PyTorch model object types:
 
 * ``torch.nn.Module`` derived classes
 * ``torch.jit.ScriptModule``
@@ -49,41 +49,41 @@ In practice, the code to evaluate or test the PyTorch model is usually provided 
 .. code-block:: py
    :force:
 
-      from torchvision.io import read_image
-      from torchvision.models import resnet50, ResNet50_Weights
-      import requests, PIL, io, torch
+   from torchvision.io import read_image
+   from torchvision.models import resnet50, ResNet50_Weights
+   import requests, PIL, io, torch
 
-      # Get a picture of a cat from the web:
-      img = PIL.Image.open(io.BytesIO(requests.get("https://placekitten.com/200/300").content))
+   # Get a picture of a cat from the web:
+   img = PIL.Image.open(io.BytesIO(requests.get("https://placekitten.com/200/300").content))
 
-      # Torchvision model and input data preparation from https://pytorch.org/vision/stable/models.html
+   # Torchvision model and input data preparation from https://pytorch.org/vision/stable/models.html
 
-      weights = ResNet50_Weights.DEFAULT
-      model = resnet50(weights=weights)
-      model.eval()
-      preprocess = weights.transforms()
-      batch = preprocess(img).unsqueeze(0)
+   weights = ResNet50_Weights.DEFAULT
+   model = resnet50(weights=weights)
+   model.eval()
+   preprocess = weights.transforms()
+   batch = preprocess(img).unsqueeze(0)
 
-      # PyTorch model inference and post-processing
+   # PyTorch model inference and post-processing
 
-      prediction = model(batch).squeeze(0).softmax(0)
-      class_id = prediction.argmax().item()
-      score = prediction[class_id].item()
-      category_name = weights.meta["categories"][class_id]
-      print(f"{category_name}: {100 * score:.1f}% (with PyTorch)")
+   prediction = model(batch).squeeze(0).softmax(0)
+   class_id = prediction.argmax().item()
+   score = prediction[class_id].item()
+   category_name = weights.meta["categories"][class_id]
+   print(f"{category_name}: {100 * score:.1f}% (with PyTorch)")
 
-      # OpenVINO model preparation and inference with the same post-processing
+   # OpenVINO model preparation and inference with the same post-processing
 
-      import openvino as ov
-      compiled_model = ov.compile_model(ov.convert_model(model, example_input=batch))
+   import openvino as ov
+   compiled_model = ov.compile_model(ov.convert_model(model, example_input=batch))
 
-      prediction = torch.tensor(compiled_model(batch)[0]).squeeze(0).softmax(0)
-      class_id = prediction.argmax().item()
-      score = prediction[class_id].item()
-      category_name = weights.meta["categories"][class_id]
-      print(f"{category_name}: {100 * score:.1f}% (with OpenVINO)")
+   prediction = torch.tensor(compiled_model(batch)[0]).squeeze(0).softmax(0)
+   class_id = prediction.argmax().item()
+   score = prediction[class_id].item()
+   category_name = weights.meta["categories"][class_id]
+   print(f"{category_name}: {100 * score:.1f}% (with OpenVINO)")
 
-**FIXME: Refer to more examples in the notebooks**
+Check out more examples in :doc:`interactive Python tutorials <tutorials>`.
 
 Supported input parameter types
 ###############################
@@ -103,7 +103,24 @@ Enclosing in ``list``, ``tuple`` or ``dict`` can be used for a single input as w
 
 If a model has a single input parameter and the type of this input is a ``tuple``, it should be passed always enclosed into an extra ``list``, ``tuple`` or ``dict`` as in the case of multiple inputs. It is required to eliminate ambiguity between ``model((a, b))`` and ``model(a, b)`` in this case.
 
-**FIXME: Missing description of non-tensor data types in inputs and output (recursive flattening)**
+Non-tensor Data Types
+#####################
+
+When a non-tensor data type, e.g. ``tuple`` or ``dict`` appears in a model input or output, it is flattened. The flattening means that each tuple element will be represented as a separate input or output. The same is true for ``dict`` values, while keys of the ``dict`` is used to form a model input/output name. The original non-tensor input or output is replaced by one or multiple new inputs or outputs flattened as described. This procedure is applied recursively in case of nested ``tuple``s and ``dict``s until in the assumption that the most nested data type is a tensor.
+
+For example, if the original model is called with ``example_input=(a, (b, c, (d, e)))```, where ``a``, ``b``, ...``e`` are tensors, which means that the original model has two inputs, first is a tensor ``a``, the second one is a tuple ``(b, c, (d, e))`` with first two tensor elements ``b`` and ``c`` and the last element is nested tuple ``(d, e)``. Then the resulting OpenVINO model will have signature ``(a, b, c, d, e)``, so will have 5 inputs, all of type tensor, instead of 2 in the original model.
+
+Flattening of ``dict`` is supported for outputs only. If your model has an input of type ``dict`` you will need to decompose ``dict`` to one or multiple tensor inputs by modifying the original model signature or making a wrapper model on top of the original model. This would hide a dictionary from model signature and it will be processed inside the model successfully.
+
+.. note::
+
+   An important consequence of the flattening is that ``tuple`` and ``dict`` with fixed number of elements and keys values are supported only. The structure of such inputs should be completelly described in ``example_input`` parameter of ``convert_model``. The flattening on outputs should be reproduced with a given ``example_input`` and cannot be changed after the conversion is done.
+
+Check out more examples of model conversion with non-tensor data types in the following tutorials:
+
+* :doc:`Video Subtitle Generation using Whisper and OpenVINO™ <notebooks/227-whisper-subtitles-generation-with-output>`
+* :doc:`Visual Question Answering and Image Captioning using BLIP and OpenVINO <notebooks/233-blip-visual-language-processing-with-output>`
+
 
 Exporting a PyTorch Model to ONNX Format
 ########################################

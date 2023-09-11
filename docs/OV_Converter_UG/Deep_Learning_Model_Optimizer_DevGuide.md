@@ -54,6 +54,6 @@ Providing just a path to the model or model object as ``openvino.convert_model``
 
 - ``extension`` parameter which makes possible conversion of the models consisting of operations that are not supported by OpenVINO out-of-the-box. It requires implementing of an OpenVINO extension first, please refer to :doc:`Setting Input Shapes <openvino_docs_Extensibility_UG_Frontend_Extensions>` guide.
 
-Refer to ``openvino.convert_model`` reference documentation **TODO: INSERT LINK HERE** for more information about all available parameters. Run ``ovc -h`` to get all supported parameter for ``ovc`` CLI tool.
+Run ``ovc -h`` to get all supported parameter for ``ovc`` CLI tool.
 
 @endsphinxdirective

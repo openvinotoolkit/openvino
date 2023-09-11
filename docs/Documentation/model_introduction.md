@@ -37,31 +37,31 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
    .. tab-item:: Torchvision
 
       .. code-block:: py
-      :force:
+         :force:
 
-         import torch
-         from torchvision.models import resnet50
-         import openvino as ov
+            import torch
+            from torchvision.models import resnet50
+            import openvino as ov
 
-         model = resnet50(pretrained=True)
+            model = resnet50(pretrained=True)
 
-         # prepare input_data
-         input_data = torch.rand(1, 3, 224, 224)
+            # prepare input_data
+            input_data = torch.rand(1, 3, 224, 224)
 
-         ov_model = ov.convert_model(model, example_input=input_data)
+            ov_model = ov.convert_model(model, example_input=input_data)
 
-         ###### Option 1: Save to OpenVINO IR:
+            ###### Option 1: Save to OpenVINO IR:
 
-         # save model to OpenVINO IR for later use
-         ov.save_model(ov_model, 'model.xml')
+            # save model to OpenVINO IR for later use
+            ov.save_model(ov_model, 'model.xml')
 
-         ###### Option 2: Compile and infer with OpenVINO:
+            ###### Option 2: Compile and infer with OpenVINO:
 
-         # compile model
-         compiled_model = ov.compile_model(ov_model)
+            # compile model
+            compiled_model = ov.compile_model(ov_model)
 
-         # run the inference
-         result = compiled_model(input_data)
+            # run the inference
+            result = compiled_model(input_data)
 
    .. tab-item:: HuggingFace Transformers
 
@@ -188,12 +188,12 @@ Option 2, where ``openvino.compile_model`` is used, provides a convenient way to
 
 Following option 1 means separating the model conversion and the model inference into two different applications. This approach addresses deployment scenarios where it is required to minimize extra dependencies and speed up model loading in the end inference application. For example, to convert a PyTorch model to OpenVINO, ``torch`` Python module is required as a dependency and the conversion must be performed in Python. It takes extra time and memory that wouldn't be required for inference of the converted model. But when the converted model is saved into the IR files with ``openvino.save_model``, it can be loaded in a separate application without ``torch`` dependency and without the need to spend time for model conversion. Also, the inference application can be written in other programming languages supported by OpenVINO, for example, in C++, and Python is not required to be installed for the inference application in this case.
 
-Before saving the model to OpenVINO IR, consider using `post-training optimization <ptq_introduction>` to enable more efficient inference and smaller model size.
+Before saving the model to OpenVINO IR, consider applying :doc:`Post-training Optimization <ptq_introduction>` to enable more efficient inference and smaller model size.
 
 The figure below illustrates the typical workflow for deploying a trained deep-learning model.
 
 **TODO: Update BASIC_FLOW_MO_simplified.svg and replace 'mo' with 'ovc'**
-.. image:: _static/images/model_conversion_diagram.svg
+.. image:: ./_static/images/model_conversion_diagram.svg
    :alt: model conversion diagram
 
 Convert a model in CLI: ``ovc``

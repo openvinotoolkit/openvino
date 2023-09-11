@@ -24,18 +24,21 @@ SavedModel Format
 A model in the SavedModel format consists of a directory with a ``saved_model.pb`` file and two subfolders: ``variables`` and ``assets`` inside.
 To convert such a model, run conversion with the directory as a model argument:
 
-.. code-block:: sh
-
 .. tab-set::
 
    .. tab-item:: Python
       :sync: py
+
+      .. code-block:: py
+         :force:
 
          import openvino as ov
          ov_model = ov.convert_model('path_to_saved_model_dir')
 
    .. tab-item:: CLI
       :sync: cli
+
+      .. code-block:: sh
 
          ovc path_to_saved_model_dir
 
@@ -82,11 +85,15 @@ To convert a TensorFlow model, run model conversion with the path to the input m
    .. tab-item:: Python
       :sync: py
 
+      .. code-block:: py
+
          import openvino as ov
          ov_model = ov.convert_model('your_model_file.pb')
 
    .. tab-item:: CLI
       :sync: cli
+
+      .. code-block:: sh
 
          ovc your_model_file.pb
 
@@ -105,11 +112,15 @@ To convert such TensorFlow model, run the conversion similarly to other model fo
    .. tab-item:: Python
       :sync: py
 
+      .. code-block:: py
+
          import openvino as ov
          ov_model = ov.convert_model('path_to_saved_model_dir')
 
    .. tab-item:: CLI
       :sync: cli
+
+      .. code-block:: sh
 
          ovc path_to_saved_model_dir
 
@@ -122,11 +133,15 @@ To convert the model with the inference graph in ``.pb`` format, provide paths t
    .. tab-item:: Python
       :sync: py
 
+      .. code-block:: py
+
          import openvino as ov
          ov_model = ov.convert_model(['path_to_inference_graph.pb', 'path_to_checkpoint_file.ckpt'])
 
    .. tab-item:: CLI
       :sync: cli
+
+      .. code-block:: sh
 
          ovc path_to_inference_graph.pb path_to_checkpoint_file.ckpt
 
@@ -141,11 +156,15 @@ To convert such a TensorFlow model, run the conversion providing a path to `.met
    .. tab-item:: Python
       :sync: py
 
+      .. code-block:: py
+
          import openvino as ov
          ov_model = ov.convert_model('path_to_meta_graph.meta')
 
    .. tab-item:: CLI
       :sync: cli
+
+      .. code-block:: sh
 
          ovc path_to_meta_graph.meta
 
@@ -156,8 +175,6 @@ Freezing Custom Models in Python
 When a network is defined in Python code, you must create an inference graph file. Graphs are usually built in a form
 that allows model training. That means all trainable parameters are represented as variables in the graph.
 To be able to use such a graph with model conversion API, it should be frozen first before passing to ``openvino.convert_model`` function:
-
-** TODO: Check correctness, provide complete examples (here and below) **
 
 .. code-block:: py
    :force:

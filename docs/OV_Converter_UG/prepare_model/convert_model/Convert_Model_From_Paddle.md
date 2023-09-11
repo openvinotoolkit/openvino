@@ -33,8 +33,6 @@ To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` a
 
 **For example**, this command converts a yolo v3 PaddlePaddle network to OpenVINO IR network:
 
-**FIXME: Not verified example**
-
 .. tab-set::
 
    .. tab-item:: Python
@@ -190,6 +188,6 @@ The following PaddlePaddle models have been officially validated and confirmed t
 Additional Resources
 ####################
 
-**TODO: LINK TO NOTEBOOKS** page for a set of tutorials providing step-by-step instructions for converting specific PaddlePaddle models.
+Check out more examples of model conversion in :doc:`interactive Python tutorials <tutorials>`.
 
 @endsphinxdirective

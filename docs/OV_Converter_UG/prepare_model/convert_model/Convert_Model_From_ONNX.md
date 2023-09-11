@@ -27,11 +27,15 @@ To convert an ONNX model, run model conversion with the path to the input model 
    .. tab-item:: Python
       :sync: py
 
+      .. code-block:: py
+
          import openvino as ov
          ov.convert_model('your_model_file.onnx')
 
    .. tab-item:: CLI
       :sync: cli
+
+      .. code-block:: sh
 
          ovc your_model_file.onnx
 
@@ -50,6 +54,6 @@ For the list of supported standard layers, refer to the :doc:`Supported Operatio
 Additional Resources
 ####################
 
-**TODO: LINK TO NOTEBOOKS** page for a set of tutorials providing step-by-step instructions for converting specific ONNX models.
+Check out more examples of model conversion in :doc:`interactive Python tutorials <tutorials>`.
 
 @endsphinxdirective
