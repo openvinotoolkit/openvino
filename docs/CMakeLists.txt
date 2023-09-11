@@ -76,7 +76,7 @@ function(build_docs)
     # build with openvino notebooks
     if(ENABLE_OPENVINO_NOTEBOOKS)
         set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
-        list(APPEND commands
+        list(PREPEND commands
             COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${DOCS_SOURCE_DIR}/notebooks" "${RST_OUTPUT}/notebooks"
         )
     endif()
