@@ -44,6 +44,12 @@ inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
             ASSERT_EQ(s, d) << "mismatch at position " << i;
             break;
         }
+        case InferenceEngine::Precision::I32: {
+            auto s = *(static_cast<int32_t*>(srcData) + srcOffset);
+            auto d = *(static_cast<int32_t*>(dstData) + dstOffset);
+            ASSERT_EQ(s, d) << "mismatch at position " << i;
+            break;
+        }
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::BIN: {
             auto s = *(static_cast<int8_t*>(srcData) + srcOffset);
@@ -97,6 +103,10 @@ inline void fillData(const ov::intel_cpu::IMemory& inputMemory, const InferenceE
     case InferenceEngine::Precision::FP32:
         for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<float>(i);
+        break;
+    case InferenceEngine::Precision::I32:
+        for (int64_t i = 0; i < elemNum; ++i)
+            *(static_cast<int32_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int32_t>(i);
         break;
     case InferenceEngine::Precision::I8:
     case InferenceEngine::Precision::BIN:
@@ -482,12 +492,6 @@ const auto reorderCpuTestDynamismDifferentPrecisionParams =
                                              LayoutType::ncsp,
                                              InferenceEngine::Precision::FP64,
                                              InferenceEngine::Precision::FP32},
-                      ReorderCPUTestParamSet{{2, 16, 8, -1},
-                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
-                                             LayoutType::nspc,
-                                             LayoutType::ncsp,
-                                             InferenceEngine::Precision::FP64,
-                                             InferenceEngine::Precision::FP64},
                       ReorderCPUTestParamSet{{-1, -1, -1, -1},
                                              {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
                                              LayoutType::ncsp,
@@ -500,12 +504,6 @@ const auto reorderCpuTestDynamismDifferentPrecisionParams =
                                              LayoutType::nspc,
                                              InferenceEngine::Precision::FP64,
                                              InferenceEngine::Precision::FP32},
-                      ReorderCPUTestParamSet{{-1, -1, -1, -1},
-                                             {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
-                                             LayoutType::ncsp,
-                                             LayoutType::nspc,
-                                             InferenceEngine::Precision::FP64,
-                                             InferenceEngine::Precision::FP64},
                       ReorderCPUTestParamSet{{2, 32, -1, 4},
                                              {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
                                              LayoutType::ncsp,
@@ -522,25 +520,13 @@ const auto reorderCpuTestDynamismDifferentPrecisionParams =
                                              {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
                                              LayoutType::ncsp,
                                              LayoutType::nCsp8c,
-                                             InferenceEngine::Precision::FP64,
-                                             InferenceEngine::Precision::FP64},
-                      ReorderCPUTestParamSet{{-1, 32, -1, -1},
-                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
-                                             LayoutType::nCsp16c,
-                                             LayoutType::nspc,
-                                             InferenceEngine::Precision::I8,
-                                             InferenceEngine::Precision::I64},
-                      ReorderCPUTestParamSet{{-1, 32, -1, -1},
-                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
-                                             LayoutType::nCsp16c,
-                                             LayoutType::nspc,
                                              InferenceEngine::Precision::I64,
-                                             InferenceEngine::Precision::I8},
-                      ReorderCPUTestParamSet{{-1, 32, -1, -1},
+                                             InferenceEngine::Precision::I32},
+                      ReorderCPUTestParamSet{{2, 32, -1, 4},
                                              {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
-                                             LayoutType::nCsp16c,
-                                             LayoutType::nspc,
-                                             InferenceEngine::Precision::I64,
+                                             LayoutType::ncsp,
+                                             LayoutType::nCsp8c,
+                                             InferenceEngine::Precision::I32,
                                              InferenceEngine::Precision::I64},
                       ReorderCPUTestParamSet{{2, 16, 8, -1},
                                              {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
@@ -558,19 +544,7 @@ const auto reorderCpuTestDynamismDifferentPrecisionParams =
                                              {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
                                              LayoutType::nspc,
                                              LayoutType::ncsp,
-                                             InferenceEngine::Precision::BIN,
-                                             InferenceEngine::Precision::FP32},
-                      ReorderCPUTestParamSet{{2, 16, 8, -1},
-                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
-                                             LayoutType::nspc,
-                                             LayoutType::ncsp,
                                              InferenceEngine::Precision::FP32,
-                                             InferenceEngine::Precision::BIN},
-                      ReorderCPUTestParamSet{{2, 16, 8, -1},
-                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
-                                             LayoutType::nspc,
-                                             LayoutType::ncsp,
-                                             InferenceEngine::Precision::BIN,
                                              InferenceEngine::Precision::BIN});
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestDynamismDifferentPrecision,

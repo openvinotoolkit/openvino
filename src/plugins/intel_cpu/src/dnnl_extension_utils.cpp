@@ -60,6 +60,8 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
             return memory::data_type::bin;
         case InferenceEngine::Precision::FP16:
             return memory::data_type::f16;
+        case InferenceEngine::Precision::FP64:
+            return memory::data_type::f64;
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
         default: {

@@ -69,16 +69,15 @@ private:
     public:
         explicit ReorderExecutor(const dnnl::engine& engine,
                                  MultiCachePtr& cache,
-                                 const dnnl::memory::desc src_dnnl_desc,
-                                 const dnnl::memory::desc dst_dnnl_desc,
-                                 const InferenceEngine::Precision src_prc,
-                                 const InferenceEngine::Precision dst_prc);
+                                 const ov::intel_cpu::MemoryCPtr& src,
+                                 const ov::intel_cpu::MemoryCPtr& dst,
+                                 const std::vector<int> src_permutation);
         bool exec(dnnl::stream strm);
+        dnnl::memory::desc updateSrcDesc(const dnnl::engine& engine, const std::vector<int> src_permutation);
         void prepareParams(const dnnl::engine& engine,
                            MultiCachePtr& cache,
                            const ov::intel_cpu::MemoryCPtr& src,
-                           const ov::intel_cpu::MemoryCPtr& dst,
-                           const std::vector<int> src_permutation);
+                           const ov::intel_cpu::MemoryCPtr& dst);
         void setDescs(MemoryDescPtr in, MemoryDescPtr out) {
             input = in;
             output = out;
@@ -88,26 +87,20 @@ private:
         }
         virtual ~ReorderExecutor() = default;
 
-        using CombinatedDataType = std::pair<dnnl::memory::data_type, dnnl::memory::data_type>;
-
     private:
-        bool isSupportedDataType(const dnnl::engine& engine,
-                                 MultiCachePtr& cache,
-                                 const DnnlMemoryDescPtr& src,
-                                 const dnnl::memory::data_type& data_type);
-        bool isSupportedCombinatedDataType(const dnnl::engine& engine,
-                                           MultiCachePtr& cache,
-                                           const DnnlMemoryDescPtr& src,
-                                           const DnnlMemoryDescPtr& dst,
-                                           const CombinatedDataType& combinated_data_type);
         void preConvert();
         void postConvert();
 
-        std::vector<CombinatedDataType> supported_combinated_data_types;
-
         class IntermConverter {
         public:
-            IntermConverter() = default;
+            IntermConverter(MemoryPtr in_mem_ptr,
+                            const InferenceEngine::Precision in_prec,
+                            MemoryPtr out_mem_ptr,
+                            const InferenceEngine::Precision out_prec)
+                : src_mem(in_mem_ptr),
+                  src_prec(in_prec),
+                  dst_mem(out_mem_ptr),
+                  dst_prec(out_prec) {}
             void convert();
             void setInputPrec(const InferenceEngine::Precision prec) {
                 src_prec = prec;
@@ -115,34 +108,17 @@ private:
             void setOutputPrec(const InferenceEngine::Precision prec) {
                 dst_prec = prec;
             }
-            void setInputMem(MemoryPtr mem_ptr) {
-                src_mem = mem_ptr;
-            }
-            void setOutputMem(MemoryPtr mem_ptr) {
-                dst_mem = mem_ptr;
-            }
-            InferenceEngine::Precision getInputPrec() const {
-                return src_prec;
-            }
-            InferenceEngine::Precision getOutputPrec() const {
-                return dst_prec;
-            }
-            MemoryPtr& getInputMem() {
-                return src_mem;
-            }
-            MemoryPtr& getOutputMem() {
-                return dst_mem;
-            }
 
         private:
-            InferenceEngine::Precision src_prec;
-            InferenceEngine::Precision dst_prec;
             MemoryPtr src_mem;
+            InferenceEngine::Precision src_prec;
             MemoryPtr dst_mem;
+            InferenceEngine::Precision dst_prec;
         };
 
         std::shared_ptr<IntermConverter> pre_converter = nullptr;
         std::shared_ptr<IntermConverter> post_converter = nullptr;
+        DnnlScratchPadPtr scratch_ptr;
 
         MemoryPtr dst_blocked;
         MemoryPtr src_blocked;

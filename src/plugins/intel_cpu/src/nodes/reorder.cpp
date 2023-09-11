@@ -179,66 +179,16 @@ void Reorder::prepareParams() {
     }
 }
 
-#if 0
-struct ReorderExecutorKey {
-    dnnl::memory::desc src;
-    dnnl::memory::desc dst;
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
-    size_t hash() const;
-    bool operator==(const ReorderExecutorKey& rhs) const;
-};
-
-size_t ReorderExecutorKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-    seed = hash_combine(seed, get_md_hash(*src.get()));
-    seed = hash_combine(seed, get_md_hash(*dst.get()));
-    seed = hash_combine(seed, src_prc.getPrecVal());
-    seed = hash_combine(seed, dst_prc.getPrecVal());
-
-    return seed;
-}
-
-bool ReorderExecutorKey::operator==(const ReorderExecutorKey& rhs) const {
-    bool retVal = true;
-    retVal = src == rhs.src && dst == rhs.dst && src_prc == rhs.src_prc && dst_prc == rhs.dst_prc;
-    return retVal;
-}
-#endif
-
 void Reorder::createReorderExecutor(const ov::intel_cpu::MemoryCPtr& src, const ov::intel_cpu::MemoryCPtr& dst) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    auto src_dnnl_desc = src->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    auto dst_dnnl_desc = dst->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-
-    // getDescWithType<DnnlMemoryDesc>() contains data type conversion from MemoryDesc to DnnlMemoryDescPtr, the latter
-    // range is limited which causes some MemoryDesc precision lost. But MemoryDesc precision is important for reorder
-    // executor, need send to reorder executor.
-    auto src_prc = src->getDesc().getPrecision();
-    auto dst_prc = dst->getDesc().getPrecision();
-
     auto engine = getEngine();
     auto cache = context->getParamsCache();
-#if 0
-    ReorderExecutorKey exec_key = {src_dnnl_desc, dst_dnnl_desc, src_prc, dst_prc};
-    auto builder = [&engine, &cache](const ReorderExecutorKey& key) -> ExecutorPtr {
-        auto executor = std::make_shared<ReorderExecutor>(engine, cache, key.src, key.dst, key.src_prc, key.dst_prc);
-        return executor;
-    };
 
-    auto result = cache->getOrCreate(exec_key, builder);
-    executor_ptr = result.first;
-    OPENVINO_ASSERT(executor_ptr, "Cannot creat reorder executor!");
-#else
-    executor_ptr = std::make_shared<ReorderExecutor>(engine, cache, src_dnnl_desc, dst_dnnl_desc, src_prc, dst_prc);
-#endif
-    executor_ptr->prepareParams(engine, cache, src, dst, src_permutation);
+    executor_ptr = std::make_shared<ReorderExecutor>(engine, cache, src, dst, src_permutation);
+    executor_ptr->prepareParams(engine, cache, src, dst);
     selectedPD->setImplementationType(
         parse_impl_name(DnnlExtensionUtils::query_impl_info_str(executor_ptr->getPrimitive().get_primitive_desc())));
 
@@ -435,29 +385,13 @@ void Reorder::reorderData2(const IMemory& input, const IMemory& output, MultiCac
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
         auto engine = output.getPrimitive().get_engine();
-#if 0
-        ReorderExecutorKey exec_key = {input.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
-                                       output.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
-                                       input.getDesc().getPrecision(),
-                                       output.getDesc().getPrecision()};
-        auto builder = [&](const ReorderExecutorKey& key) -> ExecutorPtr {
-            auto executor =
-                std::make_shared<ReorderExecutor>(engine, cache, key.src, key.dst, key.src_prc, key.dst_prc);
-            return executor;
-        };
-
-        auto result = cache->getOrCreate(exec_key, builder);
-        auto executor = result.first;
-        OPENVINO_ASSERT(executor, "Cannot creat reorder executor!");
-#else
+        std::vector<int> src_permutation = {};
         auto executor = std::make_shared<ReorderExecutor>(engine,
                                                           cache,
-                                                          input.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
-                                                          output.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
-                                                          input.getDesc().getPrecision(),
-                                                          output.getDesc().getPrecision());
-#endif
-        executor->prepareParams(engine, cache, static_cast<MemoryCPtr>(&input), static_cast<MemoryCPtr>(&output), {});
+                                                          static_cast<MemoryCPtr>(&input),
+                                                          static_cast<MemoryCPtr>(&output),
+                                                          src_permutation);
+        executor->prepareParams(engine, cache, static_cast<MemoryCPtr>(&input), static_cast<MemoryCPtr>(&output));
         dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
         executor->exec(loc_stream);
     }
@@ -468,169 +402,138 @@ void Reorder::reorderData2(const IMemory& input, const IMemory& output, MultiCac
 //
 Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
                                           MultiCachePtr& cache,
-                                          const dnnl::memory::desc src_dnnl_desc,
-                                          const dnnl::memory::desc dst_dnnl_desc,
-                                          const InferenceEngine::Precision src_prc,
-                                          const InferenceEngine::Precision dst_prc) {
+                                          const ov::intel_cpu::MemoryCPtr& src,
+                                          const ov::intel_cpu::MemoryCPtr& dst,
+                                          const std::vector<int> src_permutation) {
     //  Dnnl data types is a limited precision range comparing with MemoryDesc precision
-    //  Need to choose the supported dnnl data type from src/dst MemoryDesc, strict same precison or a near precision
-    //  1. check MemoryDesc precision whether is supported by dnnl type
-    //        If doesn't support, need add convert before or/and after reorder and find intermediate data type(near
-    //        precision)
-    //  2. check data type whether is supported by dnnl::reorder
-    //        If doesn't support, need add convert before or/and after reorder and find intermediate data type(near
-    //        precision)
-    //  3. Find intermediate data type
-    //        If input and output data type neither is supported:
-    //            1) They have different data size, choose the data size with smaller data size
-    //            2) They have the same data size, choose one specified data type
-    //         If one of both is supported and another is not suppoerted, then choose the supported data type
-    auto find_near_data_type = [](const InferenceEngine::Precision& prec_a, const InferenceEngine::Precision& prec_b) {
-        InferenceEngine::Precision prec = prec_a.bitsSize() < prec_b.bitsSize() ? prec_a : prec_b;
-        bool is_float = prec_a.is_float() && prec_b.is_float();
+    //        MemoryDesc precision:  BIN, BOOL, I4, U4, I8, U8, I16, U16, BF16, FP16, I32, U32, FP32, I64, U64, FP64
+    //        DNNL dataType: bin, s8, u8, f16, bf16, s32, f32, f64
+    //
+    //  To choose the supported dnnl data type from src/dst MemoryDesc, strict same precison or intermediate precision
+    //
+    //  [case 1]: Input/output precision has the same precision, means PrecisionX -> precisionX reorder:
+    //  1. If MemoryDesc input/output precision has corresponding dnnl data type:
+    //     dnnl::reoder should support all dnnl data type
+    //     Note: it seems dnnl::reoder reoder doesn's support fp64->fp64, bin->bin, in this case will throw exception.
+    //  2. If MemoryDesc input/output precision doesn't have corresponding dnnl data type, throw exception
+    //      for example:
+    //            I64->I64, U64->U64, I4->I4, U4->U4, I64->I64, etc
+    //
+    // [case 2]: Input/output precision are the different precision, supposed PrecisionX -> precisionY reorder:
+    // 1. Convert PrecisionX--> data_type::x, PrecisionY--> data_type::y
+    //        Check whether dnnl::reorder support x->y reorder, if support there will no other additional operation
+    // 2. If dnnl::reorder doesn't support x->y reorder or there is corresponding dnnl data type
+    //    1). Choose smaller data size, set PrecisionZ as intermediate precision
+    //       For example:
+    //              X=FP64, Y=FP32, will choose Z=FP32
+    //              X=U8, Y=FP32, will choose Z=U8
+    //       Note: If data size is same, will choose src precision as intermediate precision:
+    //              X=U32, Y=FP32, will choose Z=U32
+    //    2). If PrecisionZ is not supported by dnnl::reoder, throw exception:
+    //        For example:
+    //              X=FP64, Y=I64 --> Z=I64, not supported, throw exception
+    //              X=FP64, Y=U32 --> Z=U32, not supported, throw exception
+    //    3). Allocate memory for intermediate PrecisionZ, and do data conversion before or after dnnl::reorder
+    //            If PrecisionZ == PrecisionX, do data conversion after dnnl::reorder
+    //                input(PrecX) --> reorder(PrecX) --> conversion(PrecX->PrecY) --> output(PrecY)
+    //            If PrecisionZ == PrecisionY, do data conversion before dnnl::reorder
+    //                input(PreX) --> conversion(PrecX->PrecY) -> reorder(PrecY) --> output(PrecY)
 
-        dnnl::memory::data_type data_type = dnnl::memory::data_type::f32;
-        size_t type_size = (prec.bitsSize() + 7) / 8;
-
-        // If same size data type still need intermedian data type, it means this data size is not supported,
-        // it need find a proper data size. For example {f64, f64}, will choose {f32, f32}
-        if (prec_a.bitsSize() == prec_b.bitsSize())
-            type_size = type_size >= 2 ? 4 : 1;
-
-        switch (type_size) {
-        case 1:
-            if (prec.isSigned())
-                data_type = dnnl::memory::data_type::s8;
-            else
-                data_type = dnnl::memory::data_type::u8;
-            break;
-        case 2:
-            data_type = dnnl::memory::data_type::f16;
-            break;
-        case 4:
-            if (is_float)
-                data_type = dnnl::memory::data_type::f32;
-            else
-                data_type = dnnl::memory::data_type::s32;
-            break;
-        case 8:
-            if (is_float)
-                data_type = dnnl::memory::data_type::f64;
-            else
-                data_type = dnnl::memory::data_type::s32;
-            break;
-        default:
-            OPENVINO_THROW("Incorrect data size!");
-            break;
-        }
-        return data_type;
-    };
-
+    auto src_prc = src->getDesc().getPrecision();
+    auto dst_prc = dst->getDesc().getPrecision();
     OPENVINO_ASSERT(src_prc != InferenceEngine::Precision::UNSPECIFIED,
                     "ReorderExecutor input precision is unspecified!");
     OPENVINO_ASSERT(dst_prc != InferenceEngine::Precision::UNSPECIFIED,
                     "ReorderExecutor output precision is unspecified!");
-
     auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src_prc);
     auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst_prc);
-    DnnlMemoryDescPtr src = DnnlExtensionUtils::makeDescriptor(src_dnnl_desc);
-    DnnlMemoryDescPtr dst = DnnlExtensionUtils::makeDescriptor(dst_dnnl_desc);
 
-    uint8_t mask = 0;
-    // dnnl doesn't support this input precision, need pre_convert
-    if ((src_data_type == memory::data_type::undef) || !isSupportedDataType(engine, cache, src, src_data_type)) {
-        mask |= 1;
+    // dnnl::memory::data_type doesn't support this precision
+    if (src_data_type == dnnl::memory::data_type::undef && dst_data_type == dnnl::memory::data_type::undef) {
+        OPENVINO_THROW("Reorder doesn't support: ", src_prc, " -> ", dst_prc);
     }
 
-    // dnnl doesn't support this output precision, need post_convert
-    if ((dst_data_type == memory::data_type::undef) || !isSupportedDataType(engine, cache, dst, dst_data_type)) {
-        mask |= 2;
-    }
+    src_blocked = std::make_shared<Memory>(engine, src->getDescPtr(), src->getData(), false);
+    dst_blocked = std::make_shared<Memory>(engine, dst->getDescPtr(), dst->getData(), false);
 
-    // dnnl support src/dst precision, but dnnl::reorder doesn't support this combination precision
-    if (mask == 0) {
-        if (!isSupportedCombinatedDataType(engine, cache, src, dst, {src_data_type, dst_data_type})) {
-            mask |= 0x3;
+    dnnl::memory::desc src_desc, dst_desc;
+    if (src_data_type != dnnl::memory::data_type::undef && dst_data_type != dnnl::memory::data_type::undef) {
+        // Check whether dnnl::reorder directly support input->output
+        src_desc = updateSrcDesc(engine, src_permutation);
+        dst_desc = dst_blocked->getPrimitive().get_desc();
+        auto result = getReorderPrim(cache, engine, src_desc, dst_desc);
+
+        if (result) {
+            prim = result;
+            DEBUG_LOG("** (",
+                      DnnlExtensionUtils::DataTypeToIEPrecision(src_desc.get_data_type()),
+                      ", ",
+                      DnnlExtensionUtils::DataTypeToIEPrecision(dst_desc.get_data_type()),
+                      ")",
+                      " is supported reorder");
+            return;
+        }
+        // dnnl::reorder doesn't directly support input->output
+        if (src_data_type == dst_data_type) {
+            // dnnl::reorder doesn't support fp64->fp64 and bin->bin.
+            OPENVINO_THROW("dnnl::reorder doesn't support: ", src_prc, " -> ", dst_prc);
         }
     }
 
-    dnnl::memory::data_type near_data_type;
-    switch (mask & 0x3) {
-    case 0:
-        // No need converter
-        break;
-    case 1:
-        // Only need pre_converter
-        pre_converter = std::make_shared<IntermConverter>();
-        pre_converter->setInputPrec(src_prc);
-        pre_converter->setOutputPrec(dst_prc);
-        break;
-    case 2:
-        // Only need post_converter
-        post_converter = std::make_shared<IntermConverter>();
-        post_converter->setOutputPrec(dst_prc);
-        post_converter->setInputPrec(src_prc);
-        break;
-    case 3:
-        // Input and output both are not supported
-        pre_converter = std::make_shared<IntermConverter>();
-        pre_converter->setInputPrec(src_prc);
-
-        post_converter = std::make_shared<IntermConverter>();
-        post_converter->setOutputPrec(dst_prc);
-
-        // Choose data type with the smallest data size
-        near_data_type = find_near_data_type(src_prc, dst_prc);
-        OPENVINO_ASSERT(isSupportedDataType(engine, cache, src, near_data_type));
-        pre_converter->setOutputPrec(DnnlExtensionUtils::DataTypeToIEPrecision(near_data_type));
-        post_converter->setInputPrec(DnnlExtensionUtils::DataTypeToIEPrecision(near_data_type));
-        break;
-    default:
-        OPENVINO_THROW("Incorrect converter mask!");
-        break;
+    auto intermediate_data_type = src_data_type;
+    if (src_data_type != dnnl::memory::data_type::undef && dst_data_type != dnnl::memory::data_type::undef) {
+        // input and output are different data types, choose the data type with smaller data size as intermediate type
+        if (dnnl::memory::data_type_size(src_data_type) > dnnl::memory::data_type_size(dst_data_type)) {
+            intermediate_data_type = dst_data_type;
+        }
+    } else if (src_data_type == dnnl::memory::data_type::undef) {
+        intermediate_data_type = dst_data_type;
+    } else if (dst_data_type == dnnl::memory::data_type::undef) {
+        intermediate_data_type = src_data_type;
     }
+
+    scratch_ptr = std::make_shared<DnnlScratchPad>(engine);
+    if (intermediate_data_type == dst_data_type) {
+        // Need preConvert
+        InferenceEngine::Precision out_prec = DnnlExtensionUtils::DataTypeToIEPrecision(intermediate_data_type);
+        MemoryDescPtr out_desc = src->getDesc().cloneWithNewPrecision(out_prec);
+        auto out_mem = scratch_ptr->createScratchPadMem(out_desc);
+        pre_converter = std::make_shared<IntermConverter>(src_blocked, src_prc, out_mem, out_prec);
+        src_blocked = out_mem;
+        post_converter = nullptr;
+    } else {
+        // Need postConvert
+        InferenceEngine::Precision in_prec = DnnlExtensionUtils::DataTypeToIEPrecision(intermediate_data_type);
+        MemoryDescPtr in_desc = dst->getDesc().cloneWithNewPrecision(in_prec);
+        auto in_mem = scratch_ptr->createScratchPadMem(in_desc);
+        post_converter = std::make_shared<IntermConverter>(in_mem, in_prec, dst_blocked, dst_prc);
+        dst_blocked = in_mem;
+        pre_converter = nullptr;
+    }
+
+    src_desc = updateSrcDesc(engine, src_permutation);
+    dst_desc = dst_blocked->getPrimitive().get_desc();
+    auto result = getReorderPrim(cache, engine, src_desc, dst_desc);
+
+    if (result) {
+        prim = result;
+        DEBUG_LOG("** (",
+                  DnnlExtensionUtils::DataTypeToIEPrecision(src_desc.get_data_type()),
+                  ", ",
+                  DnnlExtensionUtils::DataTypeToIEPrecision(dst_desc.get_data_type()),
+                  ")",
+                  " is supported reorder");
+        return;
+    }
+
+    OPENVINO_THROW("dnnl::reorder doesn't support: ",
+                   DnnlExtensionUtils::DataTypeToIEPrecision(src_desc.get_data_type()),
+                   " -> ",
+                   DnnlExtensionUtils::DataTypeToIEPrecision(dst_desc.get_data_type()));
 }
 
-void Reorder::ReorderExecutor::prepareParams(const dnnl::engine& engine,
-                                             MultiCachePtr& cache,
-                                             const ov::intel_cpu::MemoryCPtr& src,
-                                             const ov::intel_cpu::MemoryCPtr& dst,
-                                             const std::vector<int> src_permutation) {
-    src_blocked = std::make_shared<Memory>(engine, src->getDesc(), src->getData(), false);
-    dst_blocked = std::make_shared<Memory>(engine, dst->getDesc(), dst->getData(), false);
-
-    if (pre_converter) {
-        // Set input memory
-        pre_converter->setInputMem(src_blocked);
-
-        // Allocate or resize output memeory
-        auto dst_desc = src->getDesc().cloneWithNewPrecision(pre_converter->getOutputPrec());
-        auto dst_mem = pre_converter->getOutputMem();
-        if (dst_mem) {
-            dst_mem->redefineDesc(dst_desc);
-        } else {
-            auto mem = std::make_shared<Memory>(engine, dst_desc, nullptr, false);
-            pre_converter->setOutputMem(mem);
-        }
-        src_blocked = pre_converter->getOutputMem();
-    }
-
-    if (post_converter) {
-        // Set output memory
-        post_converter->setOutputMem(dst_blocked);
-
-        // Allocate or resize input memeory
-        auto src_desc = dst->getDesc().cloneWithNewPrecision(post_converter->getInputPrec());
-        auto src_mem = post_converter->getInputMem();
-        if (src_mem) {
-            src_mem->redefineDesc(src_desc);
-        } else {
-            auto mem = std::make_shared<Memory>(engine, src_desc, nullptr, false);
-            post_converter->setInputMem(mem);
-        }
-        dst_blocked = post_converter->getInputMem();
-    }
-
+dnnl::memory::desc Reorder::ReorderExecutor::updateSrcDesc(const dnnl::engine& engine,
+                                                           const std::vector<int> src_permutation) {
     auto src_desc = src_blocked->getPrimitive().get_desc();
     if (!src_permutation.empty()) {
         // reorder requires exact matching of logical dimensions between src & dst
@@ -665,15 +568,14 @@ void Reorder::ReorderExecutor::prepareParams(const dnnl::engine& engine,
 
         src_desc = src_blocked->getPrimitive().get_desc();
     }
+    return src_desc;
+}
 
-    auto result = getReorderPrim(cache, engine, src_desc, dst_desc);
-    if (!result) {
-        IE_THROW() << "Cannot create reorder primitive: unsupported reorder, srcPrec = "
-                   << DnnlExtensionUtils::DataTypeToIEPrecision(src_desc.get_data_type())
-                   << ", dstPrec = " << DnnlExtensionUtils::DataTypeToIEPrecision(dst_desc.get_data_type());
-    }
-    prim = result;
-
+void Reorder::ReorderExecutor::prepareParams(const dnnl::engine& engine,
+                                             MultiCachePtr& cache,
+                                             const ov::intel_cpu::MemoryCPtr& src,
+                                             const ov::intel_cpu::MemoryCPtr& dst) {
+    OPENVINO_ASSERT(prim, "ReorderExecutor::preprareParams prim == nullptr!");
     auto dnnl_mem_src = src_blocked->getPrimitive();
     auto dnnl_mem_dst = dst_blocked->getPrimitive();
     if (!pre_converter)
@@ -681,8 +583,6 @@ void Reorder::ReorderExecutor::prepareParams(const dnnl::engine& engine,
     if (!post_converter)
         dnnl_mem_dst = dst->getPrimitive();
     primArgs = {{DNNL_ARG_SRC, dnnl_mem_src}, {DNNL_ARG_DST, dnnl_mem_dst}};
-    std::cout << "primArgs: " << DnnlExtensionUtils::DataTypeToIEPrecision(src_desc.get_data_type()) << " --> "
-              << DnnlExtensionUtils::DataTypeToIEPrecision(dst_desc.get_data_type()) << std::endl;
 }
 
 void Reorder::ReorderExecutor::IntermConverter::convert() {
@@ -694,97 +594,7 @@ void Reorder::ReorderExecutor::IntermConverter::convert() {
     auto dst = dst_mem->getData();
     size_t size = src_mem->getSize() / src_mem->getDesc().getPrecision().size();
 
-    std::cout << " convert " << src_prec << " to " <<  dst_prec << std::endl;
-
-    auto _src_prec = src_prec;
-    auto _dst_prec = dst_prec;
-    if (_src_prec == InferenceEngine::Precision::BIN)
-        _src_prec = InferenceEngine::Precision::I8;
-    if (_dst_prec == InferenceEngine::Precision::BIN)
-        _dst_prec = InferenceEngine::Precision::I8;
-    cpu_convert(src, dst, _src_prec, _dst_prec, size);
-}
-
-bool Reorder::ReorderExecutor::isSupportedCombinatedDataType(const dnnl::engine& engine,
-                                                             MultiCachePtr& cache,
-                                                             const DnnlMemoryDescPtr& src,
-                                                             const DnnlMemoryDescPtr& dst,
-                                                             const CombinatedDataType& combinated_data_type) {
-    if (std::find(supported_combinated_data_types.begin(),
-                  supported_combinated_data_types.end(),
-                  combinated_data_type) != supported_combinated_data_types.end()) {
-        return true;
-    }
-
-    // Create dnnl_desc from stride will fail: "could not construct a memory descriptor using strides"
-    //
-    // auto create_dnnl_desc = [](const DnnlMemoryDescPtr& origin_desc, const dnnl::memory::data_type& new_data_type) {
-    //    auto origin_dnnl_desc = origin_desc->getDnnlDesc();
-    //    auto strides = origin_dnnl_desc.get_strides();
-    //    auto old_datasize = DnnlExtensionUtils::sizeOfDataType(origin_dnnl_desc.get_data_type());
-    //    auto new_datasize = DnnlExtensionUtils::sizeOfDataType(new_data_type);
-    //
-    //    if (old_datasize > 0) {
-    //        std::transform(strides.begin(),
-    //                       strides.end(),
-    //                       strides.begin(),
-    //                       [&old_datasize, &new_datasize](dnnl_dim_t v) {
-    //                           return static_cast<dnnl_dim_t>(v * new_datasize / old_datasize);
-    //                       });
-    //    }
-    //    return dnnl::memory::desc(origin_dnnl_desc.get_dims(), new_data_type, strides);
-    // };
-    //
-    //
-    // Create temp Memory and get dnnl_desc can work, but it impacts performance
-    //
-    // auto create_dnnl_desc_with_mem = [&engine](const DnnlMemoryDescPtr& origin_desc,
-    //                                            const dnnl::memory::data_type& new_data_type) {
-    //    auto src_desc = origin_desc->cloneWithNewPrecision(DnnlExtensionUtils::DataTypeToIEPrecision(new_data_type));
-    //    Memory src_mem(engine, std::move(src_desc));
-    //    return src_mem.getPrimitive().get_desc();
-    // };
-    // auto src_dnnl_desc = create_dnnl_desc_with_mem(src, combinated_data_type.first);
-    // auto dst_dnnl_desc = create_dnnl_desc_with_mem(dst, combinated_data_type.second);
-
-    auto create_dnnl_desc_with_format = [](const dnnl::memory::dims& dims,
-                                                  const dnnl::memory::data_type& new_data_type,
-                                                  const dnnl::memory::format_tag& format) {
-        return dnnl::memory::desc(dims, new_data_type, format);
-    };
-
-    dnnl::memory::dims dim = {2, 10, 8};
-    auto src_dnnl_desc = create_dnnl_desc_with_format(dim, combinated_data_type.first, dnnl::memory::format_tag::abc);
-    auto dst_dnnl_desc = create_dnnl_desc_with_format(dim, combinated_data_type.second, dnnl::memory::format_tag::acb);
-    dnnl::reorder result = getReorderPrim(cache, engine, src_dnnl_desc, dst_dnnl_desc);
-
-    if (result) {
-        supported_combinated_data_types.emplace_back(combinated_data_type);
-        DEBUG_LOG("** (",
-                  DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.first),
-                  ", ",
-                  DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.second),
-                  ")",
-                  " is supported reorder");
-        return true;
-    }
-    DEBUG_LOG("## (",
-              DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.first),
-              ", ",
-              DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.second),
-              ")",
-              " is not supported reorder");
-    std::cout << "## (" << DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.first) << ", "
-              << DnnlExtensionUtils::DataTypeToIEPrecision(combinated_data_type.second) << ") is not supported reorder."
-              << std::endl;
-    return false;
-}
-
-bool Reorder::ReorderExecutor::isSupportedDataType(const dnnl::engine& engine,
-                                                   MultiCachePtr& cache,
-                                                   const DnnlMemoryDescPtr& src,
-                                                   const dnnl::memory::data_type& data_type) {
-    return isSupportedCombinatedDataType(engine, cache, src, src, {data_type, data_type});
+    cpu_convert(src, dst, src_prec, dst_prec, size);
 }
 
 void Reorder::ReorderExecutor::preConvert() {
@@ -792,7 +602,6 @@ void Reorder::ReorderExecutor::preConvert() {
         return;
     if (input)
         pre_converter->setInputPrec(input->getPrecision());
-    std::cout << "Pre_Convert: ";
     pre_converter->convert();
 }
 
@@ -801,7 +610,6 @@ void Reorder::ReorderExecutor::postConvert() {
         return;
     if (output)
         post_converter->setOutputPrec(output->getPrecision());
-    std::cout << "Post_Convert: ";
     post_converter->convert();
 }
 
