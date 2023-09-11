@@ -240,6 +240,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {
+    return m_compiled_model_without_batch->outputs();
+}
+
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
+    return m_compiled_model_without_batch->inputs();
+}
+
 void CompiledModel::export_model(std::ostream& model) const {
     OPENVINO_NOT_IMPLEMENTED;
 }

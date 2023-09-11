@@ -8,7 +8,6 @@
 
 #include "compiled_model.hpp"
 #include "openvino/core/dimension_tracker.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -18,7 +17,6 @@
 #include "transformations/utils/utils.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 #include "ie_layouts.h"
-#include "ie_ngraph_utils.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace ov {
@@ -329,58 +327,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             meta_device.device_batch_size = 1;
         }
     }
-    auto ppp_model = model->clone();
-    ov::preprocess::PrePostProcessor preproc(ppp_model);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    // temp solution to resolve the precision/layout mismatch between new/old api
-    if (!is_new_api()) {
-        for (size_t i = 0; i < ppp_model->inputs().size(); i++) {
-            ov::Output<const Node> input(ppp_model->input(i).get_node(), ppp_model->input(i).get_index());
-            auto& rt_info = input.get_rt_info();
-            auto it = rt_info.find("ie_legacy_td");
-            if (it != rt_info.end()) {
-                auto td = it->second.as<InferenceEngine::TensorDesc>();
-                auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
-                if (element_type != input.get_element_type()) {
-                    preproc.input(i).tensor().set_element_type(element_type);
-                }
-                if (td.getLayout() != InferenceEngine::Layout::BLOCKED &&
-                    td.getLayout() != InferenceEngine::Layout::SCALAR) {
-                    std::stringstream stream;
-                    stream << td.getLayout();
-                    if (td.getLayout() == InferenceEngine::Layout::NHWC) {
-                        preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
-                        if (input.get_partial_shape().is_static() && input.get_shape().size() == 4)
-                            preproc.input(i).model().set_layout("NCHW");
-                    }
-                }
-            }
-        }
-        for (size_t i = 0; i < ppp_model->outputs().size(); i++) {
-            ov::Output<Node> output(ppp_model->output(i).get_node(), ppp_model->output(i).get_index());
-            auto& rt_info = output.get_rt_info();
-            auto it = rt_info.find("ie_legacy_td");
-            if (it != rt_info.end()) {
-                auto td = it->second.as<InferenceEngine::TensorDesc>();
-                auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
-                if (element_type != output.get_element_type()) {
-                    preproc.output(i).tensor().set_element_type(element_type);
-                }
-                if (td.getLayout() != InferenceEngine::Layout::BLOCKED &&
-                    td.getLayout() != InferenceEngine::Layout::SCALAR) {
-                    std::stringstream stream;
-                    stream << td.getLayout();
-                    if (stream.str() == "NHWC") {
-                        if (output.get_partial_shape().is_static() && output.get_shape().size() == 4)
-                            preproc.output(i).model().set_layout("NCHW");
-                        preproc.output(i).postprocess().convert_layout(ov::Layout{stream.str()});
-                    }
-                }
-            }
-        }
-        preproc.build();
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     ov::SoPtr<ov::IRemoteContext> device_context;
     if (!context) {
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -396,7 +343,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         device_context = context;
     }
 
-    return std::make_shared<CompiledModel>(ppp_model,
+    return std::make_shared<CompiledModel>(model->clone(),
                                            shared_from_this(),
                                            compiled_model_config,
                                            meta_device,
