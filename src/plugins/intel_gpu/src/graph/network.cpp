@@ -1331,9 +1331,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         "_" + get_iteration_prefix(curr_iter) +
                                         layer_name + "_src" + std::to_string(i);
                     auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
+                    auto dep = inst->dependencies().at(i);
+                    auto input_layout = dep.first->get_output_layout(dep.second);
                     GPU_DEBUG_IF(debug_config->dump_layers_binary) {
                         // Binary dump : raw
-                        auto input_layout = inst->get_input_layout(i);
                         auto filename = get_file_path_for_binary_dump(input_layout, name);
 
                         mem_lock<char, mem_lock_type::read> lock(input_mem, get_stream());
@@ -1342,7 +1343,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         debug_str_for_bin_load += (filename + ",");
                     } else {
                         log_memory_to_file(input_mem,
-                                        inst->get_input_layout(i),
+                                        input_layout,
                                         get_stream(),
                                         name,
                                         debug_config->dump_layers_raw);
