@@ -11,7 +11,12 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
+class InputModel;
+
+// Place represents a tensor in the model
 class Place : public ov::frontend::Place {
+    friend class ::ov::frontend::pytorch::InputModel;
+
 public:
     Place(const ov::frontend::InputModel& input_model, size_t tensor_index);
 
@@ -32,7 +37,12 @@ public:
     size_t get_tensor_index() const {
         return m_tensor_index;
     }
-
+    element::Type get_element_type() const {
+        return m_type;
+    }
+    PartialShape get_partial_shape() const {
+        return m_pshape;
+    }
     bool is_equal_data(const Ptr& another) const override {
         const auto another_pt = dynamic_cast<ov::frontend::pytorch::Place*>(another.get());
         if (!another_pt) {
@@ -45,8 +55,10 @@ private:
     const ov::frontend::InputModel& m_input_model;
     const size_t m_tensor_index;
     std::vector<std::string> m_names;
-    bool m_is_input;
-    bool m_is_output;
+    element::Type m_type = element::dynamic;
+    PartialShape m_pshape;
+    bool m_is_input = false;
+    bool m_is_output = false;
 };
 
 }  // namespace pytorch
