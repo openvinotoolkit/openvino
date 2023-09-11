@@ -662,6 +662,19 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
 }
 
+/**
+ * @brief Return std::pair where first is true if bias is not disabled, second is tensor to be used for initializationn
+ * of component.
+ */
+static std::pair<bool, OvGnaTensor> retrieve_bias_initialization_info_conv2d(const ConvolutionLayer& convolution) {
+    if (convolution._biases != nullptr) {
+        return {true,
+                {{convolution._out_depth},
+                 OvGnaTypeIntFromBytes(convolution._biases->getTensorDesc().getPrecision().size()),
+                 {}}};
+    }
+    return {false, {{}, OvGnaTypeNone, OvGnaModeDisabled}};
+};
 void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerPtr layer,
                                                       uint32_t in_batch,
                                                       uint32_t in_channels,
@@ -721,14 +734,12 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     void* ptr_weights = nullptr;
     void* ptr_biases = nullptr;
 
-    // TODO: questionable why for biases that are not in IR we inventing precision
-    auto biasPrecision =
-        convolution._biases ? convolution._biases->getTensorDesc().getPrecision() : outputs->getPrecision();
-
     const auto inputPrec = OvGnaTypeIntFromBytes(inputs->getPrecision().size());
     const auto outputPrec = OvGnaTypeIntFromBytes(outputs->getPrecision().size());
     const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
-    const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
+    bool init_biases = false;
+    OvGnaTensor bias_tensor;
+    std::tie(init_biases, bias_tensor) = retrieve_bias_initialization_info_conv2d(convolution);
 
     ValidateCnn2D(layer->name,
                   in_height,
@@ -752,7 +763,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         {{in_batch, in_height, effective_input_width, in_channels}, inputPrec, {}},  // NHWC for GNA
         {{out_batch, out_height, out_width, out_channels}, outputPrec, {}},
         {{filter_n, convolution._kernel_y, effective_kernel_width, in_channels}, weightPrec, {}},
-        {{filter_n}, biasPrec, {}},
+        bias_tensor,
         {convolution._stride_y, convolution._stride_x},
         {convolution._padding_y, convolution._padding_x},
         weight_scale_factor,
@@ -803,13 +814,11 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
                                                 transposed_weights.data(),
                                                 transposed_weights.size());
 
-    if (convolution._biases) {
+    if (init_biases) {
         gnamem->getQueue(REGION_RO)->push_ptr(layer,
                                               ptr_biases,
                                               convolution._biases->cbuffer().as<const void*>(),
                                               convolution._biases->byteSize());
-    } else {
-        gnamem->getQueue(REGION_RO)->push_value(layer, ptr_biases, 0.0f, out_channels);
     }
 }
 
@@ -1041,7 +1050,8 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     // backward compatible with GNA 2.0
     // GNA 2.0 produces more outputs from 1D pooling than later GNA generations (including GNA 3.0)
     // When the model is compiled for some newer GNA generation (than GNA 2.0)
-    // but it does not use any specific new GNA features it should be correct to import and run using previous GNA HW
+    // but it does not use any specific new GNA features it should be correct to import and run using previous GNA
+    // HW
     if (!is2DPooling) {
         const auto hLegacy = gna_convolution_layer::outputFromPoolingLegacy(h_dim_in, pooling._stride[X_AXIS]);
         const auto wLegacy = gna_convolution_layer::outputFromPoolingLegacy(w_dim_in, pooling._stride[Y_AXIS]);
@@ -1399,10 +1409,10 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (in_4b_total_size != in_2b_total_size) {
-        THROW_GNA_LAYER_EXCEPTION(layer)
-            << " Inputs size mismatch "
-            << "(note: For Multiply, Add and Subtract layers, auto broadcasting is only supported for constant inputs) "
-            << in_4b_total_size << " != " << in_2b_total_size;
+        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs size mismatch "
+                                         << "(note: For Multiply, Add and Subtract layers, auto broadcasting is "
+                                            "only supported for constant inputs) "
+                                         << in_4b_total_size << " != " << in_2b_total_size;
     }
 
     // If batch size > 1 the data is reshaped to one with batch size = 1
@@ -1817,9 +1827,9 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     auto numRowsPadded = filterLayer->GetParamAsInt("num_rows_padded");
     // number of rows we handled by inserting copy layer
     uint32_t num_rows_copied = 0;
-    // in case of left alignment succeed, but due to number of elements not multiple of 8 we need to insert align_filter
-    // we are improving it by inserting copy layer of size that covers most of elements - remained max of 32x31 affine
-    // filter
+    // in case of left alignment succeed, but due to number of elements not multiple of 8 we need to insert
+    // align_filter we are improving it by inserting copy layer of size that covers most of elements - remained max
+    // of 32x31 affine filter
     if (0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32) {
         // can we use copy at all
         num_rows_copied = ALIGN(num_rows_in, 32) - 32;
@@ -1843,8 +1853,8 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
                                ptr_outputs);
 
         size_t num_data_bytes_in = num_rows_copied * num_rows_copied * num_columns_in * inputs->getPrecision().size();
-        // need to reserve full tensor so using original size with assumption of identity activation attached to filter
-        // lateron
+        // need to reserve full tensor so using original size with assumption of identity activation attached to
+        // filter lateron
         size_t num_data_bytes_out = num_rows_out * num_columns_in * inputs->getPrecision().size();
 
         connectInput(layer, ptr_inputs, num_data_bytes_in);
@@ -2349,8 +2359,8 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"ConvolutionFilter"}, CREATE(ConvolutionFilterPrimitive)},
         {{"ConcatAlignFilter"}, CREATE(ConcatAlignFilterPrimitive)},
         {{"Const"}, CREATE(ConstPrimitive)},
-        {{"Eltwise"}, CREATE(EltwisePrimitive)},  // same as diagonal while weights are not taken from network, rather
-                                                  // than from another output
+        {{"Eltwise"}, CREATE(EltwisePrimitive)},  // same as diagonal while weights are not taken from network,
+                                                  // rather than from another output
         {{"Split"},
          SKIP},  // skip information about which part of prev layer need to consume handle during layer creation
         {{"Slice"}, SKIP},
@@ -2759,7 +2769,8 @@ ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                 gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, &memoryLayer.gna_ptr, ptr, offset, num_data_bytes_in);
             }
         } else {
-            // We may need to extend memory buffer if connected input size is bigger, for example for concat connection
+            // We may need to extend memory buffer if connected input size is bigger, for example for concat
+            // connection
             gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, ptr, &memoryLayer.gna_ptr, offset, num_data_bytes_in);
         }
         return prevLayer;

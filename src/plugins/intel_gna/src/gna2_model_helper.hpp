@@ -136,3 +136,5 @@ void HelperGna2OperationInitDeInterleave(Gna2Operation* operation,
                                          GnaUserFree userFree,
                                          Gna2Tensor* inputs,
                                          Gna2Tensor* outputs);
+
+std::string GetLayerType(Gna2OperationType type);

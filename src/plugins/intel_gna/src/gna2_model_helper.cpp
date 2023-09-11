@@ -350,3 +350,22 @@ void HelperGna2OperationInitDeInterleave(Gna2Operation* operation,
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, InOpIdx, inputs);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, OutOpIdx, outputs);
 }
+
+std::string GetLayerType(Gna2OperationType type) {
+    switch (type) {
+    case Gna2OperationTypeFullyConnectedAffine:
+        return "Gna2OperationTypeFullyConnectedAffine";
+    case Gna2OperationTypeElementWiseAffine:
+        return "Gna2OperationTypeElementWiseAffine";
+    case Gna2OperationTypeRecurrent:
+        return "Gna2OperationTypeRecurrent";
+    case Gna2OperationTypeConvolution:
+        return "Gna2OperationTypeConvolution";
+    case Gna2OperationTypeTransposition:
+        return "Gna2OperationTypeTransposition";
+    case Gna2OperationTypeCopy:
+        return "Gna2OperationTypeCopy";
+    default:
+        return "Gna2OperationUNKNOWN";
+    }
+}

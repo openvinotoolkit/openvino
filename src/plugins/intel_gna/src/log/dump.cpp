@@ -27,25 +27,6 @@ namespace ov {
 namespace intel_gna {
 namespace dump {
 
-inline std::string GetLayerType(Gna2OperationType type) {
-    switch (type) {
-    case Gna2OperationTypeFullyConnectedAffine:
-        return "Gna2OperationTypeFullyConnectedAffine";
-    case Gna2OperationTypeElementWiseAffine:
-        return "Gna2OperationTypeElementWiseAffine";
-    case Gna2OperationTypeRecurrent:
-        return "Gna2OperationTypeRecurrent";
-    case Gna2OperationTypeConvolution:
-        return "Gna2OperationTypeConvolution";
-    case Gna2OperationTypeTransposition:
-        return "Gna2OperationTypeTransposition";
-    case Gna2OperationTypeCopy:
-        return "Gna2OperationTypeCopy";
-    default:
-        return "Gna2OperationUNKNOWN";
-    }
-}
-
 inline void write_pwl(std::ostream& pwl_file, const Gna2PwlSegment* const segments, const uint32_t numberOfSegments) {
     for (uint32_t k = 0; k < numberOfSegments; k++) {
         pwl_file << segments[k].Slope << ", " << segments[k].xBase << ", " << segments[k].yBase << "\n";

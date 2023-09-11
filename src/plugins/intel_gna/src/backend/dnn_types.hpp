@@ -173,6 +173,7 @@ typedef struct {
 } intel_copy_t;
 
 enum OvGnaType {
+    OvGnaTypeNone = 0,
     OvGnaTypeInt8 = 1,
     OvGnaTypeInt16 = 2,
     OvGnaTypeInt32 = 4,
@@ -181,7 +182,10 @@ enum OvGnaType {
 
 template <class T>
 OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
-    static const std::map<T, OvGnaType> m = {{1, OvGnaTypeInt8}, {2, OvGnaTypeInt16}, {4, OvGnaTypeInt32}};
+    static const std::map<T, OvGnaType> m = {{0, OvGnaTypeNone},
+                                             {1, OvGnaTypeInt8},
+                                             {2, OvGnaTypeInt16},
+                                             {4, OvGnaTypeInt32}};
     const auto r = m.find(bytesPerElement);
     if (r == m.end()) {
         THROW_GNA_EXCEPTION << "OvGnaTypeIntFromBytes: unknown bytesPerElement == " << bytesPerElement;
@@ -199,6 +203,7 @@ struct OvGnaTensor {
 
 inline std::string OvGnaTypeToString(OvGnaType type) {
     static const std::map<OvGnaType, std::string> typeToString = {
+        {OvGnaTypeNone, "OvGnaTypeNone"},
         {OvGnaTypeInt8, "OvGnaTypeInt8"},
         {OvGnaTypeInt16, "OvGnaTypeInt16"},
         {OvGnaTypeInt32, "OvGnaTypeInt32"},

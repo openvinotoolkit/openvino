@@ -215,7 +215,7 @@ bool matchesPaddedArea(unsigned filterIndex,
     return false;
 }
 
-float CNN2DFilter32SingleHWC(const float bias,
+float CNN2DFilter32SingleHWC(const float* bias,
                              const float* filter,
                              const unsigned KH,
                              const unsigned KW,
@@ -252,7 +252,9 @@ float CNN2DFilter32SingleHWC(const float bias,
             }
         }
     }
-    output += bias;
+    if (bias != nullptr) {
+        output += *bias;
+    }
     return output;
 }
 
@@ -291,7 +293,8 @@ void CNN2DFilter32(intel_dnn_component_t* component) {
         for (unsigned ow = 0; ow < OW; ow++) {
             for (unsigned oh = 0; oh < OH; oh++) {
                 const auto outputIndex = getQubeIndex(oh, ow, oc, OW, OC);
-                ptr_outputs[outputIndex] = CNN2DFilter32SingleHWC(*(ptr_biases + oc),
+                float* bias_ptr = ptr_biases != nullptr ? ptr_biases + oc : nullptr;
+                ptr_outputs[outputIndex] = CNN2DFilter32SingleHWC(bias_ptr,
                                                                   ptr_filters + kernelIndex,
                                                                   kh,
                                                                   kw,

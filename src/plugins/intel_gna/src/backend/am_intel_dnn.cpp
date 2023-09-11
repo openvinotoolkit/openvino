@@ -1369,6 +1369,13 @@ uint32_t AMIntelDNN::CountLayers() {
     return n;
 }
 
+static Gna2Tensor* create_conv2d_bias_tensor(const OvGnaTensor& tensor, const intel_convolutional2D_t& conv_data) {
+    if (tensor.mode != OvGnaModeDisabled) {
+        return createGna2Tensor(tensor, conv_data.ptr_biases);
+    }
+    return nullptr;
+}
+
 void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
     Gna2Operation* gnaOperation;
     if (gnaModel == nullptr)
@@ -1476,7 +1483,7 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
                 createGna2Tensor(comp.tensors[0], comp.ptr_inputs),
                 createGna2Tensor(comp.tensors[1], comp.ptr_outputs),
                 createGna2Tensor(comp.tensors[2], comp.op.conv2D.ptr_filters),
-                createGna2Tensor(comp.tensors[3], comp.op.conv2D.ptr_biases),
+                create_conv2d_bias_tensor(comp.tensors[3], comp.op.conv2D),
                 nullptr,
                 create_shape2D_parameter(comp.op.conv2D.convStride[0], comp.op.conv2D.convStride[1]),
                 nullptr,
