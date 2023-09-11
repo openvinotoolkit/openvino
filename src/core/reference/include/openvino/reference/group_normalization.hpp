@@ -8,7 +8,7 @@
 #include <numeric>
 
 #include "openvino/core/shape.hpp"
-#include "openvino/reference/mean.hpp"
+#include "openvino/reference/reduce_mean.hpp"
 #include "openvino/reference/sum.hpp"
 
 namespace ov {
@@ -38,7 +38,7 @@ void group_normalization(const T* const data,
             const auto group_begin = data + n * batch_size + g * group_size;
             const auto group_end = group_begin + group_size;
             std::vector<T> mean_value(1);
-            mean(group_begin, mean_value.data(), Shape{group_size}, {0});
+            reduce_mean(group_begin, mean_value.data(), Shape{group_size}, {0});
             T mean = mean_value[0];
             T variance = 0, err = 0;
             for_each(group_begin, group_end, [&](const T d) {

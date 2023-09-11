@@ -10,8 +10,8 @@
 
 #include "openvino/reference/add.hpp"
 #include "openvino/reference/divide.hpp"
-#include "openvino/reference/mean.hpp"
 #include "openvino/reference/multiply.hpp"
+#include "openvino/reference/reduce_mean.hpp"
 #include "openvino/reference/sqrt.hpp"
 #include "openvino/reference/subtract.hpp"
 #include "openvino/reference/sum.hpp"
@@ -28,13 +28,13 @@ void mvn(const T* arg,
          const double eps) {
     auto reduced_shape = ngraph::reduce(in_shape, reduction_axes, true);
     std::vector<T> tmp_buffer(shape_size(in_shape));
-    mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
+    reduce_mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
     subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
 
     if (normalize_variance) {
         multiply(out, out, tmp_buffer.data(), shape_size(in_shape));
         std::vector<T> mean_value(shape_size(reduced_shape));
-        mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes);
+        reduce_mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes);
 
         add(mean_value.data(),
             std::vector<T>(shape_size(reduced_shape), static_cast<T>(eps)).data(),
@@ -58,13 +58,13 @@ void mvn_6(const T* arg,
            op::MVNEpsMode eps_mode) {
     auto reduced_shape = ngraph::reduce(in_shape, reduction_axes, true);
     std::vector<T> tmp_buffer(shape_size(in_shape));
-    mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
+    reduce_mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
     subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
 
     if (normalize_variance) {
         multiply(out, out, tmp_buffer.data(), shape_size(in_shape));
         std::vector<T> mean_value(shape_size(reduced_shape));
-        mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes);
+        reduce_mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes);
 
         if (eps_mode == op::MVNEpsMode::INSIDE_SQRT) {
             add(mean_value.data(),

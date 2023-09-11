@@ -14,15 +14,15 @@ namespace ov {
 namespace reference {
 
 /**
- * @brief Reference implementation of ReduceProd operator.
+ * @brief Reference implementation of ReduceMean operator.
  *
- * @param in             Input iterator to data.
- * @param out            Output iterator to results.
+ * @param in             Input pointer to data.
+ * @param out            Output pointer to results.
  * @param in_shape       Input shape.
  * @param reduction_axes Axes on which reduction is applied.
  */
 template <class T>
-void mean(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
+void reduce_mean(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     sum(in, out, in_shape, reduction_axes);
 
     const auto out_shape = util::reduce(in_shape, reduction_axes);
