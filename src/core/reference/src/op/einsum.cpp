@@ -10,8 +10,8 @@
 #include "openvino/reference/broadcast.hpp"
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/multiply.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/reshape.hpp"
-#include "openvino/reference/sum.hpp"
 #include "openvino/reference/transpose.hpp"
 #include "openvino/reference/utils/span.hpp"
 
@@ -352,7 +352,7 @@ void reduce_input(ov::TensorVector& inputs,
 
     auto output_ptr = ov::Tensor(input_ptr.get_element_type(), output_shape);
 
-    reference::sum(input_ptr.data<const T>(), output_ptr.data<T>(), input_shape, reduced_axes);
+    reference::reduce_sum(input_ptr.data<const T>(), output_ptr.data<T>(), input_shape, reduced_axes);
 
     // update a vector of inputs and input subscripts
     inputs[input_ind] = output_ptr;
@@ -595,7 +595,7 @@ void extract_diagonal(ov::TensorVector& inputs, std::vector<std::string>& input_
                            ov::op::AutoBroadcastType::NUMPY);
 
     auto result = ov::Tensor(input_ptr.get_element_type(), result_shape);
-    reference::sum<T>(mul_output.data<T>(), result.data<T>(), mul_output.get_shape(), reduced_axes);
+    reference::reduce_sum(mul_output.data<const T>(), result.data<T>(), mul_output.get_shape(), reduced_axes);
     inputs[input_ind] = result;
     input_subscripts[input_ind] = resultant_subscript;
 }

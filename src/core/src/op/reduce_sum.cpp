@@ -8,7 +8,7 @@
 #include "itt.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/axes_util.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 
 namespace ov {
 namespace op {
@@ -17,9 +17,9 @@ struct Evaluate : element::NoAction<bool> {
     using element::NoAction<bool>::visit;
 
     template <element::Type_t ET>
-    static result_type visit(const Tensor& in0, Tensor& out, const AxisSet& reduction_axes) {
+    static result_type visit(const Tensor& in, Tensor& out, const AxisSet& reduction_axes) {
         using T = fundamental_type_for<ET>;
-        reference::sum(in0.data<const T>(), out.data<T>(), in0.get_shape(), reduction_axes);
+        reference::reduce_sum(in.data<const T>(), out.data<T>(), in.get_shape(), reduction_axes);
         return true;
     }
 };

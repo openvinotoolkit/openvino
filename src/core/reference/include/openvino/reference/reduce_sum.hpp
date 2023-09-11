@@ -71,7 +71,7 @@ T kahan_summation(const T in, const T prev_sum, T& compensation) {
  * @param reduction_axes Axes on which reduction is applied.
  */
 template <typename T>
-void sum(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
+void reduce_sum(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     const auto out_shape = util::reduce(in_shape, reduction_axes);
 
     const auto out_size = shape_size(out_shape);
