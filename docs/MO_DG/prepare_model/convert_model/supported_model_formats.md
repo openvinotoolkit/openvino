@@ -11,9 +11,6 @@
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
    openvino_docs_MO_DG_prepare_model_convert_model_tutorials
 
 .. meta::
@@ -548,12 +545,12 @@ converting them to ONNX for use with OpenVINO should be considered the default p
 .. note::
 
    If you want to keep working with the legacy formats the old way, refer to a previous 
-   `OpenVINO LTS version and its documentation. <https://docs.openvino.ai/2022.3/Supported_Model_Formats.html>.
+   `OpenVINO LTS version and its documentation <https://docs.openvino.ai/2022.3/Supported_Model_Formats.html>`__ .
     
    OpenVINO versions of 2023 are mostly compatible with the old instructions, 
    through a deprecated MO tool, installed with the deprecated OpenVINO Developer Tools package.
 
-   `OpenVINO 2023.0 <https://docs.openvino.ai/2023.0/Supported_Model_Formats.html> is the last
+   `OpenVINO 2023.0 <https://docs.openvino.ai/2023.0/Supported_Model_Formats.html>`__ is the last
    release officially supporting the MO conversion process for the legacy formats.
 
 
