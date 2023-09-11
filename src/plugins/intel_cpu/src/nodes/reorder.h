@@ -82,6 +82,7 @@ private:
             input = in;
             output = out;
         }
+        void updateMem(const ov::intel_cpu::MemoryPtr& src, const ov::intel_cpu::MemoryPtr& dst);
         dnnl::reorder::primitive& getPrimitive() {
             return prim;
         }
@@ -107,6 +108,12 @@ private:
             }
             void setOutputPrec(const InferenceEngine::Precision prec) {
                 dst_prec = prec;
+            }
+            void setInputMem(MemoryPtr mem_ptr) {
+                src_mem = mem_ptr;
+            }
+            void setOutputMem(MemoryPtr mem_ptr) {
+                dst_mem = mem_ptr;
             }
 
         private:

@@ -291,6 +291,7 @@ void Reorder::execute(dnnl::stream strm) {
     } else {
         if (executor_ptr) {
             executor_ptr->setDescs(input, output);
+            executor_ptr->updateMem(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
             if (!executor_ptr->exec(strm)) {
                 OPENVINO_THROW("Reorder node with name ", getName(), " doesn't have an initialized primitive");
             }
@@ -453,8 +454,8 @@ Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
 
     prim = dnnl::reorder();
     if (src_prc != dst_prc) {
-        auto temp_desc = src->getDesc().cloneWithNewPrecision(dst_prc);
-        if (temp_desc->isCompatible(dst->getDesc())) {
+        if (src->getDescWithType<BlockedMemoryDesc>()->getOrder() ==
+            dst->getDescWithType<BlockedMemoryDesc>()->getOrder()) {
             need_reorder = false;
             src_blocked = std::make_shared<Memory>(engine, src->getDescPtr(), src->getData(), false);
             dst_blocked = std::make_shared<Memory>(engine, dst->getDescPtr(), dst->getData(), false);
@@ -604,6 +605,19 @@ void Reorder::ReorderExecutor::prepareParams(const dnnl::engine& engine,
     if (!post_converter)
         dnnl_mem_dst = dst->getPrimitive();
     primArgs = {{DNNL_ARG_SRC, dnnl_mem_src}, {DNNL_ARG_DST, dnnl_mem_dst}};
+}
+
+void Reorder::ReorderExecutor::updateMem(const ov::intel_cpu::MemoryPtr& src, const ov::intel_cpu::MemoryPtr& dst) {
+    // Update due to changeDefaultPtr maybe update input/output ptr
+    if (need_reorder) {
+        if (pre_converter)
+            pre_converter->setInputMem(src);
+        if (post_converter)
+            post_converter->setOutputMem(dst);
+    } else if (pre_converter) {
+        pre_converter->setInputMem(src);
+        pre_converter->setOutputMem(dst);
+    }
 }
 
 void Reorder::ReorderExecutor::IntermConverter::convert() {
