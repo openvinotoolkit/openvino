@@ -6,7 +6,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <utils/bfloat16.hpp>
 #include <ie_parallel.hpp>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
 
 #define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
 
@@ -108,7 +108,7 @@ void Eye::executeSpecified() {
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!outPtr || !outPtr ->isAllocated())
             THROW_ERROR << errorPrefix << "Destination memory didn't allocate.";
-    T *dst = reinterpret_cast<T *>(outPtr->GetPtr());
+    T *dst = reinterpret_cast<T *>(outPtr->getData());
 
     const size_t batchVolume = getBatchVolume(getBatchShape());
     const size_t spatialCount = colNum * rowNum;

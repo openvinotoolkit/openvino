@@ -4,6 +4,12 @@
 
 .. _code samples:
 
+.. meta::
+   :description: OpenVINO™ samples include a collection of simple console applications 
+                 that explain how to implement the capabilities and features of 
+                 OpenVINO API into an application.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -45,7 +51,7 @@ If you installed OpenVINO via PyPI, download `the OpenVINO repository <https://g
 
 The applications include:
 
-- **Speech Sample** - Acoustic model inference based on Kaldi neural networks and speech feature vectors.
+- **Speech Sample** - ``[DEPRECATED]`` Acoustic model inference based on Kaldi neural networks and speech feature vectors.
 
   - :doc:`Automatic Speech Recognition C++ Sample <openvino_inference_engine_samples_speech_sample_README>`
   - :doc:`Automatic Speech Recognition Python Sample <openvino_inference_engine_ie_bridges_python_sample_speech_sample_README>`
@@ -92,13 +98,15 @@ The applications include:
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
 
   - :doc:`Benchmark C++ Tool <openvino_inference_engine_samples_benchmark_app_README>`  
-  
 
-  Note that the Python version of the benchmark tool is currently available only through the :doc:`OpenVINO Development Tools installation <openvino_docs_install_guides_install_dev_tools>`. It is not created in the samples directory but can be launched with the following command: ``benchmark_app -m <model> -i <input> -d <device>``. For more information, check the :doc:`Benchmark Python Tool <openvino_inference_engine_tools_benchmark_tool_README>` documentation.
+    Note that the Python version of the benchmark tool is a core component of the OpenVINO installation package and 
+    may be executed with the following command: ``benchmark_app -m <model> -i <input> -d <device>``. 
+    For more information, check the :doc:`Benchmark Python Tool <openvino_inference_engine_tools_benchmark_tool_README>`.
 
 .. note:: 
    
-   All C++ samples support input paths containing only ASCII characters, except for the Hello Classification Sample, that supports Unicode.
+   All C++ samples support input paths containing only ASCII characters, except for the Hello Classification Sample, which supports Unicode.
+
 
 Media Files Available for Samples
 #################################
@@ -113,7 +121,7 @@ To run the sample, you can use :doc:`public <omz_models_group_public>` or :doc:`
 Build the Sample Applications
 #############################
 
-.. _build-samples-linux:
+
 
 Build the Sample Applications on Linux
 ++++++++++++++++++++++++++++++++++++++
@@ -320,7 +328,7 @@ The OpenVINO environment variables are removed when you close the shell. As an o
 
    .. code-block:: sh
    
-      source /opt/intel/openvino_2022/setupvars.sh
+      source /opt/intel/openvino_2023/setupvars.sh
 
 3. Save and close the file: press the **Esc** key, type ``:wq`` and press the **Enter** key.
 4. To test your change, open a new terminal. You will see ``[setupvars.sh] OpenVINO environment initialized``.

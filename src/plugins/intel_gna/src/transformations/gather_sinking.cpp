@@ -12,6 +12,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/gather_sinking_binary.hpp"
 #include "transformations/gather_sinking_fuse.hpp"
+#include "transformations/gather_sinking_matmul.hpp"
+#include "transformations/gather_sinking_reshape.hpp"
+#include "transformations/gather_sinking_split.hpp"
 #include "transformations/gather_sinking_transpose_reshape.hpp"
 #include "transformations/gather_sinking_unary.hpp"
 
@@ -25,6 +28,7 @@ GatherSinkingGeneralForward::GatherSinkingGeneralForward() {
     add_matcher<GatherSinkingUnaryForward>();
     add_matcher<GatherSinkingBinaryForward>();
     add_matcher<GatherSinkingTransposeReshapeForward>();
+    add_matcher<GatherSinkingMatmulForward>();
     add_matcher<GatherSinkingFuse>();
 }
 
@@ -33,6 +37,9 @@ GatherSinkingGeneralBackward::GatherSinkingGeneralBackward() {
     add_matcher<GatherSinkingUnaryBackward>();
     add_matcher<GatherSinkingBinaryBackward>();
     add_matcher<GatherSinkingTransposeReshapeBackward>();
+    add_matcher<GatherSinkingReshapeBackward>();
+    add_matcher<GatherSinkingSplitBackward>();
+    add_matcher<GatherSinkingMatmulBackward>();
     add_matcher<GatherSinkingFuse>();
 }
 

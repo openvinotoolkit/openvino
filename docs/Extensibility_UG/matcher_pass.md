@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to create a pattern, implement a callback, register 
+                 the pattern and Matcher to execute MatcherPass transformation 
+                 on a model.
+
 ``:ref:`ov::pass::MatcherPass <doxid-classov_1_1pass_1_1_matcher_pass>```  is used for pattern-based transformations.
 
 Template for MatcherPass transformation class

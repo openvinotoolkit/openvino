@@ -21,6 +21,14 @@ file(GLOB_RECURSE HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
+# build avx2.cpp with AVX2 support, only for Windows
+if(ENABLE_AVX2 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_avx2_optimization_flags(avx2_flags)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/pre_post_process/hw_accelerated_converter_avx2.cpp PROPERTIES COMPILE_OPTIONS "${avx2_flags}")
+    add_compile_definitions(HAVE_AVX2=1)
+endif()
+
+
 find_package(libGNA REQUIRED
              CONFIG
              PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
@@ -38,7 +46,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy
         Threads::Threads libGNA)

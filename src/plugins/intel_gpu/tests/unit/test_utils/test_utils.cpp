@@ -399,9 +399,9 @@ double default_tolerance(data_types dt) {
     case data_types::u8:
         return 1.5;
     default:
-        IE_THROW() << "Unknown";
+        OPENVINO_THROW("Unknown");
     }
-    IE_THROW() << "Unknown";
+    OPENVINO_THROW("Unknown");
 }
 
 cldnn::format generic_test::get_plain_format_for(const cldnn::format input) {

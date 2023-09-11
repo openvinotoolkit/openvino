@@ -74,7 +74,9 @@ struct WorkerInferRequest {
 };
 
 struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
-    explicit ThisRequestExecutor(WorkerInferRequest** ptr, AutoImmediateExecutor::Ptr executor = nullptr): m_workptrptr{ptr}, m_fallback_exec(executor) {}
+    explicit ThisRequestExecutor(WorkerInferRequest** ptr, AutoImmediateExecutor::Ptr executor = nullptr):
+        m_workptrptr{ptr},
+        m_fallback_exec(std::move(executor)) {}
     void run(ov::threading::Task task) override {
         (*m_workptrptr)->m_task = std::move(task);
         (*m_workptrptr)->m_fallback_exec = m_fallback_exec;
@@ -92,9 +94,9 @@ struct DeviceInformation {
     DeviceName unique_name;
     unsigned int device_priority;
     DeviceInformation(DeviceName dn = {}, ov::AnyMap conf = {},
-        int nReq = -1, std::string defaultID = {}, DeviceName uName = {}, unsigned int priority = 0)
-        : device_name(dn), config(conf),
-        num_requests_per_devices(nReq), default_device_id(defaultID), unique_name(uName), device_priority(priority)
+        int n_req = -1, std::string default_id = {}, DeviceName name = {}, unsigned int priority = 0)
+        : device_name(std::move(dn)), config(std::move(conf)),
+        num_requests_per_devices(n_req), default_device_id(std::move(default_id)), unique_name(std::move(name)), device_priority(priority)
         {}
 };
 

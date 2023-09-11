@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The list of types of devices and corresponding plugins which 
+                 are compatible with OpenVINO Runtime and support inference 
+                 of deep learning models.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -9,6 +15,7 @@
    openvino_docs_OV_UG_query_api
    openvino_docs_OV_UG_supported_plugins_CPU
    openvino_docs_OV_UG_supported_plugins_GPU
+   openvino_docs_OV_UG_supported_plugins_NPU
    openvino_docs_OV_UG_supported_plugins_GNA
 
 

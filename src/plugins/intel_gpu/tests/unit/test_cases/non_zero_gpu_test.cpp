@@ -3,10 +3,11 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/non_zero.hpp>
-#include "ngraph/runtime/reference/non_zero.hpp"
+#include "openvino/reference/non_zero.hpp"
 
 #include "non_zero_inst.h"
 #include "test_utils.h"
@@ -17,16 +18,7 @@ using namespace cldnn;
 using namespace ::tests;
 
 template<typename T>
-std::vector<T> generate_random_input(const size_t input_size, int min, int max, int min_num_zero = 0) {
-    static std::default_random_engine generator(random_seed);
-    int k = 8;  // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int> distribution(k * min, k * max);
-    std::vector<T> vec(input_size);
-    for (size_t i = 0; i < input_size; ++i) {
-        vec[i] = (T)distribution(generator);
-        vec[i] /= k;
-    }
-
+void make_min_num_zero(std::vector<T>& vec, std::default_random_engine& generator, int min_num_zero) {
     auto num_zero = std::count_if(vec.begin(), vec.end(), [](T val) {
         return (val == 0);
     });
@@ -44,14 +36,13 @@ std::vector<T> generate_random_input(const size_t input_size, int min, int max, 
             }
         }
     }
-    return vec;
 }
 
 template<typename T>
 void test_count_non_zero(layout in_layout, std::vector<T> in_data) {
     auto& engine = get_test_engine();
     auto input_mem = engine.allocate_memory(in_layout);
-    auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<T>(in_data.data(), in_layout.get_shape());
+    auto count_non_zero = ov::reference::non_zero_get_count<T>(in_data.data(), in_layout.get_shape());
 
     set_values(input_mem, in_data);
 
@@ -86,26 +77,34 @@ TEST(test_count_non_zero, 5d_fp16_1_3_2_1_2) {
 }
 
 TEST(test_count_non_zero, 2d_int32_1_256) {
+    tests::random_generator rg(GET_SUITE_NAME);
     layout in_layout = {ov::PartialShape{1, 256}, data_types::i32, format::bfyx};
-    auto in_data = generate_random_input<int32_t>(in_layout.count(), -2, 2, 100);
+    auto in_data = rg.generate_random_1d<int32_t>(in_layout.count(), -2, 2);
+    make_min_num_zero(in_data, rg.get_generator(), 100);
     test_count_non_zero<int32_t>(in_layout, in_data);
 }
 
 TEST(test_count_non_zero, 2d_f32_1_513) {
+    tests::random_generator rg(GET_SUITE_NAME);
     layout in_layout = {ov::PartialShape{1, 513}, data_types::f32, format::bfyx};
-    auto in_data = generate_random_input<float>(in_layout.count(), -2, 2, 40);
+    auto in_data = rg.generate_random_1d<float>(in_layout.count(), -2, 2);
+    make_min_num_zero(in_data, rg.get_generator(), 40);
     test_count_non_zero<float>(in_layout, in_data);
 }
 
 TEST(test_count_non_zero, 6d_f32_21_18_1_5_3_2) {
+    tests::random_generator rg(GET_SUITE_NAME);
     layout in_layout = {ov::PartialShape{21, 18, 1, 5, 3, 2}, data_types::f32, format::bfwzyx};
-    auto in_data = generate_random_input<float>(in_layout.count(), -2, 2, 172);
+    auto in_data = rg.generate_random_1d<float>(in_layout.count(), -2, 2);
+    make_min_num_zero(in_data, rg.get_generator(), 172);
     test_count_non_zero<float>(in_layout, in_data);
 }
 
 TEST(test_count_non_zero, 5d_f32_1_16_4_2_24) {
+    tests::random_generator rg(GET_SUITE_NAME);
     layout in_layout = {ov::PartialShape{1, 16, 4, 2, 24}, data_types::f32, format::bfzyx};
-    auto in_data = generate_random_input<float>(in_layout.count(), -2, 2, 128);
+    auto in_data = rg.generate_random_1d<float>(in_layout.count(), -2, 2);
+    make_min_num_zero(in_data, rg.get_generator(), 128);
     test_count_non_zero<float>(in_layout, in_data);
 }
 
@@ -139,10 +138,14 @@ TEST(test_count_non_zero, dynamic_2d_f32_bfyx) {
     dyn_nonzero_count_net _test;
     _test.create_network(engine, topology, config);
 
+    tests::random_generator rg(GET_SUITE_NAME);
+
     for (size_t& input_length : input_shapes) {
         auto in_layout = layout({1, static_cast<long int>(input_length)}, data_types::f32, format::bfyx);
         auto input_mem = engine.allocate_memory(in_layout);
-        auto in_data = generate_random_input<float>(in_layout.count(), -2, 2, 50);
+
+        auto in_data = rg.generate_random_1d<float>(in_layout.count(), -2, 2);
+        make_min_num_zero(in_data, rg.get_generator(), 50);
 
         set_values(input_mem, in_data);
         auto outputs = _test.execute(input_mem);
@@ -151,7 +154,7 @@ TEST(test_count_non_zero, dynamic_2d_f32_bfyx) {
         auto output = outputs.at("count_nonzero").get_memory();
         cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
 
-        auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<float>(in_data.data(), in_layout.get_shape());
+        auto count_non_zero = ov::reference::non_zero_get_count<float>(in_data.data(), in_layout.get_shape());
         ASSERT_EQ(count_non_zero, output_ptr[0]);
     }
 }
@@ -160,10 +163,10 @@ template<typename T>
 void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
     auto& engine = get_test_engine();
     auto input_mem = engine.allocate_memory(in_layout);
-    auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<T>(in_data.data(), in_layout.get_shape());
+    auto count_non_zero = ov::reference::non_zero_get_count<T>(in_data.data(), in_layout.get_shape());
     auto in_rank = in_layout.get_shape().size();
     std::vector<int32_t> expected_results(count_non_zero * in_rank);
-    ngraph::runtime::reference::non_zero<T, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
+    ov::reference::non_zero<T, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
 
     auto output_shape_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto output_shape_mem = engine.allocate_memory(output_shape_layout);
@@ -321,10 +324,10 @@ template<typename T>
 void test_non_zero(layout in_layout, std::vector<T> in_data) {
     auto& engine = get_test_engine();
     auto input_mem = engine.allocate_memory(in_layout);
-    auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<T>(in_data.data(), in_layout.get_shape());
+    auto count_non_zero = ov::reference::non_zero_get_count<T>(in_data.data(), in_layout.get_shape());
     auto in_rank = in_layout.get_shape().size();
     std::vector<int32_t> expected_results(count_non_zero * in_rank);
-    ngraph::runtime::reference::non_zero<T, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
+    ov::reference::non_zero<T, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
 
     set_values(input_mem, in_data);
 
@@ -476,7 +479,7 @@ TEST(test_gather_non_zero, not_use_local_mem) {
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
 
     std::vector<int32_t> expected_results(max_local_mem_size);
-    ngraph::runtime::reference::non_zero<float, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
+    ov::reference::non_zero<float, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);

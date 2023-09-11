@@ -17,7 +17,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
     using parent = typed_primitive_impl<concatenation>;
     using parent::parent;
 
-    int64_t axis;
+    int64_t axis = 0;
 
     std::shared_ptr<ov::op::v0::Concat> op;
 
@@ -57,6 +57,8 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
 
         auto ev = stream.create_user_event(false);
 
+        auto params = instance.get_impl_params();
+
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
 
@@ -65,17 +67,21 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
                             "[GPU] Couldn't create concat operation: unsupported mixed inputs/output data types");
 
         std::vector<memory::ptr> input_mem_ptrs;
-        for (size_t i = 0; i < instance.dependencies().size(); i++)
-            input_mem_ptrs.push_back(instance.dep_memory_ptr(i));
+        for (size_t i = 0; i < instance.dependencies().size(); i++) {
+            auto& dep = instance.dependencies().at(i);
+            if (dep.first->get_output_layout().count() > 0) {
+                auto mem_ptr = instance.dep_memory_ptr(i);
+                input_host_tensors.push_back(make_tensor(params->input_layouts[i], mem_ptr->lock(stream, mem_lock_type::read)));
+                // push mem_ptr to input_mem_ptr to unlock after processing
+                input_mem_ptrs.push_back(mem_ptr);
+            }
+        }
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
 
-        for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(input_mem_ptrs[i]->get_layout(), input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
-
-        output_host_tensors.push_back(make_tensor(output_mem_ptr->get_layout(), output_lock.data()));
+        output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         if (!op) {
             op = std::make_shared<ov::op::v0::Concat>();

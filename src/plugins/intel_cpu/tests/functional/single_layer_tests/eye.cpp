@@ -46,18 +46,18 @@ public:
         result << "EyeTest_";
         result << "IS=(";
         for (const auto& shape : inputShape) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : inputShape) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "rowNum=" << eyePar[0] << "_";
         result << "colNum=" << eyePar[1] << "_";
         result << "diagShift=" << eyePar[2] << "_";
-        result << "batchShape=" << CommonTestUtils::vec2str(outBatchShape) << "_";
+        result << "batchShape=" << ov::test::utils::vec2str(outBatchShape) << "_";
         result << netPr << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams) << "_";
         result << std::to_string(obj.index);
@@ -84,7 +84,10 @@ protected:
     }
 
     std::shared_ptr<ngraph::Function> createFunction() {
-        auto inputParams = ngraph::builder::makeDynamicParams(ngraph::element::i32, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i32, shape));
+        }
         auto rowsPar = inputParams[0];
         rowsPar->set_friendly_name("rows");
         auto colsPar = inputParams[1];
@@ -175,7 +178,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_PureScalar_Test, EyeLayerCPUTest,
                                          ::testing::ValuesIn(emptyBatchShape),
                                          ::testing::ValuesIn(eyePars),
                                          ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLayerCPUTest::getTestCaseName);
 
@@ -187,7 +190,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_WithNonScalar_Test, EyeLayerCPUTest,
                                          ::testing::ValuesIn(emptyBatchShape),
                                          ::testing::ValuesIn(eyePars),
                                          ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLayerCPUTest::getTestCaseName);
 
@@ -199,7 +202,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_1DBatch_Test, EyeLayerCPUTest,
                                          ::testing::ValuesIn(batchShapes1D),
                                          ::testing::ValuesIn(eyePars),
                                          ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLayerCPUTest::getTestCaseName);
 
@@ -211,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test, EyeLayerCPUTest,
                                          ::testing::ValuesIn(batchShapes2D),
                                          ::testing::ValuesIn(eyePars),
                                          ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLayerCPUTest::getTestCaseName);
 
@@ -224,7 +227,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test, EyeLayerCPUTest,
 //                                          ::testing::ValuesIn(batchShapes3D),
 //                                          ::testing::ValuesIn(eyePars),
 //                                          ::testing::ValuesIn(netPrecisions),
-//                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
 //                          EyeLayerCPUTest::getTestCaseName);
 
@@ -262,7 +265,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_Dynamic_Test, EyeLayerCPUTest,
                                          ::testing::ValuesIn(emptyBatchShape),
                                          ::testing::ValuesIn(eyePars),
                                          ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLayerCPUTest::getTestCaseName);
 
@@ -273,7 +276,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_With2DBatchShape_Dynamic_Test, EyeLayerCPUTes
                                          ::testing::ValuesIn(batchShapes2D),
                                          ::testing::ValuesIn(eyePars),
                                          ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLayerCPUTest::getTestCaseName);
 
@@ -285,7 +288,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_With2DBatchShape_Dynamic_Test, EyeLayerCPUTes
 //                                          ::testing::ValuesIn(batchShapes3D),
 //                                          ::testing::ValuesIn(eyePars),
 //                                          ::testing::ValuesIn(netPrecisions),
-//                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
 //                          EyeLayerCPUTest::getTestCaseName);
 } // namespace

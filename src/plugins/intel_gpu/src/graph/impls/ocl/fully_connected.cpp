@@ -26,9 +26,18 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<fully_connected>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
+        const auto& desc = instance.get_typed_desc<fully_connected>();
 
         args.weights = instance.weights_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
+
+        args.inputs = { instance.input_memory_ptr(0) };
+        size_t in_id = instance.bias_term() ? 3 : 2;
+        if (!desc->decompression_scale.empty())
+            args.inputs.push_back(instance.dep_memory_ptr(in_id++));
+
+        if (!desc->decompression_zero_point.empty())
+            args.inputs.push_back(instance.dep_memory_ptr(in_id));
 
         return args;
     }
@@ -37,7 +46,7 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
-        auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
+        auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts, bool allow_new_shape_infer) {
             auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature, size_t rank) {
                 if (shape.is_static()) {
                     auto static_shape = shape.to_shape();
@@ -56,15 +65,43 @@ public:
             auto input1_pshape = input1_layout.get_partial_shape();
 
             ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul];
+            if (allow_new_shape_infer) {
+                feature = input0_pshape[primitive->input_size - 1ul];
+            }
 
+            // TO DO, to remove WA
             if (primitive->input_size > 3) {
                 input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature, primitive->input_size));
+                input0_layout.format = format::bfyx;
             }
             if (input1_pshape.size() != 2) {
                 input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature, primitive->weights_rank));
+                // input1_layout.format = format::bfyx;
             }
 
             std::vector<layout> layouts{input0_layout, input1_layout};
+
+            bool has_zp = !primitive->decompression_zero_point.empty();
+            bool has_scale = !primitive->decompression_scale.empty();
+
+            size_t offset = primitive->bias.empty() ? 2 : 3;
+            const auto& weights_pshape = input1_layout.get_partial_shape();
+            if (has_scale) {
+                auto scale_layout = input_layouts[offset++];
+                if (input1_pshape.size() != 2) {
+                    scale_layout.set_partial_shape(reshape_to_2d(scale_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
+                }
+                layouts.push_back(scale_layout);
+            }
+
+            if (has_zp) {
+                auto zp_layout = input_layouts[offset];
+                if (input1_pshape.size() != 2) {
+                    zp_layout.set_partial_shape(reshape_to_2d(zp_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
+                }
+                layouts.push_back(zp_layout);
+            }
+
             return layouts;
         };
 
@@ -83,9 +120,10 @@ public:
             return updated_out_layout;
         };
 
+        bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
         auto updated_impl_param = impl_param;
 
-        const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts);
+        const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts, allow_new_shape_infer);
         updated_impl_param.input_layouts[0] = input_layouts[0];
         updated_impl_param.input_layouts[1] = input_layouts[1];
         updated_impl_param.weights_layout = input_layouts[1];
@@ -96,6 +134,17 @@ public:
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(progam);
         optional_params.allowInputReordering = true;
+
+        bool commpressed = !primitive->decompression_scale.empty();
+        bool with_zp = !primitive->decompression_zero_point.empty();
+        if (commpressed) {
+            params.compressed = true;
+            params.decompression_scale = convert_data_tensor(input_layouts[2]);
+            if (with_zp) {
+                params.has_decompression_zp = true;
+                params.decompression_zero_point = convert_data_tensor(input_layouts[3]);
+            }
+        }
 
         if (primitive->input_size != 3)
             params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
@@ -137,6 +186,10 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
         std::make_tuple(data_types::i8, format::bfyx),

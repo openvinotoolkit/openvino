@@ -98,8 +98,7 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
         // Skip inner Loops
         const auto loop_begin = ov::as_type_ptr<op::LoopBegin>(expr_it->get()->get_node());
         if (loop_begin) {
-            expr_it = std::find(expr_it, tail_end, linear_ir.get_expr_by_node(loop_begin->get_loop_end()));
-            OPENVINO_ASSERT(expr_it != tail_end, "LoopEnd has not been found");
+            expr_it = linear_ir.find(expr_it, tail_end, linear_ir.get_expr_by_node(loop_begin->get_loop_end()));
             continue;
         }
         // We should fill vector regs by float_min and zero to have
@@ -198,7 +197,7 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
         // finalization offsets which are supported by LoopEnd.
         if (need_tail) {
             const auto loop_begin = loop_end->get_loop_begin();
-            const auto begin_it = std::find(linear_ir.begin(), linear_ir.end(), linear_ir.get_expr_by_node(loop_begin));
+            const auto begin_it = linear_ir.find(linear_ir.get_expr_by_node(loop_begin));
             LinearIR::constExprIt tail_begin, tail_end;
             const auto tail_loop_end = create_tail_loop(linear_ir, begin_it, std::next(expr_it), tail_begin, tail_end,
                                                         loop_end, need_vector_loop, tail_size, tail_finalization_offsets);

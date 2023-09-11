@@ -372,8 +372,6 @@ ParamsKey Convolution_kernel_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
     k.EnableGroupedConvolution();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
-    k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);
-    k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS);
     k.EnableDilation();
     return k;
 }

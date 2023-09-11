@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ Deployment Manager assembles the model, OpenVINO IR 
+                 files, your application, dependencies and creates a deployment 
+                 package for a target device.
+
+
 The OpenVINO™ Deployment Manager is a Python command-line tool that creates a deployment package by assembling the model, OpenVINO IR files, your application, and associated dependencies into a runtime package for your target device. This tool is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux, Windows and macOS release packages. It is available in the ``<INSTALL_DIR>/tools/deployment_manager`` directory after installation.
 
 This article provides instructions on how to create a package with Deployment Manager and then deploy the package to your target systems.
@@ -41,14 +47,6 @@ Running Deployment Manager in Interactive Mode
 
    .. tab-set::
 
-      .. tab-item:: Linux
-         :sync: linux
-   
-         .. code-block:: sh
-   
-            cd <INSTALL_DIR>/tools/deployment_manager
-            ./deployment_manager.py
-   
       .. tab-item:: Windows
          :sync: windows
    
@@ -56,6 +54,14 @@ Running Deployment Manager in Interactive Mode
    
             cd <INSTALL_DIR>\tools\deployment_manager
             .\deployment_manager.py
+
+      .. tab-item:: Linux
+         :sync: linux
+   
+         .. code-block:: sh
+   
+            cd <INSTALL_DIR>/tools/deployment_manager
+            ./deployment_manager.py
    
       .. tab-item:: macOS
          :sync: macos
@@ -103,14 +109,6 @@ Running Deployment Manager in Standard CLI Mode
 
    .. tab-set::
 
-      .. tab-item:: Linux
-         :sync: linux
-   
-         .. code-block:: sh
-   
-            cd <INSTALL_DIR>/tools/deployment_manager
-            ./deployment_manager.py <--targets> [--output_dir] [--archive_name] [--user_data]
-   
       .. tab-item:: Windows
          :sync: windows
    
@@ -118,6 +116,14 @@ Running Deployment Manager in Standard CLI Mode
    
             cd <INSTALL_DIR>\tools\deployment_manager
             .\deployment_manager.py <--targets> [--output_dir] [--archive_name] [--user_data]
+
+      .. tab-item:: Linux
+         :sync: linux
+   
+         .. code-block:: sh
+   
+            cd <INSTALL_DIR>/tools/deployment_manager
+            ./deployment_manager.py <--targets> [--output_dir] [--archive_name] [--user_data]
    
       .. tab-item:: macOS
          :sync: macos
@@ -155,19 +161,19 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
 
    .. tab-set::
 
-      .. tab-item:: Linux
-         :sync: linux
-   
-         .. code-block:: sh
-   
-            tar xf openvino_deployment_package.tar.gz -C <destination_dir>
-   
       .. tab-item:: Windows
          :sync: windows
    
          .. code-block:: bat
    
             Use the archiver of your choice to unzip the file.
+
+      .. tab-item:: Linux
+         :sync: linux
+   
+         .. code-block:: sh
+   
+            tar xf openvino_deployment_package.tar.gz -C <destination_dir>
    
       .. tab-item:: macOS
          :sync: macos
@@ -196,14 +202,6 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
 
    .. tab-set::
    
-      .. tab-item:: Linux
-         :sync: linux
-      
-         .. code-block:: sh
-      
-            cd <destination_dir>/openvino/
-            source ./setupvars.sh
-      
       .. tab-item:: Windows
          :sync: windows
       
@@ -211,6 +209,14 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
       
             cd <destination_dir>\openvino\
             .\setupvars.bat
+
+      .. tab-item:: Linux
+         :sync: linux
+      
+         .. code-block:: sh
+      
+            cd <destination_dir>/openvino/
+            source ./setupvars.sh
       
       .. tab-item:: macOS
          :sync: macos

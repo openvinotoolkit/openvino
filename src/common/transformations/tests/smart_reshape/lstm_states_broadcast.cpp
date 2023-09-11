@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset9.hpp"
 
@@ -18,7 +18,7 @@ struct LSTMStatesAttributes {
 };
 
 class LSTMStatesBroadcastTest : public testing::WithParamInterface<LSTMStatesAttributes>,
-                                public CommonTestUtils::TestsCommon {};
+                                public ov::test::TestsCommon {};
 
 TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
     auto p = GetParam();
@@ -44,7 +44,7 @@ TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
 }
 
 class LSTMStatesBroadcastTestWithTI : public testing::WithParamInterface<LSTMStatesAttributes>,
-                                      public CommonTestUtils::TestsCommon {};
+                                      public ov::test::TestsCommon {};
 
 TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
     auto p = GetParam();

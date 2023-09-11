@@ -15,7 +15,7 @@ std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<Bat
     std::tie(epsilon, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "epsilon=" << epsilon << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
@@ -37,7 +37,7 @@ void BatchNormLayerTest::SetUp() {
     std::tie(epsilon, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::opset4::Parameter>(params));
 

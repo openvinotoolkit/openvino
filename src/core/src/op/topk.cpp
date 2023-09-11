@@ -7,20 +7,21 @@
 #include <memory>
 #include <topk_shape_inference.hpp>
 
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/reference/topk.hpp"
 
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace topk {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
@@ -41,15 +42,15 @@ inline bool evaluate_execute(const HostTensorPtr& arg0,
     out_values->set_shape(out_shape);
     out_values->set_element_type(arg0->get_element_type());
 
-    runtime::reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
-                                   out_indices->get_data_ptr<INDEX_ET>(),
-                                   out_values->get_data_ptr<INPUT_ET>(),
-                                   in_shape,
-                                   out_shape,
-                                   axis,
-                                   k,
-                                   compute_max,
-                                   sort);
+    ov::reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
+                              out_indices->get_data_ptr<INDEX_ET>(),
+                              out_values->get_data_ptr<INPUT_ET>(),
+                              in_shape,
+                              out_shape,
+                              axis,
+                              k,
+                              compute_max,
+                              sort);
     return true;
 }
 
@@ -114,8 +115,7 @@ bool TopK_evaluate(const ov::op::util::TopKBase* const node,
     const auto sort_type = node->get_sort_type();
 
     const auto input_shapes = vector<PartialShape>{inputs[0]->get_partial_shape(), inputs[1]->get_partial_shape()};
-    const auto constant_data = map<size_t, HostTensorPtr>{{1, inputs[1]}};
-    auto output_shape = shape_infer(node, input_shapes, constant_data).front().to_shape();
+    auto output_shape = shape_infer(node, input_shapes, ov::make_tensor_accessor(inputs)).front().to_shape();
 
     if (output_shape[axis] == 0) {
         // the kernel can't handle K (output_shape[axis]) equal 0, use arg_shape[axis] instead.

@@ -12,7 +12,7 @@ ov_add_test_target(
         gtest
         gtest_main
         openvino::runtime::dev
-        commonTestUtils
+        common_test_utils
         lptNgraphFunctions
         gmock
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}

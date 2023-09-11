@@ -13,9 +13,11 @@
 #include "openvino/openvino.hpp"
 #include "openvino/util/file_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(ONNX_Importer_Tests, ImportBasicModel) {
     auto model_file_path =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "add_abc_initializers.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "add_abc_initializers.onnx"}));
     auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
 
     int count_additions = 0;
@@ -40,7 +42,7 @@ TEST(ONNX_Importer_Tests, ImportBasicModel) {
 
 TEST(ONNX_Importer_Tests, ImportModelWithFusedOp) {
     auto model_file_path =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "selu.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "selu.onnx"}));
     auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
 
     int count_selu = 0;
@@ -65,7 +67,7 @@ TEST(ONNX_Importer_Tests, ImportModelWithFusedOp) {
 
 TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
     auto model_file_path =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "topk.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "topk.onnx"}));
     auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
 
     int count_topk = 0;
@@ -93,7 +95,7 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
 
 TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
     auto model_file_path =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "not_supported.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "not_supported.onnx"}));
     try {
         auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
         FAIL() << "Any expection was thrown despite the ONNX model is not supported";
@@ -108,7 +110,7 @@ TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
 
 TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
     auto model_file_path =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "not_exist_file.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "not_exist_file.onnx"}));
     try {
         auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
         FAIL() << "Any expection was thrown despite the ONNX model file does not exist";
@@ -124,7 +126,7 @@ TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
 // TODO: CVS-61224
 TEST(ONNX_Importer_Tests, DISABLED_ImportModelFromStream) {
     auto model_file_path =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "addmul_abc.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "addmul_abc.onnx"}));
     std::ifstream model_file_stream(model_file_path);
     ASSERT_TRUE(model_file_stream.is_open());
     int count_adds = 0;
@@ -164,14 +166,14 @@ TEST(ONNX_Importer_Tests, IsOperatorSupported) {
 TEST(ONNX_Importer_Tests, ImportModelWithoutMetadata) {
     ov::Core core;
     auto model = core.read_model(
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "priorbox_clustered.onnx"})));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "priorbox_clustered.onnx"})));
     ASSERT_FALSE(model->has_rt_info("framework"));
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithMetadata) {
     ov::Core core;
     auto model = core.read_model(
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "model_with_metadata.onnx"})));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "model_with_metadata.onnx"})));
     ASSERT_TRUE(model->has_rt_info("framework"));
 
     const auto rtinfo = model->get_rt_info();

@@ -4,12 +4,10 @@
 
 #include "openvino/op/util/scatter_elements_update_base.hpp"
 
-#include <scatter_elements_update_shape_inference.hpp>
-
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/scatter_elements_update.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "scatter_elements_update_shape_inference.hpp"
 
 namespace ov {
 namespace op {
@@ -59,31 +57,35 @@ bool op::util::ScatterElementsUpdateBase::has_evaluate() const {
     OV_OP_SCOPE(util_ScatterElementsUpdateBase_has_evaluate);
 
     switch (get_output_element_type(0)) {
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         break;
     default:
         return false;
     }
+
+    return is_supported_index_input_element_type();
+}
+
+bool op::util::ScatterElementsUpdateBase::is_supported_index_input_element_type() const {
     switch (get_input_element_type(1)) {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-        break;
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
+        return true;
     default:
         return false;
     }
-    return true;
 }
 
 bool op::util::ScatterElementsUpdateBase::evaluate_lower(ov::TensorVector& output_values) const {
@@ -104,127 +106,9 @@ bool op::util::ScatterElementsUpdateBase::evaluate_label(TensorLabelVector& outp
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-namespace scatter_element_update {
-namespace {
-template <element::Type_t DT, element::Type_t IT, element::Type_t AT>
-bool evaluate(const HostTensorPtr& data,
-              const HostTensorPtr& indices,
-              const HostTensorPtr& updates,
-              const HostTensorPtr& axis,
-              const HostTensorPtr& out,
-              const int64_t normalized_axis) {
-    using DataType = typename element_type_traits<DT>::value_type;
-    using IndicesType = typename element_type_traits<IT>::value_type;
-
-    out->set_shape(data->get_shape());
-
-    ngraph::runtime::reference::scatter_elem_update<DataType, IndicesType>(data->get_data_ptr<DT>(),
-                                                                           indices->get_data_ptr<IT>(),
-                                                                           updates->get_data_ptr<DT>(),
-                                                                           normalized_axis,
-                                                                           out->get_data_ptr<DT>(),
-                                                                           data->get_shape(),
-                                                                           indices->get_shape());
-
-    return true;
-}
-
-#define TYPE_AXS_CASE(a, ...)                                      \
-    case element::Type_t::a: {                                     \
-        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_axs, _, a)); \
-        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);    \
-    } break;
-
-template <element::Type_t DT, element::Type_t IT>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& arg2,
-              const HostTensorPtr& arg3,
-              const HostTensorPtr& out,
-              const int64_t normalized_axis) {
-    auto axis_type = arg3->get_element_type();
-
-    // Dispatch specialization based on axis data type.
-    bool rc = true;
-
-    switch (axis_type) {
-        TYPE_AXS_CASE(i8, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_AXS_CASE(i16, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_AXS_CASE(i32, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_AXS_CASE(i64, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_AXS_CASE(u8, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_AXS_CASE(u16, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_AXS_CASE(u32, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_AXS_CASE(u64, arg0, arg1, arg2, arg3, out, normalized_axis);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-
-#define TYPE_IND_CASE(a, ...)                                      \
-    case element::Type_t::a: {                                     \
-        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_ind, _, a)); \
-        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);        \
-    } break;
-
-template <element::Type_t DT>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& arg2,
-              const HostTensorPtr& arg3,
-              const HostTensorPtr& out,
-              const int64_t normalized_axis) {
-    auto indices_type = arg1->get_element_type();
-
-    // Dispatch specialization based on indicies data type.
-    bool rc = true;
-
-    switch (indices_type) {
-        TYPE_IND_CASE(i8, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_IND_CASE(i16, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_IND_CASE(i32, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_IND_CASE(i64, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_IND_CASE(u8, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_IND_CASE(u16, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_IND_CASE(u32, arg0, arg1, arg2, arg3, out, normalized_axis);
-        TYPE_IND_CASE(u64, arg0, arg1, arg2, arg3, out, normalized_axis);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-
-bool evaluate_scatter_element_update(const HostTensorPtr& arg0,
-                                     const HostTensorPtr& arg1,
-                                     const HostTensorPtr& arg2,
-                                     const HostTensorPtr& arg3,
-                                     const HostTensorPtr& out,
-                                     const int64_t normalized_axis) {
-    bool rc = true;
-
-    switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update, i16, arg0, arg1, arg2, arg3, out, normalized_axis);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update, i32, arg0, arg1, arg2, arg3, out, normalized_axis);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update, i64, arg0, arg1, arg2, arg3, out, normalized_axis);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update, u32, arg0, arg1, arg2, arg3, out, normalized_axis);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update, u64, arg0, arg1, arg2, arg3, out, normalized_axis);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update, f16, arg0, arg1, arg2, arg3, out, normalized_axis);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update, f32, arg0, arg1, arg2, arg3, out, normalized_axis);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace scatter_element_update
-
-bool op::util::ScatterElementsUpdateBase::evaluate_scatter_element_update(const HostTensorVector& outputs,
-                                                                          const HostTensorVector& inputs) const {
-    NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(), "axis element type is not integral data type");
+OPENVINO_SUPPRESS_DEPRECATED_START
+int64_t op::util::ScatterElementsUpdateBase::get_normalized_axis(const HostTensorVector& inputs) const {
+    OPENVINO_ASSERT(inputs[3]->get_element_type().is_integral_number(), "axis element type is not integral data type");
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = host_tensor_2_vector<int64_t>(inputs[3])[0];
@@ -235,28 +119,15 @@ bool op::util::ScatterElementsUpdateBase::evaluate_scatter_element_update(const 
     if (normalized_axis < 0) {
         if (input_rank.is_static()) {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
+            normalized_axis = ov::normalize_axis(this, axis, input_rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            normalized_axis = ngraph::normalize_axis(this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
+            normalized_axis = ov::normalize_axis(this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
             OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
-
-    return scatter_element_update::evaluate_scatter_element_update(inputs[0],
-                                                                   inputs[1],
-                                                                   inputs[2],
-                                                                   inputs[3],
-                                                                   outputs[0],
-                                                                   normalized_axis);
+    return normalized_axis;
 }
-
-bool op::util::ScatterElementsUpdateBase::evaluate(const HostTensorVector& outputs,
-                                                   const HostTensorVector& inputs) const {
-    OV_OP_SCOPE(util_ScatterElementsUpdate_evaluate);
-    return evaluate_scatter_element_update(outputs, inputs);
-}
-
 }  // namespace op
 }  // namespace ov

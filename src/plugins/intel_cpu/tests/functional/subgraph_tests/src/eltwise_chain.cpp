@@ -44,12 +44,12 @@ public:
 
         results << "IS=(";
         for (const auto& shape : inputShapes) {
-            results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            results << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         results << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                results << CommonTestUtils::vec2str(item) << "_";
+                results << ov::test::utils::vec2str(item) << "_";
             }
         }
         for (size_t i = 0; i < inputPrecisions.size(); i++) {
@@ -97,7 +97,7 @@ protected:
                 ngraphInputs.push_back(ngraphParam.back());
             }
         } else {
-            ngraphParam = ngraph::builder::makeDynamicParams(inputPrecisions[0], {inputDynamicShapes.front()});
+            ngraphParam = ov::ParameterVector {std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes.front())};
             for (size_t i = 1; i < inputPrecisions.size(); i++) {
                 std::vector<float> ngraphInput1Data(ngraph::shape_size(targetStaticShapes[0][i]));
                 ngraphInputs.push_back(ngraph::builder::makeConstant(inputPrecisions[i], targetStaticShapes[0][i],
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain, EltwiseChainTest,
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
 
 std::vector<std::vector<ngraph::Shape>> inputShapesFQ = {
@@ -201,7 +201,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
                             ::testing::ValuesIn(inputPrecisionsFQ),
                             ::testing::ValuesIn(eltwiseOps),
                             ::testing::Values(true),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
 
 // =============================================== dynamic ==============================================
@@ -459,7 +459,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_dyn, EltwiseChainTest,
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
 
 } // namespace

@@ -12,6 +12,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -30,3 +31,4 @@ OutputVector size(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

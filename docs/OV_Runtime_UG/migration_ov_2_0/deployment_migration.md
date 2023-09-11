@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ API 2.0 focuses on the use of development tools and 
+                 deployment of applications, it also simplifies migration from 
+                 different frameworks to OpenVINO.
+
+
 One of the main concepts for OpenVINO™ API 2.0 is being "easy to use", which includes:
 
 * Simplification of migration from different frameworks to OpenVINO.
@@ -10,7 +16,19 @@ One of the main concepts for OpenVINO™ API 2.0 is being "easy to use", which i
 * Development and deployment of OpenVINO-based applications.
 
 
-To accomplish that, the 2022.1 release OpenVINO introduced significant changes to the installation and deployment processes. This guide will walk you through these changes.
+To accomplish that, the 2022.1 release OpenVINO introduced significant changes to the installation 
+and deployment processes. Further changes were implemented in 2023.1, aiming at making the installation
+process even simpler.
+
+.. tip::
+
+   These instructions are largely deprecated and should be used for versions prior to 2023.1.
+
+   The OpenVINO Development Tools package is being deprecated and will be discontinued entirely in 2025.
+   With this change, the OpenVINO Runtime package has become the default choice for installing the 
+   software. It now includes all components necessary to utilize OpenVINO's functionality. 
+
+
 
 The Installer Package Contains OpenVINO™ Runtime Only
 #####################################################
@@ -41,8 +59,8 @@ In previous versions, OpenVINO Development Tools was a part of the main package.
    $ mo.py -h
 
 
-For 2022.1 and After
-++++++++++++++++++++
+For 2022.1 and After (prior to 2023.1)
+++++++++++++++++++++++++++++++++++++++++++
 
 In OpenVINO 2022.1 and later, you can install the development tools only from a `PyPI <https://pypi.org/project/openvino-dev/>`__ repository, using the following command (taking TensorFlow as an example):
 
@@ -61,7 +79,8 @@ Then, the tools can be used by commands like:
    $ pot -h
 
 
-Installation of any other dependencies is not required. For more details on the installation steps, see the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>`.
+Installation of any other dependencies is not required. For more details on the installation steps, see the 
+`Install OpenVINO Development Tools <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_install_dev_tools.html>`__ prior to OpenVINO 2023.1.
 
 Interface Changes for Building C/C++ Applications
 #################################################
@@ -105,7 +124,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
 .. tab-set::
 
    .. tab-item:: Include dirs
-      :sync: inc-dirs
+      :sync: include-dirs
    
       .. code-block:: sh
    
@@ -144,7 +163,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
 .. tab-set::
 
    .. tab-item:: Include dirs
-      :sync: inc-dirs
+      :sync: include-dirs
    
       .. code-block:: sh
    

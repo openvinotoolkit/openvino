@@ -2,13 +2,18 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Use the benchmark results for Intel® Distribution of OpenVINO™ 
+                 toolkit, that may help you decide what hardware to use or how 
+                 to plan the workload.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
 
    openvino_docs_performance_benchmarks_faq
    OpenVINO Accuracy <openvino_docs_performance_int8_vs_fp32>
-   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2023.0/_static/benchmarks_files/OV-2023.0-Performance-Data.xlsx> 
+   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2023.1/_static/benchmarks_files/OV-2023.0-Performance-Data.xlsx> 
    openvino_docs_MO_DG_Getting_Performance_Numbers
 
 
@@ -161,12 +166,12 @@ or `create an account <https://www.intel.com/content/www/us/en/secure/forms/devc
 Disclaimers
 ####################################
 
-* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.0, as of June 01, 2023.
+* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.0, as of July 07, 2023.
 
-* OpenVINO Model Server performance results are based on release 2022.3, as of December 13, 2022.
+* OpenVINO Model Server performance results are based on release 2023.0, as of June 01, 2023.
 
 The results may not reflect all publicly available updates. Intel technologies’ features and benefits depend on system configuration 
-and may require enabled hardware, software, or service activation. Learn more at intel.com, or from the OEM or retailer. 
+and may require enabled hardware, software, or service activation. Learn more at intel.com, or from the OEM or retailer.
 
 See configuration disclosure for details. No product can be absolutely secure.
 Performance varies by use, configuration and other factors. Learn more at `www.intel.com/PerformanceIndex <https://www.intel.com/PerformanceIndex>`__.
@@ -175,4 +180,3 @@ Intel optimizations, for Intel compilers or other products, may not optimize to 
 
 
 @endsphinxdirective
-

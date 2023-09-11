@@ -9,6 +9,7 @@
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "reshape_inst.h"
+#include "proposal_inst.h"
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
@@ -19,7 +20,7 @@
 #include <cmath>
 #include <iomanip>
 
-#include <threading/ie_cpu_streams_executor.hpp>
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 using namespace cldnn;
 
@@ -34,7 +35,7 @@ void compile_graph::run(program& p) {
 
     auto task_executor = p.get_task_executor();
     auto& proc_order = p.get_processing_order();
-    std::vector<InferenceEngine::Task> tasks;
+    std::vector<ov::threading::Task> tasks;
     std::exception_ptr exception;
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
@@ -53,8 +54,8 @@ void compile_graph::run(program& p) {
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
             can_select_impl = false;
 
-        // TODO: Remove this WA once we have shape agnostic quantize_scale_shift kernel
-        if (node->is_type<quantize>() && node->is_dynamic() && node->as<quantize>().get_scale_shift_opt()) {
+        // TODO: Remove this WA once we have shape agnostic conv kernl with specified auto_pad attributes
+        if (node->is_type<convolution>() && node->is_dynamic() && !node->as<convolution>().use_explicit_padding()) {
             can_select_impl = false;
         }
 
@@ -73,7 +74,7 @@ void compile_graph::run(program& p) {
         if (node->is_dynamic() && !is_planar)
             can_select_impl = false;
 
-        if (node->is_type<condition>())
+        if (node->is_type<condition>() || node->is_type<proposal>())
             can_select_impl = true;
 
         if (can_select_impl) {
@@ -96,7 +97,7 @@ void compile_graph::run(program& p) {
         }
     }
 
-    task_executor->runAndWait(tasks);
+    task_executor->run_and_wait(tasks);
     tasks.clear();
 
     if (exception) {

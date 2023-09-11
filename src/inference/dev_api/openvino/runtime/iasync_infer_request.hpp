@@ -90,7 +90,7 @@ public:
      * @param port Port of the tensor to get.
      * @return Tensor for the port @p port.
      */
-    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
     /**
      * @brief Sets an input/output tensor to infer.
@@ -98,7 +98,7 @@ public:
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
     /**
      * @brief Gets a batch of tensors for input data to infer by input port.
@@ -111,7 +111,7 @@ public:
      * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      * @return vector of tensors
      */
-    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override;
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
     /**
      * @brief Sets a batch of tensors for input data to infer by input port.
      * Model input must have batch dimension, and the number of @p tensors must match the batch size.
@@ -122,7 +122,8 @@ public:
      * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
      * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      */
-    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override;
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     /**
      * @brief Gets state control interface for the given infer request.
@@ -130,7 +131,7 @@ public:
      * State control essential for recurrent models.
      * @return Vector of Variable State objects.
      */
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
     /**
      * @brief Gets pointer to compiled model (usually synchronous request holds the compiled model)
@@ -171,6 +172,10 @@ protected:
      * @brief Throws exception if inference request is busy or canceled
      */
     void check_state() const;
+    /**
+     * @brief Throws exception if inference request is cancelled
+     */
+    void check_cancelled_state() const;
     /**
      * @brief Performs inference of pipeline in syncronous mode
      * @note Used by Infer which ensures thread-safety and calls this method after.

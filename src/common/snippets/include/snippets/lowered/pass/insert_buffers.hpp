@@ -28,7 +28,7 @@ public:
     bool run(LinearIR& linear_ir) override;
 
 private:
-    void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+    void insertion(LinearIR& linear_ir, const LinearIR::constExprIt& expr_it, const LinearIR::LoopManagerPtr& loop_manager,
                    const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
                    const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits);
 

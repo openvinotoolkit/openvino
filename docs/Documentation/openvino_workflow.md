@@ -3,6 +3,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO toolkit workflow usually involves preparation, 
+                 optimization, and compression of models, running inference and 
+                 deploying deep learning applications.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -12,6 +17,7 @@
    Running Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>
    Deployment on a Local System  <openvino_deployment_guide>
    Deployment on a Model Server <ovms_what_is_openvino_model_server>
+   pytorch_2_0_torch_compile
    
 
 | :doc:`Model Preparation <openvino_docs_model_processing_introduction>`

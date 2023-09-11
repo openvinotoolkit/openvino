@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <array>
 #include <utility>
 
-#include "dimension_tracker.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/ops.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 namespace {
@@ -32,12 +32,14 @@ std::shared_ptr<Node> makeGatherTreeOp(const GatherTreeInputParams& p) {
     if (p.size() != gather_tree_required_inputs) {
         throw runtime_error("GatherTree requires 4 inputs");
     }
-    auto step_ids = make_shared<op::Parameter>(p.at(step_ids_input_idx).in_et, p.at(step_ids_input_idx).in_pshape);
+    auto step_ids =
+        make_shared<ov::op::v0::Parameter>(p.at(step_ids_input_idx).in_et, p.at(step_ids_input_idx).in_pshape);
     auto parent_idx =
-        make_shared<op::Parameter>(p.at(parent_idx_input_idx).in_et, p.at(parent_idx_input_idx).in_pshape);
+        make_shared<ov::op::v0::Parameter>(p.at(parent_idx_input_idx).in_et, p.at(parent_idx_input_idx).in_pshape);
     auto max_seq_len =
-        make_shared<op::Parameter>(p.at(max_seq_len_input_idx).in_et, p.at(max_seq_len_input_idx).in_pshape);
-    auto end_token = make_shared<op::Parameter>(p.at(end_token_input_idx).in_et, p.at(end_token_input_idx).in_pshape);
+        make_shared<ov::op::v0::Parameter>(p.at(max_seq_len_input_idx).in_et, p.at(max_seq_len_input_idx).in_pshape);
+    auto end_token =
+        make_shared<ov::op::v0::Parameter>(p.at(end_token_input_idx).in_et, p.at(end_token_input_idx).in_pshape);
     return make_shared<op::v1::GatherTree>(step_ids, parent_idx, max_seq_len, end_token);
 }
 }  // namespace
@@ -45,10 +47,10 @@ std::shared_ptr<Node> makeGatherTreeOp(const GatherTreeInputParams& p) {
 TEST(type_prop, gather_tree_default_constructor) {
     auto op = std::make_shared<op::v1::GatherTree>();
 
-    auto step_ids = std::make_shared<op::Parameter>(element::i32, PartialShape{2, 4, 3});
-    auto parent_idx = std::make_shared<op::Parameter>(element::i32, PartialShape{2, 4, 3});
-    auto max_seq_len = std::make_shared<op::Parameter>(element::i32, PartialShape{4});
-    auto end_token = std::make_shared<op::Parameter>(element::i32, PartialShape{});
+    auto step_ids = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2, 4, 3});
+    auto parent_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2, 4, 3});
+    auto max_seq_len = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{4});
+    auto end_token = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{});
 
     op->set_argument(0, step_ids);
     op->set_argument(1, parent_idx);

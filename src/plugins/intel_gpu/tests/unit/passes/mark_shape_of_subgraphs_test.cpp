@@ -223,3 +223,50 @@ TEST(mark_shape_of_subgraphs, simple_chain_w_inserted_reorder) {
 
     ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("eltwise")));
 }
+
+TEST(mark_shape_of_subgraphs, concat_with_empty_tensor_inputs) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4}, data_types::f32, format::bfyx};
+    auto input_layout_empty = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
+
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i64, format::bfyx });
+    set_values(data_0, {0});
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(input_layout("input_empty", input_layout_empty));
+    topology.add(data("data_0", data_0));
+    topology.add(shape_of("shape_of_01", input_info("input"), data_types::i64));
+    topology.add(gather("gather01", input_info("shape_of_01"), input_info("data_0"), 0, {1}));
+    topology.add(shape_of("shape_of_02", input_info("input_empty"), data_types::i64));
+    topology.add(shape_of("shape_of_03", input_info("input_empty"), data_types::i64));
+    topology.add(concatenation("concat", {input_info("gather01"), input_info("shape_of_02"), input_info("shape_of_03")}, 0));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of_01"), prog->get_node("concat"), {{"concat", 3}}));
+    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of_02"), prog->get_node("concat"), {{"concat", 3}}));
+    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of_03"), prog->get_node("concat"), {{"concat", 3}}));
+
+    auto input_mem = engine.allocate_memory({ov::PartialShape{5, 4}, data_types::f32, format::bfyx});
+    set_values(input_mem, {10.f});
+    network.set_input_data("input", input_mem);
+
+    auto input_empty_mem = engine.allocate_memory(input_layout_empty);
+    network.set_input_data("input_empty", input_empty_mem);
+
+    auto outputs = network.execute();
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<int64_t> output_ptr (output_prim, get_test_stream());
+    ASSERT_EQ(1, output_prim->get_layout().count());
+    for (size_t i = 0; i < output_prim->get_layout().count(); ++i) {
+        ASSERT_EQ(5, output_ptr[i]);
+    }
+}

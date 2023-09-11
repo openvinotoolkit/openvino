@@ -2,29 +2,36 @@
 
 @sphinxdirective
 
-.. note::
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and 
+                 macOS operating systems, using Conda Forge.
 
-   Installing OpenVINO Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
-   If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
+
+.. note::
+   
+   Note that the Conda Forge distribution:
+
+   * offers both C/C++ and Python APIs
+   * does not offer support for GNA and NPU inference
+   * is dedicated to users of all major OSs: Windows, Linux, macOS.
+
 
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
 
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
-      .. comment to publish in the future, when gpu support comes back:
-      
-      .. tab-set::
 
-         .. tab-item:: Processor Notes
-            :sync: processor-notes
-         
-            | Not all Intel CPUs include integrated graphics processors.  
-            | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
+   .. tab-item:: Processor Notes
+      :sync: processor-notes
    
+      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
+      | `Product Specifications <https://ark.intel.com/>`__
+
+
    .. tab-item:: Software
       :sync: software
 
@@ -55,12 +62,15 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2023.0.0
+      conda install -c conda-forge openvino=2023.0.1
 
-   Congratulations! You have finished installing OpenVINO Runtime.
+Congratulations! You've just Installed OpenVINO! For some use cases you may still 
+need to install additional components. Check the description below, as well as the 
+:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+to see if your case needs any of them.
 
 Compiling with OpenVINO Runtime from Conda-Forge on Linux
-###########################################################
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 When linking OpenVINO libraries from Conda on Linux, ensure that you have the necessary Conda compilers installed. 
 To do so, run the following command in your Conda environment:
@@ -78,7 +88,9 @@ To reactivate your Conda environment, execute the following command:
 
     conda activate py310
 
-Once you have reactivated your Conda environment, make sure that all the necessary environment variables are properly set and proceed with linking the OpenVINO libraries.
+Once you have reactivated your Conda environment, make sure that all the necessary environment 
+variables are properly set and proceed with linking the OpenVINO libraries.
+
 
 Uninstalling OpenVINO™ Runtime
 ###########################################################
@@ -88,7 +100,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
    
-   conda remove openvino=2023.0.0
+   conda remove openvino=2023.0.1
 
 
 What's Next?
@@ -108,13 +120,6 @@ Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C
 * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`__
 * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`__
 
-
-Additional Resources
-###########################################################
-
-* `OpenVINO Runtime Conda Forge <https://anaconda.org/conda-forge/openvino>`__
-* :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
-* `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 
 @endsphinxdirective

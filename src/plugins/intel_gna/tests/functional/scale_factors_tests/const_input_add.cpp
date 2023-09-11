@@ -65,7 +65,7 @@ protected:
         std::tie(inputMin, inputMax) = inputRange;
 
         ngraph::Shape shape = {1, 72};
-        auto params = ngraph::builder::makeParams(ngPrc, {shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
 
         auto constant =
             ngraph::builder::makeConstant<float>(ngPrc, shape, {}, true, constRange.second, constRange.first);
@@ -96,7 +96,7 @@ const std::vector<std::pair<float, float>> constRange = {{-10, 10}, {-0.1, 0.1},
 INSTANTIATE_TEST_SUITE_P(smoke_const_input_add,
                          ConstInputAddTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputRange),
                                             ::testing::ValuesIn(constRange)),

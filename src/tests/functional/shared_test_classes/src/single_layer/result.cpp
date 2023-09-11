@@ -14,7 +14,7 @@ std::string ResultLayerTest::getTestCaseName(const testing::TestParamInfo<Result
     std::tie(inputShape, inputPrecision, targetDevice, additionalConfig) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "inPRC=" << inputPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
@@ -28,7 +28,7 @@ void ResultLayerTest::SetUp() {
     std::tie(inputShape, inputPrecision, targetDevice, additionalConfig) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(params[0])};
     function = std::make_shared<ngraph::Function>(results, params, "result");
 }

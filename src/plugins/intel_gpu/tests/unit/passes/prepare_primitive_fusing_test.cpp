@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 
@@ -460,11 +461,12 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     if (engine.get_device_info().supports_immad)
         return;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     topology topology;
     auto conv_in_layout = layout{ ov::PartialShape{1, 3, -1, -1}, data_types::f16, format::bfyx};
     auto weight_layout = layout{ ov::PartialShape{10, 3, 3, 3}, data_types::f16, format::bfyx};
     auto weight_mem = engine.allocate_memory(weight_layout);
-    auto weight_data = generate_random_4d<FLOAT16>(10, 3, 3, 3, -1, 1);
+    auto weight_data = rg.generate_random_4d<FLOAT16>(10, 3, 3, 3, -1, 1);
     set_values(weight_mem, weight_data);
     auto elt1_in1_layout = layout{ ov::PartialShape{1, 10, -1, -1}, data_types::f16, format::bfyx};
 
@@ -491,11 +493,11 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     cldnn::network net(prog, 0);
 
     // Valid
-    auto conv_input_data = generate_random_4d<FLOAT16>(1, 3, 7, 7, -1, 1);
+    auto conv_input_data = rg.generate_random_4d<FLOAT16>(1, 3, 7, 7, -1, 1);
     auto conv_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 3, 7, 7}, data_types::f16, format::bfyx});
     set_values(conv_input_mem, conv_input_data);
 
-    auto elt_input_data = generate_random_4d<FLOAT16>(1, 10, 5, 5, -10, 10);
+    auto elt_input_data = rg.generate_random_4d<FLOAT16>(1, 10, 5, 5, -10, 10);
     auto elt_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 10, 5, 5}, data_types::f16, format::bfyx});
     set_values(elt_input_mem, elt_input_data);
 
@@ -507,46 +509,11 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     ASSERT_FALSE(conv_inst->has_unfused_subgraph());
 
     // Invalid => unfusion
-    auto conv_input_data2 = generate_random_4d<FLOAT16>(1, 3, 3, 3, -1, 1);
+    auto conv_input_data2 = rg.generate_random_4d<FLOAT16>(1, 3, 3, 3, -1, 1);
     auto conv_input_mem2 = engine.allocate_memory(layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx});
     set_values(conv_input_mem2, conv_input_data2);
     net.set_input_data("conv_input", conv_input_mem2);
     net.set_input_data("elt1_input", elt_input_mem);
     net.execute();
     ASSERT_TRUE(conv_inst->has_unfused_subgraph());
-}
-
-TEST(prepare_primitive_fusing, dont_fuse_eltwise_to_onednn_gemm_dyn_rank5) {
-    auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        return;
-    ov::Shape input1_shape = { 2, 2, 2, 2, 2};
-    ov::Shape input2_shape = { 2, 2, 2, 2, 2};
-    auto input1_layout = layout{ov::PartialShape::dynamic(input1_shape.size()), data_types::f32, format::bfzyx};
-    auto input2_layout = layout{ov::PartialShape::dynamic(input2_shape.size()), data_types::f32, format::bfzyx};
-    auto input1 = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f32, format::bfzyx});
-    auto input2 = engine.allocate_memory(layout{ov::PartialShape(input2_shape), data_types::f32, format::bfzyx});
-    auto const_layout = layout{ ov::PartialShape{2, 2, 2, 2, 2}, data_types::f32, format::bfzyx };
-    auto const_mem = engine.allocate_memory(const_layout);
-
-    topology topology;
-    topology.add(input_layout("input1", input1_layout));
-    topology.add(input_layout("input2", input2_layout));
-    topology.add(data("const", const_mem));
-    topology.add(gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32));
-    topology.add(eltwise("add", { input_info("gemm"), input_info("const") }, eltwise_mode::sum));
-    topology.add(reorder("reorder", input_info("add"), format::bfzyx, data_types::f16));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, config, false, true);
-
-    layout_optimizer lo(true);
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
-
-    ASSERT_NE(prog, nullptr);
-    ASSERT_TRUE(has_node(*prog, "add"));
 }

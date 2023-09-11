@@ -17,10 +17,10 @@
 #include "ngraph/node.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/strided_slice.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -77,6 +77,7 @@ bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& vi
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) {
     auto data = inputs[0];
@@ -169,7 +170,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                                            AxisSet(),
                                            AxisSet(),
                                            AxisSet());
-    runtime::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
+    ov::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
     OPENVINO_SUPPRESS_DEPRECATED_END
     return true;
 }
@@ -183,7 +184,6 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs, con
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (outputs[0]->get_partial_shape().is_dynamic()) {
-        std::map<size_t, HostTensorPtr> constant_data;
         std::vector<ov::PartialShape> input_shapes;
         input_shapes.reserve(inputs.size());
 
@@ -192,10 +192,9 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs, con
             if (input_shapes.back().is_dynamic()) {
                 return false;
             }
-            constant_data.emplace(i, inputs[i]);
         }
 
-        const auto output_shape = shape_infer(this, input_shapes, constant_data).front().to_shape();
+        const auto output_shape = shape_infer(this, input_shapes, ov::make_tensor_accessor(inputs)).front().to_shape();
 
         outputs[0]->set_element_type(inputs[0]->get_element_type());
         outputs[0]->set_shape(output_shape);

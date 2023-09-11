@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a FaceNet model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 `Public pre-trained FaceNet models <https://github.com/davidsandberg/facenet#pre-trained-models>`__ contain both training
 and inference part of graph. Switch between this two states is manageable with placeholder value.
 Intermediate Representation (IR) models are intended for inference, which means that train part is redundant.
@@ -23,7 +28,7 @@ To generate a FaceNet OpenVINO model, feed a TensorFlow FaceNet model to model c
    --freeze_placeholder_with_value "phase_train->False"
 
 
-The batch joining pattern transforms to a placeholder with the model default shape if ``input_shape`` or ``batch`*/*`-b`` are not provided. Otherwise, the placeholder shape has custom parameters.
+The batch joining pattern transforms to a placeholder with the model default shape if ``--input_shape`` or ``--batch``/``-b`` are not provided. Otherwise, the placeholder shape has custom parameters.
 
 * ``freeze_placeholder_with_value "phase_train->False"`` to switch graph to inference mode
 * ``batch`*/*`-b`` is applicable to override original network batch

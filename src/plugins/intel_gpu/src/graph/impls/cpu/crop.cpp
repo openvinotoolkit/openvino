@@ -82,8 +82,8 @@ struct crop_impl : public typed_primitive_impl<crop> {
         auto stop_tensor = ov::Tensor(ov::element::i64, {stop_vec.size()}, stop_vec.data());
         auto steps_tensor = ov::Tensor(ov::element::i64, {steps_vec.size()}, steps_vec.data());
 
-        auto input_tensor = make_tensor(input_mem_ptr->get_layout(), input_lock.data());
-        auto output_tensor = make_tensor(output_mem_ptr->get_layout(), output_lock.data());
+        auto input_tensor = make_tensor(params->input_layouts[0], input_lock.data());
+        auto output_tensor = make_tensor(params->output_layouts[0], output_lock.data());
 
         input_host_tensors.push_back(input_tensor);
         input_host_tensors.push_back(start_tensor);
@@ -95,7 +95,8 @@ struct crop_impl : public typed_primitive_impl<crop> {
         if (!op)
             op = std::make_shared<ov::op::v8::Slice>();
 
-        op->evaluate(output_host_tensors, input_host_tensors);
+        OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
+                        "[GPU] Couldn't execute crop primitive with id ", instance.id());
 
         ev->set();
 

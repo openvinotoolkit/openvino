@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Split-1 - a data movement operation, 
+                which can be performed on two required input tensors.
+
 **Versioned name**: *Split-1*
 
 **Category**: *Data movement*
@@ -46,7 +50,8 @@ Where D is the rank of input tensor ``data``. The axis being split must be evenl
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="Split" ...>
         <data num_splits="3" />

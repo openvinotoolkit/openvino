@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GreaterEqual-1 - an element-wise, comparison operation, which 
+                can be performed on two given tensors in OpenVINO.
 
 **Versioned name**: *GreaterEqual-1*
 
@@ -55,7 +58,8 @@ After broadcasting, *GreaterEqual* does the following with the input tensors *a*
 
 *Example 1: no broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="GreaterEqual">
        <input>
@@ -79,7 +83,8 @@ After broadcasting, *GreaterEqual* does the following with the input tensors *a*
 
 *Example 2: numpy broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="GreaterEqual">
        <input>

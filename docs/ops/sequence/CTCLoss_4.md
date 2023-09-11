@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about CTCLoss-4 - a sequence processing operation, which 
+                can be performed on four required and one optional input tensor.
+
 **Versioned name**: *CTCLoss-4*
 
 **Category**: *Sequence processing*
@@ -92,7 +96,8 @@ Having log-probabilities for aligned paths, log of summed up probabilities for t
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="CTCLoss" ...>
        <input>

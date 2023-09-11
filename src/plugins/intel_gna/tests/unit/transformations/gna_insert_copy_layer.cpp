@@ -13,7 +13,7 @@
 
 #include "backend/gna_limitations.hpp"
 #include "common/gna_target.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ops/copy.hpp"
 #include "transformations/insert_copy_layer.hpp"
@@ -29,8 +29,7 @@ typedef std::tuple<DeviceVersion,  // Device version
                    >
     InsertCopyTestParams;
 
-class InsertCopyLayerTest : public CommonTestUtils::TestsCommon,
-                            public ::testing::WithParamInterface<InsertCopyTestParams> {
+class InsertCopyLayerTest : public ov::test::TestsCommon, public ::testing::WithParamInterface<InsertCopyTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InsertCopyTestParams>& obj) {
         DeviceVersion device_ver;
@@ -189,7 +188,7 @@ public:
     }
 };
 
-class TransformationTestsBase : public CommonTestUtils::TestsCommon,
+class TransformationTestsBase : public ov::test::TestsCommon,
                                 public ::testing::WithParamInterface<std::tuple<DeviceVersion>> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<DeviceVersion>>& obj) {

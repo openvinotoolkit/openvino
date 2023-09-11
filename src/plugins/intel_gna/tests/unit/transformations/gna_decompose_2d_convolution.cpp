@@ -12,7 +12,7 @@
 #include <tuple>
 
 #include "backend/gna_limitations.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/decompose_2d_convolution.hpp"
 
 using namespace ov::intel_gna::limitations;
@@ -291,7 +291,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class Decompose2DConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
+class Decompose2DConvTestInvalidFixture : public ov::test::TestsCommon,
                                           public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;
@@ -341,7 +341,7 @@ void Decompose2DConvTestInvalidFixture::SetUp() {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class Decompose2DConvTestFixture : public CommonTestUtils::TestsCommon,
+class Decompose2DConvTestFixture : public ov::test::TestsCommon,
                                    public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;

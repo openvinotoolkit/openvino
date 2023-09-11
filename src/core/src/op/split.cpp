@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/split.hpp"
+#include "openvino/reference/split.hpp"
 
 #include <numeric>
 #include <split_shape_inference.hpp>
@@ -49,8 +49,7 @@ void op::v1::Split::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     for (size_t i = 0; i < m_num_splits; ++i) {
         set_output_type(i, get_input_element_type(0), output_shapes[i]);
@@ -65,6 +64,7 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_Split_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -75,12 +75,10 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
         const auto& data_tensor = inputs[0];
         const auto& axis_tensor = inputs[1];
 
-        const auto constant_data = std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>{{1, axis_tensor}};
         const auto input_shapes =
             std::vector<PartialShape>{data_tensor->get_partial_shape(), axis_tensor->get_partial_shape()};
-        auto output_shapes = std::vector<PartialShape>();
 
-        shape_infer(this, input_shapes, output_shapes, constant_data);
+        auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
 
         auto outputs_data = std::vector<char*>(m_num_splits);
         for (size_t i = 0; i < m_num_splits; ++i) {
@@ -93,16 +91,17 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
         axis = normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
         OPENVINO_SUPPRESS_DEPRECATED_END
 
-        ngraph::runtime::reference::split(data_tensor->get_data_ptr<char>(),
-                                          data_tensor->get_shape(),
-                                          data_tensor->get_element_type().size(),
-                                          axis,
-                                          m_num_splits,
-                                          outputs_data.data());
+        ov::reference::split(data_tensor->get_data_ptr<char>(),
+                             data_tensor->get_shape(),
+                             data_tensor->get_element_type().size(),
+                             axis,
+                             m_num_splits,
+                             outputs_data.data());
         return true;
     }
     return false;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v1::Split::has_evaluate() const {
     OV_OP_SCOPE(v1_Split_has_evaluate);

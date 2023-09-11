@@ -11,8 +11,7 @@ from pathlib import Path
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer, InferAPI20
-from common.utils.common_utils import generate_ir
-from common.utils.parsers import mapping_parser
+from common.utils.common_utils import generate_ir_python_api
 
 
 class CommonLayerTest:
@@ -60,7 +59,7 @@ class CommonLayerTest:
         else:
             mo_params["use_legacy_frontend"] = True
 
-        exit_code, stderr = generate_ir(**mo_params)
+        exit_code, stderr = generate_ir_python_api(**mo_params)
 
         del os.environ['MO_ENABLED_TRANSFORMS']
         del os.environ['MO_DISABLED_TRANSFORMS']
@@ -149,7 +148,7 @@ class CommonLayerTest:
     # It is possible to redefine this function and generate your own input
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
+            inputs_dict[input] = np.random.randint(-10, 10, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
     def compare_ie_results_with_framework(self, infer_res, framework_res, framework_eps):
@@ -182,8 +181,6 @@ def get_params(ie_device=None, precision=None):
 
     test_args = []
     for element in itertools.product(ie_device_params, precision_params):
-        if element[0] == 'CPU' and element[1] == 'FP16':
-            continue
         test_args.append(element)
     return test_args
 

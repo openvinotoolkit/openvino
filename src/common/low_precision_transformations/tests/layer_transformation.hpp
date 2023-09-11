@@ -12,12 +12,12 @@
 #include "low_precision/network_helper.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 typedef std::tuple<
     element::Type,
     Shape,
-    pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
+    ngraph::pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
 
 struct TestTransformationParams {
     TestTransformationParams(
@@ -27,7 +27,7 @@ struct TestTransformationParams {
         bool supportAsymmetricQuantization = true,
         element::Type deqPrecision = element::f32,
         bool deconvolutionSpecificChannelsRatio = false,
-        std::vector<ngraph::element::Type> defaultPrecisions = { element::u8, element::i8 });
+        std::vector<ov::element::Type> defaultPrecisions = { element::u8, element::i8 });
 
     TestTransformationParams& setUpdatePrecisions(const bool updatePrecisions);
     TestTransformationParams& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization);
@@ -36,7 +36,7 @@ struct TestTransformationParams {
     TestTransformationParams& setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio);
     TestTransformationParams& setDefaultPrecisions(const std::vector<element::Type>& defaultPrecisions);
 
-    static pass::low_precision::LayerTransformation::Params toParams(const TestTransformationParams& params);
+    static ngraph::pass::low_precision::LayerTransformation::Params toParams(const TestTransformationParams& params);
 
     bool updatePrecisions;
     std::vector<element::Type> precisionsOnActivations;
@@ -47,7 +47,7 @@ struct TestTransformationParams {
     std::vector<element::Type> defaultPrecisions;
 };
 
-class LayerTransformation : public CommonTestUtils::TestsCommon {
+class LayerTransformation : public ov::test::TestsCommon {
 public:
     static TestTransformationParams createParamsU8U8();
     static TestTransformationParams createParamsU8I8();
@@ -57,19 +57,19 @@ public:
     static std::string toString(const TestTransformationParams& params);
 
     static std::string getTestCaseNameByParams(
-        const ngraph::element::Type& type,
+        const ov::element::Type& type,
         const ngraph::PartialShape& shape,
         const TestTransformationParams& params);
 
-    static builder::subgraph::DequantizationOperations toDequantizationOperations(
-        const pass::low_precision::FakeQuantizeDequantization& dequantization);
+    static ngraph::builder::subgraph::DequantizationOperations toDequantizationOperations(
+        const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
-    static bool allNamesAreUnique(const std::shared_ptr<ngraph::Function>& function);
+    static bool allNamesAreUnique(const std::shared_ptr<ov::Model>& model);
 
     template <class Operation>
-    static NodeVector get(std::shared_ptr<ngraph::Function> function) {
+    static NodeVector get(std::shared_ptr<ov::Model> model) {
         NodeVector foundNodes;
-        NodeVector nodes = function->get_ordered_ops();
+        NodeVector nodes = model->get_ordered_ops();
 
         for (auto& node : nodes) {
             if (ngraph::is_type<Operation>(node)) {
@@ -83,7 +83,7 @@ public:
         for (size_t nodeIndex = 0ul; nodeIndex < nodes.size(); nodeIndex++) {
             auto& rt = nodes[nodeIndex]->get_rt_info();
             for (auto& it : rt) {
-                auto& reference = it.second.as<IntervalsAlignmentAttribute>();
+                auto& reference = it.second.as<ngraph::IntervalsAlignmentAttribute>();
                 if ((reference.value().combinedInterval.low != intervalLow) &&
                     (reference.value().combinedInterval.high != intervalHigh)) {
                     return false;
@@ -95,8 +95,8 @@ public:
     }
 
     static bool compare(
-        const IntervalsAlignmentAttribute& value1,
-        const IntervalsAlignmentAttribute& value2) {
+        const ngraph::IntervalsAlignmentAttribute& value1,
+        const ngraph::IntervalsAlignmentAttribute& value2) {
         if ((value1.value().combinedInterval.low != value2.value().combinedInterval.low) ||
             (value1.value().combinedInterval.high != value2.value().combinedInterval.high)) {
             return false;
@@ -218,8 +218,8 @@ public:
     }
 
 protected:
-    std::shared_ptr<Function> actualFunction;
-    std::shared_ptr<Function> referenceFunction;
+    std::shared_ptr<Model> actualFunction;
+    std::shared_ptr<Model> referenceFunction;
 };
 
 template <typename T>

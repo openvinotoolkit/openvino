@@ -12,6 +12,7 @@
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
+#include "strided_slice_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "border_inst.h"
@@ -58,7 +59,8 @@ auto available_pred = [](const program_node& input) {
     if (!input.is_type<pooling>() && !input.is_type<convolution>() && !input.is_type<quantize>() &&
         !input.is_type<activation>() && !input.is_type<deconvolution>() && !input.is_type<concatenation>() &&
         !input.is_type<crop>() && !input.is_type<eltwise>() && !input.is_type<resample>() &&
-        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()))
+        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()) &&
+        !input.is_type<strided_slice>())
         return false;
     return true;
 };
@@ -67,8 +69,13 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                                          kernel_impl_params concat_params,
                                          std::vector<kernel_impl_params> pred_params,
                                          bool is_runtime) {
-    if (concat_node.is_output() || concat_params.fused_desc.size() > 0)
+    if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
         return false;
+    bool do_runtime_buffer_fusing = true;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+        do_runtime_buffer_fusing = false;
+    }
     auto pred_nodes = concat_node.get_dependencies();
     for (auto p : pred_nodes) {
         // TODO : In dynamic shape only one user is allowed for optimzied concat
@@ -79,9 +86,9 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // for simple patterns where the concat is the only user of all the preds.
         // Also cascaded concat is not handled for dynamic shape. for now.
         // If we have more flexible exec order handling in the future we'll be able to remove this condition below
-        if (p.first->is_dynamic() && p.first->get_users().size() > 1)
+        if (p.first->is_dynamic() && (!do_runtime_buffer_fusing || p.first->get_users().size() > 1))
             return false;
-        if (concat_node.is_dynamic() && !p.first->is_dynamic())
+        if (concat_node.is_dynamic() && (!do_runtime_buffer_fusing || !p.first->is_dynamic()))
             return false;
     }
     // if this is called in primitive_inst::execute() and concat is static, that concat should already be optimized in build time, not in runtime.
@@ -110,7 +117,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
-        if (pred.first->is_dynamic() && is_runtime) {
+        if (!pred.first->is_dynamic() || is_runtime) {
             if (!pred.first->is_padding_supported(concat_axis, lower_padd_in_axis))
                 return false;
         }
@@ -206,21 +213,26 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         layout concat_out_l = concat_params.get_output_layout();
         if (!use_usm)
             return false;
-        if (concat_out_l.batch() > 1)
-            return false;
-        // TODO: cldnn cases should be updated. This logic is working for onednn only.
-        //       white list for support fusing formats.
-        const std::vector<format> white_list = {
-            format::bfyx,
-            format::bfzyx,
-            format::b_fs_yx_fsv16,
-            format::b_fs_zyx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::b_fs_zyx_fsv32,
-            format::b_fs_yx_fsv4,
-        };
-        if (std::find_if(white_list.begin(), white_list.end(), [&concat_out_l](format fmt){ return (fmt == concat_out_l.format); }) == std::end(white_list))
-            return false;
+        if (concat_node.is_dynamic() && !is_runtime) {
+            // Return true in build time, it will be checked again in runtime
+            return true;
+        } else {
+            if (concat_out_l.batch() > 1)
+                return false;
+            // TODO: cldnn cases should be updated. This logic is working for onednn only.
+            //       white list for support fusing formats.
+            const std::vector<format> white_list = {
+                format::bfyx,
+                format::bfzyx,
+                format::b_fs_yx_fsv16,
+                format::b_fs_zyx_fsv16,
+                format::b_fs_yx_fsv32,
+                format::b_fs_zyx_fsv32,
+                format::b_fs_yx_fsv4,
+            };
+            if (std::find_if(white_list.begin(), white_list.end(), [&concat_out_l](format fmt){ return (fmt == concat_out_l.format); }) == std::end(white_list))
+                return false;
+        }
     }
     return true;
 }
@@ -314,7 +326,18 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
 }  // namespace cldnn
 
 static bool can_reshape_be_optimized(const reshape_node& node) {
-    return node.is_in_place() && !node.has_fused_primitives();
+    if (node.has_fused_primitives())
+        return false;
+
+    // Onednn supports padded input of outer axis
+    if (!node.is_dynamic() && node.has_outer_padding_offset() &&
+        node.get_users().front()->get_preferred_impl_type() == impl_types::onednn)
+        return true;
+
+    if (node.is_in_place())
+        return true;
+
+    return false;
 }
 
 static bool is_optimizable_padding_for_crop(const crop_node& node) {
@@ -377,7 +400,7 @@ static bool can_crop_be_optimized_along_batch(const crop_node& node) {
     if (format::is_simple_data_format(format) && format::traits(format)._order[0] == 0 &&
         std::equal(input_shape.begin()+1, input_shape.end(), crop_shape.begin()+1) &&
         !out_padding && !in_padding) {
-        return  true;
+        return true;
     }
 
     return false;
@@ -455,6 +478,10 @@ void prepare_buffer_fusing::run(program& p) {
                     return;
             }
 
+            // do not optimize crop, that must be calculated in propagate_constants
+            if (node.is_constant())
+                return;
+
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
                 if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
                     return;
@@ -518,14 +545,31 @@ void prepare_buffer_fusing::run(program& p) {
                     auto opt_lower_pad = crop_prim->offsets.batch[0];
                     auto opt_upper_pad = input_layout.batch() - crop_prim->offsets.batch[0] - crop_size.batch[0];
 
-                    auto new_padding = padding({opt_lower_pad,
+                    padding new_padding;
+                    if (crop_layout.get_rank() == 4) {
+                        new_padding = padding({opt_lower_pad,
+                                    out_pad.lower_size().feature[0],
+                                    out_pad.lower_size().spatial[0],
+                                    out_pad.lower_size().spatial[1]},
+                                    {opt_upper_pad,
+                                    out_pad.upper_size().feature[0],
+                                    out_pad.upper_size().spatial[0],
+                                    out_pad.upper_size().spatial[1]});
+                    } else if (crop_layout.get_rank() == 5) {
+                        new_padding = padding({opt_lower_pad,
                                 out_pad.lower_size().feature[0],
                                 out_pad.lower_size().spatial[0],
-                                out_pad.lower_size().spatial[1]},
+                                out_pad.lower_size().spatial[1],
+                                out_pad.lower_size().spatial[2]},
                                 {opt_upper_pad,
                                 out_pad.upper_size().feature[0],
                                 out_pad.upper_size().spatial[0],
-                                out_pad.upper_size().spatial[1]});
+                                out_pad.upper_size().spatial[1],
+                                out_pad.upper_size().spatial[2]});
+                    } else {
+                        return;
+                    }
+
                     node.set_output_padding(new_padding);
                 } else {
                     return;
@@ -549,6 +593,13 @@ void prepare_buffer_fusing::run(program& p) {
 
         program_helpers::do_for_types<reshape>(*node, [](reshape_node& node) {
             node.get_output_layout();
+
+            // Optimizing at prepare_buffer_fusing could propagate a padded input of an input nodes to Reshape.
+            // Reshape can be optimized out when only an outer axis(batch) has padding.
+            // For this case , it should re-calculate output padding size.
+            if (node.has_outer_padding_offset())
+                node.adjust_output_padding();
+
             node.can_be_optimized(can_reshape_be_optimized(node));
         });
     }

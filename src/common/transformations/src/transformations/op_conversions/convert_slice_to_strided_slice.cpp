@@ -5,27 +5,29 @@
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
 
 namespace {
-Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
-                                   const Output<ngraph::Node>& slice_axes,
-                                   const Output<ngraph::Node>& scatter_axis,
-                                   size_t slice_indices_length,
-                                   int64_t fill_in_value,
-                                   NodeVector& new_ops) {
+Output<ov::Node> align_indices(const Output<ov::Node>& indices,
+                               const Output<ov::Node>& slice_axes,
+                               const Output<ov::Node>& scatter_axis,
+                               size_t slice_indices_length,
+                               int64_t fill_in_value,
+                               NodeVector& new_ops) {
     // Handle a case when starts/ends/steps lengths are less than provided axes
     // in order to ensure compatibility with `StridedSlice:v1` interface
     // Example:
@@ -37,14 +39,14 @@ Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
     // expected_output_shape: {3, 3, 1, 1}
 
     const auto default_indices =
-        ov::opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
-    std::shared_ptr<ngraph::Node> adjusted_indices =
-        ov::op::util::make_try_fold<ov::opset8::ScatterUpdate>(default_indices,
+        ov::op::v0::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
+    std::shared_ptr<ov::Node> adjusted_indices =
+        ov::op::util::make_try_fold<ov::op::v3::ScatterUpdate>(default_indices,
                                                                slice_axes,
                                                                indices,  // updates
                                                                scatter_axis);
 
-    if (!ngraph::op::is_constant(adjusted_indices)) {
+    if (!ov::op::util::is_constant(adjusted_indices)) {
         new_ops.push_back(default_indices);
     }
     return adjusted_indices;
@@ -62,9 +64,9 @@ std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, size_t slice
 
 ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
     MATCHER_SCOPE(SliceToStridedSlice);
-    auto slice = pattern::wrap_type<opset8::Slice>();
+    auto slice = pattern::wrap_type<ov::op::v8::Slice>();
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto slice_node = std::dynamic_pointer_cast<opset8::Slice>(m.get_match_root());
+        auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(m.get_match_root());
         if (!slice_node)
             return false;
 
@@ -73,9 +75,9 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         auto arg = slice_node->input_value(0);
 
-        std::shared_ptr<opset8::Constant> start_const;
-        std::shared_ptr<opset8::Constant> stop_const;
-        std::shared_ptr<opset8::Constant> step_const;
+        std::shared_ptr<ov::op::v0::Constant> start_const;
+        std::shared_ptr<ov::op::v0::Constant> stop_const;
+        std::shared_ptr<ov::op::v0::Constant> step_const;
 
         if (use_shapes) {
             OPENVINO_SUPPRESS_DEPRECATED_START
@@ -84,22 +86,25 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
             step_const = get_constant_from_source(slice_node->input_value(3));
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else {
-            start_const = std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(1).get_node_shared_ptr());
-            stop_const = std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(2).get_node_shared_ptr());
-            step_const = std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(3).get_node_shared_ptr());
+            start_const =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(1).get_node_shared_ptr());
+            stop_const =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(2).get_node_shared_ptr());
+            step_const =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(3).get_node_shared_ptr());
         }
 
         auto start_input = start_const ? start_const : slice_node->input_value(1);
         auto stop_input = stop_const ? stop_const : slice_node->input_value(2);
         auto step_input = step_const ? step_const : slice_node->input_value(3);
 
-        std::shared_ptr<opset8::Constant> axes_const;
+        std::shared_ptr<ov::op::v0::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
             OPENVINO_SUPPRESS_DEPRECATED_START
             axes_const =
                 use_shapes
                     ? get_constant_from_source(slice_node->input_value(4))
-                    : std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(4).get_node_shared_ptr());
+                    : std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else {
             axes_const = slice_node->get_default_const_axes(start_input);
@@ -129,8 +134,8 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         NodeVector new_ops;
         if (!are_indices_aligned) {
-            const auto scatter_axis = opset8::Constant::create(element::i32, Shape{1}, {0});
-            const auto slice_axes = opset8::Constant::create(element::i64, Shape{axes_vec.size()}, axes_vec);
+            const auto scatter_axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
+            const auto slice_axes = ov::op::v0::Constant::create(element::i64, Shape{axes_vec.size()}, axes_vec);
             new_ops.insert(new_ops.end(), {scatter_axis, slice_axes});
 
             start_input = align_indices(start_input, slice_axes, scatter_axis, slice_indices_length, 0, new_ops);
@@ -141,17 +146,17 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
             new_ops.end(),
             {start_input.get_node_shared_ptr(), stop_input.get_node_shared_ptr(), step_input.get_node_shared_ptr()});
 
-        const auto strided_slice = std::make_shared<opset8::StridedSlice>(arg,
-                                                                          start_input,
-                                                                          stop_input,
-                                                                          step_input,
-                                                                          begin_end_mask,
-                                                                          begin_end_mask);
+        const auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(arg,
+                                                                              start_input,
+                                                                              stop_input,
+                                                                              step_input,
+                                                                              begin_end_mask,
+                                                                              begin_end_mask);
         new_ops.push_back(strided_slice);
 
         strided_slice->set_friendly_name(slice_node->get_friendly_name());
-        ngraph::copy_runtime_info(slice_node, new_ops);
-        ngraph::replace_node(slice_node, strided_slice);
+        ov::copy_runtime_info(slice_node, new_ops);
+        ov::replace_node(slice_node, strided_slice);
         return true;
     };
 

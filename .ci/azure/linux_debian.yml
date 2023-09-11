@@ -138,6 +138,7 @@ jobs:
       $(TEST_VENV)/bin/python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # for Python API tests
       /usr/bin/python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements_test.txt
+      /usr/bin/python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       /usr/bin/python3 -m pip uninstall -y numpy # apt-get install python3-numpy will be used
       # Speed up build
       sudo apt -y --no-install-recommends install unzip
@@ -186,7 +187,7 @@ jobs:
     displayName: 'Clean ccache stats'
 
   - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
-    env: 
+    env:
       CCACHE_DIR: $(CCACHE_DIR)
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
       CCACHE_BASEDIR: $(Pipeline.Workspace)
@@ -235,6 +236,7 @@ jobs:
     displayName: 'Build Debian packages'
 
   - script: |
+      set -e
       # install debian packages from previous release
       sudo apt-get -y update
       sudo apt-get install --no-install-recommends gnupg wget -y
@@ -242,7 +244,7 @@ jobs:
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2023.list
-      sudo apt-get install openvino -y || exit 1
+      sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -276,6 +278,18 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'OV Core UT'
 
+  - script: |
+      $(INSTALL_TEST_DIR)/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVProxyTests.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
+    displayName: 'OV Proxy Tests'
+
+  - script: |
+      $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
+    displayName: 'OV Hetero Func Tests'
+
   - script: $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
@@ -302,6 +316,9 @@ jobs:
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'TensorFlow Lite Frontend Unit Tests'
+
+  - script: $(INSTALL_TEST_DIR)/ov_snippets_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_snippets_func_tests.xml
+    displayName: 'Snippets Func Tests'
 
   - script: $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
@@ -336,25 +353,35 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'nGraph and IE Python Bindings Tests'
 
-    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       /usr/bin/python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py -v
     env:
       # Required by python imports to load requires libraries
       # - tests install dir for mock_py
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
       # For python imports to import pybind_mock_frontend
-      PYTHONPATH: $(INSTALL_TEST_DIR)
+      PYTHONPATH: $(INSTALL_TEST_DIR):$(REPO_DIR)/tools/mo/
     displayName: 'Python API 2.0 Tests'
 
+  # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
+      /usr/bin/python3 -m pytest -s $(REPO_DIR)/src/frontends/onnx/tests \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_zoo_models.py \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_backend.py -v
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
+      PYTHONPATH: $(INSTALL_TEST_DIR)
+    displayName: 'ONNX Frontend Python Tests' 
+
+  - script: |
+      set -e
       # TODO: fix 'No mock frontend API available'
       $(TEST_VENV)/bin/python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
       $(TEST_VENV)/bin/python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+    env:
+      PYTHONPATH: $(REPO_DIR)/tools/ovc/
     displayName: 'Model Optimizer UT'
 
   # run not all smoke filter to save time in post-commit
@@ -373,6 +400,7 @@ jobs:
     displayName: 'Install Samples Tests'
 
   - script: |
+      set -e
       /usr/bin/python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
       # GNA isn't a part of Debian package, so filter out that tests
       /usr/bin/python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ -k "not GNA" --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
@@ -385,17 +413,19 @@ jobs:
     displayName: 'Samples Smoke Tests'
 
   - script: |
+      set -e
       $(TEST_VENV)/bin/python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(TEST_VENV)/bin/python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     env:
-      PYTHONPATH: $(LAYER_TESTS_DIR)
+      PYTHONPATH: $(REPO_DIR)/tools/ovc/:$(LAYER_TESTS_DIR)
     displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
 
   - script: |
+      set -e
       $(TEST_VENV)/bin/python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(RUN_PREFIX) $(TEST_VENV)/bin/python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_lite_tests/ --junitxml=$(INSTALL_TEST_DIR)/TEST-tfl_fe.xmlTEST
     env:
-      PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
+      PYTHONPATH: $(REPO_DIR)/tools/ovc/:$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
       TEST_DEVICE: CPU
     displayName: 'TensorFlow Lite Layer Tests - TFL FE'
 

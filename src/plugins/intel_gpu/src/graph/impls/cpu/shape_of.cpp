@@ -39,7 +39,6 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, shape_of_inst& instance) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "shape_of::execute_impl");
         auto& stream = instance.get_network().get_stream();
-
         auto ev = stream.create_user_event(false);
 
         auto output_mem_ptr = instance.output_memory_ptr();

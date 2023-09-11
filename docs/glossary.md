@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Check the list of acronyms, abbreviations and terms used in 
+                 Intel® Distribution of OpenVINO™ toolkit.
+
 
 Acronyms and Abbreviations
 #################################################
@@ -79,7 +83,7 @@ Glossary of terms used in OpenVINO™
 | *Model conversion API* 
 |   A component of OpenVINO Development Tools. The API is used to import, convert, and optimize models trained in popular frameworks to a format usable by other OpenVINO components. In ``openvino.tools.mo`` namespace, model conversion API is represented by a Python ``mo.convert_model()`` method  and ``mo`` command-line tool.
 
-| *OpenVINO™ <code>Core</code>* 
+| *OpenVINO™ Core* 
 |   OpenVINO™ Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, GNA, etc.    
 
 | *OpenVINO™ API* 
@@ -88,22 +92,22 @@ Glossary of terms used in OpenVINO™
 | *OpenVINO™ Runtime* 
 |   A C++ library with a set of classes that you can use in your application to infer input tensors and get the results.
 
-| *<code>ov::Model</code>* 
+| *ov::Model* 
 |   A class of the Model that OpenVINO™ Runtime reads from IR or converts from ONNX, PaddlePaddle, TensorFlow, TensorFlow Lite formats. Consists of model structure, weights and biases.
 
-| *<code>ov::CompiledModel</code>* 
+| *ov::CompiledModel* 
 |   An instance of the compiled model which allows the OpenVINO™ Runtime to request (several) infer requests and perform inference synchronously or asynchronously.
 
-| *<code>ov::InferRequest</code>* 
+| *ov::InferRequest* 
 |   A class that represents the end point of inference on the model compiled by the device and represented by a compiled model. Inputs are set here, outputs should be requested from this interface as well.
 
-| *<code>ov::ProfilingInfo</code>* 
+| *ov::ProfilingInfo* 
 |   Represents basic inference profiling information per operation.
 
-| *<code>ov::Layout</code>* 
+| *ov::Layout* 
 |   Image data layout refers to the representation of images batch. Layout shows a sequence of 4D or 5D tensor data in memory. A typical NCHW format represents pixel in horizontal direction, rows by vertical dimension, planes by channel and images into batch. See also [Layout API Overview](./OV_Runtime_UG/layout_overview.md).
 
-| *<code>ov::element::Type</code>* 
+| *ov::element::Type* 
 |   Represents data element type. For example, f32 is 32-bit floating point, f16 is 16-bit floating point.
 
 | *plugin / Inference Device / Inference Mode*

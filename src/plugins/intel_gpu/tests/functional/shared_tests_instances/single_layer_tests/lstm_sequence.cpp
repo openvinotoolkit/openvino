@@ -46,8 +46,24 @@ INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClip, LSTMSequenceTest,
                                 ::testing::ValuesIn(activations),
                                 ::testing::ValuesIn(clip),
                                 ::testing::ValuesIn(direction),
+                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        LSTMSequenceTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClipNonConstantWRB, LSTMSequenceTest,
+                        ::testing::Combine(
+                                ::testing::Values(ngraph::helpers::SequenceTestsMode::PURE_SEQ),
+                                ::testing::ValuesIn(seq_lengths_zero_clip),
+                                ::testing::ValuesIn(batch),
+                                ::testing::ValuesIn(hidden_size),
+                                ::testing::ValuesIn(input_size),
+                                ::testing::ValuesIn(activations),
+                                ::testing::ValuesIn(clip),
+                                ::testing::ValuesIn(direction),
+                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         LSTMSequenceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
@@ -60,8 +76,9 @@ INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
                                 ::testing::ValuesIn(activations),
                                 ::testing::ValuesIn(clip_non_zeros),
                                 ::testing::ValuesIn(direction),
+                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         LSTMSequenceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
@@ -74,8 +91,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
                                 ::testing::ValuesIn(activations_smoke),
                                 ::testing::ValuesIn(clip_non_zeros),
                                 ::testing::ValuesIn(direction),
+                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         LSTMSequenceTest::getTestCaseName);
 
 }  // namespace

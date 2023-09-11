@@ -15,7 +15,7 @@ ov_add_test_target(
     DEPENDENCIES
     LINK_LIBRARIES
         gmock
-        funcTestUtils
+        func_test_utils
         sharedTestClasses
         lptNgraphFunctions
         inference_engine_legacy

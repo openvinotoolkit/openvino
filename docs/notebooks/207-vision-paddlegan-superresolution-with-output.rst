@@ -1,6 +1,8 @@
 Super Resolution with PaddleGAN and OpenVINO™
 =============================================
 
+
+
 This notebook demonstrates converting the RealSR (real-world
 super-resolution) model from
 `PaddlePaddle/PaddleGAN <https://github.com/PaddlePaddle/PaddleGAN>`__
@@ -16,8 +18,31 @@ from CVPR 2020.
 
 This notebook works best with small images (up to 800x600 resolution).
 
-Imports
--------
+.. _top:
+
+**Table of contents**:
+
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Inference on PaddlePaddle Model <#inference-on-paddlepaddle-model>`__
+
+  - `Investigate PaddleGAN Model <#investigate-paddlegan-model>`__
+  - `Do Inference <#do-inference>`__
+
+- `Convert PaddleGAN Model to ONNX and OpenVINO IR <#convert-paddlegan-model-to-onnx-and-openvino-ir>`__
+
+  - `Convert PaddlePaddle Model to ONNX <#convert-paddlepaddle-model-to-onnx>`__
+  - `Convert ONNX Model to OpenVINO IR with Model Conversion Python API <#convert-onnx-model-to-openvino-ir-with-model-conversion-python-api>`__
+
+- `Do Inference on OpenVINO IR Model <#do-inference-on-openvino-ir-model>`__
+
+  - `Select inference device <#select-inference-device>`__
+  - `Show an Animated GIF <#show-an-animated-gif>`__
+  - `Create a Comparison Video <#create-a-comparison-video>`__
+
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -49,8 +74,9 @@ Imports
     sys.path.append("../utils")
     from notebook_utils import NotebookAlert
 
-Settings
---------
+Settings `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -64,11 +90,13 @@ Settings
     ir_path = model_path.with_suffix(".xml")
     onnx_path = model_path.with_suffix(".onnx")
 
-Inference on PaddlePaddle Model
--------------------------------
+Inference on PaddlePaddle Model `⇑ <#top>`__
+###############################################################################################################################
 
-Investigate PaddleGAN Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Investigate PaddleGAN Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The `PaddleGAN
 documentation <https://github.com/PaddlePaddle/PaddleGAN>`__ explains
@@ -86,7 +114,7 @@ source code.
 
 .. parsed-literal::
 
-    [06/21 23:07:46] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
+    [08/15 23:08:25] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
 
 
 .. code:: ipython3
@@ -124,8 +152,9 @@ To get more information about how the model looks like, use the
 
     # sr.model??
 
-Do Inference
-~~~~~~~~~~~~
+Do Inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 To show inference on the PaddlePaddle model, set ``PADDLEGAN_INFERENCE``
 to ``True`` in the cell below. Keep in mind that performing inference
@@ -169,15 +198,17 @@ may take some time.
         print(f"Inference duration: {duration:.2f} seconds")
         plt.imshow(result_image);
 
-Convert PaddleGAN Model to ONNX and OpenVINO IR
------------------------------------------------
+Convert PaddleGAN Model to ONNX and OpenVINO IR `⇑ <#top>`__
+###############################################################################################################################
+
 
 To convert the PaddlePaddle model to OpenVINO IR, first convert the
 model to ONNX, and then convert the ONNX model to the OpenVINO IR
 format.
 
-Convert PaddlePaddle Model to ONNX
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert PaddlePaddle Model to ONNX `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -194,12 +225,12 @@ Convert PaddlePaddle Model to ONNX
 
 .. parsed-literal::
 
-    2023-06-21 23:07:52 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2023-08-15 23:08:31 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
 
-    I0621 23:07:52.629609 1219036 interpretercore.cc:267] New Executor is Running.
+    I0815 23:08:31.864205 2062621 interpretercore.cc:267] New Executor is Running.
 
 
 .. parsed-literal::
@@ -210,18 +241,18 @@ Convert PaddlePaddle Model to ONNX
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 13 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2023-06-21 23:07:56 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
+    2023-08-15 23:08:35 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
-Convert ONNX Model to OpenVINO IR with `Model Optimizer Python API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert ONNX Model to OpenVINO IR with Model Conversion Python API `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
     from openvino.tools import mo
     from openvino.runtime import serialize
     
-    ## Uncomment the command below to show Model Optimizer help, which shows the possible arguments for Model Optimizer.
+    ## Uncomment the command below to show help, which shows the possible arguments for model conversion API.
     # mo.convert_model(help=True)
 
 .. code:: ipython3
@@ -243,16 +274,45 @@ Convert ONNX Model to OpenVINO IR with `Model Optimizer Python API <https://docs
     Exporting ONNX model to OpenVINO IR... This may take a few minutes.
 
 
-Do Inference on OpenVINO IR Model
----------------------------------
+Do Inference on OpenVINO IR Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
     # Read the network and get input and output names.
-    ie = Core()
+    core = Core()
     # Alternatively, the model obtained from `mo.convert_model()` may be used here
-    model = ie.read_model(model=ir_path)
+    model = core.read_model(model=ir_path)
     input_layer = model.input(0)
+
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 .. code:: ipython3
 
@@ -273,18 +333,18 @@ Do Inference on OpenVINO IR Model
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f2bec0cf4c0>
+    <matplotlib.image.AxesImage at 0x7f485b8501f0>
 
 
 
 
-.. image:: 207-vision-paddlegan-superresolution-with-output_files/207-vision-paddlegan-superresolution-with-output_25_1.png
+.. image:: 207-vision-paddlegan-superresolution-with-output_files/207-vision-paddlegan-superresolution-with-output_27_1.png
 
 
 .. code:: ipython3
 
     # Load the network to the CPU device (this may take a few seconds).
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     output_layer = compiled_model.output(0)
 
 .. code:: ipython3
@@ -302,7 +362,7 @@ Do Inference on OpenVINO IR Model
 
 .. parsed-literal::
 
-    Inference duration: 3.24 seconds
+    Inference duration: 3.30 seconds
 
 
 .. code:: ipython3
@@ -325,16 +385,17 @@ Do Inference on OpenVINO IR Model
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f2bd96ef520>
+    <matplotlib.image.AxesImage at 0x7f47d00b7e50>
 
 
 
 
-.. image:: 207-vision-paddlegan-superresolution-with-output_files/207-vision-paddlegan-superresolution-with-output_29_1.png
+.. image:: 207-vision-paddlegan-superresolution-with-output_files/207-vision-paddlegan-superresolution-with-output_31_1.png
 
 
-Show an Animated GIF
-~~~~~~~~~~~~~~~~~~~~
+Show an Animated GIF `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 To visualize the difference between the bicubic image and the
 superresolution image, create an animated GIF image that switches
@@ -362,13 +423,14 @@ between both versions.
 
 
 
-.. image:: 207-vision-paddlegan-superresolution-with-output_files/207-vision-paddlegan-superresolution-with-output_31_0.png
+.. image:: 207-vision-paddlegan-superresolution-with-output_files/207-vision-paddlegan-superresolution-with-output_33_0.png
    :width: 960px
 
 
 
-Create a Comparison Video
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Create a Comparison Video `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Create a video with a “slider”, showing the bicubic image to the right
 and the superresolution image on the left.

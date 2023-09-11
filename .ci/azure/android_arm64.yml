@@ -106,6 +106,7 @@ jobs:
     displayName: 'System information'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(ANDROID_TOOLS) ; mkdir $(ANDROID_TOOLS)
@@ -133,6 +134,8 @@ jobs:
       python3 -m pip install -U pip cmake
       # vcpkg's tool dependencies
       sudo -E apt --assume-yes install curl zip unzip tar
+      # vcpkg 'python3' port dependencies
+      sudo -E apt --assume-yes install autoconf libtool autoconf-archive
       # vcpkg tree of dependencies require extra packages
       sudo -E apt --assume-yes install pkg-config linux-libc-dev
       # Install Android SDK, NDK and Tools
@@ -144,6 +147,7 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
+      set -e
       $(VCPKG_ROOT)/bootstrap-vcpkg.sh --disableMetrics
       # patch vcpkg default (community) toolchain to build only Release configuration
       echo "set(VCPKG_BUILD_TYPE release)" >> $(VCPKG_ROOT)/triplets/community/arm64-android.cmake

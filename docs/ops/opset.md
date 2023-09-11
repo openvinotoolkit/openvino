@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Check the list of available operation sets fully supported in 
+                specific versions of OpenVINO™ toolkit.
+
 .. toctree::
    :maxdepth: 1
    :hidden:

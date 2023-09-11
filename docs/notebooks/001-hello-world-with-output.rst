@@ -1,20 +1,35 @@
 Hello Image Classification
 ==========================
 
+
+
 This basic introduction to OpenVINO™ shows how to do inference with an
 image classification model.
 
 A pre-trained `MobileNetV3
-model <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
+model <https://docs.openvino.ai/2023.1/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
 from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial. For more information about how OpenVINO IR models are
 created, refer to the `TensorFlow to
-OpenVINO <101-tensorflow-to-openvino-with-output.html>`__
-tutorial.
+OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
+tutorial. 
 
-Imports
--------
+
+
+.. _top:
+
+**Table of contents**:
+
+- `Imports <#imports>`__
+- `Download the Model and data samples <#download-the-model-and-data-samples>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Load an Image <#load-an-image>`__
+- `Do Inference <#do-inference>`__
+
+Imports `⇑ <#top>`__
+############################################
 
 .. code:: ipython3
 
@@ -29,8 +44,8 @@ Imports
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Download the Model and data samples
------------------------------------
+Download the Model and data samples `⇑ <#top>`__
+########################################################################
 
 .. code:: ipython3
 
@@ -52,7 +67,6 @@ Download the Model and data samples
 
 
 
-
 .. parsed-literal::
 
     artifacts/v3-small_224_1.0_float.xml:   0%|          | 0.00/294k [00:00<?, ?B/s]
@@ -64,19 +78,47 @@ Download the Model and data samples
     artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
-Load the Model
---------------
+Select inference device `⇑ <#top>`__
+############################################################
+
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
-    ie = Core()
-    model = ie.read_model(model=model_xml_path)
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    import ipywidgets as widgets
+    
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+Load the Model `⇑ <#top>`__
+###################################################
+
+.. code:: ipython3
+
+    core = Core()
+    model = core.read_model(model=model_xml_path)
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     output_layer = compiled_model.output(0)
 
-Load an Image
--------------
+Load an Image `⇑ <#top>`__
+##################################################
 
 .. code:: ipython3
 
@@ -92,11 +134,11 @@ Load an Image
 
 
 
-.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_8_0.png
+.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_10_0.png
 
 
-Do Inference
-------------
+Do Inference `⇑ <#top>`__
+#################################################
 
 .. code:: ipython3
 

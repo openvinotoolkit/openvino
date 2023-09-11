@@ -3,38 +3,25 @@
 
 @sphinxdirective
 
-.. _notebooks installation:
-
 .. meta::
    :description: An installation guide for Jupyter notebooks on which Python 
                  tutorials run. The tutorials serve as introduction to the 
                  OpenVINO™ toolkit. 
-   :keywords: OpenVINO™ toolkit, Jupyter notebooks, Jupyter, Python, Python API, 
-              installation guide, tutorials, install notebooks, local 
-              installation, OpenVINO™ Notebooks, run notebooks
 
 
-The notebooks run almost anywhere, from browsers and desktops to even a cloud VM or a Docker container. 
-Follow the guide below in order to run and manage the notebooks on your machine.
+The notebooks can be run in various environments. This guide will show you
+how to run and manage them on your local system.
 
---------------------
 
 Contents:
 
-- `Installation Guide <#-installation-guide>`__
-- `Run the Notebooks <#-run-the-notebooks>`__
-- `Manage the notebooks <#-manage-the-notebooks>`__
-- `Troubleshooting <#-troubleshooting>`__
-- `FAQ <#-faq>`__
+- `Installation Guide <#installation-guide>`__
+- `Run the Notebooks <#run-the-notebooks>`__
+- `Manage the notebooks <#manage-the-notebooks>`__
+- `Troubleshooting <#troubleshooting>`__
 
---------------------
-
-.. raw:: html
-
-   <a name="-installation-guide">
-
-`Installation Guide`_
-=====================
+Installation Guide
+##################
 
 The table below lists the supported operating systems and Python versions. 
 
@@ -60,8 +47,8 @@ The table below lists the supported operating systems and Python versions.
 OpenVINO Notebooks also require Git. Follow the guide below for your 
 operating system or environment.
 
-`Installing prerequisites`_
-----------------------------
+Installing prerequisites
++++++++++++++++++++++++++++
 
 .. tab-set::
 
@@ -129,7 +116,7 @@ operating system or environment.
             sudo yum install python36-devel mesa-libGL
 
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
 
       Alternatively, you may skip steps 1-3 if you prefer to manually install `Python 3 <https://www.python.org/>`__ and `Git <https://git-scm.com/>`__.
 
@@ -161,7 +148,7 @@ operating system or environment.
             If OpenVINO is installed globally, do not run any of these commands in a terminal where ``setupvars.sh`` is sourced.
 
    .. tab-item:: Azure ML
-      :sync: azure
+      :sync: azure-ml
 
       .. note::  
       
@@ -261,8 +248,8 @@ operating system or environment.
          CMD /tmp/scripts/run
    
 
-`Installing notebooks`_
-------------------------
+Installing notebooks
+++++++++++++++++++++
 
 .. tab-set::
 
@@ -273,7 +260,7 @@ operating system or environment.
 
          If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
    
-         .. code-block::
+         .. code-block:: sh
    
             python -m venv openvino_env
    
@@ -301,10 +288,9 @@ operating system or environment.
 
       5. **Install required packages**
    
-         .. code-block::
+         .. code-block:: sh
    
             pip install -r requirements.txt
-
 
    .. tab-item:: Linux
       :sync: linux
@@ -344,10 +330,9 @@ operating system or environment.
          .. code-block:: sh
    
             pip install -r requirements.txt
-   
 
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
       
       1. **Create a Virtual Environment**
 
@@ -386,7 +371,7 @@ operating system or environment.
    
 
    .. tab-item:: Azure ML
-      :sync: azure
+      :sync: azure-ml
 
       1. Create a Conda environment
 
@@ -474,8 +459,8 @@ operating system or environment.
    
       4. **Start the browser**
    
-         Copy the URL printed in the terminal window and open in a browser. |br| 
-         If it is a remote machine, replace 127.0.0.1 with the correct IP address.
+         | Copy the URL printed in the terminal window and open in a browser.
+         | If it is a remote machine, replace 127.0.0.1 with the correct IP address.
    
          |docker-terminal-1|
    
@@ -488,18 +473,11 @@ operating system or environment.
             While running the container on Windows and macOS, only CPU devices can be used. To access the iGPU, install the notebooks locally, following the instructions above.
    
 
---------------------
-
-.. raw:: html
-
-   <a name="-run-the-notebooks"/>
-
-
-`Run the Notebooks`_
-====================
+Run the Notebooks
+#################
 
 Launch a Single Notebook
-------------------------------
+++++++++++++++++++++++++
 
 If you want to launch only one notebook, such as the *Monodepth* notebook, run the command below.
 
@@ -508,7 +486,7 @@ If you want to launch only one notebook, such as the *Monodepth* notebook, run t
    jupyter lab notebooks/201-vision-monodepth/201-vision-monodepth.ipynb
 
 Launch All Notebooks
---------------------------
+++++++++++++++++++++
 
 .. code:: bash
 
@@ -519,23 +497,17 @@ In your browser, select a notebook from the file browser in Jupyter Lab, using t
 |launch-jupyter|
 
 
---------------------
-
-.. raw:: html
-
-   <a name="-manage-the-notebooks"/>
-
-`Manage the Notebooks`_
-========================
+Manage the Notebooks
+####################
 
 Shut Down Jupyter Kernel
----------------------------
+++++++++++++++++++++++++
 
 To end your Jupyter session, press ``Ctrl-c``. This will prompt you to
 ``Shutdown this Jupyter server (y/[n])?`` enter ``y`` and hit ``Enter``.
 
 Deactivate Virtual Environment
-------------------------------------
+++++++++++++++++++++++++++++++
 
 First, make sure you use the terminal window where you activated ``openvino_env``. To deactivate your ``virtualenv``, simply run:
 
@@ -546,7 +518,7 @@ First, make sure you use the terminal window where you activated ``openvino_env`
 This will deactivate your virtual environment.
 
 Reactivate Virtual Environment
-------------------------------------
+++++++++++++++++++++++++++++++
 
 To reactivate your environment, run: 
 
@@ -567,7 +539,7 @@ To reactivate your environment, run:
          source openvino_env/bin/activate
 
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
 
       .. code:: bash 
    
@@ -577,7 +549,7 @@ To reactivate your environment, run:
 Then type ``jupyter lab`` or ``jupyter notebook`` to launch the notebooks again.
 
 Delete Virtual Environment 
--------------------------------------
+++++++++++++++++++++++++++
 
 This operation is optional. However, if you want to remove your virtual environment, simply delete the ``openvino_env`` directory:
 
@@ -598,7 +570,7 @@ This operation is optional. However, if you want to remove your virtual environm
          rm -rf openvino_env
 
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
 
       .. code:: bash 
 
@@ -606,7 +578,7 @@ This operation is optional. However, if you want to remove your virtual environm
 
 
 Remove openvino_env Kernel from Jupyter
--------------------------------------------
++++++++++++++++++++++++++++++++++++++++
 
 .. code:: bash
 
@@ -616,65 +588,25 @@ Remove openvino_env Kernel from Jupyter
 If you run into issues, check the `Troubleshooting <#-troubleshooting>`__, and `FAQs <#-faq>`__ sections or start a GitHub
 `discussion <https://github.com/openvinotoolkit/openvino_notebooks/discussions>`__.
 
--------------------
 
-.. raw:: html
+Troubleshooting
+###############
 
-   <a name="-troubleshooting"/>
+For solutions to common issues during installation, refer to the `Troubleshooting <https://github.com/openvinotoolkit/openvino_notebooks#%EF%B8%8F-troubleshooting>`__ and 
+`FAQ <https://github.com/openvinotoolkit/openvino_notebooks#%EF%B8%8F-troubleshooting>`__ sections in `openvino_notebooks <https://github.com/openvinotoolkit/openvino_notebooks>`__ repository.
 
-`Troubleshooting`_
-====================
-
--  To check some common installation problems, run
-   ``python check_install.py``. This script is located in the
-   openvino_notebooks directory. Run it after activating the
-   ``openvino_env`` virtual environment.
--  If you get an ``ImportError``, doublecheck that you installed the
-   Jupyter kernel. If necessary, choose the ``openvino_env`` kernel from the
-   *Kernel->Change Kernel* menu) in Jupyter Lab or Jupyter Notebook
--  If OpenVINO is installed globally, do not run installation commands
-   in a terminal where ``setupvars.bat`` or ``setupvars.sh`` are sourced.
--  For Windows installation, it is recommended to use *Command Prompt
-   (cmd.exe)*, not *PowerShell*.
-
-If the following tips do not solve your problem, feel free to open a `discussion
-topic <https://github.com/openvinotoolkit/openvino_notebooks/discussions>`__
+If the above tips do not solve your problem, feel free to open a 
+`discussion topic <https://github.com/openvinotoolkit/openvino_notebooks/discussions>`__
 or create an
-`issue <https://github.com/openvinotoolkit/openvino_notebooks/issues>`__! on Github.
+`issue <https://github.com/openvinotoolkit/openvino_notebooks/issues>`__ on Github.
 
-.. raw:: html
-
-   <a name="-faq"/>
-
-`FAQ`_
-========
-
--  :doc:`Which devices does OpenVINO support? <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
--  `What is the first CPU generation that OpenVINO supports? <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
--  `Are there any success stories about deploying real-world solutions with OpenVINO? <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html>`__
-
---------------
-
-`Additional Resources`_
--------------------------
+Additional Resources
+####################
 
 * `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
-* :doc:`Install OpenVINO™ Development Tools <openvino_docs_install_guides_install_dev_tools>`
 
-
-.. |br| raw:: html
-
-   <br />
 
 .. |launch-jupyter| image:: https://user-images.githubusercontent.com/15709723/120527271-006fd200-c38f-11eb-9935-2d36d50bab9f.gif
-.. |Apache License Version 2.0| image:: https://img.shields.io/badge/license-Apache_2.0-green.svg
-   :target: https://github.com/openvinotoolkit/openvino_notebooks/blob/main/LICENSE
-.. |nbval| image:: https://github.com/openvinotoolkit/openvino_notebooks/actions/workflows/nbval.yml/badge.svg
-   :target: https://github.com/openvinotoolkit/openvino_notebooks/actions/workflows/nbval.yml?query=branch%3Amain
-.. |nbval-docker| image:: https://github.com/openvinotoolkit/openvino_notebooks/actions/workflows/docker.yml/badge.svg
-   :target: https://github.com/openvinotoolkit/openvino_notebooks/actions/workflows/nbval.yml?query=branch%3Amain
-.. |binder logo| image:: https://mybinder.org/badge_logo.svg
-   :alt: Binder button
 
 .. |ml-studio-1| image:: https://user-images.githubusercontent.com/15709723/117559437-17463180-b03a-11eb-9e8d-d4539d1502f2.png
 

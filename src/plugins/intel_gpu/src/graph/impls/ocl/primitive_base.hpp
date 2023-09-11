@@ -17,6 +17,7 @@
 #include "kernel_selector_helper.h"
 #include "register.hpp"
 #include "implementation_map.hpp"
+#include "concatenation_inst.h"
 
 #include <vector>
 #include <list>
@@ -38,10 +39,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     // a pair of batch program hash and kernel entry hash of each ocl impl.
     std::pair<std::string, std::string> kernel_dump_info;
 
-    typed_primitive_impl_ocl() :  _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {
-        _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
-        _kernel_data.weightsReorderParams.clKernel = nullptr;
-    }
+    typed_primitive_impl_ocl() : _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {}
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
@@ -58,10 +56,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(create_weights_reorder_params(kd.weightsReorderParams), kd.kernelName),
           _kernel_data(kd) {
-        // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
-        _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
-        _kernel_data.weightsReorderParams.clKernel = nullptr;
-
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
     }
 
@@ -86,7 +80,8 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     template<typename ImplType>
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
-        if (impl_param.can_be_optimized()) {
+        // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
+        if (impl_param.can_be_optimized() && !(impl_param.is_type<concatenation>() && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
@@ -229,9 +224,9 @@ protected:
     }
 
     kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& instance) const override {
-        for (size_t k = 0; k < _kernels.size(); ++k) {
+        if (_kernels.size()) {
             auto args = get_arguments(instance);
-            args.scalars = &_kernel_data.kernels[k].params.scalars;
+            args.scalars = &_kernel_data.kernels[0].params.scalars;
 
             for (const auto& m : instance.get_intermediates_memories()) {
                 args.intermediates.push_back(m);

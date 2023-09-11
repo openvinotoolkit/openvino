@@ -81,6 +81,13 @@ inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
     return true;
 }
 
+/**
+ * @brief Checks if 2 shapes are the same
+ */
+inline bool are_shapes_equal(const ov::Shape& shape_1, const ov::Shape& shape_2) {
+    return (shape_1.size() == shape_2.size()) && std::equal(shape_1.begin(), shape_1.end(), shape_2.begin());
+}
+
 inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index) {
     size_t offset = 0;
 
@@ -198,7 +205,20 @@ inline bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
 }
 
 inline bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
-    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr);
+    return ((std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr) ||
+            std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node) != nullptr);
+}
+
+inline bool is_concat(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::Concat>(node) != nullptr);
+}
+
+inline bool is_fake_quantize(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::FakeQuantize>(node) != nullptr);
+}
+
+inline bool is_read_value(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::ReadValue>(node) != nullptr);
 }
 
 template <typename T>
@@ -243,11 +263,38 @@ inline bool is_activation(const std::shared_ptr<ngraph::Node>& node) noexcept {
     return is_activation(node.get());
 }
 
+inline bool is_non_functional(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::Reshape>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::Squeeze>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::Unsqueeze>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::FakeQuantize>(node) != nullptr;
+}
+
+inline bool is_copy(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::intel_gna::op::Copy>(node) != nullptr;
+}
+
+inline bool is_matmul(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::MatMul>(node) != nullptr;
+}
+
+inline bool is_fully_connected(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node) != nullptr;
+}
+
+inline bool is_split(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::Split>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::VariadicSplit>(node) != nullptr;
+}
+
+inline bool is_interleaved(const std::shared_ptr<ov::Node>& node) {
+    return is_matmul(node) || is_fully_connected(node);
+}
+
 inline bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
     return ((std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::Slice>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::Concat>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ngraph::opset9::Slice>(node) != nullptr) || is_concat(node) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Reshape>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Squeeze>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Unsqueeze>(node) != nullptr) ||
@@ -268,7 +315,7 @@ inline bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
     return ((std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Convolution>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Add>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Multiply>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::op::Eltwise>(node) != nullptr) ||
@@ -341,14 +388,14 @@ inline ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> ord
  * @param order the permutation array to apply to the input shape
  * @return vector with indexes to gather
  */
-inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& input_shape, const Shape& order) {
+inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& input_shape, const AxisVector& order) {
     // Supported shape ranks: 2d, 3d, 4d
     if (input_shape.size() < 2 || input_shape.size() > 4) {
         THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
     }
 
     ov::Shape input_shape_4d = input_shape;
-    ov::Shape order_4d = order;
+    ov::AxisVector order_4d = order;
     // Just to simplify the code we transform all shapes to 4d by adding dimension(s) equal to 1 at the end
     while (input_shape_4d.size() < 4) {
         input_shape_4d.push_back(1);
@@ -569,8 +616,7 @@ inline bool is_reshape_unsqueeze(const ov::Output<ov::Node>& output) {
     auto reshape = output.get_node_shared_ptr();
     const ov::Shape input_shape = trim_shape(reshape->get_input_shape(0));
     const ov::Shape output_shape = trim_shape(reshape->get_output_shape(0));
-    return (input_shape.size() == output_shape.size()) &&
-           std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
+    return are_shapes_equal(input_shape, output_shape);
 }
 
 /**
@@ -623,6 +669,37 @@ bool has_child_node(std::shared_ptr<ov::Node> node) {
         }
     }
     return false;
+}
+
+/**
+ * @brief Checks if shape without dimensions == 1 is 2D
+ */
+inline bool is_shape_2d(const ov::Shape& shape) {
+    return graph_utils::squeeze_shape(shape).size() == 2;
+}
+
+/**
+ * @brief Checks if node has N consumers
+ */
+inline bool has_n_consumers(const std::shared_ptr<ov::Node>& node, size_t n_consumers) {
+    return node->output(0).get_target_inputs().size() == n_consumers;
+}
+
+/**
+ * @brief Merge gather indexes.
+ * @param ids_in vector with indexes to 1st gather
+ * @param ids_out vector with indexes to 2nd gather
+ * @return vector with indexes to merged gather
+ */
+inline std::vector<size_t> combine_gather_indexes(const std::vector<size_t>& ids_in,
+                                                  const std::vector<size_t>& ids_out) {
+    if (ids_in.size() != ids_out.size())
+        return {};
+    std::vector<size_t> result(ids_in.size());
+    for (size_t i = 0; i < result.size(); ++i) {
+        result[i] = ids_in[ids_out[i]];
+    }
+    return result;
 }
 
 }  // namespace graph_utils

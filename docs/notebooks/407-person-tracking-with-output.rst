@@ -1,6 +1,8 @@
 Person Tracking with OpenVINO™
 ==============================
 
+
+
 This notebook demonstrates live person tracking with OpenVINO: it reads
 frames from an input video sequence, detects people in the frames,
 uniquely identifies each one of them and tracks all of them until they
@@ -71,9 +73,9 @@ made of three key components which are as follows: |deepsort|
    union(IOU) association as proposed in the original SORT algorithm [3]
    on the set of unconfirmed and unmatched tracks from the previous
    step. If the IOU of detection and target is less than a certain
-   threshold value called IOUmin then that assignment is rejected. This
-   helps to account for sudden appearance changes, for example, due to
-   partial occlusion with static scene geometry, and to increase
+   threshold value called ``IOUmin`` then that assignment is rejected.
+   This helps to account for sudden appearance changes, for example, due
+   to partial occlusion with static scene geometry, and to increase
    robustness against erroneous.
 
    When detection result is associated with a target, the detected
@@ -86,19 +88,56 @@ Problems”, Journal of Basic Engineering, vol. 82, no. Series D,
 pp. 35-45, 1960.
 
 [2] H. W. Kuhn, “The Hungarian method for the assignment problem”, Naval
-ResearchLogistics Quarterly, vol. 2, pp. 83-97, 1955.
+Research Logistics Quarterly, vol. 2, pp. 83-97, 1955.
 
 [3] A. Bewley, G. Zongyuan, F. Ramos, and B. Upcroft, “Simple online and
 realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
-Imports
--------
+.. _top:
+
+**Table of contents**:
+
+- `Imports <#imports>`__
+- `Download the Model <#download-the-model>`__
+- `Load model <#load-model>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Data Processing <#data-processing>`__
+- `Test person reidentification model <#test-person-reidentification-model>`__
+
+  - `Visualize data <#visualize-data>`__
+  - `Compare two persons <#compare-two-persons>`__
+
+- `Main Processing Function <#main-processing-function>`__
+- `Run <#run>`__
+
+  - `Initialize tracker <#initialize-tracker>`__
+  - `Run Live Person Tracking <#run-live-person-tracking>`__
+  - `Run Person Tracking on a Video File <#run-person-tracking-on-a-video-file>`__
+
+.. code:: ipython3
+
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q opencv-python matplotlib requests scipy
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
     import collections
+    from pathlib import Path
     import sys
     import time
     
@@ -107,20 +146,32 @@ Imports
     from IPython import display
     import matplotlib.pyplot as plt
     from openvino.runtime import Core
+
+.. code:: ipython3
+
+    # Import local modules
     
-    sys.path.append("../utils")
+    utils_file_path = Path('../utils/notebook_utils.py')
+    notebook_directory_path = Path('.')
+    
+    if not utils_file_path.exists():
+        !git clone --depth 1 https://github.com/igor-davidyuk/openvino_notebooks.git -b moving_data_to_cloud openvino_notebooks
+        utils_file_path = Path('./openvino_notebooks/notebooks/utils/notebook_utils.py')
+        notebook_directory_path = Path('./openvino_notebooks/notebooks/407-person-tracking-webcam/')
+    
+    sys.path.append(str(utils_file_path.parent))
+    sys.path.append(str(notebook_directory_path))
+    
     import notebook_utils as utils
-    
     from deepsort_utils.tracker import Tracker
     from deepsort_utils.nn_matching import NearestNeighborDistanceMetric
     from deepsort_utils.detection import Detection, compute_color_for_labels, xywh_to_xyxy, xywh_to_tlwh, tlwh_to_xyxy
 
-Download the Model
-------------------
+Download the Model `⇑ <#top>`__
+###############################################################################################################################
 
-We will use pre-trained models from OpenVINO’s `Open Model
-Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
-test.
+We will use pre-trained models from OpenVINO’s `Open Model Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ 
+to start the test.
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. It automatically creates a directory structure
@@ -129,22 +180,19 @@ already downloaded. The selected model comes from the public directory,
 which means it must be converted into OpenVINO Intermediate
 Representation (OpenVINO IR).
 
-   **NOTE**: Using a model outside the list can require different pre-
-   and post-processing.
+.. note::
 
-In this case, `person detection
-model <https://docs.openvino.ai/2023.0/omz_models_model_person_detection_0202.html>`__
+   Using a model outside the list can require different pre- and post-processing.
+
+In this case, `person detection model <https://docs.openvino.ai/2023.1/omz_models_model_person_detection_0202.html>`__
 is deployed to detect the person in each frame of the video, and
-`reidentification
-model <https://docs.openvino.ai/2023.0/omz_models_model_person_reidentification_retail_0287.html>`__
+`reidentification model <https://docs.openvino.ai/2023.1/omz_models_model_person_reidentification_retail_0287.html>`__
 is used to output embedding vector to match a pair of images of a person
 by the cosine distance.
 
 If you want to download another model (``person-detection-xxx`` from
-`Object Detection Models
-list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#object-detection-models>`__,
-``person-reidentification-retail-xxx`` from `Reidentification Models
-list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#reidentification-models>`__),
+`Object Detection Models list <https://docs.openvino.ai/2023.1/omz_models_group_intel.html#object-detection-models>`__,
+``person-reidentification-retail-xxx`` from `Reidentification Models list <https://docs.openvino.ai/2023.1/omz_models_group_intel.html#reidentification-models>`__),
 replace the name of the model in the code below.
 
 .. code:: ipython3
@@ -200,16 +248,18 @@ replace the name of the model in the code below.
     
 
 
-Load model
-----------
+Load model `⇑ <#top>`__
+###############################################################################################################################
 
 Define a common class for model loading and predicting.
 
 There are four main steps for OpenVINO model initialization, and they
-are required to run for only once before inference loop. 1. Initialize
-OpenVINO Runtime. 2. Read the network from ``*.bin`` and ``*.xml`` files
-(weights and architecture). 3. Compile the model for device. 4. Get
-input and output names of nodes.
+are required to run for only once before inference loop.
+
+1. Initialize OpenVINO Runtime.
+2. Read the network from ``*.bin`` and ``*.xml`` files (weights and architecture).
+3. Compile the model for device.
+4. Get input and output names of nodes.
 
 In this case, we can put them all in a class constructor function.
 
@@ -219,7 +269,7 @@ performance, but slightly longer startup time).
 
 .. code:: ipython3
 
-    ie_core = Core()
+    core = Core()
     
     
     class Model:
@@ -237,7 +287,7 @@ performance, but slightly longer startup time).
             batchsize: batch size of input data
             device: device used to run inference
             """
-            self.model = ie_core.read_model(model=model_path)
+            self.model = core.read_model(model=model_path)
             self.input_layer = self.model.input(0)
             self.input_shape = self.input_layer.shape
             self.height = self.input_shape[2]
@@ -247,7 +297,7 @@ performance, but slightly longer startup time).
                 input_shape = layer.partial_shape
                 input_shape[0] = batchsize
                 self.model.reshape({layer: input_shape})
-            self.compiled_model = ie_core.compile_model(model=self.model, device_name=device)
+            self.compiled_model = core.compile_model(model=self.model, device_name=device)
             self.output_layer = self.compiled_model.output(0)
     
         def predict(self, input):
@@ -260,20 +310,50 @@ performance, but slightly longer startup time).
             """
             result = self.compiled_model(input)[self.output_layer]
             return result
+
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
     
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
     
-    detector = Model(detection_model_path)
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    detector = Model(detection_model_path, device=device.value)
     # since the number of detection object is uncertain, the input batch size of reid model should be dynamic
-    extractor = Model(reidentification_model_path, -1)
+    extractor = Model(reidentification_model_path, -1, device.value)
 
-Data Processing
----------------
+Data Processing `⇑ <#top>`__
+###############################################################################################################################
 
-Data Processing includes data preprocess and postprocess functions. -
-Data preprocess function is used to change the layout and shape of input
-data, according to requirement of the network input format. - Data
-postprocess function is used to extract the useful information from
-network’s original output and visualize it.
+Data Processing includes data preprocess and postprocess functions. 
+
+- Data preprocess function is used to change the layout and shape of input data, 
+  according to requirement of the network input format.
+- Data postprocess function is used to extract the useful information from 
+  network’s original output and visualize it.
 
 .. code:: ipython3
 
@@ -360,7 +440,7 @@ network’s original output and visualize it.
             color = compute_color_for_labels(id)
             label = '{}{:d}'.format("", id)
             t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 2, 2)[0]
-            cv2.rectangle(img, (x1, y1), (x2, y2), color, 3)
+            cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
             cv2.rectangle(
                 img, (x1, y1), (x1 + t_size[0] + 3, y1 + t_size[1] + 4), color, -1)
             cv2.putText(
@@ -368,7 +448,7 @@ network’s original output and visualize it.
                 label,
                 (x1, y1 + t_size[1] + 4),
                 cv2.FONT_HERSHEY_PLAIN,
-                2,
+                1.6,
                 [255, 255, 255],
                 2
             )
@@ -385,21 +465,23 @@ network’s original output and visualize it.
         """
         return np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))
 
-Test person reidentification model
-----------------------------------
+Test person reidentification model `⇑ <#top>`__
+###############################################################################################################################
 
-The reidentification network outputs a blob with the ``(1, 256)`` shape
-named ``reid_embedding``, which can be compared with other descriptors
-using the cosine distance.
+The reidentification network outputs a blob with the ``(1, 256)`` shape named
+``reid_embedding``, which can be compared with other descriptors using
+the cosine distance.
 
-Visualize data
-~~~~~~~~~~~~~~
+Visualize data `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
-    image1 = cv2.cvtColor(cv2.imread("../data/image/person_1_1.png"), cv2.COLOR_BGR2RGB)
-    image2 = cv2.cvtColor(cv2.imread("../data/image/person_1_2.png"), cv2.COLOR_BGR2RGB)
-    image3 = cv2.cvtColor(cv2.imread("../data/image/person_2_1.png"), cv2.COLOR_BGR2RGB)
+    base_file_link = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/person_'
+    image_indices = ['1_1.png', '1_2.png', '2_1.png']
+    image_paths = [utils.download_file(base_file_link + image_index, directory='data') for image_index in image_indices]
+    image1, image2, image3 = [cv2.cvtColor(cv2.imread(str(image_path)), cv2.COLOR_BGR2RGB) for image_path in image_paths]
     
     # Define titles with images.
     data = {"Person 1": image1, "Person 2": image2, "Person 3": image3}
@@ -418,11 +500,30 @@ Visualize data
 
 
 
-.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_11_0.png
+.. parsed-literal::
+
+    data/person_1_1.png:   0%|          | 0.00/68.3k [00:00<?, ?B/s]
 
 
-Compare two persons
-~~~~~~~~~~~~~~~~~~~
+
+.. parsed-literal::
+
+    data/person_1_2.png:   0%|          | 0.00/68.9k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    data/person_2_1.png:   0%|          | 0.00/70.3k [00:00<?, ?B/s]
+
+
+
+.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_17_3.png
+
+
+Compare two persons `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -443,8 +544,9 @@ Compare two persons
     Different person (confidence: 0.02726622298359871)
 
 
-Main Processing Function
-------------------------
+Main Processing Function `⇑ <#top>`__
+###############################################################################################################################
+
 
 Run person tracking on the specified source. Either a webcam feed or a
 video file.
@@ -471,7 +573,7 @@ video file.
         try:
             # Create a video player to play with target fps.
             player = utils.VideoPlayer(
-                source=source, flip=flip, fps=30, skip_first_frames=skip_first_frames
+                source=source, size=(700, 450), flip=flip, fps=24, skip_first_frames=skip_first_frames
             )
             # Start capturing.
             player.start()
@@ -505,7 +607,7 @@ video file.
     
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
-                processing_time = np.mean(processing_times) * 1000
+                processing_time = np.mean(processing_times) * 1100
                 fps = 1000 / processing_time
     
                 # Get poses from detection results.
@@ -546,7 +648,7 @@ video file.
                     box = track.to_tlwh()
                     x1, y1, x2, y2 = tlwh_to_xyxy(box, h, w)
                     track_id = track.track_id
-                    outputs.append(np.array([x1, y1, x2, y2, track_id], dtype=np.int))
+                    outputs.append(np.array([x1, y1, x2, y2, track_id], dtype=np.int32))
                 if len(outputs) > 0:
                     outputs = np.stack(outputs, axis=0)
     
@@ -598,14 +700,14 @@ video file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run
----
+Run `⇑ <#top>`__
+###############################################################################################################################
 
-Initialize tracker
-~~~~~~~~~~~~~~~~~~
 
-Before running a new tracking task, we have to reinitialize a Tracker
-object
+Initialize tracker `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Before running a new tracking task, we have to reinitialize a Tracker object
 
 .. code:: ipython3
 
@@ -621,15 +723,14 @@ object
         n_init=3
     )
 
-Run Live Person Tracking
-~~~~~~~~~~~~~~~~~~~~~~~~
+Run Live Person Tracking `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Use a webcam as the video input. By default, the primary webcam is set
-with ``source=0``. If you have multiple webcams, each one will be
-assigned a consecutive number starting at 0. Set ``flip=True`` when
-using a front-facing camera. Some web browsers, especially Mozilla
-Firefox, may cause flickering. If you experience flickering, set
-``use_popup=True``.
+Use a webcam as the video input. By default, the primary webcam is set with ``source=0``. If you have
+multiple webcams, each one will be assigned a consecutive number
+starting at 0. Set ``flip=True`` when using a front-facing camera. Some
+web browsers, especially Mozilla Firefox, may cause flickering. If you
+experience flickering, set ``use_popup=True``.
 
 .. code:: ipython3
 
@@ -643,26 +744,26 @@ Firefox, may cause flickering. If you experience flickering, set
 
 .. parsed-literal::
 
-    [ WARN:0@8.532] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@8.532] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@10.127] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@10.127] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-Run Person Tracking on a Video File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Person Tracking on a Video File `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 If you do not have a webcam, you can still run this demo with a video
-file. Any `format supported by
-OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
+file. Any `format supported by OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
 will work.
 
 .. code:: ipython3
 
-    video_file = "../data/video/people.mp4"
+    video_file = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4'
     run_person_tracking(source=video_file, flip=False, use_popup=False)
 
 
 
-.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_21_0.png
+.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_27_0.png
 
 
 .. parsed-literal::

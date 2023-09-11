@@ -47,16 +47,16 @@ void MultipleLSTMCellTest::SetUp() {
     std::vector<size_t> hidden_memory_dims {1, hiddenSize};
     std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-    input_bias = CommonTestUtils::generate_float_numbers(inputSize, -0.25f, 0.0f);
-    input_weights = CommonTestUtils::generate_float_numbers(inputSize, 0.0f, 0.15f);
-    hidden_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
-    cell_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
-    weights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
-    weights_2_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
-    reccurrenceWeights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
-    bias_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize, -0.25f, 0.15f);
+    input_bias = ov::test::utils::generate_float_numbers(inputSize, -0.25f, 0.0f);
+    input_weights = ov::test::utils::generate_float_numbers(inputSize, 0.0f, 0.15f);
+    hidden_memory_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+    cell_memory_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+    weights_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
+    weights_2_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
+    reccurrenceWeights_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
+    bias_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize, -0.25f, 0.15f);
 
-    auto input_parameter = builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
     auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
@@ -207,7 +207,7 @@ void MultipleLSTMCellTest::switchToNgraphFriendlyModel() {
     std::vector<size_t> hidden_memory_dims {1, hiddenSize};
     std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-    auto input_parameter = builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
     auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
@@ -280,7 +280,7 @@ void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
     std::vector<size_t> hidden_memory_dims {1, hiddenSize};
     std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-    auto input_parameter = builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
     auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);

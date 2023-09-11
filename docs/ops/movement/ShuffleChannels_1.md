@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ShuffleChannels-1 - a data movement operation, 
+                which can be performed on a single input tensor.
+
 **Versioned name**: *ShuffleChannels-1*
 
 **Name**: *ShuffleChannels*
@@ -70,7 +74,8 @@ where ``group`` is the layer attribute described below.
 
 **Example**
 
-.. code-block:: cpp  
+.. code-block:: xml
+   :force: 
 
     <layer ... type="ShuffleChannels" ...>
         <data group="3" axis="1"/>

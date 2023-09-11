@@ -46,10 +46,10 @@ TDim number_of_priors(const v0::PriorBoxClustered* const op) {
     return {static_cast<typename TDim::value_type>(op->get_attrs().widths.size())};
 }
 
-template <class TOp, class TShape>
-std::vector<TShape> shape_infer(const TOp* const op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data) {
+template <class TOp, class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const TOp* const op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     auto out_size_rank = input_shapes[0].rank();
@@ -62,12 +62,12 @@ std::vector<TShape> shape_infer(const TOp* const op,
                           img_size_rank,
                           " and both must be 1-D");
 
-    auto output_shapes = std::vector<TShape>(1, TShape{2});
+    auto output_shapes = std::vector<TRShape>(1, TRShape{2});
 
-    if (auto out_size = get_input_const_data_as_shape<TShape>(op, 0, constant_data)) {
+    if (auto out_size = get_input_const_data_as_shape<TRShape>(op, 0, ta)) {
         NODE_VALIDATION_CHECK(op, out_size->size() == 2, "Output size must have two elements. Got: ", out_size->size());
 
-        using TDim = typename TShape::value_type;
+        using TDim = typename TRShape::value_type;
         const auto num_of_priors = prior_box::number_of_priors<TDim>(op);
         output_shapes.front().push_back((*out_size)[0] * (*out_size)[1] * num_of_priors * 4);
     } else {

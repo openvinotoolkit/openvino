@@ -2,7 +2,7 @@
 ade/0.1.2a
 onetbb/[>=2021.2.1]
 pugixml/[>=1.10]
-protobuf/[>=3.20.3]
+protobuf/3.21.12
 ittapi/[>=3.23.0]
 zlib/[>=1.2.8]
 opencl-icd-loader/2023.04.17
@@ -19,7 +19,7 @@ flatbuffers/[>=22.9.24]
 [tool_requires]
 cmake/[>=3.15]
 patchelf/[>=0.12]
-protobuf/[>=3.20.3]
+protobuf/3.21.9
 flatbuffers/[>=22.9.24]
 
 [options]

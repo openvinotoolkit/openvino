@@ -34,6 +34,7 @@ function addLegalNotice() {
 }
 
 $(document).ready(function () {
+    addFooter();
     createVersions();
     updateTitleTag();
     updateLanguageSelector();
@@ -46,6 +47,7 @@ $(document).ready(function () {
     initBenchmarkPickers();   // included with the new benchmarks page 
     initCollapsibleHeaders(); // included with the new benchmarks page
     createSphinxTabSets();
+    initSplide();
 });
 
 // Determine where we'd go if clicking on a version selector option
@@ -253,3 +255,84 @@ function initBenchmarkPickers() {
       $('#performance-information-frequently-asked-questions section p, #performance-information-frequently-asked-questions section table').hide();
     }
   }
+
+function addFooter() {
+    const footerAnchor = $('.footer');
+
+    fetch('/footer.html').then((response) => response.text()).then((text) => {
+        const footerContent = $(text);
+        footerAnchor.append(footerContent);
+    });
+}
+
+function initSplide() {
+  const slides = $('.splide__slide');
+  const height = (slides.length > 4) ? 96 + ((slides.length - 4) * 16) : 96
+  var splide = new Splide('.splide', {
+    direction         : 'ttb',
+    type              : 'loop',
+    height            : `${height}px`,
+    perPage           : 1,
+    autoplay          : true,
+    arrows            : false,
+    waitForTransition : true,
+    wheel             : true,
+    wheelSleep        : 250,
+  });
+  splide.mount();
+}
+
+// ---------- COVEO SEARCH -----------
+function selectResultViewType(type, gridButton, listButton) {
+    type === "grid" ? gridButton.click() : listButton.click();
+}
+
+function addViewTypeListeners() {
+    const resultViewTypeFromLs = window.localStorage.getItem('atomicResultViewType');
+    let list = document.getElementById("atomic-result-list");
+    var viewSelectorGrid = document.getElementById("view-selector-grid");
+    viewSelectorGrid.addEventListener('click', function () {
+        list.display = "grid";
+        window.localStorage.setItem('atomicResultViewType', "grid");
+        viewSelectorGrid.classList.add('selected');
+        viewSelectorList.classList.remove('selected');
+        selectResultViewType("grid", viewSelectorGrid, viewSelectorList);
+    });
+    var viewSelectorList = document.getElementById("view-selector-list");
+    viewSelectorList.addEventListener('click', function () {
+        list.display = "list";
+        window.localStorage.setItem('atomicResultViewType', "list");
+        viewSelectorList.classList.add('selected');
+        viewSelectorGrid.classList.remove('selected');
+        selectResultViewType("list", viewSelectorGrid, viewSelectorList);
+    });
+    selectResultViewType(resultViewTypeFromLs || "grid", viewSelectorGrid, viewSelectorList);
+}
+ 
+document.addEventListener('DOMContentLoaded', function () {
+    (async () => {
+        await customElements.whenDefined("atomic-search-interface"); 
+        const searchInterfaceSa = document.querySelector("#sa-search");
+        const searchInterface = document.querySelector("#search");
+        if (searchInterfaceSa) {
+            let ver = getCurrentVersion();
+            if (ver) {
+                searchInterfaceSa.innerHTML = searchInterfaceSa.innerHTML.replace('search.html', 'search.html#f-ovversion=' + ver);
+            }
+            await searchInterfaceSa.initialize({ 
+            accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
+            organizationId: "intelcorporationnonproduction2ybdyblf7",
+            });
+            searchInterfaceSa.executeFirstSearch(); 
+        }
+        if (searchInterface) {
+            await searchInterface.initialize({ 
+            accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
+            organizationId: "intelcorporationnonproduction2ybdyblf7",
+            });
+            searchInterface.executeFirstSearch(); 
+        }
+        addViewTypeListeners();
+    })();
+})
+// -----------------------------------

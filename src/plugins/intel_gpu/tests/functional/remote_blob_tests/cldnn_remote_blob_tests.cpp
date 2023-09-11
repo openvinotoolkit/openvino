@@ -23,7 +23,7 @@ using namespace ::testing;
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
 
-class RemoteBlob_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<bool> {
+class RemoteBlob_Test : public ov::test::TestsCommon, public testing::WithParamInterface<bool> {
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
     std::string deviceName;
@@ -31,7 +31,7 @@ protected:
 
 public:
     void SetUp() override {
-        deviceName = CommonTestUtils::DEVICE_GPU;
+        deviceName = ov::test::utils::DEVICE_GPU;
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) { // BATCH:GPU
             config =
@@ -74,7 +74,7 @@ TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
     // inference using remote blob
     auto inf_req_shared = exec_net.CreateInferRequest();
     auto cldnn_context = exec_net.GetContext();
-    cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
+    cl_context ctx = cldnn_context->as<ClContext>()->get();
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
     cl_int err;
 
@@ -190,7 +190,7 @@ TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
     // inference using remote blob
     auto inf_req_shared = exec_net.CreateInferRequest();
     auto cldnn_context = exec_net.GetContext();
-    cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
+    cl_context ctx = cldnn_context->as<ClContext>()->get();
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
 
     auto desc = net.getInputsInfo().begin()->second->getTensorDesc();
@@ -553,7 +553,7 @@ std::vector<bool> with_auto_batching {true, false};
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, RemoteBlob_Test, ::testing::ValuesIn(with_auto_batching),
         RemoteBlob_Test::getTestCaseName);
 
-class BatchedBlob_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
+class BatchedBlob_Test : public ov::test::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {
         num_batch = this->GetParam();
     };
@@ -574,7 +574,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn
 using TwoNetsParams = std::tuple<size_t,   // number of streams
                                  size_t>;  // number of requests
 
-class TwoNets_Test : public CommonTestUtils::TestsCommon,
+class TwoNets_Test : public ov::test::TestsCommon,
     public testing::WithParamInterface<TwoNetsParams> {
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();
@@ -614,7 +614,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
         net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
         net.getInputsInfo().begin()->second->setPrecision(Precision::FP32);
 
-        auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU,
+        auto exec_net = ie.LoadNetwork(net, ov::test::utils::DEVICE_GPU,
                                        {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)},
                                         {ov::hint::inference_precision.name(), "f32"}});
 

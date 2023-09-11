@@ -5,17 +5,6 @@
 #include "include/auto_unit_test.hpp"
 using namespace ov::mock_auto_plugin;
 
-// define a matcher to check if perf hint expects
-MATCHER_P(ComparePerfHint, perfHint, "Check if perf hint expects.") {
-    ov::Any arg_perfHint = "No PERFORMANCE_HINT";
-    auto itor = arg.find(ov::hint::performance_mode.name());
-    if (itor != arg.end()) {
-        arg_perfHint = itor->second;
-    }
-
-    return perfHint == arg_perfHint.as<std::string>();
-}
-
 using ConfigParams = std::tuple<std::string,               // virtual device name to load network
                                 std::vector<std::string>,  // hardware device name to expect loading network on
                                 ov::AnyMap>;                   // secondary property setting to device
@@ -125,7 +114,7 @@ public:
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"GPU"},
-            {{"DEVICE_PROPERTIES", "GPU:{PERFORMANCE_HINT:THROUGHPUT}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get perf_hint:tput
+            {{"DEVICE_PROPERTIES", "{GPU:{PERFORMANCE_HINT:THROUGHPUT}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get perf_hint:tput
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
@@ -170,22 +159,22 @@ public:
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"GPU"},
-            {{"DEVICE_PROPERTIES", "GPU:{ALLOW_AUTO_BATCHING:FALSE}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
+            {{"DEVICE_PROPERTIES", "{GPU:{ALLOW_AUTO_BATCHING:FALSE}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"CPU", "{ALLOW_AUTO_BATCHING:FALSE}"},
+            {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get default_hint:tput
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"DEVICE_PROPERTIES", "GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
+            {{"DEVICE_PROPERTIES", "{GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get default_hint:tput
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"DEVICE_PROPERTIES", "CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
+            {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint GPU: get default_hint:tput
         return testConfigs;
     }
@@ -238,12 +227,19 @@ TEST_P(NumStreamsAndDefaultPerfHintMockTest, NumStreamsAndDefaultPerfHintTest) {
             // HW default perf_hint
             HW_PerfHint = bIsAuto ? "LATENCY" : "THROUGHPUT";
         }
-        auto item = config.find(deviceName);
+
+        auto item = config.find(ov::device::properties.name());
         ov::AnyMap deviceConfigs;
         if (item != config.end()) {
+            ov::AnyMap devicesProperties;
             std::stringstream strConfigs(item->second.as<std::string>());
             // Parse the device properties to common property into deviceConfigs.
-            ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
+            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(deviceName);
+            if (it != devicesProperties.end()) {
+                std::stringstream strConfigs(it->second.as<std::string>());
+                ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
+            }
         }
         bool bNumStreams = deviceConfigs.find(ov::num_streams.name()) != deviceConfigs.end() ? true : false;
         if (bNumStreams && !isCPUHelper) {
@@ -296,12 +292,18 @@ TEST_P(PerHintAndDefaultPerfHintMockTest, PerfHintAndDefaultPerfHintTest) {
             // HW default perf_hint
             HW_PerfHint = bIsAuto ? "LATENCY" : "THROUGHPUT";
         }
-        auto item = config.find(deviceName);
+        auto item = config.find(ov::device::properties.name());
         ov::AnyMap deviceConfigs;
         if (item != config.end()) {
+            ov::AnyMap devicesProperties;
             std::stringstream strConfigs(item->second.as<std::string>());
             // Parse the device properties to common property into deviceConfigs.
-            ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
+            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(deviceName);
+            if (it != devicesProperties.end()) {
+                std::stringstream strConfigs(it->second.as<std::string>());
+                ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
+            }
         }
         auto itor = deviceConfigs.find(ov::hint::performance_mode.name());
         if (itor != deviceConfigs.end() && !isCPUHelper) {
@@ -310,7 +312,7 @@ TEST_P(PerHintAndDefaultPerfHintMockTest, PerfHintAndDefaultPerfHintTest) {
         EXPECT_CALL(
             *core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                        ::testing::Matcher<const std::string&>(deviceName),
+                        ::testing::Matcher<const std::string&>(StrEq(deviceName)),
                         ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
             .Times(1);
     }
@@ -354,10 +356,26 @@ TEST_P(SecPropAndDefaultPerfHintMockTest, SecPropAndDefaultPerfHintTest) {
             HW_PerfHint = bIsAuto ? "LATENCY" : "THROUGHPUT";
         }
 
+        auto item = config.find(ov::device::properties.name());
+        if (item != config.end()) {
+            ov::AnyMap deviceConfigs;
+            ov::AnyMap devicesProperties;
+            std::stringstream strConfigs(item->second.as<std::string>());
+            // Parse the device properties to common property into deviceConfigs.
+            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(deviceName);
+            if (it != devicesProperties.end()) {
+                // No default hint setting if device properties setting for hardware device.
+                // do not pass default perf_hint to HW
+                if (!isCPUHelper) {
+                    HW_PerfHint = "No PERFORMANCE_HINT";
+                }
+            }
+        }
         EXPECT_CALL(
             *core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                        ::testing::Matcher<const std::string&>(deviceName),
+                        ::testing::Matcher<const std::string&>(StrEq(deviceName)),
                         ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
             .Times(1);
     }

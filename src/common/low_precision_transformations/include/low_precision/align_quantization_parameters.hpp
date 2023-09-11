@@ -29,7 +29,7 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
  * [AlignQuantizationParameters](@ref openvino_docs_OV_UG_lpt_AlignQuantizationParameters) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::AlignQuantizationParameters : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::AlignQuantizationParameters : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("AlignQuantizationParameters", "0");
     AlignQuantizationParameters(const std::vector<ngraph::element::Type> defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support);

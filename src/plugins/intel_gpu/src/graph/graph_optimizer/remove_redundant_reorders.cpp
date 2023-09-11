@@ -275,7 +275,9 @@ void remove_redundant_reorders::run(program& p) {
             !r_node.get_primitive()->subtract_per_feature.empty() ||
             no_output_optimization ||
             r_node.has_fused_primitives() ||
-            r_node.get_primitive()->has_surface_input())
+            r_node.get_primitive()->has_surface_input() ||
+            (r_node.get_primitive()->weights_reorder_params &&
+             r_node.get_primitive()->weights_reorder_params->should_be_transposed()))
             continue;
 
         auto o_layout = r_node.get_output_layout();
@@ -449,7 +451,8 @@ void remove_redundant_reorders::run(program& p) {
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto& node_ptr = *itr++;
-        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1)
+        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 ||
+            node_ptr->get_dependencies().size() != 1 || node_ptr->is_dynamic())
             continue;
 
         auto& node = node_ptr->as<reorder>();
@@ -647,6 +650,14 @@ void remove_redundant_reorders::run(program& p) {
             continue;
 
         auto& reshape_input_node = dep_node.as<reshape>();
+
+        // In case of new shape infer we should not shrink reshapes chain if first reshape changes input rank, e.g.
+        // [a, b] -> reshape1 -> [a1, b1, c1] -> reshape2 -> [a2, b2, 0] and any of the reshapes has special_zero=true
+        // Configuration above will fail if we remove reshape1 node as attempt to handle special zero will fail due to small rank of input
+        if (p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
+            reshape_node.get_output_pshape().size() != dep_node.get_input_pshape().size() &&
+            (reshape_node.get_primitive()->special_zero || reshape_input_node.get_primitive()->special_zero))
+            continue;
 
         if (reshape_node.is_dynamic())
             continue;

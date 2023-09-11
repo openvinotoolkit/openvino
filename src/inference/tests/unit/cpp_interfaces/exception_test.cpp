@@ -18,14 +18,14 @@ public:
         TO_STATUS(IE_EXCEPTION_SWITCH(
             statusCode,
             ExceptionType,
-            InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION))
+            InferenceEngine::details::ThrowNow<ExceptionType>{IE_LOCATION_PARAM} <<= std::stringstream{}))
     }
 
     static InferenceEngine::StatusCode toStatusWrapperMsg(std::string& msg, InferenceEngine::ResponseDesc* resp) {
         TO_STATUS(IE_EXCEPTION_SWITCH(
             statusCode,
             ExceptionType,
-            InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << msg))
+            InferenceEngine::details::ThrowNow<ExceptionType>{IE_LOCATION_PARAM} <<= std::stringstream{} << msg))
     }
 };
 
@@ -72,7 +72,7 @@ TEST_F(ExceptionTests, throwAfterConvertStatusToClassContainMessage) {
     std::string refMessage = "Exception message!";
     auto actual = std::make_shared<WrapperClass<StatusCode::NOT_ALLOCATED>>();
     try {
-        CALL_STATUS_FNC(toStatusWrapperMsg, refMessage)
+        CALL_STATUS_FNC(toStatusWrapperMsg, refMessage);
     } catch (const NotAllocated& iex) {
         std::string actualMessage = iex.what();
         ASSERT_TRUE(actualMessage.find(refMessage) != std::string::npos);

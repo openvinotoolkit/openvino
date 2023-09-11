@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about OneHot-1 - a sequence processing operation, which 
+                can be performed on four required input tensors.
+
 **Versioned name**: *OneHot-1*
 
 **Category**: *Sequence processing*
@@ -52,7 +56,8 @@ The types of input scalars ``on_value`` and ``off_value`` should match and be eq
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="OneHot" ...>
         <data axis="-1"/>
@@ -77,7 +82,8 @@ The types of input scalars ``on_value`` and ``off_value`` should match and be eq
 
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="OneHot" ...>
         <data axis="1"/>

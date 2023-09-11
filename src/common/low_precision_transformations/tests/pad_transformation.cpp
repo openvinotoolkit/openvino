@@ -11,7 +11,7 @@
 
 #include <low_precision/pad.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/pad_function.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -19,22 +19,22 @@
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class PadTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -152,91 +152,91 @@ const std::vector<PadTransformationTestValues> deqWithoutSub = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {3.f}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {3.f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {3.f}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {3.f}}
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {3.f}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {3.f}}
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}}
         }
     },
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}}
         }
     },
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}}
         }
     },
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, {}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, {}, {}},
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, {}, {{3.f, 1.f, 2.f}}}
         }
     },
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, {}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, {}, {}},
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, {}, {{3.f, 1.f, 2.f}}}
         }
     }
@@ -267,72 +267,72 @@ const std::vector<PadTransformationTestValues> deqWithSub = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {3.f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {3.f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {3.f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {3.f}}
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {64.f}, {3.f}}
+            ov::element::i8,
+            {{ov::element::f32}, {64.f}, {3.f}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {64.f}, {3.f}}
+            ov::element::i8,
+            {{ov::element::f32}, {64.f}, {3.f}}
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}
         }
     },
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}
         }
     },
     // int8 subtraction with Convert from u8 to fp32
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
@@ -358,53 +358,53 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {64.f}, {3.f}}
+            ov::element::i8,
+            {{ov::element::f32}, {64.f}, {3.f}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {64.f}, {3.f}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, {64.f}, {3.f}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 1.f}, ngraph::element::f32, {1, 1, 9, 1}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 1.f}, ov::element::f32, {1, 1, 9, 1}}}
         }
     }
 };
@@ -427,39 +427,39 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode2 = {
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {3.f}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, {}, {3.f}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     }
@@ -487,41 +487,41 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{64.f, 64.f, 64.f, 32.f, 32.f, 32.f}, ngraph::element::f32, {1, 1, 6, 1}},
-                {{3.f, 3.f, 3.f, 2.f, 2.f, 2.f}, ngraph::element::f32, {1, 1, 6, 1}}
+                {ov::element::f32},
+                {{64.f, 64.f, 64.f, 32.f, 32.f, 32.f}, ov::element::f32, {1, 1, 6, 1}},
+                {{3.f, 3.f, 3.f, 2.f, 2.f, 2.f}, ov::element::f32, {1, 1, 6, 1}}
             }
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{0.f, 0.f, 64.f, 64.f, 64.f, 32.f, 32.f, 32.f, 0.f}, ngraph::element::f32, {1, 1, 9, 1}},
-                {{1.f, 1.f, 3.f, 3.f, 3.f, 2.f, 2.f, 2.f, 1.f}, ngraph::element::f32, {1, 1, 9, 1}}
+                {ov::element::f32},
+                {{0.f, 0.f, 64.f, 64.f, 64.f, 32.f, 32.f, 32.f, 0.f}, ov::element::f32, {1, 1, 9, 1}},
+                {{1.f, 1.f, 3.f, 3.f, 3.f, 2.f, 2.f, 2.f, 1.f}, ov::element::f32, {1, 1, 9, 1}}
             }
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {64.f},
                 {3.f}
             }
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{0.f, 0.f, 64.f, 64.f, 64.f, 64.f, 64.f, 64.f, 0.f}, ngraph::element::f32, {1, 1, 9, 1}},
+                {ov::element::f32},
+                {{0.f, 0.f, 64.f, 64.f, 64.f, 64.f, 64.f, 64.f, 0.f}, ov::element::f32, {1, 1, 9, 1}},
                 {3.f}
             }
         }
@@ -550,42 +550,42 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {},
-                {{3.f, 3.f, 3.f, 2.f, 2.f, 2.f}, ngraph::element::f32, {1, 1, 6, 1}}
+                {{3.f, 3.f, 3.f, 2.f, 2.f, 2.f}, ov::element::f32, {1, 1, 6, 1}}
             }
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {},
-                {{1.f, 1.f, 3.f, 3.f, 3.f, 2.f, 2.f, 2.f, 1.f}, ngraph::element::f32, {1, 1, 9, 1}}
+                {{1.f, 1.f, 3.f, 3.f, 3.f, 2.f, 2.f, 2.f, 1.f}, ov::element::f32, {1, 1, 9, 1}}
             }
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {64.f},
                 {3.f}
             }
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{0.f, 0.f, 64.f, 64.f, 64.f, 64.f, 64.f, 64.f, 0.f}, ngraph::element::f32, {1, 1, 9, 1}},
-                {{1.f, 1.f, 3.f, 3.f, 3.f, 3.f, 3.f, 3.f, 1.f}, ngraph::element::f32, {1, 1, 9, 1}}
+                {ov::element::f32},
+                {{0.f, 0.f, 64.f, 64.f, 64.f, 64.f, 64.f, 64.f, 0.f}, ov::element::f32, {1, 1, 9, 1}},
+                {{1.f, 1.f, 3.f, 3.f, 3.f, 3.f, 3.f, 3.f, 1.f}, ov::element::f32, {1, 1, 9, 1}}
             }
         }
     },
@@ -608,21 +608,21 @@ const std::vector<PadTransformationTestValues> testValuesForEdgeMode = {
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}
+                {ov::element::f32},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}}
             }
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 6.f}, ngraph::element::f32, {1, 1, 9, 1}},
-                {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 6.f}, ngraph::element::f32, {1, 1, 9, 1}}
+                {ov::element::f32},
+                {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 6.f}, ov::element::f32, {1, 1, 9, 1}},
+                {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 6.f}, ov::element::f32, {1, 1, 9, 1}}
             }
         }
     },
@@ -645,21 +645,21 @@ const std::vector<PadTransformationTestValues> testValuesForReflectMode = {
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}
+                {ov::element::f32},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}}
             }
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}
+                {ov::element::f32},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}}
             },
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
@@ -682,21 +682,21 @@ const std::vector<PadTransformationTestValues> testValuesForSymetricMode = {
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}
+                {ov::element::f32},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}}
             }
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{2.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 6.f}, ngraph::element::f32, {1, 1, 9, 1}},
-                {{2.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 6.f}, ngraph::element::f32, {1, 1, 9, 1}}
+                {ov::element::f32},
+                {{2.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 6.f}, ov::element::f32, {1, 1, 9, 1}},
+                {{2.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 6.f}, ov::element::f32, {1, 1, 9, 1}}
             }
         }
     },
@@ -730,26 +730,26 @@ const std::vector<PadTransformationTestValues> testValuesForDynamicRank = {
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {3.f}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, {}, {3.f}},
+            ov::element::f32,
             {{}, {}, {}},
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{3.f, 1.f, 2.f}}},
+            ov::element::f32,
             {{}, {}, {}},
         }
     },

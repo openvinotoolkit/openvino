@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to use the Benchmark C++ Tool to 
+                 estimate deep learning inference performance on supported 
+                 devices.
+
+
 This page demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
 
 .. note::
@@ -147,7 +153,8 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
 
 .. scrollbox::
 
-   .. code-block::
+   .. code-block:: sh
+      :force:
 
       [Step 1/11] Parsing and validating input arguments
       [ INFO ] Parsing input parameters

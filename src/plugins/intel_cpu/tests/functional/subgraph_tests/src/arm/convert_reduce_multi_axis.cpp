@@ -45,16 +45,16 @@ public:
         result << "type=" << reductionType << "_";
         result << "IS=(";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
-        result << ")_axes=" << CommonTestUtils::vec2str(axes) << "_";
+        result << ")_axes=" << ov::test::utils::vec2str(axes) << "_";
         return result.str();
     }
 
 protected:
     int numberOfExpectedReduce;
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<int> axes;
         bool keepDims = true;
         std::vector<InputShape> inputShapes;
@@ -63,7 +63,10 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         std::vector<size_t> shapeAxes;
         shapeAxes.push_back(axes.size());

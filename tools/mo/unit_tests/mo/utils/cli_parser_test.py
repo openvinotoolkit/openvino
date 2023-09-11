@@ -18,10 +18,10 @@ from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_all_cli_parser, \
     get_mo_convert_params
 from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
-from openvino.tools.mo.convert import InputCutInfo, LayoutMap
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout
+from openvino.tools.mo import LayoutMap, InputCutInfo
 
 
 class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
@@ -2041,7 +2041,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
                                                'log_level', 'input', 'output', 'mean_values', 'scale_values', 'source_layout',
                                                'target_layout', 'layout', 'compress_to_fp16', 'transform', 'extensions',
                                                'batch', 'silent', 'version', 'progress', 'stream_output',
-                                               'transformations_config', 'example_input'},
+                                               'transformations_config', 'example_input', 'share_weights'},
             'Caffe*-specific parameters:': {'input_proto', 'caffe_parser_path', 'k', 'disable_omitting_optional',
                                             'enable_flattening_nested_params'},
             'TensorFlow*-specific parameters:': {'input_model_is_text', 'input_checkpoint', 'input_meta_graph',

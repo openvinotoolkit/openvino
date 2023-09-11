@@ -2,20 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/split.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
-#include "gmock/gmock.h"
-#include "ngraph/ngraph.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "sequnce_generator.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 TEST(type_prop, split_v1_axis_const_positive) {
-    const auto data = make_shared<op::Parameter>(element::f16, Shape{2, 3, 4});
-    const auto axis = op::Constant::create(element::i64, {}, {1});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f16, Shape{2, 3, 4});
+    const auto axis = ov::op::v0::Constant::create(element::i64, {}, {1});
     constexpr size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -27,8 +31,8 @@ TEST(type_prop, split_v1_axis_const_positive) {
 }
 
 TEST(type_prop, split_v1_axis_const_negative) {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    const auto axis = op::Constant::create(element::i64, {}, {-2});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 6});
+    const auto axis = ov::op::v0::Constant::create(element::i64, {}, {-2});
     constexpr size_t num_splits = 2;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -40,8 +44,8 @@ TEST(type_prop, split_v1_axis_const_negative) {
 }
 
 TEST(type_prop, split_v1_axis_const_data_axis_dim_known) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 12, Dimension::dynamic()});
-    const auto axis = op::Constant::create(element::i32, {}, {1});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{2, 12, Dimension::dynamic()});
+    const auto axis = ov::op::v0::Constant::create(element::i32, {}, {1});
     constexpr size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -52,8 +56,8 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_known) {
 
 TEST(type_prop, split_v1_axis_const_only_data_axis_dim_known) {
     const auto data =
-        make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
-    const auto axis = op::Constant::create(element::i16, {}, {0});
+        make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
+    const auto axis = ov::op::v0::Constant::create(element::i16, {}, {0});
     constexpr size_t num_splits = 2;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -65,8 +69,8 @@ TEST(type_prop, split_v1_axis_const_only_data_axis_dim_known) {
 }
 
 TEST(type_prop, split_v1_axis_const_data_axis_dim_unknown) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension::dynamic(), 3, 5});
-    const auto axis = op::Constant::create(element::i8, {}, {1});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{4, Dimension::dynamic(), 3, 5});
+    const auto axis = ov::op::v0::Constant::create(element::i8, {}, {1});
     constexpr size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -77,8 +81,9 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_unknown) {
 }
 
 TEST(type_prop, split_v1_axis_const_data_axis_dim_interval_known_divisible) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension(3, 6), Dimension(3, 6), 5});
-    const auto axis = op::Constant::create(element::i8, {}, {1});
+    const auto data =
+        make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{4, Dimension(3, 6), Dimension(3, 6), 5});
+    const auto axis = ov::op::v0::Constant::create(element::i8, {}, {1});
     constexpr size_t num_splits = 2;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -90,8 +95,8 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_interval_known_divisible) {
 }
 
 TEST(type_prop, split_v1_axis_const_data_axis_dim_interval_known_upper_bound_divisible) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension(2, 4), 3, 5});
-    const auto axis = op::Constant::create(element::i8, {}, {1});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{4, Dimension(2, 4), 3, 5});
+    const auto axis = ov::op::v0::Constant::create(element::i8, {}, {1});
     constexpr size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -101,8 +106,8 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_interval_known_upper_bound_div
 }
 
 TEST(type_prop, split_v1_axis_const_invalid_data_axis_dim_interval_known) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension(1, 2), 3, 5});
-    const auto axis = op::Constant::create(element::i8, {}, {1});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{4, Dimension(1, 2), 3, 5});
+    const auto axis = ov::op::v0::Constant::create(element::i8, {}, {1});
     constexpr size_t num_splits = 3;
 
     OV_EXPECT_THROW(const auto split = make_shared<op::v1::Split>(data, axis, num_splits),
@@ -112,8 +117,8 @@ TEST(type_prop, split_v1_axis_const_invalid_data_axis_dim_interval_known) {
 }
 
 TEST(type_prop, split_v1_axis_const_only_data_rank_known) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    const auto axis = op::Constant::create(element::u64, {}, {1});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto axis = ov::op::v0::Constant::create(element::u64, {}, {1});
     constexpr size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -123,8 +128,8 @@ TEST(type_prop, split_v1_axis_const_only_data_rank_known) {
 }
 
 TEST(type_prop, split_v1_axis_param_only_data_rank_known) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    const auto axis = make_shared<op::Parameter>(element::u32, PartialShape{});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto axis = make_shared<ov::op::v0::Parameter>(element::u32, PartialShape{});
     constexpr size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -134,8 +139,8 @@ TEST(type_prop, split_v1_axis_param_only_data_rank_known) {
 }
 
 TEST(type_prop, split_v1_axis_const_data_rank_unknown) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto axis = op::Constant::create(element::u16, {}, {2});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = ov::op::v0::Constant::create(element::u16, {}, {2});
     constexpr size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -145,8 +150,8 @@ TEST(type_prop, split_v1_axis_const_data_rank_unknown) {
 }
 
 TEST(type_prop, split_v1_axis_param_data_rank_unknown) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto axis = make_shared<op::Parameter>(element::u8, PartialShape{});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = make_shared<ov::op::v0::Parameter>(element::u8, PartialShape{});
     constexpr size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -156,8 +161,8 @@ TEST(type_prop, split_v1_axis_param_data_rank_unknown) {
 }
 
 TEST(type_prop, split_v1_axis_param_dynamic_ranks) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto axis = make_shared<op::Parameter>(element::u8, PartialShape::dynamic());
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = make_shared<ov::op::v0::Parameter>(element::u8, PartialShape::dynamic());
     constexpr size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -167,8 +172,8 @@ TEST(type_prop, split_v1_axis_param_dynamic_ranks) {
 }
 
 TEST(type_prop, split_v1_invalid_axis_et_f32) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 6});
-    auto axis = op::Constant::create(element::f32, Shape{}, {1});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 6});
+    auto axis = ov::op::v0::Constant::create(element::f32, Shape{}, {1});
 
     OV_EXPECT_THROW(const auto split = make_shared<op::v1::Split>(data, axis, 2),
                     NodeValidationFailure,
@@ -176,8 +181,8 @@ TEST(type_prop, split_v1_invalid_axis_et_f32) {
 }
 
 TEST(type_prop, split_v1_invalid_axis_et_boolean) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 6});
-    auto axis = op::Constant::create(element::boolean, Shape{}, {1});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 6});
+    auto axis = ov::op::v0::Constant::create(element::boolean, Shape{}, {1});
 
     OV_EXPECT_THROW(const auto split = make_shared<op::v1::Split>(data, axis, 2),
                     NodeValidationFailure,
@@ -185,8 +190,8 @@ TEST(type_prop, split_v1_invalid_axis_et_boolean) {
 }
 
 TEST(type_prop, split_v1_invalid_axis_not_a_scalar) {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    auto axis = op::Constant::create(element::i64, Shape{2}, {0, 1});
+    auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 6});
+    auto axis = ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
 
     OV_EXPECT_THROW(const auto split = make_shared<op::v1::Split>(data, axis, 1),
                     NodeValidationFailure,
@@ -194,8 +199,8 @@ TEST(type_prop, split_v1_invalid_axis_not_a_scalar) {
 }
 
 TEST(type_prop, split_v1_invalid_num_splits) {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 6});
+    auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
     constexpr size_t num_splits = 0;
 
     OV_EXPECT_THROW(const auto split = make_shared<op::v1::Split>(data, axis, num_splits),
@@ -204,8 +209,8 @@ TEST(type_prop, split_v1_invalid_num_splits) {
 }
 
 TEST(type_prop, split_v1_invalid_axis_value) {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    auto axis = op::Constant::create(element::i64, Shape{}, {-5});
+    auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 6});
+    auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, {-5});
     constexpr size_t num_splits = 4;
 
     // axis value not in the range [-2, 1]
@@ -215,8 +220,8 @@ TEST(type_prop, split_v1_invalid_axis_value) {
 }
 
 TEST(type_prop, split_v1_incompatible_data_shape_with_num_splits) {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 6});
+    auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
     constexpr size_t num_splits = 4;
 
     OV_EXPECT_THROW(const auto split = make_shared<op::v1::Split>(data, axis, num_splits),
@@ -276,7 +281,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_dynamic_shape,
 TEST_P(SplitTest, use_default_ctor) {
     constexpr auto dtype = element::f32;
     const auto param = make_shared<op::v0::Parameter>(dtype, p_shape);
-    const auto axis_node = make_shared<op::Constant>(element::i32, Shape{}, axis);
+    const auto axis_node = make_shared<ov::op::v0::Constant>(element::i32, Shape{}, axis);
 
     const auto split = make_shared<op::v1::Split>();
     split->set_arguments(NodeVector{param, axis_node});
@@ -296,7 +301,7 @@ TEST_P(SplitTest, labels_propagation) {
 
     set_shape_labels(p_shape, in_labels);
     const auto param = make_shared<op::v0::Parameter>(element::f32, p_shape);
-    const auto axis_node = make_shared<op::Constant>(element::i32, Shape{}, axis);
+    const auto axis_node = make_shared<ov::op::v0::Constant>(element::i32, Shape{}, axis);
     const auto split = make_shared<op::v1::Split>(param, axis_node, num_splits);
 
     const auto outputs = split->outputs();
@@ -357,8 +362,8 @@ TEST_P(SplitBoundTest, propagate_label_and_dynamic_value) {
     set_shape_labels(p_shape, in_exp_labels.first);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<op::Parameter>(et, p_shape);
-    const auto labeled_shape_of = std::make_shared<op::ShapeOf>(labeled_param);
+    const auto labeled_param = std::make_shared<ov::op::v0::Parameter>(et, p_shape);
+    const auto labeled_shape_of = std::make_shared<op::v0::ShapeOf>(labeled_param);
 
     const auto zero = std::vector<int64_t>{0};
     const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);

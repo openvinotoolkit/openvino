@@ -22,6 +22,7 @@ OP_CONVERTER(concat);
 OP_CONVERTER(conditional_block);
 OP_CONVERTER(conv2d);
 OP_CONVERTER(conv2d_transpose);
+OP_CONVERTER(cos);
 OP_CONVERTER(cumsum);
 OP_CONVERTER(deformable_conv);
 OP_CONVERTER(dequantize_linear);
@@ -81,6 +82,7 @@ OP_CONVERTER(pool2d);
 OP_CONVERTER(prior_box);
 OP_CONVERTER(quantize_linear);
 OP_CONVERTER(range);
+OP_CONVERTER(reduce_all);
 OP_CONVERTER(reduce_max);
 OP_CONVERTER(reduce_mean);
 OP_CONVERTER(reduce_min);
@@ -96,12 +98,14 @@ OP_CONVERTER(scale);
 OP_CONVERTER(select_input);
 OP_CONVERTER(set_value);
 OP_CONVERTER(shape);
+OP_CONVERTER(share_data);
+OP_CONVERTER(sigmoid);
+OP_CONVERTER(silu);
+OP_CONVERTER(sin);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
 OP_CONVERTER(softshrink);
-OP_CONVERTER(sigmoid);
-OP_CONVERTER(silu);
 OP_CONVERTER(split);
 OP_CONVERTER(sqrt);
 OP_CONVERTER(squeeze);
@@ -140,6 +144,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"conditional_block", op::conditional_block},
             {"conv2d", op::conv2d},
             {"conv2d_transpose", op::conv2d_transpose},
+            {"cos", op::cos},
             {"cumsum", op::cumsum},
             {"deformable_conv", op::deformable_conv},
             {"deformable_conv_v1", op::deformable_conv},
@@ -205,6 +210,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"prior_box", op::prior_box},
             {"quantize_linear", op::quantize_linear},
             {"range", op::range},
+            {"reduce_all", op::reduce_all},
             {"reduce_max", op::reduce_max},
             {"reduce_mean", op::reduce_mean},
             {"reduce_min", op::reduce_min},
@@ -220,12 +226,14 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"select_input", op::select_input},
             {"set_value", op::set_value},
             {"shape", op::shape},
+            {"share_data", op::share_data},
+            {"sigmoid", op::sigmoid},
+            {"silu", op::silu},
+            {"sin", op::sin},
             {"slice", op::slice},
             {"softmax", op::softmax},
             {"softplus", op::softplus},
             {"softshrink", op::softshrink},
-            {"sigmoid", op::sigmoid},
-            {"silu", op::silu},
             {"split", op::split},
             {"sqrt", op::sqrt},
             {"squeeze2", op::squeeze},

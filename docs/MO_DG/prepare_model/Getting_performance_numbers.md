@@ -10,33 +10,24 @@ information on using ITT and Intel® VTune™ Profiler to get performance insigh
 Test performance with the benchmark_app
 ###########################################################
 
-Prerequisites
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-To run benchmarks, you need both OpenVINO developer tools and Runtime installed. Follow the 
-:doc:`Installation guide <openvino_docs_install_guides_install_dev_tools>` and make sure to install the latest 
-general release package with support for frameworks of the models you want to test.
 
-To test performance of your model, make sure you :doc:`prepare the model for use with OpenVINO <openvino_docs_model_processing_introduction>`. 
-For example, if you use :doc:`OpenVINO's automation tools <omz_tools_downloader>`, these two lines of code will download the 
-resnet-50-tf and convert it to OpenVINO IR.
+You can run OpenVINO benchmarks in both C++ and Python APIs, yet the experience differs in each case.
+The Python one is part of OpenVINO Runtime installation, while C++ is available as a code sample.
+For a detailed description, see: 
+* :doc:`benchmark_app for C++ <openvino_inference_engine_samples_benchmark_app_README>` 
+* :doc:`benchmark_app for Python <openvino_inference_engine_tools_benchmark_tool_README>`.
 
-.. code-block:: bash
-
-   omz_downloader --name resnet-50-tf
-   omz_converter --name resnet-50-tf
+Make sure to install the latest release package with support for frameworks of the models you want to test.
+For the most reliable performance benchmarks, :doc:`prepare the model for use with OpenVINO <openvino_docs_model_processing_introduction>`. 
 
 
 Running the benchmark application
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-For a detailed description, see the dedicated articles: 
-:doc:`benchmark_app for C++ <openvino_inference_engine_samples_benchmark_app_README>` and 
-:doc:`benchmark_app for Python <openvino_inference_engine_tools_benchmark_tool_README>`.
-
 The benchmark_app includes a lot of device-specific options, but the primary usage is as simple as:
 
-.. code-block:: bash
+.. code-block:: sh
 
    benchmark_app -m <model> -d <device> -i <input>
 
@@ -47,7 +38,7 @@ performance settings that contain command-line equivalents in the Benchmark app.
 While these settings provide really low-level control for the optimal model performance on the *specific* device, 
 it is recommended to always start performance evaluation with the :doc:`OpenVINO High-Level Performance Hints <openvino_docs_OV_UG_Performance_Hints>` first, like so:
 
-.. code-block:: bash
+.. code-block:: sh
 
    # for throughput prioritization
    benchmark_app -hint tput -m <model> -d <device>

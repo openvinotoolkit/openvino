@@ -66,8 +66,6 @@ public:
         return isGrouped && 1 == groupOC && 1 == groupIC;
     }
 
-    bool isWinograd() const { return isWino; }
-
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
@@ -96,6 +94,19 @@ private:
                                 bool constWeight);
     };
 
+    class ConvolutionSumExecutor : public DnnlExecutor {
+        public:
+            ConvolutionSumExecutor(const dnnl::primitive_desc& pd,
+                    const dnnl::memory::desc& inMemDesc,
+                    const dnnl::memory::desc& weightMemDesc,
+                    const dnnl::memory::desc& outMemDesc,
+                    const dnnl::engine& engine,
+                    bool constWeight);
+
+        private:
+            void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) override;
+    };
+
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -119,7 +130,6 @@ private:
     bool withSum;
     bool withDWConv;
     bool isGrouped;
-    bool isPrimitivesPriorityDefined = false;
     bool withSumBroadcast = false;
     bool preferLegacyPostOps = false;
     bool preferLegacyZeroPoint = false;
@@ -152,7 +162,6 @@ private:
     const size_t X_AXIS = 0;
     const size_t Y_AXIS = 1;
 
-    bool isWino = false;
     static const bool isBrgConvAvailable;
     std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to use Model Pass transformation class to take entire 
+                 ov::Model as input and process it.
+
+
 ``:ref:`ov::pass::ModelPass <doxid-classov_1_1pass_1_1_model_pass>``` is used for transformations that take entire ``:ref:`ov::Model <doxid-classov_1_1_model>``` as an input and process it.
 
 Template for ModelPass transformation class

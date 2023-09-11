@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: General optimizations include application-level optimization 
+                 methods that improve data pipelining, pre-processing 
+                 acceleration and both latency and throughput.
+
+
 This article covers application-level optimization techniques, such as asynchronous execution, to improve data pipelining, pre-processing acceleration and so on. 
 While the techniques (e.g. pre-processing) can be specific to end-user applications, the associated performance improvements are general and shall improve any target scenario -- both latency and throughput.
 
@@ -40,13 +46,13 @@ In the example below, inference is applied to the results of the video decoding.
 
 Below are example-codes for the regular and async-based approaches to compare:
 
-* Normally, the frame is captured with OpenCV and then immediately processed:<br>
+* Normally, the frame is captured with OpenCV and then immediately processed:
 
   .. doxygensnippet:: docs/snippets/dldt_optimization_guide8.cpp
      :language: cpp
      :fragment: [part8]
 
-* In the "true" async mode, the ``NEXT`` request is populated in the main (application) thread, while the ``CURRENT`` request is processed:<br>
+* In the "true" async mode, the ``NEXT`` request is populated in the main (application) thread, while the ``CURRENT`` request is processed:
 
   .. doxygensnippet:: docs/snippets/dldt_optimization_guide9.cpp
      :language: cpp
@@ -54,7 +60,7 @@ Below are example-codes for the regular and async-based approaches to compare:
 
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
-Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2023.0/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2023.0/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <openvino_inference_engine_samples_benchmark_app_README>` for complete examples of the Async API in action.
+Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2023.1/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2023.1/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <openvino_inference_engine_samples_benchmark_app_README>` for complete examples of the Async API in action.
 
 .. note::
 

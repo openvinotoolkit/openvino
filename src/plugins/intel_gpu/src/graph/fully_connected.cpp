@@ -149,18 +149,20 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     ov::op::v0::MatMul op;
     op.set_transpose_b(true);
-    std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
 
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
+    bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
+                                              input_layout.format.value;
 
-    format::type output_format = is_static ? get_preferred_format(node, impl_param) :
-                                             input_layout.format.value;
+    if (node.get_preferred_output_fmt() != format::any)
+        output_format = node.get_preferred_output_fmt();
 
     return { layout{output_shapes[0], output_type, output_format} };
 }
@@ -215,6 +217,11 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     json_composite fc_info;
     fc_info.add("weights id", weights_id);
     fc_info.add("bias id", bias_id);
+    fc_info.add("compressed weights", desc->compressed_weights ? "true" : "false");
+    if (desc->compressed_weights) {
+        fc_info.add("decompression scale id", desc->decompression_scale);
+        fc_info.add("decompression zp id", desc->decompression_zero_point);
+    }
 
     node_info->add("fully connected info", fc_info);
     node_info->dump(primitive_description);

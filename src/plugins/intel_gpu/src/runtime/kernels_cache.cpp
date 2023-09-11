@@ -170,7 +170,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 kernels_cache::kernels_cache(engine& engine,
                              const ExecutionConfig& config,
                              uint32_t prog_id,
-                             InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                             std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
                              const std::vector<std::string>& batch_header_str)
     : _engine(engine)
     , _task_executor(task_executor)
@@ -426,7 +426,7 @@ void kernels_cache::build_all() {
 
     if (_task_executor && use_threads) {
         std::exception_ptr exception;
-        std::vector<InferenceEngine::Task> tasks;
+        std::vector<ov::threading::Task> tasks;
         for (size_t idx = 0; idx < batches.size(); idx++) {
             auto& batch = batches[idx];
             tasks.push_back([this, &_build_engine, &batch, &exception] {
@@ -437,7 +437,7 @@ void kernels_cache::build_all() {
                 }
             });
         }
-        _task_executor->runAndWait(tasks);
+        _task_executor->run_and_wait(tasks);
         tasks.clear();
 
         if (exception) {
@@ -583,7 +583,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
         for (auto& p : err.getBuildLog()) {
             err_log += p.second + '\n';
         }
-        IE_THROW() << err_log;
+        OPENVINO_THROW(err_log);
     }
 }
 

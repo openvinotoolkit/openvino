@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Pad-1 - a data movement operation, 
+                which can be performed on three required and one optional input tensor.
+
 **Versioned name**: *Pad-1*
 
 **Category**: *Data movement*
@@ -114,7 +118,8 @@ depending on the *pad_mode*.
 
 **Example**: constant mode
 
-.. code-block::  cpp  
+.. code-block:: xml
+   :force: 
 
     <layer ... type="Pad" ...>
         <data pad_mode="constant"/>
@@ -149,7 +154,8 @@ depending on the *pad_mode*.
 
 **Example**: edge mode
 
-.. code-block::  cpp  
+.. code-block:: xml
+   :force:
 
     <layer ... type="Pad" ...>
         <data pad_mode="edge"/>

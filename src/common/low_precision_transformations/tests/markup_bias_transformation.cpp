@@ -9,7 +9,7 @@
 #include <memory>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/markup_bias_function.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -49,7 +49,8 @@ protected:
         actualFunction = ngraph::builder::subgraph::MarkupBiasFunction::get(precision,
                                                                             test_values.input_shape,
                                                                             test_values.bias_shape,
-                                                                            layer_type);
+                                                                            layer_type,
+                                                                            false);
         SimpleLowPrecisionTransformer transformer;
         transformer.transform(actualFunction);
     }
