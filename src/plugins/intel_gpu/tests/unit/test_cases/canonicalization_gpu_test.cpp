@@ -236,7 +236,7 @@ struct fusing_gather_eltwise_params {
 
 std::vector<std::pair<Shapes, fusing_gather_eltwise_params>> fusing_gather_eltwise_shapes_with_params {
     {
-        {{{}, {}}, {{4624, 4, 1, 1}, {1, 1, 1, 1}, {4624, 1, 1, 1}}, {{4624, 1, 1, 1}}},
+        {{{}, {}}, {{4624, 4, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {4624, 1, 1, 1}}, {{4624, 1, 1, 1}}},
         {{4624, 4}, {4624}, 1, 0, true}
     }
 };
@@ -261,7 +261,7 @@ TEST(canonicalization, fusing_gather_eltwise) {
         topology.add(eltwise("add", {input_info("gather_second"), input_info("mul")}, eltwise_mode::sum));
         topology.add(reorder("out_reorder", input_info("add"), format::bfyx, data_types::f32));
 
-        canonicalization_test(topology, "gather_second", std::get<1>(shapes.first), std::get<2>(shapes.first), true);
+        canonicalization_test(topology, "gather_first", std::get<1>(shapes.first), std::get<2>(shapes.first), true);
     }
 }
 
