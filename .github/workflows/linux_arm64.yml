@@ -1,4 +1,4 @@
-name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
+name: Linux ARM64 with Conan (Ubuntu 20.04, Python 3.11)
 on:
   schedule:
     # run daily at 00:00
@@ -40,7 +40,6 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      NUM_PROC: 2
       BUILD_TYPE: Release
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       BUILD_DIR: ${{ github.workspace }}/build
@@ -61,11 +60,6 @@ jobs:
             git submodule update --init -- ${{ env.OPENVINO_REPO }}/thirdparty/gtest
             git submodule update --init -- ${{ env.OPENVINO_REPO }}/thirdparty/open_model_zoo
           popd
-
-      - name: Create Directories
-        run: |
-          mkdir -p ${{ env.BUILD_DIR }}
-          mkdir -p ${{ env.INSTALL_DIR }}
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v4
@@ -124,13 +118,6 @@ jobs:
           restore-keys: |
             ${{ github.job }}-linux-arm64
 
-      - name: Get tools versions
-        run: |
-          ninja --version
-          ccache --version
-          python3 --version
-          cmake --version
-
       - name: Install conan and dependencies
         run: |
           python3 -m pip install conan
@@ -183,7 +170,6 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=${{ env.BUILD_DIR }}/dependencies/conan_toolchain.cmake \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DARM_COMPUTE_SCONS_JOBS=${{ env.NUM_PROC }} \
             -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DENABLE_PYTHON_PACKAGING=ON \
