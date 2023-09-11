@@ -36,6 +36,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableDynamicShapesSupport();
+    k.EnableWeightsCompression();
     return k;
 }
 

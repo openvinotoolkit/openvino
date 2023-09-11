@@ -130,6 +130,7 @@ public:
                 uint32_t asym_w_quantization : 1;
                 uint32_t asym_d_quantization : 1;
                 uint32_t dynamic_shapes : 1;
+                uint32_t compressed_weights : 1;
 
                 union dedicated_t {
                     struct argm_t {
@@ -318,6 +319,7 @@ public:
     void EnablePoolRemainder(PoolRemainder r);
     void EnablePoolDilation() { key.restrict.val.dedicated.pooling.dilation = 1; }
     void EnablePoolIndicesOutput() { key.restrict.val.dedicated.pooling.indices_output = 1; }
+    void EnableWeightsCompression() { key.restrict.val.compressed_weights = 1; }
     void EnableQuantization(QuantizationType q);
     void EnablePositionSensitivePooling() { key.restrict.val.dedicated.pooling.position_sensitive = 1; }
     void EnableDilation() { key.restrict.val.dedicated.conv.dilation = 1; }

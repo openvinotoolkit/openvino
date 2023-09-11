@@ -26,9 +26,18 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<fully_connected>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
+        const auto& desc = instance.get_typed_desc<fully_connected>();
 
         args.weights = instance.weights_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
+
+        args.inputs = { instance.input_memory_ptr(0) };
+        size_t in_id = instance.bias_term() ? 3 : 2;
+        if (!desc->decompression_scale.empty())
+            args.inputs.push_back(instance.dep_memory_ptr(in_id++));
+
+        if (!desc->decompression_zero_point.empty())
+            args.inputs.push_back(instance.dep_memory_ptr(in_id));
 
         return args;
     }
@@ -72,6 +81,27 @@ public:
 
             std::vector<layout> layouts{input0_layout, input1_layout};
 
+            bool has_zp = !primitive->decompression_zero_point.empty();
+            bool has_scale = !primitive->decompression_scale.empty();
+
+            size_t offset = primitive->bias.empty() ? 2 : 3;
+            const auto& weights_pshape = input1_layout.get_partial_shape();
+            if (has_scale) {
+                auto scale_layout = input_layouts[offset++];
+                if (input1_pshape.size() != 2) {
+                    scale_layout.set_partial_shape(reshape_to_2d(scale_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
+                }
+                layouts.push_back(scale_layout);
+            }
+
+            if (has_zp) {
+                auto zp_layout = input_layouts[offset];
+                if (input1_pshape.size() != 2) {
+                    zp_layout.set_partial_shape(reshape_to_2d(zp_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
+                }
+                layouts.push_back(zp_layout);
+            }
+
             return layouts;
         };
 
@@ -104,6 +134,17 @@ public:
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(progam);
         optional_params.allowInputReordering = true;
+
+        bool commpressed = !primitive->decompression_scale.empty();
+        bool with_zp = !primitive->decompression_zero_point.empty();
+        if (commpressed) {
+            params.compressed = true;
+            params.decompression_scale = convert_data_tensor(input_layouts[2]);
+            if (with_zp) {
+                params.has_decompression_zp = true;
+                params.decompression_zero_point = convert_data_tensor(input_layouts[3]);
+            }
+        }
 
         if (primitive->input_size != 3)
             params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
