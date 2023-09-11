@@ -123,7 +123,11 @@ ov::TensorVector Reference::prepareOutputs() const {
         void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().getData();
         ov::Shape shape = ovCoreNode->get_output_partial_shape(i).rank().get_length() == 0 ?
                 ov::Shape{} : getChildEdgesAtPort(i)[0]->getMemory().getStaticDims();
-        outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape, dstDataPtr));
+        if (dstDataPtr != nullptr) {
+            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape, dstDataPtr));
+        } else {
+            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape));
+        }
     }
     return outputs;
 }
