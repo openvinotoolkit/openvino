@@ -8,19 +8,28 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/axes_util.hpp"
-#include "openvino/reference/product.hpp"
+#include "openvino/reference/reduce_prod.hpp"
 #include "shape_util.hpp"
 
 namespace ov {
 namespace op {
 namespace reduce_prod {
+namespace {
+bool has_positive_bounds_on_data(const Node* const op) {
+    const auto& lb = op->get_input_tensor(0).get_lower_value();
+    const auto& ub = op->get_input_tensor(0).get_upper_value();
+
+    return lb && ub && tensor_is_positive(lb) && tensor_is_positive(ub);
+}
+}  // namespace
+
 struct Evaluate : element::NoAction<bool> {
     using element::NoAction<bool>::visit;
 
     template <element::Type_t ET>
     static result_type visit(const Tensor& in0, Tensor& out, const AxisSet& reduction_axes) {
         using T = fundamental_type_for<ET>;
-        reference::product(in0.data<const T>(), out.data<T>(), in0.get_shape(), reduction_axes);
+        reference::reduce_prod(in0.data<const T>(), out.data<T>(), in0.get_shape(), reduction_axes);
         return true;
     }
 };
@@ -69,23 +78,13 @@ bool ReduceProd::has_evaluate() const {
 }
 
 bool ReduceProd::evaluate_lower(ov::TensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
-        return false;
-
-    const auto &lb = input_value(0).get_tensor().get_lower_value(), ub = input_value(0).get_tensor().get_upper_value();
-    if (!lb || !ub || !tensor_is_positive(lb) || !tensor_is_positive(ub))
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+    return reduce_prod::has_positive_bounds_on_data(this) && get_input_tensor(1).has_and_set_bound() &&
+           default_lower_bound_evaluator(this, output_values);
 }
 
 bool ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
-        return false;
-
-    const auto &lb = input_value(0).get_tensor().get_lower_value(), ub = input_value(0).get_tensor().get_upper_value();
-    if (!lb || !ub || !tensor_is_positive(lb) || !tensor_is_positive(ub))
-        return false;
-    return default_upper_bound_evaluator(this, output_values);
+    return reduce_prod::has_positive_bounds_on_data(this) && get_input_tensor(1).has_and_set_bound() &&
+           default_upper_bound_evaluator(this, output_values);
 }
 }  // namespace v1
 }  // namespace op
