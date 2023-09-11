@@ -34,7 +34,7 @@ OutputVector translate_as_strided(const NodeContext& context) {
     if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
         auto input_vector = context.const_input<std::vector<int64_t>>(1);
         std::for_each(input_vector.rbegin(), input_vector.rend(), [&](int64_t input_val) {
-            auto const_input = v0::Constant::create(element::i32, Shape{}, {input_val});
+            auto const_input = context.mark_node(v0::Constant::create(element::i32, Shape{}, {input_val}));
             sizes.push_front(const_input);
         });
     } else {
@@ -43,7 +43,7 @@ OutputVector translate_as_strided(const NodeContext& context) {
     if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(2).get_node_shared_ptr())) {
         auto input_vector = context.const_input<std::vector<int64_t>>(2);
         std::for_each(input_vector.rbegin(), input_vector.rend(), [&](int64_t input_val) {
-            auto const_input = v0::Constant::create(element::i32, Shape{}, {input_val});
+            auto const_input = context.mark_node(v0::Constant::create(element::i32, Shape{}, {input_val}));
             strides.push_front(const_input);
         });
     } else {
@@ -57,11 +57,11 @@ OutputVector translate_as_strided(const NodeContext& context) {
                                   "aten::as_strided: Vector for strides and sizes need to have equal length.");
     auto strides_size = strides.size() - 1;
     auto i = 0;
-    auto strides_length_const = v0::Constant::create(element::i32, Shape{1}, {strides.size()});
+    auto strides_length_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {strides.size()}));
     auto ones_strides_len = context.mark_node(std::make_shared<v0::Tile>(const_1, strides_length_const));
     auto indices = const_0;
     std::for_each(strides.rbegin(), strides.rend(), [&](Output<Node>& stride) {
-        auto const_num_iter = v0::Constant::create(element::i32, Shape{1}, {strides_size - i});
+        auto const_num_iter = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {strides_size - i}));
         stride = context.mark_node(std::make_shared<v0::Convert>(stride, element::i32));
         auto size = context.mark_node(std::make_shared<v0::Convert>(sizes.at(strides_size - i), element::i32));
         auto range = context.mark_node(std::make_shared<v4::Range>(const_0, size, const_1, element::i32));
