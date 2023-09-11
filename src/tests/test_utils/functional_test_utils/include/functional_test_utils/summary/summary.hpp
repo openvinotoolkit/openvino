@@ -31,6 +31,7 @@ struct PassRate {
     unsigned long hanged = 0;
     bool isImplemented = false;
 
+    static size_t rel_k;
     double rel_passed = 0;
     double rel_all = 0;
 
