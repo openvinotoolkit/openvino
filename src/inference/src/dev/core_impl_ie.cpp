@@ -267,10 +267,20 @@ std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const 
         ov::DeviceIDParser parser(deviceName_);
         std::string deviceNameLocal = parser.get_device_name();
 
-        ov::Plugin cppPlugin = get_plugin(deviceNameLocal);
-
-        versions[deviceNameLocal] =
-            ov::legacy_convert::convert_plugin(ov::SoPtr<ov::IPlugin>{cppPlugin.m_ptr, cppPlugin.m_so})->GetVersion();
+        try {
+            ov::Plugin cppPlugin = get_plugin(deviceNameLocal);
+            auto convertedPlugin =
+                ov::legacy_convert::convert_plugin(ov::SoPtr<ov::IPlugin>{cppPlugin.m_ptr, cppPlugin.m_so});
+            versions[deviceNameLocal] = convertedPlugin->GetVersion();
+        } catch (const ov::Exception& ex) {
+            std::string exception(ex.what());
+            if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
+                OPENVINO_THROW(ex.what());
+            }
+            InferenceEngine::Version version;
+            version.description = NULL;
+            versions[deviceNameLocal] = version;
+        }
     }
 
     return versions;
