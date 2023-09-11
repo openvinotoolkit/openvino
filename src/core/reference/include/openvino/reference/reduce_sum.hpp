@@ -7,6 +7,8 @@
 #include <cmath>
 #include <numeric>
 
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "shape_util.hpp"
@@ -14,6 +16,19 @@
 namespace ov {
 namespace reference {
 namespace details {
+
+template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+bool isfinite(T x) {
+    return std::isfinite(x);
+}
+
+template <
+    typename T,
+    typename std::enable_if<std::is_same<T, bfloat16>::value || std::is_same<T, float16>::value, bool>::type = true>
+bool isfinite(T x) {
+    return std::isfinite(static_cast<float>(x));
+}
+
 ///
 /// \brief      Performs one element summation based on Kahan algorithm to
 /// significantly reduce
@@ -30,7 +45,7 @@ constexpr T kahan_summation(const T in, const T prev_sum, T&) {
 
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T kahan_summation(const T in, const T prev_sum, T& compensation) {
-    if (std::isfinite(in) && std::isfinite(prev_sum)) {
+    if (isfinite(in) && isfinite(prev_sum)) {
         T temp = prev_sum + (in - compensation);
         compensation = (temp - prev_sum) - (in - compensation);
         return temp;
