@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Hello world action step
-        uses: ./github/actions/cpu_func_tests
+        uses: ./.github/actions/cpu_func_tests
         id: hello
         with:
           who-to-greet: 'Mona the Octocat'
