@@ -96,6 +96,7 @@ enum WeightsLayout {
     yxio,
     o_is_yx_isv4,
     o_is_yx_isv16,
+    o_is_zyx_isv16,
     os_yxi_osv16,
     os_iyx_osv16,
     os_iyx_osv32,

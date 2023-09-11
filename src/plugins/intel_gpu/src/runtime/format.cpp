@@ -87,6 +87,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(os_is_yx_isv16_osv16,                         1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 16}, {0, 16}}),
         FMT_TRAITS(o_is_yx_isv4,                                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 4}}),
         FMT_TRAITS(o_is_yx_isv16,                                1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 16}}),
+        FMT_TRAITS(o_is_zyx_isv16,                               1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 16}}),
         FMT_TRAITS(os_yxi_osv16,                                 1, 1, 2, 0, {0, 2, 3, 1},    "oyxi",   "oixy",  {{0, 16}}),
         FMT_TRAITS(os_iyx_osv16,                                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 16}}),
         FMT_TRAITS(os_iyx_osv32,                                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}}),

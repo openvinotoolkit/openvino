@@ -12,6 +12,8 @@
 namespace kernel_selector {
 inline uint32_t SubGroupSize(WeightsLayout l) {
     switch (l) {
+        case WeightsLayout::o_is_yx_isv16:
+        case WeightsLayout::o_is_zyx_isv16:
         case WeightsLayout::os_iyx_osv16:
         case WeightsLayout::os_iyx_osv32:
         case WeightsLayout::os_iyx_osv64:

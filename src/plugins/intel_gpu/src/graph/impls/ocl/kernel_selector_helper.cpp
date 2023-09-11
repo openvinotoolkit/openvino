@@ -426,6 +426,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::o_is_yx_isv4;
         case format::o_is_yx_isv16:
             return kernel_selector::weights_layout::o_is_yx_isv16;
+        case format::o_is_zyx_isv16:
+            return kernel_selector::weights_layout::o_is_zyx_isv16;
         case format::os_iyx_osv16:
             return kernel_selector::weights_layout::os_iyx_osv16;
         case format::os_is_yx_osv16_isv2:
@@ -741,6 +743,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::o_is_yx_isv4;
         case kernel_selector::weights_layout::o_is_yx_isv16:
             return cldnn::format::o_is_yx_isv16;
+        case kernel_selector::weights_layout::o_is_zyx_isv16:
+            return cldnn::format::o_is_zyx_isv16;
         case kernel_selector::weights_layout::os_iyx_osv16:
             return cldnn::format::os_iyx_osv16;
         case kernel_selector::weights_layout::os_is_yx_isv16_osv16:
