@@ -63,7 +63,7 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
             # run the inference
             result = compiled_model(input_data)
 
-   .. tab-item:: HuggingFace Transformers
+   .. tab-item:: Hugging Face Transformers
 
       .. code-block:: py
 
