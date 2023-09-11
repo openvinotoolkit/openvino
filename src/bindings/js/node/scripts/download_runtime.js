@@ -12,11 +12,12 @@ main();
 
 async function main() {
   const osInfo = await detectOS();
+  const isForce = process.argv.includes('-f');
   const modulePath = packageJson.binary['module_path'];
 
   const isRuntimeDirExists = await checkDirExistence(modulePath);
 
-  if (isRuntimeDirExists && !process.argv.includes('-f')) {
+  if (isRuntimeDirExists && !isForce) {
     if (process.argv.includes('--ignore-if-exists')) {
       console.log(`Directory '${modulePath}' exists, skip runtime init `
         + 'because \'--ignore-if-exists\' flag passed');
@@ -40,7 +41,7 @@ async function main() {
     + packageName;
 
   try {
-    await downloadRuntime(binaryUrl);
+    await downloadRuntime(binaryUrl, { isForce });
   } catch (err) {
     console.log(`Runtime fetch failed. Reason ${err}`);
 
@@ -190,6 +191,16 @@ async function downloadRuntime(uri, opts = {}) {
 
       const runtimeDir = path.resolve(__dirname, '..', 'ov_runtime');
 
+      if (opts.isForce) {
+        try {
+          console.log('Try to remove \'ov_runtime\'...');
+          await fs.rm(runtimeDir, { force: true, recursive: true });
+          console.log('Directory \'ov_runtime\' removed');
+        } catch(err) {
+          if (err.code !== codeENOENT) throw err;
+          console.log('Directory \'ov_runtime\' doesn\'t exist');
+        }
+      }
       console.log('Uncompressing...');
       await decompress(fullPath, runtimeDir, { strip: 1 });
       await fs.rm(fullPath);
