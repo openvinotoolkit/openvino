@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "ngraph_functions/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
-        const ngraph::Output<Node>& inputData,
-        const ngraph::Output<Node>& sequenceLengthData,
-        int32_t blankIndex,
-        bool mergeRepeated,
-        const element::Type& idxPrecision) {
+std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
+                                                     const ov::Output<Node>& sequenceLengthData,
+                                                     int32_t blankIndex,
+                                                     bool mergeRepeated,
+                                                     const element::Type& idxPrecision) {
     const auto blankIndexNode = [&] {
         if (idxPrecision == element::i32) {
             const auto blankIdxDataI32 = std::vector<int32_t>{blankIndex};
@@ -35,11 +34,10 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
                                                             idxPrecision);
 }
 
-std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
-        const ngraph::Output<Node>& inputData,
-        int32_t blankIndex,
-        bool mergeRepeated,
-        const element::Type& idxPrecision) {
+std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
+                                                     int32_t blankIndex,
+                                                     bool mergeRepeated,
+                                                     const element::Type& idxPrecision) {
     const auto sequenceLengthData = [&] {
         const size_t N = inputData.get_shape().at(0);
         const size_t T = inputData.get_shape().at(1);
@@ -54,11 +52,7 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
         throw std::logic_error("Unsupported index precision");
     }();
 
-    return makeCTCGreedyDecoderSeqLen(inputData,
-                                      sequenceLengthData,
-                                      blankIndex,
-                                      mergeRepeated,
-                                      idxPrecision);
+    return makeCTCGreedyDecoderSeqLen(inputData, sequenceLengthData, blankIndex, mergeRepeated, idxPrecision);
 }
 
 }  // namespace builder

@@ -2,26 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <memory>
+#include "openvino/op/roi_pooling.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include <memory>
+#include <vector>
+
+#include "common_test_utils/test_enums.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
-                                     const Output<Node>& coords,
-                                     const Shape& output_size,
-                                     const float spatial_scale,
-                                     const ngraph::helpers::ROIPoolingTypes& roi_pool_type) {
+std::shared_ptr<ov::Node> makeROIPooling(const ov::Output<ov::Node>& input,
+                                         const ov::Output<ov::Node>& coords,
+                                         const ov::Shape& output_size,
+                                         const float spatial_scale,
+                                         const ov::test::utils::ROIPoolingTypes& roi_pool_type) {
     switch (roi_pool_type) {
-        case helpers::ROIPoolingTypes::ROI_MAX:
-            return std::make_shared<ngraph::opset3::ROIPooling>(input, coords, output_size, spatial_scale, "max");
-        case helpers::ROIPoolingTypes::ROI_BILINEAR:
-            return std::make_shared<ngraph::opset3::ROIPooling>(input, coords, output_size, spatial_scale, "bilinear");
-        default:
-            throw std::runtime_error("Incorrect type of ROIPooling operation");
+    case ov::test::utils::ROIPoolingTypes::ROI_MAX:
+        return std::make_shared<ov::op::v0::ROIPooling>(input, coords, output_size, spatial_scale, "max");
+    case ov::test::utils::ROIPoolingTypes::ROI_BILINEAR:
+        return std::make_shared<ov::op::v0::ROIPooling>(input, coords, output_size, spatial_scale, "bilinear");
+    default:
+        throw std::runtime_error("Incorrect type of ROIPooling operation");
     }
 }
 

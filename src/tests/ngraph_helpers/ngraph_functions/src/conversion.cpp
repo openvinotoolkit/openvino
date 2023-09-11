@@ -3,20 +3,21 @@
 //
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
+
+#include "common_test_utils/test_enums.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ngraph::Node> makeConversion(const ngraph::Output<Node>& in,
-                                             const element::Type& output_type,
-                                             const ngraph::helpers::ConversionTypes& conversionType) {
-    if (conversionType == ngraph::helpers::ConversionTypes::CONVERT) {
-        return std::make_shared<ngraph::opset1::Convert>(in, output_type);
-    } else if (conversionType == ngraph::helpers::ConversionTypes::CONVERT_LIKE) {
-        const auto like = std::make_shared<op::Constant>(output_type, ngraph::Shape{1});
-        return std::make_shared<ngraph::opset1::ConvertLike>(in, like);
+std::shared_ptr<ov::Node> makeConversion(const ov::Output<Node>& in,
+                                         const element::Type& output_type,
+                                         const ov::test::utils::ConversionTypes& conversionType) {
+    if (conversionType == ov::test::utils::ConversionTypes::CONVERT) {
+        return std::make_shared<ov::op::v0::Convert>(in, output_type);
+    } else if (conversionType == ov::test::utils::ConversionTypes::CONVERT_LIKE) {
+        const auto like = std::make_shared<op::Constant>(output_type, ov::Shape{1});
+        return std::make_shared<ov::op::v1::ConvertLike>(in, like);
     } else {
         throw std::runtime_error("Incorrect type of Conversion operation");
     }

@@ -7,14 +7,11 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
-                                      bool acrossChannels,
-                                      bool normalizeVariance,
-                                      double eps) {
-    auto mvnNode = std::make_shared<ngraph::op::MVN>(in, acrossChannels, normalizeVariance, eps);
+std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in, bool acrossChannels, bool normalizeVariance, double eps) {
+    auto mvnNode = std::make_shared<ov::op::v0::MVN>(in, acrossChannels, normalizeVariance, eps);
 
-    // Ngraph MVN implementation implicitly adds 0th dimension to reduction axes set which is not valid behavior
-    ngraph::AxisSet axes;
+    // OpenVINO MVN implementation implicitly adds 0th dimension to reduction axes set which is not valid behavior
+    ov::AxisSet axes;
     const size_t startAxis = acrossChannels ? 1 : 2;
     const size_t numOfDims = in.get_partial_shape().size();
     for (size_t i = startAxis; i < numOfDims; i++)
@@ -24,11 +21,11 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
     return mvnNode;
 }
 
-std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
-                                      const ngraph::AxisSet &axes,
-                                      bool normalizeVariance,
-                                      double eps) {
-    auto mvnNode = std::make_shared<ngraph::op::MVN>(in, axes, normalizeVariance, eps);
+std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in,
+                                  const ov::AxisSet& axes,
+                                  bool normalizeVariance,
+                                  double eps) {
+    auto mvnNode = std::make_shared<ov::op::v0::MVN>(in, axes, normalizeVariance, eps);
 
     return mvnNode;
 }

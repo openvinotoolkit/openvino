@@ -7,11 +7,11 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ngraph::Node> makeCumSum(const ngraph::Output<Node> &in,
-                                         const ngraph::Output<Node> &axis,
-                                         bool exclusive,
-                                         bool reverse) {
-    return std::make_shared<ngraph::op::CumSum>(in, axis, exclusive, reverse);
+std::shared_ptr<ov::Node> makeCumSum(const ov::Output<Node>& in,
+                                     const ov::Output<Node>& axis,
+                                     bool exclusive,
+                                     bool reverse) {
+    return std::make_shared<ov::op::v0::CumSum>(in, axis, exclusive, reverse);
 }
 
 }  // namespace builder

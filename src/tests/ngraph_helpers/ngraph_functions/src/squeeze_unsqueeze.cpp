@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "ngraph_functions/builders.hpp"
 
 namespace ngraph {
 namespace builder {
-std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &in,
-                                                   const element::Type &type,
-                                                   const std::vector<int> &squeeze_indices,
-                                                   ngraph::helpers::SqueezeOpType opType) {
-    auto constant = std::make_shared<ngraph::opset1::Constant>(type, ngraph::Shape{squeeze_indices.size()}, squeeze_indices);
+std::shared_ptr<ov::Node> makeSqueezeUnsqueeze(const ov::Output<Node>& in,
+                                               const element::Type& type,
+                                               const std::vector<int>& squeeze_indices,
+                                               ov::test::utils::SqueezeOpType opType) {
+    auto constant = std::make_shared<ov::op::v0::Constant>(type, ov::Shape{squeeze_indices.size()}, squeeze_indices);
     switch (opType) {
-        case ngraph::helpers::SqueezeOpType::SQUEEZE:
-            return std::make_shared<ngraph::opset1::Squeeze>(in, constant);
-        case ngraph::helpers::SqueezeOpType::UNSQUEEZE:
-            return std::make_shared<ngraph::opset1::Unsqueeze>(in, constant);
-        default:
-            throw std::logic_error("Unsupported operation type");
+    case ov::test::utils::SqueezeOpType::SQUEEZE:
+        return std::make_shared<ov::op::v0::Squeeze>(in, constant);
+    case ov::test::utils::SqueezeOpType::UNSQUEEZE:
+        return std::make_shared<ov::op::v0::Unsqueeze>(in, constant);
+    default:
+        throw std::logic_error("Unsupported operation type");
     }
 }
-} // namespace builder
-} // namespace ngraph
+}  // namespace builder
+}  // namespace ngraph

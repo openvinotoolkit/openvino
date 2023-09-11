@@ -2,33 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "ngraph_functions/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeProposal(const ngraph::Output<Node> &class_probs,
-                                   const ngraph::Output<Node> &class_logits,
+std::shared_ptr<Node> makeProposal(const ov::Output<Node>& class_probs,
+                                   const ov::Output<Node>& class_logits,
                                    const std::vector<float>& image_info,
-                                   const element::Type &type,
+                                   const element::Type& type,
                                    size_t base_size,
                                    size_t pre_nms_topn,
                                    size_t post_nms_topn,
                                    float nms_thresh,
                                    size_t feat_stride,
                                    size_t min_size,
-                                   const std::vector<float> &ratio,
-                                   const std::vector<float> &scale,
+                                   const std::vector<float>& ratio,
+                                   const std::vector<float>& scale,
                                    bool clip_before_nms,
                                    bool clip_after_nms,
                                    bool normalize,
                                    float box_size_scale,
                                    float box_coordinate_scale,
                                    std::string framework) {
-    ngraph::op::ProposalAttrs attrs;
+    ov::op::v4::Proposal::Attributes attrs;
     attrs.base_size = base_size;
     attrs.pre_nms_topn = pre_nms_topn;
     attrs.post_nms_topn = post_nms_topn;
@@ -45,9 +45,9 @@ std::shared_ptr<Node> makeProposal(const ngraph::Output<Node> &class_probs,
     attrs.framework = framework;
     attrs.infer_probs = true;
 
-    auto image_shape = makeConstant(ngraph::element::Type_t::f32, {3}, image_info);
+    auto image_shape = makeConstant(ov::element::Type_t::f32, {3}, image_info);
 
-    return std::make_shared<opset4::Proposal>(class_probs, class_logits, image_shape, attrs);
+    return std::make_shared<op::v4::Proposal>(class_probs, class_logits, image_shape, attrs);
 }
 
 }  // namespace builder

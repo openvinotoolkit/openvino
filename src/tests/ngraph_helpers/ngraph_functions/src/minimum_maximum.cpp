@@ -7,16 +7,16 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ngraph::Node> makeMinMax(const ngraph::Output<Node> &in1,
-                                         const ngraph::Output<Node> &in2,
-                                         ngraph::helpers::MinMaxOpType opType) {
+std::shared_ptr<ov::Node> makeMinMax(const ov::Output<Node>& in1,
+                                     const ov::Output<Node>& in2,
+                                     ov::test::utils::MinMaxOpType opType) {
     switch (opType) {
-        case ngraph::helpers::MinMaxOpType::MINIMUM:
-            return std::make_shared<ngraph::opset3::Minimum>(in1, in2);
-        case ngraph::helpers::MinMaxOpType::MAXIMUM:
-            return std::make_shared<ngraph::opset3::Maximum>(in1, in2);
-        default:
-            throw std::logic_error("Unsupported operation type");
+    case ov::test::utils::MinMaxOpType::MINIMUM:
+        return std::make_shared<ov::op::v1::Minimum>(in1, in2);
+    case ov::test::utils::MinMaxOpType::MAXIMUM:
+        return std::make_shared<ov::op::v1::Maximum>(in1, in2);
+    default:
+        throw std::logic_error("Unsupported operation type");
     }
 }
 
