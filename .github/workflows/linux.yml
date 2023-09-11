@@ -42,22 +42,27 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
-      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
-      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
-      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-      BUILD_DIR: ${{ github.workspace }}/build
-      DATA_PATH: ${{ github.workspace }}/testdata
-      MODELS_PATH: ${{ github.workspace }}/testdata
-      OV_TEMP: ${{ github.workspace }}/openvino_temp
+      GITHUB_WORKSPACE: '/github/workspace'
+      OPENVINO_REPO: ${{ env.GITHUB_WORKSPACE }}/openvino
+      OPENVINO_CONTRIB_REPO: ${{ env.GITHUB_WORKSPACE }}/openvino_contrib
+      INSTALL_DIR: ${{ env.GITHUB_WORKSPACE }}/install
+      INSTALL_TEST_DIR: ${{ env.GITHUB_WORKSPACE }}/install/tests
+      SAMPLES_INSTALL_DIR: ${{ env.GITHUB_WORKSPACE }}/install/samples
+      LAYER_TESTS_INSTALL_DIR: ${{ env.GITHUB_WORKSPACE }}/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ env.GITHUB_WORKSPACE }}/install/tests/model_hub_tests
+      BUILD_DIR: ${{ env.GITHUB_WORKSPACE }}/build
+      DATA_PATH: ${{ env.GITHUB_WORKSPACE }}/testdata
+      MODELS_PATH: ${{ env.GITHUB_WORKSPACE }}/testdata
+      OV_TEMP: ${{ env.GITHUB_WORKSPACE }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
       CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_Release
-      CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
+      CCACHE_TEMPDIR: ${{ env.GITHUB_WORKSPACE }}/ccache_temp
       CCACHE_MAXSIZE: 50G
     steps:
+      - name: Initialize workspace
+        run: |
+          mkdir -p ${GITHUB_WORKSPACE}
+
       - name: Install git
         run: |
           apt-get update
