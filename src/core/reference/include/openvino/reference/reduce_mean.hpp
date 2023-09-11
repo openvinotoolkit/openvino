@@ -22,7 +22,7 @@ namespace reference {
  * @param reduction_axes Axes on which reduction is applied.
  */
 template <class T>
-void mean(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
+void reduce_mean(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     reduce_sum(in, out, in_shape, reduction_axes);
 
     const auto out_shape = util::reduce(in_shape, reduction_axes);

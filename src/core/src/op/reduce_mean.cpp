@@ -8,7 +8,7 @@
 #include "itt.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/axes_util.hpp"
-#include "openvino/reference/mean.hpp"
+#include "openvino/reference/reduce_mean.hpp"
 
 namespace ov {
 namespace op {
@@ -19,7 +19,7 @@ struct Evaluate : element::NoAction<bool> {
     template <element::Type_t ET>
     static result_type visit(const Tensor& in, Tensor& out, const AxisSet& reduction_axes) {
         using T = fundamental_type_for<ET>;
-        reference::mean(in.data<const T>(), out.data<T>(), in.get_shape(), reduction_axes);
+        reference::reduce_mean(in.data<const T>(), out.data<T>(), in.get_shape(), reduction_axes);
         return true;
     }
 };
