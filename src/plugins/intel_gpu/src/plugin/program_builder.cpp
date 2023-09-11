@@ -14,6 +14,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/op/fully_connected_compressed.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -555,6 +556,9 @@ bool ProgramBuilder::requires_new_shape_infer(const ov::Node& op) const {
     if (op.is_dynamic()) {
         return true;
     }
+
+    if (ov::is_type<op::FullyConnectedCompressed>(&op))
+        return true;
 
     for (size_t i = 0; i < op.get_output_size(); i++) {
         if (op.get_output_partial_shape(i).size() > 6)
