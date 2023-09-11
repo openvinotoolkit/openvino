@@ -36,7 +36,6 @@
   "gypfile": true,
   "binary": {
     "version": "2023.1.0.dev20230811",
-    "module_name": "ov_runtime",
     "module_path": "./ov_runtime/",
     "package_name": "{letter}_openvino_toolkit_{os}_{version}_{arch}.{extension}",
     "host": "https://storage.openvinotoolkit.org/",
