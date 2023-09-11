@@ -41,7 +41,7 @@ jobs:
         run: cmake -DCMAKE_BUILD_TYPE=Release -B build
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: Build snippets
