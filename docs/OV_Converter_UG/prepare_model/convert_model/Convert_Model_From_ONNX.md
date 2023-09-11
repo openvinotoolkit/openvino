@@ -18,7 +18,7 @@ Converting an ONNX Model
 
 This page provides instructions on model conversion from the ONNX format to the OpenVINO IR format.
 
-Model conversion process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
+For model conversion, you need an ONNX model either directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
 
 To convert an ONNX model, run model conversion with the path to the input model ``.onnx`` file:
 
