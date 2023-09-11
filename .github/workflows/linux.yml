@@ -850,8 +850,6 @@ jobs:
 
       - name: TensorFlow Hub Tests - TF FE
         run: |
-          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
-
           python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
 
           export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
