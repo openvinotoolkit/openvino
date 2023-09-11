@@ -850,16 +850,15 @@ jobs:
 
       - name: TensorFlow Hub Tests - TF FE
         run: |
-          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
-
           python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
 
           export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
 
           python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.html --self-contained-html
         env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'nightly'}}
           TEST_DEVICE: CPU
+        timeout-minutes: 960
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
