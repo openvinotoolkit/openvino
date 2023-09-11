@@ -185,16 +185,6 @@ void Matcher::clear_state() {
     m_pattern_value_maps.clear();
     m_matched_list.clear();
 }
-
-namespace {
-std::set<std::shared_ptr<Node>> as_node_set(const std::set<std::shared_ptr<op::Label>>& label_set) {
-    std::set<std::shared_ptr<Node>> result;
-    for (const auto& label : label_set) {
-        result.insert(label);
-    }
-    return result;
-}
-}  // namespace
 }  // namespace pattern
 }  // namespace pass
 }  // namespace ov
