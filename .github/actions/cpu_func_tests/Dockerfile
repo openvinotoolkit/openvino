@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 
 ARG USERNAME=ga_user
-ARG USER_UID=1024
+ARG USER_UID=1001
 ARG USER_GID=$USER_UID
 
 # Create the user
