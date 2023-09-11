@@ -24,7 +24,7 @@ void setInfo(pugi::xml_object_range<pugi::xml_named_node_iterator>&& nodes, T&& 
         auto shape_attr = nodes_it->attribute("shape");
 
         if (!name_attr || !precision_attr || !shape_attr || info_iter == info.end()) {
-            IE_THROW(NetworkNotRead) << "The inputs/outputs information is invalid.";
+            OPENVINO_THROW("NetworkNotRead: the inputs/outputs information is invalid.");
         }
         info_iter->get_tensor_ptr()->set_element_type(ov::element::Type(precision_attr.value()));
         info_iter->get_tensor_ptr()->set_tensor_type(ov::element::Type(precision_attr.value()),

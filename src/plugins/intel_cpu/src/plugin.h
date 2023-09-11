@@ -24,7 +24,7 @@ public:
                                "",
                                false,
                                "Not Implemented",
-                               "compile_model with RemoteContext is not supported by this plugin!");
+                               "compile_model with RemoteContext is not supported by CPU plugin!");
     };
 
     void set_property(const ov::AnyMap& properties) override;

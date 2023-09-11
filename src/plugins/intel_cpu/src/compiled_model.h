@@ -57,7 +57,7 @@ private:
 
     // Generic synchronization primitive on CompiledModel level.
     // Usage example: helps to avoid data races during CPU Graph initialization in multi-streams scenario
-    mutable std::shared_ptr<std::mutex> m_mutex;
+    std::shared_ptr<std::mutex> m_mutex;
     Config m_cfg;
     ExtensionManager::Ptr extensionManager;
     mutable std::atomic_int m_numRequests = {0};

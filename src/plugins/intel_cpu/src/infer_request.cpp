@@ -148,10 +148,8 @@ void SyncInferRequest::redefine_memory_for_input_nodes() {
     }
 }
 
-void SyncInferRequest::update_external_inputs() {
+void SyncInferRequest::update_external_tensor_ptrs() {
     // Update it due to batched_tensors case will update input tensor
-    if (m_batched_tensors.size() == 0)
-        return;
     for (auto input : get_inputs()) {
         std::string input_name = get_port_name(input, m_is_legacy_api);
         if (input_name.empty()) {
@@ -173,7 +171,10 @@ void SyncInferRequest::infer() {
 
     throw_if_canceled();
     convert_batched_tensors();
-    update_external_inputs();
+    if (m_batched_tensors.size() > 0) {
+        // batched_tensors will be updated for each infer, external_ptr should be update together
+        update_external_tensor_ptrs();
+    }
 
     if (graph->hasDynamicInput()) {
         redefine_memory_for_input_nodes();
@@ -450,7 +451,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                                         << ", if model input tensor precision is: " << netInPrc;
         }
 
-        const auto shape = port.get_partial_shape();
+        const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
         if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
             OPENVINO_THROW("The tensor size is not equal to model, can't set input tensor with name: ",
@@ -496,7 +497,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                                         << ", if model output tensor precision is: " << netOutPrc;
         }
 
-        const auto shape = port.get_partial_shape();
+        const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
 
         if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
@@ -549,7 +550,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
         OPENVINO_THROW("Graph is not ready!");
 
     if (name.empty())
-        OPENVINO_THROW("Can't preapre tensor for empty name! ");
+        OPENVINO_ASSERT("Can't prepare tensor for empty name! ");
 
     ov::SoPtr<ITensor> tensor;
     const auto& inMap = graph->inputNodesMap;
@@ -561,7 +562,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             tensor = ov::ISyncInferRequest::get_tensor(port);
 
             if (!tensor) {
-                const auto shape = port.get_partial_shape();
+                const auto& shape = port.get_partial_shape();
                 const bool isDynamic = shape.is_dynamic();
                 ov::Shape tensor_shape;
                 if (isDynamic) {
@@ -593,7 +594,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             auto output_port = m_output_ports_map.find(name);
             auto port = output_port->second;
             const auto port_shape = port.get_partial_shape();
-            if (m_output_ports_map.find(name) != m_output_ports_map.end()) {
+            if (output_port != m_output_ports_map.end()) {
                 const auto& graph_shape = output->second->getInputShapeAtPort(0);
 
                 // WA, due to the transformations and constant folding, shape inference of the resulting model may

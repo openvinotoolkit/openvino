@@ -530,7 +530,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
 
     if ((cloned_model->inputs().size() != model->inputs().size()) ||
         (cloned_model->outputs().size() != model->outputs().size())) {
-        OPENVINO_THROW("Input/output port size mismatched!");
+        OPENVINO_THROW("Input/output port size mismatched after transformation!");
     }
     // Make output ports have the same tensor names with original model
     for (size_t idx = 0; idx < cloned_model->outputs().size(); idx++) {

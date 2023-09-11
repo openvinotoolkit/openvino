@@ -199,6 +199,7 @@ precisions_map Transformations::get_convert_precisions() {
                           {ov::element::i4, ov::element::i8},
                           {ov::element::u4, ov::element::u8}};
 
+    // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
         map.insert({ov::element::bf16, ov::element::f32});
 
@@ -261,26 +262,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return true;
         }, ov::pass::MarkDequantizationSubgraph);
     }
-
-    auto get_convert_precisions = []() {
-        precisions_map map = {
-            {ov::element::i64,     ov::element::i32},
-            {ov::element::u64,     ov::element::i32},
-            {ov::element::i16,     ov::element::i32},
-            {ov::element::u16,     ov::element::i32},
-            {ov::element::u32,     ov::element::i32},
-            {ov::element::f64,     ov::element::f32},
-            {ov::element::f16,     ov::element::f32},
-            {ov::element::boolean, ov::element::u8},
-            {ov::element::i4,      ov::element::i8},
-            {ov::element::u4,      ov::element::u8}
-        };
-        // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-            map.insert({ov::element::bf16, ov::element::f32});
-
-        return map;
-    };
 
     static const auto precisions = get_convert_precisions();
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};

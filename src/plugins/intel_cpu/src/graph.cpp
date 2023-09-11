@@ -112,9 +112,9 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
 }
 
 template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
-void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
+void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "Graph::Replicate", "ov::Model");
-    this->_name = subgraph->get_friendly_name();
+    this->_name = model->get_friendly_name();
     this->reuse_io_tensors = false;
 
     // Map data object onto producer node
@@ -137,7 +137,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     };
 
     const bool is_legacy_api = getConfig().isLegacyApi;
-    for (const auto& op : subgraph->get_ordered_ops()) {
+    for (const auto& op : model->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
         graphNodes.push_back(node);
@@ -202,7 +202,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     };
 
     auto find_input_port_prec = [&](const std::string& name) -> ov::element::Type_t {
-        for (auto& it : subgraph->inputs()) {
+        for (auto& it : model->inputs()) {
             auto port_name = get_port_name(it, is_legacy_api);
             if (port_name == name)
                 return it.get_element_type();
@@ -220,7 +220,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     }
 
     auto find_output_port_prec = [&](const std::string& name) -> ov::element::Type_t {
-        for (auto& it : subgraph->outputs()) {
+        for (auto& it : model->outputs()) {
             auto port_name = get_port_name(it, is_legacy_api);
             if (port_name == name)
                 return it.get_element_type();
