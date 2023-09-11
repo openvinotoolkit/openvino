@@ -10,6 +10,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/matrix_nms.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/multiclass_nms_base.hpp"
 
 namespace ov {
@@ -134,12 +135,7 @@ enum ROIPoolingTypes {
     ROI_BILINEAR
 };
 
-enum class PadMode {
-    CONSTANT,
-    EDGE,
-    REFLECT,
-    SYMMETRIC,
-};
+using ov::op::PadMode;
 
 enum class SequenceTestsMode {
     PURE_SEQ,
@@ -159,7 +155,6 @@ enum class DFTOpType {
 // clang-format on
 
 std::ostream& operator<<(std::ostream& os, const ReductionType& m);
-std::ostream& operator<<(std::ostream& os, const PadMode& m);
 
 std::ostream& operator<<(std::ostream& os, ov::test::utils::EltwiseTypes type);
 

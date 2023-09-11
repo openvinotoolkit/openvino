@@ -13,6 +13,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>

@@ -41,24 +41,6 @@ std::ostream& operator<<(std::ostream& os, const ov::test::utils::ReductionType&
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const ov::op::PadMode& m) {
-    switch (m) {
-    case ov::op::PadMode::CONSTANT:
-        os << "CONSTANT";
-        break;
-    case ov::op::PadMode::EDGE:
-        os << "EDGE";
-        break;
-    case ov::op::PadMode::REFLECT:
-        os << "REFLECT";
-        break;
-    case ov::op::PadMode::SYMMETRIC:
-        os << "SYMMETRIC";
-        break;
-    }
-    return os;
-}
-
 std::ostream& operator<<(std::ostream& os, const ov::test::utils::EltwiseTypes type) {
     switch (type) {
     case ov::test::utils::EltwiseTypes::SUBTRACT:
