@@ -4,24 +4,15 @@
 
 .. meta::
    :description: Learn how to install OpenVINO™ Runtime on Linux and macOS 
-                 operating systems, using Homebrew, which is a recommended 
-                 installation method for C++ developers.
-
+                 operating systems, using Homebrew.
 
 .. note::
+   
+   Note that the `Homebrew <https://brew.sh/>`__ distribution:
 
-   Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. 
-   If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
-
-You can use `Homebrew <https://brew.sh/>`__ to install OpenVINO Runtime on macOS and Linux. 
-OpenVINO™ Development Tools can be installed via PyPI only. 
-See `Installing Additional Components <#optional-installing-additional-components>`__ for more information.
-
-
-.. warning:: 
-
-   By downloading and using this container and the included software, you agree to the terms and conditions of the 
-   `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`_.
+   * offers both C/C++ and Python APIs
+   * does not offer support for GNA and NPU inference
+   * is dedicated to macOS and Linux users.
 
 
 .. tab-set::
@@ -32,6 +23,12 @@ See `Installing Additional Components <#optional-installing-additional-component
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
+   .. tab-item:: Processor Notes
+      :sync: processor-notes
+   
+      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
+      | `Product Specifications <https://ark.intel.com/>`__
+
    .. tab-item:: Software Requirements
       :sync: software-requirements
 
@@ -55,13 +52,12 @@ See `Installing Additional Components <#optional-installing-additional-component
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
          
 
-
 Installing OpenVINO Runtime
 ###########################
 
 1. Make sure that you have installed Homebrew on your system. If not, follow the instructions on `the Homebrew website <https://brew.sh/>`__ to install and configure it.
 
-2. Open a command prompt terminal window, and run the following command to install OpenVINO Runtime:
+2. Run the following command in the terminal:
 
    .. code-block:: sh
 
@@ -74,16 +70,12 @@ Installing OpenVINO Runtime
       brew list
 
 
-Congratulations, you've finished the installation!
+Congratulations! You've just Installed OpenVINO! For some use cases you may still 
+need to install additional components. Check the 
+:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+to see if your case needs any of them.
 
-(Optional) Installing Additional Components
-###########################################
 
-OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you installed OpenVINO Runtime using Homebrew, OpenVINO Development Tools must be installed separately.
-
-See the **For C++ Developers** section on the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
-
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on GitHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__.
 
 Uninstalling OpenVINO
 #####################
