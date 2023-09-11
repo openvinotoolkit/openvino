@@ -1,7 +1,5 @@
 FROM ubuntu:22.04
 
-VOLUME /github/file_commands
-
 ARG USERNAME=ga_user
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
@@ -15,6 +13,8 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && apt-get install -y sudo \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
+
+RUN chown $USERNAME /github/file_commands
 
 # ********************************************************
 # * Anything else you want to do like clean up goes here *
