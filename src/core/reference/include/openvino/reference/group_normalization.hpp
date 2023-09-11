@@ -9,7 +9,7 @@
 
 #include "openvino/core/shape.hpp"
 #include "openvino/reference/reduce_mean.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 
 namespace ov {
 namespace reference {

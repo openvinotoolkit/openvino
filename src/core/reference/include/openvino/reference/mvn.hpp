@@ -12,9 +12,9 @@
 #include "openvino/reference/divide.hpp"
 #include "openvino/reference/multiply.hpp"
 #include "openvino/reference/reduce_mean.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/sqrt.hpp"
 #include "openvino/reference/subtract.hpp"
-#include "openvino/reference/sum.hpp"
 
 namespace ov {
 namespace reference {

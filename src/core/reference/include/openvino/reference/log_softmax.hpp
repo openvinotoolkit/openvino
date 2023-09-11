@@ -8,7 +8,7 @@
 
 #include "ngraph/shape_util.hpp"
 #include "openvino/reference/reduce_max.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
@@ -31,7 +31,7 @@ void log_softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) 
             static_cast<T>(std::exp(arg[transform.index(coord)] - temp_max[temp_transform.index(temp_coord)]));
     }
 
-    sum(out, temp_sum.data(), shape, axes);
+    reduce_sum(out, temp_sum.data(), shape, axes);
 
     for (const Coordinate& coord : transform) {
         Coordinate temp_coord = ngraph::reduce(coord, axes, true);

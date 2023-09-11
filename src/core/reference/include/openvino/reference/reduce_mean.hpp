@@ -7,7 +7,7 @@
 #include <cmath>
 #include <numeric>
 
-#include "openvino/reference/sum.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "shape_util.hpp"
 
 namespace ov {
@@ -23,7 +23,7 @@ namespace reference {
  */
 template <class T>
 void reduce_mean(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
-    sum(in, out, in_shape, reduction_axes);
+    reduce_sum(in, out, in_shape, reduction_axes);
 
     const auto out_shape = util::reduce(in_shape, reduction_axes);
     const auto out_size = shape_size(out_shape);
