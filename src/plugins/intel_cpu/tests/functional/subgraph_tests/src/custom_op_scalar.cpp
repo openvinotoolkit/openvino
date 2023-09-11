@@ -49,11 +49,11 @@ public:
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
         for (size_t i = 0llu; i < inputs.size(); i++) {
-            OPENVINO_ASSERT(inputs[i].get_shape().size() == get_input_partial_shape(i).rank().get_length(),
+            OPENVINO_ASSERT(inputs[i].get_shape().size() == static_cast<size_t>(get_input_partial_shape(i).rank().get_length()),
                 "Invalid input shape rank: ", inputs[i].get_shape().size());
         }
         for (size_t i = 0llu; i < outputs.size(); i++) {
-            OPENVINO_ASSERT(outputs[i].get_shape().size() == get_output_partial_shape(i).rank().get_length(),
+            OPENVINO_ASSERT(outputs[i].get_shape().size() == static_cast<size_t>(get_output_partial_shape(i).rank().get_length()),
                 "Invalid outputs shape rank: ", outputs[i].get_shape().size());
         }
 
