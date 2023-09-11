@@ -4,24 +4,24 @@ on:
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#  push:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#    branches:
-#      - master
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}-windows-cc
@@ -62,14 +62,6 @@ jobs:
           path: 'openvino'
           submodules: 'recursive'
 
-      - name: Clone testdata for C API tests
-        uses: actions/checkout@v3
-        with:
-          repository: 'openvinotoolkit/testdata'
-          path: 'testdata'
-          submodules: 'recursive'
-          lfs: 'true'
-
       #
       # Dependencies
       #
@@ -78,44 +70,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install python dependencies
-        run: |
-          # For Python API
-          python3 -m pip install Scons
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements_test.txt
-
-          # For running Python API tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-
-          # For running ONNX frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
-
-          # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
-
-          # For running Paddle frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
-
-      - name: Install MO dependencies
-        run: |
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt `
-          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt `
-          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt `
-          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt `
-          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt `
-          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
-
       - name: Install build dependencies
         run: |
           choco install --no-progress ninja
-          choco install --no-progress shellcheck
-
-      - name: Get tools versions
-        run: |
-          python3 --version
-          cmake --version
 
       #
       # Build
