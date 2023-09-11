@@ -20,7 +20,6 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestIOTensorTest,
 
 std::vector<ov::element::Type> ovIOTensorElemTypes = {
     ov::element::boolean,
-    ov::element::bf16,
     ov::element::f16,
     ov::element::f32,
     ov::element::f64,
@@ -44,6 +43,24 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestIOTensorSetPr
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypes),
+                                 ::testing::ValuesIn(return_all_possible_device_combination()),
+                                 ::testing::Values(pluginConfig)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
+
+std::vector<ov::element::Type> ovIOTensorElemTypesOptional = {
+     ov::element::bf16
+};
+
+INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestIOTensorSetPrecisionTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(ovIOTensorElemTypesOptional),
+                                 ::testing::ValuesIn(return_all_possible_device_combination()),
+                                 ::testing::Values(pluginConfig)),
+                         OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(ovIOTensorElemTypesOptional),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
                                  ::testing::Values(pluginConfig)),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
