@@ -222,9 +222,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
         pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
-            [](const_node_ptr &node) -> bool {
-                const auto outputs = node->get_output_target_inputs(0);
-                return !is_type<ov::op::v0::MatMul>(outputs.begin()->get_node());
+            [](const_node_ptr& node) -> bool {
+                auto next_node = node->get_output_target_inputs(0).begin()->get_node();
+                if (is_type<ov::op::v0::Convert>(next_node)) {
+                    next_node = next_node->get_output_target_inputs(0).begin()->get_node();
+                }
+                return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, true);

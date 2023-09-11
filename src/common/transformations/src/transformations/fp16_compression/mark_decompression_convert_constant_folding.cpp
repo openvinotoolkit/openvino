@@ -88,15 +88,26 @@ pass::KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts
             return false;
         }
 
-        auto constant_target_inputs = const_node->get_output_target_inputs(0);
-        auto convert = std::make_shared<ov::op::v0::Convert>(const_node, const_node->get_element_type());
-
-        convert->set_friendly_name(const_node->get_friendly_name());
-        const_node->set_friendly_name(const_node->get_friendly_name() + "_compressed");
-        ov::copy_runtime_info(const_node, convert);
-
-        disable_constant_folding(convert);
         enable_keep_fp16_const(const_node);
+
+        const auto& constant_target_inputs = const_node->get_output_target_inputs(0);
+        const auto& next_node = constant_target_inputs.begin()->get_node()->shared_from_this();
+        if (is_type<ov::op::v0::Convert>(next_node)) {
+            disable_constant_folding(next_node);
+            if (is_decompression(next_node)) {
+                unmark_as_decompression(next_node);
+            }
+            return true;
+        }
+
+        auto convert = std::make_shared<ov::op::v0::Convert>(const_node, const_node->get_element_type());
+        convert->set_friendly_name(const_node->get_friendly_name());
+
+        std::string postfix = const_node->get_element_type() == ov::element::f32 ? "compression" : "decompression";
+        const_node->set_friendly_name(const_node->get_friendly_name() + "_postponed_" + postfix);
+
+        ov::copy_runtime_info(const_node, convert);
+        disable_constant_folding(convert);
 
         for (const auto& target_input : constant_target_inputs) {
             target_input.replace_source_output(convert);
