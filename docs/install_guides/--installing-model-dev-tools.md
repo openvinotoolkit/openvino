@@ -14,7 +14,7 @@ OpenVINO Development Tools is a set of utilities that make it easy to develop an
 * Post-Training Optimization Tool
 * Model Downloader and other Open Model Zoo tools
 
-The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI. If you are developing in C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools.
+The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI. If you are developing in C/C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools.
 
 In both cases, Python 3.7 - 3.11 needs to be installed on your machine before starting.
 
@@ -31,10 +31,10 @@ If you are a Python developer, follow the steps in the :ref:`Installing OpenVINO
    
 .. _cpp_developers:
 
-For C++ Developers
-##################
+For C/C++ Developers
+#######################
 
-If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the :doc:`Selector Tool <openvino_docs_install_guides_overview>` page to install OpenVINO Runtime from an archive file for your operating system.
+If you are a C/C++ developer, you must first install OpenVINO Runtime separately to set up the C/C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the :doc:`Selector Tool <openvino_docs_install_guides_overview>` page to install OpenVINO Runtime from an archive file for your operating system.
 
 Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like ``mo``, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the :ref:`Installing OpenVINO Development Tools <install_dev_tools>` section on this page to install it.
 
@@ -162,7 +162,7 @@ To verify the package is properly installed, run the command below (this may tak
 
 You will see the help message for ``mo`` if installation finished successfully. If you get an error, refer to the :doc:`Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>` for possible solutions.
 
-Congratulations! You finished installing OpenVINO Development Tools with C++ capability. Now you can start exploring OpenVINO's functionality through example C++ applications. See the "What's Next?" section to learn more!
+Congratulations! You finished installing OpenVINO Development Tools with C/C++ capability. Now you can start exploring OpenVINO's functionality through example C/C++ applications. See the "What's Next?" section to learn more!
 
 What's Next?
 ############

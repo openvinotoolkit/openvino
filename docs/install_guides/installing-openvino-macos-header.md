@@ -16,7 +16,7 @@
    Using Homebrew <openvino_docs_install_guides_installing_openvino_brew>
    From PyPI <openvino_docs_install_guides_installing_openvino_pip>
    Using Conda Forge <openvino_docs_install_guides_installing_openvino_conda>
-   Use VCPKG <openvino_docs_install_guides_installing_openvino_vcpkg>
+   Use vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>
 
 
 If you want to install OpenVINO™ Runtime on macOS, there are a few ways to accomplish this. We prepared following options for you:
