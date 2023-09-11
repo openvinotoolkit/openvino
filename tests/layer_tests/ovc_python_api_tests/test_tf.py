@@ -819,6 +819,49 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"add:0": fw_infer2}, eps)
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
 
+    def test_scalar(self, ie_device, precision, ir_version, temp_dir):
+        # This test checks that the memory allocated for constants
+        # is not lost after returning the model from convert_model() method.
+        import tensorflow as tf
+        tf.compat.v1.reset_default_graph()
+
+        from openvino.tools.ovc import convert_model
+        from openvino.runtime import compile_model
+
+        class LayerModel(tf.Module):
+            def __init__(self):
+                super(LayerModel, self).__init__()
+                self.var1 = tf.Variable(-0.5, name='var1')
+                self.var2 = tf.Variable(1.7, name='var2')
+
+
+            @tf.function
+            def sub_function(self, input):
+                return input + self.var1 + self.var2
+
+            @tf.function(input_signature=[tf.TensorSpec([], tf.float32)])
+            def __call__(self, input):
+                return self.sub_function(input)
+
+        if precision == 'FP32':
+            eps = 1e-4
+        else:
+            eps = 5e-2
+
+        test_input = np.array(2.0).astype(np.float32)
+
+        # Convert model to OV
+        fw_model = LayerModel()
+        ov_model = convert_model(fw_model)
+        cmp_model = compile_model(ov_model)
+
+        # Check model inference
+        ov_infer = cmp_model(test_input, ie_device)
+        fw_infer = fw_model(test_input).numpy()
+
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer, {"Identity:0": fw_infer}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer, {"Identity:0": 3.2}, eps)
+
 
 class TFConvertTest(unittest.TestCase):
     @pytest.mark.nightly
