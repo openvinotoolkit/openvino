@@ -2050,7 +2050,7 @@ WinCpuMapTestCase _1sockets_10cores_hyperthreading = {
      "0000000000000000000000000000000000000000000000000000000000000000000000000ff0f000000000000"},
 };
 
-WinCpuMapTestCase _1sockets_6cores_hyperthreading = {
+WinCpuMapTestCase _1sockets_6cores_hyperthreading_FMT7 = {
     12,
     1,
     1,
@@ -2283,7 +2283,7 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          _1sockets_14cores_hyperthreading_set2,
                                          _1sockets_14cores_hyperthreading_set3,
                                          _1sockets_10cores_hyperthreading,
-                                         _1sockets_6cores_hyperthreading,
+                                         _1sockets_6cores_hyperthreading_FMT7,
                                          _1sockets_4cores_hyperthreading,
                                          _1sockets_4cores_hyperthreading_1_FMT7,
                                          _1sockets_4cores_hyperthreading_2_FMT7,
