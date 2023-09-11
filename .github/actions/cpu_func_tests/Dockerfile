@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 
 ARG USERNAME=ga_user
-ARG USER_UID=1000
+ARG USER_UID=1024
 ARG USER_GID=$USER_UID
 
 # Create the user
@@ -14,14 +14,14 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
-RUN chown $USERNAME /github/file_commands
-
 # ********************************************************
 # * Anything else you want to do like clean up goes here *
 # ********************************************************
 
 # [Optional] Set the default user. Omit if you want to keep the default as root.
 USER $USERNAME
+
+VOLUME /github/file_commands
 
 # Copies your code file from your action repository to the filesystem path `/` of the container
 COPY entrypoint.sh /entrypoint.sh
