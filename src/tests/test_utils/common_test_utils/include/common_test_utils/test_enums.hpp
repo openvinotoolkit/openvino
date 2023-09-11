@@ -4,6 +4,14 @@
 
 #pragma once
 
+#include <memory>
+#include <ostream>
+
+#include "openvino/core/model.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/matrix_nms.hpp"
+#include "openvino/op/util/multiclass_nms_base.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -149,6 +157,35 @@ enum class DFTOpType {
 };
 
 // clang-format on
+
+std::ostream& operator<<(std::ostream& os, const ReductionType& m);
+std::ostream& operator<<(std::ostream& os, const PadMode& m);
+
+std::ostream& operator<<(std::ostream& os, ov::test::utils::EltwiseTypes type);
+
+std::ostream& operator<<(std::ostream& os, ov::test::utils::SqueezeOpType type);
+
+std::ostream& operator<<(std::ostream& os, ov::test::utils::InputLayerType type);
+
+std::ostream& operator<<(std::ostream& os, ov::test::utils::ComparisonTypes type);
+
+std::ostream& operator<<(std::ostream& os, ov::test::utils::LogicalTypes type);
+
+std::ostream& operator<<(std::ostream& os, ov::op::v4::Interpolate::InterpolateMode type);
+
+std::ostream& operator<<(std::ostream& os, ov::op::v4::Interpolate::CoordinateTransformMode type);
+
+std::ostream& operator<<(std::ostream& os, ov::op::v4::Interpolate::NearestMode type);
+
+std::ostream& operator<<(std::ostream& os, ov::op::v4::Interpolate::ShapeCalcMode type);
+
+std::ostream& operator<<(std::ostream& os, SequenceTestsMode type);
+
+std::ostream& operator<<(std::ostream& os, ov::op::util::MulticlassNmsBase::SortResultType type);
+
+std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::SortResultType type);
+
+std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::DecayFunction type);
 
 }  // namespace utils
 }  // namespace test

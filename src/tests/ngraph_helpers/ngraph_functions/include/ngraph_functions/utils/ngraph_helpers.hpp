@@ -12,145 +12,33 @@
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/runtime/tensor.hpp>
+#include "common_test_utils/test_enums.hpp"
 #include <vector>
 
 namespace ngraph {
 namespace helpers {
 
 // clang-format off
-enum PoolingTypes {
-    MAX,
-    AVG
-};
-
-enum ROIPoolingTypes {
-    ROI_MAX,
-    ROI_BILINEAR
-};
-
-enum ActivationTypes {
-    None,
-    Sigmoid,
-    Tanh,
-    Relu,
-    LeakyRelu,
-    Exp,
-    Log,
-    Sign,
-    Abs,
-    Gelu,
-    Clamp,
-    Negative,
-    Acos,
-    Acosh,
-    Asin,
-    Asinh,
-    Atan,
-    Atanh,
-    Cos,
-    Cosh,
-    Floor,
-    Sin,
-    Sinh,
-    Sqrt,
-    Tan,
-    Elu,
-    Erf,
-    HardSigmoid,
-    Selu,
-    Ceiling,
-    PReLu,
-    Mish,
-    HSwish,
-    SoftPlus,
-    Swish,
-    HSigmoid,
-    RoundHalfToEven,
-    RoundHalfAwayFromZero,
-    GeluErf,
-    GeluTanh,
-    SoftSign
-};
-
-enum EltwiseTypes {
-    ADD,
-    MULTIPLY,
-    SUBTRACT,
-    DIVIDE,
-    SQUARED_DIFF,
-    POWER,
-    FLOOR_MOD,
-    MOD,
-    ERF
-};
-
-enum ComparisonTypes {
-    EQUAL,
-    NOT_EQUAL,
-    IS_FINITE,
-    IS_INF,
-    IS_NAN,
-    LESS,
-    LESS_EQUAL,
-    GREATER,
-    GREATER_EQUAL
-};
-
-enum ConversionTypes {
-    CONVERT,
-    CONVERT_LIKE
-};
-
-enum LogicalTypes {
-    LOGICAL_AND,
-    LOGICAL_OR,
-    LOGICAL_XOR,
-    LOGICAL_NOT
-};
-
-enum SqueezeOpType {
-    SQUEEZE,
-    UNSQUEEZE
-};
-
-enum MinMaxOpType {
-    MINIMUM,
-    MAXIMUM
-};
+using ov::test::utils::PoolingTypes;
+using ov::test::utils::ROIPoolingTypes;
+using ov::test::utils::ActivationTypes;
+using ov::test::utils::EltwiseTypes;
+using ov::test::utils::ComparisonTypes;
+using ov::test::utils::ConversionTypes;
+using ov::test::utils::LogicalTypes;
+using ov::test::utils::SqueezeOpType;
+using ov::test::utils::MinMaxOpType;
 
 enum QuantizationGranularity {
     Pertensor,
     Perchannel
 };
 
-enum ReductionType {
-    Mean,
-    Max,
-    Min,
-    Prod,
-    Sum,
-    LogicalOr,
-    LogicalAnd,
-    L1,
-    L2
-};
+using ov::test::utils::ReductionType;
+using ov::test::utils::DFTOpType;
+using ov::test::utils::InputLayerType;
+using ov::test::utils::PadMode;
 
-enum class DFTOpType {
-    FORWARD,
-    INVERSE
-};
-
-enum class InputLayerType {
-    CONSTANT,
-    PARAMETER,
-};
-
-enum class PadMode {
-    CONSTANT,
-    EDGE,
-    REFLECT,
-    SYMMETRIC,
-};
 
 enum class TensorIteratorBody {
     RNN,
@@ -159,15 +47,7 @@ enum class TensorIteratorBody {
     // CNN todo: implement
 };
 
-enum class SequenceTestsMode {
-    PURE_SEQ,
-    PURE_SEQ_RAND_SEQ_LEN_CONST,
-    PURE_SEQ_RAND_SEQ_LEN_PARAM,
-    CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
-    CONVERT_TO_TI_MAX_SEQ_LEN_PARAM,
-    CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
-    CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
-};
+using ov::test::utils::SequenceTestsMode;
 
 enum class MemoryTransformation {
     NONE,
@@ -176,9 +56,6 @@ enum class MemoryTransformation {
     LOW_LATENCY_V2_ORIGINAL_INIT
 };
 // clang-format on
-
-std::ostream& operator<<(std::ostream& os, const ReductionType& m);
-std::ostream& operator<<(std::ostream& os, const PadMode& m);
 
 bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function>& func);
 
@@ -241,37 +118,13 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
                                                  const element::Type_t& toPrecision,
                                                  const size_t elementsCount);
 
-std::ostream& operator<<(std::ostream& os, ngraph::helpers::EltwiseTypes type);
-
-std::ostream& operator<<(std::ostream& os, ngraph::helpers::SqueezeOpType type);
-
-std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type);
-
-std::ostream& operator<<(std::ostream& os, ngraph::helpers::ComparisonTypes type);
-
-std::ostream& operator<<(std::ostream& os, ngraph::helpers::LogicalTypes type);
-
-std::ostream& operator<<(std::ostream& os, ngraph::op::v4::Interpolate::InterpolateMode type);
-
-std::ostream& operator<<(std::ostream& os, ngraph::op::v4::Interpolate::CoordinateTransformMode type);
-
-std::ostream& operator<<(std::ostream& os, ngraph::op::v4::Interpolate::NearestMode type);
-
-std::ostream& operator<<(std::ostream& os, ngraph::op::v4::Interpolate::ShapeCalcMode type);
-
 std::ostream& operator<<(std::ostream& os, TensorIteratorBody type);
-
-std::ostream& operator<<(std::ostream& os, SequenceTestsMode type);
 
 std::ostream& operator<<(std::ostream& os, MemoryTransformation type);
 
-std::ostream& operator<<(std::ostream& os, op::util::MulticlassNmsBase::SortResultType type);
-
-std::ostream& operator<<(std::ostream& os, op::v8::MatrixNms::SortResultType type);
-
-std::ostream& operator<<(std::ostream& os, op::v8::MatrixNms::DecayFunction type);
-
 void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes);
+
+using ov::test::utils::operator<<;
 
 }  // namespace helpers
 }  // namespace ngraph

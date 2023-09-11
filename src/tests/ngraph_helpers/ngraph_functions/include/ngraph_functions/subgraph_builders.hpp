@@ -6,18 +6,26 @@
 
 #include "ngraph/op/transpose.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/tile.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -1254,9 +1262,9 @@ inline std::shared_ptr<ov::Model> makeMatMulBias(std::vector<size_t> inputShape 
     parameter[0]->set_friendly_name("parameter");
     auto weights = ov::op::v0::Constant::create(type, ov::Shape{24, 24}, {1});
     auto biases = ov::op::v0::Constant::create(type, ov::Shape{1, 24}, {1});
-    auto matmul = std::make_shared<op::v0::MatMul>(parameter[0], weights);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(parameter[0], weights);
     matmul->set_friendly_name("matmul");
-    auto add = std::make_shared<op::v1::Add>(matmul, biases);
+    auto add = std::make_shared<ov::op::v1::Add>(matmul, biases);
     add->set_friendly_name("add");
     auto result = std::make_shared<ov::op::v0::Result>(add);
     result->set_friendly_name("result");
@@ -1274,7 +1282,7 @@ inline std::shared_ptr<ov::Model> makeConvertTranspose(std::vector<size_t> input
     params.front()->output(0).get_tensor().set_names({"data"});
     const auto order = ov::op::v0::Constant::create(element::i32, {inputOrder.size()}, inputOrder);
 
-    auto convert = std::make_shared<op::v0::Convert>(params.front(), type);
+    auto convert = std::make_shared<ov::op::v0::Convert>(params.front(), type);
     convert->set_friendly_name("convert");
     auto transpose = std::make_shared<op::v1::Transpose>(convert, order);
     transpose->set_friendly_name("transpose");
