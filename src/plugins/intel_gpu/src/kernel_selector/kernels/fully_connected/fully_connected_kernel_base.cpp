@@ -104,6 +104,13 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
+    int inputs_count = 1;
+    if (newParams.compressed) {
+        inputs_count++;
+        if (newParams.has_decompression_zp)
+            inputs_count++;
+    }
+
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
                      dispatchData,
@@ -114,24 +121,10 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      exeMode,
                      true,
                      !orgParams.bias.empty(),
-                     1,
-                     0,
+                     inputs_count,
+                     GetFusedPrimitiveInputsCount(params),
                      1,
                      orgParams.outputs[0].is_dynamic());
-
-    if (newParams.compressed) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-        if (newParams.has_decompression_zp)
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
-    }
-
-    uint32_t fused_deps_total = 0;
-    for (const auto& fused_dep : newParams.fused_ops) {
-        for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
-            fused_deps_total++;
-        }
-    }
 
     // TODO Pass estimated time only through DispatchData
     kd.autoTuneIndex = autoTuneIndex;

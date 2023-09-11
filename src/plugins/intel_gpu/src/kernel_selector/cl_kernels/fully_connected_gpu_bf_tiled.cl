@@ -82,16 +82,16 @@ REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(fc)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
+#if DECOMPRESSION_SCALE_TERM
+    const __global DECOMPRESSION_SCALE_TYPE* decompression_scale,
+#endif
+#if DECOMPRESSION_ZP_TERM
+    const __global DECOMPRESSION_ZP_TYPE* decompression_zp,
+#endif
     __global OUTPUT_TYPE* output,
     const __global FILTER_TYPE* weights
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
-#endif
-#if DECOMPRESSION_SCALE_TERM
-    , const __global DECOMPRESSION_SCALE_TYPE* decompression_scale
-#endif
-#if DECOMPRESSION_ZP_TERM
-    , const __global DECOMPRESSION_ZP_TYPE* decompression_zp
 #endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS

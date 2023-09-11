@@ -28,7 +28,6 @@ ParamsKey weight_bias_params::GetParamsKey() const {
         k.EnableWeightsCompression();
     }
 
-
     return k;
 }
 
