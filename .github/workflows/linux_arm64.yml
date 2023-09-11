@@ -170,6 +170,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=${{ env.BUILD_DIR }}/dependencies/conan_toolchain.cmake \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DARM_COMPUTE_SCONS_JOBS=${{ steps.cpu-cores.outputs.count }} \
             -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DENABLE_PYTHON_PACKAGING=ON \
