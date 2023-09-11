@@ -36,11 +36,16 @@ class TestTFHubConvertModel(TestConvertModel):
         for input_name, input_info in model_obj.structured_input_signature[1].items():
             input_shape = []
             try:
-                for dim in input_info.shape.as_list():
-                    if dim is None:
-                        input_shape.append(1)
-                    else:
-                        input_shape.append(dim)
+                if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
+                    # image classification case, let us imitate an image
+                    # that helps to avoid compute output size issue
+                    input_shape = [1, 200, 200, 3]
+                else:
+                    for dim in input_info.shape.as_list():
+                        if dim is None:
+                            input_shape.append(1)
+                        else:
+                            input_shape.append(dim)
             except ValueError:
                 # unknown rank case
                 pass
