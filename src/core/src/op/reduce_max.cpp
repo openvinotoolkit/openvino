@@ -8,7 +8,7 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/axes_util.hpp"
-#include "openvino/reference/max.hpp"
+#include "openvino/reference/reduce_max.hpp"
 #include "shape_util.hpp"
 
 namespace ov {
@@ -20,7 +20,7 @@ struct Evaluate : element::NoAction<bool> {
     template <element::Type_t ET>
     static result_type visit(const Tensor& in0, Tensor& out, const AxisSet& reduction_axes) {
         using T = fundamental_type_for<ET>;
-        reference::max(in0.data<const T>(), out.data<T>(), in0.get_shape(), reduction_axes);
+        reference::reduce_max(in0.data<const T>(), out.data<T>(), in0.get_shape(), reduction_axes);
         return true;
     }
 };

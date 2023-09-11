@@ -14,8 +14,16 @@
 namespace ov {
 namespace reference {
 
-template <typename T>
-void max(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
+/**
+ * @brief Reference implementation of ReduceMax operator.
+ *
+ * @param in             Input pointer to data.
+ * @param out            Output pointer to results.
+ * @param in_shape       Input shape.
+ * @param reduction_axes Axes on which reduction is applied.
+ */
+template <class T>
+void reduce_max(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     constexpr auto min_value = std::numeric_limits<T>::lowest();
 
     const auto out_shape = util::reduce(in_shape, reduction_axes);
