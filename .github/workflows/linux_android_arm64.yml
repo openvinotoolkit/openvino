@@ -93,7 +93,10 @@ jobs:
           
           # vcpkg's tool dependencies
           sudo -E apt --assume-yes install curl zip unzip tar
-          
+
+          # vcpkg 'python3' port dependencies
+          sudo -E apt --assume-yes install autoconf libtool autoconf-archive
+
           # vcpkg tree of dependencies require extra packages
           sudo -E apt --assume-yes install pkg-config linux-libc-dev
           
