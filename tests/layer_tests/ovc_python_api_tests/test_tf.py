@@ -820,8 +820,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
 
     def test_scalar(self, ie_device, precision, ir_version, temp_dir):
-        # This test checks that the memory allocated for constants
-        # is not lost after returning the model from convert_model() method.
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
 
