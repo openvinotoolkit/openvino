@@ -23,11 +23,15 @@ To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` a
    .. tab-item:: Python
       :sync: py
 
+      .. code-block:: py
+
       import openvino as ov
       ov.convert_model('your_model_file.pdmodel')
 
    .. tab-item:: CLI
       :sync: cli
+
+      .. code-block:: sh
 
       ovc your_model_file.pdmodel
 
@@ -38,11 +42,15 @@ To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` a
    .. tab-item:: Python
       :sync: py
 
+      .. code-block:: py
+
       import openvino as ov
       ov.convert_model('yolov3.pdmodel')
 
    .. tab-item:: CLI
       :sync: cli
+
+      .. code-block:: sh
 
       ovc yolov3.pdmodel
 

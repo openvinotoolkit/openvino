@@ -14,6 +14,8 @@ To convert an ONNX model, run model conversion with the path to the ``.tflite`` 
    .. tab-item:: Python
       :sync: py
 
+      .. code-block:: py
+
          import openvino as ov
          ov.convert_model('your_model_file.tflite')
 

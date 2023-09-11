@@ -40,7 +40,7 @@ To convert an ONNX model, run model conversion with the path to the input model 
          ovc your_model_file.onnx
 
 External Data Files
-#########################
+###################
 
 ONNX models may consist of multiple files when the model size exceeds 2GB allowed by Protobuf. According to this `ONNX article <https://github.com/onnx/onnx/blob/main/docs/ExternalData.md>`__, instead of a single file, the model is represented as one file with ``.onnx`` extension and multiple separate files with external data. These data files are located in the same directory as the main ``.onnx`` file or in another directory.
 
