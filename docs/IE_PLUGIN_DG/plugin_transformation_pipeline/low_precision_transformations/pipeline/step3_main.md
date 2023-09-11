@@ -9,7 +9,12 @@
 
 
 Main transformations are the majority of low precision transformations. Transformations operate with dequantization operations. Main transformations include:
+.. toctree::
+   :maxdepth: 1
 
+   AddTransformation <openvino_docs_OV_UG_lpt_AddTransformation>
+   BatchToSpaceTransformation <openvino_docs_OV_UG_lpt_BatchToSpaceTransformation>
+   SpaceToBatchTransformation <openvino_docs_OV_UG_lpt_SpaceToBatchTransformation>
 * :doc:`AddTransformation <openvino_docs_OV_UG_lpt_AddTransformation>` 
 * :doc:`AvgPoolTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>` 
 * :doc:`BatchToSpaceTransformation <openvino_docs_OV_UG_lpt_BatchToSpaceTransformation>` 
