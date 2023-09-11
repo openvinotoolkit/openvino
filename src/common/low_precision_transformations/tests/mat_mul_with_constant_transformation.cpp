@@ -68,8 +68,7 @@ inline std::ostream& operator<<(std::ostream& out, const MatMullTransformationTe
     return out << "_" << values.actual << "_" << values.expected;
 }
 
-typedef std::tuple<ov::element::Type, ngraph::PartialShape, MatMullTransformationTestValues>
-    MatMulTransformationParams;
+typedef std::tuple<ov::element::Type, ngraph::PartialShape, MatMullTransformationTestValues> MatMulTransformationParams;
 
 class MatMulWithConstantTransformation : public LayerTransformation,
                                          public testing::WithParamInterface<MatMulTransformationParams> {
@@ -89,7 +88,7 @@ public:
                                                                    testValues.actual.dequantizationOnWeights);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ov::op::v0::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =

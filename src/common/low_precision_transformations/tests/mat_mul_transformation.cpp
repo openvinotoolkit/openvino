@@ -87,28 +87,28 @@ public:
                                                                    testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ov::op::v0::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = (testValues.expected.precisionBeforeOperation1 == ov::element::f32) &&
-                                    testValues.expected.result.empty()
-                                ? ngraph::builder::subgraph::MatMulFunction::getOriginal(
-                                      precision,
-                                      shapes.first,
-                                      testValues.actual.precisionBeforeDequantization1,
-                                      testValues.actual.dequantization1,
-                                      shapes.second,
-                                      testValues.actual.precisionBeforeDequantization2,
-                                      testValues.actual.dequantization2)
-                                : ngraph::builder::subgraph::MatMulFunction::getReference(
-                                      precision,
-                                      shapes.first,
-                                      testValues.expected.precisionBeforeDequantization1,
-                                      testValues.expected.dequantization1,
-                                      shapes.second,
-                                      testValues.expected.precisionBeforeDequantization2,
-                                      testValues.expected.dequantization2,
-                                      testValues.expected.result);
+        referenceFunction =
+            (testValues.expected.precisionBeforeOperation1 == ov::element::f32) && testValues.expected.result.empty()
+                ? ngraph::builder::subgraph::MatMulFunction::getOriginal(
+                      precision,
+                      shapes.first,
+                      testValues.actual.precisionBeforeDequantization1,
+                      testValues.actual.dequantization1,
+                      shapes.second,
+                      testValues.actual.precisionBeforeDequantization2,
+                      testValues.actual.dequantization2)
+                : ngraph::builder::subgraph::MatMulFunction::getReference(
+                      precision,
+                      shapes.first,
+                      testValues.expected.precisionBeforeDequantization1,
+                      testValues.expected.dequantization1,
+                      shapes.second,
+                      testValues.expected.precisionBeforeDequantization2,
+                      testValues.expected.dequantization2,
+                      testValues.expected.result);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
