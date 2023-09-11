@@ -87,7 +87,7 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          # compile model
          compiled_model = ov.compile_model(ov_model)
 
-         # prepare input_data your way using HF tokenizer or your own tokenizer
+         # prepare input_data using HF tokenizer or your own tokenizer
          # encoded_input is reused here for simplicity
 
          # run the inference
