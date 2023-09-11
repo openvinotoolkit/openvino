@@ -17,7 +17,7 @@
     )
 
 #define GET_FILTER_IS_OS_YX_OSV_ISV_INDEX(prefix, o, i, y, x, osv, isv) \
-    get_is_os_zyx_isv_osv_index(                                  \
+    get_is_os_zyx_osv_isv_index(                                  \
         o, i, 0, y, x,                                            \
         CAT(prefix, _SIZE_X),                                     \
         CAT(prefix, _SIZE_Y),                                     \
