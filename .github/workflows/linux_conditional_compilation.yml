@@ -128,7 +128,7 @@ jobs:
           python3 ${{ env.OPENVINO_REPO }}/thirdparty/itt_collector/runtool/sea_runtool.py \
             --bindir ${{ env.OPENVINO_REPO }}/bin/intel64/Release -o ${{ env.BUILD_DIR }}/itt_stat ! \
           ${{ env.OPENVINO_REPO }}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
-            -m ${{ env.MODELS_PATH }}/models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml -d CPU
+            -m ${{ env.MODELS_PATH }}/models/test_model/test_model_fp32.xml -d CPU
 
       - name: CMake configure with CC ON
         run: cmake -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=${{ env.BUILD_DIR }}/*.csv -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
@@ -139,4 +139,4 @@ jobs:
       - name: Use OpenVINO after CC
         run: |
           ${{ env.OPENVINO_REPO }}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
-            -m ${{ env.MODELS_PATH }}/models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml -d CPU
+            -m ${{ env.MODELS_PATH }}/models/test_model/test_model_fp32.xml -d CPU
