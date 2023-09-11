@@ -8,7 +8,7 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/axes_util.hpp"
-#include "openvino/reference/min.hpp"
+#include "openvino/reference/reduce_min.hpp"
 
 namespace ov {
 namespace op {

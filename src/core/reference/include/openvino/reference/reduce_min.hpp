@@ -13,7 +13,15 @@
 
 namespace ov {
 namespace reference {
-template <typename T>
+/**
+ * @brief Reference implementation of ReduceMin operator.
+ *
+ * @param in             Input pointer to data.
+ * @param out            Output pointer to results.
+ * @param in_shape       Input shape.
+ * @param reduction_axes Axes on which reduction is applied.
+ */
+template <class T>
 void reduce_min(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     constexpr auto max_value =
         std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max();
