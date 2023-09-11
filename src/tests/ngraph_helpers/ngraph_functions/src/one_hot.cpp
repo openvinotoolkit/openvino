@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/one_hot.hpp"
+
 #include <memory>
 
 #include "ngraph_functions/builders.hpp"
-#include "openvino/op/one_hot.hpp"
 
 namespace ngraph {
 namespace builder {

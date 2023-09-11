@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/dft.hpp"
+
 #include <memory>
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
-#include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
 
 namespace ngraph {

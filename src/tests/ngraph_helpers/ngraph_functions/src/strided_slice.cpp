@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/strided_slice.hpp"
+
 #include "ngraph_functions/builders.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/strided_slice.hpp"
 
 namespace ngraph {
 namespace builder {

@@ -62,22 +62,22 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
                                                        const std::vector<ptrdiff_t>& outputPadding,
                                                        const std::vector<float>& biasesWeights) {
     auto deconv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(in,
-                                                                         weights,
-                                                                         strides,
-                                                                         padsBegin,
-                                                                         padsEnd,
-                                                                         dilations,
-                                                                         autoPad);
+                                                                             weights,
+                                                                             strides,
+                                                                             padsBegin,
+                                                                             padsEnd,
+                                                                             dilations,
+                                                                             autoPad);
 
     if (!outputPadding.empty()) {
         deconv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(in,
-                                                                        weights,
-                                                                        strides,
-                                                                        padsBegin,
-                                                                        padsEnd,
-                                                                        dilations,
-                                                                        autoPad,
-                                                                        outputPadding);
+                                                                            weights,
+                                                                            strides,
+                                                                            padsBegin,
+                                                                            padsEnd,
+                                                                            dilations,
+                                                                            autoPad,
+                                                                            outputPadding);
     }
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
@@ -116,24 +116,24 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
     auto deconv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(in,
-                                                                         filterWeightsNode,
-                                                                         outputShape,
-                                                                         strides,
-                                                                         padsBegin,
-                                                                         padsEnd,
-                                                                         dilations,
-                                                                         autoPad);
+                                                                             filterWeightsNode,
+                                                                             outputShape,
+                                                                             strides,
+                                                                             padsBegin,
+                                                                             padsEnd,
+                                                                             dilations,
+                                                                             autoPad);
 
     if (!outputPadding.empty()) {
         deconv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(in,
-                                                                        filterWeightsNode,
-                                                                        outputShape,
-                                                                        strides,
-                                                                        padsBegin,
-                                                                        padsEnd,
-                                                                        dilations,
-                                                                        autoPad,
-                                                                        outputPadding);
+                                                                            filterWeightsNode,
+                                                                            outputShape,
+                                                                            strides,
+                                                                            padsBegin,
+                                                                            padsEnd,
+                                                                            dilations,
+                                                                            autoPad,
+                                                                            outputPadding);
     }
 
     if (addBiases) {

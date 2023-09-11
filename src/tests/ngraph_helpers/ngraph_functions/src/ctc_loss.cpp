@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/ctc_loss.hpp"
+
 #include <memory>
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
-#include "openvino/op/ctc_loss.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -35,13 +36,13 @@ std::shared_ptr<Node> makeCTCLoss(const ov::Output<Node>& logitsNode,
     auto blankIndexNode = makeConstant<int>(iType, {}, {blankIndex});
 
     auto ctcLossNode = std::make_shared<ov::op::v4::CTCLoss>(logitsNode,
-                                                         logitsLengthNode,
-                                                         labelsNode,
-                                                         labelsLengthNode,
-                                                         blankIndexNode,
-                                                         preprocessCollapseRepeated,
-                                                         ctcMergeRepeated,
-                                                         unique);
+                                                             logitsLengthNode,
+                                                             labelsNode,
+                                                             labelsLengthNode,
+                                                             blankIndexNode,
+                                                             preprocessCollapseRepeated,
+                                                             ctcMergeRepeated,
+                                                             unique);
 
     return ctcLossNode;
 }

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/convolution.hpp"
+
 #include <memory>
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/convolution.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -29,8 +30,13 @@ std::shared_ptr<Node> makeConvolution(const ov::Output<Node>& in,
     std::vector<size_t> filterWeightsShape = {numOutChannels, static_cast<size_t>(shape[1].get_length())};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
-    auto conv =
-        std::make_shared<ov::op::v1::Convolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations, autoPad);
+    auto conv = std::make_shared<ov::op::v1::Convolution>(in,
+                                                          filterWeightsNode,
+                                                          strides,
+                                                          padsBegin,
+                                                          padsEnd,
+                                                          dilations,
+                                                          autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
         auto biasesWeightsNode = makeConstant(type, {1, numOutChannels, 1, 1}, biasesWeights, randomBiases);

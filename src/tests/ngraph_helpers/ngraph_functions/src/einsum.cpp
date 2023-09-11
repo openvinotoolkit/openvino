@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/einsum.hpp"
+
 #include <memory>
 #include <string>
 
 #include "ngraph_functions/builders.hpp"
-#include "openvino/op/einsum.hpp"
 
 namespace ngraph {
 namespace builder {

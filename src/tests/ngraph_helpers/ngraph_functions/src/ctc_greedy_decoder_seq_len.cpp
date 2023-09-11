@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
+
 #include <memory>
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
-#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -28,11 +29,11 @@ std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inp
     }();
 
     return std::make_shared<ov::op::v6::CTCGreedyDecoderSeqLen>(inputData,
-                                                            sequenceLengthData,
-                                                            blankIndexNode,
-                                                            mergeRepeated,
-                                                            idxPrecision,
-                                                            idxPrecision);
+                                                                sequenceLengthData,
+                                                                blankIndexNode,
+                                                                mergeRepeated,
+                                                                idxPrecision,
+                                                                idxPrecision);
 }
 
 std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,

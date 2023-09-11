@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
 #include "openvino/op/cum_sum.hpp"
+
+#include "ngraph_functions/builders.hpp"
 
 namespace ngraph {
 namespace builder {

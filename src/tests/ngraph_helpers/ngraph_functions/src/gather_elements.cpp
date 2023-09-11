@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gather_elements.hpp"
+
 #include <memory>
 #include <numeric>
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
-#include "openvino/op/gather_elements.hpp"
 
 namespace ngraph {
 namespace builder {

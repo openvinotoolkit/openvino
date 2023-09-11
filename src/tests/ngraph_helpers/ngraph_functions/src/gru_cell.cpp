@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gru_cell.hpp"
+
 #include <memory>
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
-#include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 
 namespace ngraph {

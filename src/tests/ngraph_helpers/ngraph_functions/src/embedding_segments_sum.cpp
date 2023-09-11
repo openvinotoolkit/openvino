@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/embedding_segments_sum.hpp"
+
 #include <memory>
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
-#include "openvino/op/embedding_segments_sum.hpp"
 
 namespace ngraph {
 namespace builder {

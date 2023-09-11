@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/binary_convolution.hpp"
+
 #include <memory>
 #include <vector>
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/data_utils.hpp"
-#include "openvino/op/binary_convolution.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -36,16 +37,16 @@ std::shared_ptr<Node> makeBinaryConvolution(const Output<Node>& in,
         for (size_t i = 0; i < byteNum; i++)
             buffer[i] = filterWeihgts[i];
     }
-    auto conv =
-        std::make_shared<ov::op::v1::BinaryConvolution>(in,
-                                                    filterWeightsNode,
-                                                    strides,
-                                                    padsBegin,
-                                                    padsEnd,
-                                                    dilations,
-                                                    ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                                                    padValue,
-                                                    autoPad);
+    auto conv = std::make_shared<ov::op::v1::BinaryConvolution>(
+        in,
+        filterWeightsNode,
+        strides,
+        padsBegin,
+        padsEnd,
+        dilations,
+        ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
+        padValue,
+        autoPad);
     return conv;
 }
 

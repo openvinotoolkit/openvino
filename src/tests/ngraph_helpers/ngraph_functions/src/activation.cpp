@@ -17,6 +17,7 @@
 #include "openvino/op/atanh.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
 #include "openvino/op/elu.hpp"
@@ -45,7 +46,6 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
-#include "openvino/op/constant.hpp"
 
 namespace ngraph {
 namespace builder {
