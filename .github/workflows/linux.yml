@@ -42,27 +42,23 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      GITHUB_WORKSPACE: '/github/workspace'
-      OPENVINO_REPO: /github/workspace/openvino
-      OPENVINO_CONTRIB_REPO: /github/workspace/openvino_contrib
-      INSTALL_DIR: /github/workspace/install
-      INSTALL_TEST_DIR: /github/workspace/install/tests
-      SAMPLES_INSTALL_DIR: /github/workspace/install/samples
-      LAYER_TESTS_INSTALL_DIR: /github/workspace/install/tests/layer_tests
-      MODEL_HUB_TESTS_INSTALL_DIR: /github/workspace/install/tests/model_hub_tests
-      BUILD_DIR: /github/workspace/build
-      DATA_PATH: /github/workspace/testdata
-      MODELS_PATH: /github/workspace/testdata
-      OV_TEMP: /github/workspace/openvino_temp
+      GITHUB_WORKSPACE: '/__w/openvino/openvino'
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
+      INSTALL_DIR: /__w/openvino/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
+      SAMPLES_INSTALL_DIR: /__w/openvino/openvino/install/samples
+      LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/model_hub_tests
+      BUILD_DIR: /__w/openvino/openvino/build
+      DATA_PATH: /__w/openvino/openvino/testdata
+      MODELS_PATH: /__w/openvino/openvino/testdata
+      OV_TEMP: /__w/openvino/openvino/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
       CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_Release
-      CCACHE_TEMPDIR: /github/workspace/ccache_temp
+      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
     steps:
-      - name: Initialize workspace
-        run: |
-          mkdir -p ${GITHUB_WORKSPACE}
-
       - name: Install git
         run: |
           apt-get update
