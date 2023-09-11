@@ -7,7 +7,6 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Pre-Trained Models
    
    omz_models_group_intel
    omz_models_group_public
@@ -15,14 +14,15 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Demo Applications
 
+   omz_tools_downloader
+   omz_tools_accuracy_checker
+   omz_data_datasets
    omz_demos
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Model API
 
    omz_model_api_ovms_adapter
 
