@@ -161,7 +161,7 @@ async function downloadRuntime(uri, opts = {}) {
       + `on ${sanitized}`);
 
   const filename = path.basename(uri);
-  const tmpPath = path.resolve(__dirname, '..', 'tmp');
+  const tmpPath = path.resolve(__dirname, '..', 'temp');
   const fullPath = path.resolve(tmpPath, filename);
 
   try {
