@@ -858,11 +858,6 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
 
-      - name: Install dependencies
-        run: |
-          sudo -E apt update
-          sudo -E ${{ env.INSTALL_DIR }}/install_dependencies/install_openvino_dependencies.sh
-
       - name: Install Python wheels
         run: |
           python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
