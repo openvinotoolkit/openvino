@@ -429,7 +429,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
     IE_SUPPRESS_DEPRECATED_END
 
-    transformer.convert_precision_legacy(network);
+    //transformer.convert_precision_legacy(network);
 
     //  Check the network
 

@@ -298,14 +298,14 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     auto passes =
         std::make_shared<PassManager>(PassManagerSettings{runBeforeCopy, config.gnaFlags.input_low_precision}, network);
     passes->registerPass<RemoveConstPass>();
-    if (!is_ngraph_passes_used) {
-        passes->registerPass<UnrollTIPass>();
-        passes->registerPass<RemoveConstPass>();
-        passes->registerPass<UnrollLSTMCellPass>();
-        passes->registerPass<RemoveSingleInputConcatPass>();
-        passes->registerPass<BroadcastConstPass>();
-        passes->registerPass<SubstituteScaleShiftBroadCastPass>();
-    }
+    //if (!is_ngraph_passes_used) {
+    //    passes->registerPass<UnrollTIPass>();
+    //    passes->registerPass<RemoveConstPass>();
+    //    passes->registerPass<UnrollLSTMCellPass>();
+    //    passes->registerPass<RemoveSingleInputConcatPass>();
+    //    passes->registerPass<BroadcastConstPass>();
+    //    passes->registerPass<SubstituteScaleShiftBroadCastPass>();
+    //}
 
     if (fake_quantized)
         passes->registerPass<SubstituteSoftSignPass>();
@@ -316,16 +316,16 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
 
     passes->registerPass<SubstitutePReluPass>();
 
-    if (!is_ngraph_passes_used) {
-        passes->registerPass<ReorderMaxPoolPass>();
-        passes->registerPass<EltwiseSplitOverChannelsPass>();
-    }
+    //if (!is_ngraph_passes_used) {
+    //    passes->registerPass<ReorderMaxPoolPass>();
+    //    passes->registerPass<EltwiseSplitOverChannelsPass>();
+    //}
 
     passes->registerPass<InsertSplitAligningFilterPass>();
 
-    if (!is_ngraph_passes_used) {
-        passes->registerPass<InsertCopyLayerPass>();
-    }
+    //if (!is_ngraph_passes_used) {
+    //    passes->registerPass<InsertCopyLayerPass>();
+    //}
     passes->registerPass<FlattenTrivialConcatPass>();
     passes->registerPass<InsertConcatAligningFilterPass>();
     passes->registerPass<ReorderConcatInputsPass>();
@@ -343,17 +343,17 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
 }
 
 void TransformationsPipeline::convert_precision_legacy(InferenceEngine::CNNNetwork& network) {
-    if (!is_ngraph_passes_used) {
-        InferenceEngine::NetPass::ConvertPrecision(network,
-                                                   InferenceEngine::Precision::I64,
-                                                   InferenceEngine::Precision::I32);
-        InferenceEngine::NetPass::ConvertPrecision(network,
-                                                   InferenceEngine::Precision::U64,
-                                                   InferenceEngine::Precision::I32);
-        InferenceEngine::NetPass::ConvertPrecision(network,
-                                                   InferenceEngine::Precision::U32,
-                                                   InferenceEngine::Precision::I32);
-    }
+    //if (!is_ngraph_passes_used) {
+    //    InferenceEngine::NetPass::ConvertPrecision(network,
+    //                                               InferenceEngine::Precision::I64,
+    //                                               InferenceEngine::Precision::I32);
+    //    InferenceEngine::NetPass::ConvertPrecision(network,
+    //                                               InferenceEngine::Precision::U64,
+    //                                               InferenceEngine::Precision::I32);
+    //    InferenceEngine::NetPass::ConvertPrecision(network,
+    //                                               InferenceEngine::Precision::U32,
+    //                                               InferenceEngine::Precision::I32);
+    //}
 }
 IE_SUPPRESS_DEPRECATED_END
 }  // namespace intel_gna
