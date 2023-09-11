@@ -281,9 +281,11 @@ inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x
 #elif defined INPUT0_LAYOUT_OS_IYX_OSV32__AI32
     return GET_FILTER_OS_IYX_OSV_INDEX(INPUT0, o, i, y, x, 32);
 #elif defined INPUT0_LAYOUT_O_IS_YX_ISV4
-    return GET_FILTER_O_IS_YX_ISV16_INDEX(INPUT0, o, i, y, x, 4);
+    return GET_FILTER_O_IS_ZYX_ISV16_INDEX(INPUT0, o, i, 0, y, x, 4);
 #elif defined INPUT0_LAYOUT_O_IS_YX_ISV16
-    return GET_FILTER_O_IS_YX_ISV16_INDEX(INPUT0, o, i, y, x, 16);
+    return GET_FILTER_O_IS_ZYX_ISV16_INDEX(INPUT0, o, i, 0, y, x, 16);
+#elif defined INPUT0_LAYOUT_O_IS_ZYX_ISV16
+    return GET_FILTER_O_IS_ZYX_ISV16_INDEX(INPUT0, o, i, z, y, x, 16);
 #elif defined INPUT0_LAYOUT_IYX_OSV64
     return GET_FILTER_OS_IYX_OSV_INDEX(INPUT0, o, i, y, x, 64);
 #elif defined INPUT0_LAYOUT_OS_IYX_OSV16_ROTATE_180
@@ -498,9 +500,11 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
 #elif defined OUTPUT_LAYOUT_OS_IYX_OSV64
     return GET_FILTER_OS_IYX_OSV_INDEX(OUTPUT, o, i, y, x, 64);
 #elif defined OUTPUT_LAYOUT_O_IS_YX_ISV4
-    return GET_FILTER_O_IS_YX_ISV16_INDEX(OUTPUT, o, i, y, x, 4);
+    return GET_FILTER_O_IS_ZYX_ISV16_INDEX(OUTPUT, o, i, 0, y, x, 4);
 #elif defined OUTPUT_LAYOUT_O_IS_YX_ISV16
-    return GET_FILTER_O_IS_YX_ISV16_INDEX(OUTPUT, o, i, y, x, 16);
+    return GET_FILTER_O_IS_ZYX_ISV16_INDEX(OUTPUT, o, i, 0, y, x, 16);
+#elif defined OUTPUT_LAYOUT_O_IS_ZYX_ISV16
+    return GET_FILTER_O_IS_ZYX_ISV16_INDEX(OUTPUT, o, i, z, y, x, 16);
 #elif defined OUTPUT_LAYOUT_OS_IYX_OSV16_ROTATE_180
     return GET_FILTER_OS_IYX_OSV_ROTATE_180_INDEX(OUTPUT, o, i, y, x, SUB_GROUP_SIZE);
 #elif defined OUTPUT_LAYOUT_I_YXS_OS_YXSV2_OSV16

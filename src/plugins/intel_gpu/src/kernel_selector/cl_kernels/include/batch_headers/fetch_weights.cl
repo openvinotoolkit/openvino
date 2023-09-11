@@ -1872,14 +1872,15 @@ inline uint get_g_os_zyx_is_osv_isv_index(uint g, uint o, uint i, uint z, uint y
 #define GET_FILTER_G_OS_ZYX_IS_OSV32_ISV16_INDEX(tensor, g, o, i, z, y, x)  GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 32, 16)
 #define GET_FILTER_G_OS_ZYX_IS_OSV32_ISV32_INDEX(tensor, g, o, i, z, y, x)  GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 32, 32)
 
-#define GET_FILTER_O_IS_YX_ISV16_INDEX(prefix, o, i, y, x, isv) \
-    CAT(prefix, _OFFSET) +                                      \
-    ((i) % (isv)) +                                             \
-    (o)*CAT(prefix, _OFM_PITCH) +                               \
-    (isv)*(                                                     \
-        (x)*CAT(prefix, _X_PITCH) +                             \
-        (y)*CAT(prefix, _Y_PITCH) +                             \
-        ((i) / (isv))*CAT(prefix, _IFM_PITCH)                   \
+#define GET_FILTER_O_IS_ZYX_ISV16_INDEX(prefix, o, i, z, y, x, isv) \
+    CAT(prefix, _OFFSET) +                                          \
+    ((i) % (isv)) +                                                 \
+    (o)*CAT(prefix, _OFM_PITCH) +                                   \
+    (isv)*(                                                         \
+        (x)*CAT(prefix, _X_PITCH) +                                 \
+        (y)*CAT(prefix, _Y_PITCH) +                                 \
+        (z)*CAT(prefix, _Z_PITCH) +                                 \
+        ((i) / (isv))*CAT(prefix, _IFM_PITCH)                       \
     )
 
 #define GET_FILTER_OS_YXI_OSV16(prefix, o, i, y, x) \

@@ -318,6 +318,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_zyx_osv64_isv16:                       return "OS_IS_ZYX_OSV64_ISV16";
         case WeightsLayout::o_is_yx_isv4:                                return "O_IS_YX_ISV4";
         case WeightsLayout::o_is_yx_isv16:                               return "O_IS_YX_ISV16";
+        case WeightsLayout::o_is_zyx_isv16:                              return "O_IS_ZYX_ISV16";
         case WeightsLayout::os_yxi_osv16:                                return "OS_YXI_OSV16";
         case WeightsLayout::os_iyx_osv16:                                return "OS_IYX_OSV16";
         case WeightsLayout::os_iyx_osv32:                                return "OS_IYX_OSV32";
