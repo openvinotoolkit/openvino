@@ -457,7 +457,7 @@ void FullyConnected::prepareWeightsUsingDummyShape() {
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
     auto inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(MemoryDescUtils::makeDummyDesc(*getBaseMemDescAtInputPort(DATA_ID)));
-    auto weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(getBaseMemDescAtInputPort(WEIGHTS_ID));
+    auto weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
     auto biasDesc = withBiases ? MemoryDescUtils::convertToDnnlMemoryDesc(getBaseMemDescAtInputPort(BIAS_ID)) : nullptr;
     auto outDesc = MemoryDescUtils::convertToDnnlMemoryDesc(MemoryDescUtils::makeDummyDesc(*getBaseMemDescAtOutputPort(0)));
 
