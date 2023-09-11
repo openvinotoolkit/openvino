@@ -453,18 +453,18 @@ Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
                     "ReorderExecutor output precision is unspecified!");
 
     prim = dnnl::reorder();
-    if (src_prc != dst_prc) {
-        if (src->getDescWithType<BlockedMemoryDesc>()->getOrder() ==
-            dst->getDescWithType<BlockedMemoryDesc>()->getOrder()) {
-            need_reorder = false;
-            src_blocked = std::make_shared<Memory>(engine, src->getDescPtr(), src->getData(), false);
-            dst_blocked = std::make_shared<Memory>(engine, dst->getDescPtr(), dst->getData(), false);
-            pre_converter = std::make_shared<IntermConverter>(src_blocked, src_prc, dst_blocked, dst_prc);
-            return;
-        }
-    }
-    need_reorder = true;
+    // if (src_prc != dst_prc) {
+    //    if (src->getDescWithType<BlockedMemoryDesc>()->getOrder() ==
+    //        dst->getDescWithType<BlockedMemoryDesc>()->getOrder()) {
+    //        need_reorder = false;
+    //        src_blocked = std::make_shared<Memory>(engine, src->getDescPtr(), src->getData(), false);
+    //        dst_blocked = std::make_shared<Memory>(engine, dst->getDescPtr(), dst->getData(), false);
+    //        pre_converter = std::make_shared<IntermConverter>(src_blocked, src_prc, dst_blocked, dst_prc);
+    //        return;
+    //    }
+    // }
 
+    need_reorder = true;
     auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src_prc);
     auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst_prc);
 
