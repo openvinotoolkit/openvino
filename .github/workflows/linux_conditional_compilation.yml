@@ -38,6 +38,8 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       BUILD_DIR: ${{ github.workspace }}/build
@@ -82,6 +84,18 @@ jobs:
       # Build
       #
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: "2000M"
+          # Should save cache only if run in the master branch of the base repo
+          # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
+          # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          verbose: 2
+          key: linux-cc
+          restore-keys: |
+            linux-cc
+
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
@@ -109,18 +123,12 @@ jobs:
       - name: Show ccache stats
         run: ccache --show-stats
 
-      - name: Check Dir
-        run: ls -laR ${{ env.OPENVINO_REPO }}/bin/intel64/Release
-
-      - name: Check Models Dir
-        run: ls -laR ${{ env.MODELS_PATH }}
-
       - name: Code usage analysis
         run: |
           python3 ${{ env.OPENVINO_REPO }}/thirdparty/itt_collector/runtool/sea_runtool.py \
             --bindir ${{ env.OPENVINO_REPO }}/bin/intel64/Release -o ${{ env.BUILD_DIR }}/itt_stat ! \
           ${{ env.OPENVINO_REPO }}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
-            -m ${{ env.MODELS_PATH }}/models/test_model/test_model_fp32.xml -d CPU
+            -m ${{ env.MODELS_PATH }}/models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml -d CPU
 
       - name: CMake configure with CC ON
         run: cmake -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=${{ env.BUILD_DIR }}/*.csv -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
@@ -131,4 +139,4 @@ jobs:
       - name: Use OpenVINO after CC
         run: |
           ${{ env.OPENVINO_REPO }}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
-            -m ${{ env.MODELS_PATH }}/models/test_model/test_model_fp32.xml -d CPU
+            -m ${{ env.MODELS_PATH }}/models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml -d CPU
