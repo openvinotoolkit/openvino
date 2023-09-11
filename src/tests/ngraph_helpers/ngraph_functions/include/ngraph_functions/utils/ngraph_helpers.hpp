@@ -12,8 +12,9 @@
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/runtime/tensor.hpp>
-#include "common_test_utils/test_enums.hpp"
 #include <vector>
+
+#include "common_test_utils/test_enums.hpp"
 
 namespace ngraph {
 namespace helpers {
