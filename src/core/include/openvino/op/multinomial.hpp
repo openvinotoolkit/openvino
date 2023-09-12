@@ -19,17 +19,17 @@ public:
     /// \param input The input tensor to be normalized
     /// \param num_samples The tensor containing samples count. Defines output shape of the network
     /// \param output_type The data type of the output
-    /// \param replacement Determines sampling with replacement
+    /// \param with_replacement Determines sampling with replacement
     /// \param log_probs Determines whether the input contains probabilities or log probabilities
     /// \param global_seed The seed used in ----
     /// \param op_seed The seed used in ----
     Multinomial(const Output<Node>& input,
-                       const Output<Node>& num_samples,
-                       const ngraph::element::Type_t output_type,
-                       const bool replacement,
-                       const bool log_probs,
-                       const int64_t global_seed,
-                       const int64_t op_seed);
+                const Output<Node>& num_samples,
+                const ngraph::element::Type_t output_type,
+                const bool with_replacement,
+                const bool log_probs,
+                const int64_t global_seed,
+                const int64_t op_seed);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -43,12 +43,12 @@ public:
         m_output_type = output_type;
     }
 
-    bool get_replacement() const {
-        return m_replacement;
+    bool get_with_replacement() const {
+        return m_with_replacement;
     }
 
-    void set_replacement(bool replacement) {
-        m_replacement = replacement;
+    void set_with_replacement(bool with_replacement) {
+        m_with_replacement = with_replacement;
     }
 
     bool get_log_probs() const {
@@ -79,7 +79,7 @@ public:
 
 private:
     ngraph::element::Type_t m_output_type;
-    bool m_replacement;
+    bool m_with_replacement;
     bool m_log_probs;
     int64_t m_global_seed;
     int64_t m_op_seed;
