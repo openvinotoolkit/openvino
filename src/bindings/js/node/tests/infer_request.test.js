@@ -6,7 +6,6 @@ const ov = require('../build/Release/ov_node_addon.node');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
-const util = require('node:util');
 
 const epsilon = 0.5; // To avoid very small numbers
 const testXml = getModelPath();
@@ -187,13 +186,13 @@ describe('InferRequest', () => {
   });
 });
 
-describe("Asynchronous inference", () => {
-    it('Compare infer and asyncInfer results', () => {
-        const ir = compiledModel.createInferRequest();
-        const res1 = ir.infer([tensorData]);
+describe('Asynchronous inference', () => {
+  it('Compare infer and asyncInfer results', () => {
+    const ir = compiledModel.createInferRequest();
+    const res1 = ir.infer([tensorData]);
 
-        ov.asyncInfer(ir, [tensorData], (err, result) => {
-            assert.deepStrictEqual(res1['fc_out'].data[0], result['fc_out'].data[0]);
-        });
-     });
+    ov.asyncInfer(ir, [tensorData], (err, result) => {
+      assert.deepStrictEqual(res1['fc_out'].data[0], result['fc_out'].data[0]);
+    });
+  });
 });
