@@ -11,6 +11,7 @@
 #include "ie_remote_blob.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "remote_utils.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #endif
@@ -372,131 +373,6 @@ public:
 };
 
 /**
- * @brief Tensor what contains InferenceEngine::RemoteBlob inside
- * Blob owns the memory
- */
-class RemoteBlobTensor : public IRemoteTensor {
-    mutable element::Type m_type;
-    mutable Shape m_shape;
-    mutable Strides m_strides;
-    mutable ov::AnyMap m_properties;
-    mutable std::string m_dev_name;
-
-public:
-    std::shared_ptr<ie::RemoteBlob> blob;
-
-    RemoteBlobTensor(const InferenceEngine::RemoteBlob::Ptr& blob) : blob{blob} {
-        OPENVINO_ASSERT(blob);
-        m_shape = blob->getTensorDesc().getBlockingDesc().getBlockDims();
-    }
-
-    const element::Type& get_element_type() const override {
-        m_type = InferenceEngine::details::convertPrecision(blob->getTensorDesc().getPrecision());
-        return m_type;
-    }
-
-    void set_shape(ov::Shape shape) override {
-        blob->setShape({shape.begin(), shape.end()});
-    }
-
-    const Shape& get_shape() const override {
-        m_shape = blob->getTensorDesc().getBlockingDesc().getBlockDims();
-        return m_shape;
-    }
-
-    const Strides& get_strides() const override {
-        OPENVINO_ASSERT(get_element_type().bitwidth() >= 8,
-                        "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
-                        get_element_type());
-        const auto& element_strides = blob->getTensorDesc().getBlockingDesc().getStrides();
-        const size_t elem_size = get_element_type().size();
-        m_strides.clear();
-        m_strides.resize(element_strides.size());
-        std::transform(element_strides.begin(), element_strides.end(), m_strides.begin(), [&elem_size](size_t stride) {
-            return stride * elem_size;
-        });
-        return m_strides;
-    }
-
-    size_t get_size() const override {
-        return blob->size();
-    }
-
-    size_t get_byte_size() const override {
-        return blob->byteSize();
-    }
-
-    const AnyMap& get_properties() const override {
-        m_properties = blob->getParams();
-        return m_properties;
-    }
-
-    const std::string& get_device_name() const override {
-        m_dev_name = blob->getDeviceName();
-        return m_dev_name;
-    }
-};
-
-/**
- * @brief Create InferenceEngine::RemoteBlob from the Tensor
- */
-class TensorRemoteBlob : public ie::RemoteBlob {
-public:
-    TensorRemoteBlob(const ov::SoPtr<ITensor>& tensor, ie::TensorDesc desc) : ie::RemoteBlob{desc}, tensor{tensor} {
-        OPENVINO_ASSERT(this->tensor);
-    }
-    std::shared_ptr<ov::IRemoteTensor> cast_tensor() const {
-        auto remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr);
-        OPENVINO_ASSERT(remote);
-        return remote;
-    }
-    AnyMap getParams() const override {
-        return cast_tensor()->get_properties();
-    }
-    std::string getDeviceName() const noexcept override {
-        try {
-            return cast_tensor()->get_device_name();
-        } catch (...) {
-            return {};
-        }
-    }
-    std::shared_ptr<ie::RemoteContext> getContext() const noexcept override {
-        return {};
-    }
-
-    void allocate() noexcept override {}
-    bool deallocate() noexcept override {
-        return true;
-    }
-    ie::LockedMemory<void> buffer() noexcept override {
-        return {nullptr, nullptr, 0};
-    }
-    ie::LockedMemory<const void> cbuffer() const noexcept override {
-        return {nullptr, nullptr, 0};
-    }
-    ie::LockedMemory<void> rwmap() noexcept override {
-        return {nullptr, nullptr, 0};
-    }
-    ie::LockedMemory<const void> rmap() const noexcept override {
-        return {nullptr, nullptr, 0};
-    }
-    ie::LockedMemory<void> wmap() noexcept override {
-        return {nullptr, nullptr, 0};
-    }
-    const std::shared_ptr<ie::IAllocator>& getAllocator() const noexcept override {
-        return m_allocator;
-    }
-    void* getHandle() const noexcept override {
-        return nullptr;
-    }
-
-    ov::SoPtr<ITensor> tensor;
-
-private:
-    std::shared_ptr<ie::IAllocator> m_allocator;
-};
-
-/**
  * @brief Create InferenceEngine::TBlob<T> from the tensor
  *
  * @tparam T Blob data type
@@ -530,15 +406,17 @@ public:
     ov::SoPtr<ITensor> tensor;
 };
 
-ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
+ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob, bool unwrap) {
 #define ELSE_IF(type)                                                                \
     else if (auto tblob = dynamic_cast<const TensorMemoryBlob<type>*>(blob.get())) { \
         return tblob->tensor;                                                        \
     }
     if (blob == nullptr) {
         return {};
+    } else if (unwrap && std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob) != nullptr) {
+        return std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob)->get_tensor();
     } else if (auto remote_blob = std::dynamic_pointer_cast<TensorRemoteBlob>(blob)) {
-        return remote_blob->tensor;
+        return remote_blob->get_tensor();
     } else if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {
         return {std::make_shared<RemoteBlobTensor>(remote_blob), nullptr};
     }
@@ -564,7 +442,7 @@ ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
 ie::Blob* get_hardware_blob(ie::Blob* blob) {
 #ifdef PROXY_PLUGIN_ENABLED
     if (auto remote_blob = dynamic_cast<TensorRemoteBlob*>(blob)) {
-        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor());
         if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
             return blob_tensor->blob.get();
         } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
@@ -579,7 +457,7 @@ ie::Blob* get_hardware_blob(ie::Blob* blob) {
 const ie::Blob* get_hardware_blob(const ie::Blob* blob) {
 #ifdef PROXY_PLUGIN_ENABLED
     if (auto remote_blob = dynamic_cast<const TensorRemoteBlob*>(blob)) {
-        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor());
         if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
             return blob_tensor->blob.get();
         } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {

@@ -3,45 +3,24 @@
 //
 #pragma once
 
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
+#include "openvino/runtime/ivariable_state.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include <functional>
 
 namespace ov {
 namespace intel_gpu {
 
-class VariableState : public InferenceEngine::IVariableStateInternal {
+class VariableState : public ov::IVariableState {
 public:
-    VariableState(const std::string& name, const std::vector<cldnn::network::VariableState::Ptr>& states,
-                  cldnn::engine& engine, int currentBatch);
+    VariableState(const std::string& name, cldnn::network::VariableState::Ptr states, cldnn::engine& engine);
 
-    /**
-     * @brief Reset internal variable state for relevant infer request, to a value specified as
-     * default for according `ReadValue` node
-     */
-    void Reset() override;
-
-    /**
-     * @brief Sets the new state for the next inference
-     * @param newState A new state
-     */
-    void SetState(const InferenceEngine::Blob::Ptr &newState) override;
-
-    /**
-     * @brief Returns the value of the variable state.
-     * @return The value of the variable state
-     */
-    InferenceEngine::Blob::CPtr GetState() const override;
-
-protected:
-    InferenceEngine::SizeVector AggregateShape(const cldnn::layout &layout);
-    void IterateOverStates(std::function<void(cldnn::network::VariableState&)> f) const;
+    void reset() override;
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override;
+    const ov::SoPtr<ov::ITensor>& get_state() const override;
 
 private:
-    int currentBatch_;
-    std::vector<cldnn::network::VariableState::Ptr> states_;
-    InferenceEngine::TensorDesc desc_;
-    cldnn::engine& engine_;
+    cldnn::network::VariableState::Ptr m_variable_state;
+    cldnn::engine& m_engine;
 };
 
 }  // namespace intel_gpu

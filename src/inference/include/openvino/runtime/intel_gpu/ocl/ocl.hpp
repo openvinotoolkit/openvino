@@ -177,6 +177,11 @@ protected:
      */
     static constexpr const char* device_name = "GPU";
 
+    /**
+     * @brief Default constructor which can be used in derived classes to avoid multiple create_context() calls
+     */
+    ClContext() = default;
+
 public:
     // Needed to make create_tensor overloads from base class visible for user
     using RemoteContext::create_tensor;

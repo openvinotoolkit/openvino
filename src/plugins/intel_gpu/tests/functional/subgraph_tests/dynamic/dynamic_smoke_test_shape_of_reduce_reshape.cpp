@@ -143,7 +143,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
         // Input for ShapeOf
         {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10, 4}, {1, 4, 12}}},
         // Input for Add
-        {{ov::Dimension::dynamic()}, {{1, 10, 4}, {2, 2, 12}}}
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10, 4}, {2, 2, 12}}}
     },
     // 4D
     {

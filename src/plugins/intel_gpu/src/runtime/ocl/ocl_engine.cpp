@@ -32,7 +32,7 @@ cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl_ocl.hpp>
-#include "openvino/util/file_util.hpp"
+#include "intel_gpu/runtime/file_util.hpp"
 #endif
 
 namespace cldnn {
@@ -89,7 +89,7 @@ void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
                 _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
 
                 onednn_cache_blob = dnnl::ocl_interop::get_engine_cache_blob(*_onednn_engine);
-                ov::util::save_binary(path, onednn_cache_blob);
+                ov::intel_gpu::save_binary(path, onednn_cache_blob);
             } else {
                 _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get(),
                                                                                 onednn_cache_blob));
