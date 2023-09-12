@@ -28,11 +28,16 @@ class TestAliases(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_alias(self, ie_device, precision, ir_version):
-        self._test(aten_alias(), None, [
-                   "aten::slice", "aten::select", "aten::copy_"], ie_device, precision, ir_version)
+        self._test(aten_alias(), None, ["aten::slice",
+                                        "aten::select",
+                                        "aten::copy_"],
+                   ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_loop_alias(self, ie_device, precision, ir_version):
-        self._test(aten_loop_alias(), None, [
-                   "aten::slice", "aten::select", "aten::copy_", "prim::Loop"], ie_device, precision, ir_version)
+        self._test(aten_loop_alias(), None, ["aten::slice",
+                                             "aten::select",
+                                             "aten::copy_",
+                                             "prim::Loop"],
+                   ie_device, precision, ir_version, freeze_model=False)
