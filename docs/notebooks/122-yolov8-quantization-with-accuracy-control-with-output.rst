@@ -462,11 +462,6 @@ we use the value 25 to speed up the execution.
 
 .. parsed-literal::
 
-    
-
-
-.. parsed-literal::
-
     INFO:nncf:Elapsed Time: 00:00:00
     Validate: dataset length = 1, metric value = 0.589
     Validate: dataset length = 128, metric value = 0.366
