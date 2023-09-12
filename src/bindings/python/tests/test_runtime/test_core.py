@@ -98,6 +98,7 @@ def test_compile_model_without_device(request, tmp_path):
     assert isinstance(compiled_model, CompiledModel)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_compile_model_with_auto_plugin(request, tmp_path):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
