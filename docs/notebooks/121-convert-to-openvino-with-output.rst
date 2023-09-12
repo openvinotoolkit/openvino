@@ -28,7 +28,7 @@ format to OpenVINO Intermediate Representation (IR). Contents:
 -  `Convert Models Represented as Python
    Objects <#convert-models-represented-as-python-objects>`__
 
-.. code:: ipython3
+.. code:: 
 
    # Required imports. Please execute this cell first.
    ! pip install -q --find-links https://download.pytorch.org/whl/torch_stable.html \
