@@ -10,7 +10,7 @@ const { getModelPath } = require('./utils.js');
 const epsilon = 0.5; // To avoid very small numbers
 const testXml = getModelPath();
 const core = new ov.Core();
-const model = core.readModel(testXml);
+const model = core.readModelSync(testXml);
 const compiledModel = core.compileModel(model, 'CPU');
 
 const inferRequest = compiledModel.createInferRequest();
