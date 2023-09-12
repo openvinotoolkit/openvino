@@ -615,7 +615,7 @@ def compile_model(
     :type config: dict, optional
     :return: A compiled model.
     :rtype: openvino.runtime.CompiledModel
-    
+
     """
     core = Core()
     return core.compile_model(model, device_name, config)
