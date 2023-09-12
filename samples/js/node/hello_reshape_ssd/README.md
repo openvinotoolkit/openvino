@@ -1,4 +1,4 @@
-# Hello reshape SSD NodeJS Sample
+# Hello Reshape SSD NodeJS Sample
 
 Models with only 1 input and output are supported.
 
