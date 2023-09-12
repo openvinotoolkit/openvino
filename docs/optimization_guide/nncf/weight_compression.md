@@ -2,8 +2,8 @@
 
 @sphinxdirective
 
-Introduction
-####################
+Enhancing Model Efficiency with Weight Compression
+##################################################################
 
 The main idea behind weight compression is to reduce the memory footprint of the model. However, it can also lead to significant performance improvement in the case if the model is relatively large in size, i.e. it is memory-bound. The most famous example here is Large Language Models (LLM) that require a lot of memory to store the weights during the inference. Thus, compressing the weights allows: a) inferencing extra large models that cannot be accommodated in the memory of the device; b) improving the inference performance of the models by reducing the latency of the memory access when computing the operations with weights, for example, Linear layers.
 
