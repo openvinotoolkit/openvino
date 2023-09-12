@@ -4,8 +4,7 @@ OpenVINO™ Runtime API Tutorial
 This notebook explains the basics of the OpenVINO Runtime API. It
 covers:
 
--  `Loading OpenVINO Runtime and Showing
-   Info <#Loading-OpenVINO-Runtime-and-Showing-Info>`__
+-  `Loading OpenVINO Runtime and Showing Info <#Loading-OpenVINO-Runtime-and-Showing-Info>`__
 -  `Loading a Model <#Loading-a-Model>`__
 
    -  `OpenVINO IR Model <#OpenVINO-IR-Model>`__
@@ -14,8 +13,7 @@ covers:
    -  `TensorFlow Model <#TensorFlow-Model>`__
    -  `TensorFlow Lite Model <#TensorFlow-Lite-Model>`__
 
--  `Getting Information about a
-   Model <#Getting-Information-about-a-Model>`__
+-  `Getting Information about a Model <#Getting-Information-about-a-Model>`__
 
    -  `Model Inputs <#Model-Inputs>`__
    -  `Model Outputs <#Model-Outputs>`__

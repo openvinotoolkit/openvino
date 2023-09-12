@@ -11,7 +11,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial. For more information about how OpenVINO IR models are
 created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
-tutorial.
+tutorial. 
 
 Table of content:
 ^^^^^^^^^^^^^^^^^
@@ -37,7 +37,7 @@ Table of content:
     
 
 Imports `⇑ <#Table-of-content:>`__
--------------------------------------------------
+############################################
 
 .. code:: ipython3
 
@@ -53,7 +53,7 @@ Imports `⇑ <#Table-of-content:>`__
     from notebook_utils import download_file
 
 Download the Model and data samples `⇑ <#Table-of-content:>`__
------------------------------------------------------------------------------
+########################################################################
 
 .. code:: ipython3
 
@@ -87,9 +87,9 @@ Download the Model and data samples `⇑ <#Table-of-content:>`__
 
 
 Select inference device `⇑ <#Table-of-content:>`__
------------------------------------------------------------------
+############################################################
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -115,7 +115,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Load the Model `⇑ <#Table-of-content:>`__
---------------------------------------------------------
+###################################################
 
 .. code:: ipython3
 
@@ -126,7 +126,7 @@ Load the Model `⇑ <#Table-of-content:>`__
     output_layer = compiled_model.output(0)
 
 Load an Image `⇑ <#Table-of-content:>`__
--------------------------------------------------------
+##################################################
 
 .. code:: ipython3
 
@@ -146,7 +146,7 @@ Load an Image `⇑ <#Table-of-content:>`__
 
 
 Do Inference `⇑ <#Table-of-content:>`__
-------------------------------------------------------
+#################################################
 
 .. code:: ipython3
 
