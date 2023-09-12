@@ -1,6 +1,6 @@
 # Setting Input Shapes {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model}
 
-With model conversion API you can increase your model's efficiency by providing an additional shape definition, with ``input`` parameter.
+With model conversion API you can increase your model's efficiency by providing an additional shape definition using the ``input`` parameter.
 
 @sphinxdirective
 
@@ -9,8 +9,8 @@ With model conversion API you can increase your model's efficiency by providing 
 
 .. _when_to_specify_input_shapes:
 
-Specifying shapes in ``input`` parameter
-########################################
+Specifying Shapes in the ``input`` Parameter
+#####################################################
 
 ``openvino.convert_model`` supports conversion of models with dynamic input shapes that contain undefined dimensions.
 However, if the shape of data is not going to change from one inference request to another,
@@ -134,7 +134,7 @@ For example, launch model conversion for the ONNX OCR model and specify a bounda
 
          ovc ocr.onnx --input data[1..3,150,200,1],seq_len[1..3]
 
-In practice, not every model is designed in a way that allows change of input shapes. An attempt to change the shape for such models may lead to an exception during model conversion, later in model inference, or even to a wrong results of inference without explicit exception raised. A knowledge about model topology is required to set shapes appropriately.
+In practice, not every model is designed in a way that allows change of input shapes. An attempt to change the shape for such models may lead to an exception during model conversion, later in model inference, or even to wrong results of inference without explicit exception raised. A knowledge about model topology is required to set shapes appropriately.
 For more information about shape follow the :doc:`inference troubleshooting <troubleshooting_reshape_errors>`
 and :ref:`ways to relax shape inference flow <how-to-fix-non-reshape-able-model>` guides.
 

@@ -10,7 +10,7 @@ This page provides general instructions on how to run model conversion from a Te
 
 .. note:: TensorFlow models can be loaded by `openvino.Core.read_model` or `openvino.Core.compile_model` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
 
-.. note:: Examples below that convert TensorFlow models from a file do not require any version of TensorFlow to be installed on the system, except in cases when `tensorflow` module is imported explicitly.
+.. note:: Examples below that convert TensorFlow models from a file, do not require any version of TensorFlow to be installed on the system, except in cases when the `tensorflow` module is imported explicitly.
 
 Converting TensorFlow 2 Models
 ##############################
@@ -22,7 +22,7 @@ SavedModel Format
 +++++++++++++++++
 
 A model in the SavedModel format consists of a directory with a ``saved_model.pb`` file and two subfolders: ``variables`` and ``assets`` inside.
-To convert such a model, run conversion with the directory as a model argument:
+To convert a model, run conversion with the directory as the model argument:
 
 .. tab-set::
 
@@ -42,8 +42,8 @@ To convert such a model, run conversion with the directory as a model argument:
 
          ovc path_to_saved_model_dir
 
-Keras H5
-++++++++
+Keras H5 Format
++++++++++++++++
 
 If you have a model in the HDF5 format, load the model using TensorFlow 2 and serialize it in the
 SavedModel format. Here is an example of how to do it:
@@ -55,7 +55,7 @@ SavedModel format. Here is an example of how to do it:
    model = tf.keras.models.load_model('model.h5')
    tf.saved_model.save(model,'model')
 
-The Keras H5 model with a custom layer has specifics to be converted into SavedModel format.
+Converting a Keras H5 model with a custom layer to the SavedModel format requires special considerations.
 For example, the model with a custom layer ``CustomLayer`` from ``custom_layer.py`` is converted as follows:
 
 .. code-block:: py
@@ -70,7 +70,7 @@ Then follow the above instructions for the SavedModel format.
 
 .. note::
 
-   Do not use any hacks to resave TensorFlow 2 models into TensorFlow 1 formats.
+   Avoid using any workarounds or hacks to resave TensorFlow 2 models into TensorFlow 1 formats.
 
 Converting TensorFlow 1 Models
 ###############################
@@ -126,7 +126,7 @@ To convert such TensorFlow model, run the conversion similarly to other model fo
 
 2. **Checkpoint**. In this case, a model consists of two files: ``inference_graph.pb`` (or ``inference_graph.pbtxt``) and ``checkpoint_file.ckpt``.
 If you do not have an inference graph file, refer to the `Freezing Custom Models in Python <#Freezing-Custom-Models-in-Python>`__  section.
-To convert the model with the inference graph in ``.pb`` format, provide paths to both files as an argument for `ovc` or `openvino.convert_model`:
+To convert the model with the inference graph in ``.pb`` format, provide paths to both files as an argument for ``ovc`` or ``openvino.convert_model``:
 
 .. tab-set::
 
@@ -145,7 +145,7 @@ To convert the model with the inference graph in ``.pb`` format, provide paths t
 
          ovc path_to_inference_graph.pb path_to_checkpoint_file.ckpt
 
-To convert the model with the inference graph in ``.pbtxt`` format, specify the path to ``.pbtxt`` file instead of ``.pb`` file. The conversion API automatically detects the format of the provided file, there is no need to specify the model file format explicitly when calling `ovc` or `openvino.convert_model` in all examples in this document.
+To convert the model with the inference graph in the ``.pbtxt`` format, specify the path to ``.pbtxt`` file instead of the ``.pb`` file. The conversion API automatically detects the format of the provided file, there is no need to specify the model file format explicitly when calling ``ovc`` or ``openvino.convert_model`` in all examples in this document.
 
 3. **MetaGraph**. In this case, a model consists of three or four files stored in the same directory: ``model_name.meta``, ``model_name.index``,
 ``model_name.data-00000-of-00001`` (the numbers may vary), and ``checkpoint`` (optional).
@@ -172,9 +172,9 @@ To convert such a TensorFlow model, run the conversion providing a path to `.met
 Freezing Custom Models in Python
 ++++++++++++++++++++++++++++++++
 
-When a network is defined in Python code, you must create an inference graph file. Graphs are usually built in a form
+When a model is defined in Python code, you must create an inference graph file. Graphs are usually built in a form
 that allows model training. That means all trainable parameters are represented as variables in the graph.
-To be able to use such a graph with model conversion API, it should be frozen first before passing to ``openvino.convert_model`` function:
+To be able to use such a graph with the model conversion API, it should be frozen first before passing to the ``openvino.convert_model`` function:
 
 .. code-block:: py
    :force:
@@ -191,7 +191,7 @@ Where:
 * ``sess`` is the instance of the TensorFlow Session object where the network topology is defined.
 * ``["name_of_the_output_node"]`` is the list of output node names in the graph; ``frozen`` graph will include only those nodes from the original ``sess.graph_def`` that are directly or indirectly used to compute given output nodes. The ``'name_of_the_output_node'`` is an example of a possible output node name. You should derive the names based on your own graph.
 
-Conversion of TensorFlow models from memory using Python API
+Converting TensorFlow Models from Memory Using Python API
 ############################################################
 
 Model conversion API supports passing TensorFlow/TensorFlow2 models directly from memory.
@@ -238,7 +238,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      model = MyModule(name="simple_module")
      ov_model = ov.convert_model(model, input=[-1])
 
-.. note:: There is a known bug in ``openvino.convert_model`` on using ``tf.Variable`` nodes in the model graph. The results of the conversion of such models is unpredictable. It is recommended to save a model with ``tf.Variable`` into TensorFlow Saved Model format and load it with `openvino.convert_model`.
+.. note:: There is a known bug in ``openvino.convert_model`` on using ``tf.Variable`` nodes in the model graph. The results of the conversion of such models are unpredictable. It is recommended to save a model with ``tf.Variable`` into TensorFlow Saved Model format and load it with `openvino.convert_model`.
 
 * ``tf.compat.v1.Graph``
 
