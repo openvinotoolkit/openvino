@@ -30,16 +30,16 @@ format to OpenVINO Intermediate Representation (IR). Contents:
 
 .. code:: ipython3
 
-    # Required imports. Please execute this cell first.
-    ! pip install -q --find-links https://download.pytorch.org/whl/torch_stable.html \
-    "openvino-dev>=2023.0.1" \
-    "requests" \
-    "tqdm" \
-    "transformers[onnx]>=4.21.1" \
-    "torch==1.13.1; sys_platform == 'darwin'" \
-    "torch==1.13.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'" \
-    "torchvision==0.14.1; sys_platform == 'darwin'" \
-    "torchvision==0.14.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'"
+   # Required imports. Please execute this cell first.
+   ! pip install -q --find-links https://download.pytorch.org/whl/torch_stable.html \
+   "openvino-dev>=2023.0.1" \
+   "requests" \
+   "tqdm" \
+   "transformers[onnx]>=4.21.1" \
+   "torch==1.13.1; sys_platform == 'darwin'" \
+   "torch==1.13.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'" \
+   "torchvision==0.14.1; sys_platform == 'darwin'" \
+   "torchvision==0.14.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'"
 
 
 .. parsed-literal::
@@ -73,7 +73,7 @@ refer to `Model
 Preparation <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 documentation.
 
-.. code:: ipython3
+.. code:: 
 
    # Model Optimizer CLI tool parameters description
    
@@ -382,11 +382,11 @@ documentation.
 
 .. code:: ipython3
 
-    # Python conversion API parameters description
-    from openvino.tools import mo
+   # Python conversion API parameters description
+   from openvino.tools import mo
     
-    
-    mo.convert_model(help=True)
+   
+   mo.convert_model(help=True)
 
 
 .. parsed-literal::
