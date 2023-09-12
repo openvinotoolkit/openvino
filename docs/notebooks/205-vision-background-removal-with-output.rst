@@ -167,11 +167,6 @@ next cell loads the model and the pre-trained weights.
     Model weights have been downloaded to model/u2net_lite/u2net_lite.pth
 
 
-.. parsed-literal::
-
-    
-
-
 .. code:: ipython3
 
     # Load the model.

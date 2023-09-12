@@ -75,9 +75,9 @@ documentation.
 
 .. code:: ipython3
 
-    # Model Optimizer CLI tool parameters description
-    
-    ! mo --help
+   # Model Optimizer CLI tool parameters description
+   
+   ! mo --help
 
 
 .. parsed-literal::
