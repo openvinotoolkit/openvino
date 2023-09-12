@@ -78,7 +78,6 @@ private:
                 h->vpermq(Ymm(aux.getIdx()), Ymm(aux.getIdx()), 0xD8); //11 01 10 00
                 h->vextracti128(out, Ymm(aux.getIdx()), 0);
             } else {
-                h->pshufd(Xmm(aux.getIdx()), Xmm(aux.getIdx()), 0xD8);  // 11 01 10 00
                 h->uni_vmovups(out, aux);
             }
         }

@@ -39,7 +39,6 @@ public:
 
     void UpToLpt();
     void CpuSpecificOpSet();
-    void RunPrecisionConvert();
     void PostLpt();
     void Snippets(void);
 

@@ -81,9 +81,6 @@ private:
      */
     GraphGuard::Lock GetGraph() const;
 
-    bool CanProcessDynBatch(const std::shared_ptr<ov::Model> &model) const;
-
-    ov::Any GetConfigLegacy(const std::string& name) const;
     ov::Any get_metric(const std::string& name) const;
     ov::Any get_metric_legacy(const std::string& name, const GraphGuard& graph) const;
 };

@@ -197,18 +197,19 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
-        // New plugin api + legacy ov api will put preprocess into transformation, which will add additional Convert
-        // node to graph, it cause below tests failure
+        // Issue: 120286
         R"(.*smoke_Basic/FuseTransposeAndReorderTest.CompareWithRefs.*)",
-        // Issue: 113703 - input/output port's name maybe changed after transformation in plugin api 2.0
+        // Issue: 113703, 114763
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
-        // Issue: JIT choose error issue, don't know why not choose jit_avx512_BF16
+        // Issue: 114765
         R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*)",
         R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*)",
         // TODO: for 22.2 (CVS-68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
         // Issue: 117837
         R"(.*smoke_4D_out_of_range/GatherInPlaceLayerTestCPU.*_indices=\(\-15\).*)",
+        // Issue: 120279
+        R"(.*OVCompiledGraphImportExportTest.*elementType=(i16|u16|u32|u64).*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

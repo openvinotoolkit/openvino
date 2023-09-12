@@ -206,16 +206,6 @@ precisions_map Transformations::get_convert_precisions() {
     return map;
 }
 
-void Transformations::RunPrecisionConvert() {
-    static const auto precisions = get_convert_precisions();
-    type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
-
-    ov::pass::Manager manager;
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, true);
-    manager.run_passes(model);
-}
-
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
 
