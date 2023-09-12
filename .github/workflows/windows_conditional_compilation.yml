@@ -62,6 +62,14 @@ jobs:
           path: 'openvino'
           submodules: 'recursive'
 
+      - name: Clone testdata for sample test
+        uses: actions/checkout@v4
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: 'testdata'
+          submodules: 'recursive'
+          lfs: 'true'
+
       #
       # Dependencies
       #
