@@ -7,9 +7,9 @@ from models_hub_common.multiprocessing_utils import multiprocessing_run
 from openvino import convert_model
 from openvino.runtime import Core
 
-# set seed to have determenistic generated test data
-# to avoid sporadic issues due to input test data
-np.random.seed(56190)
+# set seed to have deterministic input data generation
+# to avoid sporadic issues in inference results
+rng = np.random.default_rng(seed=56190)
 
 
 class TestConvertModel:
@@ -23,13 +23,13 @@ class TestConvertModel:
 
     def prepare_input(self, input_shape, input_type):
         if input_type in [np.float32, np.float64]:
-            return np.random.randint(-2, 2, size=input_shape).astype(input_type)
+            return 2.0 * rng.random(size=input_shape, dtype=input_type)
         elif input_type in [np.uint8, np.uint16, np.int8, np.int16, np.int32, np.int64]:
-            return np.random.randint(0, 5, size=input_shape).astype(input_type)
+            return rng.integers(0, 5, size=input_shape).astype(input_type)
         elif input_type in [str]:
             return np.broadcast_to("Some string", input_shape)
         elif input_type in [bool]:
-            return np.random.randint(0, 2, size=input_shape).astype(input_type)
+            return rng.integers(0, 2, size=input_shape).astype(input_type)
         else:
             assert False, "Unsupported type {}".format(input_type)
 
