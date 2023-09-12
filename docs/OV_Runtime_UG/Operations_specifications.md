@@ -24,6 +24,10 @@
    BatchNormInference-5 <openvino_docs_ops_normalization_BatchNormInference_5>
    BatchToSpace-2 <openvino_docs_ops_movement_BatchToSpace_2>
    BinaryConvolution-1 <openvino_docs_ops_convolution_BinaryConvolution_1>
+   BitwiseAnd-13 <openvino_docs_ops_bitwise_BitwiseAnd_13>
+   BitwiseNot-13 <openvino_docs_ops_bitwise_BitwiseNot_13>
+   BitwiseOr-13<openvino_docs_ops_bitwise_BitwiseOr_13>
+   BitwiseXor-13 <openvino_docs_ops_bitwise_BitwiseXor_13>
    Broadcast-1 <openvino_docs_ops_movement_Broadcast_1>
    Broadcast-3 <openvino_docs_ops_movement_Broadcast_3>
    Bucketize-3 <openvino_docs_ops_condition_Bucketize_3>

@@ -1,4 +1,4 @@
-# BitwiseNot {#openvino_docs_ops_logical_BitwiseNot_13}
+# BitwiseNot {#openvino_docs_ops_bitwise_BitwiseNot_13}
 
 @sphinxdirective
 
@@ -11,11 +11,14 @@
 
 **Short description**: *BitwiseNot* performs bitwise logical negation operation with given tensor element-wise.
 
-**Detailed description**: *BitwiseNot* performs bitwise logical negation operation for each element in given tensor, based on the following algorithm:
+**Detailed description**: *BitwiseNot* performs bitwise logical negation operation for each element in given tensor, based on the following algorithm.
 
-* Convert value from input tensor to binary representation according to input tensor datatype,
-* Perform logical negation on each bit in binary representation, where `0` value is represents `false` and `1` value represents `true`,
-* Convert back binary representation to input datatype.
+For ``boolean`` type tensors, BitwiseNot is equivalent to LogicalNot.
+
+If tensor is of ``any supported intiger`` type, for each element of tensor:
+1. Convert value from input tensor to binary representation according to input tensor datatype,
+2. Perform logical negation on each bit in binary representation, where value ``0`` represents ``false`` and value ``1`` represents ``true``,
+3. Convert back binary representation to input datatype.
 
 Example 1 - *BitwiseNot* output for boolean tensor:
 
@@ -24,11 +27,7 @@ Example 1 - *BitwiseNot* output for boolean tensor:
 
     <!-- For given boolean input: -->
     input = [True, False]
-    <!-- Create binary representation of boolean: -->
-    <!-- [1, 0] -->
-    <!-- Perform bitwise negation: -->
-    <!-- [0, 1] -->
-    <!-- Convert back binary values to boolean: -->
+    <!-- Perform logical negation operation same like in LogicalNot operator.: -->
     output = [False, True]
 
 Example 2 - *BitwiseNot* output for uint8 tensor:
@@ -37,7 +36,7 @@ Example 2 - *BitwiseNot* output for uint8 tensor:
     :force:
 
     <!-- For given uint8 input: -->
-    input = [1, 3] 
+    input = [1, 3]
     <!-- Create binary representation of uint8: -->
     <!-- [00000001, 00000011] -->
     <!-- Perform bitwise negation: -->
