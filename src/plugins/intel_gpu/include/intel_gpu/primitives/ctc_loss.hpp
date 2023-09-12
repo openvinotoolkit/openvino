@@ -15,8 +15,6 @@ struct ctc_loss : primitive_base<ctc_loss> {
 
     ctc_loss() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs ctc_loss primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.

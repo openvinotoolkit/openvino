@@ -16,7 +16,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
 
     std::string variable_id;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::read_value_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<read_value_impl>(*this);

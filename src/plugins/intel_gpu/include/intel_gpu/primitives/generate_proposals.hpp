@@ -15,8 +15,6 @@ struct generate_proposals
 
     generate_proposals() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs generate_proposals primitive
     /// @param id This primitive id
     /// @param input_im_info image size info
