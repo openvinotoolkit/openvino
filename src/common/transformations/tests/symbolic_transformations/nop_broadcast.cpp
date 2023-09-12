@@ -28,7 +28,7 @@ void label_shape(ov::PartialShape& shape, size_t start_label = 42) {
 }
 }  // namespace
 
-TEST_F(TransformationTestsF, NopBroadcast1) {
+TEST_F(TransformationTestsF, NopBroadcastOpset1) {
     {
         auto shape = PartialShape::dynamic(4);
         label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
@@ -59,7 +59,7 @@ TEST_F(TransformationTestsF, NopBroadcast1) {
     }
 }
 
-TEST_F(TransformationTestsF, NopBroadcast3) {
+TEST_F(TransformationTestsF, NopBroadcastOpset3) {
     {
         auto shape = PartialShape::dynamic(4);
         label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45

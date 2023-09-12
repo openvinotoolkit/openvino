@@ -20,7 +20,7 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
 namespace {
-void update_label(ov::label_t& label, const ov::EqTable& table) {
+void update_label(const ov::EqTable& table, ov::label_t& label) {
     if (label != ov::no_label && table.count(label)) {
         const auto& alternative_label = *table.at(label)->begin();
         if (alternative_label != ov::no_label)
@@ -43,7 +43,7 @@ void apply_table_of_equivalence_on_model(const std::shared_ptr<ov::Model>& m, co
                 if (d.is_static())
                     continue;
                 auto label = ov::DimensionTracker::get_label(d);
-                update_label(label, table);
+                update_label(table, label);
                 if (label != ov::no_label)
                     ov::DimensionTracker::set_label(d, label);
             }
@@ -51,7 +51,7 @@ void apply_table_of_equivalence_on_model(const std::shared_ptr<ov::Model>& m, co
             // value relabeling
             auto value_labels = output.get_tensor().get_value_label();
             for (auto& label : value_labels)
-                update_label(label, table);
+                update_label(table, label);
             output.get_tensor().set_value_label(value_labels);
         }
     }
@@ -87,9 +87,9 @@ int64_t get_idx_of_label_in_source(const ov::Output<ov::Node>& source, const ov:
     return idx;
 }
 
-ov::Output<ov::Node> alternative_source_from_existing_value(LTS_map& label_value_source,
-                                                            const ov::label_t& label,
-                                                            const ov::Output<ov::Node>& original_output) {
+ov::Output<ov::Node> alternative_source_from_existing_value(const ov::label_t& label,
+                                                            const ov::Output<ov::Node>& original_output,
+                                                            LTS_map& label_value_source) {
     auto alternative_source = ov::Output<ov::Node>();
     if (label_value_source.count(label)) {
         alternative_source = label_value_source[label];
@@ -117,8 +117,8 @@ ov::Output<ov::Node> alternative_source_from_existing_value(LTS_map& label_value
 
 ov::Output<ov::Node> alternative_source_from_shape_source(const LTS_map& label_shape_source,
                                                           const ov::label_t& label,
-                                                          LTS_map& label_value_source,
-                                                          const ov::Output<ov::Node>& original_output) {
+                                                          const ov::Output<ov::Node>& original_output,
+                                                          LTS_map& label_value_source) {
     auto alternative_source = ov::Output<ov::Node>();
     if (label_shape_source.count(label)) {
         // replacing via constructing the label source and saving it for the future
@@ -147,22 +147,22 @@ ov::Output<ov::Node> alternative_source_from_shape_source(const LTS_map& label_s
 
 ov::Output<ov::Node> get_alternative_source_from_value_or_shape_source(const LTS_map& label_shape_source,
                                                                        const ov::label_t& label,
-                                                                       LTS_map& label_value_source,
-                                                                       const ov::Output<ov::Node>& original_output) {
+                                                                       const ov::Output<ov::Node>& original_output,
+                                                                       LTS_map& label_value_source) {
     auto alternative_source = ov::Output<ov::Node>();
     if (label == ov::no_label)
         return alternative_source;
-    alternative_source = alternative_source_from_existing_value(label_value_source, label, original_output);
+    alternative_source = alternative_source_from_existing_value(label, original_output, label_value_source);
     if (!alternative_source.get_node_shared_ptr())
         alternative_source =
-            alternative_source_from_shape_source(label_shape_source, label, label_value_source, original_output);
+            alternative_source_from_shape_source(label_shape_source, label, original_output, label_value_source);
     return alternative_source;
 }
 
 ov::Output<ov::Node> alternative_source_from_concat_input_sources(const LTS_map& label_shape_source,
                                                                   const ov::label_t& label,
-                                                                  LTS_map& label_value_source,
-                                                                  const ov::Output<ov::Node>& original_output) {
+                                                                  const ov::Output<ov::Node>& original_output,
+                                                                  LTS_map& label_value_source) {
     auto alternative_source = ov::Output<ov::Node>();
     if (label_shape_source.count(label)) {
         const auto& source = label_shape_source.at(label);
@@ -179,14 +179,14 @@ ov::Output<ov::Node> alternative_source_from_concat_input_sources(const LTS_map&
             auto lhs_label = ov::DimensionTracker::get_label(lhs_pshape[idx]);
             auto lhs_alternative = get_alternative_source_from_value_or_shape_source(label_shape_source,
                                                                                      lhs_label,
-                                                                                     label_value_source,
-                                                                                     original_output);
+                                                                                     original_output,
+                                                                                     label_value_source);
 
             auto rhs_label = ov::DimensionTracker::get_label(rhs_pshape[idx]);
             auto rhs_alternative = get_alternative_source_from_value_or_shape_source(label_shape_source,
                                                                                      rhs_label,
-                                                                                     label_value_source,
-                                                                                     original_output);
+                                                                                     original_output,
+                                                                                     label_value_source);
 
             if (lhs_alternative.get_node_shared_ptr() && rhs_alternative.get_node_shared_ptr()) {
                 alternative_source = std::make_shared<ov::op::v1::Add>(lhs_alternative, rhs_alternative);
@@ -211,10 +211,10 @@ void optimize_value_usage(ov::Output<ov::Node>& output, LTS_map& label_shape_sou
         return;
 
     ov::Output<ov::Node> alternative_source =
-        alternative_source_from_concat_input_sources(label_shape_source, label, label_value_source, output);
+        alternative_source_from_concat_input_sources(label_shape_source, label, output, label_value_source);
     if (!alternative_source.get_node_shared_ptr())
         alternative_source =
-            get_alternative_source_from_value_or_shape_source(label_shape_source, label, label_value_source, output);
+            get_alternative_source_from_value_or_shape_source(label_shape_source, label, output, label_value_source);
 
     if (alternative_source.get_node_shared_ptr() != nullptr) {
         evaluate_both_bounds(alternative_source);
@@ -226,8 +226,7 @@ void optimize_value_usage(ov::Output<ov::Node>& output, LTS_map& label_shape_sou
 }
 
 void save_shape_sources(const ov::Output<ov::Node>& output, LTS_map& label_shape_source) {
-    auto shape = output.get_partial_shape();
-    for (const auto& d : shape) {
+    for (const auto& d : output.get_partial_shape()) {
         if (d.is_static())
             continue;
         auto label = ov::DimensionTracker::get_label(d);

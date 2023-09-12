@@ -49,7 +49,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ReshapeSequenceFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions_map {{ ngraph::element::i64, ngraph::element::i32 }});
-    auto symbolic_pipeline = manager.register_pass<ov::pass::SymbolicOptimizations>(false);
+    auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(manager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
