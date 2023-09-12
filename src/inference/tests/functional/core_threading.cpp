@@ -33,7 +33,7 @@ public:
         auto prefix = ov::test::utils::generateTestFilePrefix();
         modelName = prefix + modelName;
         weightsName = prefix + weightsName;
-        FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
+        ov::test::utils::generate_test_model(modelName, weightsName);
     }
 
     void TearDown() override {

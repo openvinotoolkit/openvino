@@ -136,7 +136,7 @@ void ReadIRTest::query_model() {
         }
         s.setDeviceName(targetDevice);
 
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        if (ov::test::utils::current_test_is_disabled()) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED, rel_influence_coef);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {

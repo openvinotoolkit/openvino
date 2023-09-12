@@ -28,7 +28,7 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
 }
 
 void ConversionLayerTest::SetUp() {
-    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+    if (ov::test::utils::current_test_is_disabled()) {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
     }
     ngraph::helpers::ConversionTypes conversionOpType;
