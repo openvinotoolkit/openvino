@@ -15,10 +15,6 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-};
-
 const std::vector<SpaceToBatchTransformationParam> params = {
     {
         { 1, 3, 100, 171 },
@@ -47,7 +43,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, SpaceToBatchTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     SpaceToBatchTransformation::getTestCaseName);
 }  // namespace

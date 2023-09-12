@@ -6,9 +6,7 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset2.hpp>
-
+#include <openvino/op/batch_to_space.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
@@ -20,7 +18,7 @@ namespace low_precision {
 
 BatchToSpaceTransformation::BatchToSpaceTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(BatchToSpaceTransformation);
-    auto matcher = pattern::wrap_type<opset2::BatchToSpace>();
+    auto matcher = pattern::wrap_type<ov::op::v1::BatchToSpace>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -52,8 +50,8 @@ bool BatchToSpaceTransformation::transform(TransformationContext& context, ngrap
         return false;
     }
 
-    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions), false);
+    const std::shared_ptr<Node> op = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions), false);
     return true;
 }
 

@@ -27,7 +27,7 @@ std::shared_ptr<ngraph::Function> BatchToSpaceFunction::get(const ngraph::Partia
         parent,
         std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ block_shape.size() }, block_shape),
         std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ crops_begin.size() }, crops_begin),
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ crops_end.size()}, crops_end));
+        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ crops_end.size() }, crops_end));
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(parent)};
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "BatchToSpaceFunction");
@@ -50,11 +50,9 @@ std::shared_ptr<ngraph::Function> BatchToSpaceFunction::get(const ngraph::Partia
         parent,
         std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ block_shape.size() }, block_shape),
         std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ crops_begin.size() }, crops_begin),
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ crops_end.size()}, crops_end));
+        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ crops_end.size() }, crops_end));
 
-    if (!dequantization_after.empty()) {
-        parent = makeDequantization(parent, dequantization_after);
-    }
+    parent = makeDequantization(parent, dequantization_after);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(parent)};
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "BatchToSpaceFunction");

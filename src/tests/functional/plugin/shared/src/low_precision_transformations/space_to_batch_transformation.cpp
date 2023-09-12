@@ -16,20 +16,18 @@ namespace LayerTestsDefinitions {
 std::string SpaceToBatchTransformation::getTestCaseName(const testing::TestParamInfo<SpaceToBatchTransformationParams>& obj) {
     ngraph::element::Type input_type;
     std::string target_device;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
     SpaceToBatchTransformationParam param;
-    std::tie(input_type, target_device, params, param) = obj.param;
+    std::tie(input_type, target_device, param) = obj.param;
 
     std::ostringstream result;
-    result << input_type << "_" << target_device << "_" << toString(params) << "_" << param.input_shape << "_" << param.fake_quantize;
+    result << input_type << "_" << target_device << "_" << param.input_shape << "_" << param.fake_quantize;
     return result.str();
 }
 
 void SpaceToBatchTransformation::SetUp() {
     ngraph::element::Type input_type;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
     SpaceToBatchTransformationParam param;
-    std::tie(input_type, targetDevice, params, param) = this->GetParam();
+    std::tie(input_type, targetDevice, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::SpaceToBatchFunction::get(
         param.input_shape,
@@ -43,7 +41,7 @@ void SpaceToBatchTransformation::SetUp() {
 void SpaceToBatchTransformation::Run() {
     LayerTestsCommon::Run();
 
-    const auto params = std::get<3>(GetParam());
+    const auto params = std::get<2>(GetParam());
     auto actual_type = getRuntimePrecisionByType(params.layer_type);
     const auto expected_type = params.expected_kernel_type;
     if ((expected_type == "FP32") && (actual_type == "FP16")) {

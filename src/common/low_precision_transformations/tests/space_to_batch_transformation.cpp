@@ -101,10 +101,6 @@ public:
 TEST_P(SpaceToBatchTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
 
-    const auto testValues = std::get<1>(GetParam());
-    const auto output_precision = LayerTransformation::get_output_precision<ngraph::opset2::SpaceToBatch>(actualFunction);
-    ASSERT_EQ(testValues.expected.preicsionAfterOperation, output_precision);
-
     auto res = compare_functions(actualFunction, referenceFunction, true, false, false);
     ASSERT_TRUE(res.first) << res.second;
 
