@@ -914,7 +914,6 @@ jobs:
           python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
       - name: PyTorch Models Tests
         run: |
-          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
           python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
           export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
           python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html
