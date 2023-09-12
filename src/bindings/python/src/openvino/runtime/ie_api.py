@@ -603,7 +603,7 @@ def compile_model(
     config: Optional[dict] = None,
 ) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
-    
+
     :param model: Model acquired from read_model function or a path to a model in IR / ONNX / PDPD /
                     TF and TFLite format.
     :type model: Union[openvino.runtime.Model, str, pathlib.Path]
