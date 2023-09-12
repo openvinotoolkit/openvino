@@ -132,6 +132,11 @@ const std::vector<GatherNDShapeParams> dynamicInputShapeConstTargetShape = {
         1
     },
     {
+        ov::test::InputShape(ov::PartialShape({-1, -1}), {{10, 14}}),
+        ov::test::InputShape(ov::PartialShape({}), {{3, 2}}),
+        0
+    },
+    {
         ov::test::InputShape(ov::PartialShape({-1, -1, -1}), {{2, 3, 4}, {3, 4, 5}}),
         ov::test::InputShape(ov::PartialShape({}), {{2, 1}}),
         0
