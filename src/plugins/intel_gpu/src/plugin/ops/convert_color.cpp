@@ -23,11 +23,7 @@ static void CreateCommonConvertColorOp(ProgramBuilder& p, const std::shared_ptr<
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto outDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
-    auto outShape = tensor_from_dims(op->get_output_shape(0));
-    outShape = { outShape.sizes()[0], outShape.sizes()[2], outShape.sizes()[3], outShape.sizes()[1] };
-
-    auto out_layout = cldnn::layout(outDatatype, cldnn::format::byxf, outShape);
+    auto batch = op->get_input_partial_shape(0)[0];
 
     auto memory_type = cldnn::convert_color::memory_type::buffer;
     if (op->get_input_node_ptr(0)->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
@@ -38,25 +34,21 @@ static void CreateCommonConvertColorOp(ProgramBuilder& p, const std::shared_ptr<
         }
     }
 
-    if (outShape.batch[0] > 1 && memory_type == cldnn::convert_color::memory_type::image) {
+    if (batch.is_static() && batch.get_length() > 1 && memory_type == cldnn::convert_color::memory_type::image) {
         std::vector<cldnn::input_info> convert_color_names;
-        for (int b = 0; b < outShape.batch[0]; ++b) {
+        for (int64_t b = 0; b < batch.get_length(); ++b) {
             cldnn::primitive::input_info_arr batched_inputs;
             for (size_t i = 0; i < inputs.size(); ++i) {
                 batched_inputs.emplace_back(cldnn::input_info(inputs[i].pid + "_" + std::to_string(b), inputs[i].idx));
             }
             cldnn::primitive_id batched_prim_id = layerName + "_" + std::to_string(b);
             convert_color_names.emplace_back(cldnn::input_info(batched_prim_id));
-            auto new_shape = outShape;
-            new_shape.batch[0] = 1;
-            out_layout.set_tensor(new_shape);
 
             p.add_primitive(*op, cldnn::convert_color(batched_prim_id,
                                                       batched_inputs,
                                                       from_color,
                                                       to_color,
-                                                      memory_type,
-                                                      out_layout));
+                                                      memory_type));
         }
         p.add_primitive(*op, cldnn::concatenation(layerName, convert_color_names, 0));
     } else {
@@ -64,8 +56,7 @@ static void CreateCommonConvertColorOp(ProgramBuilder& p, const std::shared_ptr<
                                                   inputs,
                                                   from_color,
                                                   to_color,
-                                                  memory_type,
-                                                  out_layout));
+                                                  memory_type));
     }
 }
 

@@ -151,12 +151,12 @@ protected:
                          const std::function<void(ov::SoPtr<ov::ITensor>& tensor)>& allocate_callback);
 
     std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::vector<ov::SoPtr<ov::ITensor>>> m_batched_tensors;
+    ov::SoPtr<ov::ITensor>& get_tensor_ptr(const ov::Output<const ov::Node>& port) const;
 
 private:
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     // Mutable to return reference to ov::Tensor
     mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::SoPtr<ov::ITensor>> m_tensors;
-    ov::SoPtr<ov::ITensor>& get_tensor_ptr(const ov::Output<const ov::Node>& port) const;
 
     /**
      * @brief Finds input or output port
