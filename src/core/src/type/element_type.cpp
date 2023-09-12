@@ -113,6 +113,8 @@ ov::element::Type type_from_string(const std::string& type) {
         return ::ov::element::Type(::ov::element::Type_t::undefined);
     } else if (type == "dynamic") {
         return ::ov::element::Type(::ov::element::Type_t::dynamic);
+    } else if (type == "nf4" || type == "NF4") {
+        return ::ov::element::Type(::ov::element::Type_t::nf4);
     } else {
         OPENVINO_THROW("Incorrect type: ", type);
     }

@@ -296,6 +296,9 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
     case Type_t::u64:
         rc = to_string(get_element_value<Type_t::u64>(index));
         break;
+    case Type_t::nf4:
+        rc = to_string(get_element_value<Type_t::nf4>(index));
+        break;
     case Type_t::undefined:
     case Type_t::dynamic:
         OPENVINO_THROW("unsupported type");
@@ -367,6 +370,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
         break;
     case element::Type_t::u1:
     case element::Type_t::u4:
+    case element::Type_t::nf4:
         for (auto value : cast_vector<uint8_t>()) {
             rc.push_back(to_string(value));
         }
@@ -523,6 +527,7 @@ bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
     case element::Type_t::i4:
     case element::Type_t::u1:
     case element::Type_t::u4:
+    case element::Type_t::nf4:
     case element::Type_t::undefined:
     case element::Type_t::dynamic:
         break;

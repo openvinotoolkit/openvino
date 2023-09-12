@@ -16,7 +16,8 @@ inline void evaluate(const std::shared_ptr<ngraph::op::v1::ConvertLike>& op,
 
     if (((ti == ngraph::element::u1) || (to == ngraph::element::u1)) ||
         ((ti == ngraph::element::u4) || (to == ngraph::element::u4)) ||
-        ((ti == ngraph::element::i4) || (to == ngraph::element::i4))) {
+        ((ti == ngraph::element::i4) || (to == ngraph::element::i4)) ||
+        ((ti == ngraph::element::nf4) || (to == ngraph::element::nf4))) {
         ngraph::runtime::reference::detail::lp_convert(inputs[0]->get_data_ptr<ti>(),
                                                        outputs[0]->get_data_ptr<to>(),
                                                        element_count,

@@ -17,5 +17,5 @@
 #include "openvino/core/type/nf4.hpp"
 
 namespace ngraph {
-using ov::nf4;
+using ov::ConvertNF4;
 }  // namespace ngraph

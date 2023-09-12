@@ -21,6 +21,7 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
+#include "ngraph/type/nf4.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ngraph {
@@ -47,6 +48,7 @@ using ov::element::u4;
 using ov::element::u64;
 using ov::element::u8;
 using ov::element::undefined;
+using ov::element::nf4;
 
 template <typename T>
 NGRAPH_API_DEPRECATED Type from() {
