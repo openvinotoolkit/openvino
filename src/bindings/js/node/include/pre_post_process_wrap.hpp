@@ -45,7 +45,7 @@ public:
      * @param info[1] element_type
      */
     Napi::Value set_input_element_type(const Napi::CallbackInfo& info);
-    Napi::Value build(const Napi::CallbackInfo& info);
+    void build(const Napi::CallbackInfo& info);
 
 private:
     std::unique_ptr<ov::preprocess::PrePostProcessor> _ppp;

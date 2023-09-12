@@ -88,7 +88,6 @@ Napi::Value PrePostProcessorWrap::set_input_element_type(const Napi::CallbackInf
     }
 }
 
-Napi::Value PrePostProcessorWrap::build(const Napi::CallbackInfo& info) {
+void PrePostProcessorWrap::build(const Napi::CallbackInfo& info) {
     _ppp->build();
-    return info.This();
 }
