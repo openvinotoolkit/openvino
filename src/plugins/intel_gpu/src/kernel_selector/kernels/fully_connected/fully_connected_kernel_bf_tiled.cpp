@@ -52,6 +52,7 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
     k.EnableDynamicShapesSupport();
+    k.EnableWeightsCompression();
     return k;
 }
 
@@ -200,7 +201,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     while (max_tile_ofm * 2 * simd <= output_f && max_tile_ofm < 4)
         max_tile_ofm *= 2;
 
-    if (params.is_shape_agnostic) {
+    if (params.compressed && params.engineInfo.supports_immad) {
+        return selector.Default(tune_params(1, 1, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+    } else if (params.is_shape_agnostic) {
         // Use special tuning params for Gen12HP dGPUs, since these parameters demonstrate higher performance
         // due to better HW utilization (reduced TILE_OFM parameter) and better assembler kernel's code
         // generation (extended TILE_K parameter) for both FP16 and FP32 data types
