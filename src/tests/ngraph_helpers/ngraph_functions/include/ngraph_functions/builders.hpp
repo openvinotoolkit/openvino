@@ -17,6 +17,8 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/opsets/opset9.hpp>
+#include <ngraph_functions/utils/ngraph_helpers.hpp>
+// TODO: Temporary solution to fix compilation of plugin tests
 
 #include "common_test_utils/test_enums.hpp"
 #include "ngraph_functions/utils/data_utils.hpp"
@@ -521,7 +523,7 @@ std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
                                   const std::vector<int64_t>& padsEnd,
                                   float argPadValue,
                                   ov::test::utils::PadMode padMode,
-                                      const bool allow_negative_pad = false);
+                                  const bool allow_negative_pad = false);
 
 std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& in,
                                   const ov::Output<Node>& beginNode,

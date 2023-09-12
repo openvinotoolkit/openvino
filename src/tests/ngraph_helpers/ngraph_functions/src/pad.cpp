@@ -16,7 +16,7 @@ std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
                                   const std::vector<int64_t>& padsEnd,
                                   float argPadValue,
                                   ov::test::utils::PadMode padMode,
-                                      const bool allow_negative_pad) {
+                                  const bool allow_negative_pad) {
     ov::op::PadMode pad_mode;
     switch (padMode) {
     case ov::test::utils::PadMode::CONSTANT:
@@ -35,10 +35,9 @@ std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
         throw std::runtime_error("Can't create layer for this pad mode");
     }
 
-    auto pads_begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                 ov::Shape{padsBegin.size()}, padsBegin.data());
-    auto pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                               ov::Shape{padsEnd.size()}, padsEnd.data());
+    auto pads_begin =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padsBegin.size()}, padsBegin.data());
+    auto pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padsEnd.size()}, padsEnd.data());
     auto arg_pad_value = std::make_shared<ov::op::v0::Constant>(data.get_element_type(), ov::Shape{}, &argPadValue);
 
     if (allow_negative_pad) {
