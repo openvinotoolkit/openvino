@@ -11,8 +11,8 @@ CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(
 Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "Core",
-                       {InstanceMethod("readModel", &CoreWrap::read_model),
-                        InstanceMethod("readModelAsync", &CoreWrap::read_model_async),
+                       {InstanceMethod("readModelSync", &CoreWrap::read_model_sync),
+                        InstanceMethod("readModel", &CoreWrap::read_model_async),
                         InstanceMethod("compileModel", &CoreWrap::compile_model)});
 }
 
@@ -27,7 +27,7 @@ Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-Napi::Value CoreWrap::read_model(const Napi::CallbackInfo& info) {
+Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
     if (info.Length() == 1 && info[0].IsString()) {
         std::string model_path = info[0].ToString();
         std::shared_ptr<ov::Model> model = _core.read_model(model_path);
