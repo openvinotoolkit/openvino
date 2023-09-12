@@ -10,6 +10,7 @@
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/transform_convert.hpp"
+#include "snippets/pass/validate.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/itt.hpp"
 
@@ -393,6 +394,10 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
             if (config.split_m_dimension)
                 SplitDimensionM(subgraph, config.concurrency);
         }
+
+        // Validate the body after all common optimizations
+        ov::snippets::pass::Validate().run_on_model(body);
+
         return true;
     };
 
