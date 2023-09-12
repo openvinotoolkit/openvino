@@ -34,8 +34,24 @@
         }
     ],
     "default-features": [
-        "default-features"
-    ],
+        "auto",
+        "auto-batch",
+        {
+          "name": "cpu",
+          "platform": "!(windows & arm)"
+        },
+        {
+          "name": "gpu",
+          "platform": "(x64 | arm64) & !(arm64 & windows) & !(osx | uwp)"
+        },
+        "hetero",
+        "ir",
+        "onnx",
+        "paddle",
+        "pytorch",
+        "tensorflow",
+        "tensorflow-lite"
+      ],
     "features": {
         "auto": {
             "description": "Enables Auto plugin for inference"
@@ -46,39 +62,6 @@
         "cpu": {
             "description": "Enables CPU plugin for inference",
             "supports": "!(windows & arm)"
-        },
-        "default-features": {
-            "description": "Enables all default features",
-            "dependencies": [
-                {
-                    "name": "openvino",
-                    "features": [
-                        "auto",
-                        "auto-batch",
-                        "hetero",
-                        "ir",
-                        "onnx",
-                        "paddle",
-                        "pytorch",
-                        "tensorflow",
-                        "tensorflow-lite"
-                    ]
-                },
-                {
-                    "name": "openvino",
-                    "features": [
-                        "cpu"
-                    ],
-                    "platform": "!(windows & arm)"
-                },
-                {
-                    "name": "openvino",
-                    "features": [
-                        "gpu"
-                    ],
-                    "platform": "(x64 | arm64) & !(arm64 & windows) & !(osx | uwp)"
-                }
-            ]
         },
         "gpu": {
             "description": "Enables GPU plugin for inference",
