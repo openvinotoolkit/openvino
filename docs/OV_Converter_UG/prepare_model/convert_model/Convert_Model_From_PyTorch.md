@@ -118,8 +118,8 @@ Flattening of ``dict`` is supported for outputs only. If your model has an input
 
 Check out more examples of model conversion with non-tensor data types in the following tutorials:
 
-* :doc:`Video Subtitle Generation using Whisper and OpenVINO™ <notebooks/227-whisper-subtitles-generation-with-output>`
-* :doc:`Visual Question Answering and Image Captioning using BLIP and OpenVINO <notebooks/233-blip-visual-language-processing-with-output>`
+* :doc:`Video Subtitle Generation using Whisper and OpenVINO™ <notebooks/227-whisper-subtitles-generation-with-output.html>`__
+* :doc:`Visual Question Answering and Image Captioning using BLIP and OpenVINO <notebooks/233-blip-visual-language-processing-with-output.html>`__
 
 
 Exporting a PyTorch Model to ONNX Format
