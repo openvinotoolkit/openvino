@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <numeric>
 #include <exception>
 #include <fstream>
+#include <numeric>
 #include <vector>
-
 
 /// \brief      Reads a binary file to a vector.
 ///

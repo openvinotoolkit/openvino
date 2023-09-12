@@ -7,20 +7,20 @@
 #include "precomp.hpp"
 
 #ifdef __APPLE__
-# include <mach-o/dyld.h>
+#    include <mach-o/dyld.h>
 #endif
 
 #ifdef _WIN32
-# ifndef NOMINMAX
-#  define NOMINMAX
-# endif
-# include <windows.h>
-# include <direct.h>
-# include <stdlib.h>
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <direct.h>
+#    include <stdlib.h>
+#    include <windows.h>
 #else
-# include <dlfcn.h>
-# include <unistd.h>
-# include <limits.h>
+#    include <dlfcn.h>
+#    include <limits.h>
+#    include <unistd.h>
 #endif
 
 namespace ov {
@@ -35,7 +35,7 @@ std::string getExecutableDirectory() {
 #elif defined(__APPLE__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(getExecutableDirectory), &info);
-    const char * buffer = info.dli_fname;
+    const char* buffer = info.dli_fname;
     int len = std::strlen(buffer);
 #else
     char buffer[PATH_MAX];
@@ -51,7 +51,7 @@ std::string getExecutableDirectory() {
 std::string getCurrentWorkingDir() {
     std::string path;
 #ifdef _WIN32
-    char * buffer = _getcwd(NULL, 0);
+    char* buffer = _getcwd(NULL, 0);
     if (buffer != NULL) {
         path = std::string(buffer);
         free(buffer);

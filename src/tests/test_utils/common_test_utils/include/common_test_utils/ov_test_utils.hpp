@@ -5,11 +5,11 @@
 #pragma once
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
-#include "common_test_utils/test_common.hpp"
 #include "transformations/init_node_info.hpp"
 
 #define DYN ov::Dimension::dynamic()

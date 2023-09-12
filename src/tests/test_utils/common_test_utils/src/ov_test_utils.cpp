@@ -32,8 +32,7 @@ private:
 }  // namespace pass
 }  // namespace ov
 
-TransformationTestsF::TransformationTestsF()
-    :  comparator(FunctionsComparator::no_default()) {
+TransformationTestsF::TransformationTestsF() : comparator(FunctionsComparator::no_default()) {
     m_unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     comparator.enable(FunctionsComparator::CmpValues::NODES);
     comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);

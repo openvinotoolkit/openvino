@@ -895,6 +895,7 @@ void check_rt_info(const std::shared_ptr<ov::Model>& f) {
 
 namespace attributes {
 namespace detail {
+OPENVINO_SUPPRESS_DEPRECATED_START
 void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) {
     if (auto inputs = ov::as_type<ov::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
         insert(name, inputs->get());
@@ -922,6 +923,7 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccess
                          adapter.get_type_info().name + "']";
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 template <typename AttrValue>
 void ReadAndCompareAttributes::verify(const std::string& name, const AttrValue& attr_value) {
     if (should_return()) {
@@ -940,6 +942,7 @@ void ReadAndCompareAttributes::verify(const std::string& name, const AttrValue& 
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
                                               const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
     if (should_return()) {
@@ -958,6 +961,7 @@ void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
         return;
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAccessor& adapter) {
     if (should_return()) {
@@ -976,6 +980,7 @@ void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAcc
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void ReadAndCompareAttributes::verify_others(const std::string& name, ov::ValueAccessor<void>& adapter) {
     if (auto inputs = ov::as_type<ov::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
         verify(name, inputs->get());
@@ -1000,6 +1005,7 @@ void ReadAndCompareAttributes::verify_others(const std::string& name, ov::ValueA
                         adapter.get_type_info().name + "']";
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace detail
 

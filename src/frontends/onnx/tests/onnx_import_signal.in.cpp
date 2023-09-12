@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "ngraph/file_util.hpp"
+
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
 #define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS

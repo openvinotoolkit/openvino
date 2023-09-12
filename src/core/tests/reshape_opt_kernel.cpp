@@ -12,7 +12,6 @@
 #include "openvino/core/axis_vector.hpp"
 
 using namespace ov;
-using namespace ngraph;
 
 namespace {
 using ElementValue = int32_t;
@@ -32,8 +31,8 @@ AxisVector get_axis_order(AxisOrder order, size_t size) {
 
 struct TestParams {
     AxisOrder order;
-    ngraph::test::NDArrayBase<ElementValue> input;
-    ngraph::test::NDArrayBase<ElementValue> output;
+    ov::test::NDArrayBase<ElementValue> input;
+    ov::test::NDArrayBase<ElementValue> output;
 };
 
 struct ReshapeOptKernel : ::testing::TestWithParam<TestParams> {};
