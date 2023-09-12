@@ -102,6 +102,7 @@
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
+#include "transformations/op_conversions/convert_pad12_downgrade.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -269,6 +270,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
         manager.register_pass<ov::pass::TransposeMatMul>();
+        manager.register_pass<ov::pass::ConvertPad12ToPad1, false>();
 
         precisions_map int_convert_precision_map {
                 {ov::element::i64, ov::element::i32},

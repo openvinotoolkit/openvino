@@ -33,6 +33,25 @@ public:
 
 protected:
     void SetUp() override;
+    virtual std::shared_ptr<ov::Node> CreatePadOp(const ngraph::Output<ov::Node>& data,
+                                      const std::vector<int64_t>& padsBegin,
+                                      const std::vector<int64_t>& padsEnd,
+                                      float argPadValue,
+                                      ngraph::helpers::PadMode padMode) const {
+        const auto pad = ngraph::builder::makePad(data, padsBegin, padsEnd, argPadValue, padMode, false);
+        return pad;
+    }
 };
 
+class PadLayerTest12 : public PadLayerTest {
+protected:
+    std::shared_ptr<ov::Node> CreatePadOp(const ngraph::Output<ov::Node>& data,
+                                      const std::vector<int64_t>& padsBegin,
+                                      const std::vector<int64_t>& padsEnd,
+                                      float argPadValue,
+                                      ngraph::helpers::PadMode padMode) const override {
+        const auto pad = ngraph::builder::makePad(data, padsBegin, padsEnd, argPadValue, padMode, true);
+        return pad;
+    }
+};
 }  // namespace LayerTestsDefinitions
