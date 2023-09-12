@@ -26,7 +26,7 @@ The code snippet below shows how to compress the weights of the model represente
          :language: python
          :fragment: [compression_8bit]
 
-Now, the model is ready for compilation and inference. It can be also saved into a compressed format which should lead to a smaller binary file.
+Now, the model is ready for compilation and inference. It can be also saved into a compressed format, resulting in a smaller binary file.
 
 Additional Resources
 ####################
