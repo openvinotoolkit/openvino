@@ -4,18 +4,28 @@
 
 #pragma once
 
-#include "openvino/core/model.hpp"
-#include "transformations/convert_precision.hpp"
+// TODO: Temporary solution to fix compilation of plugin tests
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
 
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
+#include "openvino/core/model.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace ov {
 namespace test {
 
 using InputShape = std::pair<ov::PartialShape, std::vector<ov::Shape>>;
-std::ostream& operator <<(std::ostream& os, const InputShape& inputShape);
+std::ostream& operator<<(std::ostream& os, const InputShape& inputShape);
 
 using ElementType = ov::element::Type_t;
 using Config = ov::AnyMap;
@@ -28,12 +38,12 @@ public:
     virtual void query_model();
 
 protected:
-    virtual void compare(const std::vector<ov::Tensor> &expected,
-                         const std::vector<ov::Tensor> &actual);
+    virtual void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual);
 
     virtual void configure_model();
     virtual void compile_model();
-    virtual void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes);
+    virtual void init_ref_function(std::shared_ptr<ov::Model>& funcRef,
+                                   const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void infer();
     virtual void validate();
@@ -75,17 +85,20 @@ protected:
     friend void core_configuration(SubgraphBaseTest* test);
 };
 
-inline std::vector<InputShape> static_partial_shapes_to_test_representation(const std::vector<ov::PartialShape>& shapes) {
+inline std::vector<InputShape> static_partial_shapes_to_test_representation(
+    const std::vector<ov::PartialShape>& shapes) {
     std::vector<InputShape> result;
     for (const auto& staticShape : shapes) {
         if (staticShape.is_dynamic())
-            throw std::runtime_error("static_partial_shapes_to_test_representation can process only static partial shapes");
+            throw std::runtime_error(
+                "static_partial_shapes_to_test_representation can process only static partial shapes");
         result.push_back({{staticShape}, {staticShape.get_shape()}});
     }
     return result;
 }
 
-inline std::vector<std::vector<InputShape>> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& shapes) {
+inline std::vector<std::vector<InputShape>> static_shapes_to_test_representation(
+    const std::vector<std::vector<ov::Shape>>& shapes) {
     std::vector<std::vector<InputShape>> result;
     for (const auto& staticShapes : shapes) {
         std::vector<InputShape> tmp;
