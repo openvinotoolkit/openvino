@@ -6,14 +6,14 @@
    :description: Learn how to convert a model from the
                  PaddlePaddle format to the OpenVINO Model.
 
-This page provides general instructions on how to convert a model from a PaddlePaddle format to the OpenVINO IR format using OpenVINO model conversion API. The instructions are different depending on PaddlePaddle model format.
+This page provides general instructions on how to convert a model from the PaddlePaddle format to the OpenVINO IR format using OpenVINO model conversion API. The instructions are different depending on the PaddlePaddle model format.
 
 .. note:: PaddlePaddle model serialized in a file can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
 
 Converting PaddlePaddle Model Files
 ###################################
 
-PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For how to export PaddlePaddle inference model, please refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
+PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For details on how to export a PaddlePaddle inference model, refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
 
 To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` and specify the path to the input ``.pdmodel`` model file:
 
@@ -25,17 +25,17 @@ To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` a
 
       .. code-block:: py
 
-      import openvino as ov
-      ov.convert_model('your_model_file.pdmodel')
+         import openvino as ov
+         ov.convert_model('your_model_file.pdmodel')
 
    .. tab-item:: CLI
       :sync: cli
 
       .. code-block:: sh
 
-      ovc your_model_file.pdmodel
+         ovc your_model_file.pdmodel
 
-**For example**, this command converts a yolo v3 PaddlePaddle network to OpenVINO IR network:
+**For example**, this command converts a yolo v3 PaddlePaddle model to OpenVINO IR model:
 
 .. tab-set::
 
@@ -65,7 +65,7 @@ Following PaddlePaddle model object types are supported:
 * ``paddle.fluid.dygraph.layers.Layer``
 * ``paddle.fluid.executor.Executor``
 
-Converting certain PaddlePaddle models may require setting ``example_input`` or ``output``. Below examples show how to execute such the conversion.
+Some PaddlePaddle models may require setting ``example_input`` or ``output`` for conversion as shown in the examples below:
 
 * Example of converting ``paddle.hapi.model.Model`` format model:
 
@@ -91,7 +91,7 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 
   ``example_input`` is required while ``output`` is optional, which accept the following formats:
 
-  ``list`` with tensor(``paddle.Tensor``) or InputSpec(``paddle.static.input.InputSpec``)
+  ``list`` with tensor (``paddle.Tensor``) or InputSpec (``paddle.static.input.InputSpec``)
 
   .. code-block:: py
      :force:

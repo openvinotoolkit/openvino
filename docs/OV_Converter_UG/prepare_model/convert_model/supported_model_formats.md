@@ -23,7 +23,7 @@
 
 To choose the best workflow for your application, read :doc:`Introduction to Model Preparation<openvino_docs_model_processing_introduction>`
 
-Refeer to the list of all supported conversion options in :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`
+Refer to the list of all supported conversion options in :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`
 
 Additional Resources
 ####################

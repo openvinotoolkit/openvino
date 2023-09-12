@@ -11,10 +11,10 @@
 
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
 
-In 2023.1 OpenVino release a new OVC (OpenVINO Model Converter) tool was introduced with the corresponding Python API: ``openvino.convert_model`` method. ``ovc`` and ``openvino.convert_model`` represent
-a lightweight alternative of ``mo`` and ``openvino.tools.mo.convert_model`` which are considered legacy API now. In this article, all the differences between ``mo`` and ``ovc`` are summarized and transition guide from the legacy API to the new API is provided.
+In 2023.1 OpenVINO release a new OVC (OpenVINO Model Converter) tool has been introduced with the corresponding Python API: ``openvino.convert_model`` method. ``ovc`` and ``openvino.convert_model`` represent
+a lightweight alternative of ``mo`` and ``openvino.tools.mo.convert_model`` which are considered legacy API now. In this article, all the differences between ``mo`` and ``ovc`` are summarized and the transition guide from the legacy API to the new API is provided.
 
-Parameters comparison
+Parameters Comparison
 #####################
 
 The comparison of parameters between ov.convert_model() / OVC and mo.convert_model() / MO.
@@ -28,7 +28,7 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - Differences description
    * - input_model
      - input_model
-     - Along with model object or path to input model ov.convert_model() accepts list of model parts, for example path to Tensorflow weights plus path to Tensorflow checkpoint. OVC tool accepts unnamed input model.
+     - Along with model object or path to input model ov.convert_model() accepts list of model parts, for example, the path to TensorFlow weights plus the path to TensorFlow checkpoint. OVC tool accepts an unnamed input model.
    * - output_dir
      - output_model
      - output_model in OVC tool sets both output model name and output directory.
@@ -192,14 +192,14 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
      - N/A
      - Not available in ov.convert_model() / OVC.
 
-Transition from legacy API to new API
+Transition from Legacy API to New API
 ############################################################################
 
 mo.convert_model() provides a wide range of preprocessing parameters. Most of these parameters have analogs in OVC or can be replaced with functionality from ``ov.PrePostProcessor`` class.
 Here is the guide to transition from legacy model preprocessing to new API preprocessing.
 
 
-``input_shape``:
+``input_shape``
 ################
 
 .. tab-set::
@@ -244,7 +244,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  ovc MODEL_NAME --input [1,3,100,100],[1] --output_model OUTPUT_MODEL
 
-``batch``:
+``batch``
 ##########
 
 .. tab-set::
@@ -289,7 +289,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
             - Not available in OVC tool. Please check Python API.
 
-``mean_values``:
+``mean_values``
 ################
 
 .. tab-set::
@@ -338,7 +338,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
             - Not available in OVC tool. Please check Python API.
 
-``scale_values``:
+``scale_values``
 #################
 
 .. tab-set::
@@ -387,7 +387,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
             - Not available in OVC tool. Please check Python API.
 
-``reverse_input_channels``:
+``reverse_input_channels``
 ###########################
 
 .. tab-set::
@@ -436,7 +436,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
             - Not available in OVC tool. Please check Python API.
 
-``source_layout``:
+``source_layout``
 ##################
 
 .. tab-set::
@@ -483,7 +483,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
             - Not available in OVC tool. Please check Python API.
 
-``target_layout``:
+``target_layout``
 ##################
 
 .. tab-set::
@@ -530,7 +530,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
             - Not available in OVC tool. Please check Python API.
 
-``layout``:
+``layout``
 ###########
 
 .. tab-set::
@@ -577,7 +577,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
             - Not available in OVC tool. Please check Python API.
 
-``transform``:
+``transform``
 ##############
 
 .. tab-set::
@@ -623,11 +623,11 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
             - Not available in OVC tool. Please check Python API.
 
-Supported frameworks in MO vs OVC
+Supported Frameworks in MO vs OVC
 #################################
 
 ov.convert_model() and OVC tool support conversion from PyTorch, TF, TF Lite, ONNX, PaddlePaddle.
-Following frameworks are supported only in MO and mo.convert_model(): Caffe, MxNet, Kaldi.
+The following frameworks are supported only in MO and mo.convert_model(): Caffe, MxNet, Kaldi.
 
 @endsphinxdirective
 
