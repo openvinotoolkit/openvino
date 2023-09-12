@@ -15,7 +15,7 @@
    :hidden:
 
    notebooks_installation
-   notebooks/notebooks
+
 
 This collection of Python tutorials are written for running on Jupyter notebooks.
 The tutorials provide an introduction to the OpenVINO™ toolkit and explain how to
@@ -131,6 +131,15 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    +----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `120-tensorflow-object-detection-to-openvino <notebooks/120-tensorflow-object-detection-to-openvino-with-output.html>`__ |br| |n120| |br| |c120|   | Convert TensorFlow Object Detection models to OpenVINO IR                                                                        |
    +----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+   | `122-speech-recognition-quantization-wav2vec2 <notebooks/122-speech-recognition-quantization-wav2vec2-with-output.html>`__                         | Quantize Speech Recognition Models with accuracy control using NNCF PTQ API.                                                     |
+   +----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+   | `122-yolov8-quantization-with-accuracy-control <notebooks/122-yolov8-quantization-with-accuracy-control-with-output.html>`__                       | Convert and Optimize YOLOv8 with OpenVINO™.                                                                                      |
+   +----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+
+
+
+
+
 
 
 Model Demos

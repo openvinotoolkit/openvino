@@ -4,8 +4,7 @@
 
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/shape.hpp"
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace details {
 template <typename T>
@@ -17,7 +16,7 @@ struct ProposalBox {
     T score;
 };
 
-inline std::vector<float> generate_anchors(const op::ProposalAttrs& attrs, const unsigned int anchor_count) {
+inline std::vector<float> generate_anchors(const op::v0::Proposal::Attributes& attrs, const unsigned int anchor_count) {
     std::vector<float> anchors(4 * anchor_count);
 
     // Framework specific parameters
@@ -156,7 +155,7 @@ static void enumerate_proposals(const T* bottom4d,
                 x1 = static_cast<float>(pred_ctr_x + 0.5f * pred_w);
                 y1 = static_cast<float>(pred_ctr_y + 0.5f * pred_h);
 
-                // adjust new corner locations to be within the image region,
+                // adjust new corner locations to be within the image region
                 if (clip_before_nms) {
                     x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
                     y0 = std::max<float>(0.0f, std::min<float>(y0, img_H - coordinates_offset));
@@ -319,7 +318,7 @@ static void proposal_exec(const T* class_probs,
                           const Shape& image_shape_shape,
                           const Shape& output_shape,
                           const Shape& out_probs_shape,
-                          const op::ProposalAttrs& attrs) {
+                          const op::v0::Proposal::Attributes& attrs) {
     const T* p_bottom_item = class_probs;
     const T* p_d_anchor_item = bbox_deltas;
     T* p_roi_item = output;
@@ -420,7 +419,7 @@ void proposal_v0(const T* class_probs,
                  const Shape& bbox_deltas_shape,
                  const Shape& image_shape_shape,
                  const Shape& output_shape,
-                 const op::ProposalAttrs& attrs) {
+                 const op::v0::Proposal::Attributes& attrs) {
     details::proposal_exec(class_probs,
                            bbox_deltas,
                            image_shape,
@@ -445,7 +444,7 @@ void proposal_v4(const T* class_probs,
                  const Shape& image_shape_shape,
                  const Shape& output_shape,
                  const Shape& out_probs_shape,
-                 const op::ProposalAttrs& attrs) {
+                 const op::v0::Proposal::Attributes& attrs) {
     details::proposal_exec(class_probs,
                            bbox_deltas,
                            image_shape,
@@ -459,5 +458,4 @@ void proposal_v4(const T* class_probs,
                            attrs);
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

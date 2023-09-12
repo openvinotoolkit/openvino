@@ -410,7 +410,7 @@ text encoder. You can split the CLIP into two models and call them
 separately.
 
 To convert the model to IR, you can use `Model Optimizer
-(MO) <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+(MO) <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 When you convert a model to the OpenVINO format, Model Optimizer enables
 specifying the inputs and outputs you want to use. During the
 conversion, it will trim the remaining parts of the model. Therefore,

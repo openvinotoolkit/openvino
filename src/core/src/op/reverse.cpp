@@ -110,12 +110,12 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const Ho
             }
         }
     }
-    ngraph::runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
-                                        outputs[0]->get_data_ptr<char>(),
-                                        inputs[0]->get_shape(),
-                                        outputs[0]->get_shape(),
-                                        axes,
-                                        inputs[0]->get_element_type().size());
+    ov::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                           outputs[0]->get_data_ptr<char>(),
+                           inputs[0]->get_shape(),
+                           outputs[0]->get_shape(),
+                           axes,
+                           inputs[0]->get_element_type().size());
     return true;
 }
 
