@@ -27,7 +27,7 @@ TEST_F(ROIPoolingV0StaticShapeInferenceTest, default_ctor) {
 
     input_shapes = ShapeVector{{1, 5, 10, 10}, {2, 5}};
     auto shape_infer = make_shape_inference(op);
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 5, 3, 3}));
@@ -40,7 +40,7 @@ TEST_F(ROIPoolingV0StaticShapeInferenceTest, inputs_dynamic_rank) {
     op = make_op(feat, rois, ov::Shape{5, 5}, 0.9f);
 
     input_shapes = ShapeVector{{2, 3, 100, 100}, {10, 5}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 3, 5, 5}));
@@ -53,7 +53,7 @@ TEST_F(ROIPoolingV0StaticShapeInferenceTest, inputs_static_rank) {
     op = make_op(feat, rois, ov::Shape{7, 5}, 1.9f, "max");
 
     input_shapes = ShapeVector{{2, 3, 20, 100}, {10, 5}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 3, 7, 5}));
@@ -67,7 +67,7 @@ TEST_F(ROIPoolingV0StaticShapeInferenceTest, invalid_rois_batch_size) {
 
     input_shapes = ShapeVector{{2, 3, 20, 100}, {10, 6}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The second dimension of ROIs input should contain batch id and box coordinates. This "
                               "dimension is expected to be equal to 5"));
