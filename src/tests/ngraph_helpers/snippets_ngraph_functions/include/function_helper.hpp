@@ -5,8 +5,6 @@
 #pragma once
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset5.hpp>
 
 namespace ov {
 namespace test {

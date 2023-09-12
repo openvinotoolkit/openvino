@@ -6,7 +6,6 @@
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <ngraph/opsets/opset6.hpp>
 
 namespace ov {
 namespace test {

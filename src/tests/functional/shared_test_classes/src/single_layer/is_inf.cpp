@@ -6,7 +6,6 @@
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "ie_plugin_config.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 using namespace ov::test::subgraph;
 

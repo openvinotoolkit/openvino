@@ -7,10 +7,6 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/ops.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/constant.hpp>
 #include "ov_ops/type_relaxed.hpp"
 

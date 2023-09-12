@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "base/ov_behavior_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"

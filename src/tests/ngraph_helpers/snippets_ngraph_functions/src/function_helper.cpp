@@ -7,7 +7,6 @@
 #include <snippets/snippets_isa.hpp>
 #include <snippets/op/subgraph.hpp>
 #include "ngraph_functions/builders.hpp"
-#include "ngraph/opsets/opset1.hpp"
 
 namespace ov {
 namespace test {

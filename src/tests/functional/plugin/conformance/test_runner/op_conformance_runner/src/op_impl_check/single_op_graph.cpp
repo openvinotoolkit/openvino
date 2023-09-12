@@ -5,7 +5,6 @@
 #include <op_impl_check/op_impl_check.hpp>
 #include <op_impl_check/single_op_graph.hpp>
 #include <openvino/pass/constant_folding.hpp>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 namespace ov {
 namespace test {

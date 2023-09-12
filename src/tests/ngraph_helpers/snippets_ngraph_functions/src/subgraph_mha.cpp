@@ -7,7 +7,6 @@
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "ngraph_functions/builders.hpp"
-#include "ngraph/opsets/opset8.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 

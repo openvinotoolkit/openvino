@@ -26,6 +26,3 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include "openvino/op/ops.hpp"
-#include "openvino/openvino.hpp"

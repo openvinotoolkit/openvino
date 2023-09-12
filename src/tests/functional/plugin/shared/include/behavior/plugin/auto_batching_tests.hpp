@@ -14,7 +14,6 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;

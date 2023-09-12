@@ -2,7 +2,6 @@
 // SPDX-License-corer: Apache-2.0
 //
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
