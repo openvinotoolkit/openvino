@@ -56,7 +56,7 @@ notebook consists of the following steps:
 -  Validating inference of the converted model
 -  Benchmark performance of the converted model
 
-Get and prepare PyTorch model `:math:`\Uparrow` <#Table-of-content:>`__
+Get and prepare PyTorch model `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------------
 
 The first thing we’ll need to do is clone
@@ -71,7 +71,7 @@ The code from the repository already contains functions that create
 model and load weights, but we will need to download config and trained
 weights (checkpoint) file and add some additional helper functions.
 
-Prerequisites `:math:`\Uparrow` <#Table-of-content:>`__
+Prerequisites `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -159,7 +159,7 @@ config for our model.
     model/variant.yml:   0%|          | 0.00/940 [00:00<?, ?B/s]
 
 
-Loading PyTorch model `:math:`\Uparrow` <#Table-of-content:>`__
+Loading PyTorch model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 PyTorch models are usually an instance of
@@ -208,13 +208,13 @@ Load normalization settings from config file.
       warnings.warn(
 
 
-Preparing preprocessing and visualization functions `:math:`\Uparrow` <#Table-of-content:>`__
+Preparing preprocessing and visualization functions `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------------------------------------
 
 Now we will define utility functions for preprocessing and visualizing
 the results.
 
-Preprocessing `:math:`\Uparrow` <#Table-of-content:>`__
+Preprocessing `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Inference input is tensor with shape ``[1, 3, H, W]`` in ``B, C, H, W``
@@ -259,7 +259,7 @@ normalized with given mean and standard deviation provided in
     
         return im
 
-Visualization `:math:`\Uparrow` <#Table-of-content:>`__
+Visualization `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Inference output contains labels assigned to each pixel, so the output
@@ -303,7 +303,7 @@ corresponding to the inferred labels.
     
         return pil_blend
 
-Validation of inference of original model `:math:`\Uparrow` <#Table-of-content:>`__
+Validation of inference of original model `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------------------------
 
 Now that we have everything ready, we can perform segmentation on
@@ -355,7 +355,7 @@ We can see that model segments the image into meaningful parts. Since we
 are using tiny variant of model, the result is not as good as it is with
 larger models, but it already shows nice segmentation performance.
 
-Export to ONNX `:math:`\Uparrow` <#Table-of-content:>`__
+Export to ONNX `⇑ <#Table-of-content:>`__
 --------------------------------------------------------
 
 Now that we’ve verified that the inference of PyTorch model works, we
@@ -427,7 +427,7 @@ problem.
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
-Convert ONNX model to OpenVINO Intermediate Representation (IR) `:math:`\Uparrow` <#Table-of-content:>`__
+Convert ONNX model to OpenVINO Intermediate Representation (IR) `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------------------------------------------------
 
 While ONNX models are directly supported by OpenVINO runtime, it can be
@@ -447,7 +447,7 @@ OpenVINO IR format for future execution.
     # serialize model for saving IR
     ov.save_model(model, str(MODEL_DIR / "segmenter.xml"))
 
-Verify converted model inference `:math:`\Uparrow` <#Table-of-content:>`__
+Verify converted model inference `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------
 
 To test that model was successfully converted, we can use same inference
@@ -515,7 +515,7 @@ any additional custom code required to process input.
 Now that we have created ``SegmenterOV`` helper class, we can use it in
 inference function.
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -576,7 +576,7 @@ select device from dropdown list for running inference using OpenVINO
 
 As we can see, we get the same results as with original model.
 
-Benchmarking performance of converted model `:math:`\Uparrow` <#Table-of-content:>`__
+Benchmarking performance of converted model `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------------
 
 Finally, use the OpenVINO `Benchmark

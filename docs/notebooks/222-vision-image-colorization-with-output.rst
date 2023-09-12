@@ -51,7 +51,7 @@ Functions <#Utility-Functions-Uparrow>`__ - `Load the
 Image <#Load-the-Image-Uparrow>`__ - `Display Colorized
 Image <#Display-Colorized-Image-Uparrow>`__
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -68,7 +68,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Configurations `:math:`\Uparrow` <#Table-of-content:>`__
+Configurations `⇑ <#Table-of-content:>`__
 --------------------------------------------------------
 
 -  ``PRECISION`` - {FP16, FP32}, default: FP16.
@@ -87,7 +87,7 @@ Configurations `:math:`\Uparrow` <#Table-of-content:>`__
     MODEL_PATH = f"{MODEL_DIR}/public/{MODEL_NAME}/{PRECISION}/{MODEL_NAME}.xml"
     DATA_DIR = "data"
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -116,7 +116,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Download the model `:math:`\Uparrow` <#Table-of-content:>`__
+Download the model `⇑ <#Table-of-content:>`__
 ------------------------------------------------------------
 
 ``omz_downloader`` downloads model files from online sources and, if
@@ -165,7 +165,7 @@ above.
     
 
 
-Convert the model to OpenVINO IR `:math:`\Uparrow` <#Table-of-content:>`__
+Convert the model to OpenVINO IR `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------
 
 ``omz_converter`` converts the models that are not in the OpenVINO™ IR
@@ -208,7 +208,7 @@ respectively
     
 
 
-Loading the Model `:math:`\Uparrow` <#Table-of-content:>`__
+Loading the Model `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 Load the model in OpenVINO Runtime with ``ie.read_model`` and compile it
@@ -223,7 +223,7 @@ for the specified device with ``ie.compile_model``.
     output_layer = compiled_model.output(0)
     N, C, H, W = list(input_layer.shape)
 
-Utility Functions `:math:`\Uparrow` <#Table-of-content:>`__
+Utility Functions `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 .. code:: ipython3
@@ -300,7 +300,7 @@ Utility Functions `:math:`\Uparrow` <#Table-of-content:>`__
     
         plt.show()
 
-Load the Image `:math:`\Uparrow` <#Table-of-content:>`__
+Load the Image `⇑ <#Table-of-content:>`__
 --------------------------------------------------------
 
 .. code:: ipython3
@@ -366,7 +366,7 @@ Load the Image `:math:`\Uparrow` <#Table-of-content:>`__
     color_img_0 = colorize(test_img_0)
     color_img_1 = colorize(test_img_1)
 
-Display Colorized Image `:math:`\Uparrow` <#Table-of-content:>`__
+Display Colorized Image `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 .. code:: ipython3

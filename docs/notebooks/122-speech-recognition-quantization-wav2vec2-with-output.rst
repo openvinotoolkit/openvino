@@ -42,18 +42,23 @@ and has the following differences:
 
 ..
 
-   **NOTE**: Currently, 8-bit quantization with accuracy control in NNCF
-   is available only for models in OpenVINO representation.
+.. note::
 
-The steps for the quantization with accuracy control are described
-below.
+   Currently, 8-bit quantization with accuracy control in NNCF is available only for models in OpenVINO representation.
 
-### Table of content: - `Imports <#1>`__ - `Prepare the Model <#2>`__ -
-`Prepare LibriSpeech Dataset <#3>`__ - `Prepare calibration and
-validation datasets <#4>`__ - `Prepare validation function <#5>`__ -
-`Run quantization with accuracy control <#6>`__ - `Model Usage
-Example <#7>`__ - `Compare Performance of the Original and Quantized
-Models <#8>`__
+The steps for the quantization with accuracy control are described below.
+
+Table of content:
+^^^^^^^^^^^^^^^^^
+
+- `Imports <#1>`__ 
+- `Prepare the Model <#2>`__ 
+- `Prepare LibriSpeech Dataset <#3>`__ 
+- `Prepare calibration and validation datasets <#4>`__ 
+- `Prepare validation function <#5>`__ 
+- `Run quantization with accuracy control <#6>`__ 
+- `Model Usage Example <#7>`__ 
+- `Compare Performance of the Original and Quantized Models <#8>`__
 
 .. code:: ipython3
 
@@ -248,7 +253,8 @@ Models <#8>`__
     Successfully installed Deprecated-1.2.14 about-time-4.2.1 alive-progress-3.1.4 cma-3.2.2 grapheme-0.6.0 nncf-2.5.0.dev0+90a1e860 pymoo-0.6.0.1
 
 
-## Imports `⇑ <#0>`__
+Imports `⇑ <#0>`__
+--------------------
 
 .. code:: ipython3
 
@@ -266,7 +272,10 @@ Models <#8>`__
     2023-09-08 23:07:39.789011: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-## Prepare the Model `⇑ <#0>`__ For instantiating PyTorch model class,
+Prepare the Model `⇑ <#0>`__ 
+------------------------------
+
+For instantiating PyTorch model class,
 we should use ``Wav2Vec2ForCTC.from_pretrained`` method with providing
 model ID for downloading from HuggingFace hub. Model weights and
 configuration files will be downloaded automatically in first time
@@ -328,7 +337,8 @@ Convert it to the OpenVINO Intermediate Representation (OpenVINO IR)
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
 
 
-## Prepare LibriSpeech Dataset `⇑ <#0>`__
+Prepare LibriSpeech Dataset `⇑ <#0>`__
+----------------------------------------
 
 For demonstration purposes, we will use short dummy version of
 LibriSpeech dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
@@ -356,7 +366,8 @@ dataset.
     # apply preprocessing function to dataset and remove audio column, to save memory as we do not need it anymore
     dataset = dataset.map(map_to_input, batched=False, remove_columns=["audio"])
 
-## Prepare calibration dataset `⇑ <#0>`__
+Prepare calibration dataset `⇑ <#0>`__
+---------------------------------------------
 
 .. code:: ipython3
 
@@ -374,8 +385,10 @@ dataset.
     
     calibration_dataset = nncf.Dataset(dataset, transform_fn)
 
-## Prepare validation function `⇑ <#0>`__ Define the validation
-function.
+Prepare validation function `⇑ <#0>`__ 
+---------------------------------------------
+
+Define the validation function.
 
 .. code:: ipython3
 
@@ -402,7 +415,10 @@ function.
     
         return 1 - result
 
-## Run quantization with accuracy control `⇑ <#0>`__ You should provide
+Run quantization with accuracy control `⇑ <#0>`__ 
+------------------------------------------------------------
+
+You should provide
 the calibration dataset and the validation dataset. It can be the same
 dataset. - parameter ``max_drop`` defines the accuracy drop threshold.
 The quantization process stops when the degradation of accuracy metric
@@ -415,8 +431,9 @@ rank layers by their contribution to the accuracy drop. Default value is
 300, and the more samples it has the better ranking, potentially. Here
 we use the value 25 to speed up the execution.
 
-   **NOTE**: Execution can take tens of minutes and requires up to 10 GB
-   of free memory
+.. code::
+   
+   Execution can take tens of minutes and requires up to 10 GB of free memory
 
 .. code:: ipython3
 
@@ -456,11 +473,6 @@ we use the value 25 to speed up the execution.
 .. parsed-literal::
 
     INFO:nncf:Validation of initial model was started
-
-
-.. parsed-literal::
-
-    
 
 
 .. parsed-literal::
@@ -1855,7 +1867,8 @@ we use the value 25 to speed up the execution.
     	__module.wav2vec2.feature_extractor.conv_layers.1.conv/aten::_convolution/Convolution_10
 
 
-## Model Usage Example `⇑ <#0>`__
+Model Usage Example `⇑ <#0>`__
+--------------------------------
 
 .. code:: ipython3
 
@@ -1904,7 +1917,8 @@ Next, make a prediction.
 
 
 
-## Compare Accuracy of the Original and Quantized Models `⇑ <#0>`__
+Compare Accuracy of the Original and Quantized Models `⇑ <#0>`__
+-------------------------------------------------------------------------
 
 -  Define dataloader for test dataset.
 -  Define functions to get inference for PyTorch and OpenVINO models.

@@ -51,7 +51,7 @@ Table of content:
    -  `Integration preprocessing to
       model <#Integration-preprocessing-to-model-Uparrow>`__
 
-Prerequisites `:math:`\Uparrow` <#Table-of-content:>`__
+Prerequisites `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
 Install required packages:
@@ -73,7 +73,7 @@ The notebook uses utility functions. The cell below will download the
         filename="notebook_utils.py",
     );
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -91,7 +91,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     # Notebook utils module
     from notebook_utils import download_file
 
-Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Settings `⇑ <#Table-of-content:>`__
 --------------------------------------------------
 
 Define model related variables and create corresponding directories:
@@ -118,7 +118,7 @@ Define model related variables and create corresponding directories:
     
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
-Download Model from TensorFlow Hub `:math:`\Uparrow` <#Table-of-content:>`__
+Download Model from TensorFlow Hub `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------------
 
 Download archive with TensorFlow Object Detection model
@@ -157,7 +157,7 @@ Extract TensorFlow Object Detection model from the downloaded archive:
     with tarfile.open(tf_model_dir / tf_model_archive_filename) as file:
         file.extractall(path=tf_model_dir)
 
-Convert Model to OpenVINO IR `:math:`\Uparrow` <#Table-of-content:>`__
+Convert Model to OpenVINO IR `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------
 
 OpenVINO Model Converter Python API can be used to convert the
@@ -188,10 +188,10 @@ support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_conve
     # Save converted OpenVINO IR model to the corresponding directory
     ov.save_model(ov_model, openvino_ir_path)
 
-Test Inference on the Converted Model `:math:`\Uparrow` <#Table-of-content:>`__
+Test Inference on the Converted Model `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -219,7 +219,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model `:math:`\Uparrow` <#Table-of-content:>`__
+Load the Model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -228,7 +228,7 @@ Load the Model `:math:`\Uparrow` <#Table-of-content:>`__
     openvino_ir_model = core.read_model(openvino_ir_path)
     compiled_model = core.compile_model(model=openvino_ir_model, device_name=device.value)
 
-Get Model Information `:math:`\Uparrow` <#Table-of-content:>`__
+Get Model Information `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Faster R-CNN with Resnet-50 V1 object detection model has one input - a
@@ -296,7 +296,7 @@ for more information about model inputs, outputs and their formats.
        <ConstOutput: names[raw_detection_scores] shape[1,300,91] type: f32>
 
 
-Get an Image for Test Inference `:math:`\Uparrow` <#Table-of-content:>`__
+Get an Image for Test Inference `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Load and save an image:
@@ -358,7 +358,7 @@ Read the image, resize and convert it to the input shape of the network:
 .. image:: 120-tensorflow-object-detection-to-openvino-with-output_files/120-tensorflow-object-detection-to-openvino-with-output_25_1.png
 
 
-Perform Inference `:math:`\Uparrow` <#Table-of-content:>`__
+Perform Inference `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -469,7 +469,7 @@ outputs will be used.
     image_detections_num: [300.]
 
 
-Inference Result Visualization `:math:`\Uparrow` <#Table-of-content:>`__
+Inference Result Visualization `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Define utility functions to visualize the inference results
@@ -649,13 +649,13 @@ original test image:
 .. image:: 120-tensorflow-object-detection-to-openvino-with-output_files/120-tensorflow-object-detection-to-openvino-with-output_38_0.png
 
 
-Next Steps `:math:`\Uparrow` <#Table-of-content:>`__
+Next Steps `⇑ <#Table-of-content:>`__
 ----------------------------------------------------
 
 This section contains suggestions on how to additionally improve the
 performance of your application using OpenVINO.
 
-Async inference pipeline `:math:`\Uparrow` <#Table-of-content:>`__
+Async inference pipeline `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The key advantage of the Async API is that when a device is busy with
@@ -665,7 +665,7 @@ wait for the current inference to complete first. To understand how to
 perform async inference using openvino, refer to the `Async API
 tutorial <115-async-api-with-output.html>`__.
 
-Integration preprocessing to model `:math:`\Uparrow` <#Table-of-content:>`__
+Integration preprocessing to model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Preprocessing API enables making preprocessing a part of the model

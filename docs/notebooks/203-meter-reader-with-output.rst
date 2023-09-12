@@ -45,7 +45,7 @@ Table of content:
     # Install openvino package
     !pip install -q "openvino==2023.1.0.dev20230811"
 
-Import `:math:`\Uparrow` <#Table-of-content:>`__
+Import `⇑ <#Table-of-content:>`__
 ------------------------------------------------
 
 .. code:: ipython3
@@ -63,7 +63,7 @@ Import `:math:`\Uparrow` <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import download_file, segmentation_map_to_image
 
-Prepare the Model and Test Image `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare the Model and Test Image `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------
 
 Download PPYOLOv2 and DeepLabV3P pre-trained models from PaddlePaddle
@@ -139,7 +139,7 @@ community.
     Test Image Saved to "./data".
 
 
-Configuration `:math:`\Uparrow` <#Table-of-content:>`__
+Configuration `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
 Add parameter configuration for reading calculation.
@@ -168,7 +168,7 @@ Add parameter configuration for reading calculation.
     
     SEG_LABEL = {'background': 0, 'pointer': 1, 'scale': 2}
 
-Load the Models `:math:`\Uparrow` <#Table-of-content:>`__
+Load the Models `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------
 
 Define a common class for model loading and inference
@@ -211,7 +211,7 @@ Define a common class for model loading and inference
             result = self.compiled_model(input_image)[self.output_layer]
             return result
 
-Data Process `:math:`\Uparrow` <#Table-of-content:>`__
+Data Process `⇑ <#Table-of-content:>`__
 ------------------------------------------------------
 
 Including the preprocessing and postprocessing tasks of each model.
@@ -541,10 +541,10 @@ Including the preprocessing and postprocessing tasks of each model.
             readings.append(reading)
         return readings
 
-Main Function `:math:`\Uparrow` <#Table-of-content:>`__
+Main Function `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
-Initialize the model and parameters. `:math:`\Uparrow` <#Table-of-content:>`__
+Initialize the model and parameters. `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -615,7 +615,7 @@ bounds of input batch size.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_16_1.png
 
 
-Run meter detection model `:math:`\Uparrow` <#Table-of-content:>`__
+Run meter detection model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Detect the location of the meter and prepare the ROI images for
@@ -660,7 +660,7 @@ segmentation.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_18_1.png
 
 
-Run meter segmentation model `:math:`\Uparrow` <#Table-of-content:>`__
+Run meter segmentation model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Get the results of segmentation task on detected ROI.
@@ -700,7 +700,7 @@ Get the results of segmentation task on detected ROI.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_20_1.png
 
 
-Postprocess the models result and calculate the final readings `:math:`\Uparrow` <#Table-of-content:>`__
+Postprocess the models result and calculate the final readings `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use OpenCV function to find the location of the pointer in a scale map.
@@ -737,7 +737,7 @@ Use OpenCV function to find the location of the pointer in a scale map.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_22_1.png
 
 
-Get the reading result on the meter picture `:math:`\Uparrow` <#Table-of-content:>`__
+Get the reading result on the meter picture `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3

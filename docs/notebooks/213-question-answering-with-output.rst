@@ -20,7 +20,7 @@ Function <#Main-Processing-Function-Uparrow>`__ - `Run <#Run-Uparrow>`__
 - `Run on local paragraphs <#Run-on-local-paragraphs-Uparrow>`__ - `Run
 on websites <#Run-on-websites-Uparrow>`__
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -35,10 +35,10 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     import html_reader as reader
     import tokens_bert as tokens
 
-The model `:math:`\Uparrow` <#Table-of-content:>`__
+The model `⇑ <#Table-of-content:>`__
 ---------------------------------------------------
 
-Download the model `:math:`\Uparrow` <#Table-of-content:>`__
+Download the model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``omz_downloader``, which is a command-line tool from the
@@ -93,7 +93,7 @@ there is no need to use ``omz_converter``.
     
 
 
-Load the model `:math:`\Uparrow` <#Table-of-content:>`__
+Load the model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Downloaded models are located in a fixed structure, which indicates a
@@ -110,7 +110,7 @@ You can choose ``CPU`` or ``GPU`` for this model.
     # Read the network and corresponding weights from a file.
     model = core.read_model(model_path)
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 select device from dropdown list for running inference using OpenVINO
@@ -168,7 +168,7 @@ for BERT-large-like model.
 
 
 
-Processing `:math:`\Uparrow` <#Table-of-content:>`__
+Processing `⇑ <#Table-of-content:>`__
 ----------------------------------------------------
 
 NLP models usually take a list of tokens as a standard input. A token is
@@ -206,7 +206,7 @@ content from provided URLs.
         # Produce one big context string.
         return "\n".join(paragraphs)
 
-Preprocessing `:math:`\Uparrow` <#Table-of-content:>`__
+Preprocessing `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input size in this case is 384 tokens long. The main input
@@ -289,7 +289,7 @@ documentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/mod
     
         return (input_ids, attention_mask, token_type_ids), diff_input_size
 
-Postprocessing `:math:`\Uparrow` <#Table-of-content:>`__
+Postprocessing `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The results from the network are raw (logits). Use the softmax function
@@ -382,7 +382,7 @@ answer should come with the highest score.
         # Return the part of the context, which is already an answer.
         return context[answer[1]:answer[2]], answer[0]
 
-Main Processing Function `:math:`\Uparrow` <#Table-of-content:>`__
+Main Processing Function `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Run question answering on a specific knowledge base (websites) and
@@ -424,10 +424,10 @@ iterate through the questions.
                 print(f"Score: {score:.2f}")
                 print(f"Time: {end_time - start_time:.2f}s")
 
-Run `:math:`\Uparrow` <#Table-of-content:>`__
+Run `⇑ <#Table-of-content:>`__
 ---------------------------------------------
 
-Run on local paragraphs `:math:`\Uparrow` <#Table-of-content:>`__
+Run on local paragraphs `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Change sources to your own to answer your questions. You can use as many
@@ -479,7 +479,7 @@ questions in the box.**
     Time: 0.03s
 
 
-Run on websites `:math:`\Uparrow` <#Table-of-content:>`__
+Run on websites `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can also provide URLs. Note that the context (a knowledge base) is

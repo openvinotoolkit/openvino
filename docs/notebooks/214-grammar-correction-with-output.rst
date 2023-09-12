@@ -55,7 +55,7 @@ Table of content:
 
 -  `Prepare Demo Pipeline <#Prepare-Demo-Pipeline-Uparrow>`__
 
-How does it work? `:math:`\Uparrow` <#Table-of-content:>`__
+How does it work? `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 A Grammatical Error Correction task can be thought of as a
@@ -105,7 +105,7 @@ documentation <https://huggingface.co/docs/transformers/model_doc/roberta>`__
 
 Now that we know more about FLAN-T5 and RoBERTa, let us get started. 🚀
 
-Prerequisites `:math:`\Uparrow` <#Table-of-content:>`__
+Prerequisites `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
 First, we need to install the `Hugging Face
@@ -128,7 +128,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
     [notice] To update, run: pip install --upgrade pip
 
 
-Download and Convert Models `:math:`\Uparrow` <#Table-of-content:>`__
+Download and Convert Models `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------------
 
 Optimum Intel can be used to load optimized models from the `Hugging
@@ -183,7 +183,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
     comet_ml is installed but `COMET_API_KEY` is not set.
 
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -213,7 +213,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Grammar Checker `:math:`\Uparrow` <#Table-of-content:>`__
+Grammar Checker `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -265,7 +265,7 @@ Hugging Face inference pipelines in this
 
 Great! Looks like the model can detect errors in the sample.
 
-Grammar Corrector `:math:`\Uparrow` <#Table-of-content:>`__
+Grammar Corrector `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The steps for loading the Grammar Corrector model are very similar,
@@ -330,7 +330,7 @@ to run it.
 
 Nice! The result looks pretty good!
 
-Prepare Demo Pipeline `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare Demo Pipeline `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------
 
 Now let us put everything together and create the pipeline for grammar

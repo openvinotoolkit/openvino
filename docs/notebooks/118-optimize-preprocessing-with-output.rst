@@ -65,7 +65,7 @@ Table of content:
       image <#Compare-results-on-one-image-Uparrow>`__
    -  `Compare performance <#Compare-performance-Uparrow>`__
 
-Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Settings `⇑ <#Table-of-content:>`__
 --------------------------------------------------
 
 .. code:: ipython3
@@ -73,7 +73,7 @@ Settings `:math:`\Uparrow` <#Table-of-content:>`__
     # Install openvino package
     !pip install -q "openvino==2023.1.0.dev20230811" tensorflow opencv-python matplotlib
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -96,7 +96,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     2023-09-08 23:04:02.060166: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Setup image and device `:math:`\Uparrow` <#Table-of-content:>`__
+Setup image and device `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -126,7 +126,7 @@ Setup image and device `:math:`\Uparrow` <#Table-of-content:>`__
 
 
 
-Downloading the model `:math:`\Uparrow` <#Table-of-content:>`__
+Downloading the model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This tutorial uses the
@@ -182,14 +182,14 @@ and save it to the disk.
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
 
 
-Create core `:math:`\Uparrow` <#Table-of-content:>`__
+Create core `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
     core = ov.Core()
 
-Check the original parameters of image `:math:`\Uparrow` <#Table-of-content:>`__
+Check the original parameters of image `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -210,7 +210,7 @@ Check the original parameters of image `:math:`\Uparrow` <#Table-of-content:>`__
 .. image:: 118-optimize-preprocessing-with-output_files/118-optimize-preprocessing-with-output_14_1.png
 
 
-Setup preprocessing steps with Preprocessing API and perform inference `:math:`\Uparrow` <#Table-of-content:>`__
+Setup preprocessing steps with Preprocessing API and perform inference `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------------------------------------------------
 
 Intuitively, preprocessing API consists of the following parts:
@@ -236,7 +236,7 @@ Pre-processing support following operations (please, see more details
 -  Color Conversion
 -  Custom Operations
 
-Convert model to OpenVINO IR with model conversion API `:math:`\Uparrow` <#Table-of-content:>`__
+Convert model to OpenVINO IR with model conversion API `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The options for preprocessing are not required.
@@ -255,7 +255,7 @@ The options for preprocessing are not required.
                                      input=[1,299,299,3])
         ov.save_model(ppp_model, str(ir_path))
 
-Create ``PrePostProcessor`` Object `:math:`\Uparrow` <#Table-of-content:>`__
+Create ``PrePostProcessor`` Object `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The
@@ -269,7 +269,7 @@ a model.
     
     ppp = PrePostProcessor(ppp_model)
 
-Declare User’s Data Format `:math:`\Uparrow` <#Table-of-content:>`__
+Declare User’s Data Format `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To address particular input of a model/preprocessor, use the
@@ -312,7 +312,7 @@ for mean/scale normalization.
 
 
 
-Declaring Model Layout `:math:`\Uparrow` <#Table-of-content:>`__
+Declaring Model Layout `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Model input already has information about precision and shape.
@@ -341,7 +341,7 @@ may be specified is input data
 
 
 
-Preprocessing Steps `:math:`\Uparrow` <#Table-of-content:>`__
+Preprocessing Steps `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, the sequence of preprocessing steps can be defined. For more
@@ -380,7 +380,7 @@ then such conversion will be added explicitly.
 
 
 
-Integrating Steps into a Model `:math:`\Uparrow` <#Table-of-content:>`__
+Integrating Steps into a Model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Once the preprocessing steps have been finished, the model can be
@@ -406,7 +406,7 @@ configuration for debugging purposes.
     
 
 
-Load model and perform inference `:math:`\Uparrow` <#Table-of-content:>`__
+Load model and perform inference `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -424,10 +424,10 @@ Load model and perform inference `:math:`\Uparrow` <#Table-of-content:>`__
     ppp_input_tensor = prepare_image_api_preprocess(image_path)
     results = compiled_model_with_preprocess_api(ppp_input_tensor)[ppp_output_layer][0]
 
-Fit image manually and perform inference `:math:`\Uparrow` <#Table-of-content:>`__
+Fit image manually and perform inference `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------------------
 
-Load the model `:math:`\Uparrow` <#Table-of-content:>`__
+Load the model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -435,7 +435,7 @@ Load the model `:math:`\Uparrow` <#Table-of-content:>`__
     model = core.read_model(model=ir_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Load image and fit it to model input `:math:`\Uparrow` <#Table-of-content:>`__
+Load image and fit it to model input `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -469,7 +469,7 @@ Load image and fit it to model input `:math:`\Uparrow` <#Table-of-content:>`__
     The data type of the image is float32
 
 
-Perform inference `:math:`\Uparrow` <#Table-of-content:>`__
+Perform inference `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -478,10 +478,10 @@ Perform inference `:math:`\Uparrow` <#Table-of-content:>`__
     
     result = compiled_model(input_tensor)[output_layer]
 
-Compare results `:math:`\Uparrow` <#Table-of-content:>`__
+Compare results `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------
 
-Compare results on one image `:math:`\Uparrow` <#Table-of-content:>`__
+Compare results on one image `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -533,7 +533,7 @@ Compare results on one image `:math:`\Uparrow` <#Table-of-content:>`__
     n02100877 Irish setter, red setter, 0.00115
 
 
-Compare performance `:math:`\Uparrow` <#Table-of-content:>`__
+Compare performance `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3

@@ -43,7 +43,7 @@ Table of content:
    -  `Show an Animated GIF <#Show-an-Animated-GIF-Uparrow>`__
    -  `Create a Comparison Video <#Create-a-Comparison-Video-Uparrow>`__
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -86,7 +86,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import NotebookAlert
 
-Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Settings `⇑ <#Table-of-content:>`__
 --------------------------------------------------
 
 .. code:: ipython3
@@ -101,10 +101,10 @@ Settings `:math:`\Uparrow` <#Table-of-content:>`__
     ir_path = model_path.with_suffix(".xml")
     onnx_path = model_path.with_suffix(".onnx")
 
-Inference on PaddlePaddle Model `:math:`\Uparrow` <#Table-of-content:>`__
+Inference on PaddlePaddle Model `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------
 
-Investigate PaddleGAN Model `:math:`\Uparrow` <#Table-of-content:>`__
+Investigate PaddleGAN Model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The `PaddleGAN
@@ -161,7 +161,7 @@ To get more information about how the model looks like, use the
 
     # sr.model??
 
-Do Inference `:math:`\Uparrow` <#Table-of-content:>`__
+Do Inference `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To show inference on the PaddlePaddle model, set ``PADDLEGAN_INFERENCE``
@@ -206,14 +206,14 @@ may take some time.
         print(f"Inference duration: {duration:.2f} seconds")
         plt.imshow(result_image);
 
-Convert PaddleGAN Model to ONNX and OpenVINO IR `:math:`\Uparrow` <#Table-of-content:>`__
+Convert PaddleGAN Model to ONNX and OpenVINO IR `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------------------------------
 
 To convert the PaddlePaddle model to OpenVINO IR, first convert the
 model to ONNX, and then convert the ONNX model to the OpenVINO IR
 format.
 
-Convert PaddlePaddle Model to ONNX `:math:`\Uparrow` <#Table-of-content:>`__
+Convert PaddlePaddle Model to ONNX `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -250,7 +250,7 @@ Convert PaddlePaddle Model to ONNX `:math:`\Uparrow` <#Table-of-content:>`__
     2023-09-08 23:31:25 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
-Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__ `:math:`\Uparrow` <#Table-of-content:>`__
+Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__ `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -271,7 +271,7 @@ Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://doc
     Exporting ONNX model to OpenVINO IR... This may take a few minutes.
 
 
-Do Inference on OpenVINO IR Model `:math:`\Uparrow` <#Table-of-content:>`__
+Do Inference on OpenVINO IR Model `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -282,7 +282,7 @@ Do Inference on OpenVINO IR Model `:math:`\Uparrow` <#Table-of-content:>`__
     model = core.read_model(model=ir_path)
     input_layer = model.input(0)
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -388,7 +388,7 @@ select device from dropdown list for running inference using OpenVINO
 .. image:: 207-vision-paddlegan-superresolution-with-output_files/207-vision-paddlegan-superresolution-with-output_29_1.png
 
 
-Show an Animated GIF `:math:`\Uparrow` <#Table-of-content:>`__
+Show an Animated GIF `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To visualize the difference between the bicubic image and the
@@ -422,7 +422,7 @@ between both versions.
 
 
 
-Create a Comparison Video `:math:`\Uparrow` <#Table-of-content:>`__
+Create a Comparison Video `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create a video with a “slider”, showing the bicubic image to the right

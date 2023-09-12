@@ -29,7 +29,9 @@ optimize performance on OpenVINO IR files in
 
 |image0|
 
-   **NOTE**: Many of the steps presented below will give you better
+.. note::
+
+   Many of the steps presented below will give you better
    performance. However, some of them may **not change anything** or
    even **worsen the performance** if they are strongly dependent on
    either the hardware or the model. Please run this notebook on your
@@ -89,7 +91,7 @@ Prerequisites
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Data `:math:`\Uparrow` <#Table-of-content:>`__
+Data `⇑ <#Table-of-content:>`__
 ----------------------------------------------
 
 We will use the same image of the dog sitting on a bicycle copied 1000
@@ -135,7 +137,7 @@ object detection model.
 
 
 
-Model `:math:`\Uparrow` <#Table-of-content:>`__
+Model `⇑ <#Table-of-content:>`__
 -----------------------------------------------
 
 We decided to go with
@@ -176,13 +178,15 @@ PyTorch Hub and small enough to see the difference in performance.
     requirements: /opt/home/k8sworker/.cache/torch/hub/requirements.txt not found, check failed.
 
 
-Hardware `:math:`\Uparrow` <#Table-of-content:>`__
+Hardware `⇑ <#Table-of-content:>`__
 --------------------------------------------------
 
 The code below lists the available hardware we will use in the
 benchmarking process.
 
-   **NOTE**: The hardware you have is probably completely different from
+.. note::
+
+   The hardware you have is probably completely different from
    ours. It means you can see completely different results.
 
 .. code:: ipython3
@@ -203,7 +207,7 @@ benchmarking process.
     CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
 
 
-Helper functions `:math:`\Uparrow` <#Table-of-content:>`__
+Helper functions `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------
 
 We’re defining a benchmark model function to use for all optimizations
@@ -343,14 +347,14 @@ the image.
     
         utils.show_array(output_img)
 
-Optimizations `:math:`\Uparrow` <#Table-of-content:>`__
+Optimizations `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
 Below, we present the performance tricks for faster inference in the
 throughput mode. We release resources after every benchmarking to be
 sure the same amount of resource is available for every experiment.
 
-PyTorch model `:math:`\Uparrow` <#Table-of-content:>`__
+PyTorch model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, we’re benchmarking the original PyTorch model without any
@@ -376,7 +380,7 @@ optimizations applied. We will treat it as our baseline.
     PyTorch model on CPU: 0.0189 seconds per image (52.95 FPS)
 
 
-OpenVINO IR model `:math:`\Uparrow` <#Table-of-content:>`__
+OpenVINO IR model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The first optimization is exporting the PyTorch model to OpenVINO
@@ -421,7 +425,7 @@ step in this notebook.
     OpenVINO model on CPU: 0.0073 seconds per image (136.31 FPS)
 
 
-OpenVINO IR model + bigger batch `:math:`\Uparrow` <#Table-of-content:>`__
+OpenVINO IR model + bigger batch `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Batch processing often gives higher throughput as more inputs are
@@ -477,7 +481,7 @@ hardware and model.
     OpenVINO model + bigger batch on CPU: 0.0076 seconds per image (131.76 FPS)
 
 
-Asynchronous processing `:math:`\Uparrow` <#Table-of-content:>`__
+Asynchronous processing `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Asynchronous mode means that OpenVINO immediately returns from an
@@ -491,7 +495,9 @@ automatically spawns the pool of InferRequest objects (also called
 “jobs”) and provides synchronization mechanisms to control the flow of
 the pipeline.
 
-   **NOTE**: Asynchronous processing cannot guarantee outputs to be in
+.. note::
+
+   Asynchronous processing cannot guarantee outputs to be in
    the same order as inputs, so be careful in case of applications when
    the order of frames matters, e.g., videos.
 
@@ -516,7 +522,7 @@ the pipeline.
         del infer_queue  # release resources
         return fps
 
-OpenVINO IR model in throughput mode `:math:`\Uparrow` <#Table-of-content:>`__
+OpenVINO IR model in throughput mode `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 OpenVINO allows specifying a performance hint changing the internal
@@ -524,8 +530,7 @@ configuration of the device. There are three different hints:
 ``LATENCY``, ``THROUGHPUT``, and ``CUMULATIVE_THROUGHPUT``. As this
 notebook is focused on the throughput mode, we will use the latter two.
 The hints can be used with other devices as well. Throughput mode
-implicitly triggers using the `Automatic
-Batching <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Automatic_Batching.html>`__
+implicitly triggers using the `Automatic Batching <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Automatic_Batching.html>`__
 feature, which sets the batch size to the optimal level.
 
 .. code:: ipython3
@@ -547,13 +552,12 @@ feature, which sets the batch size to the optimal level.
     OpenVINO model on CPU (THROUGHPUT): 0.0040 seconds per image (249.96 FPS)
 
 
-OpenVINO IR model in throughput mode on GPU `:math:`\Uparrow` <#Table-of-content:>`__
+OpenVINO IR model in throughput mode on GPU `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Usually, a GPU device provides more frames per second than a CPU, so
 let’s run the above model on the GPU. Please note you need to have an
-Intel GPU and `install
-drivers <https://github.com/openvinotoolkit/openvino_notebooks/wiki/Ubuntu#1-install-python-git-and-gpu-drivers-optional>`__
+Intel GPU and `install drivers <https://github.com/openvinotoolkit/openvino_notebooks/wiki/Ubuntu#1-install-python-git-and-gpu-drivers-optional>`__
 to be able to run this step. In addition, offloading to the GPU helps
 reduce CPU load and memory consumption, allowing it to be left for
 routine processes. If you cannot observe a higher throughput on GPU, it
@@ -571,7 +575,7 @@ execution.
     
         del ov_gpu_model  # release resources
 
-OpenVINO IR model in throughput mode on AUTO `:math:`\Uparrow` <#Table-of-content:>`__
+OpenVINO IR model in throughput mode on AUTO `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 OpenVINO offers a virtual device called
@@ -598,7 +602,7 @@ performance hint.
     OpenVINO model on AUTO (THROUGHPUT): 0.0040 seconds per image (250.15 FPS)
 
 
-OpenVINO IR model in cumulative throughput mode on AUTO `:math:`\Uparrow` <#Table-of-content:>`__
+OpenVINO IR model in cumulative throughput mode on AUTO `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The AUTO device in throughput mode will select the best, but one
@@ -624,7 +628,7 @@ activate all devices.
     OpenVINO model on AUTO (CUMULATIVE THROUGHPUT): 0.0040 seconds per image (249.15 FPS)
 
 
-Other tricks `:math:`\Uparrow` <#Table-of-content:>`__
+Other tricks `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are other tricks for performance improvement, such as advanced
@@ -636,7 +640,7 @@ options <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_g
 `111-detection-quantization <../111-detection-quantization>`__, and
 `118-optimize-preprocessing <../118-optimize-preprocessing>`__.
 
-Performance comparison `:math:`\Uparrow` <#Table-of-content:>`__
+Performance comparison `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------
 
 The following graphical comparison is valid for the selected model and
@@ -672,7 +676,7 @@ steps, just skip them.
 .. image:: 109-throughput-tricks-with-output_files/109-throughput-tricks-with-output_33_0.png
 
 
-Conclusions `:math:`\Uparrow` <#Table-of-content:>`__
+Conclusions `⇑ <#Table-of-content:>`__
 -----------------------------------------------------
 
 We already showed the steps needed to improve the throughput of an

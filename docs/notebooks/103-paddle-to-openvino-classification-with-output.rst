@@ -33,10 +33,10 @@ Table of content:
 -  `Select inference device <#Select-inference-device-Uparrow>`__
 -  `References <#References-Uparrow>`__
 
-Preparation `:math:`\Uparrow` <#Table-of-content:>`__
+Preparation `⇑ <#Table-of-content:>`__
 -----------------------------------------------------
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -87,7 +87,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     2023-09-08 22:30:09 INFO: Successfully loaded faiss with AVX2 support.
 
 
-Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Settings `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Set ``IMAGE_FILENAME`` to the filename of an image to use. Set
@@ -132,7 +132,7 @@ PaddleHub. This may take a while.
     Model Extracted to "./model".
 
 
-Show Inference on PaddlePaddle Model `:math:`\Uparrow` <#Table-of-content:>`__
+Show Inference on PaddlePaddle Model `⇑ <#Table-of-content:>`__
 ------------------------------------------------------------------------------
 
 In the next cell, we load the model, load and display an image, do
@@ -254,7 +254,7 @@ OpenVINO model.
             partition = line.split("\n")[0].partition(" ")
             class_id_map[int(partition[0])] = str(partition[-1])
 
-Convert the Model to OpenVINO IR Format `:math:`\Uparrow` <#Table-of-content:>`__
+Convert the Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------------------------
 
 Call the OpenVINO Model Conversion API to convert the PaddlePaddle model
@@ -275,7 +275,7 @@ for more information about the Model Conversion API.
     else:
         print(f"{model_xml} already exists.")
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -303,7 +303,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Show Inference on OpenVINO Model `:math:`\Uparrow` <#Table-of-content:>`__
+Show Inference on OpenVINO Model `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------
 
 Load the IR model, get model information, load the image, do inference,
@@ -351,7 +351,7 @@ information.
 .. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_23_1.png
 
 
-Timing and Comparison `:math:`\Uparrow` <#Table-of-content:>`__
+Timing and Comparison `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------
 
 Measure the time it takes to do inference on fifty images and compare
@@ -419,7 +419,7 @@ Note that many optimizations are possible to improve the performance.
 .. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_27_1.png
 
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -481,7 +481,7 @@ select device from dropdown list for running inference using OpenVINO
 .. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_30_1.png
 
 
-References `:math:`\Uparrow` <#Table-of-content:>`__
+References `⇑ <#Table-of-content:>`__
 ----------------------------------------------------
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__

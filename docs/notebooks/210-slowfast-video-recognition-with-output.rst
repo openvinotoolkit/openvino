@@ -53,10 +53,10 @@ Table of content:
 -  `Select inference device <#Select-inference-device-Uparrow>`__
 -  `Verify Model Inference <#Verify-Model-Inference-Uparrow>`__
 
-Prepare PyTorch Model `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare PyTorch Model `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------
 
-Install necessary packages `:math:`\Uparrow` <#Table-of-content:>`__
+Install necessary packages `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -64,7 +64,7 @@ Install necessary packages `:math:`\Uparrow` <#Table-of-content:>`__
     !pip install -q "openvino==2023.1.0.dev20230811"
     !pip install -q fvcore
 
-Imports and Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Imports and Settings `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -917,7 +917,7 @@ inference using the same. The top 5 predictions can be seen below.
     Predicted labels: archery, throwing axe, playing paintball, golf driving, riding or walking with horse
 
 
-Export to ONNX `:math:`\Uparrow` <#Table-of-content:>`__
+Export to ONNX `⇑ <#Table-of-content:>`__
 --------------------------------------------------------
 
 Now that we have obtained our trained model and checked inference with
@@ -941,7 +941,7 @@ quantization.
         export_params=True,
     )
 
-Convert ONNX to OpenVINO Intermediate Representation `:math:`\Uparrow` <#Table-of-content:>`__
+Convert ONNX to OpenVINO Intermediate Representation `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------------------------------
 
 Now that our ONNX model is ready, we can convert it to IR format. In
@@ -973,7 +973,7 @@ using the ``weights`` parameter.
     # read converted model
     conv_model = core.read_model(str(IR_PATH))
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -1005,7 +1005,7 @@ select device from dropdown list for running inference using OpenVINO
     # load model on device
     compiled_model = core.compile_model(model=conv_model, device_name=device.value)
 
-Verify Model Inference `:math:`\Uparrow` <#Table-of-content:>`__
+Verify Model Inference `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------
 
 Using the compiled model, we run inference on the same sample video and

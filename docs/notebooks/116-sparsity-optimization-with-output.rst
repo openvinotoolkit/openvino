@@ -37,7 +37,7 @@ Table of content:
    performance <#Benchmark-quantized-sparse-inference-performance-Uparrow>`__
 -  `When this might be helpful <#When-this-might-be-helpful-Uparrow>`__
 
-Prerequisites `:math:`\Uparrow` <#Table-of-content:>`__
+Prerequisites `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
 .. code:: ipython3
@@ -45,7 +45,7 @@ Prerequisites `:math:`\Uparrow` <#Table-of-content:>`__
     !pip install -q "openvino==2023.1.0.dev20230811"
     !pip install -q "git+https://github.com/huggingface/optimum-intel.git" datasets onnx onnxruntime
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -78,7 +78,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
       warnings.warn(
 
 
-Download, quantize and sparsify the model, using Hugging Face Optimum API `:math:`\Uparrow` <#Table-of-content:>`__
+Download, quantize and sparsify the model, using Hugging Face Optimum API `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The first step is to download a quantized sparse transformers which has
@@ -144,7 +144,7 @@ the IRs into a single folder.
 
 
 
-Benchmark quantized dense inference performance `:math:`\Uparrow` <#Table-of-content:>`__
+Benchmark quantized dense inference performance `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------------------------------
 
 Benchmark dense inference performance using parallel execution on four
@@ -179,7 +179,7 @@ as an example. It is recommended to tune based on your applications.
     /bin/bash: benchmark_app: command not found
 
 
-Benchmark quantized sparse inference performance `:math:`\Uparrow` <#Table-of-content:>`__
+Benchmark quantized sparse inference performance `⇑ <#Table-of-content:>`__
 ------------------------------------------------------------------------------------------
 
 To enable sparse weight decompression feature, users can add it to
@@ -215,7 +215,7 @@ for which a layer will be enabled.
     /bin/bash: benchmark_app: command not found
 
 
-When this might be helpful `:math:`\Uparrow` <#Table-of-content:>`__
+When this might be helpful `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------
 
 This feature can improve inference performance for models with sparse

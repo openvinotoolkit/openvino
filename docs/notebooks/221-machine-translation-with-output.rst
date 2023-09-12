@@ -44,7 +44,7 @@ translation <#Test-your-translation-Uparrow>`__
     import itertools
     from tokenizers import SentencePieceBPETokenizer
 
-Downloading model `:math:`\Uparrow` <#Table-of-content:>`__
+Downloading model `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 The following command will download the model to the current directory.
@@ -85,7 +85,7 @@ Make sure you have run ``pip install openvino-dev`` beforehand.
     
 
 
-Load and configure the model `:math:`\Uparrow` <#Table-of-content:>`__
+Load and configure the model `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------
 
 The model is now available in the ``intel/`` folder. Below, we load and
@@ -100,7 +100,7 @@ configure its inputs and outputs.
     model.output(output_name)
     max_tokens = model.input(input_name).shape[1]
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -133,7 +133,7 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model, device.value)
 
-Load tokenizers `:math:`\Uparrow` <#Table-of-content:>`__
+Load tokenizers `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------
 
 NLP models usually take a list of tokens as standard input. A token is a
@@ -160,7 +160,7 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
         'intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt'
     )
 
-Perform translation `:math:`\Uparrow` <#Table-of-content:>`__
+Perform translation `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------
 
 The following function translates a sentence in English to German.
@@ -209,7 +209,7 @@ The following function translates a sentence in English to German.
         sentence = " ".join(key for key, _ in itertools.groupby(sentence))
         return sentence
 
-Translate the sentence `:math:`\Uparrow` <#Table-of-content:>`__
+Translate the sentence `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------
 
 The following function is a basic loop that translates sentences.
@@ -239,7 +239,7 @@ The following function is a basic loop that translates sentences.
     # uncomment the following line for a real time translation of your input
     # run_translator()
 
-Test your translation `:math:`\Uparrow` <#Table-of-content:>`__
+Test your translation `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Run the following cell with an English sentence to have it translated to

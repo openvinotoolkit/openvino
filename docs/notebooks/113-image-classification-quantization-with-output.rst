@@ -60,7 +60,7 @@ Table of content:
     DATA_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
 
-Prepare the Model `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare the Model `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 Model preparation stage has the following steps:
@@ -138,7 +138,7 @@ can be found on this
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
 
 
-Prepare Dataset `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare Dataset `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------
 
 We will use `CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`__
@@ -180,7 +180,7 @@ Preprocessing for model obtained from training
     Extracting ../data/datasets/cifar10/cifar-10-python.tar.gz to ../data/datasets/cifar10
 
 
-Perform Quantization `:math:`\Uparrow` <#Table-of-content:>`__
+Perform Quantization `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
@@ -194,7 +194,7 @@ MobileNetV2. The optimization process contains the following steps:
 3. Serialize an OpenVINO IR model, using the ``openvino.save_model``
    function.
 
-Create Dataset for Validation `:math:`\Uparrow` <#Table-of-content:>`__
+Create Dataset for Validation `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 NNCF is compatible with ``torch.utils.data.DataLoader`` interface. For
@@ -213,7 +213,7 @@ model during quantization, in our case, to pick input tensor from pair
     
     quantization_dataset = nncf.Dataset(val_loader, transform_fn)
 
-Run nncf.quantize for Getting an Optimized Model `:math:`\Uparrow` <#Table-of-content:>`__
+Run nncf.quantize for Getting an Optimized Model `⇑ <#Table-of-content:>`__
 ------------------------------------------------------------------------------------------
 
 ``nncf.quantize`` function accepts model and prepared quantization
@@ -234,7 +234,7 @@ about supported parameters can be found on this
     Biases correction: 100%|██████████| 36/36 [00:01<00:00, 21.91it/s]
 
 
-Serialize an OpenVINO IR model `:math:`\Uparrow` <#Table-of-content:>`__
+Serialize an OpenVINO IR model `⇑ <#Table-of-content:>`__
 ------------------------------------------------------------------------
 
 Similar to ``ov.convert_model``, quantized model is ``ov.Model`` object
@@ -245,7 +245,7 @@ which ready to be loaded into device and can be serialized on disk using
 
     ov.save_model(quant_ov_model, MODEL_DIR / "quantized_mobilenet_v2.xml")
 
-Compare Accuracy of the Original and Quantized Models `:math:`\Uparrow` <#Table-of-content:>`__
+Compare Accuracy of the Original and Quantized Models `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -263,7 +263,7 @@ Compare Accuracy of the Original and Quantized Models `:math:`\Uparrow` <#Table-
             total += 1
         return correct / total
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -325,7 +325,7 @@ select device from dropdown list for running inference using OpenVINO
     Accuracy of the optimized model: 93.54%
 
 
-Compare Performance of the Original and Quantized Models `:math:`\Uparrow` <#Table-of-content:>`__
+Compare Performance of the Original and Quantized Models `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------------------------------
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
@@ -333,7 +333,9 @@ models, using `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - an inference performance measurement tool in OpenVINO.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+    
+   For more accurate performance, it is recommended to run
    benchmark_app in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change CPU to GPU to benchmark
@@ -362,7 +364,7 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     /bin/bash: benchmark_app: command not found
 
 
-Compare results on four pictures `:math:`\Uparrow` <#Table-of-content:>`__
+Compare results on four pictures `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------
 
 .. code:: ipython3
