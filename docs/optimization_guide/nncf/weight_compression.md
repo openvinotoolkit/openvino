@@ -15,7 +15,7 @@ Currently, NNCF provides 8-bit weight quantization as a compression method which
 Compress Model Weights
 ######################
 
-Below code snippet shows how to compress the weights of the model represented in OpenVINO IR using NNCF:
+The code snippet below shows how to compress the weights of the model represented in OpenVINO IR using NNCF:
 
 .. tab-set::
 
