@@ -256,9 +256,13 @@ REGISTER_FACTORY(v10, Unique);
 REGISTER_FACTORY(v11, Interpolate);
 REGISTER_FACTORY(v11, TopK);
 
+// ------------------------------ Supported v12 ops ----------------------------- //
+REGISTER_FACTORY(v12, Pad);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
 REGISTER_FACTORY(internal, NmsStaticShapeIE8);
 REGISTER_FACTORY(internal, MulticlassNmsIEInternal);
 REGISTER_FACTORY(internal, FullyConnected);
+REGISTER_FACTORY(internal, FullyConnectedCompressed);
