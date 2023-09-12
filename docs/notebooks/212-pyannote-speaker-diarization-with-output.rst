@@ -51,7 +51,7 @@ Table of content:- `Prerequisites <#Prerequisites-Uparrow>`__
 -  `Run speaker diarization with
    OpenVINO <#Run-speaker-diarization-with-OpenVINO-Uparrow>`__
 
-Prerequisites `:math:`\Uparrow` <#Table-of-content:>`__
+Prerequisites `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
 .. code:: ipython3
@@ -73,7 +73,7 @@ Prerequisites `:math:`\Uparrow` <#Table-of-content:>`__
     tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 3.20.1 which is incompatible.
     
 
-Prepare pipeline `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare pipeline `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------
 
 Traditional Speaker Diarization systems can be generalized into a
@@ -157,7 +157,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
     2023-09-08 23:36:41.110289: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Load test audio file `:math:`\Uparrow` <#Table-of-content:>`__
+Load test audio file `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------
 
 .. code:: ipython3
@@ -213,7 +213,7 @@ Load test audio file `:math:`\Uparrow` <#Table-of-content:>`__
 .. image:: 212-pyannote-speaker-diarization-with-output_files/212-pyannote-speaker-diarization-with-output_9_1.png
 
 
-Run inference pipeline `:math:`\Uparrow` <#Table-of-content:>`__
+Run inference pipeline `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------
 
 For running inference, we should provide a path to input audio to the
@@ -274,7 +274,7 @@ We can also print each time frame and corresponding speaker:
     start=27.8s stop=29.5s speaker_SPEAKER_02
 
 
-Convert model to OpenVINO Intermediate Representation format `:math:`\Uparrow` <#Table-of-content:>`__
+Convert model to OpenVINO Intermediate Representation format `⇑ <#Table-of-content:>`__
 ------------------------------------------------------------------------------------------------------
 
 For best results with OpenVINO, it is recommended to convert the model
@@ -314,7 +314,7 @@ with ``openvino.runtime.serialize``.
     Model successfully converted to IR and saved to pyannote-segmentation.xml
 
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -341,7 +341,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Replace segmentation model with OpenVINO `:math:`\Uparrow` <#Table-of-content:>`__
+Replace segmentation model with OpenVINO `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -373,7 +373,7 @@ Replace segmentation model with OpenVINO `:math:`\Uparrow` <#Table-of-content:>`
     
     pipeline._segmentation.infer = infer_segm
 
-Run speaker diarization with OpenVINO `:math:`\Uparrow` <#Table-of-content:>`__
+Run speaker diarization with OpenVINO `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------
 
 .. code:: ipython3

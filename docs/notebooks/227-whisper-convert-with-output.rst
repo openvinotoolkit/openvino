@@ -45,7 +45,7 @@ Table of content:
    pipeline <#Run-video-transcription-pipeline-Uparrow>`__
 -  `Interactive demo <#Interactive-demo-Uparrow>`__
 
-Prerequisites `:math:`\Uparrow` <#Table-of-content:>`__
+Prerequisites `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
 Install dependencies.
@@ -93,7 +93,7 @@ Install dependencies.
     Note: you may need to restart the kernel to use updated packages.
 
 
-Instantiate model `:math:`\Uparrow` <#Table-of-content:>`__
+Instantiate model `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 Whisper is a Transformer based encoder-decoder model, also referred to
@@ -126,7 +126,7 @@ Whisper family.
     model.eval()
     pass
 
-Convert model to OpenVINO Intermediate Representation (IR) format. `:math:`\Uparrow` <#Table-of-content:>`__
+Convert model to OpenVINO Intermediate Representation (IR) format. `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For best results with OpenVINO, it is recommended to convert the model
@@ -137,7 +137,7 @@ function returns an OpenVINO model ready to load on device and start
 making predictions. We can save it on disk for next usage with
 ``ov.save_model``.
 
-Convert Whisper Encoder to OpenVINO IR `:math:`\Uparrow` <#Table-of-content:>`__
+Convert Whisper Encoder to OpenVINO IR `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -169,7 +169,7 @@ Convert Whisper Encoder to OpenVINO IR `:math:`\Uparrow` <#Table-of-content:>`__
       assert x.shape[1:] == self.positional_embedding.shape, "incorrect audio shape"
 
 
-Convert Whisper decoder to OpenVINO IR `:math:`\Uparrow` <#Table-of-content:>`__
+Convert Whisper decoder to OpenVINO IR `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To reduce computational complexity, the decoder uses cached key/value
@@ -403,7 +403,7 @@ tokens and attention hidden states from previous step) are dynamic. For
 efficient utilization of memory, you define an upper bound for dynamic
 input shapes.
 
-Prepare inference pipeline `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare inference pipeline `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------
 
 The image below illustrates the pipeline of video transcribing using the
@@ -419,7 +419,7 @@ To run the PyTorch Whisper model, we just need to call the
 original model pipeline for audio transcribing after replacing the
 original models with OpenVINO IR versions.
 
-### Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+### Select inference device `⇑ <#Table-of-content:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -458,7 +458,7 @@ select device from dropdown list for running inference using OpenVINO
     model.encoder = OpenVINOAudioEncoder(core, WHISPER_ENCODER_OV, device=device.value)
     model.decoder = OpenVINOTextDecoder(core, WHISPER_DECODER_OV, device=device.value)
 
-Run video transcription pipeline `:math:`\Uparrow` <#Table-of-content:>`__
+Run video transcription pipeline `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------
 
 Now, we are ready to start transcription. We select a video from YouTube
@@ -621,7 +621,7 @@ Now let us see the results.
     
 
 
-Interactive demo `:math:`\Uparrow` <#Table-of-content:>`__
+Interactive demo `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------
 
 .. code:: ipython3

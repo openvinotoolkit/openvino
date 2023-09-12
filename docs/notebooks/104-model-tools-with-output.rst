@@ -28,7 +28,7 @@ Table of content:
    -  `Benchmark with Different
       Settings <#Benchmark-with-Different-Settings-Uparrow>`__
 
-OpenVINO and Open Model Zoo Tools `:math:`\Uparrow` <#Table-of-content:>`__
+OpenVINO and Open Model Zoo Tools `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------------------
 
 OpenVINO and Open Model Zoo tools are listed in the table below.
@@ -54,10 +54,10 @@ OpenVINO and Open Model Zoo tools are listed in the table below.
     # Install openvino package
     !pip install -q "openvino==2023.1.0.dev20230811"
 
-Preparation `:math:`\Uparrow` <#Table-of-content:>`__
+Preparation `⇑ <#Table-of-content:>`__
 -----------------------------------------------------
 
-Model Name `:math:`\Uparrow` <#Table-of-content:>`__
+Model Name `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Set ``model_name`` to the name of the Open Model Zoo model to use in
@@ -73,7 +73,7 @@ pre-trained models for a full list of models that can be used. Set
     # model_name = "resnet-50-pytorch"
     model_name = "mobilenet-v2-pytorch"
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -88,7 +88,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import DeviceNotFoundAlert, NotebookAlert
 
-Settings and Configuration `:math:`\Uparrow` <#Table-of-content:>`__
+Settings and Configuration `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Set the file and directory paths. By default, this notebook downloads
@@ -127,7 +127,7 @@ The following settings can be changed:
     base_model_dir: model, omz_cache_dir: cache, gpu_availble: False
 
 
-Download a Model from Open Model Zoo `:math:`\Uparrow` <#Table-of-content:>`__
+Download a Model from Open Model Zoo `⇑ <#Table-of-content:>`__
 ------------------------------------------------------------------------------
 
 Specify, display and run the Model Downloader command to download the
@@ -167,7 +167,7 @@ Downloading mobilenet-v2-pytorch…
     
 
 
-Convert a Model to OpenVINO IR format `:math:`\Uparrow` <#Table-of-content:>`__
+Convert a Model to OpenVINO IR format `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------
 
 Specify, display and run the Model Converter command to convert the
@@ -221,7 +221,7 @@ Converting mobilenet-v2-pytorch…
     
 
 
-Get Model Information `:math:`\Uparrow` <#Table-of-content:>`__
+Get Model Information `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------
 
 The Info Dumper prints the following information for Open Model Zoo
@@ -300,7 +300,7 @@ file.
     model/public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml exists: True
 
 
-Run Benchmark Tool `:math:`\Uparrow` <#Table-of-content:>`__
+Run Benchmark Tool `⇑ <#Table-of-content:>`__
 ------------------------------------------------------------
 
 By default, Benchmark Tool runs inference for 60 seconds in asynchronous
@@ -399,7 +399,7 @@ seconds…
     [ INFO ] Throughput:   1341.88 FPS
 
 
-Benchmark with Different Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Benchmark with Different Settings `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``benchmark_app`` tool displays logging information that is not

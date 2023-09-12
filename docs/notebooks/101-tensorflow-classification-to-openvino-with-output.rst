@@ -3,12 +3,9 @@ Convert a TensorFlow Model to OpenVINO™
 
 This short tutorial shows how to convert a TensorFlow
 `MobileNetV3 <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
-image classification model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
-(OpenVINO IR) format, using `Model Conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
-After creating the OpenVINO IR, load the model in `OpenVINO
-Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
+image classification model to OpenVINO `Intermediate Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
+(OpenVINO IR) format, using `Model Conversion API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+After creating the OpenVINO IR, load the model in `OpenVINO Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image.
 
 Table of content:
@@ -41,7 +38,7 @@ Table of content:
     # Install openvino package
     !pip install -q "openvino==2023.1.0.dev20230811"
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -64,7 +61,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     2023-09-08 22:28:30.570158: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Settings `⇑ <#Table-of-content:>`__
 --------------------------------------------------
 
 .. code:: ipython3
@@ -77,11 +74,10 @@ Settings `:math:`\Uparrow` <#Table-of-content:>`__
     
     ir_path = Path("model/v3-small_224_1.0_float.xml")
 
-Download model `:math:`\Uparrow` <#Table-of-content:>`__
+Download model `⇑ <#Table-of-content:>`__
 --------------------------------------------------------
 
-Load model using `tf.keras.applications
-api <https://www.tensorflow.org/api_docs/python/tf/keras/applications/MobileNetV3Small>`__
+Load model using `tf.keras.applications api <https://www.tensorflow.org/api_docs/python/tf/keras/applications/MobileNetV3Small>`__
 and save it to the disk.
 
 .. code:: ipython3
@@ -125,10 +121,10 @@ and save it to the disk.
     INFO:tensorflow:Assets written to: model/v3-small_224_1.0_float/assets
 
 
-Convert a Model to OpenVINO IR Format `:math:`\Uparrow` <#Table-of-content:>`__
+Convert a Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------
 
-Convert a TensorFlow Model to OpenVINO IR Format `:math:`\Uparrow` <#Table-of-content:>`__
+Convert a TensorFlow Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use the model conversion Python API to convert the TensorFlow model to
@@ -157,10 +153,10 @@ models.
     Exporting TensorFlow model to IR... This may take a few minutes.
 
 
-Test Inference on the Converted Model `:math:`\Uparrow` <#Table-of-content:>`__
+Test Inference on the Converted Model `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------
 
-Load the Model `:math:`\Uparrow` <#Table-of-content:>`__
+Load the Model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -168,7 +164,7 @@ Load the Model `:math:`\Uparrow` <#Table-of-content:>`__
     core = ov.Core()
     model = core.read_model(ir_path)
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -199,7 +195,7 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Get Model Information `:math:`\Uparrow` <#Table-of-content:>`__
+Get Model Information `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -208,7 +204,7 @@ Get Model Information `:math:`\Uparrow` <#Table-of-content:>`__
     output_key = compiled_model.output(0)
     network_input_shape = input_key.shape 
 
-Load an Image `:math:`\Uparrow` <#Table-of-content:>`__
+Load an Image `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Load an image, resize it, and convert it to the input shape of the
@@ -232,7 +228,7 @@ network.
 .. image:: 101-tensorflow-classification-to-openvino-with-output_files/101-tensorflow-classification-to-openvino-with-output_19_0.png
 
 
-Do Inference `:math:`\Uparrow` <#Table-of-content:>`__
+Do Inference `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -257,7 +253,7 @@ Do Inference `:math:`\Uparrow` <#Table-of-content:>`__
 
 
 
-Timing `:math:`\Uparrow` <#Table-of-content:>`__
+Timing `⇑ <#Table-of-content:>`__
 ------------------------------------------------
 
 Measure the time it takes to do inference on thousand images. This gives

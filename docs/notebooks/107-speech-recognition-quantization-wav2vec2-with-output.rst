@@ -42,7 +42,7 @@ Table of content:
     !pip install -q "openvino==2023.1.0.dev20230811" "nncf>=2.5.0"
     !pip install -q soundfile librosa transformers onnx
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -72,7 +72,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     2023-09-08 22:38:43.332490: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Settings `⇑ <#Table-of-content:>`__
 --------------------------------------------------
 
 .. code:: ipython3
@@ -85,7 +85,7 @@ Settings `:math:`\Uparrow` <#Table-of-content:>`__
     MODEL_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
 
-Prepare the Model `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare the Model `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 Perform the following: - Download and unpack a pre-trained Wav2Vec2
@@ -172,7 +172,7 @@ it to the ONNX representation.
     ir_model_path = MODEL_DIR / "wav2vec2_base.xml"
     ov.save_model(ov_model, str(ir_model_path))
 
-Prepare LibriSpeech Dataset `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare LibriSpeech Dataset `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------------
 
 Use the code below to download and unpack the archives with ‘dev-clean’
@@ -203,7 +203,7 @@ and ‘test-clean’ subsets of LibriSpeech Dataset.
     ../data/datasets/librispeech/test-clean.tar.gz:   0%|          | 0.00/331M [00:00<?, ?B/s]
 
 
-Define DataLoader `:math:`\Uparrow` <#Table-of-content:>`__
+Define DataLoader `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 Wav2Vec2 model accepts a raw waveform of the speech signal as input and
@@ -211,7 +211,9 @@ produces vocabulary class estimations as output. Since the dataset
 contains audio files in FLAC format, use the ``soundfile`` package to
 convert them to waveform.
 
-   **NOTE**: Consider increasing ``samples_limit`` to get more precise
+.. note::
+
+   Consider increasing ``samples_limit`` to get more precise
    results. A suggested value is ``300`` or more, as it will take longer
    time to process.
 
@@ -273,7 +275,7 @@ convert them to waveform.
                         # Limit exceeded
                         return
 
-Run Quantization `:math:`\Uparrow` <#Table-of-content:>`__
+Run Quantization `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
@@ -507,7 +509,7 @@ function.
     quantized_model_path = Path(f"{MODEL_NAME}_openvino_model/{MODEL_NAME}_quantized.xml")
     ov.save_model(quantized_model, str(quantized_model_path))
 
-Model Usage Example with Inference Pipeline `:math:`\Uparrow` <#Table-of-content:>`__
+Model Usage Example with Inference Pipeline `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------------
 
 Both initial (``FP16``) and quantized (``INT8``) models are exactly the
@@ -553,7 +555,7 @@ Next, make a prediction.
 
     predictions = compiled_model([input_data])[output_layer]
 
-Validate model accuracy on dataset `:math:`\Uparrow` <#Table-of-content:>`__
+Validate model accuracy on dataset `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------------
 
 The code below is used for running model inference on a single sample
@@ -758,7 +760,7 @@ quantized model.
     [Quantized OpenVino]  Word Error Rate: 0.0422
 
 
-Compare Performance of the Original and Quantized Models `:math:`\Uparrow` <#Table-of-content:>`__
+Compare Performance of the Original and Quantized Models `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------------------------------
 
 Finally, use `Benchmark
@@ -766,7 +768,9 @@ Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_
 to measure the inference performance of the ``FP16`` and ``INT8``
 models.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+
+   For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to

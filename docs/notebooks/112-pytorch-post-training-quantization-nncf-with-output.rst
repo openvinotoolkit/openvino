@@ -18,7 +18,9 @@ downsized to 64×64 colored images. The tutorial will demonstrate that
 only a tiny part of the dataset is needed for the post-training
 quantization, not demanding the fine-tuning of the model.
 
-   **NOTE**: This notebook requires that a C++ compiler is accessible on
+.. note::
+
+   This notebook requires that a C++ compiler is accessible on
    the default binary search path of the OS you are running the
    notebook.
 
@@ -52,7 +54,7 @@ Table of content:
    -  `IV. Compare performance of INT8 model and FP32 model in
       OpenVINO <#IV.-Compare-performance-of-INT8-model-and-FP32-model-in-OpenVINO-Uparrow>`__
 
-Preparations `:math:`\Uparrow` <#Table-of-content:>`__
+Preparations `⇑ <#Table-of-content:>`__
 ------------------------------------------------------
 
 .. code:: ipython3
@@ -97,7 +99,7 @@ Preparations `:math:`\Uparrow` <#Table-of-content:>`__
             os.environ["LIB"] = os.pathsep.join(b.library_dirs)
             print(f"Added {vs_dir} to PATH")
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -133,7 +135,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Settings `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -180,7 +182,7 @@ Settings `:math:`\Uparrow` <#Table-of-content:>`__
 
 
 
-Download and Prepare Tiny ImageNet dataset `:math:`\Uparrow` <#Table-of-content:>`__
+Download and Prepare Tiny ImageNet dataset `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 -  100k images of shape 3x64x64,
@@ -240,7 +242,7 @@ Download and Prepare Tiny ImageNet dataset `:math:`\Uparrow` <#Table-of-content:
     Successfully downloaded and extracted dataset to: output
 
 
-Helpers classes and functions `:math:`\Uparrow` <#Table-of-content:>`__
+Helpers classes and functions `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The code below will help to count accuracy and visualize validation
@@ -306,7 +308,7 @@ process.
     
             return res
 
-Validation function `:math:`\Uparrow` <#Table-of-content:>`__
+Validation function `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -359,7 +361,7 @@ Validation function `:math:`\Uparrow` <#Table-of-content:>`__
             )
         return top1.avg
 
-Create and load original uncompressed model `:math:`\Uparrow` <#Table-of-content:>`__
+Create and load original uncompressed model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ResNet-50 from the ```torchivision``
@@ -387,7 +389,7 @@ values.
     
     model = create_model(MODEL_DIR / fp32_checkpoint_filename)
 
-Create train and validation DataLoaders `:math:`\Uparrow` <#Table-of-content:>`__
+Create train and validation DataLoaders `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -437,14 +439,14 @@ Create train and validation DataLoaders `:math:`\Uparrow` <#Table-of-content:>`_
     
     train_loader, val_loader = create_dataloaders()
 
-Model quantization and benchmarking `:math:`\Uparrow` <#Table-of-content:>`__
+Model quantization and benchmarking `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------------------
 
 With the validation pipeline, model files, and data-loading procedures
 for model calibration now prepared, it’s time to proceed with the actual
 post-training quantization using NNCF.
 
-I. Evaluate the loaded model `:math:`\Uparrow` <#Table-of-content:>`__
+I. Evaluate the loaded model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -467,7 +469,7 @@ I. Evaluate the loaded model `:math:`\Uparrow` <#Table-of-content:>`__
     Test accuracy of FP32 model: 60.740
 
 
-II. Create and initialize quantization `:math:`\Uparrow` <#Table-of-content:>`__
+II. Create and initialize quantization `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 NNCF enables post-training quantization by adding the quantization
@@ -550,7 +552,7 @@ added to the model by NNCF. However, the model’s performance will
 significantly improve when it is in the OpenVINO Intermediate
 Representation (IR) format.
 
-III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR) `:math:`\Uparrow` <#Table-of-content:>`__
+III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR) `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To convert the Pytorch models to OpenVINO IR, use model conversion
@@ -666,7 +668,7 @@ Evaluate the FP32 and INT8 models.
     Accuracy of INT8 IR model: 61.050
 
 
-IV. Compare performance of INT8 model and FP32 model in OpenVINO `:math:`\Uparrow` <#Table-of-content:>`__
+IV. Compare performance of INT8 model and FP32 model in OpenVINO `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
@@ -677,7 +679,9 @@ Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
 throughput (frames per second) values.
 
-   **NOTE**: This notebook runs benchmark_app for 15 seconds to give a
+.. note::
+
+   This notebook runs benchmark_app for 15 seconds to give a
    quick indication of performance. For more accurate performance, it is
    recommended to run benchmark_app in a terminal/command prompt after
    closing other applications. Run ``benchmark_app -m model.xml -d CPU``

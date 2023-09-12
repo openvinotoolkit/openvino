@@ -47,7 +47,7 @@ Table of content:
     !pip install -q transformers datasets evaluate
     !pip install -q "openvino==2023.1.0.dev20230811"
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -86,7 +86,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Settings `:math:`\Uparrow` <#Table-of-content:>`__
+Settings `⇑ <#Table-of-content:>`__
 --------------------------------------------------
 
 .. code:: ipython3
@@ -101,7 +101,7 @@ Settings `:math:`\Uparrow` <#Table-of-content:>`__
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
 
-Prepare the Model `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare the Model `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 Perform the following:
@@ -173,7 +173,7 @@ PyTorch model formats are supported:
       warnings.warn("TorchScript will treat type annotations of Tensor "
 
 
-Prepare the Dataset `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare the Dataset `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------
 
 We download the `General Language Understanding Evaluation
@@ -198,7 +198,7 @@ tokenizer from HuggingFace.
     
     data_source = create_data_source()
 
-Optimize model using NNCF Post-training Quantization API `:math:`\Uparrow` <#Table-of-content:>`__
+Optimize model using NNCF Post-training Quantization API `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------------------------------
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
@@ -415,7 +415,7 @@ The optimization process contains the following steps:
     compressed_model_xml = Path(MODEL_DIR) / "quantized_bert_mrpc.xml"
     ov.save_model(quantized_model, compressed_model_xml)
 
-Load and Test OpenVINO Model `:math:`\Uparrow` <#Table-of-content:>`__
+Load and Test OpenVINO Model `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------
 
 To load and test converted model, perform the following:
@@ -425,7 +425,7 @@ To load and test converted model, perform the following:
 -  Run the inference.
 -  Get the answer from the model output.
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -484,7 +484,7 @@ changing ``sample_idx`` to another value (from 0 to 407).
     The same meaning: yes
 
 
-Compare F1-score of FP32 and INT8 models `:math:`\Uparrow` <#Table-of-content:>`__
+Compare F1-score of FP32 and INT8 models `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -528,7 +528,7 @@ Compare F1-score of FP32 and INT8 models `:math:`\Uparrow` <#Table-of-content:>`
     F1 score: 0.8983
 
 
-Compare Performance of the Original, Converted and Quantized Models `:math:`\Uparrow` <#Table-of-content:>`__
+Compare Performance of the Original, Converted and Quantized Models `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------------------------------------
 
 Compare the original PyTorch model with OpenVINO converted and quantized

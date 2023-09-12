@@ -105,8 +105,7 @@ After initializing OpenVINO Runtime, first read the model file with
 ``read_model()``, then compile it to the specified device with the
 ``compile_model()`` method.
 
-`OpenVINO™ supports several model
-formats <https://docs.openvino.ai/2023.0/Supported_Model_Formats.html#doxid-supported-model-formats>`__
+`OpenVINO™ supports several model formats <https://docs.openvino.ai/2023.0/Supported_Model_Formats.html#doxid-supported-model-formats>`__
 and enables developers to convert them to its own OpenVINO IR format
 using a tool dedicated to this task.
 
@@ -124,8 +123,7 @@ is the case, specifying the weights file is optional. If the weights
 file has a different filename, it can be specified using the ``weights``
 parameter in ``read_model()``.
 
-The OpenVINO `Model Conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+The OpenVINO `Model Conversion API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 tool is used to convert models to OpenVINO IR format. Model conversion
 API reads the original model and creates an OpenVINO IR model (``.xml``
 and ``.bin`` files) so inference can be performed without delays due to
@@ -290,13 +288,14 @@ TensorFlow Model
 TensorFlow models saved in frozen graph format can also be passed to
 ``read_model`` starting in OpenVINO 2022.3.
 
-   **NOTE**: Directly loading TensorFlow models is available as a
+.. note::
+
+   Directly loading TensorFlow models is available as a
    preview feature in the OpenVINO 2022.3 release. Fully functional
    support will be provided in the upcoming 2023 releases. Currently
    support is limited to only frozen graph inference format. Other
    TensorFlow model formats must be converted to OpenVINO IR using
-   `model conversion
-   API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
+   `model conversion API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
 
 .. code:: ipython3
 
@@ -361,14 +360,9 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 
     model/classification.tflite:   0%|          | 0.00/40.9M [00:00<?, ?B/s]
 
-
-
-
 .. parsed-literal::
 
     PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.tflite')
-
-
 
 .. code:: ipython3
 
@@ -557,9 +551,11 @@ classes (``C``). The output is returned as 32-bit floating point.
 Doing Inference on a Model
 --------------------------
 
-   **NOTE** this notebook demonstrates only the basic synchronous
-   inference API. For an async inference example, please refer to `Async
-   API notebook <115-async-api-with-output.html>`__
+.. note::
+
+   This notebook demonstrates only the basic synchronous
+   inference API. For an async inference example, please refer to 
+   `Async API notebook <115-async-api-with-output.html>`__
 
 The diagram below shows a typical inference pipeline with OpenVINO
 
@@ -920,7 +916,9 @@ model will be loaded to the GPU. After running this cell once, the model
 will be cached, so subsequent runs of this cell will load the model from
 the cache.
 
-*Note: Model Caching is also available on CPU devices*
+.. note::
+
+   Model Caching is also available on CPU devices
 
 .. code:: ipython3
 

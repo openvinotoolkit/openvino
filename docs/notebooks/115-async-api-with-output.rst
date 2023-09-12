@@ -41,7 +41,7 @@ Table of content:
    -  `Test the performance with
       ``AsyncInferQueue`` <#Test-the-performance-with-%60AsyncInferQueue%60-Uparrow>`__
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -67,10 +67,10 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     
     import notebook_utils as utils
 
-Prepare model and data processing `:math:`\Uparrow` <#Table-of-content:>`__
+Prepare model and data processing `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------------------
 
-Download test model `:math:`\Uparrow` <#Table-of-content:>`__
+Download test model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We use a pre-trained model from OpenVINO’s `Open Model
@@ -109,7 +109,7 @@ each frame of the video.
     
 
 
-Load the model `:math:`\Uparrow` <#Table-of-content:>`__
+Load the model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -129,7 +129,7 @@ Load the model `:math:`\Uparrow` <#Table-of-content:>`__
     N, C, H, W = input_layer_ir.shape
     shape = (H, W)
 
-Create functions for data processing `:math:`\Uparrow` <#Table-of-content:>`__
+Create functions for data processing `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -171,20 +171,20 @@ Create functions for data processing `:math:`\Uparrow` <#Table-of-content:>`__
                 cv2.putText(image, str(round(fps, 2)) + " fps", (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 3) 
         return image
 
-Get the test video `:math:`\Uparrow` <#Table-of-content:>`__
+Get the test video `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
     video_path = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4'
 
-How to improve the throughput of video processing `:math:`\Uparrow` <#Table-of-content:>`__
+How to improve the throughput of video processing `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------------------
 
 Below, we compare the performance of the synchronous and async-based
 approaches:
 
-Sync Mode (default) `:math:`\Uparrow` <#Table-of-content:>`__
+Sync Mode (default) `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Let us see how video processing works with the default approach. Using
@@ -274,7 +274,7 @@ immediately processed:
                 player.stop()
             return sync_fps
 
-Test performance in Sync Mode `:math:`\Uparrow` <#Table-of-content:>`__
+Test performance in Sync Mode `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -293,7 +293,7 @@ Test performance in Sync Mode `:math:`\Uparrow` <#Table-of-content:>`__
     average throuput in sync mode: 38.75 fps
 
 
-Async Mode `:math:`\Uparrow` <#Table-of-content:>`__
+Async Mode `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Let us see how the OpenVINO Async API can improve the overall frame rate
@@ -408,7 +408,7 @@ pipeline (decoding vs inference) and not by the sum of the stages.
                 player.stop()
             return async_fps
 
-Test the performance in Async Mode `:math:`\Uparrow` <#Table-of-content:>`__
+Test the performance in Async Mode `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -427,7 +427,7 @@ Test the performance in Async Mode `:math:`\Uparrow` <#Table-of-content:>`__
     average throuput in async mode: 71.45 fps
 
 
-Compare the performance `:math:`\Uparrow` <#Table-of-content:>`__
+Compare the performance `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -455,7 +455,7 @@ Compare the performance `:math:`\Uparrow` <#Table-of-content:>`__
 .. image:: 115-async-api-with-output_files/115-async-api-with-output_21_0.png
 
 
-``AsyncInferQueue`` `:math:`\Uparrow` <#Table-of-content:>`__
+``AsyncInferQueue`` `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------
 
 Asynchronous mode pipelines can be supported with the
@@ -465,7 +465,7 @@ wrapper class. This class automatically spawns the pool of
 synchronization mechanisms to control the flow of the pipeline. It is a
 simpler way to manage the infer request queue in Asynchronous mode.
 
-Setting Callback `:math:`\Uparrow` <#Table-of-content:>`__
+Setting Callback `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When ``callback`` is set, any job that ends inference calls upon the
@@ -542,7 +542,7 @@ the possibility of passing runtime values.
             infer_queue.wait_all()
             player.stop()
 
-Test the performance with ``AsyncInferQueue`` `:math:`\Uparrow` <#Table-of-content:>`__
+Test the performance with ``AsyncInferQueue`` `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3

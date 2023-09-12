@@ -34,10 +34,10 @@ Table of content:
 
 -  `Estimate Model Performance <#Estimate-Model-Performance-Uparrow>`__
 
-Preparation `:math:`\Uparrow` <#Table-of-content:>`__
+Preparation `⇑ <#Table-of-content:>`__
 -----------------------------------------------------
 
-Install requirements `:math:`\Uparrow` <#Table-of-content:>`__
+Install requirements `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -52,7 +52,7 @@ Install requirements `:math:`\Uparrow` <#Table-of-content:>`__
         filename='notebook_utils.py'
     );
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -64,7 +64,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     
     from notebook_utils import download_file, load_image
 
-Download TFLite model `:math:`\Uparrow` <#Table-of-content:>`__
+Download TFLite model `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------------
 
 .. code:: ipython3
@@ -92,7 +92,7 @@ Download TFLite model `:math:`\Uparrow` <#Table-of-content:>`__
 
 
 
-Convert a Model to OpenVINO IR Format `:math:`\Uparrow` <#Table-of-content:>`__
+Convert a Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
 -------------------------------------------------------------------------------
 
 To convert the TFLite model to OpenVINO IR, model conversion Python API
@@ -120,7 +120,7 @@ For TensorFlow Lite models support, refer to this
     Model model/efficientnet_lite0_fp32_2.tflite successfully converted and saved to model/efficientnet_lite0_fp32_2.xml
 
 
-Load model using OpenVINO TensorFlow Lite Frontend `:math:`\Uparrow` <#Table-of-content:>`__
+Load model using OpenVINO TensorFlow Lite Frontend `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------------------------------
 
 TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
@@ -134,7 +134,7 @@ this `tutorial <../002-openvino-api>`__.
     
     ov_model = core.read_model(tflite_model_path)
 
-Run OpenVINO model inference `:math:`\Uparrow` <#Table-of-content:>`__
+Run OpenVINO model inference `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------------
 
 We can find information about model input preprocessing in its
@@ -149,7 +149,7 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
     resized_image = image.resize((224, 224))
     input_tensor = np.expand_dims((np.array(resized_image).astype(np.float32) - 127) / 128, 0)
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -209,7 +209,7 @@ select device from dropdown list for running inference using OpenVINO
     Predicted label: n02109047 Great Dane with probability 0.715318
 
 
-Estimate Model Performance `:math:`\Uparrow` <#Table-of-content:>`__
+Estimate Model Performance `⇑ <#Table-of-content:>`__
 --------------------------------------------------------------------
 
 `Benchmark
@@ -217,7 +217,9 @@ Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_
 is used to measure the inference performance of the model on CPU and
 GPU.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+
+   For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to

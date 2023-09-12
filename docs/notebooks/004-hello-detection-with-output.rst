@@ -6,8 +6,7 @@ OpenVINO™.
 
 The
 `horizontal-text-detection-0001 <https://docs.openvino.ai/2023.0/omz_models_model_horizontal_text_detection_0001.html>`__
-model from `Open Model
-Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used. It
+model from `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used. It
 detects horizontal text in images and returns a blob of data in the
 shape of ``[100, 5]``. Each detected text box is stored in the
 ``[x_min, y_min, x_max, y_max, conf]`` format, where the
@@ -32,7 +31,7 @@ Table of content:
     # Install openvino package
     !pip install -q "openvino==2023.1.0.dev20230811"
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -47,7 +46,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Download model weights `:math:`\Uparrow` <#Table-of-content:>`__
+Download model weights `⇑ <#Table-of-content:>`__
 ----------------------------------------------------------------
 
 .. code:: ipython3
@@ -83,7 +82,7 @@ Download model weights `:math:`\Uparrow` <#Table-of-content:>`__
     model/horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
 
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -111,7 +110,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model `:math:`\Uparrow` <#Table-of-content:>`__
+Load the Model `⇑ <#Table-of-content:>`__
 --------------------------------------------------------
 
 .. code:: ipython3
@@ -124,7 +123,7 @@ Load the Model `:math:`\Uparrow` <#Table-of-content:>`__
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output("boxes")
 
-Load an Image `:math:`\Uparrow` <#Table-of-content:>`__
+Load an Image `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
 .. code:: ipython3
@@ -148,7 +147,7 @@ Load an Image `:math:`\Uparrow` <#Table-of-content:>`__
 .. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_11_0.png
 
 
-Do Inference `:math:`\Uparrow` <#Table-of-content:>`__
+Do Inference `⇑ <#Table-of-content:>`__
 ------------------------------------------------------
 
 .. code:: ipython3
@@ -159,7 +158,7 @@ Do Inference `:math:`\Uparrow` <#Table-of-content:>`__
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-Visualize Results `:math:`\Uparrow` <#Table-of-content:>`__
+Visualize Results `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------
 
 .. code:: ipython3

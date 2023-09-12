@@ -41,7 +41,7 @@ Table of content:- `Download the Model <#Download-the-Model-Uparrow>`__
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Download the Model `:math:`\Uparrow` <#Table-of-content:>`__
+Download the Model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Download ``gmcnn-places2-tf``\ model (this step will be skipped if the
@@ -73,7 +73,7 @@ be obtained from original model checkpoint can be found in this
     Already downloaded
 
 
-Convert Tensorflow model to OpenVINO IR format `:math:`\Uparrow` <#Table-of-content:>`__
+Convert Tensorflow model to OpenVINO IR format `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
@@ -100,7 +100,7 @@ This step is also skipped if the model is already converted.
     model/public/ir/frozen_model.xml already exists.
 
 
-Load the model `:math:`\Uparrow` <#Table-of-content:>`__
+Load the model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, load the OpenVINO IR model and perform as follows:
@@ -150,7 +150,7 @@ Only a few lines of code are required to run the model:
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
 
-Determine the input shapes of the model `:math:`\Uparrow` <#Table-of-content:>`__
+Determine the input shapes of the model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Note that both input shapes are the same. However, the second input has
@@ -160,7 +160,7 @@ Note that both input shapes are the same. However, the second input has
 
     N, H, W, C = input_layer.shape
 
-Create a square mask `:math:`\Uparrow` <#Table-of-content:>`__
+Create a square mask `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Next, create a single channeled mask that will be laid on top of the
@@ -203,7 +203,7 @@ original image.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_14_0.png
 
 
-Load and Resize the Image `:math:`\Uparrow` <#Table-of-content:>`__
+Load and Resize the Image `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This image will be altered by using the mask. You can process any image
@@ -232,7 +232,7 @@ you like. Just change the URL below.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_16_0.png
 
 
-Generating the Masked Image `:math:`\Uparrow` <#Table-of-content:>`__
+Generating the Masked Image `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This multiplication of the image and the mask gives the result of the
@@ -251,7 +251,7 @@ will be the first input to the GMCNN model.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_18_0.png
 
 
-Preprocessing `:math:`\Uparrow` <#Table-of-content:>`__
+Preprocessing `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The model expects the input dimensions to be ``NHWC``.
@@ -264,7 +264,7 @@ The model expects the input dimensions to be ``NHWC``.
     masked_image = masked_image[None, ...]
     mask = mask[None, ...]
 
-Inference `:math:`\Uparrow` <#Table-of-content:>`__
+Inference `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Do inference with the given masked image and the mask. Then, show the
@@ -282,7 +282,7 @@ restored image.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_22_0.png
 
 
-Save the Restored Image `:math:`\Uparrow` <#Table-of-content:>`__
+Save the Restored Image `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Save the restored image to the data directory to download it.

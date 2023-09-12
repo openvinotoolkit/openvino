@@ -36,7 +36,7 @@ Table of content:
     openvino-dev 2023.0.0 requires openvino==2023.0.0, but you have openvino 2023.1.0.dev20230811 which is incompatible.
     
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 .. code:: ipython3
@@ -52,7 +52,7 @@ Imports `:math:`\Uparrow` <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Download the Model and data samples `:math:`\Uparrow` <#Table-of-content:>`__
+Download the Model and data samples `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -86,7 +86,7 @@ Download the Model and data samples `:math:`\Uparrow` <#Table-of-content:>`__
     artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
-Select inference device `:math:`\Uparrow` <#Table-of-content:>`__
+Select inference device `⇑ <#Table-of-content:>`__
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -114,7 +114,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model `:math:`\Uparrow` <#Table-of-content:>`__
+Load the Model `⇑ <#Table-of-content:>`__
 --------------------------------------------------------
 
 .. code:: ipython3
@@ -125,7 +125,7 @@ Load the Model `:math:`\Uparrow` <#Table-of-content:>`__
     
     output_layer = compiled_model.output(0)
 
-Load an Image `:math:`\Uparrow` <#Table-of-content:>`__
+Load an Image `⇑ <#Table-of-content:>`__
 -------------------------------------------------------
 
 .. code:: ipython3
@@ -145,7 +145,7 @@ Load an Image `:math:`\Uparrow` <#Table-of-content:>`__
 .. image:: 001-hello-world-with-output_files/001-hello-world-with-output_11_0.png
 
 
-Do Inference `:math:`\Uparrow` <#Table-of-content:>`__
+Do Inference `⇑ <#Table-of-content:>`__
 ------------------------------------------------------
 
 .. code:: ipython3

@@ -42,7 +42,7 @@ Table of content:
 
 .. |flowchart| image:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
 
-Imports `:math:`\Uparrow` <#Table-of-content:>`__
+Imports `⇑ <#Table-of-content:>`__
 -------------------------------------------------
 
 Import the required modules.
@@ -62,7 +62,7 @@ Import the required modules.
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Download Models `:math:`\Uparrow` <#Table-of-content:>`__
+Download Models `⇑ <#Table-of-content:>`__
 ---------------------------------------------------------
 
 Use ``omz_downloader`` - a command-line tool from the ``openvino-dev``
@@ -137,7 +137,7 @@ Representation (OpenVINO IR).
     
 
 
-Load Models `:math:`\Uparrow` <#Table-of-content:>`__
+Load Models `⇑ <#Table-of-content:>`__
 -----------------------------------------------------
 
 This tutorial requires a detection model and a recognition model. After
@@ -197,7 +197,7 @@ specified device.
         output_keys = compiled_model.output(0)
         return input_keys, output_keys, compiled_model
 
-Get attributes from model `:math:`\Uparrow` <#Table-of-content:>`__
+Get attributes from model `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``input_keys.shape`` to get data shapes.
@@ -216,7 +216,7 @@ Use ``input_keys.shape`` to get data shapes.
     # Get input size - Recognition.
     height_re, width_re = list(input_key_re.shape)[2:]
 
-Helper function `:math:`\Uparrow` <#Table-of-content:>`__
+Helper function `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``plt_show()`` function is used to show image.
@@ -234,7 +234,7 @@ The ``plt_show()`` function is used to show image.
         plt.axis("off")
         plt.imshow(raw_image)
 
-Read and display a test image `:math:`\Uparrow` <#Table-of-content:>`__
+Read and display a test image `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input shape of detection model is ``[1, 3, 256, 256]``. Therefore,
@@ -266,7 +266,7 @@ channel with ``expand_dims`` function.
 .. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_13_0.png
 
 
-Use the Detection Model to Detect Vehicles `:math:`\Uparrow` <#Table-of-content:>`__
+Use the Detection Model to Detect Vehicles `⇑ <#Table-of-content:>`__
 ------------------------------------------------------------------------------------
 
 .. figure:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
@@ -298,7 +298,7 @@ Delete unused dims and filter out results that are not used.
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-Detection Processing `:math:`\Uparrow` <#Table-of-content:>`__
+Detection Processing `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 With the function below, you change the ratio to the real position in
@@ -347,7 +347,7 @@ the image and filter out low-confidence results.
     # Find the position of a car.
     car_position = crop_images(image_de, resized_image_de, boxes)
 
-Recognize vehicle attributes `:math:`\Uparrow` <#Table-of-content:>`__
+Recognize vehicle attributes `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Select one of the detected boxes. Then, crop to an area containing a
@@ -370,7 +370,7 @@ the input image and run inference.
 .. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_20_0.png
 
 
-Recognition processing `:math:`\Uparrow` <#Table-of-content:>`__
+Recognition processing `⇑ <#Table-of-content:>`__
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The result contains colors of the vehicles (white, gray, yellow, red,
@@ -419,7 +419,7 @@ determine the maximum probability as the result.
     Attributes:('Gray', 'Car')
 
 
-Combine two models `:math:`\Uparrow` <#Table-of-content:>`__
+Combine two models `⇑ <#Table-of-content:>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Congratulations! You successfully used a detection model to crop an
