@@ -42,11 +42,13 @@ void SpaceToBatchTransformation::Run() {
     LayerTestsCommon::Run();
 
     const auto params = std::get<2>(GetParam());
-    auto actual_type = getRuntimePrecisionByType(params.layer_type);
-    const auto expected_type = params.expected_kernel_type;
-    if ((expected_type == "FP32") && (actual_type == "FP16")) {
-        actual_type = "FP32";
+    auto expected_type = params.expected_kernel_type;
+    const auto input_type = std::get<0>(GetParam());
+    if ((expected_type == "f32") && (input_type == ov::element::f16)) {
+        expected_type = "f16";
     }
+
+    const auto actual_type = getRuntimePrecisionByType(params.layer_type);
     EXPECT_EQ(actual_type, expected_type);
 }
 
