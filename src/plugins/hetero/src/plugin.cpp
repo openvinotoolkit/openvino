@@ -196,6 +196,3 @@ ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::create_context(const ov::AnyMa
 ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
-
-static const ov::Version version = {CI_BUILD_NUMBER, "openvino_hetero_plugin"};
-OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::hetero::Plugin, version)

@@ -15,7 +15,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
-              VERSION_DEFINES_FOR src/plugin.cpp
+              VERSION_DEFINES_FOR src/version.cpp
               ADD_CLANG_FORMAT)
 
 ie_faster_build(${TARGET_NAME}
@@ -35,7 +35,7 @@ if(BUILD_SHARED_LIBS)
     add_library(${OBJ_NAME} OBJECT ${SOURCES} ${HEADERS})
     link_system_libraries(${OBJ_NAME} PUBLIC openvino::pugixml)
 
-    ov_add_version_defines(src/plugin.cpp ${OBJ_NAME})
+    ov_add_version_defines(src/version.cpp ${OBJ_NAME})
 
     target_include_directories(${OBJ_NAME}
         PRIVATE
