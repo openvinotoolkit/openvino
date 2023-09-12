@@ -122,7 +122,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, 2d_inputs_dynamic_rank
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     input_shapes = ShapeVector{{3, 6, 5, 5}, {6, 1, 3, 3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({3, 1, 7, 7}));
@@ -142,7 +142,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, 3d_auto_pad_same_lower
     op = make_op(data, filters, out_spatial, strides, pads_begin, pads_end, dilations, auto_pad);
 
     input_shapes = ShapeVector{{3, 6, 5, 5, 5}, {6, 2, 3, 3, 3}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({3, 2, 2, 1, 3}));
@@ -161,11 +161,10 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, 3d_auto_pad_same_upper
 
     op = make_op(data, filters, out_spatial, strides, pads_begin, pads_end, dilations, auto_pad);
     int32_t spatial_dims[] = {2, 6, 1};
-    const auto const_map =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, Shape{3}, spatial_dims)}};
+    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{2, {element::i32, Shape{3}, spatial_dims}}};
 
     input_shapes = ShapeVector{{3, 5, 5, 5, 5}, {5, 7, 3, 3, 3}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_map);
+    output_shapes = shape_inference(op.get(), input_shapes, const_map);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({3, 7, 2, 6, 1}));

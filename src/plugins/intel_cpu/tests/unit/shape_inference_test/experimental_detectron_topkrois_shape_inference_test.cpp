@@ -25,7 +25,7 @@ TEST_F(ExperimentalDetectronTopKROIsV6StaticShapeInferenceTest, default_ctor) {
     op->set_max_rois(100);
 
     input_shapes = ShapeVector{{12, 4}, {12}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({100, 4}));
@@ -37,7 +37,7 @@ TEST_F(ExperimentalDetectronTopKROIsV6StaticShapeInferenceTest, inputs_dynamic_r
     op = make_op(input_rois, rois_probs, 5);
 
     input_shapes = ShapeVector{{10, 4}, {10}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({5, 4}));
@@ -49,7 +49,7 @@ TEST_F(ExperimentalDetectronTopKROIsV6StaticShapeInferenceTest, inputs_static_ra
     op = make_op(input_rois, rois_probs, 15);
 
     input_shapes = ShapeVector{{100, 4}, {100}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({15, 4}));
@@ -62,7 +62,7 @@ TEST_F(ExperimentalDetectronTopKROIsV6StaticShapeInferenceTest, input_rois_not_2
 
     input_shapes = ShapeVector{{10, 4, 10}, {10}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The 'input_rois' input is expected to be a 2D."));
 }
@@ -74,7 +74,7 @@ TEST_F(ExperimentalDetectronTopKROIsV6StaticShapeInferenceTest, rois_prob_not_1d
 
     input_shapes = ShapeVector{{10, 4}, {10, 2}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The 'rois_probs' input is expected to be a 1D."));
 }
@@ -86,7 +86,7 @@ TEST_F(ExperimentalDetectronTopKROIsV6StaticShapeInferenceTest, input_rois_secon
 
     input_shapes = ShapeVector{{10, 5}, {10}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The second dimension of 'input_rois' should be 4."));
 }
