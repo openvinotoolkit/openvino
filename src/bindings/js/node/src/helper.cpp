@@ -192,7 +192,6 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
 }
 
 ov::Tensor cast_to_tensor(Napi::Object obj) {
-    // FIXME Check of object type
     auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
     return tensor_wrap->get_tensor();
 }
