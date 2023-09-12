@@ -80,8 +80,6 @@ describe('InferRequest', () => {
     });
   });
 
-  // TODO Add test infer([object]) to check scenario when the passed object is not a Tensor.
-
   it('Test setInputTensor(tensor)', () => {
     inferRequest.setInputTensor(tensor);
     const t1 = inferRequest.getInputTensor();
@@ -106,8 +104,6 @@ describe('InferRequest', () => {
       {message: 'InferRequest.setInputTensor() invalid argument.'});
   });
 
-  // TODO Add test setInputTensor() to check scenario when an object is passed that is not a Tensor.
-
   it('Test setOutputTensor(tensor)', () => {
     inferRequest.setOutputTensor(resTensor);
     const res2 = inferRequest.getOutputTensor();
@@ -125,8 +121,6 @@ describe('InferRequest', () => {
       () => inferRequest.setOutputTensor(resTensor, tensor),
       {message: 'InferRequest.setOutputTensor() invalid argument.'});
   });
-
-  // TODO Add test setOutputTensor() to check scenario when an object is passed that is not a Tensor.
 
   it('Test setTensor(string, tensor)', () => {
     inferRequest.setTensor('fc_out', resTensor);
@@ -151,8 +145,6 @@ describe('InferRequest', () => {
       () => inferRequest.setTensor(123, 'fc_out'),
       {message: 'InferRequest.setTensor() invalid argument.'});
   });
-
-  // TODO Add test setTensor() to check scenario when an object is passed that is not a Tensor as second arg.
 
   const irGetters = compiledModel.createInferRequest();
   irGetters.setInputTensor(tensor);
@@ -191,7 +183,6 @@ describe('InferRequest', () => {
     const ir2 = cm.createInferRequest();
     const res2 = ir2.infer([tensorData]);
     const res1 = ir.infer([tensorData]);
-    // assert(instanceOf(compiledMode, cm)); // TODO Create a separate test
     assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
   });
 });
