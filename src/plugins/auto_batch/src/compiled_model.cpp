@@ -138,13 +138,15 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         m_compiled_model_without_batch->create_infer_request(),
         m_compiled_model_without_batch._so};
     // simpler wrapper if m_compiled_model_with_batch is empty
-    std::shared_ptr<ov::ISyncInferRequest> sync_res = std::make_shared<ov::autobatch_plugin::SyncInferRequest>(
-        std::dynamic_pointer_cast<const ov::autobatch_plugin::CompiledModel>(shared_from_this()),
-        nullptr,
-        0,
-        0);
+    std::shared_ptr<ov::ISyncInferRequest> sync_res;
     if (m_compiled_model_with_batch)
         sync_res = create_sync_infer_request();
+    else
+        sync_res = std::make_shared<ov::autobatch_plugin::SyncInferRequest>(
+            std::dynamic_pointer_cast<const ov::autobatch_plugin::CompiledModel>(shared_from_this()),
+            nullptr,
+            0,
+            0);
     return std::make_shared<ov::autobatch_plugin::AsyncInferRequest>(
         std::dynamic_pointer_cast<ov::autobatch_plugin::SyncInferRequest>(sync_res),
         infer_request_without_batch,
