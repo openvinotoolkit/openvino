@@ -21,7 +21,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
 
     std::shared_ptr<ov::op::v0::Concat> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::concatenation_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<concatenation_impl>(*this);

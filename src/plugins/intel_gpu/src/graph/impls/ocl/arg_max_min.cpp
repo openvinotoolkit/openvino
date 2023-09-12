@@ -39,7 +39,7 @@ struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
     using kernel_selector_t = kernel_selector::arg_max_min_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::arg_max_min_params, kernel_selector::arg_max_min_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::arg_max_min_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<arg_max_min_impl>(*this);

@@ -18,7 +18,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
     using kernel_selector_t = kernel_selector::border_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::border_params, kernel_selector::border_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::border_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<border_impl>(*this);

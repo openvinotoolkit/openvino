@@ -14,8 +14,6 @@ struct convert_color : public primitive_base<convert_color> {
 
     convert_color() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     enum color_format : uint32_t {
         RGB,       ///< RGB color format
         BGR,       ///< BGR color format, default in OpenVINO
