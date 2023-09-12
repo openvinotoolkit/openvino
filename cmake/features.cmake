@@ -7,11 +7,7 @@
 #
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
-if (EMSCRIPTEN)
-    ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86_64" OFF)
-else()
-    ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
-endif()
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
 
 ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
@@ -69,14 +65,8 @@ ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 # OpenVINO Runtime specific options
 #
 
-if(EMSCRIPTEN)
-    set(THREADING_DEFAULT "SEQ")
-else()
-    set(THREADING_DEFAULT "TBB")
-endif()
-
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
+set(THREADING "TBB" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
 list (APPEND IE_OPTIONS THREADING)
 if (NOT THREADING STREQUAL "TBB" AND
@@ -119,7 +109,7 @@ ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS
 
 ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
-ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON "NOT EMSCRIPTEN" OFF)
+ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
 
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 

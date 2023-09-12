@@ -1,7 +1,9 @@
 # Copyright (C) 2018-2023  Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-if(ENABLE_PYTHON)
+if(NOT ENABLE_PYTHON)
+    message(WARNING "Please enable OpenVINO Runtime Python API (set -DENABLE_PYTHON=ON) targets to enable Model Optimizer target")
+else()
     add_custom_target(model_optimizer DEPENDS ie_api openvino_ir_frontend pyopenvino)
 
     if(ENABLE_TESTS)
