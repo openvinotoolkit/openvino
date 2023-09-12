@@ -50,20 +50,20 @@ jobs:
     runs-on: windows-latest-8-cores
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
           submodules: 'recursive'
 
       - name: Clone testdata for C API tests
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -122,7 +122,7 @@ jobs:
       #
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - uses: ilammy/msvc-dev-cmd@v1
@@ -303,13 +303,13 @@ jobs:
           ls "${{ env.INSTALL_TEST_DIR }}"
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
