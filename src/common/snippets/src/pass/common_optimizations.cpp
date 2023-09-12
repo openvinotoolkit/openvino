@@ -9,6 +9,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/transform_convert.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/itt.hpp"
 
