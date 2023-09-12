@@ -28,7 +28,7 @@ CommonDispatchData ConvertColorKernelBase::SetDefault(const convert_color_params
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
 
-    dispatchData.gws = { out.Batch().v, out.Y().v, out.X().v };
+    dispatchData.gws = { out.Batch().v, out.Feature().v, out.Y().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout);
 
     return dispatchData;
