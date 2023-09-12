@@ -7,6 +7,17 @@
 #include <memory>
 #include <vector>
 
+// TODO: Temporary solution to fix compilation of plugin tests
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
+
 #include "common_test_utils/test_enums.hpp"
 #include "ngraph_functions/utils/data_utils.hpp"
 #include "openvino/core/node.hpp"

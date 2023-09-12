@@ -4,17 +4,6 @@
 
 #pragma once
 
-// TODO: Temporary solution to fix compilation of plugin tests
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset2.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset9.hpp>
-
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"

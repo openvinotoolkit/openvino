@@ -11,15 +11,6 @@
 #include <tuple>
 #include <gtest/gtest.h>
 #include <ngraph/node.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset2.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/function.hpp>
 #include <ie_plugin_config.hpp>
 #include <ngraph/function.hpp>
