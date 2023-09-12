@@ -172,7 +172,6 @@ def part6():
     #! [part6]
 
 
-# TODO: missing EXECUTION_DEVICES property in Python API
 def part7():
     #! [part7]
     core = ov.Core()
@@ -180,7 +179,7 @@ def part7():
     # compile a model on AUTO and set log level to debug
     compiled_model = core.compile_model(model=model, device_name="AUTO")
     # query the runtime target devices on which the inferences are being executed
-    execution_devices = compiled_model.get_property("EXECUTION_DEVICES")
+    execution_devices = compiled_model.get_property(ov.properties.execution_devices())
     #! [part7]
 
 
