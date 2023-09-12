@@ -707,14 +707,10 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             } catch (const InferenceEngine::GeneralError&) {
                 // the same extension can be registered multiple times - ignore it!
             }
-        }
-        // FIXME: Revert registration back
-        /*
-        else {
+        } else {
             TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
             try_to_register_plugin_extensions(desc.libraryLocation);
         }
-        */
 
         return plugins.emplace(deviceName, plugin).first->second;
     } catch (const InferenceEngine::Exception& ex) {
@@ -745,8 +741,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    // FIXME: Revert apply_auto_batching back
-    // auto model = apply_auto_batching(model_, deviceName, config_with_batch);
+    auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(device_name));
     auto plugin = get_plugin(parsed._deviceName);
@@ -755,17 +750,17 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model_, create_compile_config(plugin, parsed._config));
+        cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-            return compile_model_and_cache(model_,
+            return compile_model_and_cache(model,
                                            plugin,
                                            parsed._config,
                                            ov::SoPtr<ov::IRemoteContext>{},
                                            cacheContent);
         });
     } else {
-        res = compile_model_with_preprocess(plugin, model_, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
+        res = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
     }
     return res;
 }
@@ -779,9 +774,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     std::string deviceName = context->get_device_name();
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    // FIXME: Revert apply_auto_batching back
-    // auto model = apply_auto_batching(model_, deviceName, config_with_batch);
-    auto model = model_;
+    auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
@@ -1091,8 +1084,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
     } else {
         // check if Auto-Batch plugin registered
         try {
-            // FIXME: Revert Batching back
-            // get_plugin("BATCH");
+            get_plugin("BATCH");
         } catch (const std::runtime_error&) {
             return model;
         }

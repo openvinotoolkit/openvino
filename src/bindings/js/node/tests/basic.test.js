@@ -2,17 +2,8 @@ const ov = require('../build/Release/ov_node_addon.node');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const path = require('path');
+const { getModelPath } = require('./utils.js');
 
-function getModelPath(isFP16=false) {
-  const basePath = '../../python/tests/';
-  if (isFP16) {
-    testXml = path.join(basePath, 'test_utils', 'utils', 'test_model_fp16.xml');
-  } else {
-    testXml = path.join(basePath, 'test_utils', 'utils', 'test_model_fp32.xml');
-  }
-
-  return testXml;
-}
 
 var testXml = getModelPath();
 const core = new ov.Core();
