@@ -148,9 +148,6 @@ jobs:
           python3 --version || exit 1
           cmake --version || exit 1
 
-      - name: Clean ccache stats
-        run: ccache --zero-stats --show-config
-
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
@@ -180,6 +177,9 @@ jobs:
             -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
+
+      - name: Clean ccache stats
+        run: ccache --zero-stats --show-config
 
       - name: Build
         run: cmake --build ${BUILD_DIR} --parallel ${{ steps.cpu-cores.outputs.count }} --config Release
