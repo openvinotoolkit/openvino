@@ -17,8 +17,6 @@ struct read_value : public primitive_base<read_value> {
 
     read_value() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs ReadValue primitive.
     /// @param id This primitive id
     /// @param inputs Input parameters ids

@@ -13,8 +13,6 @@ struct count_nonzero : public primitive_base<count_nonzero> {
 
     count_nonzero() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs count_nonzero primitive.
     /// @param id This primitive id.
     /// @param data Input data primitive id.
@@ -32,8 +30,6 @@ struct gather_nonzero : public primitive_base<gather_nonzero> {
     CLDNN_DECLARE_PRIMITIVE(gather_nonzero)
 
     gather_nonzero() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs gather_nonzero primitive.
     /// @param id This primitive id.

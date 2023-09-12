@@ -44,8 +44,6 @@ struct reduce : public primitive_base<reduce> {
 
     reduce() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs reduce primitive
     /// @param id This primitive id
     /// @param input Input primitive id

@@ -17,7 +17,7 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
     using kernel_selector_t = kernel_selector::deformable_conv_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::deformable_conv_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deformable_conv_impl>(*this);
@@ -61,7 +61,7 @@ struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
     using kernel_selector_t = kernel_selector::deformable_interp_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::deformable_interp_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deformable_interp_impl>(*this);

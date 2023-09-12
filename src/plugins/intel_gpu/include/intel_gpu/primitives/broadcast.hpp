@@ -56,8 +56,6 @@ struct broadcast : public primitive_base<broadcast> {
 
     broadcast() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs broadcast primitive / layer.
     ///
     /// @param id              An identifier of new primitive.

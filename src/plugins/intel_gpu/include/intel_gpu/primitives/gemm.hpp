@@ -27,8 +27,6 @@ struct gemm : public primitive_base<gemm> {
 
     gemm() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs gemm layer.
     /// @brief Primitive id containing first matrix
     /// @brief Primitive id containing second matrix

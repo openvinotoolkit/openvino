@@ -23,8 +23,6 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
 
     extract_image_patches() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs select primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id containing input 4-D tensor.

@@ -16,8 +16,6 @@ struct region_yolo : public primitive_base<region_yolo> {
 
     region_yolo() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs region_yolo primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

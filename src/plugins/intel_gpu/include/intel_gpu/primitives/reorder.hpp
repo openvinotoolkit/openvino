@@ -69,8 +69,6 @@ struct reorder : public primitive_base<reorder> {
                 output_format(format::any),
                 mean_mode(reorder_mean_mode::subtract) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief reorder memory types
     enum class memory_type {
         buffer,

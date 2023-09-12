@@ -10,8 +10,6 @@
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 namespace cldnn {
-
-
 #define CLDNN_ROI_VECTOR_SIZE 5
 
 struct proposal : public primitive_base<proposal> {
@@ -36,8 +34,6 @@ struct proposal : public primitive_base<proposal> {
                  round_ratios(true),
                  shift_anchors(false),
                  normalize(false) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     proposal(const primitive_id& id,
              const input_info& cls_scores,

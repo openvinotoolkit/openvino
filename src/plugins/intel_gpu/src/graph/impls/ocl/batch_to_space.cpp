@@ -15,7 +15,7 @@ struct batch_to_space_impl : typed_primitive_impl_ocl<batch_to_space> {
     using kernel_selector_t = kernel_selector::batch_to_space_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::batch_to_space_params, kernel_selector::batch_to_space_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::batch_to_space_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<batch_to_space_impl>(*this);

@@ -58,7 +58,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
 
     std::shared_ptr<ov::op::Op> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::activation_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<activation_impl>(*this);

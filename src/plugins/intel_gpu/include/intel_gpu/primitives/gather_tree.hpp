@@ -15,8 +15,6 @@ struct gather_tree : public primitive_base<gather_tree> {
 
     gather_tree() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs gather tree primitive / layer.
     ///
     /// @param id                      An identifier of new primitive.

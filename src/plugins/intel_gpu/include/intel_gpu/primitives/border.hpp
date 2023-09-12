@@ -26,8 +26,6 @@ struct border : public primitive_base<border> {
 
     border() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief whether the input is const or not
     enum PAD_NON_CONST_INPUT {
         BEGIN = 0x1,

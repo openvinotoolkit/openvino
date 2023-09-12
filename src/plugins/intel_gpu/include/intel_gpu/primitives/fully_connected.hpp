@@ -35,8 +35,6 @@ struct fully_connected : public primitive_base<fully_connected> {
 
     fully_connected() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs fully connected layer.
     /// @param id This primitive id.
     /// @param input Input primitive id.

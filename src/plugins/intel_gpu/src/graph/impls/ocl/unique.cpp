@@ -17,7 +17,7 @@ struct unique_count_impl : typed_primitive_impl_ocl<unique_count> {
     using kernel_params_t =
         std::pair<kernel_selector::unique_count_params, kernel_selector::unique_count_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::unique_count_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<unique_count_impl>(*this);
@@ -88,7 +88,7 @@ struct unique_gather_impl : typed_primitive_impl_ocl<unique_gather> {
     using kernel_params_t =
         std::pair<kernel_selector::unique_gather_params, kernel_selector::unique_gather_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::unique_gather)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<unique_gather_impl>(*this);

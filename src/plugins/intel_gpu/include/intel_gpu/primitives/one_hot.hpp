@@ -35,8 +35,6 @@ struct one_hot : public primitive_base<one_hot> {
 
     one_hot() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs one-hot primitive layer.
     /// @param id              An identifier of new primitive.
     /// @param input           An identifier of primitive which is an input for newly created one-hot primitive.

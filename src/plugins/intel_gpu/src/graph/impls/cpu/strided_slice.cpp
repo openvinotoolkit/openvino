@@ -29,7 +29,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
 
     std::shared_ptr<ov::op::v1::StridedSlice> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::strided_slice_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<strided_slice_impl>(*this);

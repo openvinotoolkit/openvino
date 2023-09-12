@@ -26,7 +26,7 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
     using parent = typed_primitive_onednn_impl<convolution>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::convolution_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {

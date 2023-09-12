@@ -19,7 +19,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
 
     std::shared_ptr<ov::op::v0::Convert> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorder_impl>(*this);

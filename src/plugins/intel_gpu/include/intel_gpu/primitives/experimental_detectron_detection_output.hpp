@@ -16,8 +16,6 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
 
     experimental_detectron_detection_output() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs experimental_detectron_detection_output primitive
     /// @param id This primitive id
     /// @param input_rois input rois

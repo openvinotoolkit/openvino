@@ -17,7 +17,7 @@ struct lstm_dynamic_timeloop_impl : typed_primitive_impl_ocl<lstm_dynamic_timelo
     using kernel_selector_t = kernel_selector::lstm_dynamic_timeloop_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::lstm_dynamic_timeloop_params, kernel_selector::lstm_dynamic_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::lstm_dynamic_timeloop_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lstm_dynamic_timeloop_impl>(*this);

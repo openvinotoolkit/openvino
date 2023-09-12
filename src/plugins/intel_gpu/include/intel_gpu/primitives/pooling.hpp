@@ -34,8 +34,6 @@ struct pooling : public primitive_base<pooling> {
 
     pooling() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs pooling primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

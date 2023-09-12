@@ -53,8 +53,6 @@ struct lstm : public primitive_base<lstm> {
 
     lstm() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs lstm layer.
     /// @param id This primitive id.
     /// @param input Vector of primitive id.
@@ -230,8 +228,6 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
     lstm_gemm() : primitive_base("", {}),
                   direction(0) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs lstm layer.
     /// @param id This primitive id.
     /// @param input input primitive id.
@@ -318,8 +314,6 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     CLDNN_DECLARE_PRIMITIVE(lstm_elt)
 
     lstm_elt() : primitive_base("", {}), clip(0), input_forget(0), offset_order(lstm_weights_order::iofz), direction(0) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;

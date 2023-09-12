@@ -18,8 +18,6 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
 
     custom_gpu_primitive() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Custom primitive kernel argument type
     enum arg_type {
         arg_input,

@@ -19,7 +19,7 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     using parent = typed_primitive_onednn_impl<fully_connected>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
 
 private:
     static std::vector<int64_t> reshape_to_2d(const ov::PartialShape& shape, int64_t feature) {

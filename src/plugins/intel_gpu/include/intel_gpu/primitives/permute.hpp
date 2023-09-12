@@ -21,8 +21,6 @@ struct permute : public primitive_base<permute> {
 
     permute() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs permute primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

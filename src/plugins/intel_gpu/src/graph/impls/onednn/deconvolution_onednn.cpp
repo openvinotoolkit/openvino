@@ -22,7 +22,7 @@ struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution> {
     using parent = typed_primitive_onednn_impl<deconvolution>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::deconvolution_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
