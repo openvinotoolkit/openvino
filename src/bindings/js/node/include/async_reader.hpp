@@ -1,10 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * @brief This is a header file for the NAPI POC ReaderWorker
- * @file src/ReaderWorker.hpp
- */
 #pragma once
 
 #include <napi.h>
@@ -26,7 +22,7 @@ public:
      * @brief Executes code inside the worker-thread.
      * It is not safe to access JS engine data structure
      * here, so everything we need for input and output
-     * should go on `this`. A
+     * should go on `this`.
      * Avoid calling any methods from node-addon-api
      * or running any code that might invoke JavaScript.
      */
@@ -35,7 +31,7 @@ public:
     /**
      * @brief Executed when the async work is complete
      * this function will be run inside the main event loop
-     * so it is safe to use JS engine data again
+     * so it is safe to use JS engine data again.
      */
     void OnOK() override;
     void OnError(Napi::Error const&);

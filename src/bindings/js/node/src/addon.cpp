@@ -3,6 +3,7 @@
 
 #include <napi.h>
 
+#include "async_infer.hpp"
 #include "compiled_model.hpp"
 #include "core_wrap.hpp"
 #include "element_type.hpp"
@@ -11,10 +12,8 @@
 #include "node_output.hpp"
 #include "openvino/openvino.hpp"
 #include "pre_post_process_wrap.hpp"
-#include "tensor.hpp"
 #include "resize_algorithm.hpp"
-#include "async_infer.hpp"
-
+#include "tensor.hpp"
 
 /** @brief Initialize native add-on */
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {

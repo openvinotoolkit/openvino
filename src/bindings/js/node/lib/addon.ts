@@ -55,7 +55,6 @@ interface InferRequest {
   getInputTensor(idx?: number): Tensor;
   getOutputTensor(idx?: number): Tensor;
   getOutputTensors(): { [outputName: string] : Tensor};
-  // FIXME: are we going to add index parameter for this method?
   infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
     | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
   getCompiledModel(): CompiledModel;
@@ -73,11 +72,9 @@ interface Output {
 }
 
 interface PrePostProcessor {
-  // FIXME: should we return PrePostProcessor after build() call?
   build(): PrePostProcessor;
   setInputElementType(idx: number, type: element): PrePostProcessor;
   setInputModelLayout(layout: string[]): PrePostProcessor;
-  // FIXME: are we going to add index parameter for this method?
   setInputTensorLayout(layout: string[]): PrePostProcessor;
   preprocessResizeAlgorithm(resizeAlgorithm: resizeAlgorithm)
     : PrePostProcessor;

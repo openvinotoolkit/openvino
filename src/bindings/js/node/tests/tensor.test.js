@@ -44,7 +44,7 @@ describe('Tensor data', () => {
     });
   });
 
-  it(`Test tensor getData()`, () => {
+  it('Test tensor getData()', () => {
     const tensor = new ov.Tensor(ov.element.f32, shape, data);
     assert.deepStrictEqual(tensor.getData(), data);
   });
