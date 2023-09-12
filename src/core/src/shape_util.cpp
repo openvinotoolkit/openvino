@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "openvino/core/partial_shape.hpp"
 #include "shape_util.hpp"
 
 using namespace ngraph;
@@ -127,6 +128,13 @@ std::vector<size_t> reduce(const std::vector<size_t>& input, const AxisSet& axes
 
 Shape reduce_keep_dims(const Shape& input, const AxisSet& axes) {
     return ov::replace_container(input, axes);
+}
+
+Shape get_broadcast_shape(const Shape& first, const Shape& second, const op::AutoBroadcastSpec& broadcast_spec) {
+    auto out_shape = PartialShape(first);
+    OPENVINO_ASSERT(PartialShape::broadcast_merge_into(out_shape, second, broadcast_spec),
+                    "Argument shapes are inconsistent");
+    return out_shape.to_shape();
 }
 }  // namespace util
 }  // namespace ov
