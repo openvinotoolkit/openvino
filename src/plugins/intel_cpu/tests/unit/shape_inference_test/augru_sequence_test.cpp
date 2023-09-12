@@ -38,9 +38,7 @@ TEST(StaticShapeInferenceTest, AGRUSequenceTest_FORWARD_all_static_rank) {
         StaticShape{num_directions, gates_count * hidden_size},               // B
         StaticShape{batch_size, seq_len, 1}};                                 // A
 
-    std::vector<StaticShape> static_output_shapes{StaticShape{}, StaticShape{}};
-
-    shape_inference(augru_sequence.get(), static_input_shapes, static_output_shapes);
+    const auto static_output_shapes = shape_inference(augru_sequence.get(), static_input_shapes);
     EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
     EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
 }
@@ -73,9 +71,7 @@ TEST(StaticShapeInferenceTest, AGRUSequenceTest_FORWARD_all_inputs_dynamic_rank)
         StaticShape{num_directions, gates_count * hidden_size},               // B
         StaticShape{batch_size, seq_len, 1}};                                 // A
 
-    std::vector<StaticShape> static_output_shapes{StaticShape{}, StaticShape{}};
-
-    shape_inference(augru_sequence.get(), static_input_shapes, static_output_shapes);
+    const auto static_output_shapes = shape_inference(augru_sequence.get(), static_input_shapes);
     EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
     EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
 }
