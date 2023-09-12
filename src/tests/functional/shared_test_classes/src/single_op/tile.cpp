@@ -38,7 +38,6 @@ void TileLayerTest::SetUp() {
     ov::element::Type model_type;
     std::vector<InputShape> input_shapes;
     std::tie(tile_params, model_type, input_shapes, targetDevice) = this->GetParam();
-    
     init_input_shapes({input_shapes});
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
