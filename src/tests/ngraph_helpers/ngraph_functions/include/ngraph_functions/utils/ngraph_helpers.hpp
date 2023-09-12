@@ -10,6 +10,7 @@
 #endif
 
 #include <memory>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/runtime/tensor.hpp>
 #include <vector>
 
