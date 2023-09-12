@@ -1,0 +1,19 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "shared_test_classes/single_op/convert_color_nv12.hpp"
+
+namespace ov {
+namespace test {
+TEST_P(ConvertColorNV12LayerTest, Inference) {
+    run();
+}
+
+TEST_P(ConvertColorNV12AccuracyTest, Inference) {
+    run();
+}
+} // namespace test
+} // namespace ov
