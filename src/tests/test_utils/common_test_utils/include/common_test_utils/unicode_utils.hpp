@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <vector>
-#include <string>
-#include <fstream>
 #include <algorithm>
+#include <fstream>
+#include <string>
+#include <vector>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/w_dirent.h"
@@ -20,11 +20,11 @@ namespace ov {
 namespace test {
 namespace utils {
 
-inline void fixSlashes(std::string &str) {
+inline void fixSlashes(std::string& str) {
     std::replace(str.begin(), str.end(), '/', '\\');
 }
 
-inline void fixSlashes(std::wstring &str) {
+inline void fixSlashes(std::wstring& str) {
     std::replace(str.begin(), str.end(), L'/', L'\\');
 }
 
@@ -33,15 +33,15 @@ inline std::wstring stringToWString(std::string input) {
 }
 
 inline bool copyFile(std::wstring source_path, std::wstring dest_path) {
-#ifndef _WIN32
+#    ifndef _WIN32
     std::ifstream source(ov::util::wstring_to_string(source_path), std::ios::binary);
     std::ofstream dest(ov::util::wstring_to_string(dest_path), std::ios::binary);
-#else
+#    else
     fixSlashes(source_path);
     fixSlashes(dest_path);
     std::ifstream source(source_path.c_str(), std::ios::binary);
     std::ofstream dest(dest_path.c_str(), std::ios::binary);
-#endif
+#    endif
     bool result = source && dest;
     std::istreambuf_iterator<char> begin_source(source);
     std::istreambuf_iterator<char> end_source;
@@ -70,17 +70,18 @@ inline std::wstring addUnicodePostfixToPath(std::string source_path, std::wstrin
 inline void removeFile(std::wstring path) {
     int result = 0;
     if (!path.empty()) {
-#ifdef _WIN32
+#    ifdef _WIN32
         result = _wremove(path.c_str());
-#else
+#    else
         result = remove(ov::util::wstring_to_string(path).c_str());
-#endif
+#    endif
     }
     (void)result;
 }
 
 inline bool endsWith(const std::wstring& source, const std::wstring& expectedSuffix) {
-    return expectedSuffix.size() <= source.size() && source.compare(source.size() - expectedSuffix.size(), expectedSuffix.size(), expectedSuffix) == 0;
+    return expectedSuffix.size() <= source.size() &&
+           source.compare(source.size() - expectedSuffix.size(), expectedSuffix.size(), expectedSuffix) == 0;
 }
 
 // Removes all files with extension=ext from the given directory
@@ -89,9 +90,9 @@ inline bool endsWith(const std::wstring& source, const std::wstring& expectedSuf
 // >= 0 - count of removed files
 inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
     int ret = 0;
-#ifdef _WIN32
-    struct _wdirent *ent;
-    _WDIR *dir = _wopendir(path.c_str());
+#    ifdef _WIN32
+    struct _wdirent* ent;
+    _WDIR* dir = _wopendir(path.c_str());
     if (dir != nullptr) {
         while ((ent = _wreaddir(dir)) != NULL) {
             auto file = ::FileUtils::makePath(path, std::wstring(ent->wd_name));
@@ -108,11 +109,11 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
         }
         _wclosedir(dir);
     }
-#else
-    struct dirent *ent;
+#    else
+    struct dirent* ent;
     auto path_mb = ov::util::wstring_to_string(path);
     auto ext_mb = ov::util::wstring_to_string(ext);
-    DIR *dir = opendir(path_mb.c_str());
+    DIR* dir = opendir(path_mb.c_str());
     if (dir != nullptr) {
         while ((ent = readdir(dir)) != NULL) {
             std::string file = ::FileUtils::makePath(path_mb, std::string(ent->d_name));
@@ -129,34 +130,34 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
         }
         closedir(dir);
     }
-#endif
+#    endif
     return ret;
 }
 
 inline int removeDir(std::wstring path) {
     int result = 0;
     if (!path.empty()) {
-#ifdef _WIN32
+#    ifdef _WIN32
         result = _wrmdir(path.c_str());
-#else
+#    else
         result = rmdir(ov::util::wstring_to_string(path).c_str());
-#endif
+#    endif
     }
     return result;
 }
 
-inline bool directoryExists(const std::wstring &path) {
-#ifdef _WIN32
+inline bool directoryExists(const std::wstring& path) {
+#    ifdef _WIN32
     struct _stat64i32 sb;
     if (_wstat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
         return true;
     }
-#else
+#    else
     struct stat sb;
     if (stat(ov::util::wstring_to_string(path).c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
         return true;
     }
-#endif
+#    endif
 
     return false;
 }

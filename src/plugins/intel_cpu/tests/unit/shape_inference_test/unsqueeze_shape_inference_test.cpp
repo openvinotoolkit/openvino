@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -28,7 +29,7 @@ TEST_F(UnsqueezeStaticShapeInferenceAssertTest, no_axes) {
     input_shapes = ShapeVector{{5, 6}, axes->get_shape()};
 
     try {
-        shape_inference(op.get(), input_shapes, output_shapes);
+        output_shapes = shape_inference(op.get(), input_shapes);
         FAIL() << "Axes nullptr not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_THAT(error.what(), HasSubstr("Check 'constant != nullptr'"));
@@ -111,7 +112,7 @@ TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_empty_const_map) {
     const auto axes_node = std::make_shared<op::v0::Constant>(element::i64, Shape{axes.size()}, axes);
     op = std::make_shared<op::v0::Unsqueeze>(arg, axes_node);
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
 }
@@ -120,11 +121,10 @@ TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
     const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
     op = std::make_shared<op::v0::Unsqueeze>(arg, axes_node);
 
-    const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
-    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
+    const auto axes_tensor = ov::Tensor(element::i64, ov::Shape{axes.size()}, axes.data());
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{1, axes_tensor}};
 
-    shape_inference(op.get(), input_shapes, output_shapes, constant_data);
+    output_shapes = shape_inference(op.get(), input_shapes, constant_data);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
 }
