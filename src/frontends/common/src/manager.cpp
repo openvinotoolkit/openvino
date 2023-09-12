@@ -20,10 +20,20 @@ class FrontEndManager::Impl {
     std::mutex m_loading_mutex;
     std::vector<PluginInfo> m_plugins;
 
-    /// \brief map of shared object per frontend <frontend_name, frontend_so_ptr>
-    static std::unordered_map<std::string, std::shared_ptr<void>> m_shared_objects_map;
-    /// \brief Mutex to guard access the shared object map
-    static std::mutex m_shared_objects_map_mutex;
+    // Note, static methods below are required to create an order of initialization of static variables
+    // e.g. if users (not encouraged) created ov::Model globally, we need to ensure proper order of initialization
+
+    /// \return map of shared object per frontend <frontend_name, frontend_so_ptr>
+    static std::unordered_map<std::string, std::shared_ptr<void>>& get_shared_objects_map() {
+        static std::unordered_map<std::string, std::shared_ptr<void>> shared_objects_map;
+        return shared_objects_map;
+    }
+
+    /// \return Mutex to guard access the shared object map
+    static std::mutex& get_shared_objects_mutex() {
+        static std::mutex shared_objects_map_mutex;
+        return shared_objects_map_mutex;
+    }
 
 public:
     Impl() {
@@ -37,8 +47,8 @@ public:
         fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
         fe_obj->m_actual = plugin.get_creator().m_creator();
 
-        std::lock_guard<std::mutex> guard(m_shared_objects_map_mutex);
-        m_shared_objects_map.emplace(plugin.get_creator().m_name, fe_obj->m_shared_object);
+        std::lock_guard<std::mutex> guard(get_shared_objects_mutex());
+        get_shared_objects_map().emplace(plugin.get_creator().m_name, fe_obj->m_shared_object);
 
         return fe_obj;
     }
@@ -128,8 +138,8 @@ public:
     }
 
     static void shutdown() {
-        std::lock_guard<std::mutex> guard(m_shared_objects_map_mutex);
-        m_shared_objects_map.clear();
+        std::lock_guard<std::mutex> guard(get_shared_objects_mutex());
+        get_shared_objects_map().clear();
     }
 
 private:
@@ -223,9 +233,6 @@ private:
             find_plugins(fe_lib_dir, m_plugins);
     }
 };
-
-std::unordered_map<std::string, std::shared_ptr<void>> FrontEndManager::Impl::m_shared_objects_map{};
-std::mutex FrontEndManager::Impl::m_shared_objects_map_mutex{};
 
 FrontEndManager::FrontEndManager() : m_impl(new Impl()) {}
 
