@@ -327,6 +327,15 @@ struct CPUStreamsExecutor::Impl {
             : ThreadLocal<std::shared_ptr<Stream>>(callback_construct),
               _impl(impl) {}
         std::shared_ptr<Stream> local() {
+            // fix the memory leak issue that CPUStreamsExecutor is already released,
+            // but still exists thread id in t_stream_count_map
+            for (auto it = t_stream_count_map.begin(); it != t_stream_count_map.end();) {
+                if (this != it->first && it->second.use_count() == 1) {
+                    t_stream_count_map.erase(it++);
+                } else {
+                    it++;
+                }
+            }
             auto id = std::this_thread::get_id();
             auto search = _thread_ids.find(id);
             if (search != _thread_ids.end()) {
