@@ -28,7 +28,7 @@ Table of content:
     !pip install -q "openvino==2023.1.0.dev20230811"
 
 Imports `⇑ <#Table-of-content:>`__
--------------------------------------------------
+#########################################
 
 .. code:: ipython3
 
@@ -42,7 +42,7 @@ Imports `⇑ <#Table-of-content:>`__
     from notebook_utils import segmentation_map_to_image, download_file
 
 Download model weights `⇑ <#Table-of-content:>`__
-----------------------------------------------------------------
+#############################################################################################################################
 
 .. code:: ipython3
 
@@ -79,9 +79,9 @@ Download model weights `⇑ <#Table-of-content:>`__
 
 
 Select inference device `⇑ <#Table-of-content:>`__
------------------------------------------------------------------
+#############################################################################################################################
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -107,7 +107,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Load the Model `⇑ <#Table-of-content:>`__
---------------------------------------------------------
+#############################################################################################################################
 
 .. code:: ipython3
 
@@ -120,7 +120,7 @@ Load the Model `⇑ <#Table-of-content:>`__
     output_layer_ir = compiled_model.output(0)
 
 Load an Image `⇑ <#Table-of-content:>`__
--------------------------------------------------------
+#############################################################################################################################
 
 A sample image from the `Mapillary Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
 provided.
@@ -159,7 +159,7 @@ provided.
 
 
 Do Inference `⇑ <#Table-of-content:>`__
-------------------------------------------------------
+#############################################################################################################################
 
 .. code:: ipython3
 
@@ -184,7 +184,7 @@ Do Inference `⇑ <#Table-of-content:>`__
 
 
 Prepare Data for Visualization `⇑ <#Table-of-content:>`__
-------------------------------------------------------------------------
+#############################################################################################################################
 
 .. code:: ipython3
 
@@ -202,7 +202,7 @@ Prepare Data for Visualization `⇑ <#Table-of-content:>`__
     image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
 
 Visualize data `⇑ <#Table-of-content:>`__
---------------------------------------------------------
+#############################################################################################################################
 
 .. code:: ipython3
 

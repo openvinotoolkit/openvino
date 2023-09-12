@@ -13,7 +13,7 @@ shape of ``[100, 5]``. Each detected text box is stored in the
 ``(x_min, y_min)`` are the coordinates of the top left bounding box
 corner, ``(x_max, y_max)`` are the coordinates of the bottom right
 bounding box corner and ``conf`` is the confidence for the predicted
-class.
+class. 
 
 Table of content:
 ^^^^^^^^^^^^^^^^^
@@ -32,7 +32,7 @@ Table of content:
     !pip install -q "openvino==2023.1.0.dev20230811"
 
 Imports `⇑ <#Table-of-content:>`__
--------------------------------------------------
+########################################
 
 .. code:: ipython3
 
@@ -47,7 +47,7 @@ Imports `⇑ <#Table-of-content:>`__
     from notebook_utils import download_file
 
 Download model weights `⇑ <#Table-of-content:>`__
-----------------------------------------------------------------
+#######################################################
 
 .. code:: ipython3
 
@@ -83,9 +83,9 @@ Download model weights `⇑ <#Table-of-content:>`__
 
 
 Select inference device `⇑ <#Table-of-content:>`__
------------------------------------------------------------------
+###########################################################
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -111,7 +111,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Load the Model `⇑ <#Table-of-content:>`__
---------------------------------------------------------
+###############################################
 
 .. code:: ipython3
 
@@ -124,7 +124,7 @@ Load the Model `⇑ <#Table-of-content:>`__
     output_layer_ir = compiled_model.output("boxes")
 
 Load an Image `⇑ <#Table-of-content:>`__
--------------------------------------------------------
+##############################################
 
 .. code:: ipython3
 
@@ -148,7 +148,7 @@ Load an Image `⇑ <#Table-of-content:>`__
 
 
 Do Inference `⇑ <#Table-of-content:>`__
-------------------------------------------------------
+##############################################
 
 .. code:: ipython3
 
@@ -159,7 +159,7 @@ Do Inference `⇑ <#Table-of-content:>`__
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
 Visualize Results `⇑ <#Table-of-content:>`__
------------------------------------------------------------
+##################################################
 
 .. code:: ipython3
 

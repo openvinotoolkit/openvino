@@ -34,10 +34,10 @@ Table of content:
 -  `References <#References-Uparrow>`__
 
 Preparation `⇑ <#Table-of-content:>`__
------------------------------------------------------
+###############################################################################################################################
 
 Imports `⇑ <#Table-of-content:>`__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -88,7 +88,7 @@ Imports `⇑ <#Table-of-content:>`__
 
 
 Settings `⇑ <#Table-of-content:>`__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Set ``IMAGE_FILENAME`` to the filename of an image to use. Set
 ``MODEL_NAME`` to the PaddlePaddle model to download from PaddleHub.
@@ -133,7 +133,7 @@ PaddleHub. This may take a while.
 
 
 Show Inference on PaddlePaddle Model `⇑ <#Table-of-content:>`__
-------------------------------------------------------------------------------
+###############################################################################################################################
 
 In the next cell, we load the model, load and display an image, do
 inference on that image, and then show the top three prediction results.
@@ -255,7 +255,7 @@ OpenVINO model.
             class_id_map[int(partition[0])] = str(partition[-1])
 
 Convert the Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
----------------------------------------------------------------------------------
+###############################################################################################################################
 
 Call the OpenVINO Model Conversion API to convert the PaddlePaddle model
 to OpenVINO IR, with FP32 precision. ``ov.convert_model`` function
@@ -276,7 +276,7 @@ for more information about the Model Conversion API.
         print(f"{model_xml} already exists.")
 
 Select inference device `⇑ <#Table-of-content:>`__
------------------------------------------------------------------
+###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -304,7 +304,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Show Inference on OpenVINO Model `⇑ <#Table-of-content:>`__
---------------------------------------------------------------------------
+###############################################################################################################################
 
 Load the IR model, get model information, load the image, do inference,
 convert the inference to a meaningful result, and show the output. See
@@ -352,7 +352,7 @@ information.
 
 
 Timing and Comparison `⇑ <#Table-of-content:>`__
----------------------------------------------------------------
+###############################################################################################################################
 
 Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
@@ -420,7 +420,7 @@ Note that many optimizations are possible to improve the performance.
 
 
 Select inference device `⇑ <#Table-of-content:>`__
------------------------------------------------------------------
+###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -482,7 +482,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 References `⇑ <#Table-of-content:>`__
-----------------------------------------------------
+###############################################################################################################################
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle

@@ -39,7 +39,7 @@ Table of content:
     !pip install -q "openvino==2023.1.0.dev20230811"
 
 Imports `⇑ <#Table-of-content:>`__
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -62,7 +62,7 @@ Imports `⇑ <#Table-of-content:>`__
 
 
 Settings `⇑ <#Table-of-content:>`__
---------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -75,7 +75,7 @@ Settings `⇑ <#Table-of-content:>`__
     ir_path = Path("model/v3-small_224_1.0_float.xml")
 
 Download model `⇑ <#Table-of-content:>`__
---------------------------------------------------------
+###############################################################################################################################
 
 Load model using `tf.keras.applications api <https://www.tensorflow.org/api_docs/python/tf/keras/applications/MobileNetV3Small>`__
 and save it to the disk.
@@ -122,10 +122,10 @@ and save it to the disk.
 
 
 Convert a Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
--------------------------------------------------------------------------------
+###############################################################################################################################
 
 Convert a TensorFlow Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Use the model conversion Python API to convert the TensorFlow model to
 OpenVINO IR. The ``ov.convert_model`` function accept path to saved
@@ -154,10 +154,10 @@ models.
 
 
 Test Inference on the Converted Model `⇑ <#Table-of-content:>`__
--------------------------------------------------------------------------------
+###############################################################################################################################
 
 Load the Model `⇑ <#Table-of-content:>`__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -165,7 +165,7 @@ Load the Model `⇑ <#Table-of-content:>`__
     model = core.read_model(ir_path)
 
 Select inference device `⇑ <#Table-of-content:>`__
------------------------------------------------------------------
+###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -196,7 +196,7 @@ select device from dropdown list for running inference using OpenVINO
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
 Get Model Information `⇑ <#Table-of-content:>`__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -205,7 +205,7 @@ Get Model Information `⇑ <#Table-of-content:>`__
     network_input_shape = input_key.shape 
 
 Load an Image `⇑ <#Table-of-content:>`__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Load an image, resize it, and convert it to the input shape of the
 network.
@@ -229,7 +229,7 @@ network.
 
 
 Do Inference `⇑ <#Table-of-content:>`__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -254,7 +254,7 @@ Do Inference `⇑ <#Table-of-content:>`__
 
 
 Timing `⇑ <#Table-of-content:>`__
-------------------------------------------------
+###############################################################################################################################
 
 Measure the time it takes to do inference on thousand images. This gives
 an indication of performance. For more accurate benchmarking, use the
