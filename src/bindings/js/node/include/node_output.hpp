@@ -34,6 +34,7 @@ public:
     static Napi::Object Wrap(Napi::Env env, ov::Output<ov::Node> output);
 
     Napi::Value get_shape(const Napi::CallbackInfo& info);
+    
     Napi::Value get_partial_shape(const Napi::CallbackInfo& info);
 
     Napi::Value get_shape_data(const Napi::CallbackInfo& info);
@@ -70,6 +71,7 @@ public:
     static Napi::Object Wrap(Napi::Env env, ov::Output<const ov::Node> output);
 
     Napi::Value get_shape(const Napi::CallbackInfo& info);
+
     Napi::Value get_partial_shape(const Napi::CallbackInfo& info);
 
     Napi::Value get_shape_data(const Napi::CallbackInfo& info);

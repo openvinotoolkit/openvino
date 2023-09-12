@@ -8,16 +8,17 @@
 Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info) {}
 
 Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
-    return Output::DefineClass(env,
-                               "Output",
-                               {Output<ov::Node>::InstanceMethod("getShape", &Output<ov::Node>::get_shape),
-                                Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_shape>("shape"),
-                                Output<ov::Node>::InstanceMethod("getPartialShape", &Output<ov::Node>::get_partial_shape),
-                                Output<ov::Node>::InstanceMethod("getAnyName", &Output<ov::Node>::get_any_name),
-                                Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_any_name>("anyName"),
-                                Output<ov::Node>::InstanceMethod("setNames", &Output<ov::Node>::set_names),
-                                Output<ov::Node>::InstanceMethod("addNames", &Output<ov::Node>::add_names),
-                                Output<ov::Node>::InstanceMethod("toString", &Output<ov::Node>::get_any_name)});
+    return Output::DefineClass(
+        env,
+        "Output",
+        {Output<ov::Node>::InstanceMethod("getShape", &Output<ov::Node>::get_shape),
+         Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_shape>("shape"),
+         Output<ov::Node>::InstanceMethod("getPartialShape", &Output<ov::Node>::get_partial_shape),
+         Output<ov::Node>::InstanceMethod("getAnyName", &Output<ov::Node>::get_any_name),
+         Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_any_name>("anyName"),
+         Output<ov::Node>::InstanceMethod("setNames", &Output<ov::Node>::set_names),
+         Output<ov::Node>::InstanceMethod("addNames", &Output<ov::Node>::add_names),
+         Output<ov::Node>::InstanceMethod("toString", &Output<ov::Node>::get_any_name)});
 }
 
 Napi::Object Output<ov::Node>::Init(Napi::Env env, Napi::Object exports) {

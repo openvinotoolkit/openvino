@@ -172,8 +172,11 @@ Napi::Array cpp_to_js<ov::PartialShape, Napi::Array>(const Napi::CallbackInfo& i
     for (size_t i = 0; i < shape.size(); ++i) {
         int64_t value;
 
-        if (shape[i].is_dynamic()) value = -1;
-        else value = shape[i].get_length();
+        if (shape[i].is_dynamic()) {
+            value = -1;
+        } else {
+            value = shape[i].get_length();
+        }
 
         arr[i] = value;
     }
@@ -189,7 +192,7 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
 }
 
 ov::Tensor cast_to_tensor(Napi::Object obj) {
-    // Check of object type
+    // FIXME Check of object type
     auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
     return tensor_wrap->get_tensor();
 }
