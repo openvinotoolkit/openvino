@@ -32,7 +32,7 @@ TEST_F(RNNCellV0StaticShapeInferenceTest, default_ctor) {
                     StaticShape{gates_count * hidden_size}};              // B
 
     std::vector<StaticShape> output_shapes;
-    shape_inference(gru.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(gru.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
 }
 
@@ -57,7 +57,7 @@ TEST_F(RNNCellV0StaticShapeInferenceTest, default_bias) {
                     StaticShape{gates_count * hidden_size}};              // B
 
     std::vector<StaticShape> output_shapes;
-    shape_inference(gru.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(gru.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
 }
 
@@ -80,7 +80,7 @@ TEST_F(RNNCellV0StaticShapeInferenceTest, with_bias) {
                     StaticShape{gates_count * hidden_size, hidden_size},  // R
                     StaticShape{gates_count * hidden_size}};              // B
 
-    shape_inference(gru.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(gru.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
 }
 
@@ -105,6 +105,6 @@ TEST_F(RNNCellV0StaticShapeInferenceTest, dynamic_rank_inputs) {
                     StaticShape{gates_count * hidden_size}};              // B
 
     std::vector<StaticShape> output_shapes;
-    shape_inference(gru.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(gru.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
 }

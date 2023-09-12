@@ -25,7 +25,7 @@ TEST_F(StaticShapeExtractImagePatchesV3Test, default_ctor_no_args) {
     op->set_auto_pad(pad_type);
 
     input_shapes = ShapeVector{{10, 8, 12, 6}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 72, 2, 1}));
@@ -36,7 +36,7 @@ TEST_F(StaticShapeExtractImagePatchesV3Test, data_input_is_dynamic_rank) {
     op = make_op(data, ov::Shape{3, 3}, ov::Strides{5, 5}, ov::Shape{2, 2}, op::PadType::VALID);
 
     input_shapes = ShapeVector{{2, 2, 23, 24}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 18, 4, 4}));
@@ -47,7 +47,7 @@ TEST_F(StaticShapeExtractImagePatchesV3Test, data_input_is_static_rank) {
     op = make_op(data, ov::Shape{3, 3}, ov::Strides{5, 5}, ov::Shape{1, 1}, op::PadType::SAME_UPPER);
 
     input_shapes = ShapeVector{{2, 2, 43, 34}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 18, 9, 7}));
@@ -57,7 +57,7 @@ TEST_F(StaticShapeExtractImagePatchesV3Test, data_shape_not_compatible_rank_4) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic(4));
     op = make_op(data, ov::Shape{3, 3}, ov::Strides{5, 5}, ov::Shape{1, 1}, op::PadType::SAME_UPPER);
 
-    OV_EXPECT_THROW(shape_inference(op.get(), ShapeVector{{2, 20, 12, 24, 1}}, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), ShapeVector{{2, 20, 12, 24, 1}}),
                     NodeValidationFailure,
                     HasSubstr("input tensor must be 4D tensor"));
 }

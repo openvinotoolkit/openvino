@@ -57,9 +57,8 @@ TEST_P(UnsqueezeCpuShapeInferenceTest , shape_inference_with_const_map) {
     const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     op = std::make_shared<op::v0::Unsqueeze>(arg, axes_node);
 
-    const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
-    const auto axes_tensor = std::make_shared<ov::HostTensor>(axes_const);
-    const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, axes_tensor}};
+    const auto axes_tensor = ov::Tensor(element::i64, ov::Shape{axes.size()}, axes.data());
+    const std::unordered_map<size_t, ov::Tensor> constant_data = {{1, axes_tensor}};
     output_shapes.push_back(exp_shape);
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
@@ -95,9 +94,8 @@ TEST_P(UnsqueezeCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
     const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(arg, axes_node);
 
-    const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
-    const auto axes_tensor = std::make_shared<ov::HostTensor>(axes_const);
-    const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, axes_tensor}};
+    const auto axes_tensor = ov::Tensor(element::i64, ov::Shape{axes.size()}, axes.data());
+    const std::unordered_map<size_t, ov::Tensor> constant_data = {{1, axes_tensor}};
     std::ostringstream os;
     os << "[cpu]unsqueeze: the shape of input data ";
     os << "(";
@@ -135,4 +133,3 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

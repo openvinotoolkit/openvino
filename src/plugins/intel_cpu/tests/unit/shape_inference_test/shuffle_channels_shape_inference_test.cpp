@@ -25,7 +25,7 @@ TEST_F(ShuffleChannelsV0StaticShapeInferenceTest, default_ctor) {
     op->set_group(2);
 
     input_shapes = {StaticShape{5, 4, 9}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], input_shapes[0]);
@@ -36,7 +36,7 @@ TEST_F(ShuffleChannelsV0StaticShapeInferenceTest, correct_shape_infer) {
     op = make_op(data, -1, 3);
 
     input_shapes = {StaticShape{5, 4, 9}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes[0], input_shapes[0]);
 }

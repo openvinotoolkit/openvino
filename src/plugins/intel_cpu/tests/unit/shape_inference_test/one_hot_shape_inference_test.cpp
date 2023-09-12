@@ -20,9 +20,8 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantInput) {
     int64_t axis = -1;
     auto ont_hot = std::make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
     // Test StaticShape
-    std::vector<StaticShape> static_input_shapes = {StaticShape{3}, StaticShape{}, StaticShape{}, StaticShape{}},
-                             static_output_shapes = {StaticShape{}};
-    shape_inference(ont_hot.get(), static_input_shapes, static_output_shapes);
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3}, StaticShape{}, StaticShape{}, StaticShape{}};
+    const auto static_output_shapes = shape_inference(ont_hot.get(), static_input_shapes);
     ASSERT_EQ(static_output_shapes[0], (StaticShape{3, 2}));
 }
 
@@ -38,17 +37,12 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMap) {
     int32_t on_value[] = {1};
     int32_t off_value[] = {0};
 
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
-    constant_data[1] =
-        std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i64, Shape{}, depth_value);
-    constant_data[2] =
-        std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{}, on_value);
-    constant_data[3] =
-        std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{}, off_value);
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{}, depth_value}},
+                                                                      {2, {element::i32, ov::Shape{}, on_value}},
+                                                                      {1, {element::i32, ov::Shape{}, off_value}}};
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{3}, StaticShape{}, StaticShape{}, StaticShape{}},
-                             static_output_shapes = {StaticShape{}};
-    shape_inference(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3}, StaticShape{}, StaticShape{}, StaticShape{}};
+    const auto static_output_shapes = shape_inference(ont_hot.get(), static_input_shapes, constant_data);
     EXPECT_EQ(static_output_shapes[0], (StaticShape{3, 2}));
 }
 
@@ -60,18 +54,13 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMapDefaultCtor) {
     int32_t on_value[] = {1};
     int32_t off_value[] = {0};
 
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
-    constant_data[1] =
-        std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i64, Shape{}, depth_value);
-    constant_data[2] =
-        std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{}, on_value);
-    constant_data[3] =
-        std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{}, off_value);
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{}, depth_value}},
+                                                                      {2, {element::i32, ov::Shape{}, on_value}},
+                                                                      {1, {element::i32, ov::Shape{}, off_value}}};
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{3}, StaticShape{}, StaticShape{}, StaticShape{}},
-                             static_output_shapes = {StaticShape{}};
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3}, StaticShape{}, StaticShape{}, StaticShape{}};
 
-    shape_inference(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
+    const auto static_output_shapes = shape_inference(ont_hot.get(), static_input_shapes, constant_data);
 
     EXPECT_EQ(static_output_shapes[0], (StaticShape{3, 2}));
 }
@@ -88,18 +77,13 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMapNegativeDepth) {
     int32_t on_value[] = {1};
     int32_t off_value[] = {0};
 
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
-    constant_data[1] =
-        std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i64, Shape{}, depth_value);
-    constant_data[2] =
-        std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{}, on_value);
-    constant_data[3] =
-        std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{}, off_value);
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{}, depth_value}},
+                                                                      {2, {element::i32, ov::Shape{}, on_value}},
+                                                                      {1, {element::i32, ov::Shape{}, off_value}}};
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{3}, StaticShape{}, StaticShape{}, StaticShape{}},
-                             static_output_shapes = {StaticShape{}};
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3}, StaticShape{}, StaticShape{}, StaticShape{}};
 
-    OV_EXPECT_THROW(shape_inference(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data),
+    OV_EXPECT_THROW(shape_inference(ont_hot.get(), static_input_shapes, constant_data),
                     ov::NodeValidationFailure,
                     HasSubstr("can't be negative"));
 }

@@ -68,7 +68,7 @@ TYPED_TEST_P(CpuShapeInferenceGatherTest, axis_in_const_map) {
         std::tie(this->axis_val, this->input_shapes, this->exp_shape) = params;
 
         auto op = this->make_gather(this->input_shapes);
-        auto axis_tensor = std::make_shared<HostTensor>(element::i32, ov::Shape{1}, &this->axis_val);
+        auto axis_tensor = ov::Tensor(element::i32, ov::Shape{1}, &this->axis_val);
 
         this->output_shapes = {this->exp_shape};
         unit_test::cpu_test_shape_infer(op.get(), this->input_shapes, this->output_shapes, {{2, axis_tensor}});
@@ -83,4 +83,3 @@ INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer, CpuShapeInferenceGatherTest, Gathe
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

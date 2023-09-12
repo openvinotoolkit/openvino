@@ -1,29 +1,31 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <openvino/cc/factory.h>
+#include <gtest/gtest.h>
+
+#include "custom_shape_infer.hpp"
+#include "ie_ngraph_utils.hpp"
+#include "openvino/cc/factory.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
-#include "shape_inference/custom/reshape.hpp"
-#include "shape_inference/custom/gather.hpp"
-#include "shape_inference/custom/transpose.hpp"
+#include "shape_inference/custom/adaptive_pooling.hpp"
 #include "shape_inference/custom/color_convert.hpp"
 #include "shape_inference/custom/eltwise.hpp"
-#include "shape_inference/custom/adaptive_pooling.hpp"
 #include "shape_inference/custom/fullyconnected.hpp"
+#include "shape_inference/custom/gather.hpp"
 #include "shape_inference/custom/matmul.hpp"
 #include "shape_inference/custom/ngram.hpp"
 #include "shape_inference/custom/one_hot.hpp"
 #include "shape_inference/custom/priorbox.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
+#include "shape_inference/custom/reshape.hpp"
 #include "shape_inference/custom/shapeof.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
-#include "ie_ngraph_utils.hpp"
-#include "custom_shape_infer.hpp"
+#include "shape_inference/custom/transpose.hpp"
 #include "shape_inference/shape_inference_status.hpp"
-#include <gtest/gtest.h>
+
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -84,9 +86,9 @@ void compare_result(const std::vector<StaticShape>& ref, const std::vector<Vecto
 } //namespace
 
 void cpu_test_shape_infer(ov::Node* op,
-                     const std::vector<StaticShape>& input_shapes,
-                     std::vector<StaticShape>& output_shapes,
-                     const std::map<size_t, HostTensorPtr>& constant_data) {
+                          const std::vector<StaticShape>& input_shapes,
+                          std::vector<StaticShape>& output_shapes,
+                          const std::unordered_map<size_t, ov::Tensor>& constant_data) {
     static std::shared_ptr<CustomShapeInferFF> cusFactory = std::make_shared<CustomShapeInferFF>();
     auto shapeInferFactory = cusFactory->create(op->shared_from_this());
     ASSERT_TRUE(shapeInferFactory != nullptr);
@@ -114,9 +116,9 @@ void cpu_test_shape_infer(ov::Node* op,
                 const void* data = nullptr;
                 ov::element::Type elementType;
                 if (tensorIter != constant_data.end()) {
-                    const auto tensor = tensorIter->second;
-                    data = tensor->get_data_ptr();
-                    elementType = tensor->get_element_type();
+                    const auto& tensor = tensorIter->second;
+                    data = tensor.data();
+                    elementType = tensor.get_element_type();
                 } else {
                     const auto input_op = op->input_value(port).get_node_shared_ptr();
                     const auto const_op = ov::as_type_ptr<const ov::op::v0::Constant>(input_op);

@@ -30,11 +30,10 @@ TEST_F(InterpolateV0StaticShapeInferenceTest, default_ctor_no_attributes) {
     op->set_attrs(attrs);
 
     int32_t out_shape_v[] = {10, 20, 30};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, out_shape_v)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i32, Shape{3}, out_shape_v}}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 2, 20, 128, 128, 30}));
@@ -48,7 +47,7 @@ TEST_F(InterpolateV0StaticShapeInferenceTest, out_shape_as_constant) {
     op = make_op(img, out_shape, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {2}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({5, 100, 128, 100, 128}));
@@ -62,11 +61,10 @@ TEST_F(InterpolateV0StaticShapeInferenceTest, all_inputs_dynamic_rank_use_scales
     op = make_op(img, out_shape, attrs);
 
     int32_t out_shape_v[] = {10, 20, 30};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, out_shape_v)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i32, Shape{3}, out_shape_v}}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({5, 2, 10, 128, 20, 30}));
@@ -80,11 +78,10 @@ TEST_F(InterpolateV0StaticShapeInferenceTest, all_inputs_static_rank_use_sizes) 
     op = make_op(img, out_shape, attrs);
 
     int32_t out_shape_v[] = {10, 20, 30};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, out_shape_v)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i32, Shape{3}, out_shape_v}}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 20, 30, 128, 128, 64}));
@@ -111,12 +108,11 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, default_ctor_no_attributes) {
 
     float scales_v[] = {1.5f, 3.0f, 0.2f};
     int32_t axes_v[] = {2, 0, 5};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::f32, Shape{3}, scales_v)},
-                                        {3, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{2, {element::f32, Shape{3}, scales_v}},
+                                                                   {3, {element::i32, Shape{3}, axes_v}}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({15, 2, 192, 128, 128, 12}));
@@ -132,7 +128,7 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, scales_as_constant) {
     op = make_op(img, sizes, scales, axes, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {1}, {2}, {2}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({5, 4, 128, 89, 128}));
@@ -146,7 +142,7 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, sizes_as_constant) {
     op = make_op(img, sizes, scales, axes, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {2}, {1}, {2}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({5, 5, 128, 10, 128}));
@@ -164,12 +160,11 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, all_inputs_dynamic_rank_use_scales
 
     float scales_v[] = {1.5f, 3.0f, 0.2f};
     int32_t axes_v[] = {2, 0, 5};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::f32, Shape{3}, scales_v)},
-                                        {3, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{2, {element::f32, Shape{3}, scales_v}},
+                                                                   {3, {element::i32, Shape{3}, axes_v}}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({18, 3, 193, 129, 129, 12}));
@@ -186,12 +181,11 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, all_inputs_static_rank_use_sizes) 
 
     int32_t sizes_v[] = {10, 50, 60};
     int32_t axes_v[] = {1, 0, 3};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, sizes_v)},
-                                        {3, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i32, Shape{3}, sizes_v}},
+                                                                   {3, {element::i32, Shape{3}, axes_v}}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({50, 10, 128, 60, 128, 64}));
@@ -218,12 +212,11 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, default_ctor_no_attributes) {
 
     float scales_v[] = {1.5f, 3.0f, 0.2f};
     int32_t axes_v[] = {2, 0, 5};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::f32, Shape{3}, scales_v)},
-                                        {2, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::f32, Shape{3}, scales_v}},
+                                                                   {2, {element::i32, Shape{3}, axes_v}}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({15, 2, 192, 128, 128, 12}));
@@ -238,7 +231,7 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, scales_as_constant) {
     op = make_op(img, scales, axes, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {2}, {2}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({5, 4, 128, 89, 128}));
@@ -251,7 +244,7 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, sizes_as_constant) {
     op = make_op(img, sizes, axes, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {2}, {2}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({5, 5, 128, 10, 128}));
@@ -267,12 +260,11 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, all_inputs_dynamic_rank_use_scale
 
     float scales_v[] = {1.5f, 3.0f, 0.2f};
     int32_t axes_v[] = {2, 0, 5};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::f32, Shape{3}, scales_v)},
-                                        {2, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::f32, Shape{3}, scales_v}},
+                                                                   {2, {element::i32, Shape{3}, axes_v}}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({15, 2, 192, 128, 128, 12}));
@@ -288,12 +280,11 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, all_inputs_static_rank_use_sizes)
 
     int32_t sizes_v[] = {10, 50, 60};
     int32_t axes_v[] = {1, 0, 3};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, sizes_v)},
-                                        {2, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i32, Shape{3}, sizes_v}},
+                                                                   {2, {element::i32, Shape{3}, axes_v}}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({50, 10, 128, 60, 128, 64}));

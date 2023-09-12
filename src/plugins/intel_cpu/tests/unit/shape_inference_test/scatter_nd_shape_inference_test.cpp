@@ -21,7 +21,7 @@ TEST_F(ScatterNDUpdateV3StaticShapeInferenceTest, default_ctor) {
     const auto op = make_op();
 
     input_shapes = ShapeVector{{1000, 256, 10, 13}, {25, 125, 3}, {25, 125, 13}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({1000, 256, 10, 13}));
@@ -35,7 +35,7 @@ TEST_F(ScatterNDUpdateV3StaticShapeInferenceTest, correct_inputs) {
     const auto op = make_op(d, i, u);
 
     input_shapes = ShapeVector{{1000, 256, 10, 15}, {25, 125, 3}, {25, 125, 15}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({1000, 256, 10, 15}));
@@ -49,7 +49,7 @@ TEST_F(ScatterNDUpdateV3StaticShapeInferenceTest, params_are_dynamic_rank) {
     const auto op = make_op(d, i, u);
 
     input_shapes = ShapeVector{{5000, 256, 10, 15}, {30, 25, 3}, {30, 25, 15}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({5000, 256, 10, 15}));

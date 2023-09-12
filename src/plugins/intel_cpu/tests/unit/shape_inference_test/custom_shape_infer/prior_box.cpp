@@ -4,10 +4,11 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include <ngraph/opsets/opset8.hpp>
-#include <vector>
+#include "openvino/opsets/opset8.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -180,12 +181,8 @@ TEST_P(PriorBoxV0CpuShapeInferenceTest , shape_inference_with_const_map) {
     const auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
     auto op = make_op(layer_shape, image_shape, attrs);
 
-    const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
-    const auto image_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[1]);
-    const std::map<size_t, HostTensorPtr> const_data {
-        {0, std::make_shared<HostTensor>(layer_const)},
-            {1, std::make_shared<HostTensor>(image_const)},
-    };
+    const std::unordered_map<size_t, ov::Tensor> const_data{{0, {element::i32, ov::Shape{2}, data[0].data()}},
+                                                            {1, {element::i32, ov::Shape{2}, data[1].data()}}};
 
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
 }
