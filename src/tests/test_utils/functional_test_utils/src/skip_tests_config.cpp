@@ -2,25 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
-#include <fstream>
-
-#include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-namespace FuncTestUtils {
-namespace SkipTestsConfig {
+#include <fstream>
+#include <iostream>
+
+#include "common_test_utils/file_utils.hpp"
+
+namespace ov {
+namespace test {
+namespace utils {
 
 bool disable_tests_skipping = false;
 
-bool currentTestIsDisabled() {
+bool current_test_is_disabled() {
     if (disable_tests_skipping)
         return false;
 
-    const auto fullName = ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()
-                          + std::string(".") + ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    const auto fullName = ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + std::string(".") +
+                          ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
-    for (const auto &pattern : disabledTestPatterns()) {
+    for (const auto& pattern : disabledTestPatterns()) {
         std::regex re(pattern);
         if (std::regex_match(fullName, re))
             return true;
@@ -28,5 +30,7 @@ bool currentTestIsDisabled() {
 
     return false;
 }
-}  // namespace SkipTestsConfig
-}  // namespace FuncTestUtils
+
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
