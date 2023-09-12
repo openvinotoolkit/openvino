@@ -18,7 +18,8 @@ def import_python_modules(directory, subdirectory=""):
             if subdirectory != "":
                 imported_item=subdirectory + "." + imported_item
             print(f"Snippet {item} is executing...")
-            mod = importlib.import_module(imported_item)
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                mod = importlib.import_module(imported_item)
 
             try:
                 with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
