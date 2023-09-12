@@ -110,6 +110,7 @@ OP_CONVERTER(translate_nms);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
 OP_CONVERTER(translate_numel);
+OP_CONVERTER(translate_one_hot);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_or);
@@ -371,6 +372,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::nonzero", op::translate_nonzero},
         {"aten::norm", op::translate_norm},
         {"aten::numel", op::translate_numel},
+        {"aten::one_hot", op::translate_one_hot},
         {"aten::ones", op::translate_ones},
         {"aten::ones_like", op::translate_ones_like},
         {"aten::outer", op::translate_outer},
