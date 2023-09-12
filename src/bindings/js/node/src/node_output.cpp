@@ -56,16 +56,14 @@ Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
     return Napi::String::New(info.Env(), _output.get_any_name());
 }
 
-Napi::Value Output<ov::Node>::set_names(const Napi::CallbackInfo& info) {
+void Output<ov::Node>::set_names(const Napi::CallbackInfo& info) {
     auto names = js_to_cpp<std::unordered_set<std::string>>(info, 0, {js_array});
     _output.set_names(names);
-    return Napi::Value();
 }
 
-Napi::Value Output<ov::Node>::add_names(const Napi::CallbackInfo& info) {
+void Output<ov::Node>::add_names(const Napi::CallbackInfo& info) {
     auto names = js_to_cpp<std::unordered_set<std::string>>(info, 0, {js_array});
     _output.add_names(names);
-    return Napi::Value();
 }
 
 Output<const ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<const ov::Node>>(info) {}
