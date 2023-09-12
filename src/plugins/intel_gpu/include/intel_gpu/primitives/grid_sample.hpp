@@ -10,8 +10,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-
-
 using GridSampleOp = ov::op::v9::GridSample;
 
 /// @brief GridSample-9 primitive.
@@ -19,8 +17,6 @@ struct grid_sample : primitive_base<grid_sample> {
     CLDNN_DECLARE_PRIMITIVE(grid_sample)
 
     grid_sample() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs grid_sample primitive.
     /// @param id This primitive id.
