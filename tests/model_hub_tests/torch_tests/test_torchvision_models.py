@@ -45,6 +45,10 @@ def prepare_frames_for_raft(name, frames1, frames2):
     return (img1_batch, img2_batch)
 
 
+# To make tests reproducible we seed the random generator
+torch.manual_seed(0)
+
+
 class TestTorchHubConvertModel(TestConvertModel):
     def setup_method(self):
         self.cache_dir = tempfile.TemporaryDirectory()
