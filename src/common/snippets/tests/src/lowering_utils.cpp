@@ -6,6 +6,7 @@
 #include "lowering_utils.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/lowered/expression.hpp"
 
 
 namespace ov {
@@ -14,7 +15,7 @@ namespace snippets {
 
 DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&custom_opset) {
     auto dummy_functor = ov::snippets::jitters_value {
-        [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<DummyEmitter>(); },
+        [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
         [](const std::shared_ptr<ov::Node>& n) { return std::set<std::vector<element::Type>>{};}
     };
 

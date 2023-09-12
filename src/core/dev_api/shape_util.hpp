@@ -26,5 +26,11 @@ OPENVINO_API Shape make_dynamic_shape();
  */
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 OPENVINO_API bool is_dynamic_shape(const Shape& s);
+
+OPENVINO_API Shape reduce(const Shape& input, const AxisSet& axes);
+OPENVINO_API Shape reduce(const Shape& input, const AxisSet& axes, const bool keep_dims);
+OPENVINO_API std::vector<size_t> reduce(const std::vector<size_t>& input, const AxisSet& axes);
+
+OPENVINO_API Shape reduce_keep_dims(const Shape& input, const AxisSet& axes);
 }  // namespace util
 }  // namespace ov

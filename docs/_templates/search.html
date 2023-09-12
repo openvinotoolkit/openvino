@@ -1,31 +1,143 @@
 {%- extends "layout.html" %}
 {% set title = _('Search') %}
-{%- block scripts %}
+
+{%- block content %}
+    {# Added to support a banner with an alert #}
+    <div class="container-fluid" id="banner"></div>
+
+    {% block docs_navbar %}
     {{ super() }}
-    <link rel="stylesheet" href="{{ pathto('_static/css/gsearch.css', 1) }}" type="text/css" />
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="{{ pathto('_static/js/gsearch.js', 1) }}"></script>
+    <div id="info-banner" class="transition-banner">
+        <p>OpenVINO 2022.1 has introduced OpenVINO API 2.0. For more information on transition steps from the previous API, see the <a href="https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html">transition guide</a></p>
+        <button type="button" class="close-banner" onclick="closeTransitionBanner()">
+          <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    <script src="{{ pathto('_static/js/hide_banner.js', 1) }}"></script>
+    {% endblock %}
+
+    {% block body %}
+          <atomic-search-interface id="search"
+            fields-to-include='["ovversion", "ovdoctype", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
+            <atomic-search-layout>
+            
+              <atomic-layout-section section="search">
+                <atomic-search-box>
+                  <atomic-search-box-query-suggestions></atomic-search-box-query-suggestions>
+                </atomic-search-box>
+              </atomic-layout-section>
+            
+              <!-- ADDITIONAL FILTERS SECTION-->
+              <atomic-layout-section section="facets">
+                <div class="view-selector-container">
+                  <button id="view-selector-grid" class="view-selector">
+                    <i class="fas fa-th"></i> Grid
+                  </button>
+                  <button id="view-selector-list" class="view-selector">
+                    <i class="fas fa-list"></i> List
+                  </button>
+                </div>
+                <atomic-facet-manager>
+                  <atomic-facet field="ovversion" label="Version" sort-criteria="alphanumericDescending"></atomic-facet>
+                  <!-- <atomic-facet field="ovdoctype" label="Document type"></atomic-facet> -->
+                  <!-- <atomic-facet field="language" label="Language"></atomic-facet> -->
+                </atomic-facet-manager>
+              </atomic-layout-section>
+            
+              <atomic-layout-section section="main">
+              
+                <atomic-layout-section section="status">
+                  <!-- RESULTS SUMMARY SECTION -->
+                  <atomic-breadbox></atomic-breadbox>
+                  <atomic-query-summary></atomic-query-summary>
+                  <atomic-refine-toggle></atomic-refine-toggle>
+                
+                  <!-- SORT SECTION -->
+                  <atomic-sort-dropdown>
+                    <atomic-sort-expression label="relevance" expression="relevancy"></atomic-sort-expression>
+                    <atomic-sort-expression label="most-recent" expression="date descending"></atomic-sort-expression>
+                  </atomic-sort-dropdown>
+                
+                  <atomic-did-you-mean></atomic-did-you-mean>
+                  <atomic-notifications></atomic-notifications>
+                
+                </atomic-layout-section>
+              
+                <atomic-layout-section section="results">
+                
+                  <atomic-result-list id="atomic-result-list" display="grid">
+                  
+                    <atomic-result-template>
+                      <template>
+                        <!-- RESULT TOP BADGES SECTION -->
+                        <atomic-result-section-badges>
+                          <atomic-result-badge>
+                            <atomic-result-multi-value-text field="ovversion"></atomic-result-multi-value-text>
+                          </atomic-result-badge>
+                        
+                          <atomic-result-badge
+                            icon="https://raw.githubusercontent.com/Rush/Font-Awesome-SVG-PNG/master/black/svg/language.svg">
+                            <atomic-result-multi-value-text field="language"></atomic-result-multi-value-text>
+                          </atomic-result-badge>
+                        
+                          <atomic-field-condition must-match-is-recommendation="true">
+                            <atomic-result-badge label="Recommended"></atomic-result-badge>
+                          </atomic-field-condition>
+                        
+                          <atomic-field-condition must-match-is-top-result="true">
+                            <atomic-result-badge label="Top Result"></atomic-result-badge>
+                          </atomic-field-condition>
+                        </atomic-result-section-badges>
+                      
+                        <!-- RESULT ICON SECTION -->
+                        <atomic-result-section-visual>
+                          <atomic-icon class="icon" icon="assets://gform.svg"></atomic-result-icon>
+                          <!-- EXAMPLE OF CHANGING ICON -->
+                          <!-- <atomic-field-condition must-match-ovversion="2021.4">
+                            <atomic-icon class="icon" icon="assets://gsheet.svg"></atomic-icon>
+                          </atomic-field-condition>
+                          <atomic-field-condition must-match-ovversion="2022.2">
+                            <atomic-icon class="icon" icon="assets://html.svg"></atomic-icon>
+                          </atomic-field-condition>
+                          <atomic-field-condition must-not-match-ovversion="2022.2, 2021.4">
+                            <atomic-icon class="icon" icon="assets://gform.svg"></atomic-icon>
+                          </atomic-field-condition> -->
+                        </atomic-result-section-visual>
+                      
+                        <atomic-result-section-title>
+                          <atomic-result-link target="_blank"></atomic-result-link>
+                        </atomic-result-section-title>
+                      
+                        <atomic-result-section-excerpt>
+                          <atomic-result-text field="excerpt"></atomic-result-text>
+                        </atomic-result-section-excerpt>
+                      
+                        <atomic-result-section-bottom-metadata>
+                          <atomic-field-condition class="field" if-defined="description">
+                            <atomic-result-text field="description"></atomic-result-text>
+                          </atomic-field-condition>
+                        </atomic-result-section-bottom-metadata>
+                      </template>
+                    </atomic-result-template>
+                  
+                  </atomic-result-list>
+                
+                  <atomic-query-error></atomic-query-error>
+                  <atomic-no-results></atomic-no-results>
+                
+                </atomic-layout-section>
+              
+                <atomic-layout-section section="pagination">
+                  <atomic-load-more-results></atomic-load-more-results>
+                </atomic-layout-section>
+              
+              </atomic-layout-section>
+            </atomic-search-layout>
+          </atomic-search-interface>
+    {% endblock %}
+
+  {%- block scripts_end %}
+  {{ _webpack.body_post() }}
+  {%- endblock %}
+
 {%- endblock %}
-{% block body %}
-  <h1 id="search-documentation">{{ _('Search') }}</h1>
-  <p id="searchinfo">
-    Search Results...
-  </p>
-  <div id="gs-tabs-area"></div>
-  {% block scriptwarning %}
-  <div id="fallback" class="admonition warning">
-  <script>$('#fallback').hide();</script>
-  </div>
-  {% endblock %}
-  {% block searchbox %}
-  <form class="searchForm" action="" method="get">
-    <input id="searchfield" type="text" name="query" aria-labelledby="search-documentation" value="" />
-    <input type="submit" value="{{ _('search') }}" />
-    <span id="search-progress" style="padding-left: 10px"></span>
-  </form>
-  {% endblock %}
-  {% block searchresults %}
-  <div id="gs-tabs-area"></div>
-  <div id="searchresults"></div>
-  {% endblock %}
-{% endblock %}
