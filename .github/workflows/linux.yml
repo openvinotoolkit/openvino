@@ -538,8 +538,8 @@ jobs:
 
       - name: Create Directories
         run: |
-          su - ${{ env.TEST_USER_NAME }} -c "mkdir -p ${{ env.INSTALL_DIR }}"
-          su - ${{ env.TEST_USER_NAME }} -c "mkdir -p ${{ env.INSTALL_TEST_DIR }}"
+          mkdir -p ${{ env.INSTALL_DIR }} && chown ${{ env.TEST_USER_NAME }} ${{ env.INSTALL_DIR }}
+          mkdir -p ${{ env.INSTALL_TEST_DIR }} && chown ${{ env.TEST_USER_NAME }} ${{ env.INSTALL_TEST_DIR }}
 
       - name: Install git
         run: |
@@ -851,7 +851,6 @@ jobs:
         with:
           name: test-results-functional-cpu
           path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
             ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
