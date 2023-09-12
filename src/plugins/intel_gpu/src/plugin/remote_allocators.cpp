@@ -2,67 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
 #include "intel_gpu/plugin/remote_allocators.hpp"
-#include "intel_gpu/plugin/remote_blob.hpp"
-
-using namespace InferenceEngine;
-using namespace InferenceEngine::gpu;
-using namespace InferenceEngine::details;
+#include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include <memory>
 
 namespace ov {
 namespace intel_gpu {
 
-void RemoteAllocator::regLockedBlob(void* handle, const RemoteBlobImpl* blob) {
-    std::lock_guard<RemoteAllocator> locker(*this);
-    auto iter = m_lockedBlobs.find(handle);
-    if (iter == m_lockedBlobs.end()) {
-        m_lockedBlobs.emplace(handle, blob);
-    }
-}
-
-void RemoteAllocator::unlock(void* handle) noexcept {
-    std::lock_guard<RemoteAllocator> locker(*this);
-    auto iter = m_lockedBlobs.find(handle);
-    if (iter != m_lockedBlobs.end()) {
-        iter->second->unlock();
-        m_lockedBlobs.erase(iter);
-    }
-}
-
-void* USMHostAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
-    if (!_usm_host_blob)
-        return nullptr;
+void* USMHostAllocator::allocate(const size_t bytes, const size_t /* alignment */) noexcept {
     try {
-        return _usm_host_blob->get();
-    } catch (...) {
-        return nullptr;
-    }
-};
-
-void USMHostAllocator::unlock(void* handle) noexcept {}
-
-void* USMHostAllocator::alloc(size_t size) noexcept {
-    try {
-        auto td = TensorDesc(Precision::U8, SizeVector{size}, InferenceEngine::Layout::C);
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
-        _usm_host_blob = std::dynamic_pointer_cast<USMBlob>(_context->CreateBlob(td, params));
-        _usm_host_blob->allocate();
-        if (!getBlobImpl(_usm_host_blob.get())->is_allocated()) {
-            return nullptr;
+        ov::AnyMap params = { ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_HOST_BUFFER) };
+        _usm_host_tensor = _context->create_tensor(ov::element::u8, {bytes}, params);
+        if (auto casted = std::dynamic_pointer_cast<RemoteTensorImpl>(_usm_host_tensor._ptr)) {
+            return casted->get_original_memory()->get_internal_params().mem;
         }
-        return _usm_host_blob->get();
-    } catch (...) {
+        return nullptr;
+    } catch (std::exception&) {
         return nullptr;
     }
 }
 
-bool USMHostAllocator::free(void* handle) noexcept {
+bool USMHostAllocator::deallocate(void* /* handle */, const size_t /* bytes */, size_t /* alignment */) noexcept {
     try {
-        _usm_host_blob = nullptr;
-    } catch(...) { }
+        _usm_host_tensor = {nullptr, nullptr};
+    } catch (std::exception&) { }
     return true;
 }
 
+bool USMHostAllocator::is_equal(const USMHostAllocator& other) const {
+    return other._usm_host_tensor != nullptr && _usm_host_tensor != nullptr && other._usm_host_tensor._ptr == _usm_host_tensor._ptr;
+}
 }  // namespace intel_gpu
 }  // namespace ov
