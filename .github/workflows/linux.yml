@@ -50,6 +50,7 @@ jobs:
 
   Build:
     needs: Smart_CI
+    if: fromJSON(needs.Smart_CI.outputs.affected_components).CI != 'all'
     defaults:
       run:
         shell: bash
