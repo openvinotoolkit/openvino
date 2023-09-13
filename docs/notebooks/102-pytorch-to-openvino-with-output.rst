@@ -29,37 +29,37 @@ but elevated to the design space level. The RegNet design space provides
 simple and fast networks that work well across a wide range of flop
 regimes.
 
-**Table of content:**
+**Table of contents:**
 
--  `Prerequisites <#prerequisites>`__
--  `Load PyTorch Model <#load-pytorch-model>`__
+- `Prerequisites <#prerequisites>`__
+- `Load PyTorch Model <#load-pytorch-model>`__
 
-   -  `Prepare Input Data <#prepare-input-data>`__
-   -  `Run PyTorch Model Inference <#run-pytorch-model-inference>`__
-   -  `Benchmark PyTorch Model Inference <#benchmark-pytorch-model-inference>`__
+  - `Prepare Input Data <#prepare-input-data>`__
+  - `Run PyTorch Model Inference <#run-pytorch-model-inference>`__
+  - `Benchmark PyTorch Model Inference <#benchmark-pytorch-model-inference>`__
 
--  `Convert PyTorch Model to OpenVINO Intermediate Representation <#convert-pytorch-model-to-openvino-intermediate-representation>`__
+- `Convert PyTorch Model to OpenVINO Intermediate Representation <#convert-pytorch-model-to-openvino-intermediate-representation>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Run OpenVINO Model Inference <#run-openvino-model-inference>`__
-   -  `Benchmark OpenVINO Model Inference <#benchmark-openvino-model-inference>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Run OpenVINO Model Inference <#run-openvino-model-inference>`__
+  - `Benchmark OpenVINO Model Inference <#benchmark-openvino-model-inference>`__
 
--  `Convert PyTorch Model with Static Input Shape <#convert-pytorch-model-with-static-input-shape>`__
+- `Convert PyTorch Model with Static Input Shape <#convert-pytorch-model-with-static-input-shape>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Run OpenVINO Model Inference with Static Input Shape <#run-openvino-model-inference-with-static-input-shape>`__
-   -  `Benchmark OpenVINO Model Inference with Static Input Shape <#benchmark-openvino-model-inference-with-static-input-shape>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Run OpenVINO Model Inference with Static Input Shape <#run-openvino-model-inference-with-static-input-shape>`__
+  - `Benchmark OpenVINO Model Inference with Static Input Shape <#benchmark-openvino-model-inference-with-static-input-shape>`__
 
--  `Convert TorchScript Model to OpenVINO Intermediate Representation <#convert-torchscript-model-to-openvino-intermediate-representation>`__
+- `Convert TorchScript Model to OpenVINO Intermediate Representation <#convert-torchscript-model-to-openvino-intermediate-representation>`__
 
-   -  `Scripted Model <#scripted-model>`__
-   -  `Benchmark Scripted Model Inference <#benchmark-scripted-model-inference>`__
-   -  `Convert PyTorch Scripted Model to OpenVINO Intermediate Representation <#convert-pytorch-scripted-model-to-openvino-intermediate-representation>`__
-   -  `Benchmark OpenVINO Model Inference Converted From Scripted Model <#benchmark-openvino-model-inference-converted-from-scripted-model>`__
-   -  `Traced Model <#traced-model>`__
-   -  `Benchmark Traced Model Inference <#benchmark-traced-model-inference>`__
-   -  `Convert PyTorch Traced Model to OpenVINO Intermediate Representation <#convert-pytorch-traced-model-to-openvino-intermediate-representation>`__
-   -  `Benchmark OpenVINO Model Inference Converted From Traced Model <#benchmark-openvino-model-inference-converted-from-traced-model>`__
+  - `Scripted Model <#scripted-model>`__
+  - `Benchmark Scripted Model Inference <#benchmark-scripted-model-inference>`__
+  - `Convert PyTorch Scripted Model to OpenVINO Intermediate Representation <#convert-pytorch-scripted-model-to-openvino-intermediate-representation>`__
+  - `Benchmark OpenVINO Model Inference Converted From Scripted Model <#benchmark-openvino-model-inference-converted-from-scripted-model>`__
+  - `Traced Model <#traced-model>`__
+  - `Benchmark Traced Model Inference <#benchmark-traced-model-inference>`__
+  - `Convert PyTorch Traced Model to OpenVINO Intermediate Representation <#convert-pytorch-traced-model-to-openvino-intermediate-representation>`__
+  - `Benchmark OpenVINO Model Inference Converted From Traced Model <#benchmark-openvino-model-inference-converted-from-traced-model>`__
 
 Prerequisites
 ###############################################################################################################################
@@ -230,11 +230,13 @@ model conversion API should be used for these purposes. More details
 regarding PyTorch model conversion can be found in OpenVINO
 `documentation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
 
-   **Note**: Please, take into account that direct support PyTorch
+.. note::
+
+   Please, take into account that direct support PyTorch
    models conversion is an experimental feature. Model coverage will be
    increased in the next releases. For cases, when PyTorch model
    conversion failed, you still can try to export the model to ONNX
-   format. Please refer to this
+   format. Please, refer to this
    `tutorial <102-pytorch-to-openvino-with-output.html>`__
    which explains how to convert PyTorch model to ONNX, then to OpenVINO
 
@@ -307,7 +309,7 @@ More details can be found on this
 Select inference device
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -434,7 +436,7 @@ reshaping example please check the following
 Select inference device
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

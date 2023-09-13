@@ -48,7 +48,7 @@ and has the following differences:
 
 The steps for the quantization with accuracy control are described below.
 
-**Table of content:**
+**Table of contents:**
 
 - `Imports <#imports>`__
 - `Prepare the Model <#prepare-the-model>`__

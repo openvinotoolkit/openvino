@@ -23,26 +23,26 @@ IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image.
 
-**Table of content:**
+**Table of contents:**
 
--  `Prerequisites <#prerequisites>`__
--  `Imports <#imports>`__
--  `Settings <#settings>`__
--  `Download Model from TensorFlow Hub <#download-model-from-tensorflow-hub>`__
--  `Convert Model to OpenVINO IR <#convert-model-to-openvino-ir>`__
--  `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
--  `Select inference device <#select-inference-device>`__
+- `Prerequisites <#prerequisites>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Download Model from TensorFlow Hub <#download-model-from-tensorflow-hub>`__
+- `Convert Model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+- `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
+- `Select inference device <#select-inference-device>`__
 
-   -  `Load the Model <#load-the-model>`__
-   -  `Get Model Information <#get-model-information>`__
-   -  `Get an Image for Test Inference <#get-an-image-for-test-inference>`__
-   -  `Perform Inference <#perform-inference>`__
-   -  `Inference Result Visualization <#inference-result-visualization>`__
+  - `Load the Model <#load-the-model>`__
+  - `Get Model Information <#get-model-information>`__
+  - `Get an Image for Test Inference <#get-an-image-for-test-inference>`__
+  - `Perform Inference <#perform-inference>`__
+  - `Inference Result Visualization <#inference-result-visualization>`__
 
--  `Next Steps <#next-steps>`__
+- `Next Steps <#next-steps>`__
 
-   -  `Async inference pipeline <#async-inference-pipeline>`__
-   -  `Integration preprocessing to model <#integration-preprocessing-to-model>`__
+  - `Async inference pipeline <#async-inference-pipeline>`__
+  - `Integration preprocessing to model <#integration-preprocessing-to-model>`__
 
 Prerequisites
 ###############################################################################################################################

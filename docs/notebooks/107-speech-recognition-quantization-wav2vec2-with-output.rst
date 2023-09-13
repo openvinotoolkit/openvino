@@ -20,7 +20,7 @@ steps:
    models.
 -  Compare performance of the original and quantized models.
 
-**Table of content:**
+**Table of contents:**
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__

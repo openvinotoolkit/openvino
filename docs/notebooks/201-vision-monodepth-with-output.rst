@@ -28,29 +28,29 @@ Transfer,” <https://ieeexplore.ieee.org/document/9178977>`__ in IEEE
 Transactions on Pattern Analysis and Machine Intelligence, doi:
 ``10.1109/TPAMI.2020.3019967``.
 
-**Table of content:**
+**Table of contents:**
 
--  `Preparation <#preparation>`__
+- `Preparation <#preparation>`__
 
-   -  `Install requirements <#install-requirements>`__
-   -  `Imports <#imports>`__
-   -  `Download the model <#download-the-model>`__
+  - `Install requirements <#install-requirements>`__
+  - `Imports <#imports>`__
+  - `Download the model <#download-the-model>`__
 
--  `Functions <#functions>`__
--  `Select inference device <#select-inference-device>`__
--  `Load the Model <#load-the-Model>`__
--  `Monodepth on Image <#monodepth-on-Image>`__
+- `Functions <#functions>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-Model>`__
+- `Monodepth on Image <#monodepth-on-Image>`__
 
-   -  `Load, resize and reshape input image <#load,-resize-and-reshape-input-image>`__
-   -  `Do inference on the image <#do-inference-on-the-image>`__
-   -  `Display monodepth image <#display-monodepth-image>`__
+  - `Load, resize and reshape input image <#load,-resize-and-reshape-input-image>`__
+  - `Do inference on the image <#do-inference-on-the-image>`__
+  - `Display monodepth image <#display-monodepth-image>`__
 
--  `Monodepth on Video <#monodepth-on-video>`__
+- `Monodepth on Video <#monodepth-on-video>`__
 
-   -  `Video Settings <#video-settings>`__
-   -  `Load the Video <#load-the-Video>`__
-   -  `Do Inference on a Video and Create Monodepth Video <#do-inference-on-a-video-and-create-monodepth-video>`__
-   -  `Display Monodepth Video <#display-monodepth-video>`__
+  - `Video Settings <#video-settings>`__
+  - `Load the Video <#load-the-Video>`__
+  - `Do Inference on a Video and Create Monodepth Video <#do-inference-on-a-video-and-create-monodepth-video>`__
+  - `Display Monodepth Video <#display-monodepth-video>`__
 
 Preparation
 ###############################################################################################################################

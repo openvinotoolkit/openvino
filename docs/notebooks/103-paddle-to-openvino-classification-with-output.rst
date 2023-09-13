@@ -14,20 +14,20 @@ IR model.
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
 
-**Table of content:**
+**Table of contents:**
 
--  `Preparation <#preparation>`__
+- `Preparation <#preparation>`__
 
-   -  `Imports <#imports>`__
-   -  `Settings <#settings>`__
+  - `Imports <#imports>`__
+  - `Settings <#settings>`__
 
--  `Show Inference on PaddlePaddle Model <#show-inference-on-paddlepaddle-model>`__
--  `Convert the Model to OpenVINO IR Format <#convert-the-model-to-openvino-ir-format>`__
--  `Select inference device <#select-inference-device>`__
--  `Show Inference on OpenVINO Model <#show-inference-on-openvino-model>`__
--  `Timing and Comparison <#timing-and-comparison>`__
--  `Select inference device <#select-inference-device>`__
--  `References <#references>`__
+- `Show Inference on PaddlePaddle Model <#show-inference-on-paddlepaddle-model>`__
+- `Convert the Model to OpenVINO IR Format <#convert-the-model-to-openvino-ir-format>`__
+- `Select inference device <#select-inference-device>`__
+- `Show Inference on OpenVINO Model <#show-inference-on-openvino-model>`__
+- `Timing and Comparison <#timing-and-comparison>`__
+- `Select inference device <#select-inference-device>`__
+- `References <#references>`__
 
 Preparation
 ###############################################################################################################################
@@ -274,7 +274,7 @@ for more information about the Model Conversion API.
 Select inference device
 ###############################################################################################################################
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

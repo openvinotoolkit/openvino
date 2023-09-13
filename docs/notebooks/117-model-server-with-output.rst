@@ -31,7 +31,7 @@ deployment:
 
 |ovms_diagram| 
 
-**Table of content:**
+**Table of contents:**
 
 - `Serving with OpenVINO Model Server <#serving-with-openvino-model-server>`__ 
 - `Step 1: Prepare Docker <#step-1-prepare-docker>`__ 

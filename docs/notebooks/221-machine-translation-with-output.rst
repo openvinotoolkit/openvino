@@ -16,7 +16,7 @@ following structure: ``<s>`` + *tokenized sentence* + ``<s>`` +
 **Output** After the inference, we have a sequence of up to 200 tokens.
 The structure is the same as the one for the input.
 
-**Table of content:**
+**Table of contents:**
 
 - `Downloading model <#downloading-model>`__ 
 - `Load and configure the model <#load-and-configure-the-model>`__ 

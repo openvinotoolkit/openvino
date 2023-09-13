@@ -41,17 +41,17 @@ It consists of the following steps:
    Optimum <https://huggingface.co/blog/openvino>`__.
 -  Create an inference pipeline for grammatical error checking
 
-**Table of content:**
+**Table of contents:**
 
--  `How does it work? <#how-does-it-work?>`__
--  `Prerequisites <#prerequisites>`__
--  `Download and Convert Models <#download-and-convert-models>`__
+- `How does it work? <#how-does-it-work?>`__
+- `Prerequisites <#prerequisites>`__
+- `Download and Convert Models <#download-and-convert-models>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Grammar Checker <#grammar-checker>`__
-   -  `Grammar Corrector <#grammar-corrector>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Grammar Checker <#grammar-checker>`__
+  - `Grammar Corrector <#grammar-corrector>`__
 
--  `Prepare Demo Pipeline <#prepare-demo-pipeline>`__
+- `Prepare Demo Pipeline <#prepare-demo-pipeline>`__
 
 How does it work?
 ###############################################################################################################################

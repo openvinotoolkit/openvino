@@ -11,28 +11,28 @@ device is busy with inference, the application can perform other tasks
 in parallel (for example, populating inputs or scheduling other
 requests) rather than wait for the current inference to complete first.
 
-**Table of content:**
+**Table of contents:**
 
--  `Imports <#imports>`__
--  `Prepare model and data processing <#prepare-model-and-data-processing>`__
+- `Imports <#imports>`__
+- `Prepare model and data processing <#prepare-model-and-data-processing>`__
 
-   -  `Download test model <#download-test-model>`__
-   -  `Load the model <#load-the-model>`__
-   -  `Create functions for data processing <#create-functions-for-data-processing>`__
-   -  `Get the test video <#get-the-test-video>`__
+  - `Download test model <#download-test-model>`__
+  - `Load the model <#load-the-model>`__
+  - `Create functions for data processing <#create-functions-for-data-processing>`__
+  - `Get the test video <#get-the-test-video>`__
 
--  `How to improve the throughput of video processing <#how-to-improve-the-throughput-of-video-processing>`__
+- `How to improve the throughput of video processing <#how-to-improve-the-throughput-of-video-processing>`__
 
-   -  `Sync Mode (default) <#sync-mode-default>`__
-   -  `Test performance in Sync Mode <#test-performance-in-sync-mode>`__
-   -  `Async Mode <#Async-Mode>`__
-   -  `Test the performance in Async Mode <#test-the-performance-in-async-mode>`__
-   -  `Compare the performance <#compare-the-performance>`__
+  - `Sync Mode (default) <#sync-mode-default>`__
+  - `Test performance in Sync Mode <#test-performance-in-sync-mode>`__
+  - `Async Mode <#Async-Mode>`__
+  - `Test the performance in Async Mode <#test-the-performance-in-async-mode>`__
+  - `Compare the performance <#compare-the-performance>`__
 
--  `AsyncInferQueue <asyncinferqueue>`__
+- `AsyncInferQueue <asyncinferqueue>`__
 
-   -  `Setting Callback <#setting-callback>`__
-   -  `Test the performance with AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
+  - `Setting Callback <#setting-callback>`__
+  - `Test the performance with AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
 
 Imports
 ###############################################################################################################################

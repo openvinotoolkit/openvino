@@ -19,30 +19,30 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. For more
 information, refer to the
 `104-model-tools <104-model-tools-with-output.html>`__ tutorial.
 
-**Table of content:**
+**Table of contents:**
 
--  `Imports <#imports>`__
--  `Settings <#settings>`__
--  `Download Models <#download-models>`__
--  `Convert Models <#convert-models>`__
--  `Select inference device <#select-inference-device>`__
--  `Object Detection <#object-detection>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Download Models <#download-models>`__
+- `Convert Models <#convert-models>`__
+- `Select inference device <#select-inference-device>`__
+- `Object Detection <#object-detection>`__
 
-   -  `Load a Detection Model <#load-a-detection-model>`__
-   -  `Load an Image <#load-an-image>`__
-   -  `Do Inference <#do-inference>`__
-   -  `Get Detection Results <#get-detection-results>`__
+  - `Load a Detection Model <#load-a-detection-model>`__
+  - `Load an Image <#load-an-image>`__
+  - `Do Inference <#do-inference>`__
+  - `Get Detection Results <#get-detection-results>`__
 
--  `Text Recognition <#text-recognition>`__
+- `Text Recognition <#text-recognition>`__
 
-   -  `Load Text Recognition Model <#load-text-recognition-model>`__
-   -  `Do Inference <#do-inference>`__
+  - `Load Text Recognition Model <#load-text-recognition-model>`__
+  - `Do Inference <#do-inference>`__
 
--  `Show Results <#show-results>`__
+- `Show Results <#show-results>`__
 
-   -  `Show Detected Text Boxes and OCR Results for the Image <#show-detected-text-boxes-and-ocr-results-for-the-image>`__
-   -  `Show the OCR Result per Bounding Box <#show-the-ocr-result-per-bounding-box>`__
-   -  `Print Annotations in Plain Text Format <#print-annotations-in-plain-text-format>`__
+  - `Show Detected Text Boxes and OCR Results for the Image <#show-detected-text-boxes-and-ocr-results-for-the-image>`__
+  - `Show the OCR Result per Bounding Box <#show-the-ocr-result-per-bounding-box>`__
+  - `Print Annotations in Plain Text Format <#print-annotations-in-plain-text-format>`__
 
 .. code:: ipython3
 

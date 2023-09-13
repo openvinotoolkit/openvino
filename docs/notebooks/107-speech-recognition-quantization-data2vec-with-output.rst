@@ -19,7 +19,7 @@ steps:
 -  Compare performance of the original and quantized models.
 -  Compare Accuracy of the Original and Quantized Models.
 
-**Table of content:**
+**Table of contents:**
 
 - `Download and prepare model <#download-and-prepare-model>`__
 

@@ -1,25 +1,25 @@
 Deblur Photos with DeblurGAN-v2 and OpenVINO™
 =============================================
 
-**Table of content:**
+**Table of contents:**
 
--  `What is deblurring? <#what-is-deblurring?>`__
--  `Preparations <#preparations>`__
+- `What is deblurring? <#what-is-deblurring?>`__
+- `Preparations <#preparations>`__
 
-   -  `Imports <#imports>`__
-   -  `Settings <#settings>`__
-   -  `Select inference device <#select-inference-device>`__
-   -  `Download DeblurGAN-v2 Model <#download-deblurgan-v2-model>`__
-   -  `Prepare model <#prepare-model>`__
-   -  `Convert DeblurGAN-v2 Model to OpenVINO IR format <#convert-deblurgan-v2-model-to-openvino-ir-format>`__
+  - `Imports <#imports>`__
+  - `Settings <#settings>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Download DeblurGAN-v2 Model <#download-deblurgan-v2-model>`__
+  - `Prepare model <#prepare-model>`__
+  - `Convert DeblurGAN-v2 Model to OpenVINO IR format <#convert-deblurgan-v2-model-to-openvino-ir-format>`__
 
--  `Load the Model <#load-the-model>`__
--  `Deblur Image <#deblur-image>`__
+- `Load the Model <#load-the-model>`__
+- `Deblur Image <#deblur-image>`__
 
-   -  `Load, resize and reshape input image <#load,-resize-and-reshape-input-image>`__
-   -  `Do Inference on the Input Image <#do-inference-on-the-input-image>`__
-   -  `Display results <#display-results>`__
-   -  `Save the deblurred image <#save-the-deblurred-image>`__
+  - `Load, resize and reshape input image <#load,-resize-and-reshape-input-image>`__
+  - `Do Inference on the Input Image <#do-inference-on-the-input-image>`__
+  - `Display results <#display-results>`__
+  - `Save the deblurred image <#save-the-deblurred-image>`__
 
 This tutorial demonstrates Single Image Motion Deblurring with
 DeblurGAN-v2 in OpenVINO, by first converting the

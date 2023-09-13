@@ -6,21 +6,21 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__, convert it
 to OpenVINO™ IR format, show information about the model, and benchmark
 the model.
 
-**Table of content:**
+**Table of contents:**
 
--  `OpenVINO and Open Model Zoo Tools <#openvino-and-open-model-zoo-tools>`__
--  `Preparation <#preparation>`__
+- `OpenVINO and Open Model Zoo Tools <#openvino-and-open-model-zoo-tools>`__
+- `Preparation <#preparation>`__
 
-   -  `Model Name <#model-name>`__
-   -  `Imports <#imports>`__
-   -  `Settings and Configuration <#settings-and-configuration>`__
+  - `Model Name <#model-name>`__
+  - `Imports <#imports>`__
+  - `Settings and Configuration <#settings-and-configuration>`__
 
--  `Download a Model from Open Model Zoo <#download-a-model-from-open-model-zoo>`__
--  `Convert a Model to OpenVINO IR format <#convert-a-model-to-openvino-ir-format>`__
--  `Get Model Information <#get-model-information>`__
--  `Run Benchmark Tool <#run-benchmark-tool>`__
+- `Download a Model from Open Model Zoo <#download-a-model-from-open-model-zoo>`__
+- `Convert a Model to OpenVINO IR format <#convert-a-model-to-openvino-ir-format>`__
+- `Get Model Information <#get-model-information>`__
+- `Run Benchmark Tool <#run-benchmark-tool>`__
 
-   -  `Benchmark with Different Settings <#benchmark-with-different-settings>`__
+  - `Benchmark with Different Settings <#benchmark-with-different-settings>`__
 
 OpenVINO and Open Model Zoo Tools 
 ###############################################################################################################################
@@ -418,7 +418,9 @@ In the next cell, define the ``benchmark_model()`` function that calls
 ``benchmark_app``. This makes it easy to try different combinations. In
 the cell below that, you display available devices on the system.
 
-   **Note**: In this notebook, ``benchmark_app`` runs for 15 seconds to
+.. note::
+    
+   In this notebook, ``benchmark_app`` runs for 15 seconds to
    give a quick indication of performance. For more accurate
    performance, it is recommended to run inference for at least one
    minute by setting the ``t`` parameter to 60 or higher, and run

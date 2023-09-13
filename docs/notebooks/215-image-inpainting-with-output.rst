@@ -9,18 +9,18 @@ given a tampered image, is able to create something very similar to the
 original image. The Following pipeline will be used in this notebook.
 |pipeline|
 
-**Table of content:**
+**Table of contents:**
 
--  `Download the Model <#download-the-model>`__
--  `Convert Tensorflow model to OpenVINO IR format <#convert-tensorflow-model-to-openvino-ir-format>`__
--  `Load the model <#load-the-model>`__
--  `Determine the input shapes of the model <#determine-the-input-shapes-of-the-model>`__
--  `Create a square mask <#create-a-square-mask>`__
--  `Load and Resize the Image <#load-and-resize-the-image>`__
--  `Generating the Masked Image <#generating-the-masked-image>`__
--  `Preprocessing <#preprocessing>`__
--  `Inference <#inference>`__
--  `Save the Restored Image <#save-the-restored-image>`__
+- `Download the Model <#download-the-model>`__
+- `Convert Tensorflow model to OpenVINO IR format <#convert-tensorflow-model-to-openvino-ir-format>`__
+- `Load the model <#load-the-model>`__
+- `Determine the input shapes of the model <#determine-the-input-shapes-of-the-model>`__
+- `Create a square mask <#create-a-square-mask>`__
+- `Load and Resize the Image <#load-and-resize-the-image>`__
+- `Generating the Masked Image <#generating-the-masked-image>`__
+- `Preprocessing <#preprocessing>`__
+- `Inference <#inference>`__
+- `Save the Restored Image <#save-the-restored-image>`__
 
 .. |pipeline| image:: https://user-images.githubusercontent.com/4547501/165792473-ba784c0d-0a37-409f-a5f6-bb1849c1d140.png
 

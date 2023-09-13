@@ -21,19 +21,19 @@ and datasets. It consists of the following steps:
 - Load and test quantized model.
 - Compare the performance of the original, converted and quantized models.
 
-**Table of content:**
+**Table of contents:**
 
--  `Imports <#imports>`__
--  `Settings <#settings>`__
--  `Prepare the Model <#prepare-the-model>`__
--  `Prepare the Dataset <#prepare-the-dataset>`__
--  `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
--  `Load and Test OpenVINO Model <#load-and-test-openvino-model>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Prepare the Model <#prepare-the-model>`__
+- `Prepare the Dataset <#prepare-the-dataset>`__
+- `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
+- `Load and Test OpenVINO Model <#load-and-test-openvino-model>`__
 
-   -  `Select inference device <#select-inference-device>`__
+  - `Select inference device <#select-inference-device>`__
 
--  `Compare F1-score of FP32 and INT8 models <#compare-f1-score-of-fp32-and-int8-models>`__
--  `Compare Performance of the Original, Converted and Quantized Models <#compare-performance-of-the-original-converted-and-quantized-models>`__
+- `Compare F1-score of FP32 and INT8 models <#compare-f1-score-of-fp32-and-int8-models>`__
+- `Compare Performance of the Original, Converted and Quantized Models <#compare-performance-of-the-original-converted-and-quantized-models>`__
 
 .. code:: ipython3
 
@@ -590,7 +590,9 @@ Finally, measure the inference performance of OpenVINO ``FP32`` and
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 in OpenVINO.
 
-   **Note**: The ``benchmark_app`` tool is able to measure the
+.. note::
+
+   The ``benchmark_app`` tool is able to measure the
    performance of the OpenVINO Intermediate Representation (OpenVINO IR)
    models only. For more accurate performance, run ``benchmark_app`` in
    a terminal/command prompt after closing other applications. Run

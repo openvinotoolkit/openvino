@@ -23,34 +23,33 @@ The tutorial consists from the following parts:
 6. Run model inference demo
 7. Compare performance FP32 and INT8 models
 
-**Table of content:**
+**Table of contents:**
 
--  `Preparation <#Preparation>`__
+- `Preparation <#Preparation>`__
 
-   -  `Download the YOLOv5 model <#download-the-yolov5-model>`__
-   -  `Conversion of the YOLOv5 model to OpenVINO <#conversion-of-the-yolov5-model-to-openvino>`__
-   -  `Imports <#imports>`__
+  - `Download the YOLOv5 model <#download-the-yolov5-model>`__
+  - `Conversion of the YOLOv5 model to OpenVINO <#conversion-of-the-yolov5-model-to-openvino>`__
+  - `Imports <#imports>`__
 
--  `Prepare dataset for
-   quantization <#prepare-dataset-for-quantization>`__
+- `Prepare dataset for quantization <#prepare-dataset-for-quantization>`__
 
-   -  `Create YOLOv5 DataLoader class for POT <#create-yolov5-dataloader-class-for-pot>`__
-   -  `Create NNCF Dataset <#create-nncf-dataset>`__
+  - `Create YOLOv5 DataLoader class for POT <#create-yolov5-dataloader-class-for-pot>`__
+  - `Create NNCF Dataset <#create-nncf-dataset>`__
 
--  `Configure quantization pipeline <#configure-quantization-pipeline>`__
+- `Configure quantization pipeline <#configure-quantization-pipeline>`__
 
-   -  `Prepare config and pipeline for POT <#prepare-config-and-pipeline-for-pot>`__
-   -  `Prepare configuration parameters for NNCF <#prepare-configuration-parameters-for-nncf>`__
+  - `Prepare config and pipeline for POT <#prepare-config-and-pipeline-for-pot>`__
+  - `Prepare configuration parameters for NNCF <#prepare-configuration-parameters-for-nncf>`__
 
--  `Perform model optimization <#perform-model-optimization>`__
+- `Perform model optimization <#perform-model-optimization>`__
 
-   -  `Run quantization using POT <#run-quantization-using-pot>`__
-   -  `Run quantization using NNCF <#run-quantization-using-nncf>`__
+  - `Run quantization using POT <#run-quantization-using-pot>`__
+  - `Run quantization using NNCF <#run-quantization-using-nncf>`__
 
--  `Compare accuracy FP32 and INT8 models <#compare-accuracy-fp32-and-int8-models>`__
--  `Inference Demo Performance Comparison <#inference-demo-performance-comparison>`__
--  `Benchmark <#benchmark>`__
--  `References <#references>`__
+- `Compare accuracy FP32 and INT8 models <#compare-accuracy-fp32-and-int8-models>`__
+- `Inference Demo Performance Comparison <#inference-demo-performance-comparison>`__
+- `Benchmark <#benchmark>`__
+- `References <#references>`__
 
 Preparation
 ###############################################################################################################################

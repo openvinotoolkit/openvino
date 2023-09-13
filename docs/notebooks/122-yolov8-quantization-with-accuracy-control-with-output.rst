@@ -30,9 +30,9 @@ and has the following differences:
    the Basic 8-bit quantization flow because some of the operations are
    kept in the original precision.
 
-..
+..note::
 
-   **NOTE**: Currently, 8-bit quantization with accuracy control in NNCF
+   Currently, 8-bit quantization with accuracy control in NNCF
    is available only for models in OpenVINO representation.
 
 The steps for the quantization with accuracy control are described
@@ -40,13 +40,13 @@ below.
 
 The tutorial consists of the following steps:
 
--  `Prerequisites <#prerequisites>`__
--  `Get Pytorch model and OpenVINO IR model <#get-pytorch-model-and-openvino-ir-model>`__
--  `Define validator and data loader <#define-validator-and-data-loader>`__
--  `Prepare calibration and validation datasets <#prepare-calibration-and-validation-datasets>`__
--  `Prepare validation function <#prepare-validation-function>`__
--  `Run quantization with accuracy control <#run-quantization-with-accuracy-control>`__
--  `Compare Accuracy and Performance of the Original and Quantized Models <#compare-accuracy-and-performance-of-the-original-and-quantized-models>`__
+- `Prerequisites <#prerequisites>`__
+- `Get Pytorch model and OpenVINO IR model <#get-pytorch-model-and-openvino-ir-model>`__
+- `Define validator and data loader <#define-validator-and-data-loader>`__
+- `Prepare calibration and validation datasets <#prepare-calibration-and-validation-datasets>`__
+- `Prepare validation function <#prepare-validation-function>`__
+- `Run quantization with accuracy control <#run-quantization-with-accuracy-control>`__
+- `Compare Accuracy and Performance of the Original and Quantized Models <#compare-accuracy-and-performance-of-the-original-and-quantized-models>`__
 
 Prerequisites 
 ###############################################################################################################################

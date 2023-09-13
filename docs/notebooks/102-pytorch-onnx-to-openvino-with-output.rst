@@ -33,7 +33,7 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
-**Table of content:**
+**Table of contents:**
 
 - `Preparation <#preparation>`__
 
@@ -52,9 +52,9 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
   - `Load the OpenVINO IR Network and Run Inference on the ONNX model <#load-the-openvino-ir-network-and-run-inference-on-the-onnx-model>`__
 
     - `1. ONNX Model in OpenVINO Runtime <#1-onnx-model-in-openvino-runtime>`__
-    - `Select inference device <#select-inference-device>`__
+    - `Select an inference device <#select-an-inference-device>`__
     - `2. OpenVINO IR Model in OpenVINO Runtime <#2-openvino-ir-model-in-openvino-runtime>`__
-    - `Select inference device <#select-inference-device>`__
+    - `Select the inference device <#select-the-inference-device>`__
 
 - `PyTorch Comparison <#pytorch-comparison>`__
 - `Performance Comparison <#performance-comparison>`__
@@ -284,10 +284,10 @@ on an image.
     # Read model to OpenVINO Runtime
     model_onnx = core.read_model(model=onnx_path)
 
-Select inference device
+Select an inference device
 ...................................................................................
 
-select device from dropdown list for running inference using OpenVINO
+Select a device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -369,10 +369,10 @@ be applied to each label for more convenient visualization.
 2. OpenVINO IR Model in OpenVINO Runtime
 ------------------------------------------------------------------------------------------------------
 
-Select inference device
+Select the inference device
 .....................................................................................
 
-select device from dropdown list for running inference using OpenVINO
+Select a device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

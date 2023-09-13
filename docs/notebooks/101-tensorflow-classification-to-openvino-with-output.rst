@@ -8,7 +8,7 @@ image classification model to OpenVINO `Intermediate Representation <https://doc
 After creating the OpenVINO IR, load the model in `OpenVINO Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image.
 
-**Table of content:**
+**Table of contents:**
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__
@@ -27,7 +27,7 @@ and do inference with a sample image.
   - `Load an Image <#load-an-image>`__
   - `Do Inference <#do-inference>`__
 
--  `Timing <#timing>`__
+- `Timing <#timing>`__
 
 .. code:: ipython3
 

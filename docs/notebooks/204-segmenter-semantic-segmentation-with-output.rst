@@ -26,7 +26,7 @@ paper: `Segmenter: Transformer for Semantic
 Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
 `repository <https://github.com/rstrudel/segmenter>`__. 
 
-**Table of content:**
+**Table of contents:**
 
 - `Get and prepare PyTorch model <#get-and-prepare-pytorch-model>`__ 
   

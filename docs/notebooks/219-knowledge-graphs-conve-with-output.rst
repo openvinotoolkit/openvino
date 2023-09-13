@@ -16,7 +16,7 @@ Knowledge Graph Embeddings” (https://arxiv.org/abs/1707.01476). The
 sample dataset can be downloaded from:
 https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
 
-**Table of content:**
+**Table of contents:**
 
 - `Windows specific settings <#windows-specific-settings>`__ 
 - `Import the packages needed for successful execution <#import-the-packages-needed-for-successful-execution>`__
