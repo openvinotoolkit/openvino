@@ -22,11 +22,6 @@
    openvino_docs_transformations
    OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural-network models trained with various frameworks, including
 TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle (OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently 
