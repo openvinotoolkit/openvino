@@ -65,7 +65,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
 
     INPUT0_TYPE in[INPUT_BLOCK_WIDTH * FSV_PER_THREAD];
     FILTER_TYPE w[FSV_PER_THREAD];
-    ACCUMULATOR_TYPE out[OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD] = { ACCUMULATOR_VAL_ZERO };
+    ACCUMULATION_TYPE out[OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD] = { ACCUMULATION_VAL_ZERO };
 
     // Calculate offset to first input data element
     const uint in_pitch_x = FSV;
@@ -133,7 +133,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
                                 ifii % SUB_GROUP_SIZE);
 
                             const uint out_idx = out_x * FSV_PER_THREAD + out_f;
-                            out[out_idx] = mad(TO_ACCUMULATOR_TYPE(in_val), TO_ACCUMULATOR_TYPE(w[out_f]), out[out_idx]);
+                            out[out_idx] += TO_ACCUMULATION_TYPE(in_val * w[out_f]);
                         }
                     }
 
@@ -164,13 +164,13 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
             const uint bias_index = (fs * FSV + out_f * SUB_GROUP_SIZE + sglid) * OUTPUT_SIZE_X * OUTPUT_SIZE_Y +
                                     or * OUTPUT_SIZE_X +
                                     (oc + out_x);
-            out[out_x * FSV_PER_THREAD + out_f] += TO_ACCUMULATOR_TYPE(biases[bias_index]);
+            out[out_x * FSV_PER_THREAD + out_f] += TO_ACCUMULATION_TYPE(biases[bias_index]);
         }
 #   else // BIAS_PER_OUTPUT
         const uint bias_index = fs * FSV;
         BIAS_TYPE2 bias_read = DT_BIAS_BLOCK_READ2(biases, bias_index);
-        out[out_x * FSV_PER_THREAD + 0] += TO_ACCUMULATOR_TYPE(bias_read.s0);
-        out[out_x * FSV_PER_THREAD + 1] += TO_ACCUMULATOR_TYPE(bias_read.s1);
+        out[out_x * FSV_PER_THREAD + 0] += TO_ACCUMULATION_TYPE(bias_read.s0);
+        out[out_x * FSV_PER_THREAD + 1] += TO_ACCUMULATION_TYPE(bias_read.s1);
 #   endif // BIAS_PER_OUTPUT
     }
 #endif // BIAS_TERM

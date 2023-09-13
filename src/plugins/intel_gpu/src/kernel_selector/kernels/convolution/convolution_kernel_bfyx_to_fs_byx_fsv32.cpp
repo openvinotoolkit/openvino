@@ -108,6 +108,7 @@ bool ConvolutionKernel_bfyx_to_fs_byx_fsv32::Validate(const Params& p, const opt
 JitConstants ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetJitConstants(const convolution_params& params,
                                                                      const DispatchData& dispatchData) const {
     auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
+    jit.Merge(MakeTypeJitConstants(GetAccumulationType(params), "ACCUMULATION"));
 
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", dispatchData.cldnnStyle.blockHeight));

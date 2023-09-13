@@ -155,6 +155,7 @@ JitConstants ConvolutionKernel_fs_byx_fsv32::GetJitConstants(const convolution_p
     auto activation_type = GetAccumulatorType(params);
 
     jit.Merge(MakeTypeJitConstants(accumulator_type, "ACCUMULATOR"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulationType(params), "ACCUMULATION"));
     jit.Merge(MakeTypeJitConstants(activation_type, "ACTIVATION"));
     jit.AddConstant(MakeJitConstant("INPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));

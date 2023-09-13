@@ -44,7 +44,7 @@ KERNEL(kernel_name)(
     const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
 #endif
 
-    ACCUMULATOR_TYPE dotProd = (ACCUMULATOR_TYPE)0;
+    ACCUMULATION_TYPE dotProd = TO_ACCUMULATION_TYPE(0);
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 #if  OUTPUT_DIMS > 4

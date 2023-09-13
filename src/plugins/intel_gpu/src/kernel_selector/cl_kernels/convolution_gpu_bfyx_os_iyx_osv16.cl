@@ -87,7 +87,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     const uint feature_num = feature_idx; // feature index for fused operations
 #endif
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
-    UNIT_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
+    ACCUMULATION_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
     UNIT_TYPE w[PREFETCH];
     uint in_addr;
     uint weight_addr = fmg * FILTER_IFM_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * OSV_SIZE + lid;
@@ -97,7 +97,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 #endif
 
     for(int i = 0; i < (OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT); i++) {
-        out[i] = UNIT_VAL_ZERO;
+        out[i] = ACCUMULATION_VAL_ZERO;
     }
 
     uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
@@ -180,7 +180,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                         UNIT_TYPE val = _sub_group_shuffle( in[br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y], bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X);
 #endif
 
-                        out[br * OUTPUT_BLOCK_WIDTH + bc] = mad(w[wi % PREFETCH], val, out[br * OUTPUT_BLOCK_WIDTH + bc]);
+                        out[br * OUTPUT_BLOCK_WIDTH + bc] += TO_ACCUMULATION_TYPE(w[wi % PREFETCH] * val);
                     }
                 }
                 w[wi % PREFETCH] = weights[weight_addr];

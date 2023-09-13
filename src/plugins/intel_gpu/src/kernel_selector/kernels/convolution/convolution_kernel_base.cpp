@@ -462,4 +462,10 @@ Datatype ConvolutionKernelBase::GetAccumulatorType(const convolution_params& par
     return params.inputs[0].GetDType();
 }
 
+Datatype ConvolutionKernelBase::GetAccumulationType(const convolution_params& params) const {
+    auto accumulator_dt = GetAccumulatorType(params);
+    // WA: f16 accumulation occurs an accuracy problem.
+    return (accumulator_dt == Datatype::F16) ? Datatype::F32 : accumulator_dt;
+}
+
 }  // namespace kernel_selector

@@ -56,18 +56,13 @@ KernelsData ConvolutionKernel_Ref::GetKernelsData(const Params& params, const op
 JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     JitConstants jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
-    Datatype accumulator_dt;
-    Datatype activation_dt;
-    if (params.quantization != QuantizationType::NONE) {
-        accumulator_dt = Datatype::INT32;
-        activation_dt = Datatype::F32;
-    } else {
-        accumulator_dt = GetAccumulatorType(params);
-        activation_dt = GetActivationType(params);
-    }
+    Datatype accumulation_dt = GetAccumulationType(params);
+    Datatype accumulator_dt = GetAccumulatorType(params);
+    Datatype activation_dt = GetActivationType(params);
 
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
+    jit.Merge(MakeTypeJitConstants(accumulation_dt, "ACCUMULATION"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
     if (!params.fused_ops.empty()) {

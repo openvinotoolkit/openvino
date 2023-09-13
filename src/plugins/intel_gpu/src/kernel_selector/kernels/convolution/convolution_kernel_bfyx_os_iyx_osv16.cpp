@@ -219,6 +219,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     size_t leftovers = of_threads_per_batch - of_maps_per_group;
 
     auto jit = Parent::GetJitConstants(params, dispatchData);
+    jit.Merge(MakeTypeJitConstants(GetAccumulationType(params), "ACCUMULATION"));
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);

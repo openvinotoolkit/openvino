@@ -83,11 +83,11 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
 
     UNIT_TYPE in[INPUT_BLOCK_HEIGHT * INPUT_BLOCK_WIDTH_EL_CNT];
     UNIT_TYPE w[FSV_PER_THREAD];
-    UNIT_TYPE out[OUTPUT_BLOCK_HEIGHT * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD];
+    ACCUMULATION_TYPE out[OUTPUT_BLOCK_HEIGHT * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD];
 
     for (uint out_i = 0; out_i < OUTPUT_BLOCK_HEIGHT * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD; ++out_i)
     {
-        out[out_i] = UNIT_VAL_ZERO;
+        out[out_i] = ACCUMULATION_VAL_ZERO;
     }
 
     uint input_offset = oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X;
@@ -172,7 +172,7 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
 
 
                             const uint out_idx = out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + out_f;
-                            out[out_idx] = mad(in_val, w[out_f], out[out_idx]);
+                            out[out_idx] += TO_ACCUMULATION_TYPE(in_val * w[out_f]);
                         }
                     }
                 }
@@ -202,13 +202,13 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
                                         (or + out_y) * OUTPUT_SIZE_X +
                                         (oc + out_x);
                 out[out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + out_f]
-                    += biases[bias_index];
+                    += TO_ACCUMULATION_TYPE(biases[bias_index]);
             }
 #   else
             const uint bias_index = fs * FSV;
             UNIT_TYPE2 bias_read = UNIT_BLOCK_READ2(biases, bias_index);
-            out[out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + 0] += bias_read.s0;
-            out[out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + 1] += bias_read.s1;
+            out[out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + 0] += TO_ACCUMULATION_TYPE(bias_read.s0);
+            out[out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + 1] += TO_ACCUMULATION_TYPE(bias_read.s1);
 #   endif
 
         }
