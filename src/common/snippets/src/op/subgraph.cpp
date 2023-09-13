@@ -716,7 +716,18 @@ snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::Positione
     const auto ptr = lowering_result.binary_code;
 
 
-    VectorDims work_domain = linear_ir.get_master_shape();
+//    VectorDims work_domain = linear_ir.get_master_shape();
+    VectorDims work_domain{1};
+    for (const auto& expr : linear_ir.get_IO_ops()) {
+        if (expr->get_type() == snippets::lowered::IOExpression::io_type::OUTPUT) {
+            const auto& shape = utils::get_planar_vdims(expr->get_input_port_descriptor(0));
+            OPENVINO_ASSERT(std::none_of(shape.begin(), shape.end(),
+                                         [](size_t d) {return d == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION; }),
+                            "Failed to calculate work_domain for dynamic shapes");
+            OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(work_domain, shape),
+                            "Failed to merge input shapes into work_domain");
+        }
+    }
     const size_t loop_depth = linear_ir.get_config().m_loop_depth;
     for (size_t i = 0; i < loop_depth; i++)
         work_domain[work_domain.size() - 1 - i] = 1;

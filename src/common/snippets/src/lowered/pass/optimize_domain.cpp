@@ -96,11 +96,11 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
                                                    master_shape.end(),
                                                    (size_t)1,
                                                    std::multiplies<size_t>());
-    const bool some_dims_collapsed = optimize(input_shapes,
-                                              master_shape,
-                                              total_work_amount,
-                                              config.m_min_parallel_work_amount,
-                                              config.m_min_jit_work_amount);
+    const bool some_dims_collapsed = false;//optimize(input_shapes,
+                                           //   master_shape,
+                                           //   total_work_amount,
+                                           //   config.m_min_parallel_work_amount,
+                                           //   config.m_min_jit_work_amount);
     if (some_dims_collapsed) {
         std::vector<VectorDimsRef> infer_shapes;
         infer_shapes.reserve(input_shapes.size());
