@@ -132,6 +132,7 @@ jobs:
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
+          append-timestamp: false
           key: linux-ubuntu-${{ github.ref_name == 'master' && github.sha || github.ref_name }}
           restore-keys: |
             linux-ubuntu
