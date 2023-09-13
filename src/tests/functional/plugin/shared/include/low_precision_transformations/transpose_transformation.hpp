@@ -16,7 +16,7 @@ class TransposeTransformationTestValues {
 public:
     ngraph::PartialShape inputShape;
     std::vector<int> transposeConstValues;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::element::Type precisionBeforeFq;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
 };

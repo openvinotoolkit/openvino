@@ -70,7 +70,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
     dequantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(d2s, precisionAfterOperation);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(d2s, precisionAfterOperation);
 
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "DepthToSpaceTransformation");
     return function;

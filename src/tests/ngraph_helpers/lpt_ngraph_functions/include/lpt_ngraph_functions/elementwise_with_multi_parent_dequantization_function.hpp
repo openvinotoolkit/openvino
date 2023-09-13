@@ -58,7 +58,7 @@ public:
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const ov::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::element::Type& precision1,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
         const ngraph::element::Type& precision2,
