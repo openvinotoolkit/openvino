@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/fake_quantize.hpp>
+#include "low_precision/fake_quantize.hpp"
 #include <map>
 #include <memory>
 #include <string>
@@ -67,7 +67,7 @@ public:
 
         const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(testValues.updatePrecision);
 
-        std::shared_ptr<ngraph::Node> dataSource;
+        std::shared_ptr<ov::Node> dataSource;
         std::shared_ptr<ov::op::v0::Parameter> parameter;
         bool useParameterAsDataSource = (testValues.actual.constValues.size() == 0);
 
@@ -86,9 +86,9 @@ public:
             ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(dataSource,
                                                                    element::f32,
                                                                    testValues.actual.fakeQuantize);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
                                                                         testValues.actual.fqOutPrecision);
-        fq = ngraph::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
+        fq = ov::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
                                                                             testValues.roundValues);
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
         actualFunction = std::make_shared<ov::Model>(

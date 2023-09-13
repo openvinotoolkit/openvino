@@ -1,6 +1,6 @@
 # AddTransformation transformation {#openvino_docs_OV_UG_lpt_AddTransformation}
 
-ngraph::pass::low_precision::AddTransformation class represents the `Add` operation transformation.
+ov::pass::low_precision::AddTransformation class represents the `Add` operation transformation.
 
 The transformation propagates dequantization subtraction from one input branch to another and propagates dequantization multiplication from the same branch through `Add` operation. In transformation result, one `Add` operation input branch is in low precision without dequantization operations (empty branch), another input branch is in original precision with updated dequantization operations (full branch).
 

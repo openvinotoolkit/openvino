@@ -9,7 +9,7 @@
 
 #include "ngraph_functions/subgraph_builders.hpp"
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace ngraph {
 namespace builder {

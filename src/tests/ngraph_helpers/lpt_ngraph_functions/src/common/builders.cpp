@@ -16,7 +16,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 std::shared_ptr<Node> makeDequantization(
     const Output<Node>& data,
@@ -98,7 +98,7 @@ std::shared_ptr<Node> makeDequantization(
                     ov::op::TemporaryReplaceOutputType(parent, element::f32).get());
             }
 
-            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
+            ov::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
         }
 
         NetworkHelper::copyInfo({ data.get_node_shared_ptr(), subtract }, subtract);
