@@ -50,7 +50,6 @@ jobs:
 
   Build:
     needs: Smart_CI
-    if: "!fromJSON(needs.Smart_CI.outputs.affected_components).CI"
     defaults:
       run:
         shell: bash
@@ -72,11 +71,17 @@ jobs:
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
+      SAMPLES_AFFECTED: fromJSON(needs.Smart_CI.outputs.affected_components).samples
     steps:
       - name: This step will be executed only if CI component was changed
-        if: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).CI }} == "all"
+        if: fromJSON(needs.Smart_CI.outputs.affected_components).CI
         run: |
           echo "CI component was changed"
+
+      - name: This step will be executed only if CI component was NOT changed
+        if: "!fromJSON(needs.Smart_CI.outputs.affected_components).CI"
+        run: |
+          echo "CI component was NOT changed"
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -233,12 +238,15 @@ jobs:
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: CMake Samples Tests
+        if: ${{ env.SAMPLES_AFFECTED }} == "all" # only if both build and tests are expected. Rename to "test"?
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/samples_tests -B ${{ env.BUILD_DIR }}/samples_tests
 
       - name: Build Samples Tests
+        if: ${{ env.SAMPLES_AFFECTED }} == "all"
         run: cmake --build ${{ env.BUILD_DIR }}/samples_tests --config Release
 
       - name: Install Samples Tests
+        if: ${{ env.SAMPLES_AFFECTED }} == "all"
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/samples_tests/cmake_install.cmake
 
       - name: Pack Artifacts
@@ -252,9 +260,11 @@ jobs:
           popd
 
       - name: Build cpp samples
+        if: ${{ env.SAMPLES_AFFECTED }} # runs anyways, if either build or tests are expected
         run: ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
 
       - name: Build c samples
+        if: ${{ env.SAMPLES_AFFECTED }}
         run: ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
 
       #
@@ -262,6 +272,7 @@ jobs:
       #
 
       - name: Samples tests
+        if: ${{ env.SAMPLES_AFFECTED }} == "all"
         run: |
           python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
           export LD_LIBRARY_PATH=${{ env.IE_APP_PATH }}:$LD_LIBRARY_PATH
@@ -305,7 +316,7 @@ jobs:
           if-no-files-found: 'error'
 
   CXX_Unit_Tests:
-    needs: Build
+    needs: [Build, Smart_CI]
     defaults:
       run:
         shell: bash
@@ -434,12 +445,14 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
+        if:
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
+        if: fromJSON(needs.Smart_CI.outputs.affected_components).CPU
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 \
@@ -507,7 +520,7 @@ jobs:
 
   Python_Unit_Tests:
     needs: [Build, Smart_CI]
-    if: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).Python_API }}
+    if: fromJSON(needs.Smart_CI.outputs.affected_components).Python_API
     defaults:
       run:
         shell: bash
