@@ -128,44 +128,32 @@ namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node,
-                                           const precisions_map& precisions) {
-    auto convert = ov::as_type_ptr<ov::opset10::Convert>(node);
-    if (!convert)
-        return false;
-
-    // For "Parameter->Convert" , set supported precision to convert's input tensor to avoid introducing unsupported
-    // precision into dnnl level.
-    auto parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(convert->input_value(0).get_node_shared_ptr());
-    if (parameter_node) {
-        const auto& prec = node->get_input_element_type(0);
-        auto item = precisions.find(prec);
-        if (item != precisions.end()) {
-            convert->input_value(0).get_tensor().set_element_type(item->second);
-        }
-    }
-
+bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
     const auto& from = node->get_output_element_type(0);
     auto it = precisions.find(from);
     if (it == precisions.end())
         return false;
     const auto& to = it->second;
-    // For Convert node, converting precision from floating point to boolean will lead to mathematical
-    // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
-    // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
-    // Convert node for this scenario.
-    if (convert->input(0).get_element_type().is_real() &&
-        convert->get_convert_element_type() == ngraph::element::boolean && to.is_integral_number()) {
-        auto abs = std::make_shared<ov::opset10::Abs>(convert->input_value(0).get_node_shared_ptr());
-        auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
-        auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
-        new_convert->set_friendly_name(convert->get_friendly_name());
-        ov::copy_runtime_info(convert, {abs, ceil, new_convert});
-        ov::replace_node(convert, new_convert);
-    } else {
-        convert->set_convert_element_type(to);
+    if (auto convert = ov::as_type_ptr<ov::opset10::Convert>(node)) {
+        // For Convert node, converting precision from floating point to boolean will lead to mathematical
+        // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
+        // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
+        // Convert node for this scenario.
+        if (convert->input(0).get_element_type().is_real() &&
+            convert->get_convert_element_type() == ngraph::element::boolean && to.is_integral_number()) {
+            auto abs = std::make_shared<ov::opset10::Abs>(convert->input_value(0).get_node_shared_ptr());
+            auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
+            auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
+            new_convert->set_friendly_name(convert->get_friendly_name());
+            ov::copy_runtime_info(convert, {abs, ceil, new_convert});
+            ov::replace_node(convert, new_convert);
+            return true;
+        } else {
+            convert->set_convert_element_type(to);
+            return true;
+        }
     }
-    return true;
+    return false;
 }
 
 void Transformations::UpToLpt() {
@@ -197,25 +185,6 @@ void Transformations::CpuSpecificOpSet(void) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Specific);
 
     ConvertToCPUSpecificOpset(model);
-}
-
-precisions_map Transformations::get_convert_precisions() {
-    precisions_map map = {{ov::element::i64, ov::element::i32},
-                          {ov::element::u64, ov::element::i32},
-                          {ov::element::i16, ov::element::i32},
-                          {ov::element::u16, ov::element::i32},
-                          {ov::element::u32, ov::element::i32},
-                          {ov::element::f64, ov::element::f32},
-                          {ov::element::f16, ov::element::f32},
-                          {ov::element::boolean, ov::element::u8},
-                          {ov::element::i4, ov::element::i8},
-                          {ov::element::u4, ov::element::u8}};
-
-    // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-        map.insert({ov::element::bf16, ov::element::f32});
-
-    return map;
 }
 
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
@@ -265,6 +234,23 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         }, ov::pass::MarkDequantizationSubgraph);
     }
 
+    auto get_convert_precisions = []() {
+        precisions_map map = {{ov::element::i64, ov::element::i32},
+                              {ov::element::u64, ov::element::i32},
+                              {ov::element::i16, ov::element::i32},
+                              {ov::element::u16, ov::element::i32},
+                              {ov::element::u32, ov::element::i32},
+                              {ov::element::f64, ov::element::f32},
+                              {ov::element::f16, ov::element::f32},
+                              {ov::element::boolean, ov::element::u8},
+                              {ov::element::i4, ov::element::i8},
+                              {ov::element::u4, ov::element::u8}};
+        // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+            map.insert({ov::element::bf16, ov::element::f32});
+
+        return map;
+    };
     static const auto precisions = get_convert_precisions();
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 

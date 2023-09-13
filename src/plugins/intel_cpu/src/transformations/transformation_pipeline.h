@@ -58,8 +58,6 @@ private:
 
     void PostSnippets(void);
 
-    static precisions_map get_convert_precisions();
-
     static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 };
 
