@@ -72,32 +72,27 @@ and the sequence is passed back into the model.
 
 **Table of content:**
 
--  `Model Selection <#Model-Selection>`__
--  `Load Model <#Load-Model>`__
--  `Convert Pytorch Model to OpenVINO
-   IR <#Convert-Pytorch-Model-to-OpenVINO-IR>`__
+-  `Model Selection <#model-selection>`__
+-  `Load Model <#load-model>`__
+-  `Convert Pytorch Model to OpenVINO IR <#convert-pytorch-model-to-openvino-ir>`__
 
-   -  `Load the model <#Load-the-model>`__
+   -  `Load the model <#load-the-model>`__
 
-      -  `Select inference device <#Select-inference-device>`__
+      -  `Select inference device <#select-inference-device>`__
 
--  `Pre-Processing <#Pre-Processing>`__
--  `Define tokenization <#Define-tokenization>`__
+-  `Pre-Processing <#pre-processing>`__
+-  `Define tokenization <#define-tokenization>`__
 
-   -  `Define Softmax layer <#Define-Softmax-layer>`__
-   -  `Set the minimum sequence
-      length <#Set-the-minimum-sequence-length>`__
-   -  `Top-K sampling <#Top-K-sampling>`__
-   -  `Main Processing Function <#Main-Processing-Function>`__
+   -  `Define Softmax layer <#define-softmax-layer>`__
+   -  `Set the minimum sequence length <#set-the-minimum-sequence-length>`__
+   -  `Top-K sampling <#Top-k-sampling>`__
+   -  `Main Processing Function <#main-processing-function>`__
 
--  `Inference with
-   GPT-Neo/GPT-2 <#Inference-with-GPT-Neo/GPT-2>`__
--  `Conversation with PersonaGPT using
-   OpenVINO™ <#Conversation-with-PersonaGPT-using-OpenVINO>`__
--  `Converse Function <#Converse-Function>`__
--  `Conversation Class <#Conversation-Class>`__
--  `Conversation with
-   PersonaGPT <#Conversation-with-PersonaGPT>`__
+-  `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neo/gpt-2>`__
+-  `Conversation with PersonaGPT using OpenVINO™ <#conversation-with-personagpt-using-openvino>`__
+-  `Converse Function <#converse-function>`__
+-  `Conversation Class <#conversation-class>`__
+-  `Conversation with PersonaGPT <#conversation-with-personagpt>`__
 
 Model Selection
 ###############################################################################################################################

@@ -50,14 +50,14 @@ The steps for the quantization with accuracy control are described below.
 
 **Table of content:**
 
-- `Imports <#1>`__ 
-- `Prepare the Model <#2>`__ 
-- `Prepare LibriSpeech Dataset <#3>`__ 
-- `Prepare calibration and validation datasets <#4>`__ 
-- `Prepare validation function <#5>`__ 
-- `Run quantization with accuracy control <#6>`__ 
-- `Model Usage Example <#7>`__ 
-- `Compare Performance of the Original and Quantized Models <#8>`__
+- `Imports <#imports>`__
+- `Prepare the Model <#prepare-the-model>`__
+- `Prepare LibriSpeech Dataset <#prepare-librispeech-dataset>`__
+- `Prepare calibration and validation datasets <#prepare-calibration-and-validation-datasets>`__
+- `Prepare validation function <#prepare-validation-function>`__
+- `Run quantization with accuracy control <#run-quantization-with-accuracy-control>`__
+- `Model Usage Example <#model-usage-example>`__
+- `Compare Accuracy of the Original and Quantized Models <#compare-accuracy-of-the-original-and-quantized-models>`__
 
 .. code:: ipython3
 
@@ -252,7 +252,7 @@ The steps for the quantization with accuracy control are described below.
     Successfully installed Deprecated-1.2.14 about-time-4.2.1 alive-progress-3.1.4 cma-3.2.2 grapheme-0.6.0 nncf-2.5.0.dev0+90a1e860 pymoo-0.6.0.1
 
 
-Imports `⇑ <#0>`__
+Imports 
 ###############################################################################################################################
 
 .. code:: ipython3
@@ -271,7 +271,7 @@ Imports `⇑ <#0>`__
     2023-09-08 23:07:39.789011: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Prepare the Model `⇑ <#0>`__ 
+Prepare the Model  
 ###############################################################################################################################
 
 For instantiating PyTorch model class,
@@ -336,7 +336,7 @@ Convert it to the OpenVINO Intermediate Representation (OpenVINO IR)
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
 
 
-Prepare LibriSpeech Dataset `⇑ <#0>`__
+Prepare LibriSpeech Dataset 
 ###############################################################################################################################
 
 For demonstration purposes, we will use short dummy version of
@@ -365,7 +365,7 @@ dataset.
     # apply preprocessing function to dataset and remove audio column, to save memory as we do not need it anymore
     dataset = dataset.map(map_to_input, batched=False, remove_columns=["audio"])
 
-Prepare calibration dataset `⇑ <#0>`__
+Prepare calibration dataset 
 ###############################################################################################################################
 
 .. code:: ipython3
@@ -384,7 +384,7 @@ Prepare calibration dataset `⇑ <#0>`__
     
     calibration_dataset = nncf.Dataset(dataset, transform_fn)
 
-Prepare validation function `⇑ <#0>`__ 
+Prepare validation function  
 ###############################################################################################################################
 
 Define the validation function.
@@ -414,7 +414,7 @@ Define the validation function.
     
         return 1 - result
 
-Run quantization with accuracy control `⇑ <#0>`__ 
+Run quantization with accuracy control  
 ###############################################################################################################################
 
 You should provide
@@ -1866,7 +1866,7 @@ we use the value 25 to speed up the execution.
     	__module.wav2vec2.feature_extractor.conv_layers.1.conv/aten::_convolution/Convolution_10
 
 
-Model Usage Example `⇑ <#0>`__
+Model Usage Example 
 ###############################################################################################################################
 
 .. code:: ipython3
@@ -1916,7 +1916,7 @@ Next, make a prediction.
 
 
 
-Compare Accuracy of the Original and Quantized Models `⇑ <#0>`__
+Compare Accuracy of the Original and Quantized Models 
 ###############################################################################################################################
 
 -  Define dataloader for test dataset.

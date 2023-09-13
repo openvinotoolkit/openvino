@@ -18,24 +18,24 @@ https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
 
 **Table of content:**
 
-- `Windows specific settings <#Windows-specific-settings>`__ 
-- `Import the packages needed for successful execution <#Import-the-packages-needed-for-successful-execution>`__
+- `Windows specific settings <#windows-specific-settings>`__ 
+- `Import the packages needed for successful execution <#import-the-packages-needed-for-successful-execution>`__
 
-  - `Settings: Including path to the serialized model files and input data files <#Settings:-Including-path-to-the-serialized-model-files-and-input-data-files>`__
-  - `Download Model Checkpoint <#Download-Model-Checkpoint>`__ 
-  - `Defining the ConvE model class <#Defining-the-ConvE-model-class>`__ 
-  - `Defining the dataloader <#Defining-the-dataloader>`__ 
-  - `Evaluate the trained ConvE model <#Evaluate-the-trained-ConvE-model>`__ 
-  - `Prediction on the Knowledge graph. <#Prediction-on-the-Knowledge-graph.>`__
-  - `Convert the trained PyTorch model to ONNX format for OpenVINO inference <#Convert-the-trained-PyTorch-model-to-ONNX-format-for-OpenVINO-inference>`__
-  - `Evaluate the model performance with OpenVINO <#Evaluate-the-model-performance-with-OpenVINO>`__ 
+  - `Settings: Including path to the serialized model files and input data files <#settings:-including-path-to-the-serialized-model-files-and-input-data-files>`__
+  - `Download Model Checkpoint <#download-model-checkpoint>`__ 
+  - `Defining the ConvE model class <#defining-the-conve-model-class>`__ 
+  - `Defining the dataloader <#defining-the-dataloader>`__ 
+  - `Evaluate the trained ConvE model <#evaluate-the-trained-conve-model>`__ 
+  - `Prediction on the Knowledge graph. <#prediction-on-the-knowledge-graph.>`__
+  - `Convert the trained PyTorch model to ONNX format for OpenVINO inference <#convert-the-trained-pytorch-model-to-onnx-format-for-openvino-inference>`__
+  - `Evaluate the model performance with OpenVINO <#evaluate-the-model-performance-with-openVINO>`__ 
 
-- `Select inference device <#Select-inference-device>`__ 
+- `Select inference device <#select-inference-device>`__ 
 
-  - `Determine the platform specific speedup obtained through OpenVINO graph optimizations <#Determine-the-platform-specific-speedup-obtained-through-OpenVINO-graph-optimizations>`__
-  - `Benchmark the converted OpenVINO model using benchmark app <#Benchmark-the-converted-OpenVINO-model-using-benchmark-app>`__
-  - `Conclusions <#Conclusions>`__ 
-  - `References <#References>`__
+  - `Determine the platform specific speedup obtained through OpenVINO graph optimizations <#determine-the-platform-specific-speedup-obtained-through-openvino-graph-optimizations>`__
+  - `Benchmark the converted OpenVINO model using benchmark app <#benchmark-the-converted-openvino-model-using-benchmark-app>`__
+  - `Conclusions <#conclusions>`__ 
+  - `References <#references>`__
 
 Windows specific settings
 ###############################################################################################################################

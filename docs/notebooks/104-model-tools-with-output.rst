@@ -8,20 +8,19 @@ the model.
 
 **Table of content:**
 
--  `OpenVINO and Open Model Zoo Tools <#OpenVINO-and-Open-Model-Zoo-Tools>`__
--  `Preparation <#Preparation>`__
+-  `OpenVINO and Open Model Zoo Tools <#openvino-and-open-model-zoo-tools>`__
+-  `Preparation <#preparation>`__
 
-   -  `Model Name <#Model-Name>`__
-   -  `Imports <#Imports>`__
-   -  `Settings and Configuration <#Settings-and-Configuration>`__
+   -  `Model Name <#model-name>`__
+   -  `Imports <#imports>`__
+   -  `Settings and Configuration <#settings-and-configuration>`__
 
--  `Download a Model from Open Model Zoo <#Download-a-Model-from-Open-Model-Zoo>`__
--  `Convert a Model to OpenVINO IR format <#Convert-a-Model-to-OpenVINO-IR-format>`__
--  `Get Model Information <#Get-Model-Information>`__
--  `Run Benchmark Tool <#Run-Benchmark-Tool>`__
+-  `Download a Model from Open Model Zoo <#download-a-model-from-open-model-zoo>`__
+-  `Convert a Model to OpenVINO IR format <#convert-a-model-to-openvino-ir-format>`__
+-  `Get Model Information <#get-model-information>`__
+-  `Run Benchmark Tool <#run-benchmark-tool>`__
 
-   -  `Benchmark with Different
-      Settings <#Benchmark-with-Different-Settings>`__
+   -  `Benchmark with Different Settings <#benchmark-with-different-settings>`__
 
 OpenVINO and Open Model Zoo Tools 
 ###############################################################################################################################

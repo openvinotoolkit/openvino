@@ -40,8 +40,6 @@ The tutorial consists of the following steps:
 -  Compare accuracy of the FP32 and quantized models.
 -  Compare performance of the FP32 and quantized models.
 
-.. _top:
-
 **Table of contents**:
 
 - `Get Pytorch model <#get-pytorch-model>`__
@@ -66,7 +64,7 @@ The tutorial consists of the following steps:
 - `Validate quantized model accuracy <#validate-quantized-model-accuracy>`__
 - `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
 
-Get Pytorch model `⇑ <#top>`__
+Get Pytorch model 
 ###############################################################################################################################
 
 
@@ -85,7 +83,7 @@ to obtain pre-trained model:
 In this case, the model creators provide a tool that enables converting
 the YOLOv7 model to ONNX, so we do not need to do these steps manually.
 
-Prerequisites `⇑ <#top>`__
+Prerequisites 
 ###############################################################################################################################
 
 
@@ -142,7 +140,7 @@ Prerequisites `⇑ <#top>`__
 
 
 
-Check model inference `⇑ <#top>`__
+Check model inference 
 ###############################################################################################################################
 
 
@@ -183,7 +181,7 @@ result,
 
 
 
-Export to ONNX `⇑ <#top>`__
+Export to ONNX 
 ###############################################################################################################################
 
 
@@ -280,7 +278,7 @@ an end2end ONNX model, you can check this
     Export complete (2.53s). Visualize with https://github.com/lutzroeder/netron.
 
 
-Convert ONNX Model to OpenVINO Intermediate Representation (IR). `⇑ <#top>`__
+Convert ONNX Model to OpenVINO Intermediate Representation (IR). 
 ###############################################################################################################################
 
 While ONNX models are directly supported by OpenVINO runtime,
@@ -300,7 +298,7 @@ to OpenVINO IR format for future execution.
     # serialize model for saving IR
     serialize(model, 'model/yolov7-tiny.xml')
 
-Verify model inference `⇑ <#top>`__
+Verify model inference 
 ###############################################################################################################################
 
 
@@ -308,7 +306,7 @@ To test model work, we create inference pipeline similar to
 ``detect.py``. The pipeline consists of preprocessing step, inference of
 OpenVINO model, and results post-processing to get bounding boxes.
 
-Preprocessing `⇑ <#top>`__
+Preprocessing 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -389,7 +387,7 @@ To keep specific shape, preprocessing automatically enables padding.
     COLORS = {name: [np.random.randint(0, 255) for _ in range(3)]
               for i, name in enumerate(NAMES)}
 
-Postprocessing `⇑ <#top>`__
+Postprocessing 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -471,7 +469,7 @@ algorithm and rescale boxes coordinates to original image size.
     # read converted model
     model = core.read_model('model/yolov7-tiny.xml')
 
-Select inference device `⇑ <#top>`__
+Select inference device 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -518,11 +516,11 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Verify model accuracy `⇑ <#top>`__
+Verify model accuracy 
 ###############################################################################################################################
 
 
-Download dataset `⇑ <#top>`__
+Download dataset 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -566,7 +564,7 @@ the original model evaluation scripts.
     coco2017labels-segments.zip:   0%|          | 0.00/169M [00:00<?, ?B/s]
 
 
-Create dataloader `⇑ <#top>`__
+Create dataloader 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -597,7 +595,7 @@ Create dataloader `⇑ <#top>`__
     val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2979.40it/s]
 
 
-Define validation function `⇑ <#top>`__
+Define validation function 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -764,7 +762,7 @@ Validation function reports following list of accuracy metrics:
                      all        5000       36335       0.651       0.506       0.544       0.359
 
 
-Optimize model using NNCF Post-training Quantization API `⇑ <#top>`__
+Optimize model using NNCF Post-training Quantization API 
 ###############################################################################################################################
 
 
@@ -841,7 +839,7 @@ asymmetric quantization of activations.
     Biases correction: 100%|██████████| 58/58 [00:04<00:00, 14.15it/s]
 
 
-Validate Quantized model inference `⇑ <#top>`__
+Validate Quantized model inference 
 ###############################################################################################################################
 
 
@@ -872,7 +870,7 @@ Validate Quantized model inference `⇑ <#top>`__
 
 
 
-Validate quantized model accuracy `⇑ <#top>`__
+Validate quantized model accuracy 
 ###############################################################################################################################
 
 
@@ -907,7 +905,7 @@ As we can see, model accuracy slightly changed after quantization.
 However, if we look at the output image, these changes are not
 significant.
 
-Compare Performance of the Original and Quantized Models `⇑ <#top>`__
+Compare Performance of the Original and Quantized Models 
 ###############################################################################################################################
 
 Finally, use the OpenVINO `Benchmark

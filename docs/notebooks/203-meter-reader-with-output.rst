@@ -21,23 +21,18 @@ to build up a multiple inference task pipeline:
 
 **Table of content:**
 
--  `Import <#Import>`__
--  `Prepare the Model and Test
-   Image <#Prepare-the-Model-and-Test-Image>`__
--  `Configuration <#Configuration>`__
--  `Load the Models <#Load-the-Models>`__
--  `Data Process <#Data-Process>`__
--  `Main Function <#Main-Function>`__
+-  `Import <#import>`__
+-  `Prepare the Model and Test Image <#prepare-the-model-and-test-image>`__
+-  `Configuration <#configuration>`__
+-  `Load the Models <#load-the-models>`__
+-  `Data Process <#data-process>`__
+-  `Main Function <#main-function>`__
 
-   -  `Initialize the model and
-      parameters. <#Initialize-the-model-and-parameters.>`__
-   -  `Run meter detection model <#Run-meter-detection-model>`__
-   -  `Run meter segmentation
-      model <#Run-meter-segmentation-model>`__
-   -  `Postprocess the models result and calculate the final
-      readings <#Postprocess-the-models-result-and-calculate-the-final-readings>`__
-   -  `Get the reading result on the meter
-      picture <#Get-the-reading-result-on-the-meter-picture>`__
+   -  `Initialize the model and parameters. <#initialize-the-model-and-parameters.>`__
+   -  `Run meter detection model <#run-meter-detection-model>`__
+   -  `Run meter segmentation model <#run-meter-segmentation-model>`__
+   -  `Postprocess the models result and calculate the final readings <#postprocess-the-models-result-and-calculate-the-final-readings>`__
+   -  `Get the reading result on the meter picture <#get-the-reading-result-on-the-meter-picture>`__
 
 .. code:: ipython3
 

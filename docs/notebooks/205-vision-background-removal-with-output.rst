@@ -16,31 +16,25 @@ The model source is available
 
 **Table of content:**
 
--  `Preparation <#Preparation>`__
+-  `Preparation <#preparation>`__
 
-   -  `Install requirements <#Install-requirements>`__
-   -  `Import the PyTorch Library and
-      U\ :math:`^2`-Net <#Import-the-PyTorch-Library-and-U2-Net>`__
-   -  `Settings <#Settings>`__
-   -  `Load the U\ :math:`^2`-Net
-      Model <#Load-the-U2-Net-Model>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Import the PyTorch Library and U2-Net <#import-the-pytorch-library-and-u2-net>`__
+   -  `Settings <#settings>`__
+   -  `Load the U2-Net Model <#load-the-u2-net-model>`__
 
--  `Convert PyTorch U\ :math:`^2`-Net model to OpenVINO
-   IR <#Convert-PyTorch-U2-Net-model-to-OpenVINO-IR>`__
+-  `Convert PyTorch U2-Net model to OpenVINO IR <#convert-pytorch-u2-net-model-to-openvino-ir>`__
 
-   -  `Convert Pytorch model to OpenVINO IR
-      Format <#Convert-Pytorch-model-to-OpenVINO-IR-Format>`__
+   -  `Convert Pytorch model to OpenVINO IR Format <#convert-pytorch-model-to-openvino-ir-format>`__
 
--  `Load and Pre-Process Input
-   Image <#Load-and-Pre-Process-Input-Image>`__
--  `Select inference device <#Select-inference-device>`__
--  `Do Inference on OpenVINO IR
-   Model <#Do-Inference-on-OpenVINO-IR-Model>`__
--  `Visualize Results <#Visualize-Results>`__
+-  `Load and Pre-Process Input Image <#load-and-pre-process-input-image>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Do Inference on OpenVINO IR Model <#do-inference-on-openvino-ir-model>`__
+-  `Visualize Results <#visualize-results>`__
 
-   -  `Add a Background Image <#Add-a-Background-Image>`__
+   -  `Add a Background Image <#add-a-background-image>`__
 
--  `References <#References>`__
+-  `References <#references>`__
 
 Preparation
 ###############################################################################################################################

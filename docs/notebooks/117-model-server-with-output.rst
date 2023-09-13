@@ -33,21 +33,21 @@ deployment:
 
 **Table of content:**
 
-- `Serving with OpenVINO Model Server <#Serving-with-OpenVINO-Model-Server>`__ 
-- `Step 1: Prepare Docker <#Step-1:-Prepare-Docker>`__ 
-- `Step 2: Preparing a Model Repository <#Step-2:-Preparing-a-Model-Repository>`__ 
-- `Step 3: Start the Model Server Container <#Step-3:-Start-the-Model-Server-Container>`__ 
-- `Step 4: Prepare the Example Client Components <#Step-4:-Prepare-the-Example-Client-Components>`__ 
+- `Serving with OpenVINO Model Server <#serving-with-openvino-model-server>`__ 
+- `Step 1: Prepare Docker <#step-1-prepare-docker>`__ 
+- `Step 2: Preparing a Model Repository <#step-2-preparing-a-model-repository>`__ 
+- `Step 3: Start the Model Server Container <#step-3-start-the-model-server-container>`__ 
+- `Step 4: Prepare the Example Client Components <#step-4-prepare-the-example-client-components>`__ 
 
-  - `Prerequisites <#Prerequisites>`__ 
-  - `Imports <#Imports>`__ 
-  - `Request Model Status <#Request-Model-Status>`__ 
-  - `Request Model Metadata <#Request-Model-Metadata>`__ 
-  - `Load input image <#Load-input-image>`__ 
-  - `Request Prediction on a Numpy Array <#Request-Prediction-on-a-Numpy-Array>`__ 
-  - `Visualization <#Visualization>`__ 
+  - `Prerequisites <#prerequisites>`__ 
+  - `Imports <#imports>`__ 
+  - `Request Model Status <#request-model-status>`__ 
+  - `Request Model Metadata <#request-model-metadata>`__ 
+  - `Load input image <#load-input-image>`__ 
+  - `Request Prediction on a Numpy Array <#request-prediction-on-a-numpy-array>`__ 
+  - `Visualization <#visualization>`__ 
 
-- `References <#References>`__
+- `References <#references>`__
 
 .. |ovms_diagram| image:: https://user-images.githubusercontent.com/91237924/215658773-4720df00-3b95-4a84-85a2-40f06138e914.png
 

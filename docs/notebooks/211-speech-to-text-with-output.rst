@@ -13,36 +13,31 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
 **Table of content:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Download and Convert Public
-   Model <#Download-and-Convert-Public-Model>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Download and Convert Public Model <#download-and-convert-public-model>`__
 
-   -  `Download Model <#Download-Model>`__
-   -  `Convert Model <#Convert-Model>`__
+   -  `Download Model <#download-model>`__
+   -  `Convert Model <#convert-model>`__
 
--  `Audio Processing <#Audio-Processing>`__
+-  `Audio Processing <#audio-processing>`__
 
-   -  `Define constants <#Define-constants>`__
-   -  `Available Audio Formats <#Available-Audio-Formats>`__
-   -  `Load Audio File <#Load-Audio-File>`__
-   -  `Visualize Audio File <#Visualize-Audio-File>`__
-   -  `Change Type of Data <#Change-Type-of-Data>`__
-   -  `Convert Audio to Mel
-      Spectrum <#Convert-Audio-to-Mel-Spectrum>`__
-   -  `Run Conversion from Audio to Mel
-      Format <#Run-Conversion-from-Audio-to-Mel-Format>`__
-   -  `Visualize Mel Spectrogram <#Visualize-Mel-Spectrogram>`__
-   -  `Adjust Mel scale to Input <#Adjust-Mel-scale-to-Input>`__
+   -  `Define constants <#define-constants>`__
+   -  `Available Audio Formats <#available-audio-formats>`__
+   -  `Load Audio File <#load-audio-file>`__
+   -  `Visualize Audio File <#visualize-audio-file>`__
+   -  `Change Type of Data <#change-type-of-data>`__
+   -  `Convert Audio to Mel Spectrum <#convert-audio-to-mel-spectrum>`__
+   -  `Run Conversion from Audio to Mel Format <#run-conversion-from-audio-to-mel-format>`__
+   -  `Visualize Mel Spectrogram <#visualize-mel-spectrogram>`__
+   -  `Adjust Mel scale to Input <#adjust-mel-scale-to-input>`__
 
--  `Load the Model <#Load-the-Model>`__
+-  `Load the Model <#load-the-model>`__
 
-   -  `Do Inference <#Do-Inference>`__
-   -  `Read Output <#Read-Output>`__
-   -  `Implementation of
-      Decoding <#Implementation-of-Decoding>`__
-   -  `Run Decoding and Print
-      Output <#Run-Decoding-and-Print-Output>`__
+   -  `Do Inference <#do-inference>`__
+   -  `Read Output <#read-output>`__
+   -  `Implementation of Decoding <#implementation-of-decoding>`__
+   -  `Run Decoding and Print Output <#run-decoding-and-print-output>`__
 
 Imports
 ###############################################################################################################################

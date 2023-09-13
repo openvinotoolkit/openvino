@@ -25,44 +25,34 @@ This tutorial include following steps:
 
 **Table of content:**
 
--  `Settings <#Settings>`__
--  `Imports <#Imports>`__
+-  `Settings <#settings>`__
+-  `Imports <#imports>`__
 
-   -  `Setup image and device <#Setup-image-and-device>`__
-   -  `Downloading the model <#Downloading-the-model>`__
-   -  `Create core <#Create-core>`__
-   -  `Check the original parameters of
-      image <#Check-the-original-parameters-of-image>`__
+   -  `Setup image and device <#setup-image-and-device>`__
+   -  `Downloading the model <#downloading-the-model>`__
+   -  `Create core <#create-core>`__
+   -  `Check the original parameters of image <#check-the-original-parameters-of-image>`__
 
--  `Setup preprocessing steps with Preprocessing API and perform
-   inference <#Setup-preprocessing-steps-with-Preprocessing-API-and-perform-inference>`__
+-  `Setup preprocessing steps with Preprocessing API and perform inference <#setup-preprocessing-steps-with-preprocessing-api-and-perform-inference>`__
 
-   -  `Convert model to OpenVINO IR with model conversion
-      API <#Convert-model-to-OpenVINO-IR-with-model-conversion-API>`__
-   -  `Create ``PrePostProcessor``
-      Object <#Create-%60PrePostProcessor%60-Object>`__
-   -  `Declare User’s Data
-      Format <#Declare-User’s-Data-Format>`__
-   -  `Declaring Model Layout <#Declaring-Model-Layout>`__
-   -  `Preprocessing Steps <#Preprocessing-Steps>`__
-   -  `Integrating Steps into a
-      Model <#Integrating-Steps-into-a-Model>`__
+   -  `Convert model to OpenVINO IR with model conversion API <#convert-model-to-openvino-ir-with-model-conversion-apI>`__
+   -  `Create PrePostProcessor Object <#create-prepostprocessor-object>`__
+   -  `Declare User’s Data Format <#declare-user’s-data-format>`__
+   -  `Declaring Model Layout <#declaring-model-layout>`__
+   -  `Preprocessing Steps <#preprocessing-steps>`__
+   -  `Integrating Steps into a Model <#integrating-steps-into-a-model>`__
 
--  `Load model and perform
-   inference <#Load-model-and-perform-inference>`__
--  `Fit image manually and perform
-   inference <#Fit-image-manually-and-perform-inference>`__
+-  `Load model and perform inference <#load-model-and-perform-inference>`__
+-  `Fit image manually and perform inference <#fit-image-manually-and-perform-inference>`__
 
-   -  `Load the model <#Load-the-model>`__
-   -  `Load image and fit it to model
-      input <#Load-image-and-fit-it-to-model-input>`__
-   -  `Perform inference <#Perform-inference>`__
+   -  `Load the model <#load-the-model>`__
+   -  `Load image and fit it to model input <#load-image-and-fit-it-to-model-input>`__
+   -  `Perform inference <#perform-inference>`__
 
--  `Compare results <#Compare-results>`__
+-  `Compare results <#compare-results>`__
 
-   -  `Compare results on one
-      image <#Compare-results-on-one-image>`__
-   -  `Compare performance <#Compare-performance>`__
+   -  `Compare results on one image <#compare-results-on-one-image>`__
+   -  `Compare performance <#compare-performance>`__
 
 Settings
 ###############################################################################################################################

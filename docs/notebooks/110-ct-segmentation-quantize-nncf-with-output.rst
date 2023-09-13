@@ -13,24 +13,18 @@ scratch; the data is from
 
 This third tutorial in the series shows how to:
 
--  Convert an Original model to OpenVINO IR with `model conversion
-   API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+-  Convert an Original model to OpenVINO IR with `model conversion API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 -  Quantize a PyTorch model with NNCF
--  Evaluate the F1 score metric of the original model and the quantized
-   model
+-  Evaluate the F1 score metric of the original model and the quantized model
 -  Benchmark performance of the FP32 model and the INT8 quantized model
 -  Show live inference with OpenVINO’s async API
 
 All notebooks in this series:
 
--  `Data Preparation for 2D Segmentation of 3D Medical
-   Data <data-preparation-ct-scan.ipynb>`__
--  `Train a 2D-UNet Medical Imaging Model with PyTorch
-   Lightning <pytorch-monai-training.ipynb>`__
--  Convert and Quantize a Segmentation Model and Show Live Inference
-   (this notebook)
--  `Live Inference and Benchmark CT-scan
-   data <110-ct-scan-live-inference.ipynb>`__
+-  `Data Preparation for 2D Segmentation of 3D Medical Data <data-preparation-ct-scan.ipynb>`__
+-  `Train a 2D-UNet Medical Imaging Model with PyTorch Lightning <pytorch-monai-training.ipynb>`__
+-  Convert and Quantize a Segmentation Model and Show Live Inference (this notebook)
+-  `Live Inference and Benchmark CT-scan data <110-ct-scan-live-inference.ipynb>`__
 
 Instructions
 ###############################################################################################################################
@@ -55,35 +49,29 @@ purposes, use a representative dataset for quantizing the model.
 
 **Table of content:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Load PyTorch Model <#Load-PyTorch-Model>`__
--  `Download CT-scan Data <#Download-CT-scan-Data>`__
--  `Configuration <#Configuration>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Load PyTorch Model <#load-pytorch-model>`__
+-  `Download CT-scan Data <#download-ct-scan-data>`__
+-  `Configuration <#configuration>`__
 
-   -  `Dataset <#Dataset>`__
-   -  `Metric <#Metric>`__
+   -  `Dataset <#dataset>`__
+   -  `Metric <#metric>`__
 
--  `Quantization <#Quantization>`__
--  `Compare FP32 and INT8
-   Model <#Compare-FP32-and-INT8-Model>`__
+-  `Quantization <#quantization>`__
+-  `Compare FP32 and INT8 Model <#compare-fp32-and-int8-model>`__
 
-   -  `Compare File Size <#Compare-File-Size>`__
-   -  `Compare Metrics for the original model and the quantized model to
-      be sure that there no
-      degradation. <#Compare-Metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation.>`__
-   -  `Compare Performance of the FP32 IR Model and Quantized
-      Models <#Compare-Performance-of-the-FP32-IR-Model-and-Quantized-Models>`__
-   -  `Visually Compare Inference
-      Results <#Visually-Compare-Inference-Results>`__
+   -  `Compare File Size <#compare-file-size>`__
+   -  `Compare Metrics for the original model and the quantized model to be sure that there no degradation. <#compare-metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation.>`__
+   -  `Compare Performance of the FP32 IR Model and Quantized Models <#compare-performance-of-the-fp32-ir-model-and-quantized-models>`__
+   -  `Visually Compare Inference Results <#visually-compare-inference-results>`__
 
--  `Show Live Inference <#Show-Live-Inference>`__
+-  `Show Live Inference <#show-live-inference>`__
 
-   -  `Load Model and List of Image
-      Files <#Load-Model-and-List-of-Image-Files>`__
-   -  `Show Inference <#Show-Inference>`__
+   -  `Load Model and List of Image Files <#load-model-and-list-of-image-files>`__
+   -  `Show Inference <#show-inference>`__
 
--  `References <#References>`__
+-  `References <#references>`__
 
 .. code:: ipython3
 

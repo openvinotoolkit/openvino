@@ -35,33 +35,30 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
 **Table of content:**
 
--  `Preparation <#preparation>`__
+- `Preparation <#preparation>`__
 
-   -  `Imports <#imports>`__
-   -  `Settings <#settings>`__
-   -  `Load Model <#load-model>`__
+  - `Imports <#imports>`__
+  - `Settings <#settings>`__
+  - `Load Model <#load-model>`__
 
--  `ONNX Model Conversion <#onnx-model-conversion>`__
+- `ONNX Model Conversion <#onnx-model-conversion>`__
 
-   -  `Convert PyTorch model to ONNX <#convert-pytorch-model-to-onnx>`__
-   -  `Convert ONNX Model to OpenVINO IR Format <#convert-onnx-model-to-openvino-ir-format>`__
+  - `Convert PyTorch model to ONNX <#convert-pytorch-model-to-onnx>`__
+  - `Convert ONNX Model to OpenVINO IR Format <#convert-onnx-model-to-openvino-ir-format>`__
 
--  `Show Results <#show-results>`__
+- `Show Results <#show-results>`__
 
-   -  `Load and Preprocess an Input Image <#load-and-preprocess-an-input-image>`__
-   -  `Load the OpenVINO IR Network and Run Inference on the ONNX
-      model <#load-the-openvino-ir-network-and-run-inference-on-the-onnx-model>`__
+  - `Load and Preprocess an Input Image <#load-and-preprocess-an-input-image>`__
+  - `Load the OpenVINO IR Network and Run Inference on the ONNX model <#load-the-openvino-ir-network-and-run-inference-on-the-onnx-model>`__
 
-      -  `1. ONNX Model in OpenVINO
-         Runtime <#1.-onnx-model-in-openvino-runtime>`__
-      -  `Select inference device <#select-inference-device>`__
-      -  `2. OpenVINO IR Model in OpenVINO
-         Runtime <#2.-openvino-ir-model-in-openvino-runtime>`__
-      -  `Select inference device <#select-inference-device>`__
+    - `1. ONNX Model in OpenVINO Runtime <#1-onnx-model-in-openvino-runtime>`__
+    - `Select inference device <#select-inference-device>`__
+    - `2. OpenVINO IR Model in OpenVINO Runtime <#2-openvino-ir-model-in-openvino-runtime>`__
+    - `Select inference device <#select-inference-device>`__
 
--  `PyTorch Comparison <#pytorch-comparison>`__
--  `Performance Comparison <#performance-comparison>`__
--  `References <#references>`__
+- `PyTorch Comparison <#pytorch-comparison>`__
+- `Performance Comparison <#performance-comparison>`__
+- `References <#references>`__
 
 .. code:: ipython3
 

@@ -24,14 +24,13 @@ of the art.
 
 **Table of content:**
 
--  `Imports <#Imports>`__
--  `Prepare the Model <#Prepare-the-Model>`__
--  `Data Processing Module <#Data-Processing-Module>`__
--  `Visualize the original 3D
-   data <#Visualize-the-original-3D-data>`__
--  `Run inference <#Run-inference>`__
+-  `Imports <#imports>`__
+-  `Prepare the Model <#prepare-the-model>`__
+-  `Data Processing Module <#data-processing-module>`__
+-  `Visualize the original 3D data <#visualize-the-original-3d-data>`__
+-  `Run inference <#run-inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 Imports
 ###############################################################################################################################

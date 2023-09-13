@@ -31,50 +31,35 @@ regimes.
 
 **Table of content:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch Model <#Load-PyTorch-Model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch Model <#load-pytorch-model>`__
 
-   -  `Prepare Input Data <#Prepare-Input-Data>`__
-   -  `Run PyTorch Model
-      Inference <#Run-PyTorch-Model-Inference>`__
-   -  `Benchmark PyTorch Model
-      Inference <#Benchmark-PyTorch-Model-Inference>`__
+   -  `Prepare Input Data <#prepare-input-data>`__
+   -  `Run PyTorch Model Inference <#run-pytorch-model-inference>`__
+   -  `Benchmark PyTorch Model Inference <#benchmark-pytorch-model-inference>`__
 
--  `Convert PyTorch Model to OpenVINO Intermediate
-   Representation <#Convert-PyTorch-Model-to-OpenVINO-Intermediate-Representation>`__
+-  `Convert PyTorch Model to OpenVINO Intermediate Representation <#convert-pytorch-model-to-openvino-intermediate-representation>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Run OpenVINO Model
-      Inference <#Run-OpenVINO-Model-Inference>`__
-   -  `Benchmark OpenVINO Model
-      Inference <#Benchmark-OpenVINO-Model-Inference>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Run OpenVINO Model Inference <#run-openvino-model-inference>`__
+   -  `Benchmark OpenVINO Model Inference <#benchmark-openvino-model-inference>`__
 
--  `Convert PyTorch Model with Static Input
-   Shape <#Convert-PyTorch-Model-with-Static-Input-Shape>`__
+-  `Convert PyTorch Model with Static Input Shape <#convert-pytorch-model-with-static-input-shape>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Run OpenVINO Model Inference with Static Input
-      Shape <#Run-OpenVINO-Model-Inference-with-Static-Input-Shape>`__
-   -  `Benchmark OpenVINO Model Inference with Static Input
-      Shape <#Benchmark-OpenVINO-Model-Inference-with-Static-Input-Shape>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Run OpenVINO Model Inference with Static Input Shape <#run-openvino-model-inference-with-static-input-shape>`__
+   -  `Benchmark OpenVINO Model Inference with Static Input Shape <#benchmark-openvino-model-inference-with-static-input-shape>`__
 
--  `Convert TorchScript Model to OpenVINO Intermediate
-   Representation <#Convert-TorchScript-Model-to-OpenVINO-Intermediate-Representation>`__
+-  `Convert TorchScript Model to OpenVINO Intermediate Representation <#convert-torchscript-model-to-openvino-intermediate-representation>`__
 
-   -  `Scripted Model <#Scripted-Model>`__
-   -  `Benchmark Scripted Model
-      Inference <#Benchmark-Scripted-Model-Inference>`__
-   -  `Convert PyTorch Scripted Model to OpenVINO Intermediate
-      Representation <#Convert-PyTorch-Scripted-Model-to-OpenVINO-Intermediate-Representation>`__
-   -  `Benchmark OpenVINO Model Inference Converted From Scripted
-      Model <#Benchmark-OpenVINO-Model-Inference-Converted-From-Scripted-Model>`__
-   -  `Traced Model <#Traced-Model>`__
-   -  `Benchmark Traced Model
-      Inference <#Benchmark-Traced-Model-Inference>`__
-   -  `Convert PyTorch Traced Model to OpenVINO Intermediate
-      Representation <#Convert-PyTorch-Traced-Model-to-OpenVINO-Intermediate-Representation>`__
-   -  `Benchmark OpenVINO Model Inference Converted From Traced
-      Model <#Benchmark-OpenVINO-Model-Inference-Converted-From-Traced-Model>`__
+   -  `Scripted Model <#scripted-model>`__
+   -  `Benchmark Scripted Model Inference <#benchmark-scripted-model-inference>`__
+   -  `Convert PyTorch Scripted Model to OpenVINO Intermediate Representation <#convert-pytorch-scripted-model-to-openvino-intermediate-representation>`__
+   -  `Benchmark OpenVINO Model Inference Converted From Scripted Model <#benchmark-openvino-model-inference-converted-from-scripted-model>`__
+   -  `Traced Model <#traced-model>`__
+   -  `Benchmark Traced Model Inference <#benchmark-traced-model-inference>`__
+   -  `Convert PyTorch Traced Model to OpenVINO Intermediate Representation <#convert-pytorch-traced-model-to-openvino-intermediate-representation>`__
+   -  `Benchmark OpenVINO Model Inference Converted From Traced Model <#benchmark-openvino-model-inference-converted-from-traced-model>`__
 
 Prerequisites
 ###############################################################################################################################

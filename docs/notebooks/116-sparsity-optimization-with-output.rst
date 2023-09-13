@@ -23,17 +23,13 @@ consists of the following steps:
 
 **Table of content:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Imports <#Imports>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Imports <#imports>`__
 
-   -  `Download, quantize and sparsify the model, using Hugging Face
-      Optimum
-      API <#Download,-quantize-and-sparsify-the-model,-using-Hugging-Face-Optimum-API>`__
+   -  `Download, quantize and sparsify the model, using Hugging Face Optimum API <#download,-quantize-and-sparsify-the-model,-using-hugging-face-optimum-api>`__
 
--  `Benchmark quantized dense inference
-   performance <#Benchmark-quantized-dense-inference-performance>`__
--  `Benchmark quantized sparse inference
-   performance <#Benchmark-quantized-sparse-inference-performance>`__
+-  `Benchmark quantized dense inference performance <#benchmark-quantized-dense-inference-performance>`__
+-  `Benchmark quantized sparse inference performance <#benchmark-quantized-sparse-inference-performance>`__
 -  `When this might be helpful <#When-this-might-be-helpful>`__
 
 Prerequisites

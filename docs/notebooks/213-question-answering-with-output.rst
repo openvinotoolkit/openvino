@@ -11,24 +11,24 @@ of this notebook provides live inference results from your inputs.
 
 **Table of content:**
 
-- `Imports <#Imports>`__ 
-- `The model <#The-model>`__ 
+- `Imports <#imports>`__ 
+- `The model <#the-model>`__ 
 
-  - `Download the model <#Download-the-model>`__ 
-  - `Load the model <#Load-the-model>`__ 
+  - `Download the model <#download-the-model>`__ 
+  - `Load the model <#load-the-model>`__ 
   
-    - `Select inference device <#Select-inference-device>`__ 
+    - `Select inference device <#select-inference-device>`__ 
 
-- `Processing <#Processing>`__ 
+- `Processing <#processing>`__ 
 
-  - `Preprocessing <#Preprocessing>`__ 
-  - `Postprocessing <#Postprocessing>`__ 
-  - `Main Processing Function <#Main-Processing-Function>`__ 
+  - `Preprocessing <#preprocessing>`__ 
+  - `Postprocessing <#postprocessing>`__ 
+  - `Main Processing Function <#main-processing-function>`__ 
   
 - `Run <#Run>`__
 
-  - `Run on local paragraphs <#Run-on-local-paragraphs>`__ 
-  - `Run on websites <#Run-on-websites>`__
+  - `Run on local paragraphs <#run-on-local-paragraphs>`__ 
+  - `Run on websites <#run-on-websites>`__
 
 Imports
 ###############################################################################################################################

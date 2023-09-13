@@ -19,25 +19,22 @@ As a result, you can get:
 
 **Table of content:**
 
--  `Imports <#Imports>`__
--  `Download Models <#Download-Models>`__
--  `Load Models <#Load-Models>`__
+-  `Imports <#imports>`__
+-  `Download Models <#download-models>`__
+-  `Load Models <#load-models>`__
 
-   -  `Get attributes from model <#Get-attributes-from-model>`__
-   -  `Helper function <#Helper-function>`__
-   -  `Read and display a test
-      image <#Read-and-display-a-test-image>`__
+   -  `Get attributes from model <#get-attributes-from-model>`__
+   -  `Helper function <#helper-function>`__
+   -  `Read and display a test image <#read-and-display-a-test-image>`__
 
--  `Use the Detection Model to Detect
-   Vehicles <#Use-the-Detection-Model-to-Detect-Vehicles>`__
+-  `Use the Detection Model to Detect Vehicles <#use-the-detection-model-to-detect-vehicles>`__
 
-   -  `Detection Processing <#Detection-Processing>`__
-   -  `Recognize vehicle
-      attributes <#Recognize-vehicle-attributes>`__
+   -  `Detection Processing <#detection-processing>`__
+   -  `Recognize vehicle attributes <#recognize-vehicle-attributes>`__
 
-      -  `Recognition processing <#Recognition-processing>`__
+      -  `Recognition processing <#recognition-processing>`__
 
-   -  `Combine two models <#Combine-two-models>`__
+   -  `Combine two models <#combine-two-models>`__
 
 .. |flowchart| image:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
 

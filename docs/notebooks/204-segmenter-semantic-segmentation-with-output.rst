@@ -24,24 +24,28 @@ Segmenter <https://github.com/rstrudel/segmenter>`__.
 More about the model and its details can be found in the following
 paper: `Segmenter: Transformer for Semantic
 Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
-`repository <https://github.com/rstrudel/segmenter>`__. #### Table of
-content: - `Get and prepare PyTorch
-model <#Get-and-prepare-PyTorch-model>`__ -
-`Prerequisites <#Prerequisites>`__ - `Loading PyTorch
-model <#Loading-PyTorch-model>`__ - `Preparing preprocessing and
-visualization
-functions <#Preparing-preprocessing-and-visualization-functions>`__
-- `Preprocessing <#Preprocessing>`__ -
-`Visualization <#Visualization>`__ - `Validation of inference of
-original model <#Validation-of-inference-of-original-model>`__ -
-`Export to ONNX <#Export-to-ONNX>`__ - `Convert ONNX model to
-OpenVINO Intermediate Representation
-(IR) <#Convert-ONNX-model-to-OpenVINO-Intermediate-Representation-(IR)>`__
-- `Verify converted model
-inference <#Verify-converted-model-inference>`__ - `Select
-inference device <#Select-inference-device>`__ - `Benchmarking
-performance of converted
-model <#Benchmarking-performance-of-converted-model>`__
+`repository <https://github.com/rstrudel/segmenter>`__. 
+
+**Table of content:**
+
+- `Get and prepare PyTorch model <#get-and-prepare-pytorch-model>`__ 
+  
+  - `Prerequisites <#Prerequisites>`__ 
+  - `Loading PyTorch model <#loading-pytorch-model>`__ 
+
+- `Preparing preprocessing and visualization functions <#preparing-preprocessing-and-visualization-functions>`__
+
+  - `Preprocessing <#preprocessing>`__ 
+  - `Visualization <#visualization>`__ 
+  
+- `Validation of inference of original model <#validation-of-inference-of-original-model>`__ 
+- `Export to ONNX <#export-to-onnx>`__ 
+- `Convert ONNX model to OpenVINO Intermediate Representation (IR) <#convert-onnx-model-to-openvino-intermediate-representation-ir>`__
+- `Verify converted model inference <#verify-converted-model-inference>`__ 
+
+  - `Select inference device <#select-inference-device>`__ 
+  
+- `Benchmarking performance of converted model <#benchmarking-performance-of-converted-model>`__
 
 .. |Segmenteer diagram| image:: https://user-images.githubusercontent.com/24582831/148507554-87eb80bd-02c7-4c31-b102-c6141e231ec8.png
 

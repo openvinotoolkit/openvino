@@ -16,37 +16,31 @@ documentation <https://github.com/PaddlePaddle/PaddleGAN/blob/develop/docs/en_US
 
 **Table of content:**
 
--  `Preparation <#Preparation>`__
+-  `Preparation <#preparation>`__
 
-   -  `Install requirements <#Install-requirements>`__
-   -  `Imports <#Imports>`__
-   -  `Settings <#Settings>`__
-   -  `Functions <#Functions>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
+   -  `Settings <#settings>`__
+   -  `Functions <#functions>`__
 
--  `Inference on PaddleGAN
-   Model <#Inference-on-PaddleGAN-Model>`__
+-  `Inference on PaddleGAN Model <#inference-on-paddlegan-model>`__
 
-   -  `Show Inference Results on PaddleGAN
-      model <#Show-Inference-Results-on-PaddleGAN-model>`__
+   -  `Show Inference Results on PaddleGAN model <#show-inference-results-on-paddlegan-model>`__
 
--  `Model Conversion to ONNX and OpenVINO
-   IR <#Model-Conversion-to-ONNX-and-OpenVINO-IR>`__
+-  `Model Conversion to ONNX and OpenVINO IR <#model-conversion-to-onnx-and-openvino-ir>`__
 
-   -  `Convert to ONNX <#Convert-to-ONNX>`__
-   -  `Convert to OpenVINO IR <#Convert-to-OpenVINO-IR>`__
+   -  `Convert to ONNX <#convert-to-onnx>`__
+   -  `Convert to OpenVINO IR <#convert-to-openvino-ir>`__
 
--  `Show Inference Results on OpenVINO IR and PaddleGAN
-   Models <#Show-Inference-Results-on-OpenVINO-IR-and-PaddleGAN-Models>`__
+-  `Show Inference Results on OpenVINO IR and PaddleGAN Models <#show-inference-results-on-openvino-ir-and-paddlegan-models>`__
 
-   -  `Create Postprocessing
-      Functions <#Create-Postprocessing-Functions>`__
-   -  `Do Inference on OpenVINO IR
-      Model <#Do-Inference-on-OpenVINO-IR-Model>`__
+   -  `Create Postprocessing Functions <#create-postprocessing-functions>`__
+   -  `Do Inference on OpenVINO IR Model <#do-inference-on-openvino-ir-model>`__
 
-      -  `Select inference device <#Select-inference-device>`__
+      -  `Select inference device <#select-inference-device>`__
 
--  `Performance Comparison <#Performance-Comparison>`__
--  `References <#References>`__
+-  `Performance Comparison <#performance-comparison>`__
+-  `References <#references>`__
 
 Preparation
 ###############################################################################################################################

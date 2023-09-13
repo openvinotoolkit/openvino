@@ -3,49 +3,49 @@ Working with GPUs in OpenVINO™
 
 **Table of content:**
 
-- `Introduction <#Introduction>`__
+- `Introduction <#introduction>`__
 
   - `Install required packages <#install-required-packages>`__
 
-- `Checking GPUs with Query Device <#Checking-GPUs-with-Query-Device>`__
+- `Checking GPUs with Query Device <#checking-gpus-with-query-device>`__
 
-  - `List GPUs with core.available_devices <#List-GPUs-with-core.available_devices>`__
-  - `Check Properties with core.get_property <#Check-Properties-with-core.get_property>`__
-  - `Brief Descriptions of Key Properties <#Brief-Descriptions-of-Key-Properties>`__
+  - `List GPUs with core.available_devices <#list-gpus-with-core.available_devices>`__
+  - `Check Properties with core.get_property <#check-properties-with-core.get_property>`__
+  - `Brief Descriptions of Key Properties <#brief-descriptions-of-key-properties>`__
 
-- `Compiling a Model on GPU <#Compiling-a-Model-on-GPU>`__
+- `Compiling a Model on GPU <#compiling-a-model-on-gpu>`__
 
-  - `Download and Convert a Model <#Download-and-Convert-a-Model>`__
+  - `Download and Convert a Model <#download-and-convert-a-model>`__
 
-    - `Download and unpack the Model <#Download-and-unpack-the-Model>`__
-    - `Convert the Model to OpenVINO IR format <#Convert-the-Model-to-OpenVINO-IR-format>`__
+    - `Download and unpack the Model <#download-and-unpack-the-model>`__
+    - `Convert the Model to OpenVINO IR format <#convert-the-model-to-openvino-ir-format>`__
 
-  - `Compile with Default Configuration <#Compile-with-Default-Configuration>`__
-  - `Reduce Compile Time through Model Caching <#Reduce-Compile-Time-through-Model-Caching>`__
-  - `Throughput and Latency Performance Hints <#Throughput-and-Latency-Performance-Hints>`__
-  - `Using Multiple GPUs with Multi-Device and Cumulative Throughput <#Using-Multiple-GPUs-with-Multi-Device-and-Cumulative-Throughput>`__
+  - `Compile with Default Configuration <#compile-with-default-configuration>`__
+  - `Reduce Compile Time through Model Caching <#reduce-compile-time-through-model-caching>`__
+  - `Throughput and Latency Performance Hints <#throughput-and-latency-performance-hints>`__
+  - `Using Multiple GPUs with Multi-Device and Cumulative Throughput <#using-multiple-gpus-with-multi-device-and-cumulative-throughput>`__
 
-- `Performance Comparison with benchmark_app <#Performance-Comparison-with-benchmark_app>`__
+- `Performance Comparison with benchmark_app <#performance-comparison-with-benchmark_app>`__
 
-  - `CPU vs GPU with Latency Hint <#CPU-vs-GPU-with-Latency-Hint>`__ 
-  - `CPU vs GPU with Throughput Hint <#CPU-vs-GPU-with-Throughput-Hint>`__ 
-  - `Single GPU vs Multiple GPUs <#Single-GPU-vs-Multiple-GPUs>`__
+  - `CPU vs GPU with Latency Hint <#cpu-vs-gpu-with-latency-hint>`__ 
+  - `CPU vs GPU with Throughput Hint <#cpu-vs-gpu-with-throughput-hint>`__ 
+  - `Single GPU vs Multiple GPUs <#single-gpu-vs-multiple-gpus>`__
 
-- `Basic Application Using GPUs <#Basic-Application-Using-GPUs>`__
+- `Basic Application Using GPUs <#basic-application-using-gpus>`__
 
-  - `Import Necessary Packages <#Import-Necessary-Packages>`__
-  - `Compile the Model <#Compile-the-Model>`__
-  - `Load and Preprocess Video Frames <#Load-and-Preprocess-Video-Frames>`__
-  - `Define Model Output Classes <#Define-Model-Output-Classes>`__
-  - `Set up Asynchronous Pipeline <#Set-up-Asynchronous-Pipeline>`__
+  - `Import Necessary Packages <#import-necessary-packages>`__
+  - `Compile the Model <#compile-the-model>`__
+  - `Load and Preprocess Video Frames <#load-and-preprocess-video-frames>`__
+  - `Define Model Output Classes <#define-model-output-classes>`__
+  - `Set up Asynchronous Pipeline <#set-up-asynchronous-pipeline>`__
 
-    - `Callback Definition <#Callback-Definition>`__
-    - `Create Async Pipeline <#Create-Async-Pipeline>`__
+    - `Callback Definition <#callback-definition>`__
+    - `Create Async Pipeline <#create-async-pipeline>`__
 
-  - `Perform Inference <#Perform-Inference>`__
-  - `Process Results <#Process-Results>`__
+  - `Perform Inference <#perform-inference>`__
+  - `Process Results <#process-results>`__
 
-- `Conclusion <#Conclusion>`__
+- `Conclusion <#conclusion>`__
 
 This tutorial provides a high-level overview of working with Intel GPUs
 in OpenVINO. It shows how to use Query Device to list system GPUs and

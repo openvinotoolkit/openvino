@@ -25,30 +25,24 @@ and do inference with a sample image.
 
 **Table of content:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Download Model from TensorFlow
-   Hub <#Download-Model-from-TensorFlow-Hub>`__
--  `Convert Model to OpenVINO
-   IR <#Convert-Model-to-OpenVINO-IR>`__
--  `Test Inference on the Converted
-   Model <#Test-Inference-on-the-Converted-Model>`__
--  `Select inference device <#Select-inference-device>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Download Model from TensorFlow Hub <#download-model-from-tensorflow-hub>`__
+-  `Convert Model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+-  `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
+-  `Select inference device <#select-inference-device>`__
 
-   -  `Load the Model <#Load-the-Model>`__
-   -  `Get Model Information <#Get-Model-Information>`__
-   -  `Get an Image for Test
-      Inference <#Get-an-Image-for-Test-Inference>`__
-   -  `Perform Inference <#Perform-Inference>`__
-   -  `Inference Result
-      Visualization <#Inference-Result-Visualization>`__
+   -  `Load the Model <#load-the-model>`__
+   -  `Get Model Information <#get-model-information>`__
+   -  `Get an Image for Test Inference <#get-an-image-for-test-inference>`__
+   -  `Perform Inference <#perform-inference>`__
+   -  `Inference Result Visualization <#inference-result-visualization>`__
 
--  `Next Steps <#Next-Steps>`__
+-  `Next Steps <#next-steps>`__
 
-   -  `Async inference pipeline <#Async-inference-pipeline>`__
-   -  `Integration preprocessing to
-      model <#Integration-preprocessing-to-model>`__
+   -  `Async inference pipeline <#async-inference-pipeline>`__
+   -  `Integration preprocessing to model <#integration-preprocessing-to-model>`__
 
 Prerequisites
 ###############################################################################################################################
