@@ -4,6 +4,9 @@ on:
     types:
       - closed
 
+permissions:
+  actions: write
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest
