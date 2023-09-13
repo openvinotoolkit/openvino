@@ -10,7 +10,8 @@ import tempfile
 from time import perf_counter
 
 import datasets
-from openvino.runtime import Core, get_version, AsyncInferQueue, PartialShape
+import openvino as ov
+from openvino.runtime import get_version
 from transformers import AutoTokenizer
 from transformers.onnx import export
 from transformers.onnx.features import FeaturesManager
@@ -28,7 +29,7 @@ def main():
     # Download the tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    core = Core()
+    core = ov.Core()
 
     with tempfile.TemporaryDirectory() as tmp:
         onnx_path = Path(tmp) / f'{model_name}.onnx'
@@ -39,7 +40,7 @@ def main():
 
     # Enforce dynamic input shape
     try:
-        model.reshape({model_input.any_name: PartialShape([1, '?']) for model_input in model.inputs})
+        model.reshape({model_input.any_name: ov.PartialShape([1, '?']) for model_input in model.inputs})
     except RuntimeError:
         log.error("Can't set dynamic shape")
         raise
@@ -50,7 +51,7 @@ def main():
     # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device
     compiled_model = core.compile_model(model, 'CPU', tput)
     # AsyncInferQueue creates optimal number of InferRequest instances
-    ireqs = AsyncInferQueue(compiled_model)
+    ireqs = ov.AsyncInferQueue(compiled_model)
 
     sst2 = datasets.load_dataset('glue', 'sst2')
     sst2_sentences = sst2['validation']['sentence']

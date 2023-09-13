@@ -599,6 +599,14 @@ jobs:
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_zoo_models.py \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_backend.py
+      
+      - name: Python API snippets
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:${{ github.workspace }}/openvino/docs/:$PYTHONPATH
+          export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
+
+          python3 ${{ github.workspace }}/openvino/docs/snippets/main.py
 
       - name: Model Optimizer UT
         run: |
