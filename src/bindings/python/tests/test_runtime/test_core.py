@@ -116,7 +116,7 @@ def test_compile_model_with_auto_plugin_no_default(request, tmp_path):
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = compile_model(model=model, device_name="CPU", config={"PERFORMANCE_HINT":"THROUGHPUT"})
+    compiled_model = compile_model(model=model, device_name="CPU", config={"PERFORMANCE_HINT": "THROUGHPUT"})
     assert isinstance(compiled_model, CompiledModel)
 
 
