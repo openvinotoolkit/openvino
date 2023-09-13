@@ -25,7 +25,7 @@ target_include_directories(${TARGET_NAME}
     PUBLIC $<BUILD_INTERFACE:${root_dir}/include>
     PRIVATE ${root_dir}/src)
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}

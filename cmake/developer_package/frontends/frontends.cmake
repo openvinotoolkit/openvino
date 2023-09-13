@@ -219,7 +219,7 @@ macro(ov_add_frontend)
             set(protobuf_target_name "protobuf::${protobuf_target_name}")
         endif()
 
-        link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
+        ov_link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
 
         # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -242,8 +242,8 @@ macro(ov_add_frontend)
         target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${flatbuffers_INCLUDE_DIRECTORIES})
     endif()
 
-    add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${proto_files} ${flatbuffers_schema_files})
+    ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
+                               EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${proto_files} ${flatbuffers_schema_files})
 
     # enable LTO
     set_target_properties(${TARGET_NAME} PROPERTIES
@@ -263,7 +263,7 @@ macro(ov_add_frontend)
     add_dependencies(ov_frontends ${TARGET_NAME})
 
     # must be called after all target_link_libraries
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+    ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
     # since frontends are user-facing component which can be linked against,
     # then we need to mark it to be CXX ABI free
