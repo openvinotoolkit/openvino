@@ -60,5 +60,4 @@ public:
 private:
     ov::Core _core;
     Napi::Env env;
-    ReaderWorker* _readerWorker = new ReaderWorker(env);
 };

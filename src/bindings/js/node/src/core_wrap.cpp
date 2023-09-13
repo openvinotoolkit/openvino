@@ -47,11 +47,37 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
-    std::string path = info[0].ToString();
-    _readerWorker->set_model_path(path);
-    auto promise = _readerWorker->GetPromise();
-    _readerWorker->Queue();
-    return promise;
+    std::string model_path;
+    std::string bin_path;
+
+    try {
+        switch(info.Length()) {
+            case 2:
+                if (!info[1].IsString())
+                    throw std::runtime_error("Second argument should be string");
+
+                bin_path = info[1].ToString();
+                [[fallthrough]];
+            case 1:
+                if (!info[0].IsString())
+                    throw std::runtime_error("First argument should be string");
+
+                model_path = info[0].ToString();
+                break;
+
+            default:
+                throw std::runtime_error("Invalid number of arguments -> " + std::to_string(info.Length()));
+        }
+
+        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), model_path, bin_path);
+        _readerWorker->Queue();
+
+        return _readerWorker->GetPromise();
+    } catch (std::runtime_error &err) {
+        reportError(info.Env(), err.what());
+
+        return Napi::Value();
+    }
 }
 
 Napi::Value CoreWrap::compile_model(const Napi::CallbackInfo& info) {
