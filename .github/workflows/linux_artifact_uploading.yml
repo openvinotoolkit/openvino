@@ -167,11 +167,13 @@ jobs:
           
           # Preprocess variable(s)
           workflow_name=$(echo "${{ github.workflow }}" | tr / _)
+          workflow_name=$(echo "$workflow_name" | tr " " _)
+          branch_name=$(echo "${{ steps.extract_branch.outputs.branch }}" | tr / _)
           
           # Should be something like: "/mount/caches/build_artifacts/branch_name/commit_hash/workflow_name"
-          mkdir -p $BUILD_ARTIFACTS_DIR/${{ github.ref_name }}/${{ github.sha }}/$workflow_name
+          mkdir -p $BUILD_ARTIFACTS_DIR/$branch_name/${{ github.sha }}/$workflow_name
           
-          echo "test text" >> $BUILD_ARTIFACTS_DIR/${{ steps.extract_branch.outputs.branch }}/${{ github.sha }}/${{ github.workflow }}/sample_file.txt
+          echo "test text" >> $BUILD_ARTIFACTS_DIR/$branch_name/${{ github.sha }}/$workflow_name/sample_file.txt
           
           ls -laR $BUILD_ARTIFACTS_DIR
 
