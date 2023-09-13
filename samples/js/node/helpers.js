@@ -1,5 +1,5 @@
 const cv2 = require('opencv.js');
-const fs = require('node:fs/promises');
+const path = require('node:path');
 const { createWriteStream } = require('node:fs');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 

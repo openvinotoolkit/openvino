@@ -138,6 +138,11 @@ async function fetchRuntime(uri) {
   console.log('Downloaded');
 
   console.log('Uncompressing...');
+  try {
+    await fs.rm(runtimeDir, { recursive: true, force: true });
+  } catch(err) {
+    if (err.code !== codeENOENT) throw err;
+  }
   await decompress(fullPath, runtimeDir, { strip: 1 });
   await fs.rm(tmpPath, { recursive: true, force: true });
   console.log('The archive was successfully uncompressed');
