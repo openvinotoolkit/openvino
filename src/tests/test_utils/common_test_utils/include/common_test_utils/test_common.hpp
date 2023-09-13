@@ -14,7 +14,7 @@ namespace ov {
 namespace test {
 namespace utils {
 class PostgreSQLLink;
-} //namespace utils
+}  // namespace utils
 
 class TestsCommon : virtual public ::testing::Test {
     /// \brief Holds a pointer on PostgreSQL interface implementation (see postgres_link.hpp).

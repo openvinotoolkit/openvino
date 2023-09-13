@@ -1,4 +1,4 @@
-name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
+name: Linux ARM64 with Conan (Ubuntu 20.04, Python 3.11)
 on:
   schedule:
     # run daily at 00:00
@@ -40,7 +40,6 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      NUM_PROC: 2
       BUILD_TYPE: Release
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       BUILD_DIR: ${{ github.workspace }}/build
@@ -50,7 +49,7 @@ jobs:
       OV_TEMP: ${{ github.workspace }}/openvino_temp
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
 
@@ -61,11 +60,6 @@ jobs:
             git submodule update --init -- ${{ env.OPENVINO_REPO }}/thirdparty/gtest
             git submodule update --init -- ${{ env.OPENVINO_REPO }}/thirdparty/open_model_zoo
           popd
-
-      - name: Create Directories
-        run: |
-          mkdir -p ${{ env.BUILD_DIR }}
-          mkdir -p ${{ env.INSTALL_DIR }}
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v4
@@ -124,15 +118,12 @@ jobs:
           restore-keys: |
             ${{ github.job }}-linux-arm64
 
-      - name: Get tools versions
-        run: |
-          ninja --version
-          ccache --version
-          python3 --version
-          cmake --version
-
       - name: Install conan and dependencies
         run: |
+          
+          # create build directories
+          mkdir -p ${{ env.BUILD_DIR }}/linux_arm64 ${{ env.BUILD_DIR }}/dependencies
+          
           python3 -m pip install conan
           # install build profile compilers
           sudo -E apt --assume-yes install gcc g++
@@ -155,7 +146,7 @@ jobs:
       #
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: CMake configure
@@ -183,7 +174,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=${{ env.BUILD_DIR }}/dependencies/conan_toolchain.cmake \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DARM_COMPUTE_SCONS_JOBS=${{ env.NUM_PROC }} \
+            -DARM_COMPUTE_SCONS_JOBS=${{ steps.cpu-cores.outputs.count }} \
             -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DENABLE_PYTHON_PACKAGING=ON \

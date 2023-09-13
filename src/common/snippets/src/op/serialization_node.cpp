@@ -9,8 +9,8 @@ namespace ov {
 namespace snippets {
 namespace op {
 
-SerializationNode::SerializationNode(const Output<Node> &arg, const std::shared_ptr<lowered::Expression> &expr)
-        : Op({arg}), m_expr(expr) {
+SerializationNode::SerializationNode(const ov::OutputVector& args, const std::shared_ptr<lowered::Expression>& expr)
+    : Op(args), m_expr(expr) {
     if (!m_expr || !m_expr->get_node())
         OPENVINO_THROW("SerializationNode requires a valid expression with non-null node pointer");
     const auto &node = expr->get_node();
@@ -28,22 +28,22 @@ void SerializationNode::validate_and_infer_types() {
 
 std::shared_ptr<Node> SerializationNode::clone_with_new_inputs(const OutputVector &new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<SerializationNode>(new_args.at(0), m_expr);
+    return std::make_shared<SerializationNode>(new_args, m_expr);
 }
 
 bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
-    std::vector<std::pair<std::string, ov::PartialShape>> shapes;
-    const auto &node = m_expr->get_node();
-    for (size_t i = 0; i < node->get_input_size(); i++) {
-        const auto &pshape = node->get_input_partial_shape(i);
-            if (pshape.begin() != pshape.end())
-                shapes.emplace_back("in_shape_" + std::to_string(i), node->get_input_partial_shape(i));
+    std::vector<std::pair<std::string, std::vector<size_t>>> shapes;
+    for (size_t i = 0; i < m_expr->get_input_count(); i++) {
+        const auto &shape = m_expr->get_input_port_descriptor(i)->get_shape();
+        if (!shape.empty())
+            shapes.emplace_back("in_shape_" + std::to_string(i), shape);
     }
-    for (size_t i = 0; i < node->get_output_size(); i++) {
-        const auto &pshape = node->get_output_partial_shape(i);
-        if (pshape.begin() != pshape.end())
-            shapes.emplace_back("out_shape_" + std::to_string(i), pshape);
+    for (size_t i = 0; i < m_expr->get_output_count(); i++) {
+        const auto &shape = m_expr->get_output_port_descriptor(i)->get_shape();
+        if (!shape.empty())
+            shapes.emplace_back("out_shape_" + std::to_string(i), shape);
     }
+
     auto loop_ids = m_expr->get_loop_ids();
     auto rinfo = m_expr->get_reg_info();
     if (!rinfo.first.empty())
@@ -54,7 +54,7 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
         visitor.on_attribute(s.first, s.second);
 
     visitor.on_attribute("loop_ids", loop_ids);
-    node->visit_attributes(visitor);
+    m_expr->get_node()->visit_attributes(visitor);
     return true;
 }
 
