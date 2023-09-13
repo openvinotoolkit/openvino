@@ -24,29 +24,29 @@ If tensor is of ``any supported integer`` type, for each element of tensor:
 
 Example 1 - *BitwiseXor* output for boolean tensor:
 
-.. code-block:: xml
+.. code-block:: py
     :force:
 
-    <!-- For given boolean inputs: -->
+    # For given boolean inputs:
     a = [True, False, False]
     b = [True, True, False]
-    <!-- Perform logical XOR operation same like in LogicalXor operator.: -->
+    # Perform logical XOR operation same like in LogicalXor operator:
     output = [False, True, False]
 
 Example 2 - *BitwiseXor* output for uint8 tensor:
 
-.. code-block:: xml
+.. code-block:: py
     :force:
 
-    <!-- For given uint8 inputs: -->
+    # For given uint8 inputs:
     a = [21, 120]
     b = [3, 37]
-    <!-- Create binary representation of uint8: -->
-    <!-- binary a: [00010101, 01111000] -->
-    <!-- binary b: [00000011, 00100101] -->
-    <!-- Perform bitwise XOR of corresponding elements in a and b: -->
-    <!-- [00010110, 01011101] -->
-    <!-- Convert binary values to uint8: -->
+    # Create binary representation of uint8:
+    # binary a: [00010101, 01111000]
+    # binary b: [00000011, 00100101]
+    # Perform bitwise XOR of corresponding elements in a and b:
+    # [00010110, 01011101]
+    # Convert binary values to uint8:
     output = [22, 93]
 
 **Attributes**:

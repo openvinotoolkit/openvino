@@ -24,29 +24,29 @@ If tensor is of ``any supported integer`` type, for each element of tensor:
 
 Example 1 - *BitwiseOr* output for boolean tensor:
 
-.. code-block:: xml
+.. code-block:: py
     :force:
 
-    <!-- For given boolean inputs: -->
+    # For given boolean inputs:
     a = [True, False, False]
     b = [True, True, False]
-    <!-- Perform logical OR operation same like in LogicalOr operator.: -->
+    # Perform logical OR operation same like in LogicalOr operator:
     output = [True, True, False]
 
 Example 2 - *BitwiseOr* output for uint8 tensor:
 
-.. code-block:: xml
+.. code-block:: py
     :force:
 
-    <!-- For given uint8 inputs: -->
+    # For given uint8 inputs:
     a = [21, 120]
     b = [3, 37]
-    <!-- Create binary representation of uint8: -->
-    <!-- binary a: [00010101, 01111000] -->
-    <!-- binary b: [00000011, 00100101] -->
-    <!-- Perform bitwise OR of corresponding elements in a and b: -->
-    <!-- [00010111, 01111101] -->
-    <!-- Convert binary values to uint8: -->
+    # Create binary representation of uint8:
+    # binary a: [00010101, 01111000]
+    # binary b: [00000011, 00100101]
+    # Perform bitwise OR of corresponding elements in a and b:
+    # [00010111, 01111101]
+    # Convert binary values to uint8:
     output = [23, 125]
 
 **Attributes**:

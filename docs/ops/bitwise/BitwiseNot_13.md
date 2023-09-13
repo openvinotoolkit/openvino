@@ -22,26 +22,26 @@ If tensor is of ``any supported integer`` type, for each element of tensor:
 
 Example 1 - *BitwiseNot* output for boolean tensor:
 
-.. code-block:: xml
+.. code-block:: py
     :force:
 
-    <!-- For given boolean input: -->
+    # For given boolean input:
     input = [True, False]
-    <!-- Perform logical negation operation same like in LogicalNot operator.: -->
+    # Perform logical negation operation same like in LogicalNot operator:
     output = [False, True]
 
 Example 2 - *BitwiseNot* output for uint8 tensor:
 
-.. code-block:: xml
+.. code-block:: py
     :force:
 
-    <!-- For given uint8 input: -->
+    # For given uint8 input:
     input = [1, 3]
-    <!-- Create binary representation of uint8: -->
-    <!-- [00000001, 00000011] -->
-    <!-- Perform bitwise negation: -->
-    <!-- [11111110, 11111100] -->
-    <!-- Convert back binary values to uint8: -->
+    # Create binary representation of uint8:
+    # [00000001, 00000011]
+    # Perform bitwise negation:
+    # [11111110, 11111100]
+    # Convert back binary values to uint8:
     output = [254, 252]
 
 **Attributes**: *BitwiseNot* operation has no attributes.

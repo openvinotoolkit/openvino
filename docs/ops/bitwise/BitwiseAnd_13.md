@@ -24,29 +24,29 @@ If tensor is of ``any supported integer`` type, for each element of tensor:
 
 Example 1 - *BitwiseAnd* output for boolean tensor:
 
-.. code-block:: xml
+.. code-block:: py
     :force:
 
-    <!-- For given boolean inputs: -->
+    # For given boolean inputs:
     a = [True, False, False]
     b = [True, True, False]
-    <!-- Perform logical AND operation same like in LogicalAnd operator.: -->
+    # Perform logical AND operation same like in LogicalAnd operator:
     output = [True, False, False]
 
 Example 2 - *BitwiseAnd* output for uint8 tensor:
 
-.. code-block:: xml
+.. code-block:: py
     :force:
 
-    <!-- For given uint8 inputs: -->
+    # For given uint8 inputs:
     a = [21, 120]
     b = [3, 37]
-    <!-- Create binary representation of uint8: -->
-    <!-- binary a: [00010101, 01111000] -->
-    <!-- binary b: [00000011, 00100101] -->
-    <!-- Perform bitwise AND of corresponding elements in a and b: -->
-    <!-- [00000001, 00100000] -->
-    <!-- Convert binary values to uint8: -->
+    # Create binary representation of uint8:
+    # binary a: [00010101, 01111000]
+    # binary b: [00000011, 00100101]
+    # Perform bitwise AND of corresponding elements in a and b:
+    # [00000001, 00100000]
+    # Convert binary values to uint8:
     output = [1, 32]
 
 **Attributes**:
