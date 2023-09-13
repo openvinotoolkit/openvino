@@ -88,10 +88,9 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
     ov::DimensionTracker dt(te);
 
     for (const auto& op : m->get_ordered_ops()) {
-        op->invalidate_values();
         for (auto& output : op->outputs())
             ov::set_up_symbolic_info(output, te);
-        op->validate_and_infer_types();
+        op->revalidate_and_infer_types();
         // Recursively apply transformation for sub-graph based operations
         if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op))
             for (const auto& sub_graph : multi_subgraph_op->get_functions())
