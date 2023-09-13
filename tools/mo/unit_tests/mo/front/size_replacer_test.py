@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -22,33 +22,33 @@ nodes = lambda output_type: {
 }
 
 
-class SizeReplacerTest(unittest.TestCase):
-    def test_size_replacer(self):
-        test_cases =[np.int32, np.int64]
-        for idx, (output_type) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=nodes(output_type), edges=[
-                    *connect('input', 'size'),
-                    *connect('size', 'output'),
-                ], nodes_with_edges_only=True)
-                SizeFrontReplacer().find_and_replace_pattern(graph)
+class TestSizeReplacerTest():
 
-                graph_ref = build_graph(nodes_attrs=nodes(output_type), edges=[
-                    *connect('input', 'shape'),
-                    *connect('shape', '0:reduce'),
-                    *connect('zero', '1:reduce'),
-                    *connect('reduce', 'output'),
-                ], nodes_with_edges_only=True)
+    @pytest.mark.parametrize("output_type" ,[np.int32, np.int64])
+    def test_size_replacer(self, output_type):
+        graph = build_graph(nodes_attrs=nodes(output_type), edges=[
+            *connect('input', 'size'),
+            *connect('size', 'output'),
+        ], nodes_with_edges_only=True)
+        SizeFrontReplacer().find_and_replace_pattern(graph)
 
-                (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-                self.assertTrue(flag, resp)
-                self.assertEqual(graph.get_op_nodes(type='ReduceProd')[0]['name'], 'my_size',
-                                'Name is not inherited from original node for SizeReplacer')
-                print(output_type)
+        graph_ref = build_graph(nodes_attrs=nodes(output_type), edges=[
+            *connect('input', 'shape'),
+            *connect('shape', '0:reduce'),
+            *connect('zero', '1:reduce'),
+            *connect('reduce', 'output'),
+        ], nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        assert flag, resp
+        assert graph.get_op_nodes(type='ReduceProd')[0]['name'] == 'my_size',\
+                         'Name is not inherited from original node for SizeReplacer'
+        print(output_type)
 
     def test_size_replacer_assertion(self):
         graph = build_graph(nodes_attrs=nodes(None), edges=[
             *connect('input', 'size'),
             *connect('size', 'output'),
         ], nodes_with_edges_only=True)
-        self.assertRaises(AssertionError, SizeFrontReplacer().find_and_replace_pattern, graph)
+        with pytest.raises(AssertionError):
+            SizeFrontReplacer().find_and_replace_pattern (graph)
