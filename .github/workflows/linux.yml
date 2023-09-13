@@ -654,7 +654,7 @@ jobs:
 
       - name: Model Optimizer UT
         run: |
-          su - ${{ env.TEST_USER_NAME }} -c "export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:${INSTALL_DIR}/python/python3.11:$PYTHONPATH"
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:${INSTALL_DIR}/python/python3.11:$PYTHONPATH
 
           # TODO: figure out why they need to be reinstalled
           python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_mxnet.txt
@@ -664,8 +664,8 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_tf2.txt
           python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
 
-          su - ${{ env.TEST_USER_NAME }} -c "source ${INSTALL_DIR}/setupvars.sh"
-          su - ${{ env.TEST_USER_NAME }} -c "python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml"
+          source ${INSTALL_DIR}/setupvars.sh
+          python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
         run: |
@@ -827,11 +827,6 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
-
-      - name: Install python dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
 
       - name: Cache Tests Execution Time
         id: tests-functional-cpu-cache
