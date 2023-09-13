@@ -28,7 +28,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  Smart_CI:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Get affected components
+        id: smart_ci
+        uses: akladiev/testrepo/.github/actions/affected-components@0.1.0
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.pull_request.number }}
+          commit_sha: ${{ github.sha }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # it has read-only access for forks, should be fine
+
+      - name: Check affected components
+        run: |
+          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+        shell: bash
+
   Build:
+    needs: Smart_CI
     defaults:
       run:
         shell: bash
