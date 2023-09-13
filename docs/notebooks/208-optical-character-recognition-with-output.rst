@@ -19,8 +19,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. For more
 information, refer to the
 `104-model-tools <104-model-tools-with-output.html>`__ tutorial.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Imports <#Imports>`__
 -  `Settings <#Settings>`__
@@ -55,7 +54,7 @@ Table of content:
     !pip install -q "openvino-dev==2023.1.0.dev20230811"
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -73,7 +72,7 @@ Imports
     from notebook_utils import load_image
 
 Settings
---------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -87,7 +86,7 @@ Settings
     model_dir.mkdir(exist_ok=True)
 
 Download Models
----------------------------------------------------------
+###############################################################################################################################
 
 The next cells will run Model Downloader to download the detection and
 recognition models. If the models have been downloaded before, they will
@@ -305,7 +304,7 @@ text-recognition-resnet-fc.
     #    print(line)
 
 Convert Models
---------------------------------------------------------
+###############################################################################################################################
 
 The downloaded detection model is an Intel model, which is already in
 OpenVINO Intermediate Representation (OpenVINO IR) format. The text
@@ -355,7 +354,7 @@ Converting text-recognition-resnet-fc…
 
 
 Select inference device
------------------------------------------------------------------
+###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -382,13 +381,13 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Object Detection
-----------------------------------------------------------
+###############################################################################################################################
 
 Load a detection model, load an image, do inference and get the
 detection inference result.
 
 Load a Detection Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -400,7 +399,7 @@ Load a Detection Model
     detection_input_layer = detection_compiled_model.input(0)
 
 Load an Image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -426,7 +425,7 @@ Load an Image
 
 
 Do Inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Text boxes are detected in the images and returned as blobs of data in
 the shape of ``[100, 5]``. Each description of detection has the
@@ -441,7 +440,7 @@ the shape of ``[100, 5]``. Each description of detection has the
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
 Get Detection Results
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -510,13 +509,13 @@ Get Detection Results
         return rgb_image
 
 Text Recognition
-----------------------------------------------------------
+###############################################################################################################################
 
 Load the text recognition model and do inference on the detected boxes
 from the detection model.
 
 Load Text Recognition Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -533,7 +532,7 @@ Load Text Recognition Model
     _, _, H, W = recognition_input_layer.shape
 
 Do Inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -579,10 +578,10 @@ Do Inference
     boxes_with_annotations = list(zip(boxes, annotations))
 
 Show Results
-------------------------------------------------------
+###############################################################################################################################
 
 Show Detected Text Boxes and OCR Results for the Image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Visualize the result by drawing boxes around recognized text and showing
 the OCR result from the text recognition model.
@@ -598,7 +597,7 @@ the OCR result from the text recognition model.
 
 
 Show the OCR Result per Bounding Box
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Depending on the image, the OCR result may not be readable in the image
 with boxes, as displayed in the cell above. Use the code below to
@@ -659,7 +658,7 @@ robert
 
 
 Print Annotations in Plain Text Format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Print annotations for detected text based on their position in the input
 image, starting from the upper left corner.

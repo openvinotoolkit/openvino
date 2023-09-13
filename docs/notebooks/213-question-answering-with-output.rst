@@ -7,21 +7,31 @@ model <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/inte
 distilled and quantized to ``INT8`` on SQuAD v1.1 training set from
 larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
-of this notebook provides live inference results from your inputs. ####
-Table of content:- `Imports <#Imports>`__ - `The
-model <#The-model>`__ - `Download the
-model <#Download-the-model>`__ - `Load the
-model <#Load-the-model>`__ - `Select inference
-device <#Select-inference-device>`__ -
-`Processing <#Processing>`__ -
-`Preprocessing <#Preprocessing>`__ -
-`Postprocessing <#Postprocessing>`__ - `Main Processing
-Function <#Main-Processing-Function>`__ - `Run <#Run>`__
-- `Run on local paragraphs <#Run-on-local-paragraphs>`__ - `Run
-on websites <#Run-on-websites>`__
+of this notebook provides live inference results from your inputs. 
+
+**Table of content:**
+
+- `Imports <#Imports>`__ 
+- `The model <#The-model>`__ 
+
+  - `Download the model <#Download-the-model>`__ 
+  - `Load the model <#Load-the-model>`__ 
+  
+    - `Select inference device <#Select-inference-device>`__ 
+
+- `Processing <#Processing>`__ 
+
+  - `Preprocessing <#Preprocessing>`__ 
+  - `Postprocessing <#Postprocessing>`__ 
+  - `Main Processing Function <#Main-Processing-Function>`__ 
+  
+- `Run <#Run>`__
+
+  - `Run on local paragraphs <#Run-on-local-paragraphs>`__ 
+  - `Run on websites <#Run-on-websites>`__
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -36,10 +46,10 @@ Imports
     import tokens_bert as tokens
 
 The model
----------------------------------------------------
+###############################################################################################################################
 
 Download the model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. The ``omz_downloader`` tool automatically
@@ -94,7 +104,7 @@ there is no need to use ``omz_converter``.
 
 
 Load the model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, a model name and a precision. Only a few lines of code are
@@ -111,7 +121,7 @@ You can choose ``CPU`` or ``GPU`` for this model.
     model = core.read_model(model_path)
 
 Select inference device
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------------------------------------------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -169,7 +179,7 @@ for BERT-large-like model.
 
 
 Processing
-----------------------------------------------------
+###############################################################################################################################
 
 NLP models usually take a list of tokens as a standard input. A token is
 a single word converted to some integer. To provide the proper input,
@@ -207,7 +217,7 @@ content from provided URLs.
         return "\n".join(paragraphs)
 
 Preprocessing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The input size in this case is 384 tokens long. The main input
 (``input_ids``) to used BERT model consists of two parts: question
@@ -290,7 +300,7 @@ documentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/mod
         return (input_ids, attention_mask, token_type_ids), diff_input_size
 
 Postprocessing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The results from the network are raw (logits). Use the softmax function
 to get the probability distribution. Then, find the best answer in the
@@ -383,7 +393,7 @@ answer should come with the highest score.
         return context[answer[1]:answer[2]], answer[0]
 
 Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Run question answering on a specific knowledge base (websites) and
 iterate through the questions.
@@ -425,10 +435,10 @@ iterate through the questions.
                 print(f"Time: {end_time - start_time:.2f}s")
 
 Run
----------------------------------------------
+###############################################################################################################################
 
 Run on local paragraphs
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Change sources to your own to answer your questions. You can use as many
 sources as you want. Usually, you need to wait a few seconds for the
@@ -480,7 +490,7 @@ questions in the box.**
 
 
 Run on websites
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 You can also provide URLs. Note that the context (a knowledge base) is
 built from paragraphs on websites. If some information is outside the

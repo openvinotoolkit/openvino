@@ -21,8 +21,7 @@ consists of the following steps:
    integration with Hugging Face Optimum.
 -  Compare sparse 8-bit vs. dense 8-bit inference performance.
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
 -  `Prerequisites <#Prerequisites>`__
 -  `Imports <#Imports>`__
@@ -38,7 +37,7 @@ Table of content:
 -  `When this might be helpful <#When-this-might-be-helpful>`__
 
 Prerequisites
--------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -46,7 +45,7 @@ Prerequisites
     !pip install -q "git+https://github.com/huggingface/optimum-intel.git" datasets onnx onnxruntime
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -79,7 +78,7 @@ Imports
 
 
 Download, quantize and sparsify the model, using Hugging Face Optimum API
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The first step is to download a quantized sparse transformers which has
 been translated to OpenVINO IR. Then, it will be put through a
@@ -145,7 +144,7 @@ the IRs into a single folder.
 
 
 Benchmark quantized dense inference performance
------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Benchmark dense inference performance using parallel execution on four
 CPU cores to simulate a small instance in the cloud infrastructure.
@@ -180,7 +179,7 @@ as an example. It is recommended to tune based on your applications.
 
 
 Benchmark quantized sparse inference performance
-------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 To enable sparse weight decompression feature, users can add it to
 runtime config like below. ``CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE``
@@ -216,7 +215,7 @@ for which a layer will be enabled.
 
 
 When this might be helpful
---------------------------------------------------------------------
+###############################################################################################################################
 
 This feature can improve inference performance for models with sparse
 weights in the scenarios when the model is deployed to handle multiple

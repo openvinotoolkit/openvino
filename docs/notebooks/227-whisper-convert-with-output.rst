@@ -24,8 +24,7 @@ Download the model. 2. Instantiate the PyTorch model pipeline. 3.
 Convert model to OpenVINO IR, using model conversion API. 4. Run the
 Whisper pipeline with OpenVINO models.
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
 -  `Prerequisites <#Prerequisites>`__
 -  `Instantiate model <#Instantiate-model>`__
@@ -46,7 +45,7 @@ Table of content:
 -  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
--------------------------------------------------------
+###############################################################################################################################
 
 Install dependencies.
 
@@ -94,7 +93,7 @@ Install dependencies.
 
 
 Instantiate model
------------------------------------------------------------
+###############################################################################################################################
 
 Whisper is a Transformer based encoder-decoder model, also referred to
 as a sequence-to-sequence model. It maps a sequence of audio spectrogram
@@ -127,7 +126,7 @@ Whisper family.
     pass
 
 Convert model to OpenVINO Intermediate Representation (IR) format.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. We need to provide initialized model object and
@@ -138,7 +137,7 @@ making predictions. We can save it on disk for next usage with
 ``ov.save_model``.
 
 Convert Whisper Encoder to OpenVINO IR
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -170,7 +169,7 @@ Convert Whisper Encoder to OpenVINO IR
 
 
 Convert Whisper decoder to OpenVINO IR
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To reduce computational complexity, the decoder uses cached key/value
 projections in attention modules from the previous steps. We need to
@@ -404,7 +403,7 @@ efficient utilization of memory, you define an upper bound for dynamic
 input shapes.
 
 Prepare inference pipeline
---------------------------------------------------------------------
+###############################################################################################################################
 
 The image below illustrates the pipeline of video transcribing using the
 Whisper model.
@@ -459,7 +458,7 @@ select device from dropdown list for running inference using OpenVINO
     model.decoder = OpenVINOTextDecoder(core, WHISPER_DECODER_OV, device=device.value)
 
 Run video transcription pipeline
---------------------------------------------------------------------------
+###############################################################################################################################
 
 Now, we are ready to start transcription. We select a video from YouTube
 that we want to transcribe. Be patient, as downloading the video may
@@ -622,7 +621,7 @@ Now let us see the results.
 
 
 Interactive demo
-----------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 

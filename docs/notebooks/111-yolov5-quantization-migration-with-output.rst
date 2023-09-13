@@ -23,8 +23,7 @@ The tutorial consists from the following parts:
 6. Run model inference demo
 7. Compare performance FP32 and INT8 models
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
 -  `Preparation <#Preparation>`__
 
@@ -63,10 +62,10 @@ Table of content:
 -  `References <#References>`__
 
 Preparation
------------------------------------------------------
+###############################################################################################################################
 
 Download the YOLOv5 model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -103,7 +102,7 @@ Download the YOLOv5 model
 
 
 Conversion of the YOLOv5 model to OpenVINO
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 There are three variables provided for easy run through all the notebook
 cells.
@@ -215,7 +214,7 @@ saved with FP16 precision.
 
 
 Imports
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -225,7 +224,7 @@ Imports
     from yolov5.utils.general import check_dataset
 
 Prepare dataset for quantization
---------------------------------------------------------------------------
+###############################################################################################################################
 
 Before starting quantization, we should prepare dataset, which will be
 used for quantization. Ultralytics YOLOv5 provides data loader for
@@ -278,7 +277,7 @@ first.
 
 
 Create YOLOv5 DataLoader class for POT
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Create a class for loading the YOLOv5 dataset and annotation which
 inherits from POT API class DataLoader.
@@ -367,7 +366,7 @@ index. Any implementation should override the following methods:
 
 
 Create NNCF Dataset
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 For preparing quantization dataset for NNCF, we should wrap
 framework-specific data source into ``nncf.Dataset`` instance.
@@ -414,12 +413,12 @@ format).
 
 
 Configure quantization pipeline
--------------------------------------------------------------------------
+###############################################################################################################################
 
 Next, we should define quantization algorithm parameters.
 
 Prepare config and pipeline for POT
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 in POT, all quantization parameters should be defined using
 configuration dictionary. Config consists of 3 sections: ``algorithms``
@@ -468,7 +467,7 @@ pipeline using ``create_pipeline`` function.
     pipeline = create_pipeline(algorithms_config, engine)
 
 Prepare configuration parameters for NNCF
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Post-training quantization pipeline in NNCF represented by
 ``nncf.quantize`` function for Default Quantization Algorithm and
@@ -488,10 +487,10 @@ in our case ``ov.Model`` instance created using ``core.read_model`` or
     preset = nncf.QuantizationPreset.MIXED
 
 Perform model optimization
---------------------------------------------------------------------
+###############################################################################################################################
 
 Run quantization using POT
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To start model quantization using POT API, we should call
 ``pipeline.run(pot_model)`` method. As the result, we got quantized
@@ -512,7 +511,7 @@ size of final .bin file.
     pot_int8_path = f"{optimized_save_dir}/{MODEL_NAME}_int8.xml"
 
 Run quantization using NNCF
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To run NNCF quantization, we should call ``nncf.quantize`` function. As
 the result, the function returns quantized model in the same format like
@@ -538,7 +537,7 @@ device for inference and can be saved on disk using
 
 
 Compare accuracy FP32 and INT8 models
--------------------------------------------------------------------------------
+###############################################################################################################################
 
 For getting accuracy results, we will use ``yolov5.val.run`` function
 which already supports OpenVINO backend. For making int8 model is
@@ -762,7 +761,7 @@ model.
 
 
 Inference Demo Performance Comparison
--------------------------------------------------------------------------------
+###############################################################################################################################
 
 This part shows how to use the Ultralytics model detection code
 ```detect.py`` <https://github.com/ultralytics/yolov5/blob/master/detect.py>`__
@@ -882,7 +881,7 @@ images.
 
 
 Benchmark
----------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -951,7 +950,7 @@ Benchmark
 
 
 References
-----------------------------------------------------
+###############################################################################################################################
 
 -  `Ultralytics YOLOv5 <https://github.com/ultralytics/yolov5>`__
 -  `OpenVINO Post-training Optimization

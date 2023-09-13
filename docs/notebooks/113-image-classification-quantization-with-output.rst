@@ -19,8 +19,7 @@ This tutorial consists of the following steps:
 -  Compare performance of the original and quantized models.
 -  Compare results on one picture.
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
 -  `Prepare the Model <#Prepare-the-Model>`__
 -  `Prepare Dataset <#Prepare-Dataset>`__
@@ -61,7 +60,7 @@ Table of content:
     MODEL_DIR.mkdir(exist_ok=True)
 
 Prepare the Model
------------------------------------------------------------
+###############################################################################################################################
 
 Model preparation stage has the following steps:
 
@@ -139,7 +138,7 @@ can be found on this
 
 
 Prepare Dataset
----------------------------------------------------------
+###############################################################################################################################
 
 We will use `CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`__
 dataset from
@@ -181,7 +180,7 @@ Preprocessing for model obtained from training
 
 
 Perform Quantization
---------------------------------------------------------------
+###############################################################################################################################
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -195,7 +194,7 @@ MobileNetV2. The optimization process contains the following steps:
    function.
 
 Create Dataset for Validation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 NNCF is compatible with ``torch.utils.data.DataLoader`` interface. For
 performing quantization it should be passed into ``nncf.Dataset`` object
@@ -214,7 +213,7 @@ model during quantization, in our case, to pick input tensor from pair
     quantization_dataset = nncf.Dataset(val_loader, transform_fn)
 
 Run nncf.quantize for Getting an Optimized Model
-------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 ``nncf.quantize`` function accepts model and prepared quantization
 dataset for performing basic quantization. Optionally, additional
@@ -235,7 +234,7 @@ about supported parameters can be found on this
 
 
 Serialize an OpenVINO IR model
-------------------------------------------------------------------------
+###############################################################################################################################
 
 Similar to ``ov.convert_model``, quantized model is ``ov.Model`` object
 which ready to be loaded into device and can be serialized on disk using
@@ -246,7 +245,7 @@ which ready to be loaded into device and can be serialized on disk using
     ov.save_model(quant_ov_model, MODEL_DIR / "quantized_mobilenet_v2.xml")
 
 Compare Accuracy of the Original and Quantized Models
------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -264,7 +263,7 @@ Compare Accuracy of the Original and Quantized Models
         return correct / total
 
 Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -326,7 +325,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Compare Performance of the Original and Quantized Models
---------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
@@ -365,7 +364,7 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
 
 
 Compare results on four pictures
---------------------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 

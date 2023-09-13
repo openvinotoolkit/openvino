@@ -45,7 +45,7 @@ translation <#Test-your-translation>`__
     from tokenizers import SentencePieceBPETokenizer
 
 Downloading model
------------------------------------------------------------
+###############################################################################################################################
 
 The following command will download the model to the current directory.
 Make sure you have run ``pip install openvino-dev`` beforehand.
@@ -86,7 +86,7 @@ Make sure you have run ``pip install openvino-dev`` beforehand.
 
 
 Load and configure the model
-----------------------------------------------------------------------
+###############################################################################################################################
 
 The model is now available in the ``intel/`` folder. Below, we load and
 configure its inputs and outputs.
@@ -101,7 +101,7 @@ configure its inputs and outputs.
     max_tokens = model.input(input_name).shape[1]
 
 Select inference device
------------------------------------------------------------------
+###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -134,7 +134,7 @@ select device from dropdown list for running inference using OpenVINO
     compiled_model = core.compile_model(model, device.value)
 
 Load tokenizers
----------------------------------------------------------
+###############################################################################################################################
 
 NLP models usually take a list of tokens as standard input. A token is a
 single word converted to some integer. To provide the proper input, we
@@ -161,7 +161,7 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
     )
 
 Perform translation
--------------------------------------------------------------
+###############################################################################################################################
 
 The following function translates a sentence in English to German.
 
@@ -210,7 +210,7 @@ The following function translates a sentence in English to German.
         return sentence
 
 Translate the sentence
-----------------------------------------------------------------
+###############################################################################################################################
 
 The following function is a basic loop that translates sentences.
 
@@ -240,7 +240,7 @@ The following function is a basic loop that translates sentences.
     # run_translator()
 
 Test your translation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Run the following cell with an English sentence to have it translated to
 German

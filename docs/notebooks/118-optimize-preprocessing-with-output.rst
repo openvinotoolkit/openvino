@@ -23,8 +23,7 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
 -  `Settings <#Settings>`__
 -  `Imports <#Imports>`__
@@ -66,7 +65,7 @@ Table of content:
    -  `Compare performance <#Compare-performance>`__
 
 Settings
---------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -74,7 +73,7 @@ Settings
     !pip install -q "openvino==2023.1.0.dev20230811" tensorflow opencv-python matplotlib
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -97,7 +96,7 @@ Imports
 
 
 Setup image and device
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -127,7 +126,7 @@ Setup image and device
 
 
 Downloading the model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 This tutorial uses the
 `InceptionResNetV2 <https://www.tensorflow.org/api_docs/python/tf/keras/applications/inception_resnet_v2>`__.
@@ -183,14 +182,14 @@ and save it to the disk.
 
 
 Create core
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
     core = ov.Core()
 
 Check the original parameters of image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -211,7 +210,7 @@ Check the original parameters of image
 
 
 Setup preprocessing steps with Preprocessing API and perform inference
-----------------------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Intuitively, preprocessing API consists of the following parts:
 
@@ -237,7 +236,7 @@ Pre-processing support following operations (please, see more details
 -  Custom Operations
 
 Convert model to OpenVINO IR with model conversion API
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The options for preprocessing are not required.
 
@@ -256,7 +255,7 @@ The options for preprocessing are not required.
         ov.save_model(ppp_model, str(ir_path))
 
 Create ``PrePostProcessor`` Object
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The
 ```PrePostProcessor()`` <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
@@ -270,7 +269,7 @@ a model.
     ppp = PrePostProcessor(ppp_model)
 
 Declare User’s Data Format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To address particular input of a model/preprocessor, use the
 ``PrePostProcessor.input(input_name)`` method. If the model has only one
@@ -313,7 +312,7 @@ for mean/scale normalization.
 
 
 Declaring Model Layout
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Model input already has information about precision and shape.
 Preprocessing API is not intended to modify this. The only thing that
@@ -342,7 +341,7 @@ may be specified is input data
 
 
 Preprocessing Steps
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
@@ -381,7 +380,7 @@ then such conversion will be added explicitly.
 
 
 Integrating Steps into a Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Once the preprocessing steps have been finished, the model can be
 finally built. It is possible to display ``PrePostProcessor``
@@ -407,7 +406,7 @@ configuration for debugging purposes.
 
 
 Load model and perform inference
---------------------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -425,10 +424,10 @@ Load model and perform inference
     results = compiled_model_with_preprocess_api(ppp_input_tensor)[ppp_output_layer][0]
 
 Fit image manually and perform inference
-----------------------------------------------------------------------------------
+###############################################################################################################################
 
 Load the model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -436,7 +435,7 @@ Load the model
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
 Load image and fit it to model input
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -470,7 +469,7 @@ Load image and fit it to model input
 
 
 Perform inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -479,10 +478,10 @@ Perform inference
     result = compiled_model(input_tensor)[output_layer]
 
 Compare results
----------------------------------------------------------
+###############################################################################################################################
 
 Compare results on one image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -534,7 +533,7 @@ Compare results on one image
 
 
 Compare performance
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 

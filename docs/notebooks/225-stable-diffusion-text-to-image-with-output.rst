@@ -38,8 +38,7 @@ Notebook contains the following steps:
 2. Convert models to OpenVINO IR format, using model conversion API.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
 -  `Prerequisites <#Prerequisites>`__
 -  `Create PyTorch Models
@@ -61,7 +60,7 @@ Table of content:
 -  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
--------------------------------------------------------
+###############################################################################################################################
 
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
@@ -105,7 +104,7 @@ solutions based on Stable Diffusion.
     !pip install -q gradio
 
 Create PyTorch Models pipeline
-------------------------------------------------------------------------
+###############################################################################################################################
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -261,7 +260,7 @@ First, load the pre-trained weights of all components of the model.
 
 
 Convert models to OpenVINO Intermediate representation (IR) format
-------------------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Staring from 2023.0 release, OpenVINO supports direct conversion PyTorch
 models to OpenVINO IR format. You need to provide a model object and
@@ -283,7 +282,7 @@ The model consists of three important parts:
 Let us convert each part.
 
 Text Encoder
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -379,7 +378,7 @@ hidden states.
 
 
 U-net
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Unet model has three inputs:
 
@@ -470,7 +469,7 @@ Model predicts the ``sample`` state for the next step.
 
 
 VAE
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -599,7 +598,7 @@ of the pipeline, it will be better to convert them to separate models.
 
 
 Prepare Inference Pipeline
---------------------------------------------------------------------
+###############################################################################################################################
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -1001,7 +1000,7 @@ of the variational auto encoder.
             return timesteps, num_inference_steps - t_start 
 
 Configure Inference Pipeline
-----------------------------------------------------------------------
+###############################################################################################################################
 
 First, you should create instances of OpenVINO Model.
 
@@ -1072,7 +1071,7 @@ Let us define them and put all components together
     )
 
 Text-to-Image generation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
@@ -1174,7 +1173,7 @@ Now is show time!
 Nice. As you can see, the picture has quite a high definition 🔥.
 
 Image-to-Image generation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``
@@ -1270,7 +1269,7 @@ semantically consistent with the input.
 
 
 Interactive demo
-----------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 

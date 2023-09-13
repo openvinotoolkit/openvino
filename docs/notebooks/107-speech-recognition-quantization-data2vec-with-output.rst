@@ -19,31 +19,23 @@ steps:
 -  Compare performance of the original and quantized models.
 -  Compare Accuracy of the Original and Quantized Models.
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
--  `Download and prepare model <#Download-and-prepare-model>`__
+- `Download and prepare model <#Download-and-prepare-model>`__
 
-   -  `Obtain Pytorch model
-      representation <#Obtain-Pytorch-model-representation>`__
-   -  `Convert model to OpenVINO Intermediate
-      Representation <#Convert-model-to-OpenVINO-Intermediate-Representation>`__
-   -  `Prepare inference data <#Prepare-inference-data>`__
+  - `Obtain Pytorch model representation <#Obtain-Pytorch-model-representation>`__
+  - `Convert model to OpenVINO Intermediate Representation <#Convert-model-to-OpenVINO-Intermediate-Representation>`__
+  - `Prepare inference data <#Prepare-inference-data>`__
 
--  `Check model inference
-   result <#Check-model-inference-result>`__
--  `Validate model accuracy on
-   dataset <#Validate-model-accuracy-on-dataset>`__
--  `Quantization <#Quantization>`__
--  `Check INT8 model inference
-   result <#Check-INT8-model-inference-result>`__
--  `Compare Performance of the Original and Quantized
-   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
--  `Compare Accuracy of the Original and Quantized
-   Models <#Compare-Accuracy-of-the-Original-and-Quantized-Models>`__
+- `Check model inference result <#Check-model-inference-result>`__
+- `Validate model accuracy on dataset <#Validate-model-accuracy-on-dataset>`__
+- `Quantization <#Quantization>`__
+- `Check INT8 model inference result <#Check-INT8-model-inference-result>`__
+- `Compare Performance of the Original and Quantized Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
+- `Compare Accuracy of the Original and Quantized Models <#Compare-Accuracy-of-the-Original-and-Quantized-Models>`__
 
 Download and prepare model
---------------------------------------------------------------------
+###############################################################################################################################
 
 data2vec is a framework for self-supervised representation learning for
 images, speech, and text as described in `data2vec: A General Framework
@@ -62,7 +54,7 @@ finetuned on 960 hours of audio from LibriSpeech Automatic Speech
 Recognition corpus and distributed as part of HuggingFace transformers.
 
 Obtain Pytorch model representation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 For instantiating PyTorch model class, we should use
 ``Data2VecAudioForCTC.from_pretrained`` method with providing model ID
@@ -88,7 +80,7 @@ model specific pre- and post-processing steps.
     model = Data2VecAudioForCTC.from_pretrained("facebook/data2vec-audio-base-960h")
 
 Convert model to OpenVINO Intermediate Representation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -158,7 +150,7 @@ Convert model to OpenVINO Intermediate Representation
 
 
 Prepare inference data
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 For demonstration purposes, we will use short dummy version of
 LibriSpeech dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
@@ -187,7 +179,7 @@ dataset.
     test_sample = ds[0]["audio"]
 
 Check model inference result
-----------------------------------------------------------------------
+###############################################################################################################################
 
 The code below is used for running model inference on a single sample
 from the dataset. It contains the following steps:
@@ -260,7 +252,7 @@ For reference, see the same function provided for OpenVINO model.
 
 
 Validate model accuracy on dataset
-----------------------------------------------------------------------------
+###############################################################################################################################
 
 For model accuracy evaluation, `Word Error
 Rate <https://en.wikipedia.org/wiki/Word_error_rate>`__ metric can be
@@ -320,7 +312,7 @@ library.
 
 
 Quantization
-------------------------------------------------------
+###############################################################################################################################
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -604,7 +596,7 @@ saved using ``serialize`` function.
     ov.save_model(quantized_model, str(quantized_model_path))
 
 Check INT8 model inference result
----------------------------------------------------------------------------
+###############################################################################################################################
 
 ``INT8`` model is the same in usage like the original one. We need to
 read it, using the ``core.read_model`` method and load on the device,
@@ -643,7 +635,7 @@ using ``core.compile_model``. After that, we can reuse the same
 
 
 Compare Performance of the Original and Quantized Models
---------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 `Benchmark
 Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
@@ -808,7 +800,7 @@ is used to measure the inference performance of the ``FP16`` and
 
 
 Compare Accuracy of the Original and Quantized Models
------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Finally, calculate WER metric for the ``INT8`` model representation and
 compare it with the ``FP16`` result.

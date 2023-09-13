@@ -23,8 +23,7 @@ IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Prerequisites <#Prerequisites>`__
 -  `Imports <#Imports>`__
@@ -52,7 +51,7 @@ Table of content:
       model <#Integration-preprocessing-to-model>`__
 
 Prerequisites
--------------------------------------------------------
+###############################################################################################################################
 
 Install required packages:
 
@@ -74,7 +73,7 @@ The notebook uses utility functions. The cell below will download the
     );
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -92,7 +91,7 @@ Imports
     from notebook_utils import download_file
 
 Settings
---------------------------------------------------
+###############################################################################################################################
 
 Define model related variables and create corresponding directories:
 
@@ -119,7 +118,7 @@ Define model related variables and create corresponding directories:
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
 Download Model from TensorFlow Hub
-----------------------------------------------------------------------------
+###############################################################################################################################
 
 Download archive with TensorFlow Object Detection model
 (`faster_rcnn_resnet50_v1_640x640 <https://tfhub.dev/tensorflow/faster_rcnn/resnet50_v1_640x640/1>`__)
@@ -158,7 +157,7 @@ Extract TensorFlow Object Detection model from the downloaded archive:
         file.extractall(path=tf_model_dir)
 
 Convert Model to OpenVINO IR
-----------------------------------------------------------------------
+###############################################################################################################################
 
 OpenVINO Model Converter Python API can be used to convert the
 TensorFlow model to OpenVINO IR.
@@ -189,10 +188,10 @@ support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_conve
     ov.save_model(ov_model, openvino_ir_path)
 
 Test Inference on the Converted Model
--------------------------------------------------------------------------------
+###############################################################################################################################
 
 Select inference device
------------------------------------------------------------------
+###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -220,7 +219,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Load the Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -229,7 +228,7 @@ Load the Model
     compiled_model = core.compile_model(model=openvino_ir_model, device_name=device.value)
 
 Get Model Information
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Faster R-CNN with Resnet-50 V1 object detection model has one input - a
 three-channel image of variable size. The input tensor shape is
@@ -297,7 +296,7 @@ for more information about model inputs, outputs and their formats.
 
 
 Get an Image for Test Inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Load and save an image:
 
@@ -359,7 +358,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 
 Perform Inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -470,7 +469,7 @@ outputs will be used.
 
 
 Inference Result Visualization
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Define utility functions to visualize the inference results
 
@@ -650,13 +649,13 @@ original test image:
 
 
 Next Steps
-----------------------------------------------------
+###############################################################################################################################
 
 This section contains suggestions on how to additionally improve the
 performance of your application using OpenVINO.
 
 Async inference pipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The key advantage of the Async API is that when a device is busy with
 inference, the application can perform other tasks in parallel (for
@@ -666,7 +665,7 @@ perform async inference using openvino, refer to the `Async API
 tutorial <115-async-api-with-output.html>`__.
 
 Integration preprocessing to model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Preprocessing API enables making preprocessing a part of the model
 reducing application code and dependency on additional image processing

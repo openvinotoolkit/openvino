@@ -15,16 +15,15 @@ corner, ``(x_max, y_max)`` are the coordinates of the bottom right
 bounding box corner and ``conf`` is the confidence for the predicted
 class. 
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
--  `Imports <#Imports>`__
--  `Download model weights <#Download-model-weights>`__
--  `Select inference device <#Select-inference-device>`__
--  `Load the Model <#Load-the-Model>`__
--  `Load an Image <#Load-an-Image>`__
--  `Do Inference <#Do-Inference>`__
--  `Visualize Results <#Visualize-Results>`__
+- `Imports <#imports>`__
+- `Download model weights <#download-model-weights>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Load an Image <#load-an-image>`__
+- `Do Inference <#do-inference>`__
+- `Visualize Results <#visualize-results>`__
 
 .. code:: ipython3
 

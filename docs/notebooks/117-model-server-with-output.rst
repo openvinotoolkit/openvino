@@ -4,7 +4,7 @@ Hello Model Server
 Introduction to OpenVINO™ Model Server (OVMS).
 
 What is Model Serving?
-----------------------
+###############################################################################################################################
 
 A model server hosts models and makes them accessible to software
 components over standard network protocols. A client sends a request to
@@ -29,27 +29,30 @@ deployment:
 -  Efficient resource utilization with horizontal and vertical inference
    scaling.
 
-|ovms_diagram| #### Table of content:- `Serving with OpenVINO Model
-Server <#Serving-with-OpenVINO-Model-Server>`__ - `Step 1:
-Prepare Docker <#Step-1:-Prepare-Docker>`__ - `Step 2: Preparing
-a Model Repository <#Step-2:-Preparing-a-Model-Repository>`__ -
-`Step 3: Start the Model Server
-Container <#Step-3:-Start-the-Model-Server-Container>`__ - `Step
-4: Prepare the Example Client
-Components <#Step-4:-Prepare-the-Example-Client-Components>`__ -
-`Prerequisites <#Prerequisites>`__ -
-`Imports <#Imports>`__ - `Request Model
-Status <#Request-Model-Status>`__ - `Request Model
-Metadata <#Request-Model-Metadata>`__ - `Load input
-image <#Load-input-image>`__ - `Request Prediction on a Numpy
-Array <#Request-Prediction-on-a-Numpy-Array>`__ -
-`Visualization <#Visualization>`__ -
-`References <#References>`__
+|ovms_diagram| 
+
+**Table of content:**
+
+- `Serving with OpenVINO Model Server <#Serving-with-OpenVINO-Model-Server>`__ 
+- `Step 1: Prepare Docker <#Step-1:-Prepare-Docker>`__ 
+- `Step 2: Preparing a Model Repository <#Step-2:-Preparing-a-Model-Repository>`__ 
+- `Step 3: Start the Model Server Container <#Step-3:-Start-the-Model-Server-Container>`__ 
+- `Step 4: Prepare the Example Client Components <#Step-4:-Prepare-the-Example-Client-Components>`__ 
+
+  - `Prerequisites <#Prerequisites>`__ 
+  - `Imports <#Imports>`__ 
+  - `Request Model Status <#Request-Model-Status>`__ 
+  - `Request Model Metadata <#Request-Model-Metadata>`__ 
+  - `Load input image <#Load-input-image>`__ 
+  - `Request Prediction on a Numpy Array <#Request-Prediction-on-a-Numpy-Array>`__ 
+  - `Visualization <#Visualization>`__ 
+
+- `References <#References>`__
 
 .. |ovms_diagram| image:: https://user-images.githubusercontent.com/91237924/215658773-4720df00-3b95-4a84-85a2-40f06138e914.png
 
 Serving with OpenVINO Model Server
-----------------------------------------------------------------------------
+###############################################################################################################################
 
 OpenVINO Model Server (OVMS) is a high-performance system for serving
 models. Implemented in C++ for scalability and optimized for deployment
@@ -66,7 +69,7 @@ making deploying new algorithms and AI experiments easy.
 To quickly start using OpenVINO™ Model Server, follow these steps:
 
 Step 1: Prepare Docker
-----------------------------------------------------------------
+###############################################################################################################################
 
 Install `Docker Engine <https://docs.docker.com/engine/install/>`__,
 including its
@@ -107,7 +110,7 @@ image and a message.
 
 
 Step 2: Preparing a Model Repository
-------------------------------------------------------------------------------
+###############################################################################################################################
 
 The models need to be placed and mounted in a particular directory
 structure and according to the following rules:
@@ -191,7 +194,7 @@ structure and according to the following rules:
 
 
 Step 3: Start the Model Server Container
-----------------------------------------------------------------------------------
+###############################################################################################################################
 
 Pull and start the container:
 
@@ -640,7 +643,7 @@ If the serving port ``9000`` is already in use, please switch it to
 another available port on your system. For example:\ ``-p 9020:9000``
 
 Step 4: Prepare the Example Client Components
----------------------------------------------------------------------------------------
+###############################################################################################################################
 
 OpenVINO Model Server exposes two sets of APIs: one compatible with
 ``TensorFlow Serving`` and another one, with ``KServe API``, for
@@ -651,7 +654,7 @@ inference. This example will demonstrate how to write a TensorFlow
 Serving API client for object detection.
 
 Prerequisites
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Install necessary packages.
 
@@ -686,7 +689,7 @@ Install necessary packages.
     
 
 Imports
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -696,7 +699,7 @@ Imports
     from ovmsclient import make_grpc_client
 
 Request Model Status
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -714,7 +717,7 @@ Request Model Status
 
 
 Request Model Metadata
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -728,7 +731,7 @@ Request Model Metadata
 
 
 Load input image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -759,7 +762,7 @@ Load input image
 
 
 Request Prediction on a Numpy Array
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -784,7 +787,7 @@ Request Prediction on a Numpy Array
 
 
 Visualization
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -867,7 +870,7 @@ command:
 
 
 References
-----------------------------------------------------
+###############################################################################################################################
 
 1. `OpenVINO™ Model Server
    documentation <https://docs.openvino.ai/2023.0/ovms_what_is_openvino_model_server.html>`__

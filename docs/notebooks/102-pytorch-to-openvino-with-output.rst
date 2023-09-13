@@ -29,8 +29,7 @@ but elevated to the design space level. The RegNet design space provides
 simple and fast networks that work well across a wide range of flop
 regimes.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Prerequisites <#Prerequisites>`__
 -  `Load PyTorch Model <#Load-PyTorch-Model>`__
@@ -78,7 +77,7 @@ Table of content:
       Model <#Benchmark-OpenVINO-Model-Inference-Converted-From-Traced-Model>`__
 
 Prerequisites
--------------------------------------------------------
+###############################################################################################################################
 
 Install notebook dependencies
 

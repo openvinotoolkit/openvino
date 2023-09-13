@@ -11,7 +11,7 @@ OpenVINO. Model information can be found
    monodepth
 
 What is Monodepth?
-~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Monocular Depth Estimation is the task of estimating scene depth using a
 single image. It has many potential applications in robotics, 3D
@@ -28,8 +28,7 @@ Transfer,” <https://ieeexplore.ieee.org/document/9178977>`__ in IEEE
 Transactions on Pattern Analysis and Machine Intelligence, doi:
 ``10.1109/TPAMI.2020.3019967``.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Preparation <#Preparation>`__
 
@@ -56,10 +55,10 @@ Table of content:
    -  `Display Monodepth Video <#Display-Monodepth-Video>`__
 
 Preparation
------------------------------------------------------
+###############################################################################################################################
 
 Install requirements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -83,7 +82,7 @@ Install requirements
 
 
 Imports
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -108,7 +107,7 @@ Imports
     from notebook_utils import download_file, load_image
 
 Download the model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -137,7 +136,7 @@ Download the model
 
 
 Functions
----------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -170,7 +169,7 @@ Functions
         return cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB)
 
 Select inference device
------------------------------------------------------------------
+###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -198,7 +197,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Load the Model
---------------------------------------------------------
+###############################################################################################################################
 
 Load the model in OpenVINO Runtime with ``core.read_model`` and compile
 it for the specified device with ``core.compile_model``. Get input and
@@ -218,10 +217,10 @@ output keys and the expected input shape for the model.
     network_image_height, network_image_width = network_input_shape[2:]
 
 Monodepth on Image
-------------------------------------------------------------
+###############################################################################################################################
 
 Load, resize and reshape input image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The input image is read with OpenCV, resized to network input size, and
 reshaped to (N,C,H,W) (N=number of images, C=number of channels,
@@ -239,7 +238,7 @@ H=height, W=width).
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
 
 Do inference on the image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Do inference, convert the result to an image, and resize it to the
 original image shape.
@@ -257,7 +256,7 @@ original image shape.
     result_image = cv2.resize(result_image, image.shape[:2][::-1])
 
 Display monodepth image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -271,14 +270,14 @@ Display monodepth image
 
 
 Monodepth on Video
-------------------------------------------------------------
+###############################################################################################################################
 
 By default, only the first 100 frames are processed in order to quickly
 check that everything works. Change ``NUM_FRAMES`` in the cell below to
 modify this. Set ``NUM_FRAMES`` to 0 to process the whole video.
 
 Video Settings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -307,7 +306,7 @@ Video Settings
     result_video_path = output_directory / f"{Path(VIDEO_FILE).stem}_monodepth.mp4"
 
 Load the Video
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Load the video from a ``VIDEO_FILE``, set in the *Video Settings* cell
 above. Open the video to read the frame width and height and fps, and
@@ -345,7 +344,7 @@ compute values for these properties for the monodepth video.
 
 
 Do Inference on a Video and Create Monodepth Video
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -449,7 +448,7 @@ Do Inference on a Video and Create Monodepth Video
 
 
 Display Monodepth Video
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 

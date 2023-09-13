@@ -19,8 +19,7 @@ to build up a multiple inference task pipeline:
 
    workflow
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Import <#Import>`__
 -  `Prepare the Model and Test
@@ -46,7 +45,7 @@ Table of content:
     !pip install -q "openvino==2023.1.0.dev20230811"
 
 Import
-------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -64,7 +63,7 @@ Import
     from notebook_utils import download_file, segmentation_map_to_image
 
 Prepare the Model and Test Image
---------------------------------------------------------------------------
+###############################################################################################################################
 
 Download PPYOLOv2 and DeepLabV3P pre-trained models from PaddlePaddle
 community.
@@ -140,7 +139,7 @@ community.
 
 
 Configuration
--------------------------------------------------------
+###############################################################################################################################
 
 Add parameter configuration for reading calculation.
 
@@ -169,7 +168,7 @@ Add parameter configuration for reading calculation.
     SEG_LABEL = {'background': 0, 'pointer': 1, 'scale': 2}
 
 Load the Models
----------------------------------------------------------
+###############################################################################################################################
 
 Define a common class for model loading and inference
 
@@ -212,7 +211,7 @@ Define a common class for model loading and inference
             return result
 
 Data Process
-------------------------------------------------------
+###############################################################################################################################
 
 Including the preprocessing and postprocessing tasks of each model.
 
@@ -542,10 +541,10 @@ Including the preprocessing and postprocessing tasks of each model.
         return readings
 
 Main Function
--------------------------------------------------------
+###############################################################################################################################
 
 Initialize the model and parameters.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -616,7 +615,7 @@ bounds of input batch size.
 
 
 Run meter detection model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Detect the location of the meter and prepare the ROI images for
 segmentation.
@@ -661,7 +660,7 @@ segmentation.
 
 
 Run meter segmentation model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Get the results of segmentation task on detected ROI.
 
@@ -701,7 +700,7 @@ Get the results of segmentation task on detected ROI.
 
 
 Postprocess the models result and calculate the final readings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Use OpenCV function to find the location of the pointer in a scale map.
 
@@ -738,7 +737,7 @@ Use OpenCV function to find the location of the pointer in a scale map.
 
 
 Get the reading result on the meter picture
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -769,4 +768,4 @@ Get the reading result on the meter picture
 
 
 Try it with your meter photos!
-------------------------------
+###############################################################################################################################

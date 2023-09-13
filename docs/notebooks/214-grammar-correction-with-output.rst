@@ -41,8 +41,7 @@ It consists of the following steps:
    Optimum <https://huggingface.co/blog/openvino>`__.
 -  Create an inference pipeline for grammatical error checking
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `How does it work? <#How-does-it-work?>`__
 -  `Prerequisites <#Prerequisites>`__
@@ -56,7 +55,7 @@ Table of content:
 -  `Prepare Demo Pipeline <#Prepare-Demo-Pipeline>`__
 
 How does it work?
------------------------------------------------------------
+###############################################################################################################################
 
 A Grammatical Error Correction task can be thought of as a
 sequence-to-sequence task where a model is trained to take a
@@ -106,7 +105,7 @@ documentation <https://huggingface.co/docs/transformers/model_doc/roberta>`__
 Now that we know more about FLAN-T5 and RoBERTa, let us get started. 🚀
 
 Prerequisites
--------------------------------------------------------
+###############################################################################################################################
 
 First, we need to install the `Hugging Face
 Optimum <https://huggingface.co/docs/transformers/index>`__ library
@@ -129,7 +128,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 
 Download and Convert Models
----------------------------------------------------------------------
+###############################################################################################################################
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -184,7 +183,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
 
 Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -214,7 +213,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Grammar Checker
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -266,7 +265,7 @@ Hugging Face inference pipelines in this
 Great! Looks like the model can detect errors in the sample.
 
 Grammar Corrector
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The steps for loading the Grammar Corrector model are very similar,
 except for the model class that is used. Because FLAN-T5 is a
@@ -331,7 +330,7 @@ to run it.
 Nice! The result looks pretty good!
 
 Prepare Demo Pipeline
----------------------------------------------------------------
+###############################################################################################################################
 
 Now let us put everything together and create the pipeline for grammar
 correction. The pipeline accepts input text, verifies its correctness,
@@ -468,7 +467,7 @@ Let us see it in action.
 
 
 Interactive demo
-----------------
+###############################################################################################################################
 
 .. code:: ipython3
 

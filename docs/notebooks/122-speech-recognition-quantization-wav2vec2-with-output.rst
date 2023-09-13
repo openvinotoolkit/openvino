@@ -48,8 +48,7 @@ and has the following differences:
 
 The steps for the quantization with accuracy control are described below.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 - `Imports <#1>`__ 
 - `Prepare the Model <#2>`__ 
@@ -254,7 +253,7 @@ Table of content:
 
 
 Imports `⇑ <#0>`__
---------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -273,7 +272,7 @@ Imports `⇑ <#0>`__
 
 
 Prepare the Model `⇑ <#0>`__ 
-------------------------------
+###############################################################################################################################
 
 For instantiating PyTorch model class,
 we should use ``Wav2Vec2ForCTC.from_pretrained`` method with providing
@@ -338,7 +337,7 @@ Convert it to the OpenVINO Intermediate Representation (OpenVINO IR)
 
 
 Prepare LibriSpeech Dataset `⇑ <#0>`__
-----------------------------------------
+###############################################################################################################################
 
 For demonstration purposes, we will use short dummy version of
 LibriSpeech dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
@@ -367,7 +366,7 @@ dataset.
     dataset = dataset.map(map_to_input, batched=False, remove_columns=["audio"])
 
 Prepare calibration dataset `⇑ <#0>`__
----------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -386,7 +385,7 @@ Prepare calibration dataset `⇑ <#0>`__
     calibration_dataset = nncf.Dataset(dataset, transform_fn)
 
 Prepare validation function `⇑ <#0>`__ 
----------------------------------------------
+###############################################################################################################################
 
 Define the validation function.
 
@@ -416,7 +415,7 @@ Define the validation function.
         return 1 - result
 
 Run quantization with accuracy control `⇑ <#0>`__ 
-------------------------------------------------------------
+###############################################################################################################################
 
 You should provide
 the calibration dataset and the validation dataset. It can be the same
@@ -1868,7 +1867,7 @@ we use the value 25 to speed up the execution.
 
 
 Model Usage Example `⇑ <#0>`__
---------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -1918,7 +1917,7 @@ Next, make a prediction.
 
 
 Compare Accuracy of the Original and Quantized Models `⇑ <#0>`__
--------------------------------------------------------------------------
+###############################################################################################################################
 
 -  Define dataloader for test dataset.
 -  Define functions to get inference for PyTorch and OpenVINO models.

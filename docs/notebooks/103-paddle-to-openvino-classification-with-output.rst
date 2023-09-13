@@ -14,8 +14,7 @@ IR model.
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Preparation <#Preparation>`__
 
