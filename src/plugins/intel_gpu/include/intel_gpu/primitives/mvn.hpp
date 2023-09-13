@@ -14,8 +14,6 @@ struct mvn : public primitive_base<mvn> {
 
     mvn() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs mvn primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

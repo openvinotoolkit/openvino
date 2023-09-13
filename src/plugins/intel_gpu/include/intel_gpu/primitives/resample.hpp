@@ -17,8 +17,6 @@ struct resample : public primitive_base<resample> {
 
     resample() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     using InterpolateOp = ov::op::util::InterpolateBase;
 
     /// @brief Constructs Resample primitive.
