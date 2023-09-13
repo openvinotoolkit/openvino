@@ -213,6 +213,12 @@ void DeconvolutionLayerCPUTest::SetUp() {
 
     selectedType = makeSelectedTypeStr(selectedType, prec);
 
+    if  (inputShape.second.size() > 1 &&
+         ((inFmts[0] == nchw && inputShape.second[1][2] != inputShape.second[1][3]) ||
+          (inFmts[0] == nhwc && inputShape.second[1][1] != inputShape.second[1][2]))) {
+        selectedType = std::regex_replace(selectedType, std::regex("gemm_acl"), "ref_any");
+    }
+
     std::vector<InputShape> paramsShapes;
     paramsShapes.push_back(inputShape);
     if (!outShapeData.empty() && outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
