@@ -647,7 +647,7 @@ private:
     template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
-              typename std::enable_if<Type == element::Type_t::nf4 || Type == element::Type_t::u4 || Type == element::Type_t::i4, bool>::type = true>
+              typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4, bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
         size_t i = 0;
@@ -659,6 +659,47 @@ private:
         }
         if (source.size() % 2) {
             const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
+            const auto v = v1 << 4;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+    }
+
+    template <element::Type_t Type,
+            typename T,
+            typename StorageDataType = fundamental_type_for<Type>,
+            typename std::enable_if<Type == element::Type_t::nf4 && std::is_integral<T>::value, bool>::type = true>
+    void write_buffer(const std::vector<T>& source) {
+        auto p = get_data_ptr_nc<Type>();
+        size_t i = 0;
+        for (; i < source.size() / 2; i++) {
+            const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
+            const auto v2 = value_in_range<Type>(source[i * 2 + 1]) & 0x0F;
+            const auto v = (v1 << 4) | v2;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+        if (source.size() % 2) {
+            const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
+            const auto v = v1 << 4;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+    }
+
+    template <element::Type_t Type,
+        typename T,
+        typename StorageDataType = fundamental_type_for<Type>,
+        typename std::enable_if<Type == element::Type_t::nf4 && (std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
+                        std::is_same<T, float16>::value), bool>::type = true>
+    void write_buffer(const std::vector<T>& source) {
+        auto p = get_data_ptr_nc<Type>();
+        size_t i = 0;
+        for (; i < source.size() / 2; i++) {
+            const auto v1 = value_in_range<Type>(ConvertNF4::dQuantizeNF4(source[i * 2])) & 0x0F;
+            const auto v2 = value_in_range<Type>(ConvertNF4::dQuantizeNF4(source[i * 2 + 1])) & 0x0F;
+            const auto v = (v1 << 4) | v2;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+        if (source.size() % 2) {
+            const auto v1 = value_in_range<Type>(ConvertNF4::dQuantizeNF4(source[i * 2])) & 0x0F;
             const auto v = v1 << 4;
             p[i] = static_cast<StorageDataType>(v);
         }

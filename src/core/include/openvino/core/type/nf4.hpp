@@ -35,7 +35,7 @@ public:
         uint8_t nf4_idx = static_cast<uint8_t>(src);
         dst[idx] = static_cast<TO>(ConvertNF4::dDequantizeNF4(nf4_idx));
     }
-private:
+
     static float dDequantizeNF4(uint8_t val);
 
     static uint8_t dQuantizeNF4(float x);

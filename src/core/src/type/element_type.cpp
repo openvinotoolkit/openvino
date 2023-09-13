@@ -167,6 +167,7 @@ ov::element::Type::Type(size_t bitwidth,
         {ov::element::Type_t::u16, {16, false, false, false, "uint16_t", "u16"}},
         {ov::element::Type_t::u32, {32, false, false, false, "uint32_t", "u32"}},
         {ov::element::Type_t::u64, {64, false, false, false, "uint64_t", "u64"}},
+        {ov::element::Type_t::u4, {4, false, false, false, "uint4_t", "nf4"}},
     };
     for (const auto& t : elements_map) {
         const TypeInfo& info = t.second;
@@ -323,6 +324,7 @@ std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) 
         {"FP64", ov::element::f64},
         {"FP16", ov::element::f16},
         {"BIN", ov::element::u1},
+        {"NF4", ov::element::nf4},
     };
     std::string str;
     in >> str;
@@ -435,7 +437,8 @@ OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
                                                          {"u8", element::Type_t::u8},
                                                          {"u16", element::Type_t::u16},
                                                          {"u32", element::Type_t::u32},
-                                                         {"u64", element::Type_t::u64}});
+                                                         {"u64", element::Type_t::u64},
+                                                         {"nf4", element::Type_t::nf4}});
     return enum_names;
 }
 
