@@ -273,14 +273,19 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 n_streams = input_infer_requests > 0 ? std::min(n_streams, input_infer_requests) : n_streams;
                 n_threads_per_stream = -1;
             } else {
-                n_streams = ((n_threads + model_prefer_threads - 1) / model_prefer_threads);
-                if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
-                    n_streams = input_infer_requests;
-                    n_threads_per_stream = static_cast<int>(n_threads / n_streams);
-                    check_threads_per_stream();
+                if (proc_type_table[0][ALL_PROC] <= 4) {
+                    n_threads_per_stream = 1;
+                    n_streams = proc_type_table[0][ALL_PROC];
                 } else {
-                    n_threads_per_stream =
-                        model_prefer_threads > 0 ? model_prefer_threads : static_cast<int>(n_threads / n_streams);
+                    n_streams = ((n_threads + model_prefer_threads - 1) / model_prefer_threads);
+                    if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
+                        n_streams = input_infer_requests;
+                        n_threads_per_stream = static_cast<int>(n_threads / n_streams);
+                        check_threads_per_stream();
+                    } else {
+                        n_threads_per_stream =
+                            model_prefer_threads > 0 ? model_prefer_threads : static_cast<int>(n_threads / n_streams);
+                    }
                 }
             }
         }

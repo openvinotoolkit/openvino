@@ -1652,6 +1652,43 @@ StreamsCalculationTestCase _1sockets_4cores_tput_1 = {
     {{4, MAIN_CORE_PROC, 1, 0, 0}},
 };
 
+StreamsCalculationTestCase _1sockets_2cores_latency_1 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    "LATENCY",
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    {{2, 2, 0, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 2, 0, 0}},
+};
+
+StreamsCalculationTestCase _1sockets_2cores_tput_1 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    "THROUGHPUT",
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    {{2, 2, 0, 0, 0, 0}},
+    {{2, MAIN_CORE_PROC, 1, 0, 0}},
+};
+
+
+StreamsCalculationTestCase _1sockets_2cores_tput_2 = {
+    1,
+    false,
+    0,
+    0,
+    2,
+    "THROUGHPUT",
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    {{2, 2, 0, 0, 0, 0}},
+    {{2, MAIN_CORE_PROC, 1, 0, 0}},
+};
+
 StreamsCalculationTestCase _1sockets_ecores_latency_1 = {
     1,
     false,
@@ -1897,6 +1934,9 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_6cores_tput_4,
                                          _1sockets_4cores_latency_1,
                                          _1sockets_4cores_tput_1,
+                                         _1sockets_2cores_latency_1,
+                                         _1sockets_2cores_tput_1,
+                                         _1sockets_2cores_tput_2,
                                          _1sockets_ecores_latency_1,
                                          _1sockets_ecores_latency_2,
                                          _1sockets_ecores_latency_3,
