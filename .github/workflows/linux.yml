@@ -569,7 +569,8 @@ jobs:
         run: |
           # For Python API
           pip install --upgrade pip
-          pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt ${OPENVINO_REPO}/src/bindings/python/requirements.txt
+          pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          pip install -r ${OPENVINO_REPO}/src/bindings/python/requirements.txt
 
           # For running Python API tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
