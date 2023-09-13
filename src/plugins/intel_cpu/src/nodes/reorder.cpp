@@ -123,11 +123,11 @@ void Reorder::prepareParams() {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory didn't allocate.";
+        OPENVINO_THROW("Destination memory didn't allocate.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << "Input memory didn't allocate.";
+        OPENVINO_THROW("Input memory didn't allocate.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     auto isSupportedDesc = [](const MemoryDesc& desc) {
         if (!desc.isDefined()) {
@@ -170,11 +170,11 @@ void Reorder::prepareParams() {
     }
     if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
         if (!dstMemPtr || !dstMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate.";
+            OPENVINO_THROW("Destination memory didn't allocate.");
         if (!srcMemPtr || !srcMemPtr->isAllocated())
-            IE_THROW() << "Input memory didn't allocate.";
+            OPENVINO_THROW("Input memory didn't allocate.");
         if (getSelectedPrimitiveDescriptor() == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set.";
+            OPENVINO_THROW("Preferable primitive descriptor is not set.");
         createReorderExecutor(srcMemPtr, dstMemPtr);
     }
 }
@@ -182,7 +182,7 @@ void Reorder::prepareParams() {
 void Reorder::createReorderExecutor(const ov::intel_cpu::MemoryCPtr& src, const ov::intel_cpu::MemoryCPtr& dst) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     auto engine = getEngine();
     auto cache = context->getParamsCache();
@@ -316,9 +316,9 @@ std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDe
     return inArgs + "_" + outArgs;
 }
 
-void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache) {
+void Reorder::reorderData2(const IMemory &input, const IMemory &output, MultiCachePtr cache) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
-        IE_THROW() << "Can't reorder data with dynamic shapes";
+        OPENVINO_THROW("Can't reorder data with dynamic shapes");
 
     if (input.getShape().hasZeroDims() || output.getShape().hasZeroDims()) {
         return;
@@ -359,22 +359,24 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
             }
             if (!reorder) {
-                IE_THROW() << "No reorder available for the following tensor descriptors: "
-                    << input.getDesc().serializeFormat() << " and " << output.getDesc().serializeFormat();
+                OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
+                               input.getDesc().serializeFormat(),
+                               " and ",
+                               output.getDesc().serializeFormat());
             }
         }
         if (reorder) {
             dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
-            IE_THROW() << "Could not make onednn reorder.";
+            OPENVINO_THROW("Could not make onednn reorder.");
         }
     }
 }
 
-void Reorder::reorderData2(const IMemory& input, const IMemory& output, MultiCachePtr cache) {
+void Reorder::reorderData(const IMemory& input, const IMemory& output, MultiCachePtr cache) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
-        IE_THROW() << "Can't reorder data with dynamic shapes";
+        OPENVINO_THROW("Can't reorder data with dynamic shapes");
 
     if (input.getShape().hasZeroDims() || output.getShape().hasZeroDims()) {
         return;
@@ -389,14 +391,15 @@ void Reorder::reorderData2(const IMemory& input, const IMemory& output, MultiCac
     } else {
         auto engine = output.getPrimitive().get_engine();
         std::vector<int> src_permutation = {};
-        auto executor = std::make_shared<ReorderExecutor>(engine,
-                                                          cache,
-                                                          static_cast<MemoryCPtr>(&input),
-                                                          static_cast<MemoryCPtr>(&output),
-                                                          src_permutation);
-        executor->prepareParams(engine, cache, static_cast<MemoryCPtr>(&input), static_cast<MemoryCPtr>(&output));
+
+        auto src = std::make_shared<Memory>(engine, input.getDescPtr(), input.getData(), false);
+        auto dst = std::make_shared<Memory>(engine, output.getDescPtr(), output.getData(), false);
+        auto executor = std::make_shared<ReorderExecutor>(engine, cache, src, dst, src_permutation);
+        executor->prepareParams(engine, cache, src, dst);
         dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
-        executor->exec(loc_stream);
+        if (!executor->exec(loc_stream)) {
+            OPENVINO_THROW("Reorder failed because could not make onednn reorder!");
+        }
     }
 }
 
@@ -445,8 +448,8 @@ Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
     //    Don't need do reorder, only do data conversion
     //
 
-    auto src_prc = src->getDesc().getPrecision();
-    auto dst_prc = dst->getDesc().getPrecision();
+    const auto src_prc = src->getDesc().getPrecision();
+    const auto dst_prc = dst->getDesc().getPrecision();
     OPENVINO_ASSERT(src_prc != InferenceEngine::Precision::UNSPECIFIED,
                     "ReorderExecutor input precision is unspecified!");
     OPENVINO_ASSERT(dst_prc != InferenceEngine::Precision::UNSPECIFIED,
@@ -465,8 +468,8 @@ Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
     // }
 
     need_reorder = true;
-    auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src_prc);
-    auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst_prc);
+    const auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src_prc);
+    const auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst_prc);
 
     // dnnl::memory::data_type doesn't support this precision
     if (src_data_type == dnnl::memory::data_type::undef && dst_data_type == dnnl::memory::data_type::undef) {
@@ -581,9 +584,9 @@ dnnl::memory::desc Reorder::ReorderExecutor::updateSrcDesc(const dnnl::engine& e
         const auto newDims = dst_blocked->getStaticDims();
         const auto newFormat = DnnlExtensionUtils::GetPlainFormatByRank(newDims.size());
 
-        auto newDesc =
+        const auto newDesc =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims), src_blocked->getDataType(), newFormat);
-        auto _srcPtr = src_blocked->getData();
+        const auto _srcPtr = src_blocked->getData();
         src_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(newDesc), _srcPtr, false);
 
         src_desc = src_blocked->getPrimitive().get_desc();
@@ -625,9 +628,9 @@ void Reorder::ReorderExecutor::IntermConverter::convert() {
     OPENVINO_ASSERT(src_mem->isAllocated());
     OPENVINO_ASSERT(dst_mem->isAllocated());
 
-    auto src = static_cast<const uint8_t*>(src_mem->getData());
+    const auto src = static_cast<const uint8_t*>(src_mem->getData());
     auto dst = dst_mem->getData();
-    size_t size = src_mem->getSize() / src_mem->getDesc().getPrecision().size();
+    const size_t size = src_mem->getSize() / src_mem->getDesc().getPrecision().size();
 
     cpu_convert(src, dst, src_prec, dst_prec, size);
 }

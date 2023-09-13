@@ -67,11 +67,11 @@ public:
 private:
     class ReorderExecutor {
     public:
-        explicit ReorderExecutor(const dnnl::engine& engine,
-                                 MultiCachePtr& cache,
-                                 const ov::intel_cpu::MemoryCPtr& src,
-                                 const ov::intel_cpu::MemoryCPtr& dst,
-                                 const std::vector<int> src_permutation);
+        ReorderExecutor(const dnnl::engine& engine,
+                        MultiCachePtr& cache,
+                        const ov::intel_cpu::MemoryCPtr& src,
+                        const ov::intel_cpu::MemoryCPtr& dst,
+                        const std::vector<int> src_permutation);
         bool exec(dnnl::stream strm);
         dnnl::memory::desc updateSrcDesc(const dnnl::engine& engine, const std::vector<int> src_permutation);
         void prepareParams(const dnnl::engine& engine,
@@ -94,9 +94,9 @@ private:
 
         class IntermConverter {
         public:
-            IntermConverter(MemoryPtr in_mem_ptr,
+            IntermConverter(MemoryCPtr in_mem_ptr,
                             const InferenceEngine::Precision in_prec,
-                            MemoryPtr out_mem_ptr,
+                            MemoryCPtr out_mem_ptr,
                             const InferenceEngine::Precision out_prec)
                 : src_mem(in_mem_ptr),
                   src_prec(in_prec),
@@ -117,9 +117,9 @@ private:
             }
 
         private:
-            MemoryPtr src_mem;
+            MemoryCPtr src_mem;
             InferenceEngine::Precision src_prec;
-            MemoryPtr dst_mem;
+            MemoryCPtr dst_mem;
             InferenceEngine::Precision dst_prec;
         };
 
@@ -127,8 +127,8 @@ private:
         std::shared_ptr<IntermConverter> post_converter = nullptr;
         DnnlScratchPadPtr scratch_ptr;
 
-        MemoryPtr dst_blocked;
-        MemoryPtr src_blocked;
+        MemoryCPtr dst_blocked;
+        MemoryCPtr src_blocked;
 
         MemoryDescPtr input;
         MemoryDescPtr output;
