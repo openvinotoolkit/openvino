@@ -110,6 +110,17 @@ def test_compile_model_with_auto_plugin(request, tmp_path):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_compile_model_with_auto_plugin_no_default(request, tmp_path):
+    core = Core()
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+    model = core.read_model(model=xml_path, weights=bin_path)
+    compiled_model = compile_model(model=model, device_name="CPU", config={"PERFORMANCE_HINT":"THROUGHPUT"})
+    assert isinstance(compiled_model, CompiledModel)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_from_ir(request, tmp_path):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
