@@ -302,7 +302,7 @@ VectorDims LinearIR::get_master_shape() const {
         for (const auto& oe : out_exprs) {
             const auto& port_desc = oe->get_input_port_descriptor(0);
             OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(master_shape, port_desc->get_shape()),
-                            "Failed to merge input shapes in OptimizeDomain pass");
+                            "Failed to merge input shapes in DomainOptimization pass");
         }
     }
     return master_shape;

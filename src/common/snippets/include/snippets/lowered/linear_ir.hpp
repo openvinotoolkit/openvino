@@ -114,7 +114,7 @@ public:
     const LoopManagerPtr& get_loop_manager() const { return m_loop_manager; }
 
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
-    const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return  m_shape_infer; }
+    std::shared_ptr<ShapeInferSnippetsNode> get_shape_infer_instance() const {return  m_shape_infer; }
     VectorDims get_master_shape() const;
 
 private:
