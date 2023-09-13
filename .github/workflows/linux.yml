@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   Smart_CI:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Get affected components
         id: smart_ci
