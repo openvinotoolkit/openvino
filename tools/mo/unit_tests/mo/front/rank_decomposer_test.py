@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -23,34 +23,34 @@ nodes = lambda output_type: {
 }
 
 
-class RankDecomposerTest(unittest.TestCase):
-    def test_rank_decomposer(self):
-        test_cases= [np.int32, np.int64]
-        for idx, (output_type) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=nodes(output_type), edges=[
-                    *connect('input', 'rank'),
-                    *connect('rank', 'output'),
-                ], nodes_with_edges_only=True)
-                RankDecomposer().find_and_replace_pattern(graph)
+class TestRankDecomposerTest():
 
-                graph_ref = build_graph(nodes_attrs=nodes(output_type), edges=[
-                    *connect('input', 'shape'),
-                    *connect('shape', 'rank_1D'),
-                    *connect('rank_1D', '0:rank_0D'),
-                    *connect('zero', '1:rank_0D'),
-                    *connect('rank_0D', 'output'),
-                ], nodes_with_edges_only=True)
+    @pytest.mark.parametrize("output_type", [np.int32, np.int64])
+    def test_rank_decomposer(self, output_type):
+        graph = build_graph(nodes_attrs=nodes(output_type), edges=[
+            *connect('input', 'rank'),
+            *connect('rank', 'output'),
+        ], nodes_with_edges_only=True)
+        RankDecomposer().find_and_replace_pattern(graph)
 
-                (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-                self.assertTrue(flag, resp)
-                self.assertEqual(graph.get_op_nodes(type='Squeeze')[0]['name'], 'my_rank',
-                                'Name is not inherited from original node for RankDecomposer')
-                print(output_type)
+        graph_ref = build_graph(nodes_attrs=nodes(output_type), edges=[
+            *connect('input', 'shape'),
+            *connect('shape', 'rank_1D'),
+            *connect('rank_1D', '0:rank_0D'),
+            *connect('zero', '1:rank_0D'),
+            *connect('rank_0D', 'output'),
+        ], nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        assert flag, resp
+        assert graph.get_op_nodes(type='Squeeze')[0]['name'] == 'my_rank',\
+        'Name is not inherited from original node for RankDecomposer'
+        print(output_type)
 
     def test_rank_decomposer_assertion(self):
         graph = build_graph(nodes_attrs=nodes(None), edges=[
             *connect('input', 'rank'),
             *connect('rank', 'output'),
         ], nodes_with_edges_only=True)
-        self.assertRaises(AssertionError, RankDecomposer().find_and_replace_pattern, graph)
+        with pytest.raises(AssertionError):
+            RankDecomposer().find_and_replace_pattern (graph)
