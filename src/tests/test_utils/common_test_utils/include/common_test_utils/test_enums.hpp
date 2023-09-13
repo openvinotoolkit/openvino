@@ -10,34 +10,11 @@ namespace ov {
 namespace test {
 namespace utils {
 
-enum class ComparisonTypes {
-    EQUAL,
-    NOT_EQUAL,
-    IS_FINITE,
-    IS_INF,
-    IS_NAN,
-    LESS,
-    LESS_EQUAL,
-    GREATER,
-    GREATER_EQUAL
-};
+enum class ComparisonTypes { EQUAL, NOT_EQUAL, IS_FINITE, IS_INF, IS_NAN, LESS, LESS_EQUAL, GREATER, GREATER_EQUAL };
 
-enum class ConversionTypes {
-    CONVERT,
-    CONVERT_LIKE
-};
+enum class ConversionTypes { CONVERT, CONVERT_LIKE };
 
-enum class ReductionType {
-    Mean,
-    Max,
-    Min,
-    Prod,
-    Sum,
-    LogicalOr,
-    LogicalAnd,
-    L1,
-    L2
-};
+enum class ReductionType { Mean, Max, Min, Prod, Sum, LogicalOr, LogicalAnd, L1, L2 };
 
 enum class InputLayerType {
     CONSTANT,
@@ -58,7 +35,7 @@ std::ostream& operator<<(std::ostream& os, const ComparisonTypes type);
 
 std::ostream& operator<<(std::ostream& os, const ConversionTypes type);
 
-std::ostream &operator<<(std::ostream& os, const ReductionType type);
+std::ostream& operator<<(std::ostream& os, const ReductionType type);
 
 std::ostream& operator<<(std::ostream& os, const InputLayerType type);
 
