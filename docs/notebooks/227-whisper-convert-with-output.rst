@@ -27,25 +27,25 @@ Whisper pipeline with OpenVINO models.
 Table of content:
 ~~~~~~~~~~~~~~~~~
 
--  `Prerequisites <#Prerequisites-Uparrow>`__
--  `Instantiate model <#Instantiate-model-Uparrow>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Instantiate model <#Instantiate-model>`__
 
    -  `Convert model to OpenVINO Intermediate Representation (IR)
-      format. <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format.-Uparrow>`__
+      format. <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format.>`__
    -  `Convert Whisper Encoder to OpenVINO
-      IR <#Convert-Whisper-Encoder-to-OpenVINO-IR-Uparrow>`__
+      IR <#Convert-Whisper-Encoder-to-OpenVINO-IR>`__
    -  `Convert Whisper decoder to OpenVINO
-      IR <#Convert-Whisper-decoder-to-OpenVINO-IR-Uparrow>`__
+      IR <#Convert-Whisper-decoder-to-OpenVINO-IR>`__
 
--  `Prepare inference pipeline <#Prepare-inference-pipeline-Uparrow>`__
+-  `Prepare inference pipeline <#Prepare-inference-pipeline>`__
 
-   -  `Select inference device <#Select-inference-device-Uparrow>`__
+   -  `Select inference device <#Select-inference-device>`__
 
 -  `Run video transcription
-   pipeline <#Run-video-transcription-pipeline-Uparrow>`__
--  `Interactive demo <#Interactive-demo-Uparrow>`__
+   pipeline <#Run-video-transcription-pipeline>`__
+-  `Interactive demo <#Interactive-demo>`__
 
-Prerequisites `⇑ <#Table-of-content:>`__
+Prerequisites
 -------------------------------------------------------
 
 Install dependencies.
@@ -93,7 +93,7 @@ Install dependencies.
     Note: you may need to restart the kernel to use updated packages.
 
 
-Instantiate model `⇑ <#Table-of-content:>`__
+Instantiate model
 -----------------------------------------------------------
 
 Whisper is a Transformer based encoder-decoder model, also referred to
@@ -126,7 +126,7 @@ Whisper family.
     model.eval()
     pass
 
-Convert model to OpenVINO Intermediate Representation (IR) format. `⇑ <#Table-of-content:>`__
+Convert model to OpenVINO Intermediate Representation (IR) format.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For best results with OpenVINO, it is recommended to convert the model
@@ -137,7 +137,7 @@ function returns an OpenVINO model ready to load on device and start
 making predictions. We can save it on disk for next usage with
 ``ov.save_model``.
 
-Convert Whisper Encoder to OpenVINO IR `⇑ <#Table-of-content:>`__
+Convert Whisper Encoder to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -169,7 +169,7 @@ Convert Whisper Encoder to OpenVINO IR `⇑ <#Table-of-content:>`__
       assert x.shape[1:] == self.positional_embedding.shape, "incorrect audio shape"
 
 
-Convert Whisper decoder to OpenVINO IR `⇑ <#Table-of-content:>`__
+Convert Whisper decoder to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To reduce computational complexity, the decoder uses cached key/value
@@ -403,7 +403,7 @@ tokens and attention hidden states from previous step) are dynamic. For
 efficient utilization of memory, you define an upper bound for dynamic
 input shapes.
 
-Prepare inference pipeline `⇑ <#Table-of-content:>`__
+Prepare inference pipeline
 --------------------------------------------------------------------
 
 The image below illustrates the pipeline of video transcribing using the
@@ -419,7 +419,7 @@ To run the PyTorch Whisper model, we just need to call the
 original model pipeline for audio transcribing after replacing the
 original models with OpenVINO IR versions.
 
-### Select inference device `⇑ <#Table-of-content:>`__
+### Select inference device
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -458,7 +458,7 @@ select device from dropdown list for running inference using OpenVINO
     model.encoder = OpenVINOAudioEncoder(core, WHISPER_ENCODER_OV, device=device.value)
     model.decoder = OpenVINOTextDecoder(core, WHISPER_DECODER_OV, device=device.value)
 
-Run video transcription pipeline `⇑ <#Table-of-content:>`__
+Run video transcription pipeline
 --------------------------------------------------------------------------
 
 Now, we are ready to start transcription. We select a video from YouTube
@@ -621,7 +621,7 @@ Now let us see the results.
     
 
 
-Interactive demo `⇑ <#Table-of-content:>`__
+Interactive demo
 ----------------------------------------------------------
 
 .. code:: ipython3

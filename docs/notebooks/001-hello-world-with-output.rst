@@ -16,13 +16,13 @@ tutorial.
 Table of content:
 ^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports-Uparrow>`__
+-  `Imports <#Imports>`__
 -  `Download the Model and data
-   samples <#Download-the-Model-and-data-samples-Uparrow>`__
--  `Select inference device <#Select-inference-device-Uparrow>`__
--  `Load the Model <#Load-the-Model-Uparrow>`__
--  `Load an Image <#Load-an-Image-Uparrow>`__
--  `Do Inference <#Do-Inference-Uparrow>`__
+   samples <#Download-the-Model-and-data-samples>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Load the Model <#Load-the-Model>`__
+-  `Load an Image <#Load-an-Image>`__
+-  `Do Inference <#Do-Inference>`__
 
 .. code:: ipython3
 
@@ -36,7 +36,7 @@ Table of content:
     openvino-dev 2023.0.0 requires openvino==2023.0.0, but you have openvino 2023.1.0.dev20230811 which is incompatible.
     
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 ############################################
 
 .. code:: ipython3
@@ -52,7 +52,7 @@ Imports `⇑ <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Download the Model and data samples `⇑ <#Table-of-content:>`__
+Download the Model and data samples
 ########################################################################
 
 .. code:: ipython3
@@ -86,7 +86,7 @@ Download the Model and data samples `⇑ <#Table-of-content:>`__
     artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 ############################################################
 
 Select device from dropdown list for running inference using OpenVINO:
@@ -114,7 +114,7 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Load the Model `⇑ <#Table-of-content:>`__
+Load the Model
 ###################################################
 
 .. code:: ipython3
@@ -125,7 +125,7 @@ Load the Model `⇑ <#Table-of-content:>`__
     
     output_layer = compiled_model.output(0)
 
-Load an Image `⇑ <#Table-of-content:>`__
+Load an Image
 ##################################################
 
 .. code:: ipython3
@@ -145,7 +145,7 @@ Load an Image `⇑ <#Table-of-content:>`__
 .. image:: 001-hello-world-with-output_files/001-hello-world-with-output_11_0.png
 
 
-Do Inference `⇑ <#Table-of-content:>`__
+Do Inference
 #################################################
 
 .. code:: ipython3

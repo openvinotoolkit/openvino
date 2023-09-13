@@ -11,34 +11,34 @@ and do inference with a sample image.
 Table of content:
 ^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports-Uparrow>`__
--  `Settings <#Settings-Uparrow>`__
--  `Download model <#Download-model-Uparrow>`__
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
+-  `Download model <#Download-model>`__
 -  `Convert a Model to OpenVINO IR
-   Format <#Convert-a-Model-to-OpenVINO-IR-Format-Uparrow>`__
+   Format <#Convert-a-Model-to-OpenVINO-IR-Format>`__
 
    -  `Convert a TensorFlow Model to OpenVINO IR
-      Format <#Convert-a-TensorFlow-Model-to-OpenVINO-IR-Format-Uparrow>`__
+      Format <#Convert-a-TensorFlow-Model-to-OpenVINO-IR-Format>`__
 
 -  `Test Inference on the Converted
-   Model <#Test-Inference-on-the-Converted-Model-Uparrow>`__
+   Model <#Test-Inference-on-the-Converted-Model>`__
 
-   -  `Load the Model <#Load-the-Model-Uparrow>`__
+   -  `Load the Model <#Load-the-Model>`__
 
--  `Select inference device <#Select-inference-device-Uparrow>`__
+-  `Select inference device <#Select-inference-device>`__
 
-   -  `Get Model Information <#Get-Model-Information-Uparrow>`__
-   -  `Load an Image <#Load-an-Image-Uparrow>`__
-   -  `Do Inference <#Do-Inference-Uparrow>`__
+   -  `Get Model Information <#Get-Model-Information>`__
+   -  `Load an Image <#Load-an-Image>`__
+   -  `Do Inference <#Do-Inference>`__
 
--  `Timing <#Timing-Uparrow>`__
+-  `Timing <#Timing>`__
 
 .. code:: ipython3
 
     # Install openvino package
     !pip install -q "openvino==2023.1.0.dev20230811"
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 ###############################################################################################################################
 
 .. code:: ipython3
@@ -61,7 +61,7 @@ Imports `⇑ <#Table-of-content:>`__
     2023-09-08 22:28:30.570158: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Settings `⇑ <#Table-of-content:>`__
+Settings
 ###############################################################################################################################
 
 .. code:: ipython3
@@ -74,7 +74,7 @@ Settings `⇑ <#Table-of-content:>`__
     
     ir_path = Path("model/v3-small_224_1.0_float.xml")
 
-Download model `⇑ <#Table-of-content:>`__
+Download model
 ###############################################################################################################################
 
 Load model using `tf.keras.applications api <https://www.tensorflow.org/api_docs/python/tf/keras/applications/MobileNetV3Small>`__
@@ -121,10 +121,10 @@ and save it to the disk.
     INFO:tensorflow:Assets written to: model/v3-small_224_1.0_float/assets
 
 
-Convert a Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
+Convert a Model to OpenVINO IR Format
 ###############################################################################################################################
 
-Convert a TensorFlow Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
+Convert a TensorFlow Model to OpenVINO IR Format
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Use the model conversion Python API to convert the TensorFlow model to
@@ -153,10 +153,10 @@ models.
     Exporting TensorFlow model to IR... This may take a few minutes.
 
 
-Test Inference on the Converted Model `⇑ <#Table-of-content:>`__
+Test Inference on the Converted Model
 ###############################################################################################################################
 
-Load the Model `⇑ <#Table-of-content:>`__
+Load the Model
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
@@ -164,7 +164,7 @@ Load the Model `⇑ <#Table-of-content:>`__
     core = ov.Core()
     model = core.read_model(ir_path)
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 ###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
@@ -195,7 +195,7 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Get Model Information `⇑ <#Table-of-content:>`__
+Get Model Information
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
@@ -204,7 +204,7 @@ Get Model Information `⇑ <#Table-of-content:>`__
     output_key = compiled_model.output(0)
     network_input_shape = input_key.shape 
 
-Load an Image `⇑ <#Table-of-content:>`__
+Load an Image
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Load an image, resize it, and convert it to the input shape of the
@@ -228,7 +228,7 @@ network.
 .. image:: 101-tensorflow-classification-to-openvino-with-output_files/101-tensorflow-classification-to-openvino-with-output_19_0.png
 
 
-Do Inference `⇑ <#Table-of-content:>`__
+Do Inference
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
@@ -253,7 +253,7 @@ Do Inference `⇑ <#Table-of-content:>`__
 
 
 
-Timing `⇑ <#Table-of-content:>`__
+Timing
 ###############################################################################################################################
 
 Measure the time it takes to do inference on thousand images. This gives

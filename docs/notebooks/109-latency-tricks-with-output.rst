@@ -53,26 +53,26 @@ A similar notebook focused on the throughput mode is available
 Table of content:
 ^^^^^^^^^^^^^^^^^^^^
 
--  `Data <#Data-Uparrow>`__
--  `Model <#Model-Uparrow>`__
--  `Hardware <#Hardware-Uparrow>`__
--  `Helper functions <#Helper-functions-Uparrow>`__
--  `Optimizations <#Optimizations-Uparrow>`__
+-  `Data <#Data>`__
+-  `Model <#Model>`__
+-  `Hardware <#Hardware>`__
+-  `Helper functions <#Helper-functions>`__
+-  `Optimizations <#Optimizations>`__
 
-   -  `PyTorch model <#PyTorch-model-Uparrow>`__
-   -  `ONNX model <#ONNX-model-Uparrow>`__
-   -  `OpenVINO IR model <#OpenVINO-IR-model-Uparrow>`__
-   -  `OpenVINO IR model on GPU <#OpenVINO-IR-model-on-GPU-Uparrow>`__
+   -  `PyTorch model <#PyTorch-model>`__
+   -  `ONNX model <#ONNX-model>`__
+   -  `OpenVINO IR model <#OpenVINO-IR-model>`__
+   -  `OpenVINO IR model on GPU <#OpenVINO-IR-model-on-GPU>`__
    -  `OpenVINO IR model + more inference
-      threads <#OpenVINO-IR-model-+-more-inference-threads-Uparrow>`__
+      threads <#OpenVINO-IR-model-+-more-inference-threads>`__
    -  `OpenVINO IR model in latency
-      mode <#OpenVINO-IR-model-in-latency-mode-Uparrow>`__
+      mode <#OpenVINO-IR-model-in-latency-mode>`__
    -  `OpenVINO IR model in latency mode + shared
-      memory <#OpenVINO-IR-model-in-latency-mode-+-shared-memory-Uparrow>`__
-   -  `Other tricks <#Other-tricks-Uparrow>`__
+      memory <#OpenVINO-IR-model-in-latency-mode-+-shared-memory>`__
+   -  `Other tricks <#Other-tricks>`__
 
--  `Performance comparison <#Performance-comparison-Uparrow>`__
--  `Conclusions <#Conclusions-Uparrow>`__
+-  `Performance comparison <#Performance-comparison>`__
+-  `Conclusions <#Conclusions>`__
 
 Prerequisites
 -------------
@@ -94,7 +94,7 @@ Prerequisites
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Data `⇑ <#Table-of-content:>`__
+Data
 ----------------------------------------------
 
 We will use the same image of the dog sitting on a bicycle for all
@@ -134,7 +134,7 @@ requirements of this particular object detection model.
 
 
 
-Model `⇑ <#Table-of-content:>`__
+Model
 -----------------------------------------------
 
 We decided to go with
@@ -191,7 +191,7 @@ PyTorch Hub and small enough to see the difference in performance.
     Adding AutoShape... 
 
 
-Hardware `⇑ <#Table-of-content:>`__
+Hardware
 --------------------------------------------------
 
 The code below lists the available hardware we will use in the
@@ -220,7 +220,7 @@ benchmarking process.
     CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
 
 
-Helper functions `⇑ <#Table-of-content:>`__
+Helper functions
 ----------------------------------------------------------
 
 We’re defining a benchmark model function to use for all optimized
@@ -355,14 +355,14 @@ the image.
     
         utils.show_array(output_img)
 
-Optimizations `⇑ <#Table-of-content:>`__
+Optimizations
 -------------------------------------------------------
 
 Below, we present the performance tricks for faster inference in the
 latency mode. We release resources after every benchmarking to be sure
 the same amount of resource is available for every experiment.
 
-PyTorch model `⇑ <#Table-of-content:>`__
+PyTorch model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, we’re benchmarking the original PyTorch model without any
@@ -388,7 +388,7 @@ optimizations applied. We will treat it as our baseline.
     PyTorch model on CPU: 0.0204 seconds per image (48.96 FPS)
 
 
-ONNX model `⇑ <#Table-of-content:>`__
+ONNX model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The first optimization is exporting the PyTorch model to ONNX and
@@ -437,7 +437,7 @@ Representation (IR) to leverage the OpenVINO Runtime.
     ONNX model on CPU: 0.0135 seconds per image (74.28 FPS)
 
 
-OpenVINO IR model `⇑ <#Table-of-content:>`__
+OpenVINO IR model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Let’s convert the ONNX model to OpenVINO Intermediate Representation
@@ -473,7 +473,7 @@ accuracy drop. That’s why we skip that step in this notebook.
     OpenVINO model on CPU: 0.0134 seconds per image (74.71 FPS)
 
 
-OpenVINO IR model on GPU `⇑ <#Table-of-content:>`__
+OpenVINO IR model on GPU
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Usually, a GPU device is faster than a CPU, so let’s run the above model
@@ -496,7 +496,7 @@ execution.
     
         del ov_gpu_model  # release resources
 
-OpenVINO IR model + more inference threads `⇑ <#Table-of-content:>`__
+OpenVINO IR model + more inference threads
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There is a possibility to add a config for any device (CPU in this
@@ -529,7 +529,7 @@ If it is the case, don’t use it.
     OpenVINO model + more threads on CPU: 0.0134 seconds per image (74.68 FPS)
 
 
-OpenVINO IR model in latency mode `⇑ <#Table-of-content:>`__
+OpenVINO IR model in latency mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 OpenVINO offers a virtual device called
@@ -559,7 +559,7 @@ devices as well.
     OpenVINO model on AUTO: 0.0136 seconds per image (73.59 FPS)
 
 
-OpenVINO IR model in latency mode + shared memory `⇑ <#Table-of-content:>`__
+OpenVINO IR model in latency mode + shared memory
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 OpenVINO is a C++ toolkit with Python wrappers (API). The default
@@ -593,7 +593,7 @@ performance!
     OpenVINO model + shared memory on AUTO: 0.0054 seconds per image (185.64 FPS)
 
 
-Other tricks `⇑ <#Table-of-content:>`__
+Other tricks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are other tricks for performance improvement, such as quantization
@@ -603,7 +603,7 @@ more from your model, please visit
 `118-optimize-preprocessing <../118-optimize-preprocessing>`__, and
 `109-throughput-tricks <109-throughput-tricks.ipynb>`__.
 
-Performance comparison `⇑ <#Table-of-content:>`__
+Performance comparison
 ----------------------------------------------------------------
 
 The following graphical comparison is valid for the selected model and
@@ -640,7 +640,7 @@ steps, just skip them.
 .. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_30_0.png
 
 
-Conclusions `⇑ <#Table-of-content:>`__
+Conclusions
 -----------------------------------------------------
 
 We already showed the steps needed to improve the performance of an

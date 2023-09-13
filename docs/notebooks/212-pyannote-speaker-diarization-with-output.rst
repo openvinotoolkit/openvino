@@ -37,21 +37,21 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 `repo <https://github.com/pyannote/pyannote-audio>`__ and
 `paper <https://arxiv.org/abs/1911.01255>`__.
 
-Table of content:- `Prerequisites <#Prerequisites-Uparrow>`__
+Table of content:- `Prerequisites <#Prerequisites>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
--  `Prepare pipeline <#Prepare-pipeline-Uparrow>`__
--  `Load test audio file <#Load-test-audio-file-Uparrow>`__
--  `Run inference pipeline <#Run-inference-pipeline-Uparrow>`__
+-  `Prepare pipeline <#Prepare-pipeline>`__
+-  `Load test audio file <#Load-test-audio-file>`__
+-  `Run inference pipeline <#Run-inference-pipeline>`__
 -  `Convert model to OpenVINO Intermediate Representation
-   format <#Convert-model-to-OpenVINO-Intermediate-Representation-format-Uparrow>`__
--  `Select inference device <#Select-inference-device-Uparrow>`__
+   format <#Convert-model-to-OpenVINO-Intermediate-Representation-format>`__
+-  `Select inference device <#Select-inference-device>`__
 -  `Replace segmentation model with
-   OpenVINO <#Replace-segmentation-model-with-OpenVINO-Uparrow>`__
+   OpenVINO <#Replace-segmentation-model-with-OpenVINO>`__
 -  `Run speaker diarization with
-   OpenVINO <#Run-speaker-diarization-with-OpenVINO-Uparrow>`__
+   OpenVINO <#Run-speaker-diarization-with-OpenVINO>`__
 
-Prerequisites `⇑ <#Table-of-content:>`__
+Prerequisites
 -------------------------------------------------------
 
 .. code:: ipython3
@@ -73,7 +73,7 @@ Prerequisites `⇑ <#Table-of-content:>`__
     tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 3.20.1 which is incompatible.
     
 
-Prepare pipeline `⇑ <#Table-of-content:>`__
+Prepare pipeline
 ----------------------------------------------------------
 
 Traditional Speaker Diarization systems can be generalized into a
@@ -157,7 +157,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
     2023-09-08 23:36:41.110289: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Load test audio file `⇑ <#Table-of-content:>`__
+Load test audio file
 --------------------------------------------------------------
 
 .. code:: ipython3
@@ -213,7 +213,7 @@ Load test audio file `⇑ <#Table-of-content:>`__
 .. image:: 212-pyannote-speaker-diarization-with-output_files/212-pyannote-speaker-diarization-with-output_9_1.png
 
 
-Run inference pipeline `⇑ <#Table-of-content:>`__
+Run inference pipeline
 ----------------------------------------------------------------
 
 For running inference, we should provide a path to input audio to the
@@ -274,7 +274,7 @@ We can also print each time frame and corresponding speaker:
     start=27.8s stop=29.5s speaker_SPEAKER_02
 
 
-Convert model to OpenVINO Intermediate Representation format `⇑ <#Table-of-content:>`__
+Convert model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------------------------------------------------
 
 For best results with OpenVINO, it is recommended to convert the model
@@ -314,7 +314,7 @@ with ``openvino.runtime.serialize``.
     Model successfully converted to IR and saved to pyannote-segmentation.xml
 
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -341,7 +341,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Replace segmentation model with OpenVINO `⇑ <#Table-of-content:>`__
+Replace segmentation model with OpenVINO
 ----------------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -373,7 +373,7 @@ Replace segmentation model with OpenVINO `⇑ <#Table-of-content:>`__
     
     pipeline._segmentation.infer = infer_segm
 
-Run speaker diarization with OpenVINO `⇑ <#Table-of-content:>`__
+Run speaker diarization with OpenVINO
 -------------------------------------------------------------------------------
 
 .. code:: ipython3

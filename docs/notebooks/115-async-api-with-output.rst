@@ -14,34 +14,34 @@ requests) rather than wait for the current inference to complete first.
 Table of content:
 ^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports-Uparrow>`__
+-  `Imports <#Imports>`__
 -  `Prepare model and data
-   processing <#Prepare-model-and-data-processing-Uparrow>`__
+   processing <#Prepare-model-and-data-processing>`__
 
-   -  `Download test model <#Download-test-model-Uparrow>`__
-   -  `Load the model <#Load-the-model-Uparrow>`__
+   -  `Download test model <#Download-test-model>`__
+   -  `Load the model <#Load-the-model>`__
    -  `Create functions for data
-      processing <#Create-functions-for-data-processing-Uparrow>`__
-   -  `Get the test video <#Get-the-test-video-Uparrow>`__
+      processing <#Create-functions-for-data-processing>`__
+   -  `Get the test video <#Get-the-test-video>`__
 
 -  `How to improve the throughput of video
-   processing <#How-to-improve-the-throughput-of-video-processing-Uparrow>`__
+   processing <#How-to-improve-the-throughput-of-video-processing>`__
 
-   -  `Sync Mode (default) <#Sync-Mode-(default)-Uparrow>`__
+   -  `Sync Mode (default) <#Sync-Mode-(default)>`__
    -  `Test performance in Sync
-      Mode <#Test-performance-in-Sync-Mode-Uparrow>`__
-   -  `Async Mode <#Async-Mode-Uparrow>`__
+      Mode <#Test-performance-in-Sync-Mode>`__
+   -  `Async Mode <#Async-Mode>`__
    -  `Test the performance in Async
-      Mode <#Test-the-performance-in-Async-Mode-Uparrow>`__
-   -  `Compare the performance <#Compare-the-performance-Uparrow>`__
+      Mode <#Test-the-performance-in-Async-Mode>`__
+   -  `Compare the performance <#Compare-the-performance>`__
 
--  ```AsyncInferQueue`` <#%60AsyncInferQueue%60-Uparrow>`__
+-  ```AsyncInferQueue`` <#%60AsyncInferQueue%60>`__
 
-   -  `Setting Callback <#Setting-Callback-Uparrow>`__
+   -  `Setting Callback <#Setting-Callback>`__
    -  `Test the performance with
-      ``AsyncInferQueue`` <#Test-the-performance-with-%60AsyncInferQueue%60-Uparrow>`__
+      ``AsyncInferQueue`` <#Test-the-performance-with-%60AsyncInferQueue%60>`__
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 -------------------------------------------------
 
 .. code:: ipython3
@@ -67,10 +67,10 @@ Imports `⇑ <#Table-of-content:>`__
     
     import notebook_utils as utils
 
-Prepare model and data processing `⇑ <#Table-of-content:>`__
+Prepare model and data processing
 ---------------------------------------------------------------------------
 
-Download test model `⇑ <#Table-of-content:>`__
+Download test model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We use a pre-trained model from OpenVINO’s `Open Model
@@ -109,7 +109,7 @@ each frame of the video.
     
 
 
-Load the model `⇑ <#Table-of-content:>`__
+Load the model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -129,7 +129,7 @@ Load the model `⇑ <#Table-of-content:>`__
     N, C, H, W = input_layer_ir.shape
     shape = (H, W)
 
-Create functions for data processing `⇑ <#Table-of-content:>`__
+Create functions for data processing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -171,20 +171,20 @@ Create functions for data processing `⇑ <#Table-of-content:>`__
                 cv2.putText(image, str(round(fps, 2)) + " fps", (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 3) 
         return image
 
-Get the test video `⇑ <#Table-of-content:>`__
+Get the test video
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
     video_path = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4'
 
-How to improve the throughput of video processing `⇑ <#Table-of-content:>`__
+How to improve the throughput of video processing
 -------------------------------------------------------------------------------------------
 
 Below, we compare the performance of the synchronous and async-based
 approaches:
 
-Sync Mode (default) `⇑ <#Table-of-content:>`__
+Sync Mode (default)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Let us see how video processing works with the default approach. Using
@@ -274,7 +274,7 @@ immediately processed:
                 player.stop()
             return sync_fps
 
-Test performance in Sync Mode `⇑ <#Table-of-content:>`__
+Test performance in Sync Mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -293,7 +293,7 @@ Test performance in Sync Mode `⇑ <#Table-of-content:>`__
     average throuput in sync mode: 38.75 fps
 
 
-Async Mode `⇑ <#Table-of-content:>`__
+Async Mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Let us see how the OpenVINO Async API can improve the overall frame rate
@@ -408,7 +408,7 @@ pipeline (decoding vs inference) and not by the sum of the stages.
                 player.stop()
             return async_fps
 
-Test the performance in Async Mode `⇑ <#Table-of-content:>`__
+Test the performance in Async Mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -427,7 +427,7 @@ Test the performance in Async Mode `⇑ <#Table-of-content:>`__
     average throuput in async mode: 71.45 fps
 
 
-Compare the performance `⇑ <#Table-of-content:>`__
+Compare the performance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -455,7 +455,7 @@ Compare the performance `⇑ <#Table-of-content:>`__
 .. image:: 115-async-api-with-output_files/115-async-api-with-output_21_0.png
 
 
-``AsyncInferQueue`` `⇑ <#Table-of-content:>`__
+``AsyncInferQueue``
 -------------------------------------------------------------
 
 Asynchronous mode pipelines can be supported with the
@@ -465,7 +465,7 @@ wrapper class. This class automatically spawns the pool of
 synchronization mechanisms to control the flow of the pipeline. It is a
 simpler way to manage the infer request queue in Asynchronous mode.
 
-Setting Callback `⇑ <#Table-of-content:>`__
+Setting Callback
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When ``callback`` is set, any job that ends inference calls upon the
@@ -542,7 +542,7 @@ the possibility of passing runtime values.
             infer_queue.wait_all()
             player.stop()
 
-Test the performance with ``AsyncInferQueue`` `⇑ <#Table-of-content:>`__
+Test the performance with ``AsyncInferQueue``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3

@@ -41,26 +41,26 @@ Notebook contains the following steps:
 Table of content:
 ~~~~~~~~~~~~~~~~~
 
--  `Prerequisites <#Prerequisites-Uparrow>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Create PyTorch Models
-   pipeline <#Create-PyTorch-Models-pipeline-Uparrow>`__
+   pipeline <#Create-PyTorch-Models-pipeline>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format-Uparrow>`__
+   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
 
-   -  `Text Encoder <#Text-Encoder-Uparrow>`__
-   -  `U-net <#U-net-Uparrow>`__
-   -  `VAE <#VAE-Uparrow>`__
+   -  `Text Encoder <#Text-Encoder>`__
+   -  `U-net <#U-net>`__
+   -  `VAE <#VAE>`__
 
--  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline-Uparrow>`__
+-  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
 -  `Configure Inference
-   Pipeline <#Configure-Inference-Pipeline-Uparrow>`__
+   Pipeline <#Configure-Inference-Pipeline>`__
 
-   -  `Text-to-Image generation <#Text-to-Image-generation-Uparrow>`__
-   -  `Image-to-Image generation <#Image-to-Image-generation-Uparrow>`__
+   -  `Text-to-Image generation <#Text-to-Image-generation>`__
+   -  `Image-to-Image generation <#Image-to-Image-generation>`__
 
--  `Interactive demo <#Interactive-demo-Uparrow>`__
+-  `Interactive demo <#Interactive-demo>`__
 
-Prerequisites `⇑ <#Table-of-content:>`__
+Prerequisites
 -------------------------------------------------------
 
 **The following is needed only if you want to use the original model. If
@@ -104,7 +104,7 @@ solutions based on Stable Diffusion.
     !pip install -q "huggingface-hub>=0.9.1"
     !pip install -q gradio
 
-Create PyTorch Models pipeline `⇑ <#Table-of-content:>`__
+Create PyTorch Models pipeline
 ------------------------------------------------------------------------
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
@@ -260,7 +260,7 @@ First, load the pre-trained weights of all components of the model.
 
 
 
-Convert models to OpenVINO Intermediate representation (IR) format `⇑ <#Table-of-content:>`__
+Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------------------------------------------------
 
 Staring from 2023.0 release, OpenVINO supports direct conversion PyTorch
@@ -282,7 +282,7 @@ The model consists of three important parts:
 
 Let us convert each part.
 
-Text Encoder `⇑ <#Table-of-content:>`__
+Text Encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The text-encoder is responsible for transforming the input prompt, for
@@ -378,7 +378,7 @@ hidden states.
 
 
 
-U-net `⇑ <#Table-of-content:>`__
+U-net
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Unet model has three inputs:
@@ -469,7 +469,7 @@ Model predicts the ``sample`` state for the next step.
 
 
 
-VAE `⇑ <#Table-of-content:>`__
+VAE
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
@@ -598,7 +598,7 @@ of the pipeline, it will be better to convert them to separate models.
 
 
 
-Prepare Inference Pipeline `⇑ <#Table-of-content:>`__
+Prepare Inference Pipeline
 --------------------------------------------------------------------
 
 Putting it all together, let us now take a closer look at how the model
@@ -1000,7 +1000,7 @@ of the variational auto encoder.
     
             return timesteps, num_inference_steps - t_start 
 
-Configure Inference Pipeline `⇑ <#Table-of-content:>`__
+Configure Inference Pipeline
 ----------------------------------------------------------------------
 
 First, you should create instances of OpenVINO Model.
@@ -1071,7 +1071,7 @@ Let us define them and put all components together
         scheduler=lms
     )
 
-Text-to-Image generation `⇑ <#Table-of-content:>`__
+Text-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, you can define a text prompt for image generation and run inference
@@ -1173,7 +1173,7 @@ Now is show time!
 
 Nice. As you can see, the picture has quite a high definition 🔥.
 
-Image-to-Image generation `⇑ <#Table-of-content:>`__
+Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Image-to-Image generation, additionally to text prompt, requires
@@ -1269,7 +1269,7 @@ semantically consistent with the input.
 .. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_39_1.png
 
 
-Interactive demo `⇑ <#Table-of-content:>`__
+Interactive demo
 ----------------------------------------------------------
 
 .. code:: ipython3

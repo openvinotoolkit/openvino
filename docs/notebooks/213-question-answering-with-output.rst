@@ -8,19 +8,19 @@ distilled and quantized to ``INT8`` on SQuAD v1.1 training set from
 larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
 of this notebook provides live inference results from your inputs. ####
-Table of content:- `Imports <#Imports-Uparrow>`__ - `The
-model <#The-model-Uparrow>`__ - `Download the
-model <#Download-the-model-Uparrow>`__ - `Load the
-model <#Load-the-model-Uparrow>`__ - `Select inference
-device <#Select-inference-device-Uparrow>`__ -
-`Processing <#Processing-Uparrow>`__ -
-`Preprocessing <#Preprocessing-Uparrow>`__ -
-`Postprocessing <#Postprocessing-Uparrow>`__ - `Main Processing
-Function <#Main-Processing-Function-Uparrow>`__ - `Run <#Run-Uparrow>`__
-- `Run on local paragraphs <#Run-on-local-paragraphs-Uparrow>`__ - `Run
-on websites <#Run-on-websites-Uparrow>`__
+Table of content:- `Imports <#Imports>`__ - `The
+model <#The-model>`__ - `Download the
+model <#Download-the-model>`__ - `Load the
+model <#Load-the-model>`__ - `Select inference
+device <#Select-inference-device>`__ -
+`Processing <#Processing>`__ -
+`Preprocessing <#Preprocessing>`__ -
+`Postprocessing <#Postprocessing>`__ - `Main Processing
+Function <#Main-Processing-Function>`__ - `Run <#Run>`__
+- `Run on local paragraphs <#Run-on-local-paragraphs>`__ - `Run
+on websites <#Run-on-websites>`__
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 -------------------------------------------------
 
 .. code:: ipython3
@@ -35,10 +35,10 @@ Imports `⇑ <#Table-of-content:>`__
     import html_reader as reader
     import tokens_bert as tokens
 
-The model `⇑ <#Table-of-content:>`__
+The model
 ---------------------------------------------------
 
-Download the model `⇑ <#Table-of-content:>`__
+Download the model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``omz_downloader``, which is a command-line tool from the
@@ -93,7 +93,7 @@ there is no need to use ``omz_converter``.
     
 
 
-Load the model `⇑ <#Table-of-content:>`__
+Load the model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Downloaded models are located in a fixed structure, which indicates a
@@ -110,7 +110,7 @@ You can choose ``CPU`` or ``GPU`` for this model.
     # Read the network and corresponding weights from a file.
     model = core.read_model(model_path)
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 select device from dropdown list for running inference using OpenVINO
@@ -168,7 +168,7 @@ for BERT-large-like model.
 
 
 
-Processing `⇑ <#Table-of-content:>`__
+Processing
 ----------------------------------------------------
 
 NLP models usually take a list of tokens as a standard input. A token is
@@ -206,7 +206,7 @@ content from provided URLs.
         # Produce one big context string.
         return "\n".join(paragraphs)
 
-Preprocessing `⇑ <#Table-of-content:>`__
+Preprocessing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input size in this case is 384 tokens long. The main input
@@ -289,7 +289,7 @@ documentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/mod
     
         return (input_ids, attention_mask, token_type_ids), diff_input_size
 
-Postprocessing `⇑ <#Table-of-content:>`__
+Postprocessing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The results from the network are raw (logits). Use the softmax function
@@ -382,7 +382,7 @@ answer should come with the highest score.
         # Return the part of the context, which is already an answer.
         return context[answer[1]:answer[2]], answer[0]
 
-Main Processing Function `⇑ <#Table-of-content:>`__
+Main Processing Function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Run question answering on a specific knowledge base (websites) and
@@ -424,10 +424,10 @@ iterate through the questions.
                 print(f"Score: {score:.2f}")
                 print(f"Time: {end_time - start_time:.2f}s")
 
-Run `⇑ <#Table-of-content:>`__
+Run
 ---------------------------------------------
 
-Run on local paragraphs `⇑ <#Table-of-content:>`__
+Run on local paragraphs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Change sources to your own to answer your questions. You can use as many
@@ -479,7 +479,7 @@ questions in the box.**
     Time: 0.03s
 
 
-Run on websites `⇑ <#Table-of-content:>`__
+Run on websites
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can also provide URLs. Note that the context (a knowledge base) is

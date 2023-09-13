@@ -26,22 +26,22 @@ paper: `Segmenter: Transformer for Semantic
 Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
 `repository <https://github.com/rstrudel/segmenter>`__. #### Table of
 content: - `Get and prepare PyTorch
-model <#Get-and-prepare-PyTorch-model-Uparrow>`__ -
-`Prerequisites <#Prerequisites-Uparrow>`__ - `Loading PyTorch
-model <#Loading-PyTorch-model-Uparrow>`__ - `Preparing preprocessing and
+model <#Get-and-prepare-PyTorch-model>`__ -
+`Prerequisites <#Prerequisites>`__ - `Loading PyTorch
+model <#Loading-PyTorch-model>`__ - `Preparing preprocessing and
 visualization
-functions <#Preparing-preprocessing-and-visualization-functions-Uparrow>`__
-- `Preprocessing <#Preprocessing-Uparrow>`__ -
-`Visualization <#Visualization-Uparrow>`__ - `Validation of inference of
-original model <#Validation-of-inference-of-original-model-Uparrow>`__ -
-`Export to ONNX <#Export-to-ONNX-Uparrow>`__ - `Convert ONNX model to
+functions <#Preparing-preprocessing-and-visualization-functions>`__
+- `Preprocessing <#Preprocessing>`__ -
+`Visualization <#Visualization>`__ - `Validation of inference of
+original model <#Validation-of-inference-of-original-model>`__ -
+`Export to ONNX <#Export-to-ONNX>`__ - `Convert ONNX model to
 OpenVINO Intermediate Representation
-(IR) <#Convert-ONNX-model-to-OpenVINO-Intermediate-Representation-(IR)-Uparrow>`__
+(IR) <#Convert-ONNX-model-to-OpenVINO-Intermediate-Representation-(IR)>`__
 - `Verify converted model
-inference <#Verify-converted-model-inference-Uparrow>`__ - `Select
-inference device <#Select-inference-device-Uparrow>`__ - `Benchmarking
+inference <#Verify-converted-model-inference>`__ - `Select
+inference device <#Select-inference-device>`__ - `Benchmarking
 performance of converted
-model <#Benchmarking-performance-of-converted-model-Uparrow>`__
+model <#Benchmarking-performance-of-converted-model>`__
 
 .. |Segmenteer diagram| image:: https://user-images.githubusercontent.com/24582831/148507554-87eb80bd-02c7-4c31-b102-c6141e231ec8.png
 
@@ -56,7 +56,7 @@ notebook consists of the following steps:
 -  Validating inference of the converted model
 -  Benchmark performance of the converted model
 
-Get and prepare PyTorch model `⇑ <#Table-of-content:>`__
+Get and prepare PyTorch model
 -----------------------------------------------------------------------
 
 The first thing we’ll need to do is clone
@@ -71,7 +71,7 @@ The code from the repository already contains functions that create
 model and load weights, but we will need to download config and trained
 weights (checkpoint) file and add some additional helper functions.
 
-Prerequisites `⇑ <#Table-of-content:>`__
+Prerequisites
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -159,7 +159,7 @@ config for our model.
     model/variant.yml:   0%|          | 0.00/940 [00:00<?, ?B/s]
 
 
-Loading PyTorch model `⇑ <#Table-of-content:>`__
+Loading PyTorch model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 PyTorch models are usually an instance of
@@ -208,13 +208,13 @@ Load normalization settings from config file.
       warnings.warn(
 
 
-Preparing preprocessing and visualization functions `⇑ <#Table-of-content:>`__
+Preparing preprocessing and visualization functions
 ---------------------------------------------------------------------------------------------
 
 Now we will define utility functions for preprocessing and visualizing
 the results.
 
-Preprocessing `⇑ <#Table-of-content:>`__
+Preprocessing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Inference input is tensor with shape ``[1, 3, H, W]`` in ``B, C, H, W``
@@ -259,7 +259,7 @@ normalized with given mean and standard deviation provided in
     
         return im
 
-Visualization `⇑ <#Table-of-content:>`__
+Visualization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Inference output contains labels assigned to each pixel, so the output
@@ -303,7 +303,7 @@ corresponding to the inferred labels.
     
         return pil_blend
 
-Validation of inference of original model `⇑ <#Table-of-content:>`__
+Validation of inference of original model
 -----------------------------------------------------------------------------------
 
 Now that we have everything ready, we can perform segmentation on
@@ -355,7 +355,7 @@ We can see that model segments the image into meaningful parts. Since we
 are using tiny variant of model, the result is not as good as it is with
 larger models, but it already shows nice segmentation performance.
 
-Export to ONNX `⇑ <#Table-of-content:>`__
+Export to ONNX
 --------------------------------------------------------
 
 Now that we’ve verified that the inference of PyTorch model works, we
@@ -427,7 +427,7 @@ problem.
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
-Convert ONNX model to OpenVINO Intermediate Representation (IR) `⇑ <#Table-of-content:>`__
+Convert ONNX model to OpenVINO Intermediate Representation (IR)
 ---------------------------------------------------------------------------------------------------------
 
 While ONNX models are directly supported by OpenVINO runtime, it can be
@@ -447,7 +447,7 @@ OpenVINO IR format for future execution.
     # serialize model for saving IR
     ov.save_model(model, str(MODEL_DIR / "segmenter.xml"))
 
-Verify converted model inference `⇑ <#Table-of-content:>`__
+Verify converted model inference
 --------------------------------------------------------------------------
 
 To test that model was successfully converted, we can use same inference
@@ -515,7 +515,7 @@ any additional custom code required to process input.
 Now that we have created ``SegmenterOV`` helper class, we can use it in
 inference function.
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -576,7 +576,7 @@ select device from dropdown list for running inference using OpenVINO
 
 As we can see, we get the same results as with original model.
 
-Benchmarking performance of converted model `⇑ <#Table-of-content:>`__
+Benchmarking performance of converted model
 -------------------------------------------------------------------------------------
 
 Finally, use the OpenVINO `Benchmark

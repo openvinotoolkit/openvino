@@ -18,20 +18,20 @@ class.
 Table of content:
 ^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports-Uparrow>`__
--  `Download model weights <#Download-model-weights-Uparrow>`__
--  `Select inference device <#Select-inference-device-Uparrow>`__
--  `Load the Model <#Load-the-Model-Uparrow>`__
--  `Load an Image <#Load-an-Image-Uparrow>`__
--  `Do Inference <#Do-Inference-Uparrow>`__
--  `Visualize Results <#Visualize-Results-Uparrow>`__
+-  `Imports <#Imports>`__
+-  `Download model weights <#Download-model-weights>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Load the Model <#Load-the-Model>`__
+-  `Load an Image <#Load-an-Image>`__
+-  `Do Inference <#Do-Inference>`__
+-  `Visualize Results <#Visualize-Results>`__
 
 .. code:: ipython3
 
     # Install openvino package
     !pip install -q "openvino==2023.1.0.dev20230811"
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 ########################################
 
 .. code:: ipython3
@@ -46,7 +46,7 @@ Imports `⇑ <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Download model weights `⇑ <#Table-of-content:>`__
+Download model weights
 #######################################################
 
 .. code:: ipython3
@@ -82,7 +82,7 @@ Download model weights `⇑ <#Table-of-content:>`__
     model/horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
 
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 ###########################################################
 
 Select device from dropdown list for running inference using OpenVINO:
@@ -110,7 +110,7 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Load the Model `⇑ <#Table-of-content:>`__
+Load the Model
 ###############################################
 
 .. code:: ipython3
@@ -123,7 +123,7 @@ Load the Model `⇑ <#Table-of-content:>`__
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output("boxes")
 
-Load an Image `⇑ <#Table-of-content:>`__
+Load an Image
 ##############################################
 
 .. code:: ipython3
@@ -147,7 +147,7 @@ Load an Image `⇑ <#Table-of-content:>`__
 .. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_11_0.png
 
 
-Do Inference `⇑ <#Table-of-content:>`__
+Do Inference
 ##############################################
 
 .. code:: ipython3
@@ -158,7 +158,7 @@ Do Inference `⇑ <#Table-of-content:>`__
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-Visualize Results `⇑ <#Table-of-content:>`__
+Visualize Results
 ##################################################
 
 .. code:: ipython3

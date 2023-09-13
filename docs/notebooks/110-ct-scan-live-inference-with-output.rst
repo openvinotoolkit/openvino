@@ -32,26 +32,26 @@ scan to use for inference.
 Table of content:
 ^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports-Uparrow>`__
--  `Settings <#Settings-Uparrow>`__
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
 -  `Benchmark Model
-   Performance <#Benchmark-Model-Performance-Uparrow>`__
--  `Download and Prepare Data <#Download-and-Prepare-Data-Uparrow>`__
--  `Show Live Inference <#Show-Live-Inference-Uparrow>`__
+   Performance <#Benchmark-Model-Performance>`__
+-  `Download and Prepare Data <#Download-and-Prepare-Data>`__
+-  `Show Live Inference <#Show-Live-Inference>`__
 
    -  `Load Model and List of Image
-      Files <#Load-Model-and-List-of-Image-Files-Uparrow>`__
-   -  `Prepare images <#Prepare-images-Uparrow>`__
-   -  `Specify device <#Specify-device-Uparrow>`__
-   -  `Setting callback function <#Setting-callback-function-Uparrow>`__
+      Files <#Load-Model-and-List-of-Image-Files>`__
+   -  `Prepare images <#Prepare-images>`__
+   -  `Specify device <#Specify-device>`__
+   -  `Setting callback function <#Setting-callback-function>`__
    -  `Create asynchronous inference queue and perform
-      it <#Create-asynchronous-inference-queue-and-perform-it-Uparrow>`__
+      it <#Create-asynchronous-inference-queue-and-perform-it>`__
 
 .. code:: ipython3
 
     !pip install -q "openvino==2023.1.0.dev20230811" "monai>=0.9.1,<1.0.0"
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 -------------------------------------------------
 
 .. code:: ipython3
@@ -79,7 +79,7 @@ Imports `⇑ <#Table-of-content:>`__
     2023-09-08 22:52:20.182360: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Settings `⇑ <#Table-of-content:>`__
+Settings
 --------------------------------------------------
 
 To use the pre-trained models, set ``IR_PATH`` to
@@ -117,7 +117,7 @@ trained or optimized yourself, adjust the model paths.
     pretrained_model/quantized_unet_kits19.bin:   0%|          | 0.00/1.90M [00:00<?, ?B/s]
 
 
-Benchmark Model Performance `⇑ <#Table-of-content:>`__
+Benchmark Model Performance
 ---------------------------------------------------------------------
 
 To measure the inference performance of the IR model, use `Benchmark
@@ -245,7 +245,7 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Throughput:   89.90 FPS
 
 
-Download and Prepare Data `⇑ <#Table-of-content:>`__
+Download and Prepare Data
 -------------------------------------------------------------------
 
 Download one validation video for live inference.
@@ -292,7 +292,7 @@ downloaded and extracted in the next cell.
     Downloaded and extracted data for case_00117
 
 
-Show Live Inference `⇑ <#Table-of-content:>`__
+Show Live Inference
 -------------------------------------------------------------
 
 To show live inference on the model in the notebook, use the
@@ -323,7 +323,7 @@ inference queue, there are two jobs to do:
 
 Everything else will be handled by the ``AsyncInferQueue`` instance.
 
-Load Model and List of Image Files `⇑ <#Table-of-content:>`__
+Load Model and List of Image Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Load the segmentation model to OpenVINO Runtime with
@@ -350,7 +350,7 @@ to see the implementation.
     case_00117, 69 images
 
 
-Prepare images `⇑ <#Table-of-content:>`__
+Prepare images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use the ``reader = LoadImage()`` function to read the images in the same
@@ -371,7 +371,7 @@ tutorial.
         framebuf.append(image)
         next_frame_id += 1
 
-Specify device `⇑ <#Table-of-content:>`__
+Specify device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -387,7 +387,7 @@ Specify device `⇑ <#Table-of-content:>`__
 
 
 
-Setting callback function `⇑ <#Table-of-content:>`__
+Setting callback function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When ``callback`` is set, any job that ends the inference, calls the
@@ -421,7 +421,7 @@ The ``callback`` function will show the results of inference.
         display.clear_output(wait=True)
         display.display(i)
 
-Create asynchronous inference queue and perform it `⇑ <#Table-of-content:>`__
+Create asynchronous inference queue and perform it
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3

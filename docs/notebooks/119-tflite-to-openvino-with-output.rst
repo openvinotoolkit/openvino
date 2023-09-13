@@ -17,27 +17,27 @@ and do inference with a sample image.
 Table of content:
 ^^^^^^^^^^^^^^^^^
 
--  `Preparation <#Preparation-Uparrow>`__
+-  `Preparation <#Preparation>`__
 
-   -  `Install requirements <#Install-requirements-Uparrow>`__
-   -  `Imports <#Imports-Uparrow>`__
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
 
--  `Download TFLite model <#Download-TFLite-model-Uparrow>`__
+-  `Download TFLite model <#Download-TFLite-model>`__
 -  `Convert a Model to OpenVINO IR
-   Format <#Convert-a-Model-to-OpenVINO-IR-Format-Uparrow>`__
+   Format <#Convert-a-Model-to-OpenVINO-IR-Format>`__
 -  `Load model using OpenVINO TensorFlow Lite
-   Frontend <#Load-model-using-OpenVINO-TensorFlow-Lite-Frontend-Uparrow>`__
+   Frontend <#Load-model-using-OpenVINO-TensorFlow-Lite-Frontend>`__
 -  `Run OpenVINO model
-   inference <#Run-OpenVINO-model-inference-Uparrow>`__
+   inference <#Run-OpenVINO-model-inference>`__
 
-   -  `Select inference device <#Select-inference-device-Uparrow>`__
+   -  `Select inference device <#Select-inference-device>`__
 
--  `Estimate Model Performance <#Estimate-Model-Performance-Uparrow>`__
+-  `Estimate Model Performance <#Estimate-Model-Performance>`__
 
-Preparation `⇑ <#Table-of-content:>`__
+Preparation
 -----------------------------------------------------
 
-Install requirements `⇑ <#Table-of-content:>`__
+Install requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -52,7 +52,7 @@ Install requirements `⇑ <#Table-of-content:>`__
         filename='notebook_utils.py'
     );
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -64,7 +64,7 @@ Imports `⇑ <#Table-of-content:>`__
     
     from notebook_utils import download_file, load_image
 
-Download TFLite model `⇑ <#Table-of-content:>`__
+Download TFLite model
 ---------------------------------------------------------------
 
 .. code:: ipython3
@@ -92,7 +92,7 @@ Download TFLite model `⇑ <#Table-of-content:>`__
 
 
 
-Convert a Model to OpenVINO IR Format `⇑ <#Table-of-content:>`__
+Convert a Model to OpenVINO IR Format
 -------------------------------------------------------------------------------
 
 To convert the TFLite model to OpenVINO IR, model conversion Python API
@@ -120,7 +120,7 @@ For TensorFlow Lite models support, refer to this
     Model model/efficientnet_lite0_fp32_2.tflite successfully converted and saved to model/efficientnet_lite0_fp32_2.xml
 
 
-Load model using OpenVINO TensorFlow Lite Frontend `⇑ <#Table-of-content:>`__
+Load model using OpenVINO TensorFlow Lite Frontend
 --------------------------------------------------------------------------------------------
 
 TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
@@ -134,7 +134,7 @@ this `tutorial <../002-openvino-api>`__.
     
     ov_model = core.read_model(tflite_model_path)
 
-Run OpenVINO model inference `⇑ <#Table-of-content:>`__
+Run OpenVINO model inference
 ----------------------------------------------------------------------
 
 We can find information about model input preprocessing in its
@@ -149,7 +149,7 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
     resized_image = image.resize((224, 224))
     input_tensor = np.expand_dims((np.array(resized_image).astype(np.float32) - 127) / 128, 0)
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -209,7 +209,7 @@ select device from dropdown list for running inference using OpenVINO
     Predicted label: n02109047 Great Dane with probability 0.715318
 
 
-Estimate Model Performance `⇑ <#Table-of-content:>`__
+Estimate Model Performance
 --------------------------------------------------------------------
 
 `Benchmark

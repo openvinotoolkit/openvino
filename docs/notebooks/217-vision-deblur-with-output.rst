@@ -1,29 +1,29 @@
 Deblur Photos with DeblurGAN-v2 and OpenVINO™
 =============================================
 
-Table of content:- `What is deblurring? <#What-is-deblurring?-Uparrow>`__
+Table of content:- `What is deblurring? <#What-is-deblurring?>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
--  `Preparations <#Preparations-Uparrow>`__
+-  `Preparations <#Preparations>`__
 
-   -  `Imports <#Imports-Uparrow>`__
-   -  `Settings <#Settings-Uparrow>`__
-   -  `Select inference device <#Select-inference-device-Uparrow>`__
+   -  `Imports <#Imports>`__
+   -  `Settings <#Settings>`__
+   -  `Select inference device <#Select-inference-device>`__
    -  `Download DeblurGAN-v2
-      Model <#Download-DeblurGAN-v2-Model-Uparrow>`__
-   -  `Prepare model <#Prepare-model-Uparrow>`__
+      Model <#Download-DeblurGAN-v2-Model>`__
+   -  `Prepare model <#Prepare-model>`__
    -  `Convert DeblurGAN-v2 Model to OpenVINO IR
-      format <#Convert-DeblurGAN-v2-Model-to-OpenVINO-IR-format-Uparrow>`__
+      format <#Convert-DeblurGAN-v2-Model-to-OpenVINO-IR-format>`__
 
--  `Load the Model <#Load-the-Model-Uparrow>`__
--  `Deblur Image <#Deblur-Image-Uparrow>`__
+-  `Load the Model <#Load-the-Model>`__
+-  `Deblur Image <#Deblur-Image>`__
 
    -  `Load, resize and reshape input
-      image <#Load,-resize-and-reshape-input-image-Uparrow>`__
+      image <#Load,-resize-and-reshape-input-image>`__
    -  `Do Inference on the Input
-      Image <#Do-Inference-on-the-Input-Image-Uparrow>`__
-   -  `Display results <#Display-results-Uparrow>`__
-   -  `Save the deblurred image <#Save-the-deblurred-image-Uparrow>`__
+      Image <#Do-Inference-on-the-Input-Image>`__
+   -  `Display results <#Display-results>`__
+   -  `Save the deblurred image <#Save-the-deblurred-image>`__
 
 This tutorial demonstrates Single Image Motion Deblurring with
 DeblurGAN-v2 in OpenVINO, by first converting the
@@ -32,7 +32,7 @@ model to OpenVINO Intermediate Representation (OpenVINO IR) format. For
 more information about the model, see the
 `documentation <https://docs.openvino.ai/2023.0/omz_models_model_deblurgan_v2.html>`__.
 
-What is deblurring? `⇑ <#Table-of-content:>`__
+What is deblurring?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Deblurring is the task of removing motion blurs that usually occur in
@@ -48,10 +48,10 @@ better. <https://openaccess.thecvf.com/content_ICCV_2019/html/Kupyn_DeblurGAN-v2
 In Proceedings of the IEEE/CVF International Conference on Computer
 Vision (pp. 8878-8887).
 
-Preparations `⇑ <#Table-of-content:>`__
+Preparations
 ------------------------------------------------------
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -68,7 +68,7 @@ Imports `⇑ <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import load_image
 
-Settings `⇑ <#Table-of-content:>`__
+Settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -84,7 +84,7 @@ Settings `⇑ <#Table-of-content:>`__
     
     precision = "FP16"
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -113,7 +113,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Download DeblurGAN-v2 Model `⇑ <#Table-of-content:>`__
+Download DeblurGAN-v2 Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Model defined in
@@ -169,7 +169,7 @@ Downloading deblurgan-v2…
     
 
 
-Prepare model `⇑ <#Table-of-content:>`__
+Prepare model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 DeblurGAN-v2 is PyTorch model for converting it to OpenVINO Intermediate
@@ -201,7 +201,7 @@ checkpoint weights.
             out = (out + 1) / 2
             return out
 
-Convert DeblurGAN-v2 Model to OpenVINO IR format `⇑ <#Table-of-content:>`__
+Convert DeblurGAN-v2 Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For best results with OpenVINO, it is recommended to convert the model
@@ -241,7 +241,7 @@ Model conversion may take a while.
     WARNING:nncf:You are using DataParallel, which may cause significant performance issues with dynamic graph building. Consider using distributed training (DistributedDataParallel) instead.
 
 
-Load the Model `⇑ <#Table-of-content:>`__
+Load the Model
 --------------------------------------------------------
 
 Load and compile the DeblurGAN-v2 model in the OpenVINO Runtime with
@@ -285,10 +285,10 @@ shape for the model.
 
 
 
-Deblur Image `⇑ <#Table-of-content:>`__
+Deblur Image
 ------------------------------------------------------
 
-Load, resize and reshape input image `⇑ <#Table-of-content:>`__
+Load, resize and reshape input image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input image is read by using the default ``load_image`` function
@@ -334,7 +334,7 @@ height, and ``W`` is the width.
 .. image:: 217-vision-deblur-with-output_files/217-vision-deblur-with-output_24_0.png
 
 
-Do Inference on the Input Image `⇑ <#Table-of-content:>`__
+Do Inference on the Input Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Do the inference, convert the result to an image shape and resize it to
@@ -362,7 +362,7 @@ the original image size.
 .. image:: 217-vision-deblur-with-output_files/217-vision-deblur-with-output_27_0.png
 
 
-Display results `⇑ <#Table-of-content:>`__
+Display results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -383,7 +383,7 @@ Display results `⇑ <#Table-of-content:>`__
 .. image:: 217-vision-deblur-with-output_files/217-vision-deblur-with-output_29_0.png
 
 
-Save the deblurred image `⇑ <#Table-of-content:>`__
+Save the deblurred image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Save the output image of the DeblurGAN-v2 model in the current

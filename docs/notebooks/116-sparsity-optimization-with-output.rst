@@ -24,20 +24,20 @@ consists of the following steps:
 Table of content:
 ~~~~~~~~~~~~~~~~~
 
--  `Prerequisites <#Prerequisites-Uparrow>`__
--  `Imports <#Imports-Uparrow>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Imports <#Imports>`__
 
    -  `Download, quantize and sparsify the model, using Hugging Face
       Optimum
-      API <#Download,-quantize-and-sparsify-the-model,-using-Hugging-Face-Optimum-API-Uparrow>`__
+      API <#Download,-quantize-and-sparsify-the-model,-using-Hugging-Face-Optimum-API>`__
 
 -  `Benchmark quantized dense inference
-   performance <#Benchmark-quantized-dense-inference-performance-Uparrow>`__
+   performance <#Benchmark-quantized-dense-inference-performance>`__
 -  `Benchmark quantized sparse inference
-   performance <#Benchmark-quantized-sparse-inference-performance-Uparrow>`__
--  `When this might be helpful <#When-this-might-be-helpful-Uparrow>`__
+   performance <#Benchmark-quantized-sparse-inference-performance>`__
+-  `When this might be helpful <#When-this-might-be-helpful>`__
 
-Prerequisites `⇑ <#Table-of-content:>`__
+Prerequisites
 -------------------------------------------------------
 
 .. code:: ipython3
@@ -45,7 +45,7 @@ Prerequisites `⇑ <#Table-of-content:>`__
     !pip install -q "openvino==2023.1.0.dev20230811"
     !pip install -q "git+https://github.com/huggingface/optimum-intel.git" datasets onnx onnxruntime
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 -------------------------------------------------
 
 .. code:: ipython3
@@ -78,7 +78,7 @@ Imports `⇑ <#Table-of-content:>`__
       warnings.warn(
 
 
-Download, quantize and sparsify the model, using Hugging Face Optimum API `⇑ <#Table-of-content:>`__
+Download, quantize and sparsify the model, using Hugging Face Optimum API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The first step is to download a quantized sparse transformers which has
@@ -144,7 +144,7 @@ the IRs into a single folder.
 
 
 
-Benchmark quantized dense inference performance `⇑ <#Table-of-content:>`__
+Benchmark quantized dense inference performance
 -----------------------------------------------------------------------------------------
 
 Benchmark dense inference performance using parallel execution on four
@@ -179,7 +179,7 @@ as an example. It is recommended to tune based on your applications.
     /bin/bash: benchmark_app: command not found
 
 
-Benchmark quantized sparse inference performance `⇑ <#Table-of-content:>`__
+Benchmark quantized sparse inference performance
 ------------------------------------------------------------------------------------------
 
 To enable sparse weight decompression feature, users can add it to
@@ -215,7 +215,7 @@ for which a layer will be enabled.
     /bin/bash: benchmark_app: command not found
 
 
-When this might be helpful `⇑ <#Table-of-content:>`__
+When this might be helpful
 --------------------------------------------------------------------
 
 This feature can improve inference performance for models with sparse
