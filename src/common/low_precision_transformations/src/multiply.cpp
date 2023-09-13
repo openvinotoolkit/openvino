@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBa
     this->register_matcher(m, callback);
 }
 
-bool MultiplyTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool MultiplyTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -63,90 +63,90 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
     fold_fake_quantizes(multiply, 0ul);
     fold_fake_quantizes(multiply, 1ul);
 
-    const int fullPathIndex = getNotEmpty(multiply);
-    if (fullPathIndex == -1) {
-        const auto multiplyBranch = getMultiplyConstBranch(multiply);
-        if (multiplyBranch.first != -1) {
-            NetworkHelper::foldDequantization(multiply, multiplyBranch.first == 0 ? 1 : 0, defaultPrecisions);
-        }
+    const auto dequantization1 = NetworkHelper::foldDequantization(multiply, 0, defaultPrecisions);
+    const auto dequantization2 = NetworkHelper::foldDequantization(multiply, 1, defaultPrecisions);
+    if ((dequantization1.multiplyConstant == nullptr) && (dequantization2.multiplyConstant == nullptr)) {
+        return false;
+    }
 
-        if (multiplyBranch.first == -1 || multiplyBranch.second == -1) {
-            // constant folding on dequantization ops (for example: Convert on Subtract)
-            NetworkHelper::foldDequantization(multiply, 0, defaultPrecisions);
-            NetworkHelper::foldDequantization(multiply, 1, defaultPrecisions);
+    // before: Y = (SC1 * (X1 - SH1)) * (SC2 * (X2 - SH2))
+    // after : Y = (SC1' * X1` * X2`) , where :
+    //         X1` = X1 - SH1
+    //         X2` = X2 - SH2
+    //         SC1' = SC1 * SC2
+
+    if ((dequantization1.empty() && (ov::is_type<ov::opset1::Constant>(dequantization1.data.get_node()))) ||
+        (dequantization2.empty() && (ov::is_type<ov::opset1::Constant>(dequantization2.data.get_node())))) {
+        // one input is constant
+        auto new_scales_values = fold<ov::opset1::Multiply>(
+            dequantization1.empty() ? dequantization1.data : dequantization1.multiplyConstant,
+            dequantization2.empty() ? dequantization2.data : dequantization2.multiplyConstant);
+
+        if (!ov::is_type<ov::opset1::Constant>(new_scales_values)) {
             return false;
         }
 
-        auto multiplyParent = multiply->input_value(multiplyBranch.first);
-        auto constParent = multiply->input_value(multiplyBranch.first == 0 ? 1 : 0);
-        auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second);
-        auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second == 0 ? 1 : 0);
+        const Output<Node> in1 = dequantization1.empty() ?
+            new_scales_values :
+            dequantization1.subtract == nullptr ?
+                dequantization1.data :
+                NetworkHelper::optimizeSubtract(dequantization1.subtract);
 
-        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-            std::vector<ov::element::Type>{ element::f32, element::f32 },
-            std::vector<ov::element::Type>{ multiply->get_output_element_type(0) },
-            ov::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(
-                fold<ov::opset1::Multiply>(
-                    foldConvert(multiplyParentConst, element::f32),
-                    foldConvert(constParent, element::f32)),
-                element::f32).get());
+        const Output<Node> in2 = dequantization2.empty() ?
+            new_scales_values :
+            dequantization2.subtract == nullptr ?
+                dequantization2.data :
+                NetworkHelper::optimizeSubtract(dequantization2.subtract);
 
-        NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);
-        NetworkHelper::copyInfo(multiply, newMultiply);
-    } else {
-        const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
+        auto const new_multiply = (in1.get_element_type() == multiply->get_output_element_type(0)) &&
+                                  (in2.get_element_type() == multiply->get_output_element_type(0)) ?
+            std::make_shared<ov::opset1::Multiply>(in1, in2) :
+            std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+                std::vector<ov::element::Type>{ deqPrecision, deqPrecision },
+                std::vector<ov::element::Type>{ multiply->get_output_element_type(0) },
+                ov::op::TemporaryReplaceOutputType(in1, deqPrecision).get(),
+                ov::op::TemporaryReplaceOutputType(in2, deqPrecision).get());
 
-        if (updatePrecisions) {
-            const FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(multiply, defaultPrecisions, emptyPathIndex);
-            if (!dequantizationEmptyPath.empty() && !dequantizationEmptyPath.isLowPrecision()) {
-                return false;
-            }
-        }
+        replace_node(multiply, new_multiply);
+        updateOutput(context, new_multiply, multiply);
 
-        FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::foldDequantization(multiply, emptyPathIndex, defaultPrecisions);
-        std::shared_ptr<Node> subtractValuesEmptyPath;
-        std::shared_ptr<Node> multiplyValuesEmptyPath;
-        std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath, deqPrecision);
-
-        // check if empty path shifts are not zero
-        if (!NetworkHelper::isZeroConst(subtractValuesEmptyPath)) {
-            return false;
-        }
-
-        FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::foldDequantization(multiply, fullPathIndex, defaultPrecisions);
-        std::shared_ptr<Node> subtractValuesFullPath;
-        std::shared_ptr<Node> multiplyValuesFullPath;
-        std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath, deqPrecision);
-
-
-        // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
-        // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
-        //         SC1' = SC1 * SC2
-        auto newMultiplyValuesFullPath = fold<ov::opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
-        OutputVector inputs{ {}, {} };
-        inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        inputs[fullPathIndex] = std::make_shared<ov::opset1::Multiply>(
-            dequantizationFullPath.subtract == nullptr ?
-                (dequantizationFullPath.convert == nullptr ?
-                    dequantizationFullPath.data : dequantizationFullPath.convert) :
-                dequantizationFullPath.subtract,
-            newMultiplyValuesFullPath);
-
-        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-                std::vector<element::Type>{element::f32, element::f32},
-                std::vector<element::Type>{ multiply->get_output_element_type(0) },
-                ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
-        NetworkHelper::copyInfo(multiply, newMultiply);
+        return true;
     }
 
-    replace_node(multiply, newMultiply);
-    updateOutput(context, newMultiply, multiply);
-
-    if (fullPathIndex != -1) {
-        NetworkHelper::foldDequantization(newMultiply, fullPathIndex, defaultPrecisions);
+    auto new_scales_values = fold<ov::opset1::Multiply>(dequantization1.multiplyConstant, dequantization2.multiplyConstant);
+    if (!ov::is_type<ov::opset1::Constant>(new_scales_values)) {
+        return false;
     }
+
+    const Output<Node> in1 = dequantization1.subtract == nullptr ?
+        dequantization1.data :
+        NetworkHelper::optimizeSubtract(dequantization1.subtract);
+
+    const Output<Node> in2 = dequantization2.subtract == nullptr ?
+        dequantization2.data :
+        NetworkHelper::optimizeSubtract(dequantization2.subtract);
+
+    // in1 & in2 can have different input types
+    const auto new_multiply = (in1.get_element_type() == deqPrecision) &&
+                              (in2.get_element_type() == deqPrecision) ?
+        std::make_shared<ov::opset1::Multiply>(in1, in2) :
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+            std::vector<ov::element::Type>{ deqPrecision, deqPrecision },
+            std::vector<ov::element::Type>{ deqPrecision },
+            ov::op::TemporaryReplaceOutputType(in1, deqPrecision).get(),
+            ov::op::TemporaryReplaceOutputType(in2, deqPrecision).get());
+
+    NetworkHelper::copyInfo(multiply, newMultiply);
+
+    auto new_scales = (new_multiply->get_output_element_type(0) == multiply->get_output_element_type(0)) &&
+                      (new_scales_values->get_output_element_type(0) == multiply->get_output_element_type(0)) ?
+        std::make_shared<ov::opset1::Multiply>(new_multiply, new_scales_values) :
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+            ov::opset1::Multiply(new_multiply, new_scales_values),
+            multiply->get_output_element_type(0));
+
+    replace_node(multiply, new_scales);
+    updateOutput(context, new_scales, multiply);
 
     return true;
 }
