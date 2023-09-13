@@ -35,8 +35,6 @@ class DeformableConvolutionLayerTest : public testing::WithParamInterface<deform
                                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<deformableConvLayerTestParamsSet>& obj);
-    void generate_inputs(const std::vector<ov::Shape>&) override;
-
 protected:
     void SetUp() override;
 };

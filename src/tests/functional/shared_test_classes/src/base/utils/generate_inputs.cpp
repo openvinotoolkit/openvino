@@ -7,7 +7,7 @@
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 #include "shared_test_classes/single_layer/roi_align.hpp"
 #include "shared_test_classes/single_layer/psroi_pooling.hpp"
@@ -961,6 +961,19 @@ ov::runtime::Tensor generate(const
         OPENVINO_THROW("Unsupported element type: ", tensor.get_element_type());
     }
     return tensor;
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v8::DeformableConvolution>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (1 == port) {
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 2, 0, 10);
+    } else if (2 == port) {
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 1, 0, 20);
+    }
+    return generate(std::static_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
 namespace comparison {

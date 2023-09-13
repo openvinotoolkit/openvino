@@ -54,22 +54,6 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(const testing::TestP
     return result.str();
 }
 
-void DeformableConvolutionLayerTest::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
-    SubgraphBaseTest::generate_inputs(target_input_static_shapes);
-
-    auto params = function->get_parameters();
-    OPENVINO_ASSERT(target_input_static_shapes.size() >= params.size());
-    for (int i = 0; i < params.size(); i++) {
-        auto name = params[i]->get_friendly_name();
-        if (name == "b_offset_vals") {
-            auto tensor = ov::test::utils::create_and_fill_tensor(params[i]->get_element_type(), target_input_static_shapes[i], 2, 0, 10);
-            inputs[params[i]] = tensor;
-        } else if (name == "c_modulation_scalars") {
-            auto tensor = ov::test::utils::create_and_fill_tensor(params[i]->get_element_type(), target_input_static_shapes[i], 1, 0, 20);
-            inputs[params[i]] = tensor;
-        }
-    }
-}
 void DeformableConvolutionLayerTest::SetUp() {
     deformableConvSpecificParams convParams;
     ov::element::Type model_type;
@@ -87,17 +71,15 @@ void DeformableConvolutionLayerTest::SetUp() {
 
     auto data = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]);
     data->set_friendly_name("a_data");
-    auto offset_vals = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1]);//ov::Shape(offsets));
+    auto offset_vals = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1]);
     offset_vals->set_friendly_name("b_offset_vals");
-    auto filter_vals = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[2]);//ov::Shape(filter));
+    auto filter_vals = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[2]);
     filter_vals->set_friendly_name("c_filter_vals");
 
     ov::ParameterVector parameters{data, offset_vals, filter_vals};
     std::shared_ptr<ov::Node> deformable_conv;
     if (with_modulation) {
-        // auto modulation_shape = ov::Shape(offsets);
-        // modulation_shape[1] = offsets[1] / 2;
-        auto modulation_scalars = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[3]);// modulation_shape);
+        auto modulation_scalars = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[3]);
         modulation_scalars->set_friendly_name("c_modulation_scalars");
 
         deformable_conv = std::make_shared<ov::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, modulation_scalars, stride, pad_begin,
