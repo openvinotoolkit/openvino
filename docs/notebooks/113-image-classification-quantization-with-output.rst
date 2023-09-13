@@ -12,29 +12,29 @@ to apply quantization on PyTorch model, please check this
 
 This tutorial consists of the following steps:
 
--  Prepare the model for quantization.
--  Define a data loading functionality.
--  Perform quantization.
--  Compare accuracy of the original and quantized models.
--  Compare performance of the original and quantized models.
--  Compare results on one picture.
+- Prepare the model for quantization.
+- Define a data loading functionality.
+- Perform quantization.
+- Compare accuracy of the original and quantized models.
+- Compare performance of the original and quantized models.
+- Compare results on one picture.
 
-**Table of content:**
+**Table of contents:**
 
--  `Prepare the Model <#prepare-the-model>`__
--  `Prepare Dataset <#prepare-dataset>`__
--  `Perform Quantization <#perform-quantization>`__
+- `Prepare the Model <#prepare-the-model>`__
+- `Prepare Dataset <#prepare-dataset>`__
+- `Perform Quantization <#perform-quantization>`__
 
-   -  `Create Dataset for Validation <#create-dataset-for-validation>`__
+  - `Create Dataset for Validation <#create-dataset-for-validation>`__
 
--  `Run nncf.quantize for Getting an Optimized Model <#run-nncf.quantize-for-getting-an-optimized-model>`__
--  `Serialize an OpenVINO IR model <#serialize-an-openvino-ir-model>`__
--  `Compare Accuracy of the Original and Quantized Models <#compare-accuracy-of-the-original-and-quantized-models>`__
+- `Run nncf.quantize for Getting an Optimized Model <#run-nncf.quantize-for-getting-an-optimized-model>`__
+- `Serialize an OpenVINO IR model <#serialize-an-openvino-ir-model>`__
+- `Compare Accuracy of the Original and Quantized Models <#compare-accuracy-of-the-original-and-quantized-models>`__
 
-   -  `Select inference device <#select-inference-device>`__
+  - `Select inference device <#select-inference-device>`__
 
--  `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
--  `Compare results on four pictures <#compare-results-on-four-pictures>`__
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
+- `Compare results on four pictures <#compare-results-on-four-pictures>`__
 
 .. code:: ipython3
 

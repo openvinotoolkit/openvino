@@ -42,7 +42,7 @@ About Colorization-siggraph
 See the `colorization <https://github.com/richzhang/colorization>`__
 repository for more details. 
 
-**Table of content:**
+**Table of contents:**
 
 - `Imports <#imports>`__ 
 - `Configurations <#configurations>`__ 

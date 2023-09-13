@@ -1,7 +1,7 @@
 Working with GPUs in OpenVINO™
 ==============================
 
-**Table of content:**
+**Table of contents:**
 
 - `Introduction <#introduction>`__
 

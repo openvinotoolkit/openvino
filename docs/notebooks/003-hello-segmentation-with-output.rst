@@ -9,7 +9,7 @@ model from the `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zo
 ADAS stands for Advanced Driver Assistance Services. The model
 recognizes four classes: background, road, curb and mark.
 
-**Table of content:**
+**Table of contents:**
 
 - `Imports <#imports>`__
 - `Download model weights <#download-model-weights>`__

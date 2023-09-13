@@ -4,24 +4,24 @@ OpenVINO™ model conversion API
 This notebook shows how to convert a model from original framework
 format to OpenVINO Intermediate Representation (IR). Contents:
 
--  `OpenVINO IR format <#openvino-ir-format>`__
--  `IR preparation with Python conversion API and Model Optimizer command-line tool <#ir-preparation-with-python-conversion-api-and-model-optimizer-command-line-tool>`__
--  `Fetching example models <#fetching-example-models>`__
--  `Basic conversion <#basic-conversion>`__
--  `Model conversion parameters <#model-conversion-parameters>`__
+- `OpenVINO IR format <#openvino-ir-format>`__
+- `IR preparation with Python conversion API and Model Optimizer command-line tool <#ir-preparation-with-python-conversion-api-and-model-optimizer-command-line-tool>`__
+- `Fetching example models <#fetching-example-models>`__
+- `Basic conversion <#basic-conversion>`__
+- `Model conversion parameters <#model-conversion-parameters>`__
 
-   -  `Setting Input Shapes <#setting-input-shapes>`__
-   -  `Cutting Off Parts of a Model <#cutting-off-parts-of-a-model>`__
-   -  `Embedding Preprocessing Computation <#embedding-preprocessing-computation>`__
+  - `Setting Input Shapes <#setting-input-shapes>`__
+  - `Cutting Off Parts of a Model <#cutting-off-parts-of-a-model>`__
+  - `Embedding Preprocessing Computation <#embedding-preprocessing-computation>`__
 
-      -  `Specifying Layout <#specifying-layout>`__
-      -  `Changing Model Layout <#changing-model-layout>`__
-      -  `Specifying Mean and Scale Values <#specifying-mean-and-scale-values>`__
-      -  `Reversing Input Channels <#reversing-input-channels>`__
+    - `Specifying Layout <#specifying-layout>`__
+    - `Changing Model Layout <#changing-model-layout>`__
+    - `Specifying Mean and Scale Values <#specifying-mean-and-scale-values>`__
+    - `Reversing Input Channels <#reversing-input-channels>`__
 
-   -  `Compressing a Model to FP16 <#compressing-a-model-to-fp16>`__
+  - `Compressing a Model to FP16 <#compressing-a-model-to-fp16>`__
 
--  `Convert Models Represented as Python Objects <#convert-models-represented-as-python-objects>`__
+- `Convert Models Represented as Python Objects <#convert-models-represented-as-python-objects>`__
 
 .. code:: 
 

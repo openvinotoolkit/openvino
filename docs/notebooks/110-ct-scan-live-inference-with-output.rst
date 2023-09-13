@@ -29,19 +29,19 @@ notebook.
 For demonstration purposes, this tutorial will download one converted CT
 scan to use for inference.
 
-**Table of content:**
+**Table of contents:**
 
--  `Imports <#imports>`__
--  `Settings <#settings>`__
--  `Benchmark Model Performance <#benchmark-model-performance>`__
--  `Download and Prepare Data <#download-and-prepare-data>`__
--  `Show Live Inference <#show-live-inference>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Benchmark Model Performance <#benchmark-model-performance>`__
+- `Download and Prepare Data <#download-and-prepare-data>`__
+- `Show Live Inference <#show-live-inference>`__
 
-   -  `Load Model and List of Image Files <#load-model-and-list-of-image-files>`__
-   -  `Prepare images <#prepare-images>`__
-   -  `Specify device <#specify-device>`__
-   -  `Setting callback function <#setting-callback-function>`__
-   -  `Create asynchronous inference queue and perform it <#create-asynchronous-inference-queue-and-perform-it>`__
+  - `Load Model and List of Image Files <#load-model-and-list-of-image-files>`__
+  - `Prepare images <#prepare-images>`__
+  - `Specify device <#specify-device>`__
+  - `Setting callback function <#setting-callback-function>`__
+  - `Create asynchronous inference queue and perform it <#create-asynchronous-inference-queue-and-perform-it>`__
 
 .. code:: ipython3
 

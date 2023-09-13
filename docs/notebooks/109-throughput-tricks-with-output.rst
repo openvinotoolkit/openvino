@@ -45,26 +45,26 @@ optimize performance on OpenVINO IR files in
 A similar notebook focused on the latency mode is available
 `here <109-latency-tricks.ipynb>`__.
 
-**Table of content:**
+**Table of contents:**
 
--  `Data <#data>`__
--  `Model <#model>`__
--  `Hardware <#hardware>`__
--  `Helper functions <#helper-functions>`__
--  `Optimizations <#optimizations>`__
+- `Data <#data>`__
+- `Model <#model>`__
+- `Hardware <#hardware>`__
+- `Helper functions <#helper-functions>`__
+- `Optimizations <#optimizations>`__
 
-   -  `PyTorch model <#pytorch-model>`__
-   -  `OpenVINO IR model <#openvino-ir-model>`__
-   -  `OpenVINO IR model + bigger batch <#openvino-ir-model-+-bigger-batch>`__
-   -  `Asynchronous processing <#asynchronous-processing>`__
-   -  `OpenVINO IR model in throughput mode <#openvino-ir-model-in-throughput-mode>`__
-   -  `OpenVINO IR model in throughput mode on GPU <#openvino-ir-model-in-throughput-mode-on-GPU>`__
-   -  `OpenVINO IR model in throughput mode on AUTO <#openvino-ir-model-in-throughput-mode-on-AUTO>`__
-   -  `OpenVINO IR model in cumulative throughput mode on AUTO <#openvino-ir-model-in-cumulative-throughput-mode-on-AUTO>`__
-   -  `Other tricks <#other-tricks>`__
+  - `PyTorch model <#pytorch-model>`__
+  - `OpenVINO IR model <#openvino-ir-model>`__
+  - `OpenVINO IR model + bigger batch <#openvino-ir-model-+-bigger-batch>`__
+  - `Asynchronous processing <#asynchronous-processing>`__
+  - `OpenVINO IR model in throughput mode <#openvino-ir-model-in-throughput-mode>`__
+  - `OpenVINO IR model in throughput mode on GPU <#openvino-ir-model-in-throughput-mode-on-GPU>`__
+  - `OpenVINO IR model in throughput mode on AUTO <#openvino-ir-model-in-throughput-mode-on-AUTO>`__
+  - `OpenVINO IR model in cumulative throughput mode on AUTO <#openvino-ir-model-in-cumulative-throughput-mode-on-AUTO>`__
+  - `Other tricks <#other-tricks>`__
 
--  `Performance comparison <#performance-comparison>`__
--  `Conclusions <#conclusions>`__
+- `Performance comparison <#performance-comparison>`__
+- `Conclusions <#conclusions>`__
 
 Prerequisites
 ###############################################################################################################################

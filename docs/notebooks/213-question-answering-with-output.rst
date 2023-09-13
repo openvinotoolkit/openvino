@@ -9,7 +9,7 @@ larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
 of this notebook provides live inference results from your inputs. 
 
-**Table of content:**
+**Table of contents:**
 
 - `Imports <#imports>`__ 
 - `The model <#the-model>`__ 

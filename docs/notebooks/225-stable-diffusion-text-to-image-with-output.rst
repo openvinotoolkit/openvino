@@ -38,23 +38,23 @@ Notebook contains the following steps:
 2. Convert models to OpenVINO IR format, using model conversion API.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-**Table of content:**
+**Table of contents:**
 
--  `Prerequisites <#prerequisites>`__
--  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
--  `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+- `Prerequisites <#prerequisites>`__
+- `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
+- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `Text Encoder <#text-encoder>`__
-   -  `U-net <#u-net>`__
-   -  `VAE <#vae>`__
+  - `Text Encoder <#text-encoder>`__
+  - `U-net <#u-net>`__
+  - `VAE <#vae>`__
 
--  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
--  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+- `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
-   -  `Text-to-Image generation <#text-to-image-generation>`__
-   -  `Image-to-Image generation <#image-to-image-generation>`__
+  - `Text-to-Image generation <#text-to-image-generation>`__
+  - `Image-to-Image generation <#image-to-image-generation>`__
 
--  `Interactive demo <#interactive-demo>`__
+- `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 ###############################################################################################################################

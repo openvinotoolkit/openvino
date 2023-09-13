@@ -24,21 +24,21 @@ Download the model. 2. Instantiate the PyTorch model pipeline. 3.
 Convert model to OpenVINO IR, using model conversion API. 4. Run the
 Whisper pipeline with OpenVINO models.
 
-**Table of content:**
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Instantiate model <#Instantiate-model>`__
+- `Prerequisites <#Prerequisites>`__
+- `Instantiate model <#Instantiate-model>`__
 
-   -  `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
-   -  `Convert Whisper Encoder to OpenVINO IR <#convert-whisper-encoder-to-openvino-ir>`__
-   -  `Convert Whisper decoder to OpenVINO IR <#convert-whisper-decoder-to-openvino-ir>`__
+  - `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+  - `Convert Whisper Encoder to OpenVINO IR <#convert-whisper-encoder-to-openvino-ir>`__
+  - `Convert Whisper decoder to OpenVINO IR <#convert-whisper-decoder-to-openvino-ir>`__
 
--  `Prepare inference pipeline <#prepare-inference-pipeline>`__
+- `Prepare inference pipeline <#prepare-inference-pipeline>`__
 
-   -  `Select inference device <#select-inference-device>`__
+  - `Select inference device <#select-inference-device>`__
 
--  `Run video transcription pipeline <#run-video-transcription-pipeline>`__
--  `Interactive demo <#interactive-demo>`__
+- `Run video transcription pipeline <#run-video-transcription-pipeline>`__
+- `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 ###############################################################################################################################
