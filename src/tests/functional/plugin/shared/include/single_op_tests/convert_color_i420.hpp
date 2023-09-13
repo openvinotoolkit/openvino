@@ -11,9 +11,5 @@ namespace test {
 TEST_P(ConvertColorI420LayerTest, Inference) {
     run();
 }
-
-TEST_P(ConvertColorI420AccuracyTest, Inference) {
-    run();
-}
 } // namespace test
 } // namespace ov

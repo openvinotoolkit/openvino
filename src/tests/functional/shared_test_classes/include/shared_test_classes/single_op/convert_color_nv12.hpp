@@ -27,15 +27,5 @@ public:
 protected:
     void SetUp() override;
 };
-
-//----------------------------------------
-
-class ConvertColorNV12AccuracyTest : public ConvertColorNV12LayerTest {
-protected:
-    // Generate predefined image with R/G/B combinations
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    // Regular validate + percentage of acceptable deviations
-    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
-};
 } // namespace test
 } // namespace ov

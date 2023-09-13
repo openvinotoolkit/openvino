@@ -9,10 +9,9 @@
 
 namespace {
 using ov::test::ConvertColorNV12LayerTest;
-using ov::test::ConvertColorNV12AccuracyTest;
 
 const std::vector<ov::Shape> in_shapes = {
-    {1, 10, 10, 1}
+    {1, 20, 10, 1}
 };
 
 auto generate_input_static_shapes = [] (const std::vector<ov::Shape>& original_shapes, bool single_plane) {
@@ -76,7 +75,7 @@ const auto testCase_accuracy_values = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_acc,
-                         ConvertColorNV12AccuracyTest,
+                         ConvertColorNV12LayerTest,
                          testCase_accuracy_values,
                          ConvertColorNV12LayerTest::getTestCaseName);
 
@@ -89,7 +88,7 @@ const auto testCase_accuracy_values_nightly = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorNV12_acc,
-                         ConvertColorNV12AccuracyTest,
+                         ConvertColorNV12LayerTest,
                          testCase_accuracy_values_nightly,
                          ConvertColorNV12LayerTest::getTestCaseName);
 

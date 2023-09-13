@@ -7,12 +7,12 @@
 namespace ov {
 namespace test {
 namespace {
-std::map<ngraph::helpers::ConversionTypes, std::string> conversionNames = {
-    {ngraph::helpers::ConversionTypes::CONVERT, "Convert"},
-    {ngraph::helpers::ConversionTypes::CONVERT_LIKE, "ConvertLike"}};
+std::map<ov::test::utils::ConversionTypes, std::string> conversionNames = {
+    {ov::test::utils::ConversionTypes::CONVERT, "Convert"},
+    {ov::test::utils::ConversionTypes::CONVERT_LIKE, "ConvertLike"}};
 }
 std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<ConversionParamsTuple>& obj) {
-    ngraph::helpers::ConversionTypes conversionOpType;
+    ov::test::utils::ConversionTypes conversionOpType;
     ov::element::Type input_type, target_type;
     std::string device_name;
     std::vector<InputShape> shapes;
@@ -39,7 +39,7 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
 }
 
 void ConversionLayerTest::SetUp() {
-    ngraph::helpers::ConversionTypes conversion_type;
+    ov::test::utils::ConversionTypes conversion_type;
     ov::element::Type input_type, target_type;
     std::vector<InputShape> shapes;
     std::tie(conversion_type, shapes, input_type, target_type, targetDevice) = GetParam();
@@ -51,7 +51,7 @@ void ConversionLayerTest::SetUp() {
     }
 
     std::shared_ptr<ov::Node> conversion;
-    if (conversion_type == ngraph::helpers::ConversionTypes::CONVERT) {
+    if (conversion_type == ov::test::utils::ConversionTypes::CONVERT) {
         conversion = std::make_shared<ov::op::v0::Convert>(params.front(), target_type);
     } else /*CONVERT_LIKE*/ {
         auto like = std::make_shared<ov::op::v0::Constant>(target_type, ov::Shape{1});

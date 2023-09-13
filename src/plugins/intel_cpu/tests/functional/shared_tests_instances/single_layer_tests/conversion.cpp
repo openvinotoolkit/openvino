@@ -10,9 +10,9 @@
 namespace {
 using ov::test::ConversionLayerTest;
 
-const std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
-    ngraph::helpers::ConversionTypes::CONVERT,
-    ngraph::helpers::ConversionTypes::CONVERT_LIKE,
+const std::vector<ov::test::utils::ConversionTypes> conversionOpTypes = {
+    ov::test::utils::ConversionTypes::CONVERT,
+    ov::test::utils::ConversionTypes::CONVERT_LIKE,
 };
 
 const std::vector<std::vector<ov::Shape>> shapes = {{{1, 2, 3, 4}}};

@@ -8,11 +8,11 @@
 
 #include "gtest/gtest.h"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace ov {
 namespace test {
-using ConversionParamsTuple = typename std::tuple<ngraph::helpers::ConversionTypes,  // Convertion op type
+using ConversionParamsTuple = typename std::tuple<ov::test::utils::ConversionTypes,  // Convertion op type
                                                   std::vector<InputShape>,  // Input1 shapes
                                                   ov::element::Type,        // Input1 precision
                                                   ov::element::Type,        // Input2 precision
