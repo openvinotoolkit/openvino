@@ -71,7 +71,7 @@ jobs:
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
-      CI_COMPONENT_CHANGED = ${{ fromJSON(needs.Smart_CI.outputs.affected_components).CI }}
+      CI_COMPONENT_CHANGED: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).CI }}
     steps:
       - name: This step will be executed only if CI component was changed
         if: env.CI_COMPONENT_CHANGED
