@@ -117,14 +117,16 @@ private:
     void executeMLAS();
     void prepackMLASWeight();
 #endif
-
+#if defined(OV_CPU_WITH_ACL)
+    void prepareWeightsUsingDummyShape();
+#endif
     bool useWeightsDecompressionImpl = false;
     std::vector<float> decompressionSubtract;
     std::vector<float> decompressionMultiply;
 
     // FC with transposed weights
     bool weightsNonTransposed = false;
-    DnnlMemoryDescPtr makeTransposedWeightDescriptor();
+    DnnlMemoryDescPtr makeTransposedWeightDescriptor(DnnlMemoryDescPtr desc);
 };
 
 }   // namespace node
