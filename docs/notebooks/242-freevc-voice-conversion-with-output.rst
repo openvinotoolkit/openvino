@@ -1,7 +1,7 @@
 High-Quality Text-Free One-Shot Voice Conversion with FreeVC and OpenVINO™
 ==========================================================================
 
-.. _top:
+
 
 `FreeVC <https://github.com/OlaWod/FreeVC>`__ allows alter the voice of
 a source speaker to a target style, while keeping the linguistic content
@@ -30,6 +30,8 @@ devices. It consists of the following steps:
 -  Convert models to OpenVINO Intermediate Representation.
 -  Inference using only OpenVINO’s IR models.
 
+.. _top:
+
 **Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
@@ -44,17 +46,22 @@ Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
 
 This steps can be done manually or will be performed automatically during the execution of the notebook, but in
-minimum necessary scope. 1. Clone this repo: git clone
-https://github.com/OlaWod/FreeVC.git. 2. Download
-`WavLM-Large <https://github.com/microsoft/unilm/tree/master/wavlm>`__
-and put it under directory ``FreeVC/wavlm/``. 3. You can download the
-`VCTK <https://datashare.ed.ac.uk/handle/10283/3443>`__ dataset. For
-this example we download only two of them from `Hugging Face FreeVC
-example <https://huggingface.co/spaces/OlaWod/FreeVC/tree/main>`__. 4.
-Download `pretrained
-models <https://1drv.ms/u/s!AnvukVnlQ3ZTx1rjrOZ2abCwuBAh?e=UlhRR5>`__
-and put it under directory ‘checkpoints’ (for current example only
-``freevc.pth`` are required).
+minimum necessary scope.
+
+1. Clone this repo:
+
+.. code-block:: sh
+
+   git clone https://github.com/OlaWod/FreeVC.git
+
+2. Download `WavLM-Large <https://github.com/microsoft/unilm/tree/master/wavlm>`__
+   and put it under directory ``FreeVC/wavlm/``.
+3. You can download the `VCTK <https://datashare.ed.ac.uk/handle/10283/3443>`__ dataset. For
+   this example we download only two of them from 
+   `Hugging Face FreeVC example <https://huggingface.co/spaces/OlaWod/FreeVC/tree/main>`__.
+4. Download `pretrained models <https://1drv.ms/u/s!AnvukVnlQ3ZTx1rjrOZ2abCwuBAh?e=UlhRR5>`__
+   and put it under directory ‘checkpoints’ (for current example only
+   ``freevc.pth`` are required).
 
 Install extra requirements
 
@@ -281,7 +288,7 @@ model. The obtained model is ready to use and to be loaded on a device
 using ``compile_model`` or can be saved on a disk using the
 ``serialize`` function. The ``read_model`` method loads a saved model
 from a disk. For more information about model conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 Convert Prior Encoder. `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

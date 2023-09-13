@@ -4,10 +4,9 @@
 
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/node.hpp"
 #include "openvino/op/op.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 class OpType : public ov::op::Op {
@@ -50,7 +49,6 @@ public:
     }
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(rtti, op_with_type) {
     auto op = OpType();
     auto type_info = op.get_type_info();

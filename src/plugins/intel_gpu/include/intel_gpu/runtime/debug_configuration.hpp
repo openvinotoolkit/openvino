@@ -3,10 +3,11 @@
 //
 
 #pragma once
-#include <string>
+#include <cstring>
 #include <mutex>
 #include <vector>
 #include <set>
+#include <string>
 
 namespace ov {
 namespace intel_gpu {

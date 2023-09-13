@@ -13,8 +13,6 @@ struct bucketize : primitive_base<bucketize> {
 
     bucketize() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs bucketize primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.

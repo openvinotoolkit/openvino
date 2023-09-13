@@ -8,8 +8,8 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/reference/clamp.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -19,7 +19,7 @@ namespace clamp {
 namespace {
 template <element::Type_t ET, typename T>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, T min, T max, size_t count) {
-    runtime::reference::clamp<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), min, max, count);
+    ov::reference::clamp<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), min, max, count);
     return true;
 }
 

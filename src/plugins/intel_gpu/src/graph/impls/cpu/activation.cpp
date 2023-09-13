@@ -44,6 +44,7 @@
 #include "openvino/op/sign.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/sqrt.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -57,7 +58,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
 
     std::shared_ptr<ov::op::Op> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::activation_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<activation_impl>(*this);
@@ -235,6 +236,8 @@ struct activation_impl : public typed_primitive_impl<activation> {
                 op = round_op;
                 break;
             }
+            case activation_func::sqrt:
+                op = std::make_shared<ov::op::v0::Sqrt>(); break;
             case activation_func::hard_sigmoid:
             case activation_func::selu:
             default:

@@ -153,6 +153,8 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (properties.optimal_batch_size, "OPTIMAL_BATCH_SIZE"),
         (properties.max_batch_size, "MAX_BATCH_SIZE"),
         (properties.range_for_async_infer_requests, "RANGE_FOR_ASYNC_INFER_REQUESTS"),
+        (properties.execution_devices, "EXECUTION_DEVICES"),
+        (properties.loaded_from_cache, "LOADED_FROM_CACHE"),
         (properties.device.full_name, "FULL_DEVICE_NAME"),
         (properties.device.architecture, "DEVICE_ARCHITECTURE"),
         (properties.device.type, "DEVICE_TYPE"),
@@ -442,7 +444,7 @@ def test_properties_capability_gpu():
 
 def test_properties_hint_model():
     # Temporary imports
-    from tests.test_utils.test_utils import generate_add_model
+    from tests.utils.helpers import generate_add_model
 
     model = generate_add_model()
 

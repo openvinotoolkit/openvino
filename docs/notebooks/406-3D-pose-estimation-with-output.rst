@@ -1,7 +1,7 @@
 Live 3D Human Pose Estimation with OpenVINO
 ===========================================
 
-.. _top:
+
 
 This notebook demonstrates live 3D Human Pose Estimation with OpenVINO
 via a webcam. We utilize the model
@@ -16,17 +16,21 @@ extension <https://github.com/jupyter-widgets/pythreejs#jupyterlab>`__\ **and
 been using JupyterLab to run the demo as suggested in the
 ``README.md``**
 
-   **NOTE**: *To use a webcam, you must run this Jupyter notebook on a
+.. note::
+
+   To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run on a remote server, the webcam
    will not work. However, you can still do inference on a video file in
    the final step. This demo utilizes the Python interface in
    ``Three.js`` integrated with WebGL to process data from the model
    inference. These results are processed and displayed in the
-   notebook.*
+   notebook.
 
-*To ensure that the results are displayed correctly, run the code in a
-recommended browser on one of the following operating systems:* *Ubuntu,
-Windows: Chrome* *macOS: Safari*
+To ensure that the results are displayed correctly, run the code in a
+recommended browser on one of the following operating systems: Ubuntu,
+Windows: Chrome, macOS: Safari.
+
+.. _top:
 
 **Table of contents**:
 
@@ -178,7 +182,7 @@ directory structure and downloads the selected model.
 Convert Model to OpenVINO IR format `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- The selected model
+The selected model
 comes from the public directory, which means it must be converted into
 OpenVINO Intermediate Representation (OpenVINO IR). We use
 ``omz_converter`` to convert the ONNX format model to the OpenVINO IR
@@ -208,7 +212,7 @@ format.
     Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmpgwxi10io --model_name=human-pose-estimation-3d-0001 --input=data '--mean_values=data[128.0,128.0,128.0]' '--scale_values=data[255.0,255.0,255.0]' --output=features,heatmaps,pafs --input_model=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.onnx '--layout=data(NCHW)' '--input_shape=[1, 3, 256, 448]' --compress_to_fp16=False
     
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /tmp/tmpgwxi10io/human-pose-estimation-3d-0001.xml
     [ SUCCESS ] BIN file: /tmp/tmpgwxi10io/human-pose-estimation-3d-0001.bin
@@ -588,7 +592,7 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-   **NOTE**:
+.. note::
 
    *1. To use this notebook with a webcam, you need to run the notebook
    on a computer with a webcam. If you run the notebook on a server
@@ -596,6 +600,7 @@ Firefox, may cause flickering. If you experience flickering, set
 
    *2. Popup mode may not work if you run this notebook on a remote
    computer (e.g. Binder).*
+
 
 Using the following method, you can click and move your mouse over the
 picture on the left to interact.

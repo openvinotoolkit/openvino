@@ -466,6 +466,11 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->output_paddings[0],
                                                                        desc->input_size);
 
+            if (desc->compressed_weights) {
+                fc_with_bias_prim->compressed_weights = true;
+                fc_with_bias_prim->decompression_scale = desc->decompression_scale;
+                fc_with_bias_prim->decompression_zero_point = desc->decompression_zero_point;
+            }
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);
         }
@@ -494,7 +499,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (_lo.get_optimization_attributes().use_onednn_impls == 1)
                 return true;
 
-            if (node.get_output_layout().is_dynamic()) {
+            if (node.get_output_layout().is_dynamic() || node.get_input_layout().is_dynamic()) {
                 return true;
             }
 

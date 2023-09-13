@@ -1,5 +1,8 @@
 name: Tests on Linux (Ubuntu 22.04, Python 3.11)
 on:
+  schedule:
+    # at 00:00 on Wednesday and Saturday
+    - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
     paths-ignore:
@@ -41,6 +44,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       BUILD_DIR: ${{ github.workspace }}/build
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
@@ -48,20 +52,20 @@ jobs:
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
           submodules: 'recursive'
 
       - name: Clone testdata for C API tests
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -128,19 +132,12 @@ jobs:
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
-          key: ${{ github.job }}-linux
+          key: linux-ubuntu
           restore-keys: |
-            ${{ github.job }}-linux
-
-      - name: Get tools versions
-        run: |
-          ninja --version || exit 1
-          ccache --version || exit 1
-          python3 --version || exit 1
-          cmake --version || exit 1
+            linux-ubuntu
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: CMake configure
@@ -160,8 +157,6 @@ jobs:
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
-            -DCMAKE_C_LINKER_LAUNCHER=ccache \
             -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_TBB=ON \
             -DBUILD_nvidia_plugin=OFF \
@@ -183,14 +178,23 @@ jobs:
       - name: Cmake Layer Tests
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
 
+      - name: Cmake Model Hub Tests
+        run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/model_hub_tests -B ${{ env.BUILD_DIR }}/model_hub_tests
+
       - name: Build Layer Tests
         run: cmake --build ${{ env.BUILD_DIR }}/layer_tests --parallel --config Release
+
+      - name: Build Model Hub Tests
+        run: cmake --build ${{ env.BUILD_DIR }}/model_hub_tests --parallel --config Release
 
       - name: Install wheel packages
         run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Install Layer Tests
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/layer_tests/cmake_install.cmake
+
+      - name: Install Model Hub Tests
+        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/model_hub_tests/cmake_install.cmake
 
       - name: Install python wheels
         run: python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
@@ -482,6 +486,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       BUILD_DIR: ${{ github.workspace }}/build
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
@@ -494,7 +499,7 @@ jobs:
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'recursive'
@@ -718,7 +723,9 @@ jobs:
         if: ${{ always() }}
         with:
           name: test-results-python
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
   CPU_Functional_Tests:
@@ -726,10 +733,12 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest-4-cores
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/run_parallel.py
+      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
 
     steps:
       - name: Create Directories
@@ -761,15 +770,100 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
 
-      - name: Intel CPU plugin func tests
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
+
+      - name: Cache Tests Execution Time
+        id: tests-functional-cpu-cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-cache
+
+      - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
+          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+        timeout-minutes: 25
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
           name: test-results-functional-cpu
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
+          if-no-files-found: 'error'
+
+  TensorFlow_Hub_Models_Tests:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-22.04
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+
+    steps:
+      - name: Create Directories
+        run: |
+          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          popd
+
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      - name: Install Python wheels
+        run: |
+          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+
+      - name: TensorFlow Hub Tests - TF FE
+        run: |
+          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
+
+          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.html --self-contained-html
+        env:
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TEST_DEVICE: CPU
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-tensorflow-hub-models
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'

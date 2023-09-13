@@ -28,6 +28,7 @@ namespace op {
     OutputVector op(const ov::frontend::NodeContext& node)
 
 OP_T_CONVERTER(translate_unary_op);
+OP_CONVERTER(translate_selu_op);
 OP_T_CONVERTER(translate_binary_op);
 OP_T_CONVERTER(translate_direct_reduce_op);
 
@@ -132,10 +133,12 @@ OP_CONVERTER(translate_strided_slice_op);
 OP_CONVERTER(translate_sqrt_op);
 OP_CONVERTER(translate_tensor_list_from_tensor_op);
 OP_CONVERTER(translate_tensor_list_get_item_op);
+OP_CONVERTER(translate_tensor_list_length_op);
 OP_CONVERTER(translate_tensor_list_push_back_op);
 OP_CONVERTER(translate_tensor_list_reserve_op);
 OP_CONVERTER(translate_tensor_list_set_item_op);
 OP_CONVERTER(translate_tensor_list_stack_op);
+OP_CONVERTER(translate_tensor_list_resize_op);
 OP_CONVERTER(translate_tile_op);
 OP_CONVERTER_NAMED(translate_top_k_op);
 OP_CONVERTER_NAMED(translate_top_k_v2_op);

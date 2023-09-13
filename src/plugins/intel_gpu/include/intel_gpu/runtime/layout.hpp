@@ -235,7 +235,7 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
     case ov::element::Type_t::i64:
         return cldnn::data_types::i64;
     case ov::element::Type_t::boolean:
-        return cldnn::data_types::i8;
+        return cldnn::data_types::u8;
     case ov::element::Type_t::u1:
         return cldnn::data_types::bin;
     default:
