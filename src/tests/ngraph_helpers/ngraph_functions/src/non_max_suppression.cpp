@@ -67,7 +67,7 @@ std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                                       sortResDescend,
                                                       outType);
     default:
-        return makeNms<ov::op::v5::NonMaxSuppression>(boxes,
+        return makeNms<ov::op::v9::NonMaxSuppression>(boxes,
                                                       scores,
                                                       maxBoxesPrec,
                                                       thrPrec,
