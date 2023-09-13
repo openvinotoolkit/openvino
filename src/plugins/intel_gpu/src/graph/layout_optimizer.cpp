@@ -1381,6 +1381,11 @@ impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) 
                     return impl_types::ocl;
                 else if (forced_impl_type == "concat:onednn")
                     return impl_types::onednn;
+            } else if (node.is_type<convolution>()) {
+                if (forced_impl_type == "conv:ocl")
+                    return impl_types::ocl;
+                else if (forced_impl_type == "conv:onednn")
+                    return impl_types::onednn;
             }
 
             // Forcing one layer
