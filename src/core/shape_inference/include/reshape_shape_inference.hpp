@@ -97,10 +97,8 @@ struct Product<T, typename std::enable_if<std::is_same<T, Dimension>::value>::ty
 
             if (out_it == outs.end()) {
                 mul(in, d);
-            } else {
-                if (!outs.empty()) {
-                    outs.erase(out_it);
-                }
+            } else if (!outs.empty()) {
+                outs.erase(out_it);
             }
         }
 
@@ -113,7 +111,7 @@ struct Product<T, typename std::enable_if<std::is_same<T, Dimension>::value>::ty
             in.second *= in.first;
             out.second *= out.first;
         } else if (in.first == 1 && in.second == 1) {
-            // If dynamic product is one (no dynamic)and static is also one use static
+            // If dynamic product is one (no dynamic) and static is also one use static
             in.second = in.first;
         }
     }
@@ -343,7 +341,6 @@ std::vector<TRShape> shape_infer(const Reshape* op,
                                    " is incompatible with input shape");
         }
     } else if (pattern_shape_rank.is_static()) {
-        std::cout << "temp\n";
         if (pattern_shape_rank.get_length() == 0) {
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
