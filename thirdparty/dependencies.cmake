@@ -569,7 +569,7 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.13.1 EXACT QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.14.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
