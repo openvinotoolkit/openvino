@@ -19,7 +19,7 @@ struct range_impl : public typed_primitive_impl<range> {
 
     std::shared_ptr<ov::op::v4::Range> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::range_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<range_impl>(*this);

@@ -288,7 +288,7 @@ model. The obtained model is ready to use and to be loaded on a device
 using ``compile_model`` or can be saved on a disk using the
 ``serialize`` function. The ``read_model`` method loads a saved model
 from a disk. For more information about model conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 Convert Prior Encoder. `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

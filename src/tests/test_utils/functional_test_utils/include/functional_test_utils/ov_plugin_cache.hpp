@@ -16,15 +16,15 @@ namespace utils {
 
 class PluginCache {
 public:
-    std::shared_ptr<ov::Core> core(const std::string &deviceToCheck = std::string());
+    std::shared_ptr<ov::Core> core(const std::string& deviceToCheck = std::string());
 
-    static PluginCache &get();
+    static PluginCache& get();
 
     void reset();
 
-    PluginCache(const PluginCache &) = delete;
+    PluginCache(const PluginCache&) = delete;
 
-    PluginCache &operator=(const PluginCache &) = delete;
+    PluginCache& operator=(const PluginCache&) = delete;
 
 private:
     PluginCache();

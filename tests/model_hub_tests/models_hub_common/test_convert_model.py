@@ -3,11 +3,18 @@
 import gc
 
 import numpy as np
+from models_hub_common.multiprocessing_utils import multiprocessing_run
+from openvino import convert_model
 from openvino.runtime import Core
-from openvino.tools.mo import convert_model
+
+# set seed to have deterministic input data generation
+# to avoid sporadic issues in inference results
+rng = np.random.default_rng(seed=56190)
 
 
 class TestConvertModel:
+    infer_timeout = 600
+
     def load_model(self, model_name, model_link):
         raise "load_model is not implemented"
 
@@ -16,22 +23,20 @@ class TestConvertModel:
 
     def prepare_input(self, input_shape, input_type):
         if input_type in [np.float32, np.float64]:
-            return np.random.randint(-2, 2, size=input_shape).astype(input_type)
-        elif input_type in [np.int8, np.int16, np.int32, np.int64]:
-            return np.random.randint(-5, 5, size=input_shape).astype(input_type)
-        elif input_type in [np.uint8, np.uint16]:
-            return np.random.randint(0, 5, size=input_shape).astype(input_type)
+            return 2.0 * rng.random(size=input_shape, dtype=input_type)
+        elif input_type in [np.uint8, np.uint16, np.int8, np.int16, np.int32, np.int64]:
+            return rng.integers(0, 5, size=input_shape).astype(input_type)
         elif input_type in [str]:
             return np.broadcast_to("Some string", input_shape)
         elif input_type in [bool]:
-            return np.random.randint(0, 2, size=input_shape).astype(input_type)
+            return rng.integers(0, 2, size=input_shape).astype(input_type)
         else:
             assert False, "Unsupported type {}".format(input_type)
 
     def prepare_inputs(self, inputs_info):
-        inputs = []
-        for input_shape, input_type in inputs_info:
-            inputs.append(self.prepare_input(input_shape, input_type))
+        inputs = {}
+        for input_name, input_shape, input_type in inputs_info:
+            inputs[input_name] = self.prepare_input(input_shape, input_type)
         return inputs
 
     def convert_model(self, model_obj):
@@ -74,7 +79,7 @@ class TestConvertModel:
         # deallocate memory after each test case
         gc.collect()
 
-    def run(self, model_name, model_link, ie_device):
+    def _run(self, model_name, model_link, ie_device):
         print("Load the model {} (url: {})".format(model_name, model_link))
         fw_model = self.load_model(model_name, model_link)
         print("Retrieve inputs info")
@@ -89,3 +94,6 @@ class TestConvertModel:
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
         print("Compare TensorFlow and OpenVINO results")
         self.compare_results(fw_outputs, ov_outputs)
+
+    def run(self, model_name, model_link, ie_device):
+        multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)
