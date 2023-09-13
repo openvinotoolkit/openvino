@@ -348,38 +348,24 @@ const std::vector<InputShape>& inShapesGemm2D_cache() {
 
 const std::vector<CPUSpecificParams>& CPUParams_2D() {
     static const std::vector<CPUSpecificParams> CPUParams_2D = {
-    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-            conv_sse42_2D,
-            conv_avx2_2D,
-            conv_avx512_2D,
-            conv_sse42_2D_nspc,
-            conv_avx2_2D_nspc,
-            conv_avx2_2D_nspc_brgconv,
-            conv_avx512_2D_nspc,
-            conv_avx512_2D_nspc_brgconv
-    #endif
-    #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    //FIXME: NCHW tests failed because filterSupportedPrimitiveDescriptors deletes ACL descr:
-    //Convolution_3 input memory format filter: abcd not matched. Erase desc from supported primitive descriptors
-            //conv_gemm_acl_2D,
-            conv_gemm_acl_2D_nspc
-    #endif
+        conv_sse42_2D,
+        conv_avx2_2D,
+        conv_avx512_2D,
+        conv_sse42_2D_nspc,
+        conv_avx2_2D_nspc,
+        conv_avx2_2D_nspc_brgconv,
+        conv_avx512_2D_nspc,
+        conv_avx512_2D_nspc_brgconv
     };
     return CPUParams_2D;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_GEMM_2D() {
     static const std::vector<CPUSpecificParams> CPUParams_GEMM_2D = {
-    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-            conv_gemm_2D,
-            conv_gemm_2D_nspc
-    #endif
-    #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-            //FIXME: NCHW tests failed because filterSupportedPrimitiveDescriptors deletes ACL descr:
-            //Convolution_3 input memory format filter: abcd not matched. Erase desc from supported primitive descriptors
-            //conv_gemm_acl_2D,
-            conv_gemm_acl_2D_nspc
-    #endif
+        conv_gemm_2D,
+        conv_gemm_2D_nspc,
+        conv_gemm_acl_2D,
+        conv_gemm_acl_2D_nspc
     };
     return CPUParams_GEMM_2D;
 }
@@ -560,7 +546,9 @@ const std::vector<InputShape> & inShapesGemm3D() {
 const std::vector<CPUSpecificParams>& CPUParams_GEMM_3D() {
     static const std::vector<CPUSpecificParams> CPUParams_GEMM_3D = {
             conv_gemm_3D,
-            conv_gemm_3D_nspc
+            conv_gemm_3D_nspc,
+            conv_gemm_acl_3D,
+            conv_gemm_acl_3D_nspc
     };
     return CPUParams_GEMM_3D;
 }
