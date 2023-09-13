@@ -4,12 +4,13 @@ on:
     types:
       - closed
 
-  permissions:
-    actions: write-all
-
 jobs:
   cleanup:
     runs-on: ubuntu-latest
+
+    permissions:
+      actions: write-all
+
     steps:
       - name: Check out code
         uses: actions/checkout@v3
