@@ -17,6 +17,7 @@
 
 #include "itt.hpp"
 
+namespace {
 void symbolic_set_up_for_shape(ov::DimensionTracker& dt, ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
         return;
@@ -75,6 +76,7 @@ void special_case_range_label_propagation(const std::shared_ptr<ov::Node>& node)
         ov::DimensionTracker::set_label(output_shape[0], add_in0_label);
     node->set_output_type(0, node->get_output_element_type(0), output_shape);
 }
+} // namespace
 
 ov::pass::SymbolicPropagation::SymbolicPropagation() {
     m_te = std::make_shared<ov::TableOfEquivalence>();
@@ -88,6 +90,8 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
     ov::DimensionTracker dt(te);
 
     for (const auto& op : m->get_ordered_ops()) {
+        // since we disable invalidation with the following two lines, we have to invalidate manually here
+        op->invalidate_values();
         for (auto& output : op->outputs())
             ov::set_up_symbolic_info(output, te);
         op->revalidate_and_infer_types();
