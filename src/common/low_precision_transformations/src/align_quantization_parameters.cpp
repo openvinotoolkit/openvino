@@ -13,13 +13,13 @@
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass::low_precision;
 
-ngraph::pass::low_precision::AlignQuantizationParameters::AlignQuantizationParameters(const std::vector<ngraph::element::Type> defaultPrecisions)
+ov::pass::low_precision::AlignQuantizationParameters::AlignQuantizationParameters(const std::vector<ov::element::Type> defaultPrecisions)
     : defaultPrecisions(defaultPrecisions) {}
 
-bool ngraph::pass::low_precision::AlignQuantizationParameters::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::low_precision::AlignQuantizationParameters::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(AlignQuantizationParameters);
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);

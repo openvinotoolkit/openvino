@@ -12,8 +12,6 @@ struct range: public primitive_base<range> {
 
     range() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs range primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitive id vector.

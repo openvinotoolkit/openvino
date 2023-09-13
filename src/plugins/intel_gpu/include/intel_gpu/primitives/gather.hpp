@@ -16,8 +16,6 @@ struct gather : public primitive_base<gather> {
 
     gather() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs gather primitive.
     /// @param id This primitive id.
     /// @param dict Input dictionary primitive id.

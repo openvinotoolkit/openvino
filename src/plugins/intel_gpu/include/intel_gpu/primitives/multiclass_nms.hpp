@@ -19,8 +19,6 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
 
     multiclass_nms() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     enum class sort_result_type : int32_t {
         classid,  // sort selected boxes by class id (ascending) in each batch element
         score,    // sort selected boxes by score (descending) in each batch element

@@ -7,6 +7,7 @@
    :hidden:
 
    OpenVINO Development Tools package <openvino_docs_install_guides_install_dev_tools>
+   Model Optimizer / Conversion API <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>
    OpenVINO API 2.0 transition <openvino_2_0_transition_guide>
    Open Model ZOO <model_zoo>
    Apache MXNet, Caffe, and Kaldi <mxnet_caffe_kaldi>
@@ -36,16 +37,17 @@ offering.
 |   :doc:`See how to install Development Tools <openvino_docs_install_guides_install_dev_tools>`
 
 
-| **Model Optimizer**
+| **Model Optimizer / Conversion API**
 |   *New solution:* Direct model support and OpenVINO Converter (OVC)
-|   *Old solution:* Model Optimizer discontinuation planned for OpenVINO 2025.0
+|   *Old solution:* Legacy Conversion API discontinuation planned for OpenVINO 2025.0
 |
-|   Model Optimizer's role was largely reduced when all major model frameworks became
-    supported directly. For the sole purpose of converting model files explicitly, 
-    it has been replaced with a more light-weight and efficient solution, the
-    OpenVINO Converter (launched with OpenVINO 2023.1).
+|   The role of Model Optimizer and later the Conversion API was largely reduced 
+    when all major model frameworks became supported directly. For converting model
+    files explicitly, it has been replaced with a more light-weight and efficient 
+    solution, the OpenVINO Converter (launched with OpenVINO 2023.1).
 
-.. :doc:`See how to use OVC <?????????>`
+|   :doc:`See how to use OVC <openvino_docs_model_processing_introduction>`
+|   :doc:`See how to transition from the legacy solution <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
 
 
 | **Open Model ZOO**
