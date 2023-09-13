@@ -5,12 +5,12 @@
 #include "openvino/op/one_hot.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/select.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/add.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -26,22 +26,21 @@ OutputVector translate_one_hot(const NodeContext& context) {
     // aten::one_hot works on LongTensor which means we need to convert all inputs to i64
     x = context.mark_node(std::make_shared<v0::Convert>(x, element::i64));
     auto on_value = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
-    auto off_value = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+    auto zero_value = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
     Output<Node> num_classes;
     if (context.input_is_none(1)) {
         num_classes = context.mark_node(v0::Constant::create(element::i64, Shape{}, {-1}));
     } else {
         num_classes = context.get_input(1);
-    num_classes = context.mark_node(std::make_shared<v0::Convert>(num_classes, element::i64));
+        num_classes = context.mark_node(std::make_shared<v0::Convert>(num_classes, element::i64));
     }
-    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
     auto one = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
-    auto greater = context.mark_node(std::make_shared<v1::Greater>(num_classes, zero));
+    auto greater = context.mark_node(std::make_shared<v1::Greater>(num_classes, zero_value));
     auto axes = get_axes_range(context, 0);
     auto max_class = context.mark_node(std::make_shared<v1::ReduceMax>(x, axes));
     max_class = context.mark_node(std::make_shared<v1::Add>(max_class, one));
     num_classes = context.mark_node(std::make_shared<v1::Select>(greater, num_classes, max_class));
-    return {context.mark_node(std::make_shared<v1::OneHot>(x, num_classes, on_value, off_value, -1))};
+    return {context.mark_node(std::make_shared<v1::OneHot>(x, num_classes, on_value, zero_value, -1))};
 };
 
 }  // namespace op
