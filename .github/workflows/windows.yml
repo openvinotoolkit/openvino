@@ -136,9 +136,9 @@ jobs:
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           append-timestamp: true
-          key: ${{ github.job }}-${{ runner.os }}
+          key: ${{ github.job }}-${{ runner.os }}-common
           restore-keys: |
-            ${{ github.job }}-${{ runner.os }}
+            ${{ github.job }}-${{ runner.os }}-common
 
       - name: CMake configure
         run: |
