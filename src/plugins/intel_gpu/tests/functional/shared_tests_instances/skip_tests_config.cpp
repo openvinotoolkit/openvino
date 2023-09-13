@@ -129,9 +129,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*MemoryDynamicBatch.*)",
             // Meta plugins may miss saving HW plugin so handle, thus plugin may be unloaded before all objects are deleted which leads to segfault
             // Issue: 118840
-            R"(.*AUTO.*OVHoldersTest.*)",
-            R"(.*MULTI.*OVHoldersTest.*)",
-            R"(.*HETERO.*OVHoldersTest.*)",
-            R"(.*BATCH.*OVHoldersTest.*)",
+            R"(.*OVHoldersTest.*AUTO.*)",
+            R"(.*OVHoldersTest.*MULTI.*)",
+            R"(.*OVHoldersTest.*BATCH.*)",
     };
 }
