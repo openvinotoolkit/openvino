@@ -15,7 +15,7 @@
 
 After broadcasting input tensors *a* and *b*, *BitwiseXor* performs bitwise logical XOR operation for each corresponding element in given tensors, based on following algorithm.
 
-For ``boolean`` type tensors, BitwiseXor is equivalent to LogicalXor.
+For ``boolean`` type tensors, BitwiseXor is equivalent to :doc:`LogicalXor <openvino_docs_ops_logical_LogicalXot_1>`.
 
 If tensor is of ``any supported intiger`` type, for each element of tensor:
 1. Convert values from input tensors to binary representation according to input tensor datatype,
