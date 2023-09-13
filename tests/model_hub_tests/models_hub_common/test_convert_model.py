@@ -4,6 +4,7 @@ import gc
 
 import numpy as np
 from models_hub_common.multiprocessing_utils import multiprocessing_run
+from models_hub_common.utils import compare_two_tensors
 from openvino import convert_model
 from openvino.runtime import Core
 
@@ -59,20 +60,20 @@ class TestConvertModel:
 
         fw_eps = 5e-2
         is_ok = True
-        for out_name in fw_outputs.keys():
-            cur_fw_res = fw_outputs[out_name]
-            assert out_name in ov_outputs, \
-                "OpenVINO outputs does not contain tensor with name {}".format(out_name)
-            cur_ov_res = ov_outputs[out_name]
-            print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
-            if not np.allclose(cur_ov_res, cur_fw_res,
-                               atol=fw_eps,
-                               rtol=fw_eps, equal_nan=True):
-                is_ok = False
-                print("Max diff is {}".format(np.array(abs(cur_ov_res - cur_fw_res)).max()))
-            else:
-                print("Accuracy validation successful!\n")
-                print("absolute eps: {}, relative eps: {}".format(fw_eps, fw_eps))
+        if isinstance(fw_outputs, dict):
+            for out_name in fw_outputs.keys():
+                cur_fw_res = fw_outputs[out_name]
+                assert out_name in ov_outputs, \
+                    "OpenVINO outputs does not contain tensor with name {}".format(out_name)
+                cur_ov_res = ov_outputs[out_name]
+                print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
+                is_ok = compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
+        else:
+            for i in range(len(ov_outputs)):
+                cur_fw_res = fw_outputs[i]
+                cur_ov_res = ov_outputs[i]
+                print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
+                is_ok = compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
         assert is_ok, "Accuracy validation failed"
 
     def teardown_method(self):
