@@ -18,7 +18,7 @@ else()
     ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
 endif()
 
-if(CI_BUILD_NUMBER)
+if(DEFINED ENV{CI_BUILD_NUMBER} AND NOT (WIN32 OR (CMAKE_CROSSCOMPILING AND AARCH64)))
     set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT ON)
 else()
     set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT OFF)

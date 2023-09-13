@@ -18,7 +18,7 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <Shlwapi.h>
+#    include <shlwapi.h>
 #    include <direct.h>
 #    include <windows.h>
 /// @brief Max length of absolute file path
