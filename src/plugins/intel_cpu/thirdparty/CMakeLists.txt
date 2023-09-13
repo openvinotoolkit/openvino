@@ -117,7 +117,7 @@ function(ov_add_onednn)
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
     # install static libraries
-    ov_install_static_lib(dnnl cpu)
+    ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
 
     if(DNNL_USE_ACL AND NOT BUILD_SHARED_LIBS)
         # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
@@ -125,10 +125,10 @@ function(ov_add_onednn)
         # but for this we need to install library files
         install(FILES $<TARGET_PROPERTY:arm_compute::arm_compute,IMPORTED_LOCATION>
                 DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                COMPONENT cpu)
+                COMPONENT ${OV_CPACK_COMP_CORE})
         install(FILES "${intel_cpu_thirdparty_SOURCE_DIR}/ACLConfig.cmake"
                 DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-                COMPONENT core_dev)
+                COMPONENT ${OV_CPACK_COMP_CORE_DEV})
     endif()
 endfunction()
 

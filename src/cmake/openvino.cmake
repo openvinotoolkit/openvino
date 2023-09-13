@@ -177,11 +177,11 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
 
 # install tree
 
-if(DNNL_USE_ACL)
-    list(APPEND INSTALL_PATH_VARS "ARM_COMPUTE_LIB_DIR")
+if(DNNL_USE_ACL OR ENABLE_ONEDNN_FOR_GPU)
+    list(APPEND INSTALL_PATH_VARS "OPENVINO_LIB_DIR")
     # remove generator expression at the end, because searching in Release / Debug will be
     # done by ACLConfig.cmake itself
-    string(REPLACE "$<CONFIG>" "" ARM_COMPUTE_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
+    string(REPLACE "$<CONFIG>" "" OPENVINO_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
 endif()
 
 set(IE_INCLUDE_DIR "${OV_CPACK_INCLUDEDIR}/ie")

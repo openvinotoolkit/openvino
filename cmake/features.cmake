@@ -23,7 +23,7 @@ endif()
 
 ie_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
-if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR NOT BUILD_SHARED_LIBS)
+if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR (NOT BUILD_SHARED_LIBS AND ENABLE_INTEL_CPU))
     # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
     # also, in case of static build CPU's and GPU's oneDNNs will conflict, so we are disabling GPU's one in this case
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
