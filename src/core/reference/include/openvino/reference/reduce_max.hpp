@@ -34,7 +34,7 @@ void reduce_max(const T* in, T* out, const Shape& in_shape, const AxisSet& reduc
 
     CoordinateTransformBasic input_transform(in_shape);
     for (const auto& in_coord : input_transform) {
-        constexpr u_int64_t init_value = 0;
+        constexpr uint64_t init_value = 0;
         const auto out_coord = util::reduce(in_coord, reduction_axes);
 
         const auto in_idx = std::inner_product(in_coord.begin(), in_coord.end(), in_strides.begin(), init_value);
