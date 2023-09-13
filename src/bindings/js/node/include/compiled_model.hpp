@@ -1,11 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * @brief This is a header file for the NAPI POC CompiledModelWrap
- *
- * @file src/CompiledModelWrap.hpp
- */
 #pragma once
 
 #include <napi.h>
@@ -51,14 +46,14 @@ public:
     Napi::Value get_output(const Napi::CallbackInfo& info);
 
     /**
-     * @brief Helper function to access the compiled model outputs
+     * @brief Helper function to access the compiled model outputs.
      * @param info Contains information about the environment and passed arguments
      * @return A Javascript Array containing Outputs
      */
     Napi::Value get_outputs(const Napi::CallbackInfo& info);
 
     /**
-     * @brief Helper function to access the compiled model inputs
+     * @brief Helper function to access the compiled model inputs.
      * @param info Contains information about the environment and passed arguments
      * Empty info array => Gets a single input of a compiled model. If a model has more than one input, this method
      * throws ov::Exception. info[0] of type string => Gets input of a compiled model identified by tensor_name. info[0]
@@ -67,8 +62,8 @@ public:
     Napi::Value get_input(const Napi::CallbackInfo& info);
 
     /**
-     * @brief Helper function to access the compiled model inputs as an attribute of JavaScript Compiled Model.
-     * @param info Contains information about the environment and passed arguments
+     * @brief Helper function to access the CompiledModel inputs.
+     * @param info Contains information about the environment and passed arguments.
      * @return A Javascript Array containing Inputs
      */
     Napi::Value get_inputs(const Napi::CallbackInfo& info);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "async_infer.hpp"
+
 #include "errors.hpp"
 #include "infer_request.hpp"
 

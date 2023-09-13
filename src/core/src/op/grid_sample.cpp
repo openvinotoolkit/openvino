@@ -6,8 +6,8 @@
 
 #include "grid_sample_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/grid_sample.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/grid_sample.hpp"
 
 namespace ov {
 op::v9::GridSample::GridSample(const Output<Node>& data, const Output<Node>& grid, const Attributes& attributes)
@@ -81,14 +81,14 @@ bool evaluate_exec(const HostTensorPtr& output,
                    const HostTensorPtr& data,
                    const HostTensorPtr& grid,
                    const op::v9::GridSample::Attributes& attributes) {
-    ngraph::runtime::reference::grid_sample(output->get_data_ptr<DATA_ET>(),
-                                            data->get_data_ptr<DATA_ET>(),
-                                            grid->get_data_ptr<GRID_ET>(),
-                                            data->get_shape(),
-                                            grid->get_shape(),
-                                            attributes.align_corners,
-                                            attributes.mode,
-                                            attributes.padding_mode);
+    ov::reference::grid_sample(output->get_data_ptr<DATA_ET>(),
+                               data->get_data_ptr<DATA_ET>(),
+                               grid->get_data_ptr<GRID_ET>(),
+                               data->get_shape(),
+                               grid->get_shape(),
+                               attributes.align_corners,
+                               attributes.mode,
+                               attributes.padding_mode);
     return true;
 }
 

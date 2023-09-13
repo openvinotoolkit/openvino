@@ -5,12 +5,12 @@
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/convert.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
@@ -96,7 +96,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             if (size == 0)
                 return false;
             auto num_out_of_range =
-                ngraph::runtime::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
+                ov::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
 
             // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
             const float keep_threshold = 0.75f;
@@ -113,7 +113,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
                 auto* dst_data =
                     const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(compressed_const->get_data_ptr()));
                 OPENVINO_ASSERT(dst_data);
-                ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
+                ov::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
                 new_const = compressed_const;
             }
         } else if (c_type == ov::element::f64) {

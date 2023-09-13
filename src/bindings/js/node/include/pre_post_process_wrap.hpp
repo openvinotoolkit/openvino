@@ -1,10 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * @brief This is a header file for the NAPI POC PrePostProcessorWrap
- * @file src/PrePostProcessorWrap.hpp
- */
 #pragma once
 
 #include <napi.h>
@@ -49,7 +45,7 @@ public:
      * @param info[1] element_type
      */
     Napi::Value set_input_element_type(const Napi::CallbackInfo& info);
-    Napi::Value build(const Napi::CallbackInfo& info);
+    void build(const Napi::CallbackInfo& info);
 
 private:
     std::unique_ptr<ov::preprocess::PrePostProcessor> _ppp;

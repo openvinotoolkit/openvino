@@ -4,8 +4,8 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
-#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
-#include "ngraph/runtime/reference/adaptive_max_pool.hpp"
+#include "openvino/reference/adaptive_avg_pool.hpp"
+#include "openvino/reference/adaptive_max_pool.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -76,7 +76,7 @@ void generateTestData(const AdaptiveMaxPoolingParams& p, const format fmt, const
     const auto inShape = tensorToShape(p.inputTensor, fmt);
     const auto outShape = tensorToShape(p.outputTensor, fmt);
 
-    ngraph::runtime::reference::adaptive_max_pool<float, int32_t>(random_inputs.data(), out.data(), ind.data(), inShape, outShape);
+    ov::reference::adaptive_max_pool<float, int32_t>(random_inputs.data(), out.data(), ind.data(), inShape, outShape);
 
     inputs = getValues<T>(random_inputs);
     outputs = getValues<T>(out);

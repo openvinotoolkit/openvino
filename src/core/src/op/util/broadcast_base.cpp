@@ -9,11 +9,11 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/broadcast.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/broadcast.hpp"
 
 using namespace std;
 
@@ -327,12 +327,12 @@ bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
     if (arg0_shape.size() == 0) {
         arg0_shape = Shape{1};
     }
-    ngraph::runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
-                                          out->get_data_ptr<char>(),
-                                          arg0_shape,
-                                          out->get_shape(),
-                                          broadcast_axes,
-                                          arg0->get_element_type().size());
+    ov::reference::broadcast(arg0->get_data_ptr<const char>(),
+                             out->get_data_ptr<char>(),
+                             arg0_shape,
+                             out->get_shape(),
+                             broadcast_axes,
+                             arg0->get_element_type().size());
     return true;
 }
 

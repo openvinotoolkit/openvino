@@ -54,7 +54,10 @@ protected:
 
         const size_t sequence_axis = 1;
         auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
 
         ngraph::ParameterVector body_params;
         for (size_t i = 0; i < shapes.size(); i++) {

@@ -34,7 +34,7 @@ public:
         StaticShape tmp_exp_shape;
         std::tie(tmp_input_shapes, tmp_depth, tmp_on, tmp_off, tmp_exp_shape) = obj.param;
         std::ostringstream result;
-        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
+        result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
         result << "depth" << tmp_depth << "_";
         result << "on" << tmp_on << "_";
         result << "off" << tmp_off << "_";

@@ -1,11 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * @brief This is a header file for the NAPI POC helper functions
- *
- * @file src/helper.hpp
- */
 #pragma once
 #include <napi.h>
 
@@ -71,7 +66,7 @@ ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& inf
                                                    const size_t idx,
                                                    const std::vector<napi_types>& acceptable_types);
 
-/** 
+/**
  * @brief  A template specialization for TargetType ov::Layout
  * @param  acceptable_types ov::Layout can be created from a napi_string
  */
@@ -118,7 +113,7 @@ ov::Tensor cast_to_tensor(Napi::TypedArray data, const ov::Shape& shape, const o
 
 /** @brief A helper function to create a ov::Tensor from Napi::Value.
  * @param value a Napi::Value that can be either a TypedArray or a TensorWrap Object.
- * @param infer_request The reference to InferRequest. 
+ * @param infer_request The reference to InferRequest.
  * @param key of the tensor to get from InferRequest.
  * @return ov::Tensor
  */
@@ -134,6 +129,6 @@ ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& inf
     } else if (value.IsObject()) {
         return cast_to_tensor(value.As<Napi::Object>());
     } else {
-        throw std::invalid_argument(std::string("Cannot create a tensor from the passed Napi::Value." ));
+        throw std::invalid_argument("Cannot create a tensor from the passed Napi::Value.");
     }
 }

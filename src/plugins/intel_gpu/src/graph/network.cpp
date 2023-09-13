@@ -75,7 +75,9 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
         return s.str();
     };
 
-    const std::string perf_raw_csv_header = "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iters,time_usec\n";
+    const bool per_iter_mode = cldnn::debug_configuration::get_instance()->dump_profiling_data_per_iter != 0;
+    const std::string perf_raw_csv_header = per_iter_mode ? "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iter,time_usec\n"
+                                                          : "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iters,time_usec\n";
     std::ofstream of(dump_path);
     if (of.is_open()) {
         of << perf_raw_csv_header;
@@ -114,8 +116,8 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 auto& key = perf_info.at(hash);
                 auto& entry = perf_data.at(hash);
                 auto& time = std::get<0>(entry);
-                auto& num_iters = std::get<1>(entry);
-                int64_t time_avg = time / num_iters;
+                auto num_iters = per_iter_mode ? key.iteration_num : std::get<1>(entry);
+                int64_t time_avg = per_iter_mode ? time : time / num_iters;
                 std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
@@ -246,7 +248,7 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream,
     }
 }
 
-void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName, bool dump_raw) {
+void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std::string layerName, bool dump_raw) {
     std::cout << "Dump " << (dump_raw ? "raw " : "") << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string filename = debug_config->get_name_for_dump(layerName);
@@ -257,21 +259,24 @@ void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName, 
         return;
     }
 
-    auto mem_dt = mem->get_layout().data_type;
+    // Reinterpret buffer to represent actual data layout
+    auto actual_mem = mem->get_engine()->reinterpret_buffer(*mem, data_layout);
+
+    auto mem_dt = actual_mem->get_layout().data_type;
     if (mem_dt == cldnn::data_types::f32)
-        dump<float>(mem, stream, file_stream, dump_raw);
+        dump<float>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f16)
-        dump<half_t>(mem, stream, file_stream, dump_raw);
+        dump<half_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::bin)
-        dump<uint32_t>(mem, stream, file_stream, dump_raw);
+        dump<uint32_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i64)
-        dump<int64_t>(mem, stream, file_stream, dump_raw);
+        dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i32)
-        dump<int32_t>(mem, stream, file_stream, dump_raw);
+        dump<int32_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i8)
-        dump<int8_t>(mem, stream, file_stream, dump_raw);
+        dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::u8)
-        dump<uint8_t>(mem, stream, file_stream, dump_raw);
+        dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
 }
 
 void wait_for_the_turn() {
@@ -294,7 +299,7 @@ void wait_for_the_turn() {
 
 #else
 void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
-void log_memory_to_file(memory::ptr, stream&, std::string, bool dump_raw) {}
+void log_memory_to_file(memory::ptr, layout, stream&, std::string, bool dump_raw) {}
 void wait_for_the_turn() {}
 #endif
 }  // namespace
@@ -1326,9 +1331,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         "_" + get_iteration_prefix(curr_iter) +
                                         layer_name + "_src" + std::to_string(i);
                     auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
+                    auto dep = inst->dependencies().at(i);
+                    auto input_layout = dep.first->get_output_layout(dep.second);
                     GPU_DEBUG_IF(debug_config->dump_layers_binary) {
                         // Binary dump : raw
-                        auto input_layout = inst->get_input_layout(i);
                         auto filename = get_file_path_for_binary_dump(input_layout, name);
 
                         mem_lock<char, mem_lock_type::read> lock(input_mem, get_stream());
@@ -1337,6 +1343,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         debug_str_for_bin_load += (filename + ",");
                     } else {
                         log_memory_to_file(input_mem,
+                                        input_layout,
                                         get_stream(),
                                         name,
                                         debug_config->dump_layers_raw);
@@ -1383,7 +1390,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         debug_str_for_bin_load += (filename + ",");
                     } else {
                         // Text dump
-                        log_memory_to_file(output_mem, get_stream(), name, debug_config->dump_layers_raw);
+                        log_memory_to_file(output_mem, inst->get_output_layout(i), get_stream(), name, debug_config->dump_layers_raw);
                     }
                 }
 

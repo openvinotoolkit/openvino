@@ -68,7 +68,9 @@ void BinaryConvolutionLayerTest::SetUp() {
     float padValue;
     std::tie(kernelSize, strides, padsBegin, padsEnd, dilations, numOutChannels, padType, padValue) = binConvParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {{"a_data_batch", inputShape}});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+    params[0]->set_friendly_name("a_data_batch");
+
     // TODO: refactor build BinaryConvolution op to accept filters input as Parameter
     auto binConv = ngraph::builder::makeBinaryConvolution(params[0], kernelSize, strides, padsBegin, padsEnd, dilations, padType, numOutChannels,
                                                           padValue);

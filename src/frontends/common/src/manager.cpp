@@ -49,6 +49,7 @@ public:
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
+            {"tflite", "tensorflow_lite"},
             {"paddle", "paddle"},
             {"pytorch", "pytorch"},
         };
@@ -218,14 +219,9 @@ private:
 
     void search_all_plugins() {
         auto fe_lib_dir = get_frontend_library_path();
-        // FIXME: Rewrite this part appropriately
-        #ifndef __EMSCRIPTEN__
+
         if (!fe_lib_dir.empty())
             find_plugins(fe_lib_dir, m_plugins);
-        #endif
-        #ifdef __EMSCRIPTEN__
-            find_plugins("ss", m_plugins);
-        #endif
     }
 };
 

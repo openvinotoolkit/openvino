@@ -14,9 +14,9 @@
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/shape_of.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/reference/shape_of.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -55,13 +55,13 @@ namespace shape_of {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const ov::Shape& shape, const HostTensorPtr& output_value) {
-    runtime::reference::shape_of(shape, output_value->get_data_ptr<ET>());
+    ov::reference::shape_of(shape, output_value->get_data_ptr<ET>());
     return true;
 }
 
 template <element::Type_t ET>
 inline bool evaluate(const ov::Shape& shape, ov::Tensor& output_value) {
-    runtime::reference::shape_of(shape, output_value.data<fundamental_type_for<ET>>());
+    ov::reference::shape_of(shape, output_value.data<fundamental_type_for<ET>>());
     return true;
 }
 

@@ -1,18 +1,13 @@
+// -*- coding: utf-8 -*-
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 const ov = require('../build/Release/ov_node_addon.node');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const path = require('path');
+const { getModelPath } = require('./utils.js');
 
-function getModelPath(isFP16=false) {
-  const basePath = '../../python/tests/';
-  if (isFP16) {
-    testXml = path.join(basePath, 'test_utils', 'utils', 'test_model_fp16.xml');
-  } else {
-    testXml = path.join(basePath, 'test_utils', 'utils', 'test_model_fp32.xml');
-  }
-
-  return testXml;
-}
 
 var testXml = getModelPath();
 const core = new ov.Core();
@@ -91,42 +86,4 @@ describe('Input class for ov::Input<const ov::Node>', () => {
     assert.deepStrictEqual(compiledModel.input(0).shape, [1, 3, 32, 32]);
   });
 
-  it('Input.getShape() method', () => {
-    assert.deepStrictEqual(
-      compiledModel.input(0).getShape(), [1, 3, 32, 32]);
-  });
-});
-
-describe('InferRequest infer()', () => {
-  const tensorData = Float32Array.from({ length: 3072 }, () => Math.random());
-  const tensor = new ov.Tensor(
-    ov.element.f32,
-    Int32Array.from([1, 3, 32, 32]),
-    tensorData,
-  );
-
-  const tensorLike = [[tensor],
-    [tensorData]];
-
-  tensorLike.forEach(([tl]) => {
-    const inferRequest = compiledModel.createInferRequest();
-    inferRequest.infer({ data: tl });
-    const result = inferRequest.getOutputTensors();
-    const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
-    it(`Test infer(inputData: { [inputName: string]: ${label} })`, () => {
-      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-      assert.deepStrictEqual(result['fc_out'].data.length, 10);
-    });
-  });
-
-  tensorLike.forEach(([tl]) => {
-    const inferRequest = compiledModel.createInferRequest();
-    inferRequest.infer([tl]);
-    const result = inferRequest.getOutputTensors();
-    const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
-    it(`Test infer(inputData: [ [inputName: string]: ${label} ])`, () => {
-      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-      assert.deepStrictEqual(result['fc_out'].data.length, 10);
-    });
-  });
 });

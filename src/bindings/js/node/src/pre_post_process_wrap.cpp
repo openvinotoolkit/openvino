@@ -52,14 +52,11 @@ Napi::Value PrePostProcessorWrap::preprocess_resize_input(const Napi::CallbackIn
 
     auto algorithm = (info.Length() == 0) ? "RESIZE_LINEAR" : info[0].ToString().Utf8Value();
 
-    if (algorithm == "RESIZE_CUBIC")
-    {
+    if (algorithm == "RESIZE_CUBIC") {
         _ppp->input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC);
-    }
-    else if (algorithm == "RESIZE_NEAREST") {
+    } else if (algorithm == "RESIZE_NEAREST") {
         _ppp->input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST);
-    }
-    else if (algorithm == "RESIZE_LINEAR") {
+    } else if (algorithm == "RESIZE_LINEAR") {
         _ppp->input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
     }
 
@@ -85,14 +82,12 @@ Napi::Value PrePostProcessorWrap::set_input_element_type(const Napi::CallbackInf
 
         _ppp->input(idx).tensor().set_element_type(type);
         return info.This();
-    }
-    else {
+    } else {
         reportError(info.Env(), "Invalid number of arguments or it type -> " + std::to_string(info.Length()));
         return Napi::Value();
     }
 }
 
-Napi::Value PrePostProcessorWrap::build(const Napi::CallbackInfo& info) {
+void PrePostProcessorWrap::build(const Napi::CallbackInfo& info) {
     _ppp->build();
-    return info.This();
 }

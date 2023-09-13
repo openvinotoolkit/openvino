@@ -1,6 +1,8 @@
 Text-to-Image Generation with ControlNet Conditioning
 =====================================================
 
+
+
 Diffusion models make a revolution in AI-generated art. This technology
 enables creation of high-quality images simply by writing a text prompt.
 Even though this technology gives very promising results, the diffusion
@@ -51,11 +53,14 @@ This is the key difference between standard diffusion and latent
 diffusion models: in latent diffusion, the model is trained to generate
 latent (compressed) representations of the images.
 
-There are three main components in latent diffusion: 
+There are three main components in latent diffusion:
 
-* A text-encoder, for example `CLIP’s Text Encoder <https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel>`__ for creation condition to generate image from text prompt. 
-* A U-Net for step-by-step denoising latent image representation.
-* An autoencoder (VAE) for encoding input image to latent space (if required) and decoding latent space to image back after generation.
+-  A text-encoder, for example `CLIP’s Text
+   Encoder <https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel>`__
+   for creation condition to generate image from text prompt.
+-  A U-Net for step-by-step denoising latent image representation.
+-  An autoencoder (VAE) for encoding input image to latent space (if
+   required) and decoding latent space to image back after generation.
 
 For more details regarding Stable Diffusion work, refer to the `project
 website <https://ommer-lab.com/research/latent-diffusion-models/>`__.
@@ -105,7 +110,7 @@ In the end, we are left with a very similar image synthesis pipeline
 with an additional control added for the shape of the output features in
 the final image.
 
-Training ControlNet comprises of the following steps:
+Training ControlNet consists of the following steps:
 
 1. Cloning the pre-trained parameters of a Diffusion model, such as
    Stable Diffusion’s latent UNet, (referred to as “trainable copy”)
@@ -136,26 +141,54 @@ of the target in the image:
 This tutorial focuses mainly on conditioning by pose. However, the
 discussed steps are also applicable to other annotation modes.
 
-Prerequisites
--------------
+.. _top:
+
+**Table of contents**:
+
+- `Prerequisites <#prerequisites>`__
+- `Instantiating Generation Pipeline <#instantiating-generation-pipeline>`__
+
+  - `ControlNet in Diffusers library <#controlnet-in-diffusers-library>`__
+  - `OpenPose <#openpose>`__
+
+- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+
+  - `OpenPose conversion <#openpose-conversion>`__
+
+- `Select inference device <#select-inference-device>`__
+
+  - `ControlNet conversion <#controlnet-conversion>`__
+  - `UNet conversion <#unet-conversion>`__
+  - `Text Encoder <#text-encoder>`__
+  - `VAE Decoder conversion <#vae-decoder-conversion>`__
+
+- `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+- `Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
+- `Select inference device <#select-inference-device>`__
+
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
-    !pip install -q "diffusers>=0.14.0" "git+https://github.com/huggingface/accelerate.git" controlnet-aux gradio
+    !pip install -q "diffusers==0.14.0" "controlnet-aux>=0.0.6" "gradio>=3.36"
 
 
 .. parsed-literal::
 
     
-    [notice] A new release of pip available: 22.3.1 -> 23.0.1
+    [notice] A new release of pip is available: 23.1.2 -> 23.2
     [notice] To update, run: pip install --upgrade pip
 
 
-Instantiating Generation Pipeline
----------------------------------
+Instantiating Generation Pipeline `⇑ <#top>`__
+###############################################################################################################################
 
-ControlNet in Diffusers library
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ControlNet in Diffusers library `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 For working with Stable Diffusion and ControlNet models, we will use
 Hugging Face `Diffusers <https://github.com/huggingface/diffusers>`__
@@ -176,7 +209,7 @@ controlnet model and ``stable-diffusion-v1-5``:
     import torch
     from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
     
-    controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-openpose", torch_dtype=torch.float32)
+    controlnet = ControlNetModel.from_pretrained("lllyasviel/control_v11p_sd15_openpose", torch_dtype=torch.float32)
     pipe = StableDiffusionControlNetPipeline.from_pretrained(
         "runwayml/stable-diffusion-v1-5", controlnet=controlnet
     )
@@ -184,23 +217,16 @@ controlnet model and ``stable-diffusion-v1-5``:
 
 .. parsed-literal::
 
-    2023-03-12 15:26:19.533980: I tensorflow/core/util/util.cc:169] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-16 15:33:13.040077: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-16 15:33:13.079142: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-07-16 15:33:13.688517: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["id2label"]` will be overriden.
 
 
+OpenPose `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-.. parsed-literal::
-
-    Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/transformers/models/clip/feature_extraction_clip.py:28: FutureWarning: The class CLIPFeatureExtractor is deprecated and will be removed in version 5 of Transformers. Please use CLIPImageProcessor instead.
-      warnings.warn(
-
-
-OpenPose
-~~~~~~~~
 
 Annotation is an important part of working with ControlNet.
 `OpenPose <https://github.com/CMU-Perceptual-Computing-Lab/openpose>`__
@@ -224,6 +250,13 @@ The code below demonstrates how to instantiate the OpenPose model.
     from controlnet_aux import OpenposeDetector
     
     pose_estimator = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
+
+
+.. parsed-literal::
+
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/controlnet_aux/mediapipe_face/mediapipe_face_common.py:7: UserWarning: The module 'mediapipe' is not installed. The package will have limited functionality. Please install it using the command: pip install 'mediapipe'
+      warnings.warn(
+
 
 Now, let us check its result on example image:
 
@@ -281,8 +314,8 @@ Now, let us check its result on example image:
 .. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_8_0.png
 
 
-Convert models to OpenVINO Intermediate representation (IR) format
-------------------------------------------------------------------
+Convert models to OpenVINO Intermediate representation (IR) format. `⇑ <#top>`__
+###############################################################################################################################
 
 OpenVINO supports PyTorch through export to the ONNX format. We will use
 the ``torch.onnx.export`` function for obtaining the ONNX model, we can
@@ -295,23 +328,25 @@ example, input and output names or dynamic shapes).
 
 While ONNX models are directly supported by OpenVINO™ runtime, it can be
 useful to convert them to IR format to take the advantage of advanced
-OpenVINO optimization tools and features. We will use OpenVINO `Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+OpenVINO optimization tools and features. We will use `model conversion
+API <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 to convert a model to IR format and compression weights to ``FP16``
 format.
 
 The pipeline consists of five important parts:
 
-* OpenPose for obtaining annotation based on an estimated pose.
-* ControlNet for conditioning by image annotation.
-* Text Encoder for creation condition to generate an image from a text prompt.
-* Unet for step-by-step denoising latent image representation.
-* Autoencoder (VAE) for decoding latent space to image.
+-  OpenPose for obtaining annotation based on an estimated pose.
+-  ControlNet for conditioning by image annotation.
+-  Text Encoder for creation condition to generate an image from a text
+   prompt.
+-  Unet for step-by-step denoising latent image representation.
+-  Autoencoder (VAE) for decoding latent space to image.
 
 Let us convert each part:
 
-OpenPose conversion
-~~~~~~~~~~~~~~~~~~~
+OpenPose conversion `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 OpenPose model is represented in the pipeline as a wrapper on the
 PyTorch model which not only detects poses on an input image but is also
@@ -348,6 +383,7 @@ model with the OpenVINO model, using the following code:
 .. code:: ipython3
 
     from openvino.runtime import Model, Core
+    from collections import namedtuple
     
     
     class OpenPoseOVModel:
@@ -385,10 +421,46 @@ model with the OpenVINO model, using the following code:
             """
             self.model.reshape({0: [1, 3, height, width]})
             self.compiled_model = self.core.compile_model(self.model)
+            
+        def parameters(self):
+            Device = namedtuple("Device", ["device"])
+            return [Device(torch.device("cpu"))]
+        
     
      
     core = Core()
-    ov_openpose = OpenPoseOVModel(core, OPENPOSE_OV_PATH)
+
+Select inference device `⇑ <#top>`__
+###############################################################################################################################
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    ov_openpose = OpenPoseOVModel(core, OPENPOSE_OV_PATH, device=device.value)
     pose_estimator.body_estimation.model = ov_openpose
 
 .. code:: ipython3
@@ -398,23 +470,27 @@ model with the OpenVINO model, using the following code:
 
 
 
-.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_14_0.png
+.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_17_0.png
 
 
 Great! As we can see, it works perfectly.
 
-ControlNet conversion
-~~~~~~~~~~~~~~~~~~~~~
+ControlNet conversion `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The controlNet model accepts the same inputs like UNet in Stable
+
+The ControlNet model accepts the same inputs like UNet in Stable
 Diffusion pipeline and additional condition sample - skeleton key points
 map predicted by pose estimator:
 
-* ``sample`` - latent image sample from the previous step, generation process has not been started yet, so we will use random noise,
-* ``timestep`` - current scheduler step,
-* ``encoder_hidden_state`` - hidden state of text encoder,
-* ``controlnet_cond`` - condition input annotation. The output of the model is attention hidden states from down and middle blocks, which serves additional context for the UNet model.
+-  ``sample`` - latent image sample from the previous step, generation
+   process has not been started yet, so we will use random noise,
+-  ``timestep`` - current scheduler step,
+-  ``encoder_hidden_state`` - hidden state of text encoder,
+-  ``controlnet_cond`` - condition input annotation.
 
+The output of the model is attention hidden states from down and middle
+blocks, which serves additional context for the UNet model.
 
 .. code:: ipython3
 
@@ -455,8 +531,9 @@ map predicted by pose estimator:
     ControlNet will be loaded from controlnet-pose.xml
 
 
-UNet conversion
-~~~~~~~~~~~~~~~
+UNet conversion `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The process of UNet model conversion remains the same, like for original
 Stable Diffusion model, but with respect to the new inputs generated by
@@ -501,18 +578,17 @@ ControlNet.
 
 .. parsed-literal::
 
-    4989
+    5513
 
 
 
-Text Encoder
-~~~~~~~~~~~~
+Text Encoder `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The text-encoder is responsible for transforming the input prompt, for
-example, “a photo of an astronaut riding a horse” into an embedding
-space that can be understood by the U-Net. It is usually a simple
-transformer-based encoder that maps a sequence of input tokens to a
-sequence of latent text embeddings.
+The text-encoder is responsible for transforming the input prompt, for example, 
+“a photo of an astronaut riding a horse” into an embedding space that can be 
+understood by the U-Net. It is usually a simple transformer-based encoder that 
+maps a sequence of input tokens to a sequence of latent text embeddings.
 
 The input of the text encoder is tensor ``input_ids``, which contains
 indexes of tokens from text processed by the tokenizer and padded to the
@@ -584,8 +660,9 @@ this opset.
 
 
 
-VAE Decoder conversion
-~~~~~~~~~~~~~~~~~~~~~~
+VAE Decoder conversion `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The VAE model has two parts, an encoder, and a decoder. The encoder is
 used to convert the image into a low-dimensional latent representation,
@@ -651,8 +728,9 @@ diffusion
     VAE decoder will be loaded from vae_decoder.xml
 
 
-Prepare Inference pipeline
---------------------------
+Prepare Inference pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow. |detailed workflow|
@@ -1053,6 +1131,13 @@ on OpenVINO.
             image = np.transpose(image, (0, 2, 3, 1))
             return image
 
+
+.. parsed-literal::
+
+    /tmp/ipykernel_1180132/670611772.py:1: FutureWarning: Importing `DiffusionPipeline` or `ImagePipelineOutput` from diffusers.pipeline_utils is deprecated. Please import from diffusers.pipelines.pipeline_utils instead.
+      from diffusers.pipeline_utils import DiffusionPipeline
+
+
 .. code:: ipython3
 
     from transformers import CLIPTokenizer
@@ -1099,8 +1184,8 @@ on OpenVINO.
         fig.savefig("result.png", bbox_inches='tight')
         return fig
 
-Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO
---------------------------------------------------------------------------
+Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO. `⇑ <#top>`__
+###############################################################################################################################
 
 Now, we are ready to start generation. For improving the generation
 process, we also introduce an opportunity to provide a
@@ -1112,9 +1197,37 @@ this
 We can keep this field empty if we want to generate image without
 negative prompting.
 
+Select inference device `⇑ <#top>`__
+###############################################################################################################################
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
 .. code:: ipython3
 
-    ov_pipe = OVContrlNetStableDiffusionPipeline(tokenizer, scheduler, core, CONTROLNET_OV_PATH, TEXT_ENCODER_OV_PATH, UNET_OV_PATH, VAE_DECODER_OV_PATH, device="AUTO")
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='CPU',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+
+
+
+.. code:: ipython3
+
+    ov_pipe = OVContrlNetStableDiffusionPipeline(tokenizer, scheduler, core, CONTROLNET_OV_PATH, TEXT_ENCODER_OV_PATH, UNET_OV_PATH, VAE_DECODER_OV_PATH, device=device.value)
 
 .. code:: ipython3
 
@@ -1157,4 +1270,19 @@ negative prompting.
         pose_btn.click(extract_pose, inp_img, [out_pose, step1, step2])
         btn.click(generate, [out_pose, inp_prompt, inp_neg_prompt, inp_seed, inp_steps], out_result)
     
-    demo.queue().launch(share=True, debug=True)
+    demo.queue().launch(share=True)
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    Running on public URL: https://6927b0a05729fd4297.gradio.live
+    
+    This share link expires in 72 hours. For free permanent hosting and GPU upgrades, run `gradio deploy` from Terminal to deploy to Spaces (https://huggingface.co/spaces)
+
+
+
+.. raw:: html
+
+    <div><iframe src="https://6927b0a05729fd4297.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+

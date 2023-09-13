@@ -2,3 +2,4 @@ node_modules
 dist
 build
 types
+ov_runtime

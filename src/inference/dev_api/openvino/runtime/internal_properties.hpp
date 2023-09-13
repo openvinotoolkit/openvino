@@ -47,11 +47,8 @@ static constexpr Property<std::string, PropertyMutability::WO> config_device_id{
  * @brief The name for setting CPU affinity per thread option.
  *
  * It is passed to Core::get_property()
- * PluginConfigParams::NO (no pinning for CPU inference threads)
- * PluginConfigParams::YES, which is default on the conventional CPUs (pinning threads to cores, best for static
- * benchmarks),
  *
- * the following options are implemented only for the TBB as a threading option
+ * The following options are implemented only for the TBB as a threading option
  * ov::threading::IStreamsExecutor::ThreadBindingType::NUMA (pinning threads to NUMA nodes, best for real-life,
  * contented cases) on the Windows and MacOS* this option behaves as YES
  * ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE (let the runtime to do pinning to the cores types,

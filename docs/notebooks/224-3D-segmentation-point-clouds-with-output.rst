@@ -1,6 +1,8 @@
 Part Segmentation of 3D Point Clouds with OpenVINO™
 ===================================================
 
+
+
 This notebook demonstrates how to process `point
 cloud <https://en.wikipedia.org/wiki/Point_cloud>`__ data and run 3D
 Part Segmentation with OpenVINO. We use the
@@ -8,12 +10,12 @@ Part Segmentation with OpenVINO. We use the
 detect each part of a chair and return its category.
 
 PointNet
-########
+--------
 
 PointNet was proposed by Charles Ruizhongtai Qi, a researcher at
-Stanford University in 2016: arXiv:1612.00593 <`PointNet: Deep Learning
-on Point Sets for 3D Classification and
-Segmentation <https://arxiv.org/abs/1612.00593>`__>. The motivation
+Stanford University in 2016: `PointNet: Deep Learning on Point Sets for
+3D Classification and
+Segmentation <https://arxiv.org/abs/1612.00593>`__. The motivation
 behind the research is to classify and segment 3D representations of
 images. They use a data structure called point cloud, which is a set of
 points that represents a 3D shape or object. PointNet provides a unified
@@ -22,8 +24,21 @@ segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
 
-Imports
--------
+.. _top:
+
+**Table of contents**:
+
+- `Imports <#imports>`__
+- `Prepare the Model <#prepare-the-model>`__
+- `Data Processing Module <#data-processing-module>`__
+- `Visualize the original 3D data <#visualize-the-original-3d-data>`__
+- `Run inference <#run-inference>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -39,12 +54,12 @@ Imports
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Prepare the Model
------------------
+Prepare the Model `⇑ <#top>`__
+###############################################################################################################################
 
-Download the pre-trained PointNet ONNX model. This pre-trained model is
-provided by `axinc-ai <https://github.com/axinc-ai>`__, and you can find
-more point clouds examples
+Download the pre-trained PointNet ONNX model. This pre-trained model is provided by
+`axinc-ai <https://github.com/axinc-ai>`__, and you can find more
+point clouds examples
 `here <https://github.com/axinc-ai/ailia-models/tree/master/point_segmentation>`__.
 
 .. code:: ipython3
@@ -58,19 +73,19 @@ more point clouds examples
 Convert the ONNX model to OpenVINO IR. An OpenVINO IR (Intermediate
 Representation) model consists of an ``.xml`` file, containing
 information about network topology, and a ``.bin`` file, containing the
-weights and biases binary data. Model Optimizer Python API used for
-conversion ONNX model to OpenVINO IR. The ``mo.convert_model`` Python
-function returns an OpenVINO model ready to load on device and start
-making predictions. We can save it on disk for next usage with
-``openvino.runtime.serialize``. For more information about Model
-Optimizer Python API, see the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__.
+weights and biases binary data. Model conversion Python API is used for
+conversion of ONNX model to OpenVINO IR. The ``mo.convert_model`` Python
+function returns an OpenVINO model ready to load on a device and start
+making predictions. We can save it on a disk for next usage with
+``openvino.runtime.serialize``. For more information about model
+conversion Python API, see this
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
     ir_model_xml = onnx_model_path.with_suffix(".xml")
     
-    ie = Core()
+    core = Core()
     
     if not ir_model_xml.exists():
         # Convert model to OpenVINO Model
@@ -79,11 +94,12 @@ Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__.
         serialize(model, str(ir_model_xml))
     else:
         # Read model
-        model = ie.read_model(model=ir_model_xml)
+        model = core.read_model(model=ir_model_xml)
         
 
-Data Processing Module
-----------------------
+Data Processing Module `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -137,8 +153,8 @@ Data Processing Module
     
         return ax
 
-Visualize the original 3D data
-------------------------------
+Visualize the original 3D data `⇑ <#top>`__
+###############################################################################################################################
 
 The point cloud data can be downloaded from
 `ShapeNet <https://shapenet.cs.stanford.edu/ericyi/shapenetcore_partanno_segmentation_benchmark_v0.zip>`__,
@@ -163,14 +179,14 @@ chair for example.
 .. image:: 224-3D-segmentation-point-clouds-with-output_files/224-3D-segmentation-point-clouds-with-output_10_0.png
 
 
-Run inference
--------------
+Run inference `⇑ <#top>`__
+###############################################################################################################################
 
-Run inference and visualize the results of 3D segmentation. - The input
-data is a point cloud with ``1 batch size``\ ，\ ``3 axis value`` (x, y,
-z) and ``arbitrary number of points`` (dynamic shape). - The output data
-is a mask with ``1 batch size`` and ``4 classification confidence`` for
-each input point.
+Run inference and visualize the results of 3D segmentation. - The input data is a point cloud with
+``1 batch size``\ ，\ ``3 axis value`` (x, y, z) and
+``arbitrary number of points`` (dynamic shape). - The output data is a
+mask with ``1 batch size`` and ``4 classification confidence`` for each
+input point.
 
 .. code:: ipython3
 
@@ -192,10 +208,38 @@ each input point.
     output shape: [1,?,4]
 
 
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 .. code:: ipython3
 
     # Inference
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     output_layer = compiled_model.output(0)
     result = compiled_model([point])[output_layer]
     
@@ -224,5 +268,5 @@ each input point.
 
 
 
-.. image:: 224-3D-segmentation-point-clouds-with-output_files/224-3D-segmentation-point-clouds-with-output_13_0.png
+.. image:: 224-3D-segmentation-point-clouds-with-output_files/224-3D-segmentation-point-clouds-with-output_15_0.png
 
