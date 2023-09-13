@@ -30,6 +30,8 @@ concurrency:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
     steps:
       - name: Get affected components
         id: smart_ci
@@ -41,7 +43,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }} # it has read-only access for forks, should be fine
 
-      - name: Check affected components
+      - name: Show affected components
         run: |
           echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
         shell: bash
@@ -69,7 +71,13 @@ jobs:
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
+      CI_COMPONENT_CHANGED = ${{ fromJSON(needs.Smart_CI.outputs.affected_components).CI }}
     steps:
+      - name: This step will be executed only if CI component was changed
+        if: env.CI_COMPONENT_CHANGED
+        run: |
+          echo "CI component was changed"
+
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
