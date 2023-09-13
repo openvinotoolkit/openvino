@@ -35,56 +35,30 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
     if (config.get_property(ov::internal::exclusive_async_requests)) {
         //exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
-    } else {
+    } else if (config.get_property(ov::num_streams) > 1) {
+        if (config.get_property(ov::hint::enable_cpu_pinning)) {
+            auto executorConfig =
+                ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
+                                                        0,
+                                                        0,
+                                                        ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
+                                                        1,
+                                                        0,
+                                                        0,
+                                                        ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
+                                                        {{config.get_property(ov::num_streams), 1, 1, 0, 0}},
+                                                        true};
+            auto postConfig = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executorConfig);
+            return std::make_shared<ov::threading::CPUStreamsExecutor>(postConfig);
+        }
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
+    } else {
+        return std::make_shared<ov::threading::CPUStreamsExecutor>(
+            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
     }
 }
 }  // namespace
-
-CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
-                             InferenceEngine::RemoteContext::Ptr context,
-                             const ExecutionConfig& config,
-                             InferenceEngine::InputsDataMap* inputs,
-                             InferenceEngine::OutputsDataMap* outputs) :
-    InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
-        if (config.get_property(ov::internal::exclusive_async_requests)) {
-            //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
-            return executorManager()->getExecutor("GPU");
-        } else if (config.get_property(ov::num_streams) > 1) {
-            if (config.get_property(ov::hint::enable_cpu_pinning)) {
-                auto executorConfig = ov::threading::IStreamsExecutor::Config{
-                    "Intel GPU plugin executor",
-                    0,
-                    0,
-                    ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
-                    1,
-                    0,
-                    0,
-                    ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
-                    {{config.get_property(ov::num_streams), 1, 1, 0, 0}},
-                    true};
-                auto postConfig = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executorConfig);
-                return std::make_shared<InferenceEngine::CPUStreamsExecutor>(postConfig);
-            }
-            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
-        } else {
-            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
-        }
-    }()},
-    m_context(context),
-    m_config(config),
-    m_taskExecutor{ _taskExecutor },
-    m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })),
-    m_network(network) {
-    auto graph_base = std::make_shared<Graph>(network, get_context_impl(m_context), m_config, 0, inputs, outputs);
-    for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
-        auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
-        m_graphs.push_back(graph);
-    }
-}
 
 CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
