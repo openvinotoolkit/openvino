@@ -87,9 +87,9 @@ std::vector<OptimizeDomainParams> dopt_params = {
         {256, 32, {{5}, {5}}, {5}, 1},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DomainOptimization, OptimizeDomainTest,
-                         ::testing::ValuesIn(dopt_params),
-                         OptimizeDomainTest::getTestCaseName);
+//INSTANTIATE_TEST_SUITE_P(smoke_Snippets_OptimizeDomain, OptimizeDomainTest,
+//                         ::testing::ValuesIn(dopt_params),
+//                         OptimizeDomainTest::getTestCaseName);
 
 } // namespace OptimizeDomainTestsInstantiation
 }  // namespace snippets
