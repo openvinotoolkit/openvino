@@ -8,20 +8,20 @@
 #include <queue>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace pull_reshape_through_dequantization {
 namespace {
 
 std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& elementwise) {
     const auto reshapeValues = ov::as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1));
-    NGRAPH_CHECK(reshapeValues != nullptr, "Reshape constant was not found");
+    OPENVINO_ASSERT(reshapeValues != nullptr, "Reshape constant was not found");
 
     auto elementwiseValuesConvert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(1));
     auto elementwiseValues = elementwiseValuesConvert == nullptr ?
@@ -51,7 +51,7 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
         }
 
         // If shape calculation is needed, fold_reshape is used for result constant shape computation
-        const auto newReshapeValuesVector = ngraph::pass::low_precision::NetworkHelper::updateReshapeValues(
+        const auto newReshapeValuesVector = ov::pass::low_precision::NetworkHelper::updateReshapeValues(
             elementwiseValuesShape,
             elementwise->get_output_shape(0),
             targetShape);
@@ -66,7 +66,7 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
             Shape{ newReshapeValuesVector.size() },
             newReshapeValuesVector);
 
-        const auto newElementwiseValues = ngraph::pass::low_precision::fold_reshape<opset1::Reshape>(
+        const auto newElementwiseValues = ov::pass::low_precision::fold_reshape<opset1::Reshape>(
             elementwiseValues,
             newReshapeValues,
             ov::as_type_ptr<opset1::Reshape>(reshape)->get_special_zero());
@@ -86,7 +86,7 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
             std::make_shared<opset1::Convert>(newElementwiseValues, elementwiseValuesConvert->get_destination_type()) });
 
     replace_node(reshape, newElementwise);
-    copy_runtime_info({ elementwise, reshape }, { newReshape, newElementwise });
+    ov::copy_runtime_info({ elementwise, reshape }, { newReshape, newElementwise });
     return newReshape;
 }
 
@@ -94,13 +94,13 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& reshape, c
     const auto newReshape = reshape->clone_with_new_inputs({ convert->input_value(0), reshape->input_value(1) });
     const auto newConvert = convert->clone_with_new_inputs({ newReshape });
     replace_node(reshape, newConvert);
-    copy_runtime_info({ convert, reshape }, { newReshape, newConvert });
+    ov::copy_runtime_info({ convert, reshape }, { newReshape, newConvert });
 
     return newReshape;
 }
 
 void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& constant) {
-    ngraph::OutputVector result(1);
+    ov::OutputVector result(1);
     reshape->constant_fold(result, { constant, reshape->input_value(1) });
     const auto newConstant = result[0].get_node_shared_ptr();
     replace_node(reshape, newConstant);
@@ -110,27 +110,27 @@ void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<No
 }  // namespace
 }  // namespace pull_reshape_through_dequantization
 
-ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDequantization(
-    const std::vector<ngraph::element::Type>& inputPrecisions) {
-    const auto weights = ngraph::pattern::wrap_type<ngraph::opset1::Constant>(pattern::type_matches_any(inputPrecisions));
-    const auto convert = ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ weights });
+ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDequantization(
+    const std::vector<ov::element::Type>& inputPrecisions) {
+    const auto weights = ov::pass::pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches_any(inputPrecisions));
+    const auto convert = ov::pass::pattern::wrap_type<ov::opset1::Convert>({ weights });
 
     MATCHER_SCOPE(PullReshapeThroughDequantization);
-    const auto subtractValues = std::make_shared<pattern::op::Or>(OutputVector{
-        ngraph::pattern::wrap_type<ngraph::opset1::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ngraph::pattern::wrap_type<ngraph::opset1::Constant>()})
+    const auto subtractValues = std::make_shared<pass::pattern::op::Or>(OutputVector{
+        ov::pass::pattern::wrap_type<ov::opset1::Constant>(),
+        ov::pass::pattern::wrap_type<ov::opset1::Convert>({ov::pass::pattern::wrap_type<ov::opset1::Constant>()})
     });
-    const auto subtract = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>({ convert, subtractValues });
+    const auto subtract = ov::pass::pattern::wrap_type<ov::opset1::Subtract>({ convert, subtractValues });
 
-    const auto subtractOrConvert = std::make_shared<pattern::op::Or>(OutputVector{ convert, subtract });
+    const auto subtractOrConvert = std::make_shared<pass::pattern::op::Or>(OutputVector{ convert, subtract });
 
-    const auto multiplyConstant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    const auto multiply = ngraph::pattern::wrap_type<ngraph::opset1::Multiply>({ subtractOrConvert, multiplyConstant });
+    const auto multiplyConstant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
+    const auto multiply = ov::pass::pattern::wrap_type<ov::opset1::Multiply>({ subtractOrConvert, multiplyConstant });
 
-    const auto reshapeConstant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    auto reshapeWrapper = ngraph::pattern::wrap_type<opset1::Reshape>({ multiply, reshapeConstant });
+    const auto reshapeConstant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
+    auto reshapeWrapper = ov::pass::pattern::wrap_type<opset1::Reshape>({ multiply, reshapeConstant });
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         auto reshape = opsMap.at(reshapeWrapper).get_node_shared_ptr();
 
@@ -156,6 +156,6 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshapeWrapper, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshapeWrapper, matcher_name);
     this->register_matcher(m, callback);
 }

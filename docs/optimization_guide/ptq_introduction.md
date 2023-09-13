@@ -6,9 +6,9 @@
    :maxdepth: 1
    :hidden:
 
-   pot_introduction
-   nncf_ptq_introduction
-
+   basic_quantization_flow
+   quantization_w_accuracy_control
+   
 
 Post-training model optimization is the process of applying special methods that transform the model into a more hardware-friendly representation without retraining or fine-tuning. The most popular and widely-spread method here is 8-bit post-training quantization because it is:
 
@@ -21,15 +21,18 @@ Post-training model optimization is the process of applying special methods that
 
 .. image:: _static/images/quantization_picture.svg
 
-To apply post-training methods in OpenVINO, you need:
+`Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__ provides a post-training quantization API available in Python that is aimed at reusing the code for model training or validation that is usually available with the model in the source framework, for example, PyTorch or TensroFlow. The NNCF API is cross-framework and currently supports models in the following frameworks: OpenVINO, PyTorch, TensorFlow 2.x, and ONNX. Currently, post-training quantization for models in OpenVINO Intermediate Representation is the most mature in terms of supported methods and models coverage. 
 
-* A floating-point precision model, FP32 or FP16, converted into the OpenVINO Intermediate Representation (IR) format that can be run on CPU.
-* A representative calibration dataset, representing a use case scenario, for example, of 300 samples.
-* In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
+NNCF API has two main capabilities to apply 8-bit post-training quantization:
 
-Currently, OpenVINO provides two workflows with post-training quantization capabilities:
+* :doc:`Basic quantization <basic_quantization_flow>` - the simplest quantization flow that allows applying 8-bit integer quantization to the model. A representative calibration dataset is only needed in this case.
+* :doc:`Quantization with accuracy control <quantization_w_accuracy_control>` - the most advanced quantization flow that allows applying 8-bit quantization to the model with accuracy control. Calibration and validation datasets, and a validation function to calculate the accuracy metric are needed in this case.
 
-* :doc:`Post-training Quantization with POT <pot_introduction>` - works with models in OpenVINO Intermediate Representation (IR) only.
-* :doc:`Post-training Quantization with NNCF <nncf_ptq_introduction>` - cross-framework solution for model optimization that provides a new simple API for post-training quantization.
+Additional Resources
+####################
+
+* :doc:`Optimizing Models at Training Time <tmo_introduction>`
+* `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
+* `Tutorial: Migrate quantization from POT API to NNCF API <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-yolov5-quantization-migration>`__
 
 @endsphinxdirective

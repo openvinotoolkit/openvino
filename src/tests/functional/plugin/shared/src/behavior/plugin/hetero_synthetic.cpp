@@ -119,7 +119,7 @@ void HeteroSyntheticTest::SetUp() {
         try {
             if (pluginParameter._location == "openvino_template_plugin") {
                 PluginCache::get().ie()->RegisterPlugin(ov::util::make_plugin_library_name(
-                    CommonTestUtils::getExecutableDirectory(), pluginParameter._location + IE_BUILD_POSTFIX),
+                    ov::test::utils::getExecutableDirectory(), pluginParameter._location + IE_BUILD_POSTFIX),
                     pluginParameter._name);
             } else {
                 PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
@@ -151,7 +151,7 @@ void HeteroSyntheticTest::SetUp() {
 }
 
 void HeteroSyntheticTest::TearDown() {
-    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+    if (!ov::test::utils::current_test_is_disabled()) {
         for (auto&& pluginName : _registredPlugins) {
             PluginCache::get().ie()->UnregisterPlugin(pluginName);
         }
@@ -194,7 +194,7 @@ TEST_P(HeteroSyntheticTest, someLayersToMajorPluginOthersToFallback) {
     auto affinities = SetUpAffinity();
     SCOPED_TRACE(affinities);
     Run();
-    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+    if (!ov::test::utils::current_test_is_disabled()) {
         ASSERT_NE(nullptr, cnnNetwork.getFunction());
     }
 }

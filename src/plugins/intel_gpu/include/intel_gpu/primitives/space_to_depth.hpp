@@ -42,6 +42,8 @@ namespace cldnn {
 struct space_to_depth : public primitive_base<space_to_depth> {
     CLDNN_DECLARE_PRIMITIVE(space_to_depth)
 
+    space_to_depth() : primitive_base("", {}) {}
+
     enum depth_mode {
         depth_first,
         blocks_first
@@ -60,10 +62,10 @@ struct space_to_depth : public primitive_base<space_to_depth> {
         : primitive_base(id, {input}, {output_padding}), mode(mode), block_size(block_size) {}
 
     /// @brief Depth mode.
-    depth_mode mode;
+    depth_mode mode = depth_mode::depth_first;
 
     /// @brief Block size.
-    size_t block_size;
+    size_t block_size = 1;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -80,6 +82,18 @@ struct space_to_depth : public primitive_base<space_to_depth> {
 
         return mode == rhs_casted.mode &&
                block_size == rhs_casted.block_size;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<space_to_depth>::save(ob);
+        ob << make_data(&mode, sizeof(depth_mode));
+        ob << block_size;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<space_to_depth>::load(ib);
+        ib >> make_data(&mode, sizeof(depth_mode));
+        ib >> block_size;
     }
 };
 }  // namespace cldnn

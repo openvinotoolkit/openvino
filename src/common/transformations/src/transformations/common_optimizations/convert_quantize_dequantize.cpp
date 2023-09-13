@@ -5,13 +5,17 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 // ConvertQuantizeDequantize converts Quantize/Dequantize pair to a single FakeQuantize.
@@ -61,20 +65,20 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto data_pattern = pass::pattern::any_input();
     auto input_low_pattern = pass::pattern::any_input();
     auto input_high_pattern = pass::pattern::any_input();
-    auto output_low_pattern = ngraph::pattern::wrap_type<opset4::Constant>();
-    auto output_high_pattern = ngraph::pattern::wrap_type<opset4::Constant>();
-    auto fq_pattern = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
+    auto output_low_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto output_high_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
     auto convert1_pattern =
-        ngraph::pattern::wrap_type<opset4::Convert>({fq_pattern},
-                                                    pattern::type_matches_any({element::i8, element::u8}));
+        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({fq_pattern},
+                                                          pattern::type_matches_any({element::i8, element::u8}));
     auto convert2_pattern =
-        ngraph::pattern::wrap_type<opset4::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
+        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
     auto zero_point_pattern = pass::pattern::any_input();
-    auto sub_pattern = ngraph::pattern::wrap_type<opset4::Subtract>({convert2_pattern, zero_point_pattern},
-                                                                    pattern::consumers_count(1));
+    auto sub_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert2_pattern, zero_point_pattern},
+                                                                          pattern::consumers_count(1));
     auto scale_pattern = pass::pattern::any_input();
-    auto mul_pattern = ngraph::pattern::wrap_type<opset4::Multiply>({sub_pattern, scale_pattern});
+    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_pattern, scale_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
@@ -87,14 +91,14 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         auto input_low = pattern_map[input_low_pattern];
         auto input_high = pattern_map[input_high_pattern];
         auto output_low =
-            std::dynamic_pointer_cast<opset4::Constant>(pattern_map[output_low_pattern].get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map[output_low_pattern].get_node_shared_ptr());
         if (!output_low)
             return false;
         auto output_high =
-            std::dynamic_pointer_cast<opset4::Constant>(pattern_map[output_high_pattern].get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map[output_high_pattern].get_node_shared_ptr());
         if (!output_high)
             return false;
-        auto fq = std::dynamic_pointer_cast<opset4::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
+        auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
         if (!fq)
             return false;
         auto zero_point = pattern_map[zero_point_pattern];
@@ -136,9 +140,11 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         }
 
         std::shared_ptr<Node> new_out_low =
-            std::make_shared<opset4::Multiply>(std::make_shared<opset4::Subtract>(output_low, zero_point), scale);
+            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(output_low, zero_point),
+                                                   scale);
         std::shared_ptr<Node> new_out_high =
-            std::make_shared<opset4::Multiply>(std::make_shared<opset4::Subtract>(output_high, zero_point), scale);
+            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(output_high, zero_point),
+                                                   scale);
 
         // check if new_out_low/high shapes are broadcastable to FQ's input
         auto data_shape = data.get_partial_shape();
@@ -163,7 +169,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
             new_out_high = const_out_high;
 
         auto new_fq =
-            std::make_shared<opset4::FakeQuantize>(data, input_low, input_high, new_out_low, new_out_high, levels);
+            std::make_shared<ov::op::v0::FakeQuantize>(data, input_low, input_high, new_out_low, new_out_high, levels);
         new_fq->set_friendly_name(mul->get_friendly_name());
 
         copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
@@ -172,6 +178,6 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

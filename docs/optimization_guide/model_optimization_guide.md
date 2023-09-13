@@ -8,40 +8,32 @@
 
    ptq_introduction
    tmo_introduction
-   (Experimental) Protecting Model <pot_ranger_README>
 
 
-Model optimization is an optional offline step of improving final model performance by applying special optimization methods, such as quantization, pruning, preprocessing optimization, etc. OpenVINO provides several tools to optimize models at different steps of model development:
+Model optimization is an optional offline step of improving the final model performance and reducing the model size by applying special optimization methods, such as 8-bit quantization, pruning, etc. OpenVINO offers two optimization paths implemented in `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__:
 
-- :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` implements most of the optimization parameters to a model by default. Yet, you are free to configure mean/scale values, batch size, RGB vs BGR input channels, and other parameters to speed up preprocess of a model (:doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`).
+- :doc:`Post-training Quantization <ptq_introduction>` is designed to optimize the inference of deep learning models by applying the post-training 8-bit integer quantization that does not require model retraining or fine-tuning.
 
-- :doc:`Post-training Quantization <pot_introduction>` is designed to optimize inference of deep learning models by applying post-training methods that do not require model retraining or fine-tuning, for example, post-training 8-bit integer quantization.
+- :doc:`Training-time Optimization <tmo_introduction>`, a suite of advanced methods for training-time model optimization within the DL framework, such as PyTorch and TensorFlow 2.x. It supports methods like Quantization-aware Training, Structured and Unstructured Pruning, etc. 
 
-- :doc:`Training-time Optimization <nncf_ptq_introduction>`, a suite of advanced methods for training-time model optimization within the DL framework, such as PyTorch and TensorFlow 2.x. It supports methods, like Quantization-aware Training and Filter Pruning. NNCF-optimized models can be inferred with OpenVINO using all the available workflows.
+.. note:: OpenVINO also supports optimized models (for example, quantized) from source frameworks such as PyTorch, TensorFlow, and ONNX (in Q/DQ; Quantize/DeQuantize format). No special steps are required in this case and optimized models can be converted to the OpenVINO Intermediate Representation format (IR) right away.
 
+Post-training Quantization is the fastest way to optimize a model and should be applied first, but it is limited in terms of achievable accuracy-performance trade-off. The recommended approach to obtain OpenVINO quantized model is to convert a model from original framework to ``ov.Model`` and ensure that the model works correctly in OpenVINO, for example, by calculating the model metrics. Then, ``ov.Model`` can be used as input for the ``nncf.quantize()`` method to get the quantized model (see the diagram below).
 
-Detailed workflow:
-##################
-
-To understand which development optimization tool you need, refer to the diagram:
+In case of unsatisfactory accuracy or performance after Post-training Quantization, Training-time Optimization can be used as an option.
 
 .. image:: _static/images/DEVELOPMENT_FLOW_V3_crunch.svg
 
-Post-training methods are limited in terms of achievable accuracy-performance trade-off for optimizing models. In this case, training-time optimization with NNCF is an option.
-
-Once the model is optimized using the aforementioned tools it can be used for inference using the regular OpenVINO inference workflow. No changes to the inference code are required.
+Once the model is optimized using the aforementioned methods, it can be used for inference using the regular OpenVINO inference workflow. No changes to the inference code are required.
 
 .. image:: _static/images/WHAT_TO_USE.svg
-
-Post-training methods are limited in terms of achievable accuracy, which may degrade for certain scenarios.  In such cases, training-time optimization with NNCF may give better results.
-
-Once the model has been optimized using the aforementioned tools, it can be used for inference using the regular OpenVINO inference workflow. No changes to the code are required.
-
-If you are not familiar with model optimization methods, refer to :doc:`post-training methods <pot_introduction>`.
 
 Additional Resources
 ####################
 
+- :doc:`Post-training Quantization <ptq_introduction>`
+- :doc:`Training-time Optimization <tmo_introduction>`
 - :doc:`Deployment optimization <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`
+- `HuggingFace Optimum Intel <https://huggingface.co/docs/optimum/intel/optimization_ov>`__
 
 @endsphinxdirective

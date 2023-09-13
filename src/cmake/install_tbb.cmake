@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include(cmake/ie_parallel.cmake)
+include(cmake/ov_parallel.cmake)
 
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
@@ -22,8 +22,10 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
 
     find_file(_ov_tbbbind_2_5
               NAMES "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_5${CMAKE_SHARED_LIBRARY_SUFFIX}"
+                    # TBB versions prior 2021.4.0 name library as tbbbind_2_4
+                    "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_4${CMAKE_SHARED_LIBRARY_SUFFIX}"
               HINTS "${_tbb_libs_dir}"
-              "Path to TBBBind 2.5+ library"
+              DOC "Path to TBBBind 2.5+ library"
               NO_DEFAULT_PATH
               NO_CMAKE_FIND_ROOT_PATH)
 
@@ -96,10 +98,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(_ov_system_tbb_is_obsolete ON)
     endif()
 
-    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$" AND
         NOT ENABLE_SYSTEM_TBB AND
         NOT _ov_system_tbb_is_obsolete)
-        message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
+        message(FATAL_ERROR "Debian | RPM | Conda-forge | brew | vcpkg | Conan packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
     if(ENABLE_SYSTEM_TBB)
@@ -183,7 +185,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}")
     elseif(tbb_downloaded)
-        set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb/")
+        set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb")
 
         if(WIN32)
             install(DIRECTORY "${TBBROOT}/bin"

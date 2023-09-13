@@ -9,9 +9,10 @@
 #include <sstream>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "dev/preprocessing/preprocessing.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/runtime/common.hpp"
 
 using namespace testing;

@@ -6,7 +6,6 @@
 
 #include "tf_utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 using namespace ov::frontend::tensorflow::tests;
 

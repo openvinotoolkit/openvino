@@ -15,6 +15,8 @@ namespace cldnn {
 struct read_value : public primitive_base<read_value> {
     CLDNN_DECLARE_PRIMITIVE(read_value)
 
+    read_value() : primitive_base("", {}) {}
+
     /// @brief Constructs ReadValue primitive.
     /// @param id This primitive id
     /// @param inputs Input parameters ids
@@ -38,6 +40,18 @@ struct read_value : public primitive_base<read_value> {
         auto rhs_casted = downcast<const read_value>(rhs);
 
         return variable_id == rhs_casted.variable_id;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<read_value>::save(ob);
+        ob << variable_id;
+        ob << output_layout;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<read_value>::load(ib);
+        ib >> variable_id;
+        ib >> output_layout;
     }
 };
 }  // namespace cldnn

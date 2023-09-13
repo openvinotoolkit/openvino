@@ -19,7 +19,7 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
     using kernel_selector_t = kernel_selector::count_nonzero_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::count_nonzero_params, kernel_selector::count_nonzero_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::count_nonzero_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<count_nonzero_impl>(*this);
@@ -43,7 +43,7 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
     using kernel_selector_t = kernel_selector::gather_nonzero_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::gather_nonzero_params, kernel_selector::gather_nonzero_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_nonzero_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_nonzero_impl>(*this);
@@ -116,3 +116,5 @@ attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::count_nonzero_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nonzero_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::count_nonzero)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather_nonzero)

@@ -2,14 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_library(rapidjson INTERFACE)
-
-set_target_properties(rapidjson PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/rapidjson>
-)
-
-ov_install_static_lib(rapidjson gpu)
-
 #
 # oneDNN for GPU plugin
 #
@@ -22,6 +14,20 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
         set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;INNER_PRODUCT;MATMUL;REORDER;POOLING;REDUCTION")
         set(ONEDNN_ENABLED_ISA "XEHP;XEHPG;XEHPC")
+
+        if(X86_64)
+            set(ONEDNN_TARGET_ARCH "X64" CACHE STRING "" FORCE)
+        elseif(X86)
+            set(ONEDNN_TARGET_ARCH "X86" CACHE STRING "" FORCE)
+        elseif(RISCV64)
+            set(ONEDNN_TARGET_ARCH "RV64" CACHE STRING "" FORCE)
+        elseif(ARM)
+            set(ONEDNN_TARGET_ARCH "ARM" CACHE STRING "" FORCE)
+        elseif(AARCH64)
+            set(ONEDNN_TARGET_ARCH "AARCH64" CACHE STRING "" FORCE)
+        else()
+            message(WARNING "Intel GPU plugin unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+        endif()
 
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
             ie_add_compiler_flags(-Wno-undef)
@@ -65,18 +71,21 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND cmake_extra_args "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}")
         endif()
 
+        # propogate OpenCL if explicitly specified
+        if(OpenCL_LIBRARY)
+            list(APPEND cmake_extra_args "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}")
+        endif()
+        if(OpenCL_INCLUDE_DIR)
+            list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}")
+        endif()
+
         ExternalProject_Add(onednn_gpu_build
+            # Directory Options:
+            PREFIX "${ONEDNN_PREFIX_DIR}"
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
             BINARY_DIR "${ONEDNN_BUILD_DIR}"
             INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
-            PREFIX "${ONEDNN_PREFIX_DIR}"
-            EXCLUDE_FROM_ALL ON
-            CMAKE_CACHE_ARGS
-                # The arguments below requires list to be passed as argument
-                # which doesn't work properly when passed to CMAKE_ARGS.
-                # Thus we pass it via CMAKE_CACHE_ARGS
-                "-DDNNL_ENABLE_PRIMITIVE:STRING=${ONEDNN_ENABLED_PRIMITIVES}"
-                "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=${ONEDNN_ENABLED_ISA}"
+            # Configure Step Options:
             CMAKE_ARGS
                 ${cmake_extra_args}
                 "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
@@ -87,11 +96,11 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
                 "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
+                "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
                 "-DDNNL_CPU_RUNTIME=NONE"
                 "-DDNNL_GPU_RUNTIME=OCL"
-                "-DDNNL_LIBRARY_NAME=onednn_gpu"
+                "-DDNNL_LIBRARY_NAME=openvino_onednn_gpu"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
-                "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
                 "-DDNNL_ENABLE_PRIMITIVE_CACHE=OFF"
                 "-DDNNL_ENABLE_WORKLOAD=INFERENCE"
@@ -101,14 +110,27 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_BUILD_EXAMPLES=OFF"
                 "-DDNNL_BLAS_VENDOR=NONE"
                 "-DDNNL_LIBRARY_TYPE=STATIC"
+                "-DDNNL_EXPERIMENTAL_PROFILING=ON"
                 "-DONEDNN_BUILD_GRAPH=OFF"
-                "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
-                "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
+                # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
+                # Conan's FindOpenCL.cmake module does not set OpenCL_INCLUDE_DIRS, so we need to set it manually
+                "-DOpenCL_INCLUDE_DIRS=$<TARGET_PROPERTY:OpenCL::OpenCL,INTERFACE_INCLUDE_DIRECTORIES>"
+                # Conan calls cmake with default value for CMP0091, so we have to bypass it to oneDNN build
+                # because we bypass conan_toolchain.cmake via CMAKE_TOOLCHAIN_FILE
+                "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW"
+            CMAKE_CACHE_ARGS
+                # The arguments below requires list to be passed as argument
+                # which doesn't work properly when passed to CMAKE_ARGS.
+                # Thus we pass it via CMAKE_CACHE_ARGS
+                "-DDNNL_ENABLE_PRIMITIVE:STRING=${ONEDNN_ENABLED_PRIMITIVES}"
+                "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=${ONEDNN_ENABLED_ISA}"
+            # Target Options:
+            EXCLUDE_FROM_ALL ON
         )
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES
-            INTERFACE_LINK_DIRECTORIES "${ONEDNN_INSTALL_DIR}/lib/$<CONFIG>"
-            INTERFACE_LINK_LIBRARIES "onednn_gpu"
+            INTERFACE_LINK_DIRECTORIES "${ONEDNN_INSTALL_DIR}/lib"
+            INTERFACE_LINK_LIBRARIES "openvino_onednn_gpu"
             INTERFACE_INCLUDE_DIRECTORIES "${ONEDNN_INSTALL_DIR}/include"
             INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
         )

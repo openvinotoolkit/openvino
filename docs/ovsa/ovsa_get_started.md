@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to setup hardware and virtual machines to use the OpenVINO™ Security Add-on to access and run access controlled models.
+
+
 This guide provides instructions for people who use the OpenVINO™ Security Add-on to create, distribute, and use models that are created with the OpenVINO™ toolkit:
 
 * **Model Developer**: The Model Developer interacts with the Independent Software Vendor to control the User access to models. This document shows you how to setup hardware and virtual machines to use the OpenVINO™ Security Add-on to define access control to your OpenVINO™ models and then provide the access controlled models to the users. 
@@ -18,55 +22,26 @@ The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <o
 The OpenVINO™ Security Add-on consists of three components that run in Kernel-based Virtual Machines (KVMs). These components provide a way to run security-sensitive operations in an isolated environment. A brief description of the three components are as follows. Click each triangled line for more information about each. 
 
 
-.. raw:: html
-   
-   <div class="collapsible-section" data-title="<strong>OpenVINO™ Security Add-on Tool</strong>: As a Model Developer or Independent Software Vendor, you use the OpenVINO™ Security Add-on Tool(`ovsatool`) to generate a access controlled model and master license.">
-   
+.. dropdown:: OpenVINO™ Security Add-on Tool: As a Model Developer or Independent Software Vendor, you use the OpenVINO™ Security Add-on Tool (``ovsatool``) to generate a access controlled model and master license.
+ 
+    - The Model Developer generates a access controlled model from the OpenVINO™ toolkit output. The access controlled model uses the model's Intermediate Representation (IR) files to create a access controlled output file archive that are distributed to Model Users. The Developer can also put the archive file in long-term storage or back it up without additional security. 
+    - The Model Developer uses the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>) to generate and manage cryptographic keys and related collateral for the access controlled models. Cryptographic material is only available in a virtual machine (VM) environment. The OpenVINO™ Security Add-on key management system lets the Model Developer to get external Certificate Authorities to generate certificates to add to a key-store. 
+    - The Model Developer generates user-specific licenses in a JSON format file for the access controlled model. The Model Developer can define global or user-specific licenses and attach licensing policies to the licenses. For example, the Model Developer can add a time limit for a model or limit the number of times a user can run a model. 
 
-- The Model Developer generates a access controlled model from the OpenVINO™ toolkit output. The access controlled model uses the model's Intermediate Representation (IR) files to create a access controlled output file archive that are distributed to Model Users. The Developer can also put the archive file in long-term storage or back it up without additional security. 
+.. dropdown:: OpenVINO™ Security Add-on License Service: Use the OpenVINO™ Security Add-on License Service to verify user parameters.
 
-- The Model Developer uses the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>) to generate and manage cryptographic keys and related collateral for the access controlled models. Cryptographic material is only available in a virtual machine (VM) environment. The OpenVINO™ Security Add-on key management system lets the Model Developer to get external Certificate Authorities to generate certificates to add to a key-store. 
+   - The Independent Software Vendor hosts the OpenVINO™ Security Add-on License Service, which responds to license validation requests when a user attempts to load a access controlled model in a model server. The licenses are registered with the OpenVINO™ Security Add-on License Service.
+   - When a user loads the model, the OpenVINO™ Security Add-on Runtime contacts the License Service to make sure the license is valid and within the parameters that the Model Developer defined with the OpenVINO™ Security Add-on Tool (``ovsatool``). The user must be able to reach the Independent Software Vendor's License Service over the Internet. 
 
-- The Model Developer generates user-specific licenses in a JSON format file for the access controlled model. The Model Developer can define global or user-specific licenses and attach licensing policies to the licenses. For example, the Model Developer can add a time limit for a model or limit the number of times a user can run a model. 
+.. dropdown:: OpenVINO™ Security Add-on Runtime: Users install and use the OpenVINO™ Security Add-on Runtime on a virtual machine.
 
+   Users host the OpenVINO™ Security Add-on Runtime component in a virtual machine. 
 
-.. raw:: html
-   
-   </div>
+   Externally from the OpenVINO™ Security Add-on, the User adds the access controlled model to the OpenVINO™ Model Server config file. The OpenVINO™ Model Server attempts to load the model in memory. At this time, the OpenVINO™ Security Add-on Runtime component validates the user's license for the access controlled model against information stored in the License Service provided by the Independent Software Vendor. 
 
-
-.. raw:: html
-   
-   <div class="collapsible-section" data-title="<strong>OpenVINO™ Security Add-on License Service</strong>: Use the OpenVINO™ Security Add-on License Service to verify user parameters.">
+   After the license is successfully validated, the OpenVINO™ Model Server loads the model and services the inference requests. 
 
 
-- The Independent Software Vendor hosts the OpenVINO™ Security Add-on License Service, which responds to license validation requests when a user attempts to load a access controlled model in a model server. The licenses are registered with the OpenVINO™ Security Add-on License Service.
-
-- When a user loads the model, the OpenVINO™ Security Add-on Runtime contacts the License Service to make sure the license is valid and within the parameters that the Model Developer defined with the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>). The user must be able to reach the Independent Software Vendor's License Service over the Internet. 
-
-.. raw:: html
-   
-   </div>
-
-
-.. raw:: html
-   
-   <div class="collapsible-section" data-title="<strong>OpenVINO™ Security Add-on Runtime</strong>: Users install and use the OpenVINO™ Security Add-on Runtime on a virtual machine. ">
-
-
-Users host the OpenVINO™ Security Add-on Runtime component in a virtual machine. 
-
-Externally from the OpenVINO™ Security Add-on, the User adds the access controlled model to the OpenVINO™ Model Server config file. The OpenVINO™ Model Server attempts to load the model in memory. At this time, the OpenVINO™ Security Add-on Runtime component validates the user's license for the access controlled model against information stored in the License Service provided by the Independent Software Vendor. 
-
-After the license is successfully validated, the OpenVINO™ Model Server loads the model and services the inference requests. 
-
-
-.. raw:: html
-   
-   </div>
-
-
-<br>
 
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 
@@ -91,7 +66,7 @@ For example:
 +====================================+===============================================================================================================================================================================================================================================================================+
 | Host Machine                       | Physical hardware on which the KVM and Guest VM share set up.                                                                                                                                                                                                                 |
 | Kernel-based Virtual Machine (KVM) | The OpenVINO™ Security Add-on runs in this virtual machine because it provides an isolated environment for security sensitive operations.                                                                                                                                     |
-| Guest VM                           | The Model Developer uses the Guest VM to enable access control to the completed model. <br>The Independent Software Provider uses the Guest VM to host the License Service.<br>The User uses the Guest VM to contact the License Service and run the access controlled model. |
+| Guest VM                           | The Model Developer uses the Guest VM to enable access control to the completed model. The Independent Software Provider uses the Guest VM to host the License Service. The User uses the Guest VM to contact the License Service and run the access controlled model.        |
 +------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 .. _prerequisites_ovsa:
@@ -101,13 +76,13 @@ Prerequisites
 
 **Hardware**
 
-* Intel® Core™ or Xeon® processor<br>
+* Intel® Core™ or Xeon® processor
 
 **Operating system, firmware, and software**
 
-* Ubuntu* Linux* 18.04 on the Host Machine.<br>
+* Ubuntu* Linux* 18.04 on the Host Machine.
 * TPM version 2.0-conformant Discrete Trusted Platform Module (dTPM) or Firmware Trusted Platform Module (fTPM)
-* Secure boot is enabled.<br>
+* Secure boot is enabled.
 
 **Other**
 
@@ -151,8 +126,8 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
       
       kvm-ok 
    
-   The output should show: <br>
-   ``INFO: /dev/kvm exists`` <br>
+   The output should show:
+   ``INFO: /dev/kvm exists`` 
    ``KVM acceleration can be used``
 	
    If your output is different, modify your BIOS settings to enable hardware virtualization.
@@ -180,9 +155,9 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
 5.  Build and install the `libtpm package <https://github.com/stefanberger/libtpms/>`__. 
 6.  Build and install the `swtpm package <https://github.com/stefanberger/swtpm/>`__.
 7.  Add the ``swtpm`` package to the ``$PATH`` environment variable.
-8.  Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__ . For innstallation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__.
-9.  Install the software tool `tpm2-abmrd <https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz>`__ . For innstallation information follow `here <https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md>`__.
-10. Install the `tpm2-tools <https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz>`__ . For innstallation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__.
+8.  Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__ . For installation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__.
+9.  Install the software tool `tpm2-abmrd <https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz>`__ . For installation information follow `here <https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md>`__.
+10. Install the `tpm2-tools <https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz>`__ . For installation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__.
 11. Install the `Docker packages <https://docs.docker.com/engine/install/ubuntu/>`__ .
     
     .. note:: 
@@ -196,7 +171,7 @@ The following are installed and ready to use:
 * QEMU
 * SW-TPM
 * HW-TPM support
-* Docker<br>
+* Docker
 	
 You're ready to configure the Host Machine for networking. 
 
@@ -268,7 +243,7 @@ This example in this step uses the following names. Your configuration might use
 
    .. code-block:: sh
       
-      4: br0:<br><BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000<br>inet 123.123.123.123/<mask> brd 321.321.321.321 scope global dynamic br0
+      4: br0:<BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000inet 123.123.123.123/<mask> brd 321.321.321.321 scope global dynamic br0
    
 7. Create a script named ``br0-qemu-ifup`` to bring up the ``br0`` interface. Add the following script contents:
 
@@ -382,7 +357,7 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
    * **Option 1**: Use a script to install additional software
       1. Copy the script ``install_guest_deps.sh`` from the ``Scripts/reference directory`` of the OVSA repository to the Guest VM
       2. Run the script.
-      3. Shut down the Guest VM.<br>
+      3. Shut down the Guest VM.
 
    * **Option 2** : Manually install additional software
       1. Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__. 
@@ -392,7 +367,7 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
       3. Install the `tpm2-tools <https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz>`__. 
       For installation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__
       4. Install the `Docker packages <https://docs.docker.com/engine/install/ubuntu/>`__
-      5. Shut down the Guest VM.<br>
+      5. Shut down the Guest VM.
 
 9. On the host, create a directory to support the virtual TPM device and provision its certificates. Only ``root`` should have read/write permission to this directory:
    
@@ -456,7 +431,7 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
 Step 5: Set Up one Guest VM for the User role
 +++++++++++++++++++++++++++++++++++++++++++++
 
-1. Choose **ONE** of these options to create a Guest VM for the User role:<br>
+1. Choose **ONE** of these options to create a Guest VM for the User role:
 
    **Option 1: Copy and Rename the ovsa_isv_dev_vm_disk.qcow2 disk image**
 
@@ -481,7 +456,7 @@ Step 5: Set Up one Guest VM for the User role
       sudo rm /etc/machine-id
       systemd-machine-id-setup
    
-   6. Shut down the Guest VM.<br><br>
+   6. Shut down the Guest VM.
 
    **Option 2: Manually create the Guest VM**
 
@@ -522,14 +497,14 @@ Step 5: Set Up one Guest VM for the User role
       **Option 1: Use a script to install additional software**
       1. Copy the script ``install_guest_deps.sh`` from the ``Scripts/reference`` directory of the OVSA repository to the Guest VM
       2. Run the script.
-      3. Shut down the Guest VM.<br><br>
+      3. Shut down the Guest VM.
 	        
       **Option 2: Manually install additional software**
-      1. Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__ For innstallation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__
+      1. Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__ For installation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__
       2. Install the software tool `tpm2-abmrd <https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz>`__
-      For innstallation information follow `here <https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md>`__
+      For installation information follow `here <https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md>`__
       3. Install the `tpm2-tools <https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz>`__
-      For innstallation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__
+      For installation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__
       4. Install the `Docker packages <https://docs.docker.com/engine/install/ubuntu/>`__ 
       5. Shut down the Guest VM.
 

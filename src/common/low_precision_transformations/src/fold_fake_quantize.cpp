@@ -8,20 +8,20 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(FoldFakeQuantizeTransformation);
-    auto fakeQuantize = pattern::wrap_type<opset1::FakeQuantize>();
+    auto fakeQuantize = pattern::wrap_type<ov::opset1::FakeQuantize>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -29,12 +29,12 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fakeQuantize, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(fakeQuantize, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    const auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
+bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+    const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(m.get_match_root());
     if (fakeQuantize == nullptr) {
         return false;
     }
@@ -49,7 +49,7 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
     }
 
     const auto resultConstant = NetworkHelper::fold_fake_quantize(fakeQuantize, false);
-    if (ov::is_type<opset1::Constant>(resultConstant)) {
+    if (ov::is_type<ov::opset1::Constant>(resultConstant)) {
         replace_node(fakeQuantize, resultConstant);
         return true;
     }
@@ -57,14 +57,14 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
     return false;
 }
 
-bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ngraph::Node> node) const {
-    const auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(node);
+bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ov::Node> node) const {
+    const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(node);
     if (!fakeQuantize) {
         return false;
     }
 
-    const auto outputLow = as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3));
-    const auto outputHigh = as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4));
+    const auto outputLow = as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3));
+    const auto outputHigh = as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4));
 
     if (outputLow == nullptr || outputHigh == nullptr) {
         return false;
@@ -81,7 +81,7 @@ bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContex
         return false;
     }
 
-    const auto fq = ov::as_type_ptr<opset1::FakeQuantize>(op);
+    const auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(op);
     if (!fq) {
         return false;
     }
@@ -102,4 +102,4 @@ bool FoldFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> 
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

@@ -59,7 +59,7 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initReference() const {
                                                                               std::vector<float>{127},
                                                                               ov::element::i8);
     auto fq1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(fq0, ov::element::f32, fq1_data);
-    auto subgraph0 = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data0},
+    auto subgraph0 = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0},
                                           std::make_shared<ov::Model>(NodeVector{fq1}, ParameterVector{indata0}));
 
     auto indata1 = std::make_shared<op::v0::Parameter>(precision, subgraph0->get_shape());
@@ -71,7 +71,7 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initReference() const {
                                                                               std::vector<float>{255},
                                                                               ov::element::u8);
     auto fq2 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(indata1, ov::element::f32, fq2_data);
-    auto subgraph1 = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{subgraph0},
+    auto subgraph1 = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{subgraph0},
                                       std::make_shared<ov::Model>(NodeVector{fq2}, ParameterVector{indata1}));
 
     return std::make_shared<ov::Model>(NodeVector{subgraph1}, ParameterVector{data0});

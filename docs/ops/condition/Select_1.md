@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Select-1 - an element-wise, condition operation, which 
+                can be performed on three given tensors in OpenVINO.
+
 **Versioned name**: *Select-1*
 
 **Category**: *Condition*
@@ -47,7 +51,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Select">
         <input>

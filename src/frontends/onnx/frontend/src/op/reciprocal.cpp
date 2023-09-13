@@ -10,6 +10,7 @@
 #include "default_opset.hpp"
 #include "ngraph/op/constant.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -28,3 +29,4 @@ OutputVector reciprocal(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

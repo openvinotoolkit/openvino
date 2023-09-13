@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/pattern/matcher.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -33,7 +32,7 @@ namespace pass {
  *                               BrgemmCPU
  * @ingroup snippets
  */
-class BrgemmToBrgemmCPU: public ngraph::pass::MatcherPass {
+class BrgemmToBrgemmCPU: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("BrgemmToBrgemmCPU", "0");
     BrgemmToBrgemmCPU();

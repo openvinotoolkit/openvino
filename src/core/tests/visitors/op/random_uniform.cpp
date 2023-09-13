@@ -2,27 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset8.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/random_uniform.hpp"
+
+#include <gtest/gtest.h>
+
+#include "openvino/op/constant.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, random_uniform_op) {
-    NodeBuilder::get_ops().register_factory<opset8::RandomUniform>();
-    auto out_shape = make_shared<opset8::Constant>(element::i64, Shape{3}, vector<int64_t>{3, 2, 4});
-    auto min_val = make_shared<opset8::Constant>(element::f32, Shape{}, 0);
-    auto max_val = make_shared<opset8::Constant>(element::f32, Shape{}, 1);
+    NodeBuilder::get_ops().register_factory<ov::op::v8::RandomUniform>();
+    auto out_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, vector<int64_t>{3, 2, 4});
+    auto min_val = make_shared<ov::op::v0::Constant>(element::f32, Shape{}, 0);
+    auto max_val = make_shared<ov::op::v0::Constant>(element::f32, Shape{}, 1);
 
     const auto random_uniform =
-        make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::Type_t::f32, 150, 10);
+        make_shared<ov::op::v8::RandomUniform>(out_shape, min_val, max_val, element::Type_t::f32, 150, 10);
     NodeBuilder builder(random_uniform, {out_shape, min_val, max_val});
-    auto g_random_uniform = ov::as_type_ptr<opset8::RandomUniform>(builder.create());
+    auto g_random_uniform = ov::as_type_ptr<ov::op::v8::RandomUniform>(builder.create());
 
     const auto expected_attr_count = 3;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

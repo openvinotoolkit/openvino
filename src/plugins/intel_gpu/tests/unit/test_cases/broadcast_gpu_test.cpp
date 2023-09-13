@@ -3,8 +3,8 @@
 //
 
 #include "test_utils.h"
-#include "ngraph/runtime/reference/tile.hpp"
-#include "ngraph/runtime/reference/broadcast.hpp"
+#include "openvino/reference/tile.hpp"
+#include "openvino/reference/broadcast.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/broadcast.hpp>
@@ -29,9 +29,12 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
-    ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
-                                          ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
-                                          ov::AxisSet(broadcast_axes), sizeof(T));
+    ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
+                             reinterpret_cast<char*>(output_data.data()),
+                             ov::Shape(input_shape.begin(), input_shape.end()),
+                             ov::Shape(output_shape.begin(), output_shape.end()),
+                             ov::AxisSet(broadcast_axes),
+                             sizeof(T));
 
     ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
@@ -89,7 +92,8 @@ void start_broadcast_test_dynamic(format input_format,
                                   ov::Shape output_shape,
                                   ov::Shape input_data_shape,
                                   ov::AxisSet broadcast_axes,
-                                  bool is_output_static = false) {
+                                  bool is_output_static = false,
+                                  impl_types impl_type = impl_types::any) {
     size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
@@ -100,9 +104,12 @@ void start_broadcast_test_dynamic(format input_format,
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
-    ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
-                                          ov::Shape(input_data_shape.begin(), input_data_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
-                                          ov::AxisSet(broadcast_axes), sizeof(T));
+    ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
+                             reinterpret_cast<char*>(output_data.data()),
+                             ov::Shape(input_data_shape.begin(), input_data_shape.end()),
+                             ov::Shape(output_shape.begin(), output_shape.end()),
+                             ov::AxisSet(broadcast_axes),
+                             sizeof(T));
 
     ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
@@ -144,6 +151,13 @@ void start_broadcast_test_dynamic(format input_format,
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
+    const bool force_impl = impl_type != impl_types::any;
+    if (force_impl) {
+        auto forcing_map = ov::intel_gpu::ImplForcingMap{{"broadcast", {input_format, "", impl_type}},
+                                                         {"reorder", {fmt, "", impl_type}}};
+        config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+    }
+
     set_values(input, input_data);
 
     network network(engine, topology, config);
@@ -152,7 +166,10 @@ void start_broadcast_test_dynamic(format input_format,
         network.set_input_data("target_shape", target_shape_mem);
     }
 
-    auto inst = network.get_primitive("broadcast");
+    // In case of impl forcing optimize_data property will set to true and additional
+    // reorders optimization pass will be tiggered, so change expected primitive id
+    const auto prim_id = force_impl ? "output" : "broadcast";
+    auto inst = network.get_primitive(prim_id);
     auto impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
     ASSERT_TRUE(impl->is_dynamic());
@@ -181,9 +198,12 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
-    ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
-                                          ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
-                                          ov::AxisSet(broadcast_axes), sizeof(T));
+    ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
+                             reinterpret_cast<char*>(output_data.data()),
+                             ov::Shape(input_shape.begin(), input_shape.end()),
+                             ov::Shape(output_shape.begin(), output_shape.end()),
+                             ov::AxisSet(broadcast_axes),
+                             sizeof(T));
 
     ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
@@ -291,6 +311,22 @@ TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_o
     start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3});
 }
 
+// dynamic kernel cpu
+TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
+    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
+}
+
+TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
+    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, true, impl_types::cpu);
+}
+
+TEST(broadcast_cpu_impl_int64_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
+    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
+}
+
+TEST(broadcast_cpu_impl_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_output) {
+    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, false, impl_types::cpu);
+}
 
 /* Expected golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,

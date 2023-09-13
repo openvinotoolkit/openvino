@@ -21,7 +21,7 @@ struct concatenation_onednn : typed_primitive_onednn_impl<concatenation, dnnl::c
     using parent = typed_primitive_onednn_impl<concatenation, dnnl::concat::primitive_desc, dnnl::concat>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::concatenation_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -34,13 +34,13 @@ protected:
         int input_idx = DNNL_ARG_MULTIPLE_SRC;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             auto& input = instance.input_memory(i);
-            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(static_cast<uint8_t>(i)));
+            auto offset = onednn::get_offset(instance.get_input_layout(i), _pd.dnnl::primitive_desc_base::src_desc(static_cast<uint8_t>(i)));
             args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<uint8_t>(i)), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            auto offset = onednn::get_f_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
@@ -108,6 +108,8 @@ public:
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
+        _scratchpad_md = _pd.scratchpad_desc();
+
         _prim = dnnl::concat(_pd, prim_cache);
 #endif
     }
@@ -115,7 +117,7 @@ public:
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        if (arg.can_be_optimized())
+        if (impl_params.can_be_optimized())
             return make_unique<concatenation_onednn>(engine, config);
         auto prim = impl_params.typed_desc<concatenation>();
         auto attr = arg.get_onednn_primitive_attributes();

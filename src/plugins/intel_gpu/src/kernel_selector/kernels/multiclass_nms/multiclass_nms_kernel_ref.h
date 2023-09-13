@@ -12,17 +12,17 @@ struct multiclass_nms_params : public base_params {
     multiclass_nms_params()
         : base_params(KernelType::MULTICLASS_NMS) {}
 
-    SortResultType sort_result_type;
-    bool sort_result_across_batch;
-    Datatype indices_output_type;
-    float iou_threshold;
-    float score_threshold;
-    int nms_top_k;
-    int keep_top_k;
-    int background_class;
-    bool normalized;
-    float nms_eta;
-    bool has_roisnum;
+    SortResultType sort_result_type = SortResultType::CLASSID;
+    bool sort_result_across_batch = false;
+    Datatype indices_output_type = Datatype::F16;
+    float iou_threshold = 0.0f;
+    float score_threshold = 0.0f;
+    int nms_top_k = 0;
+    int keep_top_k = 0;
+    int background_class = 0;
+    bool normalized = false;
+    float nms_eta = 0.0f;
+    bool has_roisnum = false;
 };
 
 struct multiclass_nms_optional_params : public optional_params {

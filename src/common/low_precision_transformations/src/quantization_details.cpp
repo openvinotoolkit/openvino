@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <low_precision/quantization_details.hpp>
+#include "low_precision/quantization_details.hpp"
 #include <math.h>
 
 #include <algorithm>
@@ -17,11 +17,11 @@
 
 #include "low_precision/lpt_itt.hpp"
 
-#include <low_precision/common/ie_lpt_exception.hpp>
-#include <low_precision/network_helper.hpp>
-#include <low_precision/layer_transformation.hpp>
+#include "low_precision/common/ie_lpt_exception.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -49,13 +49,13 @@ QuantizationDetails::QuantizationDetails(const size_t levels, const std::vector<
       outputLowValues(outputLowValues),
       outputHighValues(outputHighValues) {}
 
-bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize, bool isConvertExpected) {
+bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<ov::opset1::FakeQuantize> quantize, bool isConvertExpected) {
     const auto inputs = quantize->inputs();
     for (size_t i = 1; i < inputs.size(); ++i) {
         const auto node = inputs[i].get_source_output().get_node_shared_ptr();
-        bool supported = ov::is_type<opset1::Constant>(node);
+        bool supported = ov::is_type<ov::opset1::Constant>(node);
         if (!supported && isConvertExpected) {
-            supported = ov::is_type<op::Convert>(node) && ov::is_type<opset1::Constant>(node->get_input_node_ptr(0));
+            supported = ov::is_type<ov::opset1::Convert>(node) && ov::is_type<ov::opset1::Constant>(node->get_input_node_ptr(0));
         }
         if (!supported) {
             return false;
@@ -65,14 +65,14 @@ bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQu
 }
 
 void QuantizationDetails::getInputIntervals(
-        std::shared_ptr<opset1::FakeQuantize> quantize,
+        std::shared_ptr<ov::opset1::FakeQuantize> quantize,
         std::vector<float>& inputLowValues,
         std::vector<float>& inputHighValues) {
-    std::shared_ptr<opset1::Constant> inputLowLayer = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(1));
+    std::shared_ptr<ov::opset1::Constant> inputLowLayer = ov::as_type_ptr<ov::opset1::Constant>(quantize->get_input_node_shared_ptr(1));
     const std::vector<float>& inputLowBlobValues = getBlobValue(inputLowLayer);
     inputLowValues.insert(inputLowValues.end(), inputLowBlobValues.begin(), inputLowBlobValues.end());
 
-    std::shared_ptr<opset1::Constant> inputHighLayer = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(2));
+    std::shared_ptr<ov::opset1::Constant> inputHighLayer = ov::as_type_ptr<ov::opset1::Constant>(quantize->get_input_node_shared_ptr(2));
     const std::vector<float> inputHighBlobValues = getBlobValue(inputHighLayer);
     inputHighValues.insert(inputHighValues.end(), inputHighBlobValues.begin(), inputHighBlobValues.end());
 
@@ -83,14 +83,14 @@ void QuantizationDetails::getInputIntervals(
 
 
 void QuantizationDetails::getOutputIntervals(
-        std::shared_ptr<opset1::FakeQuantize> quantize,
+        std::shared_ptr<ov::opset1::FakeQuantize> quantize,
         std::vector<float>& outputLowValues,
         std::vector<float>& outputHighValues) {
-    std::shared_ptr<opset1::Constant> outputLowLayer = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(3));
+    std::shared_ptr<ov::opset1::Constant> outputLowLayer = ov::as_type_ptr<ov::opset1::Constant>(quantize->get_input_node_shared_ptr(3));
     const std::vector<float>& outputLowBlobValues = getBlobValue(outputLowLayer);
     outputLowValues.insert(outputLowValues.end(), outputLowBlobValues.begin(), outputLowBlobValues.end());
 
-    std::shared_ptr<opset1::Constant> outputHighLayer = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(4));
+    std::shared_ptr<ov::opset1::Constant> outputHighLayer = ov::as_type_ptr<ov::opset1::Constant>(quantize->get_input_node_shared_ptr(4));
     const std::vector<float> outputHighBlobValues = getBlobValue(outputHighLayer);
     outputHighValues.insert(outputHighValues.end(), outputHighBlobValues.begin(), outputHighBlobValues.end());
 
@@ -99,16 +99,16 @@ void QuantizationDetails::getOutputIntervals(
     }
 }
 
-QuantizationDetails QuantizationDetails::getDetails(std::shared_ptr<opset1::FakeQuantize> quantize) {
+QuantizationDetails QuantizationDetails::getDetails(std::shared_ptr<ov::opset1::FakeQuantize> quantize) {
     if (!QuantizationDetails::outputLayoutIsSupported(quantize)) {
         return QuantizationDetails();
     }
 
-    const std::vector<float> inputLowValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(1))->cast_vector<float>();
-    const std::vector<float> inputHighValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(2))->cast_vector<float>();
+    const std::vector<float> inputLowValues = ov::as_type_ptr<ov::opset1::Constant>(quantize->get_input_node_shared_ptr(1))->cast_vector<float>();
+    const std::vector<float> inputHighValues = ov::as_type_ptr<ov::opset1::Constant>(quantize->get_input_node_shared_ptr(2))->cast_vector<float>();
 
-    const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(3))->cast_vector<float>();
-    const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(4))->cast_vector<float>();
+    const std::vector<float> outputLowValues = ov::as_type_ptr<ov::opset1::Constant>(quantize->get_input_node_shared_ptr(3))->cast_vector<float>();
+    const std::vector<float> outputHighValues = ov::as_type_ptr<ov::opset1::Constant>(quantize->get_input_node_shared_ptr(4))->cast_vector<float>();
 
     return QuantizationDetails(
         quantize->get_levels(),
@@ -163,7 +163,7 @@ float QuantizationDetails::getOutputHighValue(const size_t index) const {
 }
 
 std::vector<float> QuantizationDetails::getBlobValue(std::shared_ptr<Node> constantLayer) {
-    return ov::as_type_ptr<opset1::Constant>(constantLayer)->cast_vector<float>();
+    return ov::as_type_ptr<ov::opset1::Constant>(constantLayer)->cast_vector<float>();
 }
 
 bool QuantizationDetails::empty() const noexcept {
@@ -171,7 +171,7 @@ bool QuantizationDetails::empty() const noexcept {
 }
 
 bool QuantizationDetails::isSupportedLevel(const size_t level) {
-    using ngraph::pass::low_precision::levels;
+    using ov::pass::low_precision::levels;
     static const std::unordered_set<size_t> supported_levels = {
         levels::int4,  levels::int4_narrow_range,
         levels::int8,  levels::int8_narrow_range,
@@ -183,4 +183,4 @@ bool QuantizationDetails::isSupportedLevel(const size_t level) {
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

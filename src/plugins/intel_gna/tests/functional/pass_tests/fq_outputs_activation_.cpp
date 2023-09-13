@@ -51,7 +51,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_inputMinMax=(" << inputMinMax.first << ".." << inputMinMax.second << ")";
         result << "_levels=" << levels;
         result << "_outputs=" << outputCount;
@@ -79,7 +79,7 @@ protected:
 
         auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.first});
         auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
-        auto inputVector = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto split = ngraph::builder::makeSplit(inputVector[0], ngPrc, outputCount, 1);
 
         ngraph::ResultVector results;
@@ -129,7 +129,7 @@ const std::vector<size_t> outputCount = {1, 2, 4};
 INSTANTIATE_TEST_SUITE_P(smoke_fq_activation,
                          FQOutputsActivation,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(inputMinMax),

@@ -11,6 +11,8 @@ namespace cldnn {
 struct grn : public primitive_base<grn> {
     CLDNN_DECLARE_PRIMITIVE(grn)
 
+    grn() : primitive_base("", {}) {}
+
     /// @brief Constructs grn primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -25,7 +27,7 @@ struct grn : public primitive_base<grn> {
     {}
 
     /// @brief Bias value for whole output tensor.
-    float bias;
+    float bias = 0.0f;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -40,6 +42,16 @@ struct grn : public primitive_base<grn> {
         auto rhs_casted = downcast<const grn>(rhs);
 
         return bias == rhs_casted.bias;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<grn>::save(ob);
+        ob << bias;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<grn>::load(ib);
+        ib >> bias;
     }
 };
 }  // namespace cldnn

@@ -59,6 +59,9 @@ public:
     FrontEnd::Ptr load_by_model(const Types&... vars) {
         return load_by_model_impl({ov::Any{vars}...});
     }
+    FrontEnd::Ptr load_by_model(const std::vector<ov::Any>& variants) {
+        return load_by_model_impl(variants);
+    }
 
     /// \brief Gets list of registered frontends. Any not loaded frontends will be loaded by this call
     std::vector<std::string> get_available_front_ends();

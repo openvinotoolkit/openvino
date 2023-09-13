@@ -23,7 +23,7 @@ typedef std::tuple<
     ngraph::PartialShape,
     ngraph::op::PadMode,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     PadTransformationParam
 > PadTransformationParams;
 

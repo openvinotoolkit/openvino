@@ -19,7 +19,7 @@ struct pyramid_roi_align_impl : typed_primitive_impl_ocl<pyramid_roi_align> {
     using kernel_selector_t = kernel_selector::PyramidROIAlign_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::PyramidROIAlign_params, kernel_selector::PyramidROIAlign_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::pyramid_roi_align_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<pyramid_roi_align_impl>(*this);
@@ -72,3 +72,4 @@ attach_pyramid_roi_align_impl::attach_pyramid_roi_align_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pyramid_roi_align_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::pyramid_roi_align)

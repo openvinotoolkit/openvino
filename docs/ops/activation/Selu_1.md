@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about SeLU-1 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Selu-1*
 
 **Category**: *Activation function*
@@ -46,7 +50,8 @@ Another mathematical representation that may be found in other references:
 
 **Example**
 
-.. code-block::  cpp 
+.. code-block::  xml
+   :force:
 
     <layer ... type="Selu">
         <input>

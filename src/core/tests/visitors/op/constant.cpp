@@ -2,20 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/constant.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, constant_op) {
     vector<float> data{5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f};
@@ -60,7 +55,7 @@ TEST(attributes, constant_op_identical_elements) {
 
 TEST(attributes, constant_op_from_host_tensor_different_elements) {
     vector<int64_t> data{5, 4, 3, 2, 1, 0};
-    auto tensor = std::make_shared<runtime::HostTensor>(element::i64, Shape{2, 3}, &data[0]);
+    auto tensor = ov::Tensor(element::i64, Shape{2, 3}, &data[0]);
     auto k = make_shared<op::v0::Constant>(tensor);
     ASSERT_FALSE(k->get_all_data_elements_bitwise_identical());
     NodeBuilder builder(k);
@@ -76,7 +71,7 @@ TEST(attributes, constant_op_from_host_tensor_different_elements) {
 
 TEST(attributes, constant_op_from_host_tensor_identical_elements) {
     vector<int64_t> data{5, 5, 5, 5, 5, 5};
-    auto tensor = std::make_shared<runtime::HostTensor>(element::i64, Shape{2, 3}, &data[0]);
+    auto tensor = ov::Tensor(element::i64, Shape{2, 3}, &data[0]);
     auto k = make_shared<op::v0::Constant>(tensor);
     ASSERT_TRUE(k->get_all_data_elements_bitwise_identical());
     NodeBuilder builder(k);

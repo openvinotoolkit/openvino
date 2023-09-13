@@ -9,6 +9,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE) || (defined(__GNUC__) && (__GNUC__ < 4))
 #    define INFERENCE_ENGINE_API(...)       extern "C" __VA_ARGS__
 #    define INFERENCE_ENGINE_API_CPP(...)   __VA_ARGS__
@@ -40,7 +50,7 @@
 #    endif
 #elif defined(_MSC_VER)
 #    define INFERENCE_ENGINE_DEPRECATED(msg) __declspec(deprecated(msg))
-#    if __cplusplus >= 201402L
+#    if _MSC_VER >= 1900 /* VS2015 */
 #        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg) [[deprecated(msg)]]
 #    else
 #        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)

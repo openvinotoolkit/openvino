@@ -38,12 +38,12 @@ std::vector<layout> non_max_suppression_inst::calc_output_layouts(non_max_suppre
     };
 
     auto& memory_deps = impl_param.memory_deps;
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
     if (memory_deps.count(2)) {
         auto max_output_boxes_per_class_mem = memory_deps.at(2);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> max_output_boxes_per_class_lock(max_output_boxes_per_class_mem,
                                                                                       impl_param.get_stream());
-        auto max_output_boxes_per_class_tensor = make_host_tensor(max_output_boxes_per_class_mem->get_layout(),
+        auto max_output_boxes_per_class_tensor = make_tensor(max_output_boxes_per_class_mem->get_layout(),
                                                                   max_output_boxes_per_class_lock.data());
         const_data.emplace(2, max_output_boxes_per_class_tensor);
 
@@ -53,7 +53,7 @@ std::vector<layout> non_max_suppression_inst::calc_output_layouts(non_max_suppre
         // Output tensor has the following shape: [min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]
         // The first dimension is an upper bound for the number of possible selected boxes
         bool static_output = boxes[1].is_static() && scores[0].is_static() && scores[1].is_static();
-        ov::op::v9::shape_infer(&op, input_shapes, output_shapes, static_output, const_data);
+        output_shapes = ov::op::v9::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data), static_output);
     } else {
         output_shapes[0] = output_shapes[1] = ShapeType{ov::Dimension::dynamic(), 3};
         output_shapes[2] = ShapeType{1};
@@ -76,7 +76,7 @@ std::string non_max_suppression_inst::to_string(non_max_suppression_node const& 
     json_composite info;
     info.add("center point box", desc->center_point_box);
 
-    node_info->add("non max supression info", info);
+    node_info->add("non max suppression info", info);
 
     std::stringstream description;
     node_info->dump(description);

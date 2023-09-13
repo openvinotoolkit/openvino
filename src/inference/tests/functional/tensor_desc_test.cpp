@@ -13,6 +13,8 @@ using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
+
 using TensorDescTests = ::testing::Test;
 
 TEST_F(TensorDescTests, CreateBlobWithIncorrectLayout) {

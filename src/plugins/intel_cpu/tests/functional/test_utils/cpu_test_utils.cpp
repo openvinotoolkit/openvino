@@ -4,7 +4,9 @@
 
 #include "cpu_test_utils.hpp"
 #include "ie_ngraph_utils.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+#include "utils/general_utils.h"
 #include <cstdint>
 
 namespace CPUTestUtils {
@@ -157,7 +159,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             }
 
             auto shape = partialShape.get_shape();
-            bool skip_unsquized_1D = std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
+            bool skip_unsquized_1D = static_cast<size_t>(std::count(shape.begin(), shape.end(), 1)) == shape.size() - 1;
             bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc || fmt == cpu_memory_format_t::nwc) && shape[1] == 1;
             return skip_unsquized_1D || permule_of_1;
         };
@@ -165,7 +167,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
         if (nodeType.count(getExecValue(ExecGraphInfoSerialization::LAYER_TYPE))) {
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
-            for (int i = 0; i < inFmts.size(); i++) {
+            for (size_t i = 0; i < inFmts.size(); i++) {
                 const auto parentPort = node->input_values()[i];
                 const auto port = node->inputs()[i];
                 if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
@@ -224,7 +226,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
-    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || selectedType == primType;
+    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || std::regex_match(primType, std::regex(selectedType));
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
@@ -271,7 +273,6 @@ std::string CPUTestsBase::getPrimitiveType() const {
     }
     return isaType;
 }
-
 #endif
 
 std::string CPUTestsBase::getISA(bool skip_amx) const {
@@ -334,7 +335,7 @@ CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::Par
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
    ngraph::ResultVector results;
 
-   for (int i = 0; i < newLastNode->get_output_size(); i++)
+   for (size_t i = 0; i < newLastNode->get_output_size(); i++)
         results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));
 
    return std::make_shared<ngraph::Function>(results, params, name);
@@ -350,6 +351,32 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
     implString.push_back('_');
     implString += InferenceEngine::details::convertPrecision(elType).name();
     return implString;
+}
+
+void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov::element::Type netType, const ov::AnyMap& config) {
+    auto getExecType = [&](){
+        // inference_precision affects only floating point type networks
+        if (!netType.is_real())
+            return netType;
+
+        const auto it = config.find(ov::hint::inference_precision.name());
+        if (it == config.end())
+            return netType;
+
+        const auto inference_precision_type = it->second.as<ov::element::Type>();
+        // currently plugin only allows to change precision from higher to lower (i.e. f32 -> f16 or f32 -> bf16)
+        if (netType.bitwidth() < inference_precision_type.bitwidth()) {
+            return netType;
+        }
+
+        return inference_precision_type;
+    };
+
+    const auto execType = getExecType();
+
+    selectedType = primitiveType;
+    selectedType.push_back('_');
+    selectedType += InferenceEngine::details::convertPrecision(execType).name();
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams> &paramsVector) {

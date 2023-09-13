@@ -24,8 +24,8 @@ public:
 
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const override;
-    bool isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
-    bool isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
+    bool isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK) const;
+    bool isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK) const;
 
     InferenceEngine::Precision getPrecision() const override {
         return precision;
@@ -92,7 +92,7 @@ private:
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
     void setPrecision(InferenceEngine::Precision prc) override {
-        precision = std::move(prc);
+        precision = prc;
     }
 
 private:

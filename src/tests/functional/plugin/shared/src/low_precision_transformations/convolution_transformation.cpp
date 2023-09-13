@@ -24,15 +24,15 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        inputShape.rank().get_length() << "D_" <<
-        param.fakeQuantizeOnData << "_" <<
-        param.fakeQuantizeOnWeights;
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) <<
+        "_rank=" << inputShape.rank().get_length() <<
+        "D_fq_on_data={" << param.fakeQuantizeOnData <<
+        "}_fq_on_weights={" << param.fakeQuantizeOnWeights << "}";
     return result.str();
 }
 
@@ -41,7 +41,7 @@ void ConvolutionTransformation::SetUp() {
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 

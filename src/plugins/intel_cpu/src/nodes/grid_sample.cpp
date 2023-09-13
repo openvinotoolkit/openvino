@@ -179,13 +179,13 @@ void GridSample::createPrimitive() {
 }
 
 void GridSample::prepareParams() {
-    auto& dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
+    auto dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input data memory.";
-    auto& gridMemPtr = getParentEdgeAt(IN_GRID)->getMemoryPtr();
+    auto gridMemPtr = getParentEdgeAt(IN_GRID)->getMemoryPtr();
     if (!gridMemPtr || !gridMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input grid memory.";
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << " has not allocated output memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
@@ -262,9 +262,9 @@ void GridSample::prepareParams() {
 }
 
 void GridSample::execute(dnnl::stream strm) {
-    const void*    srcData = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetPtr();
-    const uint8_t* gridData = reinterpret_cast<uint8_t*>(getParentEdgeAt(IN_GRID)->getMemoryPtr()->GetPtr());
-    uint8_t*       dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const void*    srcData = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getData();
+    const uint8_t* gridData = reinterpret_cast<uint8_t*>(getParentEdgeAt(IN_GRID)->getMemoryPtr()->getData());
+    uint8_t*       dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     auto threadBody = [&](const int ithr, const int nthr) {
         const auto& p = execParamsPerThread[ithr];

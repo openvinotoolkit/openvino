@@ -7,17 +7,18 @@
 #include "intel_gpu/runtime/itt.hpp"
 
 #include "xml_parse_utils.h"
-#include <description_buffer.hpp>
 #include <map>
 #include <fstream>
 #include <streambuf>
 #include <climits>
 
 #ifdef _WIN32
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
 # include <windows.h>
 #endif
 
-using namespace InferenceEngine;
 using namespace pugixml::utils;
 
 #define CheckAndReturnError(cond, errorMsg) \
@@ -195,7 +196,7 @@ bool CustomLayer::IsLegalSizeRule(const std::string & rule) {
 
     try {
         expr.Evaluate();
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;
@@ -234,8 +235,7 @@ void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& cus
             // config file might not exist - like global config, for example
             return;
         } else {
-            IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", " << res.description()
-                << " at offset " << res.offset;
+            OPENVINO_THROW("Error loading custom layer configuration file: ", configFile, ", ", res.description(), " at offset ", res.offset);
         }
     }
 
@@ -249,8 +249,7 @@ void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& cus
 #error "Intel GPU plugin: unknown target system"
 #endif
     if (abs_path_ptr == nullptr) {
-        IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", "
-                           << "Can't get canonicalized absolute pathname.";
+        OPENVINO_THROW("Error loading custom layer configuration file: ", configFile, ", ", "Can't get canonicalized absolute pathname.");
     }
 
     std::string abs_file_name(path);
@@ -265,8 +264,7 @@ void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& cus
         // path is absolute
         dir_path = abs_file_name.substr(0, dir_split_pos);
     } else {
-        IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", "
-                           << "Path is not valid";
+        OPENVINO_THROW("Error loading custom layer configuration file: ", configFile, ", ", "Path is not valid");
     }
 
     for (auto r = xmlDoc.document_element(); r; r = r.next_sibling()) {
@@ -274,7 +272,7 @@ void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& cus
         layer->LoadSingleLayer(r);
         if (layer->Error()) {
             customLayers.clear();
-            IE_THROW() << layer->m_ErrorMessage;
+            OPENVINO_THROW(layer->m_ErrorMessage);
         } else {
             customLayers[layer->Name()] = layer;
         }

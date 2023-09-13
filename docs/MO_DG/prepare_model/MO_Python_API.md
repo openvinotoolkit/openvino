@@ -1,19 +1,25 @@
-# Model Optimizer Python API {#openvino_docs_MO_DG_Python_API}
+# Convert Models Represented as Python Objects {#openvino_docs_MO_DG_Python_API}
 
 @sphinxdirective
 
-Model Optimizer (MO) has a Python API for model conversion, which is represented by the ``convert_model()`` method in the openvino.tools.mo namespace.
+Model conversion API is represented by ``convert_model()`` method in openvino.tools.mo namespace. ``convert_model()`` is compatible with types from openvino.runtime, like PartialShape, Layout, Type, etc.
 
-``convert_model()`` has all the functionality available from the command-line tool, plus the ability to pass Python model objects, such as a Pytorch model or TensorFlow Keras model directly, without saving them into files and without leaving the training environment (Jupyter Notebook or training scripts). In addition to input models consumed directly from Python, ``convert_model`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO.
+``convert_model()`` has the ability available from the command-line tool, plus the ability to pass Python model objects, such as a Pytorch model or TensorFlow Keras model directly, without saving them into files and without leaving the training environment (Jupyter Notebook or training scripts). In addition to input models consumed directly from Python, ``convert_model`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO.
+
+.. note::
+
+   Model conversion can be performed by the ``convert_model()`` method and MO command line tool. The functionality from this article is applicable for ``convert_model()`` only and it is not present in command line tool.
+
 
 ``convert_model()`` returns an openvino.runtime.Model object which can be compiled and inferred or serialized to IR.
 
 Example of converting a PyTorch model directly from memory:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import torchvision
-   
+
    model = torchvision.models.resnet50(pretrained=True)
    ov_model = convert_model(model)
 
@@ -26,15 +32,17 @@ The following types are supported as an input model for ``convert_model()``:
 
 Example of using native Python classes to set ``input_shape``, ``mean_values`` and ``layout``:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.runtime import PartialShape, Layout
-   
+
    ov_model = convert_model(model, input_shape=PartialShape([1,3,100,100]), mean_values=[127, 127, 127], layout=Layout("NCHW"))
 
 Example of using strings for setting ``input_shape``, ``mean_values`` and ``layout``:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    ov_model = convert_model(model, input_shape="[1,3,100,100]", mean_values="[127,127,127]", layout="NCHW")
 
@@ -44,7 +52,8 @@ The shape can be a ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.ru
 
 Example of using a tuple in the ``input`` parameter to cut a model:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    ov_model = convert_model(model, input=("input_name", [3], np.float32))
 
@@ -61,10 +70,11 @@ Supported types for ``InputCutInfo``:
 
 Example of using ``InputCutInfo`` to freeze an input with value:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.tools.mo import convert_model, InputCutInfo
-   
+
    ov_model = convert_model(model, input=InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4]))
 
 To set parameters for models with multiple inputs, use ``list`` of parameters.
@@ -80,7 +90,8 @@ Parameters supporting ``list``:
 
 Example of using lists to set shapes, types and layout for multiple inputs:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    ov_model = convert_model(model, input=[("input1", [1,3,100,100], np.float32), ("input2", [1,3,100,100], np.float32)], layout=[Layout("NCHW"), LayoutMap("NCHW", "NHWC")])
 
@@ -88,11 +99,12 @@ Example of using lists to set shapes, types and layout for multiple inputs:
 
 Example of using the ``Layout`` class to set the layout of a model input:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.runtime import Layout
    from openvino.tools.mo import convert_model
-   
+
    ov_model = convert_model(model, source_layout=Layout("NCHW"))
 
 To set both source and destination layouts in the ``layout`` parameter, use the ``LayoutMap`` class. ``LayoutMap`` accepts two parameters: ``source_layout`` and ``target_layout``.
@@ -101,10 +113,11 @@ To set both source and destination layouts in the ``layout`` parameter, use the 
 
 Example of using the ``LayoutMap`` class to change the layout of a model input:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.tools.mo import convert_model, LayoutMap
-   
+
    ov_model = convert_model(model, layout=LayoutMap("NCHW", "NHWC"))
 
 @endsphinxdirective

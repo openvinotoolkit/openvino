@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about LRN-1 - a normalization operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *LRN-1*
 
 **Category**: *Normalization*
@@ -86,7 +90,8 @@ Example for 4D ``data`` input tensor and ``axes = [2, 3]``:
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer id="1" type="LRN" ...>
        <data alpha="1.0e-04" beta="0.75" size="5" bias="1"/>

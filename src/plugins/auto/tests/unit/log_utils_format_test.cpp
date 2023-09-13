@@ -7,16 +7,16 @@
 #include <gmock/gmock.h>
 #include "utils/log_util.hpp"
 #include <regex>
-using namespace MockMultiDevice;
+using namespace ov::mock_auto_plugin;
 using ::testing::_;
 class LogUtilsFormatTest : public ::testing::Test {
 public:
     void SetUp() override {
-        setLogLevel("LOG_DEBUG");
+        set_log_level("LOG_DEBUG");
     }
 
     void TearDown() override {
-        MockLog::Release();
+        MockLog::release();
     }
 
     void traceCallStacksTest(){
@@ -132,7 +132,7 @@ TEST_F(LogUtilsFormatTest, format_p) {
             printResult =  stream.str();
             });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    LOG_DEBUG("%p", MockLog::_mockLog);
+    LOG_DEBUG("%p", MockLog::m_mocklog);
     EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
@@ -393,7 +393,7 @@ TEST_F(LogUtilsFormatTest, logPrintFormat_debug) {
 }
 
 TEST_F(LogUtilsFormatTest, logPrintFormat_trace) {
-    setLogLevel("LOG_TRACE");
+    set_log_level("LOG_TRACE");
     std::string printResult = "";
     std::string pattern{"\\[[0-9]+:[0-9]+:[0-9]+\\.[0-9]+\\]T\\[.+:[0-9]+\\].*"};
     std::regex regex(pattern);
@@ -404,4 +404,3 @@ TEST_F(LogUtilsFormatTest, logPrintFormat_trace) {
     LOG_TRACE(true, "test", "TRACE");
     EXPECT_TRUE(std::regex_search(printResult, regex));
 }
-

@@ -4,16 +4,15 @@
 
 #include "transformations/gather_sinking_unary.hpp"
 
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/init_node_info.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset12.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset12;
 
 using NodePtr = std::shared_ptr<ov::Node>;
 

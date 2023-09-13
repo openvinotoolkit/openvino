@@ -42,7 +42,7 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
         list(REMOVE_ITEM TEST_SRC "${gna_stub}")
         add_library(libGNAStubs SHARED "${gna_stub}")
 
-        find_package(libGNA)
+        find_package(libGNA NO_MODULE REQUIRED)
 
         target_include_directories(libGNAStubs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/")
         target_link_libraries(libGNAStubs PUBLIC libGNA::API gmock gtest)
@@ -79,7 +79,7 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE
     # static libraries
     inference_engine_s # need to have this explicitly for USE_STATIC_IE
-    unitTestUtils
+    unit_test_utils
     ieTestHelpers_s
     ${TEST_DEPS}
 

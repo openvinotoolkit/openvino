@@ -38,10 +38,10 @@ void MultipleConcatTest::SetUp() {
     std::vector<size_t> input_dims { 1, inputSize };
     std::vector<size_t> constant_dims {1, constantSize};
 
-    auto concat_1_vals = CommonTestUtils::generate_float_numbers(constantSize, -2.0f, 2.0f);
-    auto concat_2_vals = CommonTestUtils::generate_float_numbers(constantSize, -5.0f, 5.0f);
+    auto concat_1_vals = ov::test::utils::generate_float_numbers(constantSize, -2.0f, 2.0f);
+    auto concat_2_vals = ov::test::utils::generate_float_numbers(constantSize, -5.0f, 5.0f);
 
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto const_1 = ngraph::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
     auto concat_1 = ngraph::builder::makeConcat({const_1, input_parameter[0]}, 1);

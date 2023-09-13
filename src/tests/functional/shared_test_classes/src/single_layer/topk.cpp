@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
     ngraph::opset4::TopK::SortType sort;
     std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "k=" << keepK << "_";
     result << "axis=" << axis << "_";
     result << "mode=" << mode << "_";
@@ -38,7 +38,7 @@ void TopKLayerTest::SetUp() {
     std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramIn = ngraph::helpers::convert2OutputVector(
                         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
@@ -47,7 +47,7 @@ void TopKLayerTest::SetUp() {
             std::make_shared<ngraph::opset4::TopK>(paramIn[0], k, axis, mode, sort));
 
     ngraph::ResultVector results;
-    for (int i = 0; i < topk->get_output_size(); i++) {
+    for (size_t i = 0; i < topk->get_output_size(); i++) {
         results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, params, "TopK");

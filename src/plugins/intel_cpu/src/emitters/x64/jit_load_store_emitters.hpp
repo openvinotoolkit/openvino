@@ -82,7 +82,7 @@ private:
     void load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, bool is_signed, int load_size) const;
 
     template <typename Vmm>
-    void load_words_to_dword_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, bool is_bf16, bool is_signed, int load_size) const;
+    void load_words_to_dword_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, InferenceEngine::Precision prc, int load_size) const;
 
     template <typename Vmm>
     void fill_with_default(const Vmm &vmm, std::string fill_value, const int &load_num) const;
@@ -145,7 +145,7 @@ private:
     void store_dword_to_byte_extension(const Xbyak::Reg64 &reg, int offset, bool is_signed, int store_size) const;
 
     template <typename Vmm>
-    void store_dword_to_word_extension(const Xbyak::Reg64 &reg, int offset, bool is_bf16, bool is_signed, int store_size) const;
+    void store_dword_to_word_extension(const Xbyak::Reg64 &reg, int offset, InferenceEngine::Precision precision, int store_size) const;
 
     void register_table_entries() override;
 

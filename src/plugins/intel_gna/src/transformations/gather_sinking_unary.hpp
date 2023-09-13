@@ -12,7 +12,8 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief Moves Gather layer forward from the start to the end of the graph
+ * @brief
+ * Moves Gather layer forward from the start to the end of the graph
  * through the unary operations UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert
  *
  *  Gather          Unary
@@ -55,7 +56,8 @@ public:
 };
 
 /**
- * @brief Moves Gather layer backward from the end to the start of the graph
+ * @brief
+ * Moves Gather layer backward from the end to the start of the graph
  * Works only with single consumer case. If Gather is marked as not-sinkable
  * (since it was moved previously by forward sinking) it is not proceeded.
  *
@@ -72,7 +74,8 @@ public:
 };
 
 /**
- * @brief Moves Gather layer backward from the end to the start of the graph
+ * @brief
+ * Moves Gather layer backward from the end to the start of the graph
  * Works only with multiple consumer case. If Gather is marked as non-sinkable
  * (since it was moved previously by forward sinking) it is not proceeded.
  *
@@ -97,7 +100,8 @@ public:
 };
 
 /**
- * @brief GatherSinkingUnaryBackward transformations calls GatherSinkingUnaryBackward and
+ * @brief
+ * GatherSinkingUnaryBackward transformations calls GatherSinkingUnaryBackward and
  * GatherSinkingUnaryBackwardMultiConsumers so there is no need to use them if GatherSinkingUnaryBackward is used
  */
 class GatherSinkingUnaryBackward : public ov::pass::GraphRewrite {

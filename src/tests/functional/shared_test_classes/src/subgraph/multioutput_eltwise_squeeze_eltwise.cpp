@@ -13,9 +13,12 @@ namespace SubgraphTestsDefinitions {
         std::tie(input, netPrecision, targetName, additional_config) = obj.param;
         std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(input[0]) << "_";
+        results << "IS=" << ov::test::utils::vec2str(input[0]) << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "targetDevice=" << targetName << "_";
+        for (auto const& configItem : additional_config) {
+            results << "_configItem=" << configItem.first << "_" << configItem.second;
+        }
         return results.str();
     }
 
@@ -26,8 +29,10 @@ namespace SubgraphTestsDefinitions {
         std::tie(inputs, netPrecision, targetDevice, additional_config) = this->GetParam();
         configuration.insert(additional_config.begin(), additional_config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {inputs});
-
+        ov::ParameterVector input;
+        for (auto&& shape : inputs) {
+            input.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+        }
         auto eltwise_const = ngraph::builder::makeConstant(ngPrc,
                                                     ngraph::Shape{input[0]->get_shape()},
                                                      std::vector<float>{-1.0f});

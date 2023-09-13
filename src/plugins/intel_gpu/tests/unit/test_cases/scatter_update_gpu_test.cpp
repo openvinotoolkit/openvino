@@ -1683,6 +1683,89 @@ TEST(scatter_update_gpu_fp32, dynamic) {
     }
 }
 
+TEST(scatter_update_cpu_impl_fp32, dynamic) {
+    //  Dictionary : 1x2x5x2
+    //  Indexes : 2x1x2x1
+    //  Updates : 1x2x2x1x2x2
+    //  Axis : 2
+    //  Output : 1x2x5x2
+    //  Input values in fp32
+
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto input2_layout = layout{ ov::PartialShape::dynamic(4), data_types::i32, format::bfyx };
+    auto input3_layout = layout{ ov::PartialShape::dynamic(6), data_types::f32, format::bfyx };
+
+    auto input1 = engine.allocate_memory({{1, 2, 5, 2},       data_types::f32, format::bfyx});   // Dictionary
+    auto input2 = engine.allocate_memory({{2, 2},             data_types::i32, format::bfyx});   // Indices
+    auto input3 = engine.allocate_memory({{1, 2, 2, 2, 2},    data_types::f32, format::bfzyx}); // Updates
+    auto axis = 2;
+
+    set_values(input1, {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f
+    });
+
+    set_values(input2, {
+        2, 0,
+        3, 4
+    });
+
+    set_values(input3, {
+        20.f, 30.f,
+        40.f, 50.f,
+        60.f, 70.f,
+        80.f, 90.f,
+        100.f, 110.f,
+        120.f, 130.f,
+        140.f, 150.f,
+        160.f, 170.f
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1_layout));
+    topology.add(input_layout("InputText", input2_layout));
+    topology.add(input_layout("InputUpdates", input3_layout));
+
+    topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), format::bfyx, data_types::f32));
+    topology.add(reorder("TextReordered", input_info("InputText"), format::bfyx, data_types::i32));
+    topology.add(scatter_update("scatter_update",
+                                input_info("DictionaryReordered"),
+                                input_info("TextReordered"),
+                                input_info("InputUpdates"),
+                                axis)
+    );
+    topology.add(reorder("out", input_info("scatter_update"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"scatter_update", {format::bfyx, "", impl_types::cpu}} }));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+    network.set_input_data("InputUpdates", input3);
+
+    auto inst = network.get_primitive("scatter_update");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("out").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+        40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
+        120.f, 130.f, 12.f, 13.f, 100.f, 110.f, 140.f, 150.f, 160.f, 170.f
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(scatter_update_gpu_fp16, d21214_bfzyx_axisX_bfwzyx_cached) {
     test_d21214_bfzyx_axisX_bfwzyx<FLOAT16>(true);
@@ -1690,4 +1773,102 @@ TEST(scatter_update_gpu_fp16, d21214_bfzyx_axisX_bfwzyx_cached) {
 #endif
 TEST(scatter_update_gpu_fp16, d2411_axisB_cached) {
     test_d2411_axisB<FLOAT16>(true);
+}
+
+TEST(scatter_update_gpu_fp32, output_padding) {
+    //  Dictionary : 2x2x1x4
+    //  Indexes : 3x1x1x1
+    //  Updates : 2x2x1x3
+    //  Axis : 3
+    //  Output : 2x2x1x4
+    //  Input values in fp32
+
+    //  Indexes:
+    //  2.f, 0.f, 3.f
+    //
+    //  Updates:
+    //  20.f, 30.f, 40.f,
+    //  50.f, 60.f, 70.f,
+    //
+    //  80.f, 90.f, 100.f,
+    //  110.f, 120.f, 130.f
+    //
+    //  Dictionary:
+    //  0.f, 1.f, 2.f, 3.f,
+    //  4.f, 5.f, 6.f, 7.f,
+    //
+    //  8.f, 9.f, 10.f, 11.f,
+    //  12.f, 13.f, 14.f, 15.f
+    //
+    //  Output:
+    //  30.f, 1.f, 20.f, 40.f,
+    //  60.f, 5.f, 50.f, 70.f,
+    //
+    //  90.f, 9.f, 80.f, 100.f,
+    //  120.f, 13.f, 110.f, 130.f
+
+    auto& engine = get_test_engine();
+
+    for(const auto target_format : formats2D) {
+        auto input1 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{2, 2, 4, 1}}); // Dictionary
+        auto input2 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{3, 1, 1, 1}}); // Indexes
+        auto input3 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{2, 2, 3, 1}}); // Updates
+        auto axis = 3;
+
+        set_values(input1, {
+                0.f, 1.f, 2.f, 3.f,
+                4.f, 5.f, 6.f, 7.f,
+                8.f, 9.f, 10.f, 11.f,
+                12.f, 13.f, 14.f, 15.f
+        });
+
+        set_values(input2, {
+                2.f, 0.f, 3.f
+        });
+
+        set_values(input3, {
+                20.f, 30.f, 40.f,
+                50.f, 60.f, 70.f,
+                80.f, 90.f, 100.f,
+                110.f, 120.f, 130.f
+        });
+
+        padding output_padding = padding({1,1}, {1,1});
+
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f32));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f32));
+        topology.add(
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis, output_padding)
+        );
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
+
+        network network(engine, topology, get_test_default_config(engine));
+
+        network.set_input_data("InputDictionary", input1);
+        network.set_input_data("InputText", input2);
+        network.set_input_data("InputUpdates", input3);
+
+        auto outputs = network.execute();
+
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        std::vector<float> expected_results = {
+                30.f,   1.f,    20.f,   40.f,
+                60.f,   5.f,    50.f,   70.f,
+                90.f,   9.f,    80.f,   100.f,
+                120.f,  13.f,   110.f,  130.f
+        };
+
+
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            ASSERT_EQ(expected_results[i], output_ptr[i])
+                            << "i=" << i << ", target_format=" << target_format;
+        }
+    }
 }

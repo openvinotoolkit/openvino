@@ -4,9 +4,9 @@
 
 #include <openvino/opsets/opset10.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
-#include "test_common.hpp"
 #include "tf_utils.hpp"
 
 using namespace std;
@@ -14,7 +14,7 @@ using namespace ov;
 using namespace ov::opset10;
 using namespace ov::frontend::tensorflow::tests;
 
-TEST_F(TransformationTestsF, SavedModelProgramOnly) {
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelProgramOnly) {
     {
         model = convert_model("saved_model_program-only");
 
@@ -40,7 +40,7 @@ TEST_F(TransformationTestsF, SavedModelProgramOnly) {
     }
 }
 
-TEST_F(TransformationTestsF, SavedModelVariables) {
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelVariables) {
     { model = convert_model("saved_model_variables"); }
     {
         // create a reference graph
@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, SavedModelVariables) {
     }
 }
 
-TEST_F(TransformationTestsF, SavedModelWithInputIntegerType) {
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithInputIntegerType) {
     {
         model = convert_model("saved_model_with_gather",
                               nullptr,
@@ -89,7 +89,7 @@ TEST_F(TransformationTestsF, SavedModelWithInputIntegerType) {
     }
 }
 
-TEST_F(TransformationTestsF, SavedModelMultipleTensorNames) {
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultipleTensorNames) {
     // The test aims to check tensor names of input and output tensors
     // it checks that TF FE preserved user specific names for input and output tensor
     // and exclude internal names
@@ -112,5 +112,77 @@ TEST_F(TransformationTestsF, SavedModelMultipleTensorNames) {
         auto x = make_shared<Parameter>(element::f32, Shape{20, 5});
         auto result = make_shared<Result>(x);
         model_ref = make_shared<Model>(OutputVector{result}, ParameterVector{x});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelBroadcastIssue) {
+    { model = convert_model("saved_model_broadcast_issue"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::i64, Shape{2, 2}, vector<int64_t>{1, 2, -1, -1});
+
+        model_ref = make_shared<Model>(OutputVector{x}, ParameterVector{});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultiGraph) {
+    // The test verifies loading of MetaGraph with empty tags as default
+    // And verifies loading variables with no corresponding RestoreV2
+    { model = convert_model("saved_model_multi-graph"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto add = make_shared<Add>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithIntermediateOutput) {
+    // The test aims to check that output from intermediate layers presented in the model signature
+    // must be preserved
+    {
+        model = convert_model("saved_model_intermediate_output");
+        ASSERT_TRUE(model->get_results().size() == 2);
+    }
+    {
+        // create a reference graph
+        auto input1 = make_shared<Parameter>(element::f32, Shape{2});
+        auto input2 = make_shared<Parameter>(element::f32, Shape{2});
+        auto add = make_shared<Add>(input1, input2);
+        auto sub = make_shared<Subtract>(input2, add);
+        auto result1 = make_shared<Result>(add);
+        auto result2 = make_shared<Result>(sub);
+        model_ref = make_shared<Model>(OutputVector{result1, result2}, ParameterVector{input1, input2});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMMAPCompare) {
+    { model = convert_model("saved_model_variables"); }
+    { model_ref = convert_model("saved_model_variables", nullptr, {}, {}, {}, {}, {}, true); }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
+    comparator.enable(FunctionsComparator::CmpValues::TENSOR_NAMES);
+    // The test aims to check that model with only numerical names for operation
+    // is successfully converted
+    // it is a tricky case because colision between naming input and output ports may occur
+    { model = convert_model("saved_model_with_numerical_names"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{1});
+        x->output(0).set_names({"0"});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        y->output(0).set_names({"1"});
+        auto z = make_shared<Parameter>(element::f32, Shape{1});
+        z->output(0).set_names({"2"});
+        auto add = make_shared<Add>(x, y);
+        add->output(0).set_names({"3", "3:0"});
+        auto sub = make_shared<Subtract>(add, z);
+        sub->output(0).set_names({"4"});
+        auto result = make_shared<Result>(sub);
+        result->output(0).set_names({"4"});
+        model_ref = make_shared<Model>(ResultVector{result}, ParameterVector{x, y, z});
     }
 }

@@ -19,7 +19,7 @@ namespace subgraph {
 class FakeQuantizeFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const ov::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
@@ -31,7 +31,7 @@ public:
             const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const ov::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
         const bool updatePrecisions,

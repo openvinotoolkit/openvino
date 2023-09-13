@@ -14,6 +14,8 @@ namespace cldnn {
 struct reorg_yolo : public primitive_base<reorg_yolo> {
     CLDNN_DECLARE_PRIMITIVE(reorg_yolo)
 
+    reorg_yolo() : primitive_base("", {}) {}
+
     /// @brief Constructs region_yolo primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -27,7 +29,7 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
     /// @brief Defines a scope of a reorg yolo normalization
     /// @details
     /// Specific behaviour is determined by these parameters, as follows:
-    uint32_t stride;
+    uint32_t stride = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -42,6 +44,16 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
         auto rhs_casted = downcast<const reorg_yolo>(rhs);
 
         return stride == rhs_casted.stride;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reorg_yolo>::save(ob);
+        ob << stride;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<reorg_yolo>::load(ib);
+        ib >> stride;
     }
 };
 }  // namespace cldnn

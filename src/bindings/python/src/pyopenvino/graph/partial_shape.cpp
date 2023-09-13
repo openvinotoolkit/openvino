@@ -187,7 +187,7 @@ void regclass_graph_PartialShape(py::module m) {
     });
 
     shape.def("__repr__", [](const ov::PartialShape& self) -> std::string {
-        return "<PartialShape: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
+        return "<" + Common::get_class_name(self) + ": " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
 
     shape.def("__copy__", [](const ov::PartialShape& self) -> ov::PartialShape {

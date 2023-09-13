@@ -7,13 +7,13 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace std;
 using namespace ov;
@@ -86,7 +86,7 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
     auto unsqueeze_range_1nplus1 = make_shared<Unsqueeze>(range_1nplus1, zero_const);
     // 2. compute a mask with indices counting from one
     auto unique_vs_x_ind = make_shared<Multiply>(unique_vs_x_01, unsqueeze_range_1nplus1);
-    // 3. compute positions of the first occurence for each unique element
+    // 3. compute positions of the first occurrence for each unique element
     // or these are positions of unique elements in the original order
     auto minimum_indices_plus1 = make_shared<ReduceMin>(unique_vs_x_ind, one_const);
     auto minimum_indices = make_shared<Subtract>(minimum_indices_plus1, one_const);
@@ -119,18 +119,18 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
 
 TEST_F(TransformationTestsF, UniqueDecompositionInt32) {
     {
-        function = gen_model(PartialShape{10}, element::i32);
+        model = gen_model(PartialShape{10}, element::i32);
         manager.register_pass<ov::pass::UniqueDecomposition>();
     }
-    { function_ref = gen_model_ref(PartialShape{10}, element::i32); }
+    { model_ref = gen_model_ref(PartialShape{10}, element::i32); }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, UniqueDecompositionInt64) {
     {
-        function = gen_model(PartialShape{42}, element::i64);
+        model = gen_model(PartialShape{42}, element::i64);
         manager.register_pass<ov::pass::UniqueDecomposition>();
     }
-    { function_ref = gen_model_ref(PartialShape{42}, element::i64); }
+    { model_ref = gen_model_ref(PartialShape{42}, element::i64); }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

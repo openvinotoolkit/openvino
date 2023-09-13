@@ -16,7 +16,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
 
     std::string variable_id;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::assign_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<assign_impl>(*this);
@@ -29,7 +29,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<assign>());
+        OPENVINO_ASSERT(arg.is_type<assign>());
         const auto& node = arg.as<assign>();
         variable_id = node.get_primitive()->variable_id;
     }
@@ -81,3 +81,4 @@ attach_assign_impl::attach_assign_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::assign_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::assign)

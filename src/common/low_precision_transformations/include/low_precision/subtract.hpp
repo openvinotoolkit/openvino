@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
+
 #include "low_precision/layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -23,9 +23,9 @@ class LP_TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation
 public:
     OPENVINO_RTTI("SubtractTransformation", "0");
     SubtractTransformation(const Params& params);
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
 };
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

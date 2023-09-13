@@ -8,6 +8,7 @@
 #include "op_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
+#include "tf_utils.hpp"
 #include "types.pb.h"
 
 namespace ov {

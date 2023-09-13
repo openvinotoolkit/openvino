@@ -17,7 +17,7 @@ from openvino.runtime.passes import (
 )
 
 from tests.test_transformations.utils.utils import count_ops, get_relu_model
-from tests.test_utils.test_utils import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filename_for_test, compare_models
 
 
 def get_model():

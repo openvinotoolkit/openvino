@@ -8,11 +8,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include <ngraph/pass/pass.hpp>
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -28,4 +27,4 @@ public:
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

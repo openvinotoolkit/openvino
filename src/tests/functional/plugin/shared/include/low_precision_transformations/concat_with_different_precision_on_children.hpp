@@ -23,7 +23,7 @@ typedef std::tuple<
     ngraph::PartialShape,
     std::string, // target device: CPU, GPU
     ConcatWithDifferentChildrenTransformationParam,
-    ngraph::pass::low_precision::LayerTransformation::Params // transformation parameters
+    ov::pass::low_precision::LayerTransformation::Params // transformation parameters
     > ConcatWithDifferentChildrenTransformationParams;
 
 class ConcatWithDifferentChildrenTransformation :

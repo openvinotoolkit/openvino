@@ -9,7 +9,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -61,7 +61,7 @@ namespace subgraph {
             op,
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(targetOp, precisionAfterOperation);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(targetOp, precisionAfterOperation);
         auto& rtInfo = targetOp->get_rt_info();
         rtInfo["Variant::std::string"] = "targetOp";
 

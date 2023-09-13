@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/coordinate_diff.hpp"
+#include "openvino/core/coordinate_diff.hpp"
 
-#include "ngraph/util.hpp"
-
-using namespace std;
-using namespace ngraph;
+#include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const CoordinateDiff& coordinate_diff) {
     s << "CoordinateDiff{";
-    s << ngraph::join(coordinate_diff);
+    s << ov::util::join(coordinate_diff);
     s << "}";
     return s;
 }

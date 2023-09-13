@@ -9,7 +9,7 @@
 #include <ie_parallel.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -46,8 +46,6 @@ NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
 }
 
 void NonZero::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
     if (getParentEdges().size() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (!getChildEdges().size())
@@ -84,7 +82,7 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_num_threads();
-        if (inSize < blockSize * threadsCount)
+        if (inSize < static_cast<size_t>(blockSize * threadsCount))
             threadsCount = 1;
 
         counts.resize(threadsCount);
@@ -133,9 +131,9 @@ void NonZero::execute(dnnl::stream strm) {
 template <typename T>
 void NonZero::executeSpecified() {
     const T zero = 0;
-    const T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    Shape inShape = getParentEdgeAt(0)->getMemory().GetShape();
+    Shape inShape = getParentEdgeAt(0)->getMemory().getShape();
     size_t inRank = inShape.getRank();
     std::vector<size_t> nonZeroCounts = getNonZeroElementsCount(src, inShape);
     std::vector<size_t> destIndices(nonZeroCounts.size());
@@ -150,7 +148,7 @@ void NonZero::executeSpecified() {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int* dst = reinterpret_cast<int*>(dstMemPtr->GetPtr());
+    int* dst = reinterpret_cast<int*>(dstMemPtr->getData());
     if (totalNonZeroCount == 0)
         return;
 
@@ -367,7 +365,7 @@ void NonZero::executeSpecified() {
     }
     default: {
         size_t inSize = inShape.getElementsCount();
-        auto srcStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto srcStrides = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
             size_t& colIndex = destIndices[ithr];

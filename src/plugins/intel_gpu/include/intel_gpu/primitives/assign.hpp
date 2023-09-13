@@ -15,6 +15,8 @@ namespace cldnn {
 struct assign : public primitive_base<assign> {
     CLDNN_DECLARE_PRIMITIVE(assign)
 
+    assign() : primitive_base("", {}) {}
+
     /// @brief Constructs Assign primitive.
     /// @param id This primitive id
     /// @param inputs Input parameters ids
@@ -38,6 +40,18 @@ struct assign : public primitive_base<assign> {
         auto rhs_casted = downcast<const assign>(rhs);
 
         return variable_id == rhs_casted.variable_id;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<assign>::save(ob);
+        ob << variable_id;
+        ob << output_layout;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<assign>::load(ib);
+        ib >> variable_id;
+        ib >> output_layout;
     }
 };
 }  // namespace cldnn

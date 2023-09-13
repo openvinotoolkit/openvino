@@ -2164,7 +2164,7 @@ public:
      */
     bool return_inverse;
     /**
-     * @brief A flag indicating whether to return a number of occurences for each unique element
+     * @brief A flag indicating whether to return a number of occurrences for each unique element
      */
     bool return_counts;
 

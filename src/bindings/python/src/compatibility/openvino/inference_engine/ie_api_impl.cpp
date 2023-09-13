@@ -363,12 +363,6 @@ void InferenceEnginePython::InferRequestWrap::setBlob(const std::string& blob_na
     request_ptr.SetBlob(blob_name.c_str(), blob_ptr);
 }
 
-void InferenceEnginePython::InferRequestWrap::setBlob(const std::string& blob_name,
-                                                      const InferenceEngine::Blob::Ptr& blob_ptr,
-                                                      const InferenceEngine::PreProcessInfo& info) {
-    request_ptr.SetBlob(blob_name.c_str(), blob_ptr, info);
-}
-
 const InferenceEngine::PreProcessInfo& InferenceEnginePython::InferRequestWrap::getPreProcess(
     const std::string& blob_name) {
     return request_ptr.GetPreProcess(blob_name.c_str());
@@ -376,10 +370,6 @@ const InferenceEngine::PreProcessInfo& InferenceEnginePython::InferRequestWrap::
 
 InferenceEngine::Blob::Ptr InferenceEnginePython::InferRequestWrap::getBlobPtr(const std::string& blob_name) {
     return request_ptr.GetBlob(blob_name.c_str());
-}
-
-void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
-    request_ptr.SetBatch(size);
 }
 
 std::vector<InferenceEnginePython::CVariableState> InferenceEnginePython::InferRequestWrap::queryState() {
@@ -521,10 +511,8 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
                     if (code != InferenceEngine::StatusCode::OK) {
                         IE_EXCEPTION_SWITCH(code,
                                             ExceptionType,
-                                            InferenceEngine::details::ThrowNow<ExceptionType>{} <<=
-                                            std::stringstream{}
-                                            << IE_LOCATION
-                                            << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+                                            InferenceEngine::details::ThrowNow<ExceptionType>{IE_LOCATION_PARAM} <<=
+                                            std::stringstream{});
                     }
 
                     auto end_time = Time::now();

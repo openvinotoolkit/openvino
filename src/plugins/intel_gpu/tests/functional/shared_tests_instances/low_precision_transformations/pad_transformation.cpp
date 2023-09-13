@@ -21,7 +21,7 @@ const std::vector<ngraph::PartialShape> inputShapes = {
     { 1, 3, 16, 16},
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(padModes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     PadTransformation::getTestCaseName);
@@ -83,7 +83,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(ngraph::op::PadMode::CONSTANT),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     PadTransformation::getTestCaseName);
@@ -111,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(modesWithoutConstant),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     PadTransformation::getTestCaseName);

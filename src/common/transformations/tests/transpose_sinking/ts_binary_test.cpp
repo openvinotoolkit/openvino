@@ -6,7 +6,7 @@
 
 #include <functional>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -613,19 +613,6 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingPReluIncompatShapesBackwardTestSuite,
-    TransposeSinkingBinaryIncompatShapesTestFixture,
-    ::testing::Combine(::testing::Values(CREATE_BINARY_FACTORY(PRelu)),
-                       ::testing::Values(CREATE_PASS_FACTORY(TSBinaryBackward)),
-                       ::testing::Values(Shape{1, 3, 16, 16}),
-                       ::testing::ValuesIn(std::vector<Shape>{Shape{3}}),
-                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateFunction),
-                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateReferenceFunction),
-                       ::testing::Values(element::f32),
-                       ::testing::Values(0)),
-    TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
-
-INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingPReluIncompatShapesForwardTestSuite,
     TransposeSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(::testing::Values(CREATE_BINARY_FACTORY(PRelu)),
@@ -1225,3 +1212,116 @@ INSTANTIATE_TEST_SUITE_P(TSBinaryBackwardBinaryMultiConsumersTestSuite,
 }  // namespace binary
 }  // namespace testing
 }  // namespace transpose_sinking
+
+TEST_F(TransformationTestsF, TSBinaryBackwardPReluSlabSpecial) {
+    const Shape input_shape = {2, 3, 5, 5};
+    const Shape slope_shape = {3};
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+
+        auto slope = std::make_shared<Constant>(element::f32, slope_shape, Shape{5, 7, 9});
+        auto prelu = std::make_shared<PRelu>(X, slope);
+
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+        auto transpose = std::make_shared<Transpose>(prelu, ts_order);
+
+        model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+
+        auto ts_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<Transpose>(X, ts_order0);
+
+        auto slope = std::make_shared<Constant>(element::f32, slope_shape, Shape{1});
+
+        std::vector<size_t> dims = {0, 2, 3};
+        auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{dims.size()}, dims);
+        auto unsqeeze = std::make_shared<Unsqueeze>(slope, unsqueeze_const);
+
+        auto ts_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+        auto transpose1 = std::make_shared<Transpose>(unsqeeze, ts_order1);
+
+        auto prelu = std::make_shared<PRelu>(transpose0, transpose1);
+
+        model_ref = std::make_shared<Model>(ov::OutputVector{prelu}, ov::ParameterVector{X});
+    }
+
+    manager.register_pass<TSBinaryBackward>();
+}
+
+TEST_F(TransformationTestsF, TSBinaryBackwardPReluSlabNotSpecial) {
+    const Shape input_shape = {2, 3, 5, 5};
+    const Shape slope_shape = {5};
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+
+        auto slope = std::make_shared<Constant>(element::f32, slope_shape, Shape{5, 7, 9, 11, 15});
+        auto prelu = std::make_shared<PRelu>(X, slope);
+
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+        auto transpose = std::make_shared<Transpose>(prelu, ts_order);
+
+        model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+
+        auto ts_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<Transpose>(X, ts_order0);
+
+        auto slope = std::make_shared<Constant>(element::f32, slope_shape, Shape{1});
+
+        std::vector<size_t> dims = {0, 1, 2};
+        auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{dims.size()}, dims);
+        auto unsqeeze = std::make_shared<Unsqueeze>(slope, unsqueeze_const);
+
+        auto ts_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+        auto transpose1 = std::make_shared<Transpose>(unsqeeze, ts_order1);
+
+        auto prelu = std::make_shared<PRelu>(transpose0, transpose1);
+
+        model_ref = std::make_shared<Model>(ov::OutputVector{prelu}, ov::ParameterVector{X});
+    }
+
+    manager.register_pass<TSBinaryBackward>();
+}
+
+TEST_F(TransformationTestsF, TSBinaryBackwardPReluSlabSpecialRank1) {
+    const Shape input_shape = {5};
+    const Shape slope_shape = {5};
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+
+        auto slope = std::make_shared<Constant>(element::f32, slope_shape, Shape{5, 7, 9, 11, 15});
+        auto prelu = std::make_shared<PRelu>(X, slope);
+
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{1}, Shape{0});
+        auto transpose = std::make_shared<Transpose>(prelu, ts_order);
+
+        model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+
+        auto ts_order0 = std::make_shared<Constant>(element::u64, Shape{1}, Shape{0});
+        auto transpose0 = std::make_shared<Transpose>(X, ts_order0);
+
+        auto slope = std::make_shared<Constant>(element::f32, slope_shape, Shape{1});
+
+        auto ts_order1 = std::make_shared<Constant>(element::u64, Shape{1}, Shape{0});
+        auto transpose1 = std::make_shared<Transpose>(slope, ts_order1);
+
+        auto prelu = std::make_shared<PRelu>(transpose0, transpose1);
+
+        model_ref = std::make_shared<Model>(ov::OutputVector{prelu}, ov::ParameterVector{X});
+    }
+
+    manager.register_pass<TSBinaryBackward>();
+}

@@ -4,26 +4,32 @@
 
 #include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
-    auto eltwise_pattern = pattern::wrap_type<opset8::SquaredDifference,
+    auto eltwise_pattern = pattern::wrap_type<ov::op::v0::SquaredDifference,
                                               op::util::BinaryElementwiseComparison,
                                               op::util::BinaryElementwiseLogical,
                                               op::util::BinaryElementwiseArithmetic,
-                                              opset8::FakeQuantize>(pattern::has_static_rank());
+                                              ov::op::v0::FakeQuantize>(pattern::has_static_rank());
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
 
-        auto fq = as_type<opset8::FakeQuantize>(node.get());
+        auto fq = as_type<ov::op::v0::FakeQuantize>(node.get());
         if (fq) {
-            if (fq->get_auto_broadcast() != ngraph::op::AutoBroadcastType::NUMPY) {
+            if (fq->get_auto_broadcast() != ov::op::AutoBroadcastType::NUMPY) {
                 return false;
             }
-        } else if (node->get_autob() != ngraph::op::AutoBroadcastType::NUMPY) {
+        } else if (node->get_autob() != ov::op::AutoBroadcastType::NUMPY) {
             return false;
         }
 
@@ -31,26 +37,26 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
         // NormalizeIE has an attribute called channel_shared, which is set
         // based on Multiply's constant input rank - it's true if the rank is 1.
         // So we skip extending Multiply's constant input rank here.
-        if (ov::is_type<opset8::Multiply>(node)) {
+        if (ov::is_type<ov::op::v1::Multiply>(node)) {
             auto inputs = node->input_values();
             if (std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& input) -> bool {
-                    return ov::is_type<opset8::NormalizeL2>(input.get_node());
+                    return ov::is_type<ov::op::v0::NormalizeL2>(input.get_node());
                 }))
                 return false;
         }
 
-        const auto rank = node->get_output_partial_shape(0).size();
+        const auto rank = static_cast<int64_t>(node->get_output_partial_shape(0).size());
 
         for (size_t i = 0; i < node->get_input_size(); i++) {
-            auto const_node = as_type<opset8::Constant>(node->get_input_node_ptr(i));
+            auto const_node = as_type<ov::op::v0::Constant>(node->get_input_node_ptr(i));
             if (const_node == nullptr)
                 continue;
             const auto& const_shape = const_node->get_shape();
-            auto diff = rank - const_shape.size();
+            auto diff = rank - static_cast<int64_t>(const_shape.size());
             if (diff > 0) {
                 Shape new_shape = const_shape;
                 new_shape.insert(new_shape.begin(), diff, 1);
-                auto new_const = std::make_shared<opset8::Constant>(*const_node, new_shape);
+                auto new_const = std::make_shared<ov::op::v0::Constant>(*const_node, new_shape);
                 copy_runtime_info(node->get_input_node_shared_ptr(i), new_const);
                 node->input(i).replace_source_output(new_const);
             }

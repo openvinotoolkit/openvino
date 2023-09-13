@@ -14,21 +14,50 @@
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
+#include "openvino/pass/constant_folding.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
 
+double ConstRanges::max = std::numeric_limits<double>::min();
+double ConstRanges::min = std::numeric_limits<double>::max();
+bool ConstRanges::is_defined = false;
+
 namespace {
+
+/**
+ * Sets proper range and resolution for real numbers generation
+ *
+ * range = 8 and resolution 32
+ *
+ * The worst case scenario is 7 + 31/32 (7.96875)
+ * IEEE 754 representation is:
+ * ----------------------------------------------
+ *      sign | exponent | mantissa
+ * ----------------------------------------------
+ * FP32    0 | 10000001 | 11111110000000000000000
+ * FP16    0 |    10001 | 1111111000
+ * BF16    0 | 10000001 | 1111111
+ * ----------------------------------------------
+ *
+ * All the generated numbers completely fit into the data type without truncation
+ */
+static inline void set_real_number_generation_data(InputGenerateData& inGenData) {
+    inGenData.range = 8;
+    inGenData.resolution = 32;
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    size_t inNodeCnt = node->get_input_size();
     InputGenerateData inGenData;
     if (elemType.is_real()) {
-        inGenData.range = 2560;
-        inGenData.resolution = 256;
+        set_real_number_generation_data(inGenData);
     }
+
+    const size_t inNodeCnt = node->get_input_size();
     auto it = inputRanges.find(node->get_type_info());
     if (it != inputRanges.end()) {
         const auto& ranges = it->second;
@@ -39,18 +68,13 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
         inGenData = range.size() < inNodeCnt ? range.front() : range.at(port);
     }
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range,
-                                          inGenData.start_from, inGenData.resolution, inGenData.seed);
+                                                   inGenData.start_from, inGenData.resolution, inGenData.seed);
 }
 
 namespace Activation {
-// todo: this is a bug fixed! Merge it separately.
-//  Default parameters InputGenerateData(10, 20, 32768, 1) lead to input generation according to 10 + x/32768,
-//  where x {0, 20}, so all generated values are in the range [10, 10 + 6.1e-4].
-//  Thus all the interval more-or-less fall within the uncertainty validation interval
-//  Fix let the range be at least 20x of resolution
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-                             InputGenerateData inGenData = InputGenerateData(-1, 2*32768, 32768, 1)) {
+                             InputGenerateData inGenData = InputGenerateData(-1, 2, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
         inGenData.start_from = 0;
@@ -313,7 +337,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling>& node
     if (port == 1) {
         const auto &inputShape = node->get_input_shape(0);
         ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
-#define CASE(X) case X: ::CommonTestUtils::fill_roi_raw_ptr(                   \
+#define CASE(X) case X: ::ov::test::utils::fill_roi_raw_ptr(                   \
     tensor.data<element_type_traits<X>::value_type>(),                         \
     tensor.get_size(),                                                         \
     node->get_input_shape(0).front() - 1,                                      \
@@ -483,8 +507,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::ReduceLogical
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
-
-
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& node,
                              size_t port,
@@ -912,6 +934,35 @@ ov::runtime::Tensor generate(const
     }
 }
 
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v1::TopK>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    auto tensor = ov::Tensor{elemType, targetShape};
+    size_t size = tensor.get_size();
+    int start = - static_cast<int>(size / 2);
+    std::vector<int> data(size);
+    std::iota(data.begin(), data.end(), start);
+    std::mt19937 gen(0);
+    std::shuffle(data.begin(), data.end(), gen);
+
+    float divisor = size / 10.0;
+
+    if (tensor.get_element_type() == ov::element::f32) {
+        auto *p = tensor.data<float>();
+        for (size_t i = 0; i < size; i++)
+            p[i] = static_cast<float>(data[i] / divisor);
+    } else if (tensor.get_element_type() == ov::element::f16) {
+        auto *p = tensor.data<ov::float16>();
+        for (size_t i = 0; i < size; i++)
+            p[i] = static_cast<ov::float16>(data[i] / divisor);
+    } else {
+        OPENVINO_THROW("Unsupported element type: ", tensor.get_element_type());
+    }
+    return tensor;
+}
+
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,
@@ -936,6 +987,7 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

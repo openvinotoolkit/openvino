@@ -33,9 +33,9 @@ namespace pytorch {
 namespace pass {
 
 using namespace ov::op;
-namespace {
 
-std::shared_ptr<Node> flatten(const Output<Node>& value, size_t axis) {
+namespace {
+Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis) {
     // First dimension of output tensor is the product of [d_0, ... d_{axis-1}] dimensions of
     // input tensor. The last dimension is the product of the rest of input tensor dimensions:
     // [d_{axis}, ..., d_n]
@@ -45,20 +45,20 @@ std::shared_ptr<Node> flatten(const Output<Node>& value, size_t axis) {
     } else if (axis == 1) {
         output_shape = v0::Constant::create(element::i32, Shape{2}, {0, -1});
     } else {
-        const auto value_shape = std::make_shared<v3::ShapeOf>(value, element::i32);
-        const auto value_rank = std::make_shared<v3::ShapeOf>(value_shape, element::i32);
+        const auto value_shape = rg.make<v3::ShapeOf>(value, element::i32);
+        const auto value_rank = rg.make<v3::ShapeOf>(value_shape, element::i32);
         const auto axis_node = v0::Constant::create(element::i32, Shape{1}, {axis});
         auto start = v0::Constant::create(element::i32, Shape{1}, {0});
         auto step = v0::Constant::create(element::i32, Shape{1}, {1});
-        const auto first_part_dims = std::make_shared<v8::Slice>(value_shape, start, axis_node, step);
+        const auto first_part_dims = rg.make<v8::Slice>(value_shape, start, axis_node, step);
         auto zero = v0::Constant::create(element::i32, {}, {0});
-        auto first_part_dims_length = std::make_shared<v1::ReduceProd>(first_part_dims, zero, true);
+        auto first_part_dims_length = rg.make<v1::ReduceProd>(first_part_dims, zero, true);
 
         auto remaining_part_length = v0::Constant::create(element::i32, {1}, {-1});
 
-        output_shape = std::make_shared<v0::Concat>(OutputVector{first_part_dims_length, remaining_part_length}, 0);
+        output_shape = rg.make<v0::Concat>(OutputVector{first_part_dims_length, remaining_part_length}, 0);
     }
-    return std::make_shared<v1::Reshape>(value, output_shape, true);
+    return rg.make<v1::Reshape>(value, output_shape, true);
 }
 };  // namespace
 
@@ -70,6 +70,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
         if (!index_op) {
             return false;
         }
+        ov::pass::NodeRegistry rg;
         auto input_node = index_op->input_value(0);
         auto indicies = index_op->input_value(1).get_node_shared_ptr();
         auto list_indicies = cast_fw_node(indicies, "prim::ListConstruct");
@@ -110,10 +111,10 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 }
                 auto id_dtype = ids[i].get_element_type();
                 if (id_dtype == element::boolean || id_dtype == element::u8) {
-                    auto idx = std::make_shared<v0::Convert>(ids[i], element::u8);
-                    auto nonzero = std::make_shared<v3::NonZero>(idx, element::i32);
+                    auto idx = rg.make<v0::Convert>(ids[i], element::u8);
+                    auto nonzero = rg.make<v3::NonZero>(idx, element::i32);
                     auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
-                    auto masked_id = std::make_shared<v1::Transpose>(nonzero, input_order);
+                    auto masked_id = rg.make<v1::Transpose>(nonzero, input_order);
                     masked_indicies.push_back(masked_id);
                     is_masked_bool.push_back(true);
                 } else {
@@ -125,24 +126,22 @@ AtenIndexToSelect::AtenIndexToSelect() {
 
             // all indicies prim::Constant(None), return input as is
             if (advanced_ids.size() == 0) {
-                replace_node(index_op, input_node.get_node_shared_ptr());
+                index_op->output(0).replace(index_op->get_input_source_output(0));
                 return true;
             }
             // perform gather for single element case
             if (advanced_ids.size() == 1) {
                 auto index = masked_indicies[advanced_ids[0]];
                 if (is_masked_bool[advanced_ids[0]]) {
-                    auto gather = std::make_shared<v8::GatherND>(input_node, index);
-                    copy_runtime_info({index_op, indicies}, gather);
-                    gather->set_friendly_name(index_op->get_friendly_name());
+                    auto gather = rg.make<v8::GatherND>(input_node, index);
+                    copy_runtime_info_and_name(index_op, rg.get());
                     replace_node(index_op, gather);
                     return true;
                 }
-                index = std::make_shared<v0::Convert>(index, element::i32);
+                index = rg.make<v0::Convert>(index, element::i32);
                 auto dim = v0::Constant::create(element::i32, Shape{}, {advanced_ids[0]});
-                auto gather = std::make_shared<v8::Gather>(input_node, index, dim);
-                copy_runtime_info({index_op, indicies}, gather);
-                gather->set_friendly_name(index_op->get_friendly_name());
+                auto gather = rg.make<v8::Gather>(input_node, index, dim);
+                copy_runtime_info_and_name(index_op, rg.get());
                 replace_node(index_op, gather);
                 return true;
             }
@@ -150,11 +149,12 @@ AtenIndexToSelect::AtenIndexToSelect() {
             auto rank = input_node.get_partial_shape().rank();
             // index transformation supports only tensors with static rank
             if (rank.is_dynamic()) {
+                add_exception_to_fw_node(index_op, "aten::index: dynamic rank for aten::index input is not supported.");
                 return false;
             }
-            auto input_shape = std::make_shared<v3::ShapeOf>(input_node, element::i32);
+            auto input_shape = rg.make<v3::ShapeOf>(input_node, element::i32);
             auto zero = v0::Constant::create(element::i32, Shape{}, {0});
-            auto input_dims = std::make_shared<v1::Split>(input_shape, zero, rank.get_length());
+            auto input_dims = rg.make<v1::Split>(input_shape, zero, rank.get_length());
             std::vector<size_t> non_used_dims;
             for (auto i = 0; i < rank.get_length(); i++) {
                 if (std::find(advanced_ids.begin(), advanced_ids.end(), i) == advanced_ids.end()) {
@@ -165,23 +165,23 @@ AtenIndexToSelect::AtenIndexToSelect() {
             permutation_dims.insert(permutation_dims.end(), advanced_ids.begin(), advanced_ids.end());
             permutation_dims.insert(permutation_dims.end(), non_used_dims.begin(), non_used_dims.end());
             auto transpose_dims = v0::Constant::create(element::i32, Shape{permutation_dims.size()}, permutation_dims);
-            auto transposed_input = std::make_shared<v1::Transpose>(input_node, transpose_dims);
-            auto flatten_input = flatten(transposed_input, adv_idx_count);
+            auto transposed_input = rg.make<v1::Transpose>(input_node, transpose_dims);
+            auto flatten_input = flatten(rg, transposed_input, adv_idx_count);
             auto cum_adv_index = masked_indicies[advanced_ids[adv_idx_count - 1]];
-            cum_adv_index = std::make_shared<v0::Convert>(cum_adv_index, element::i32);
+            cum_adv_index = rg.make<v0::Convert>(cum_adv_index, element::i32);
             auto multiplier = input_dims->output(advanced_ids[adv_idx_count - 1]);
             for (int i = static_cast<int>(adv_idx_count) - 2; i > -1; i--) {
-                auto m_idx = std::make_shared<v0::Convert>(masked_indicies[i], element::i32);
-                auto adv_index = std::make_shared<v1::Multiply>(m_idx, multiplier);
-                cum_adv_index = std::make_shared<v1::Add>(cum_adv_index, adv_index);
+                auto m_idx = rg.make<v0::Convert>(masked_indicies[i], element::i32);
+                auto adv_index = rg.make<v1::Multiply>(m_idx, multiplier);
+                cum_adv_index = rg.make<v1::Add>(cum_adv_index, adv_index);
                 auto input_id = advanced_ids[i];
-                multiplier = std::make_shared<v1::Multiply>(multiplier, input_dims->output(input_id));
+                multiplier = rg.make<v1::Multiply>(multiplier, input_dims->output(input_id));
             }
-            std::shared_ptr<Node> gather = std::make_shared<v8::Gather>(flatten_input, cum_adv_index, zero);
+            std::shared_ptr<Node> gather = rg.make<v8::Gather>(flatten_input, cum_adv_index, zero);
             OutputVector concat_dims;
             // check if all advanced indices are consecutive.
             std::vector<size_t> consequence_dims;
-            auto cum_adv_index_shape_tensor = std::make_shared<v3::ShapeOf>(cum_adv_index, element::i32);
+            auto cum_adv_index_shape_tensor = rg.make<v3::ShapeOf>(cum_adv_index, element::i32);
             for (size_t i = advanced_ids[0]; i <= advanced_ids[advanced_ids.size() - 1]; i++) {
                 consequence_dims.push_back(i);
             }
@@ -193,8 +193,8 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 for (auto i : non_used_dims) {
                     folded_adv_idx_shape_vector.push_back(input_dims->output(i));
                 }
-                auto folded_adv_idx_shape = std::make_shared<v0::Concat>(folded_adv_idx_shape_vector, 0);
-                gather = std::make_shared<v1::Reshape>(gather, folded_adv_idx_shape, false);
+                auto folded_adv_idx_shape = rg.make<v0::Concat>(folded_adv_idx_shape_vector, 0);
+                gather = rg.make<v1::Reshape>(gather, folded_adv_idx_shape, false);
                 std::vector<size_t> adv_idx_permute;
                 for (size_t i = 1; i < advanced_ids[0] + 1; i++) {
                     adv_idx_permute.push_back(i);
@@ -206,7 +206,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 // Transpose folded advanced indexed axis to its original location.
                 auto permute_indicies =
                     v0::Constant::create(element::i32, Shape{adv_idx_permute.size()}, adv_idx_permute);
-                gather = std::make_shared<v1::Transpose>(gather, permute_indicies);
+                gather = rg.make<v1::Transpose>(gather, permute_indicies);
                 // unfold advanced index axes
                 for (size_t i = 0; i < advanced_ids[0]; i++) {
                     concat_dims.push_back(input_dims->output(i));
@@ -225,11 +225,10 @@ AtenIndexToSelect::AtenIndexToSelect() {
                     concat_dims.push_back(input_dims->output(i));
                 }
             }
-            auto final_shape = std::make_shared<v0::Concat>(concat_dims, 0);
-            gather = std::make_shared<v1::Reshape>(gather, final_shape, false);
-            copy_runtime_info({index_op, indicies}, gather);
+            auto final_shape = rg.make<v0::Concat>(concat_dims, 0);
+            gather = rg.make<v1::Reshape>(gather, final_shape, false);
+            copy_runtime_info_and_name(index_op, rg.get());
             replace_node(index_op, gather);
-            gather->set_friendly_name(index_op->get_friendly_name());
             return true;
 
         } else {
@@ -239,30 +238,30 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 // index is None, stay input as is
                 const auto& attrs = const_input->get_attrs();
                 if (attrs.find("none_value") != attrs.end()) {
-                    replace_node(index_op, input_node.get_node_shared_ptr());
+                    index_op->output(0).replace(index_op->get_input_source_output(0));
                     return true;
                 }
             }
             auto index_dtype = indicies->get_output_element_type(0);
             if (index_dtype == element::boolean || index_dtype == element::u8) {
-                auto nonzero = std::make_shared<v3::NonZero>(indicies, element::i32);
+                auto nonzero = rg.make<v3::NonZero>(indicies, element::i32);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
-                auto masked_id = std::make_shared<v1::Transpose>(nonzero, input_order);
-                auto gather = std::make_shared<v8::GatherND>(input_node, masked_id);
-                copy_runtime_info({index_op, indicies}, gather);
+                auto masked_id = rg.make<v1::Transpose>(nonzero, input_order);
+                auto gather = rg.make<v8::GatherND>(input_node, masked_id);
+                copy_runtime_info_and_name(index_op, rg.get());
                 replace_node(index_op, gather);
                 return true;
             }
             if (index_dtype != element::i32) {
-                indicies = std::make_shared<ov::op::v0::Convert>(indicies, element::i32);
+                indicies = rg.make<ov::op::v0::Convert>(indicies, element::i32);
             }
             auto dim = v0::Constant::create(element::i32, Shape{}, {0});
-            auto gather = std::make_shared<v8::Gather>(input_node, indicies, dim);
-            copy_runtime_info({index_op, indicies}, gather);
+            auto gather = rg.make<v8::Gather>(input_node, indicies, dim);
+            copy_runtime_info_and_name(index_op, rg.get());
             replace_node(index_op, gather);
-            gather->set_friendly_name(index_op->get_friendly_name());
             return true;
         }
+        add_exception_to_fw_node(index_op, "Unsupported case of aten::index.");
         return false;
     };
 

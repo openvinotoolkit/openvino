@@ -40,6 +40,8 @@ namespace cldnn {
 struct batch_to_space : public primitive_base<batch_to_space> {
     CLDNN_DECLARE_PRIMITIVE(batch_to_space)
 
+    batch_to_space() : primitive_base("", {}) {}
+
     /// @brief Constructs batch_to_space primitive.
     /// @param id This primitive id.
     /// @param input Input data primitive id.
@@ -57,18 +59,32 @@ struct batch_to_space : public primitive_base<batch_to_space> {
           block_shape(block_shape),
           crops_begin(crops_begin),
           crops_end(crops_end),
-          out_size(out_size) {}
+          out_size(out_size),
+          shape_constant(1) {}
+
+    batch_to_space(const primitive_id& id,
+                   const std::vector<input_info>& inputs,
+                   const tensor& out_size,
+                   const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}),
+          block_shape(tensor()),
+          crops_begin(tensor()),
+          crops_end(tensor()),
+          out_size(out_size),
+          shape_constant(0) {}
 
     tensor block_shape;
     tensor crops_begin;
     tensor crops_end;
     tensor out_size;
+    int64_t shape_constant;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, block_shape.hash());
         seed = hash_combine(seed, crops_begin.hash());
         seed = hash_combine(seed, crops_end.hash());
+        seed = hash_combine(seed, shape_constant);
         return seed;
     }
 
@@ -81,6 +97,24 @@ struct batch_to_space : public primitive_base<batch_to_space> {
         return block_shape == rhs_casted.block_shape &&
                crops_begin == rhs_casted.crops_begin &&
                crops_end == rhs_casted.crops_end;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<batch_to_space>::save(ob);
+        ob << block_shape;
+        ob << crops_begin;
+        ob << crops_end;
+        ob << out_size;
+        ob << shape_constant;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<batch_to_space>::load(ib);
+        ib >> block_shape;
+        ib >> crops_begin;
+        ib >> crops_end;
+        ib >> out_size;
+        ib >> shape_constant;
     }
 };
 }  // namespace cldnn

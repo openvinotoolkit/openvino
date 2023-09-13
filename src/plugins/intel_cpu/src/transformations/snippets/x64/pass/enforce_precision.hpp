@@ -4,15 +4,16 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/pass/pass.hpp>
 #include "snippets/generator.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+
+#include <memory>
 
 namespace ov {
 namespace intel_cpu {
 namespace pass {
 
-class EnforcePrecision: public ngraph::pass::FunctionPass {
+class EnforcePrecision: public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("EnforcePrecision", "0");
 

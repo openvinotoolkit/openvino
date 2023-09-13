@@ -23,7 +23,7 @@ std::string CTCGreedyDecoderLayerTest::getTestCaseName(
     std::ostringstream result;
     const char separator = '_';
 
-    result << "IS="     << CommonTestUtils::vec2str(inputShapes) << separator;
+    result << "IS="     << ov::test::utils::vec2str(inputShapes) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;
@@ -44,7 +44,7 @@ void CTCGreedyDecoderLayerTest::SetUp() {
     std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, mergeRepeated, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShapes });
+    ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 

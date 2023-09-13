@@ -2,24 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
 #include <memory>
-#include <strided_slice_shape_inference.hpp>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "gmock/gmock.h"
-#include "ngraph/ngraph.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "util/type_prop.hpp"
+#include "strided_slice_shape_inference.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 TEST(type_prop, strided_slice_begin_incorrect_type) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::f16, Shape{4});
-    auto end = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<ov::op::v0::Parameter>(element::f16, Shape{4});
+    auto end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
     try {
         auto strided_slice = make_shared<op::v1::StridedSlice>(data,
                                                                begin,
@@ -36,9 +37,9 @@ TEST(type_prop, strided_slice_begin_incorrect_type) {
 }
 
 TEST(type_prop, strided_slice_end_incorrect_type) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto end = make_shared<op::Parameter>(element::boolean, Shape{4});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto end = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{4});
     try {
         auto strided_slice = make_shared<op::v1::StridedSlice>(data,
                                                                begin,
@@ -55,9 +56,9 @@ TEST(type_prop, strided_slice_end_incorrect_type) {
 }
 
 TEST(type_prop, strided_slice_incompatible_size_of_masks_attr) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto end = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
     try {
         auto strided_slice = make_shared<op::v1::StridedSlice>(data,
                                                                begin,
@@ -75,9 +76,9 @@ TEST(type_prop, strided_slice_incompatible_size_of_masks_attr) {
 }
 
 TEST(type_prop, strided_slice_mask_incorrect_value) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::i64, Shape{4, 5});
-    auto end = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4, 5});
+    auto end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
     try {
         auto strided_slice = make_shared<op::v1::StridedSlice>(data,
                                                                begin,
@@ -94,9 +95,9 @@ TEST(type_prop, strided_slice_mask_incorrect_value) {
 }
 
 TEST(type_prop, strided_slice_begin_incorrect_shape) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::i64, Shape{4, 5});
-    auto end = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4, 5});
+    auto end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
 
     OV_EXPECT_THROW(auto strided_slice = make_shared<op::v1::StridedSlice>(data,
                                                                            begin,
@@ -108,9 +109,9 @@ TEST(type_prop, strided_slice_begin_incorrect_shape) {
 }
 
 TEST(type_prop, strided_slice_end_incorrect_shape) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto end = make_shared<op::Parameter>(element::i64, Shape{4, 5});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4, 5});
 
     OV_EXPECT_THROW(auto strided_slice = make_shared<op::v1::StridedSlice>(data,
                                                                            begin,
@@ -122,23 +123,23 @@ TEST(type_prop, strided_slice_end_incorrect_shape) {
 }
 
 TEST(type_prop, strided_slice_default_stride_dynamic_shape_input_begin_not_1d) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
-    const auto end = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
+    const auto end = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
 
     OV_EXPECT_THROW(
         const auto strided_slice =
             make_shared<op::v1::StridedSlice>(data, begin, end, vector<int64_t>{0, 0}, vector<int64_t>{0, 0}),
-        CheckFailure,
+        AssertFailure,
         HasSubstr("Begin input must be 1D"));
 }
 
 TEST(type_prop, strided_slice_default_stride_dynamic_shape_input) {
     auto shape = PartialShape{2, 4, 6, 8};
     set_shape_labels(shape, 11);
-    auto data = make_shared<op::Parameter>(element::f32, shape);
-    auto begin = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
-    auto end = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
+    auto end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
     auto strided_slice =
         make_shared<op::v1::StridedSlice>(data, begin, end, vector<int64_t>{0, 0}, vector<int64_t>{0, 0});
@@ -151,10 +152,10 @@ TEST(type_prop, strided_slice_default_stride_dynamic_shape_input) {
 TEST(type_prop, strided_slice_reverse_out_of_bounds_on_dims_0_1) {
     auto shape = PartialShape{3, 4, 5};
     set_shape_labels(shape, 10);
-    auto data = std::make_shared<op::Parameter>(element::f32, shape);
-    auto begin = op::Constant::create(element::i64, Shape{2}, {10, 2});
-    auto end = op::Constant::create(element::i64, Shape{2}, {-10, -10});
-    auto stride = op::Constant::create(element::i64, Shape{2}, {-1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{2}, {10, 2});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{2}, {-10, -10});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{2}, {-1});
 
     auto mask = std::vector<int64_t>(shape.size(), 0);
 
@@ -167,10 +168,10 @@ TEST(type_prop, strided_slice_reverse_out_of_bounds_on_dims_0_1) {
 TEST(type_prop, strided_slice_ignore_begin_mask_stride_pos_1) {
     auto shape = PartialShape{4, 4, 4, 4, 4, 4, 4, 4};
     set_shape_labels(shape, 10);
-    auto data = std::make_shared<op::Parameter>(element::f32, shape);
-    auto begin = op::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, 10});
-    auto end = op::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
-    auto stride = op::Constant::create(element::i64, Shape{shape.size()}, {1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, 10});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1});
 
     auto begin_mask = std::vector<int64_t>(shape.size(), 1);
     auto end_mask = std::vector<int64_t>(shape.size(), 0);
@@ -186,10 +187,10 @@ TEST(type_prop, strided_slice_ignore_begin_mask_stride_pos_1) {
 TEST(type_prop, strided_slice_ignore_begin_mask_stride_neg_1) {
     auto shape = PartialShape{4, 4, 4, 4, 4, 4, 4, 4};
     set_shape_labels(shape, 10);
-    auto data = std::make_shared<op::Parameter>(element::f32, shape);
-    auto begin = op::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, -10});
-    auto end = op::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
-    auto stride = op::Constant::create(element::i64, Shape{shape.size()}, {-1, -1, -1, -1, -1, -1, -1, -1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, -10});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {-1, -1, -1, -1, -1, -1, -1, -1});
 
     auto begin_mask = std::vector<int64_t>(shape.size(), 1);
     auto end_mask = std::vector<int64_t>(shape.size(), 0);
@@ -211,10 +212,10 @@ TEST(type_prop, strided_slice_ignore_begin_mask_stride_neg_1) {
 TEST(type_prop, strided_slice_ignore_end_mask_stride_pos_1) {
     auto shape = PartialShape{4, 4, 4, 4, 4, 4, 4, 4};
     set_shape_labels(shape, 10);
-    auto data = std::make_shared<op::Parameter>(element::f32, shape);
-    auto begin = op::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, -10});
-    auto end = op::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
-    auto stride = op::Constant::create(element::i64, Shape{shape.size()}, {1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, -10});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1});
 
     auto begin_mask = std::vector<int64_t>(shape.size(), 0);
     auto end_mask = std::vector<int64_t>(shape.size(), 1);
@@ -229,10 +230,10 @@ TEST(type_prop, strided_slice_ignore_end_mask_stride_pos_1) {
 TEST(type_prop, strided_slice_ignore_end_mask_stride_neg_1) {
     auto shape = PartialShape{4, 4, 4, 4, 4, 4, 4, 4};
     set_shape_labels(shape, 10);
-    auto data = std::make_shared<op::Parameter>(element::f32, shape);
-    auto begin = op::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, -10});
-    auto end = op::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
-    auto stride = op::Constant::create(element::i64, Shape{shape.size()}, {-1, -1, -1, -1, -1, -1, -1, -1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, -10});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {-1, -1, -1, -1, -1, -1, -1, -1});
 
     auto begin_mask = std::vector<int64_t>(shape.size(), 0);
     auto end_mask = std::vector<int64_t>(shape.size(), 1);
@@ -247,10 +248,10 @@ TEST(type_prop, strided_slice_ignore_end_mask_stride_neg_1) {
 TEST(type_prop, strided_slice_ignore_begin_end_masks_variadic_stride) {
     auto shape = PartialShape{4, 4, 4, 4, 4, 4, 4, 4};
     set_shape_labels(shape, 10);
-    auto data = std::make_shared<op::Parameter>(element::f32, shape);
-    auto begin = op::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, -10});
-    auto end = op::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
-    auto stride = op::Constant::create(element::i64, Shape{shape.size()}, {1, 2, 3, 10, -1, -2, -3, -10});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {0, 2, 4, 10, -1, -2, -4, -10});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1, 3, 4, 5, -1, -3, -4, -5});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1, 2, 3, 10, -1, -2, -3, -10});
 
     auto mask = std::vector<int64_t>(shape.size(), 1);
 
@@ -265,10 +266,10 @@ TEST(type_prop, strided_slice_ignore_begin_end_masks_variadic_stride) {
 TEST(type_prop, strided_slice_end_over_dimension_size) {
     auto shape = PartialShape{3, 3, 3, 3, 3, 3, 3, 3};
     set_shape_labels(shape, 10);
-    auto data = std::make_shared<op::Parameter>(element::f32, shape);
-    auto begin = op::Constant::create(element::i64, Shape{shape.size()}, {0, 0, 0, 0, 1, 1, 1, 1});
-    auto end = op::Constant::create(element::i64, Shape{shape.size()}, {1, 2, 3, 4, 1, 2, 3, 4});
-    auto stride = op::Constant::create(element::i64, Shape{shape.size()}, {1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {0, 0, 0, 0, 1, 1, 1, 1});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1, 2, 3, 4, 1, 2, 3, 4});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1});
 
     auto mask = std::vector<int64_t>(shape.size(), 0);
 
@@ -283,10 +284,10 @@ TEST(type_prop, strided_slice_end_over_dimension_size) {
 TEST(type_prop, strided_slice_begin_over_dimension_size) {
     auto shape = PartialShape{3, 3, 3, 3, 3, 3, 3, 3};
     set_shape_labels(shape, 10);
-    auto data = std::make_shared<op::Parameter>(element::f32, shape);
-    auto begin = op::Constant::create(element::i64, Shape{shape.size()}, {-1, -1, -1, -1, -2, -2, -2, -2});
-    auto end = op::Constant::create(element::i64, Shape{shape.size()}, {1, 2, 3, 4, 1, 2, 3, 4});
-    auto stride = op::Constant::create(element::i64, Shape{shape.size()}, {1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {-1, -1, -1, -1, -2, -2, -2, -2});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1, 2, 3, 4, 1, 2, 3, 4});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{shape.size()}, {1});
 
     auto mask = std::vector<int64_t>(shape.size(), 0);
 
@@ -299,12 +300,12 @@ TEST(type_prop, strided_slice_begin_over_dimension_size) {
 TEST(type_prop, strided_slice_end_is_shape_of_with_bounds) {
     auto shape = PartialShape{1, {5, 7}};
     set_shape_labels(shape, 20);
-    const auto p_end = std::make_shared<op::Parameter>(element::i64, shape);
-    const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
+    const auto p_end = std::make_shared<ov::op::v0::Parameter>(element::i64, shape);
+    const auto shape_of_end = std::make_shared<op::v0::ShapeOf>(p_end);
 
-    auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
-    auto begin = op::Constant::create(element::i64, Shape{2}, {0, 0});
-    auto stride = op::Constant::create(element::i64, Shape{2}, {1, 1});
+    auto data = ov::op::v0::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 0});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
 
     auto mask = std::vector<int64_t>(2, 0);
 
@@ -317,12 +318,12 @@ TEST(type_prop, strided_slice_end_is_shape_of_with_bounds) {
 TEST(type_prop, strided_slice_begin_is_shape_of_with_bounds) {
     auto shape = PartialShape{0, {3, 5}};
     set_shape_labels(shape, 20);
-    const auto p_begin = std::make_shared<op::Parameter>(element::i64, shape);
-    const auto shape_of_begin = std::make_shared<op::ShapeOf>(p_begin);
+    const auto p_begin = std::make_shared<ov::op::v0::Parameter>(element::i64, shape);
+    const auto shape_of_begin = std::make_shared<op::v0::ShapeOf>(p_begin);
 
-    auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
-    auto end = op::Constant::create(element::i64, Shape{2}, {1, 7});
-    auto stride = op::Constant::create(element::i64, Shape{2}, {1, 1});
+    auto data = ov::op::v0::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 7});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
 
     auto mask = std::vector<int64_t>(2, 0);
 
@@ -337,13 +338,13 @@ TEST(type_prop, strided_slice_begin_end_is_shape_of_with_bounds) {
     auto end_shape = PartialShape{2, {6, 7}};
     set_shape_labels(begin_shape, 10);
     set_shape_labels(end_shape, 20);
-    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
-    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
-    const auto shape_of_begin = std::make_shared<op::ShapeOf>(p_begin);
-    const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
+    const auto p_begin = std::make_shared<ov::op::v0::Parameter>(element::i64, begin_shape);
+    const auto p_end = std::make_shared<ov::op::v0::Parameter>(element::i64, end_shape);
+    const auto shape_of_begin = std::make_shared<op::v0::ShapeOf>(p_begin);
+    const auto shape_of_end = std::make_shared<op::v0::ShapeOf>(p_end);
 
-    auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
-    auto stride = op::Constant::create(element::i64, Shape{2}, {1, 1});
+    auto data = ov::op::v0::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
 
     auto mask = std::vector<int64_t>(2, 0);
 
@@ -354,11 +355,11 @@ TEST(type_prop, strided_slice_begin_end_is_shape_of_with_bounds) {
 }
 
 TEST(type_prop, strided_slice_out_of_bounds_different_stride) {
-    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{5, 5, 5, 5, 5});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{5, 5, 5, 5, 5});
     const auto data_rank_size = data->get_partial_shape().size();
-    auto begin = op::Constant::create(element::i64, Shape{data_rank_size}, {5, 5, 5, 5, 5});
-    auto end = op::Constant::create(element::i64, Shape{data_rank_size}, {5, 5, 5, 5, 5});
-    auto stride = op::Constant::create(element::i64, Shape{data_rank_size}, {1, 2, 5, -2, -5});
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{data_rank_size}, {5, 5, 5, 5, 5});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{data_rank_size}, {5, 5, 5, 5, 5});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{data_rank_size}, {1, 2, 5, -2, -5});
 
     const auto mask = std::vector<int64_t>(data_rank_size, 0);
 
@@ -368,11 +369,12 @@ TEST(type_prop, strided_slice_out_of_bounds_different_stride) {
 }
 
 TEST(type_prop, strided_slice_reverse_end_is_int64_min) {
-    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{{0, 20}, -1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{{0, 20}, -1});
     const auto data_rank_size = data->get_partial_shape().size();
-    auto begin = op::Constant::create(element::i64, Shape{data_rank_size}, {20, 20});
-    auto end = op::Constant::create(element::i64, Shape{data_rank_size}, std::vector<int64_t>{INT64_MIN, INT64_MIN});
-    auto stride = op::Constant::create(element::i64, Shape{data_rank_size}, std::vector<int64_t>{-1, -1});
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{data_rank_size}, {20, 20});
+    auto end =
+        ov::op::v0::Constant::create(element::i64, Shape{data_rank_size}, std::vector<int64_t>{INT64_MIN, INT64_MIN});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{data_rank_size}, std::vector<int64_t>{-1, -1});
 
     const auto mask = std::vector<int64_t>(data_rank_size, 0);
 
@@ -387,9 +389,9 @@ TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::v0::ShapeOf>(param_0);
 
     constexpr auto et = element::i64;
     std::vector<int64_t> start_val{0}, stop_val{1}, step_val{1};
@@ -413,10 +415,10 @@ TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
 TEST(type_prop, strided_slice_use_default_ctor) {
     const auto zero_mask = std::vector<int64_t>(3, 0);
 
-    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{10, 11, 12});
-    auto begin = op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto end = op::Constant::create(element::i64, Shape{4}, {1, 5, 20, 20});
-    auto stride = op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{10, 11, 12});
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 5, 20, 20});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
 
     auto slice = std::make_shared<op::v1::StridedSlice>();
     slice->set_begin_mask(zero_mask);
@@ -431,10 +433,10 @@ TEST(type_prop, strided_slice_use_default_ctor) {
 }
 
 TEST(type_prop, strided_slice_inf_dim_start_from_last_N_to_end) {
-    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 256, -1});
-    auto start = op::Constant::create(element::i64, Shape{3}, {0, 0, -7});
-    auto stop = op::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 0, INT64_MAX});
-    auto step = op::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 256, -1});
+    auto start = ov::op::v0::Constant::create(element::i64, Shape{3}, {0, 0, -7});
+    auto stop = ov::op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 0, INT64_MAX});
+    auto step = ov::op::v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
 
     const auto slice = std::make_shared<op::v1::StridedSlice>(data,
                                                               start,
@@ -447,9 +449,9 @@ TEST(type_prop, strided_slice_inf_dim_start_from_last_N_to_end) {
 }
 
 TEST(type_prop, strided_slice_different_ranks) {
-    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
-    auto start = op::Constant::create(element::i64, Shape{1}, {0});
-    auto stop = op::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{INT64_MAX});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
+    auto start = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+    auto stop = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{INT64_MAX});
 
     const auto slice = std::make_shared<op::v1::StridedSlice>(data,
                                                               start,
@@ -461,9 +463,9 @@ TEST(type_prop, strided_slice_different_ranks) {
 }
 
 TEST(type_prop, strided_slice_different_ranks_long_masks) {
-    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
-    auto start = op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto stop = op::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{2, 2, 2, 2});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
+    auto start = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto stop = ov::op::v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{2, 2, 2, 2});
 
     const auto slice = std::make_shared<op::v1::StridedSlice>(data,
                                                               start,

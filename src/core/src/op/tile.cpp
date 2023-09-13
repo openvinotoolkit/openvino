@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/reference/tile.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/tile.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -50,11 +50,14 @@ shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
     auto& output = outputs[0];
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto repeats_val = read_index_vector(axis);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto repeats_rank = repeats_val.size();
 
     const auto input_shapes = std::vector<ov::PartialShape>{data->get_shape(), axis->get_shape()};
@@ -63,12 +66,12 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
         output->set_shape(output_shape);
     }
     repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
-    ngraph::runtime::reference::tile(data->get_data_ptr<const char>(),
-                                     output->get_data_ptr<char>(),
-                                     data->get_shape(),
-                                     output_shape,
-                                     data->get_element_type().size(),
-                                     repeats_val);
+    ov::reference::tile(data->get_data_ptr<const char>(),
+                        output->get_data_ptr<char>(),
+                        data->get_shape(),
+                        output_shape,
+                        data->get_element_type().size(),
+                        repeats_val);
 
     return true;
 }
@@ -86,12 +89,12 @@ bool op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVec
     const auto& output_shape = shape_infer(this, input_shapes, make_tensor_accessor(input_values)).front().to_shape();
     output.set_shape(output_shape);
     repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
-    ngraph::runtime::reference::tile(static_cast<const char*>(data.data()),
-                                     static_cast<char*>(output.data()),
-                                     data.get_shape(),
-                                     output_shape,
-                                     data.get_element_type().size(),
-                                     repeats_val);
+    ov::reference::tile(static_cast<const char*>(data.data()),
+                        static_cast<char*>(output.data()),
+                        data.get_shape(),
+                        output_shape,
+                        data.get_element_type().size(),
+                        repeats_val);
 
     return true;
 }
@@ -107,6 +110,7 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
     OV_OP_SCOPE(v0_Tile_evaluate);
     return evaluate_tile(outputs, inputs);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v0::Tile::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate_lower);

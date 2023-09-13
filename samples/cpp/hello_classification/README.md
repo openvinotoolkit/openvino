@@ -2,50 +2,68 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to do inference of image 
+                 classification models using Synchronous Inference Request 
+                 (C++) API.
+
+
 This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API. 
 
 Models with only one input and output are supported.
 
-The following C++ API is used in the application:
+.. tab-set::
 
-+-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Feature                             | API                                                            | Description                                                                                                                                                                             |
-+=====================================+================================================================+=========================================================================================================================================================================================+
-| OpenVINO Runtime Version            | ``ov::get_openvino_version``                                   | Get Openvino API version                                                                                                                                                                |
-+-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Basic Infer Flow                    | ``ov::Core::read_model``,                                      | Common API to do inference: read and compile a model, create an infer request, configure input and output tensors                                                                       |
-|                                     | ``ov::Core::compile_model``,                                   |                                                                                                                                                                                         |
-|                                     | ``ov::CompiledModel::create_infer_request``,                   |                                                                                                                                                                                         |
-|                                     | ``ov::InferRequest::set_input_tensor``,                        |                                                                                                                                                                                         |
-|                                     | ``ov::InferRequest::get_output_tensor``                        |                                                                                                                                                                                         |
-+-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Synchronous Infer                   | ``ov::InferRequest::infer``                                    | Do synchronous inference                                                                                                                                                                |
-+-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Model Operations                    | ``ov::Model::inputs``,                                         | Get inputs and outputs of a model                                                                                                                                                       |
-|                                     | ``ov::Model::outputs``                                         |                                                                                                                                                                                         |
-+-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Tensor Operations                   | ``ov::Tensor::get_shape``                                      | Get a tensor shape                                                                                                                                                                      |
-+-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Preprocessing                       | ``ov::preprocess::InputTensorInfo::set_element_type``,         | Set image of the original size as input for a model with other input size. Resize and layout conversions are performed automatically by the corresponding plugin just before inference. |
-|                                     | ``ov::preprocess::InputTensorInfo::set_layout``,               |                                                                                                                                                                                         |
-|                                     | ``ov::preprocess::InputTensorInfo::set_spatial_static_shape``, |                                                                                                                                                                                         |
-|                                     | ``ov::preprocess::PreProcessSteps::resize``,                   |                                                                                                                                                                                         |
-|                                     | ``ov::preprocess::InputModelInfo::set_layout``,                |                                                                                                                                                                                         |
-|                                     | ``ov::preprocess::OutputTensorInfo::set_element_type``,        |                                                                                                                                                                                         |
-|                                     | ``ov::preprocess::PrePostProcessor::build``                    |                                                                                                                                                                                         |
-+-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   .. tab-item:: Requirements 
 
-+-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Options                             | Values                                                                                                                                                                                |
-+=====================================+=======================================================================================================================================================================================+
-| Validated Models                    | :doc:`alexnet <omz_models_model_alexnet>`, :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`                                                                                        |
-+-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Model Format                        | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                                                                                       |
-+-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Supported devices                   | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                                                                                                                  |
-+-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Other language realization          | :doc:`C <openvino_inference_engine_ie_bridges_c_samples_hello_classification_README>`, :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>` |
-+-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      +-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Options                             | Values                                                                                                                                                                                |
+      +=====================================+=======================================================================================================================================================================================+
+      | Validated Models                    | :doc:`alexnet <omz_models_model_alexnet>`, :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`                                                                                        |
+      +-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Model Format                        | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                                                                                       |
+      +-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Supported devices                   | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                                                                                                                  |
+      +-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Other language realization          | :doc:`C <openvino_inference_engine_ie_bridges_c_samples_hello_classification_README>`, :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>` |
+      +-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+   .. tab-item:: C++ API
+
+      The following C++ API is used in the application:
+
+      +-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Feature                             | API                                                            | Description                                                                                                                                                                             |
+      +=====================================+================================================================+=========================================================================================================================================================================================+
+      | OpenVINO Runtime Version            | ``ov::get_openvino_version``                                   | Get Openvino API version                                                                                                                                                                |
+      +-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Basic Infer Flow                    | ``ov::Core::read_model``,                                      | Common API to do inference: read and compile a model, create an infer request, configure input and output tensors                                                                       |
+      |                                     | ``ov::Core::compile_model``,                                   |                                                                                                                                                                                         |
+      |                                     | ``ov::CompiledModel::create_infer_request``,                   |                                                                                                                                                                                         |
+      |                                     | ``ov::InferRequest::set_input_tensor``,                        |                                                                                                                                                                                         |
+      |                                     | ``ov::InferRequest::get_output_tensor``                        |                                                                                                                                                                                         |
+      +-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Synchronous Infer                   | ``ov::InferRequest::infer``                                    | Do synchronous inference                                                                                                                                                                |
+      +-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Model Operations                    | ``ov::Model::inputs``,                                         | Get inputs and outputs of a model                                                                                                                                                       |
+      |                                     | ``ov::Model::outputs``                                         |                                                                                                                                                                                         |
+      +-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Tensor Operations                   | ``ov::Tensor::get_shape``                                      | Get a tensor shape                                                                                                                                                                      |
+      +-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Preprocessing                       | ``ov::preprocess::InputTensorInfo::set_element_type``,         | Set image of the original size as input for a model with other input size. Resize and layout conversions are performed automatically by the corresponding plugin just before inference. |
+      |                                     | ``ov::preprocess::InputTensorInfo::set_layout``,               |                                                                                                                                                                                         |
+      |                                     | ``ov::preprocess::InputTensorInfo::set_spatial_static_shape``, |                                                                                                                                                                                         |
+      |                                     | ``ov::preprocess::PreProcessSteps::resize``,                   |                                                                                                                                                                                         |
+      |                                     | ``ov::preprocess::InputModelInfo::set_layout``,                |                                                                                                                                                                                         |
+      |                                     | ``ov::preprocess::OutputTensorInfo::set_element_type``,        |                                                                                                                                                                                         |
+      |                                     | ``ov::preprocess::PrePostProcessor::build``                    |                                                                                                                                                                                         |
+      +-------------------------------------+----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/cpp/hello_classification/main.cpp 
+         :language: cpp
+
 
 How It Works
 ############
@@ -74,8 +92,8 @@ To run the sample, you need to specify a model and image:
 
 .. note::
   
-   - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with ``--reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
-   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`Model Optimizer tool <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using ``mo`` with ``reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
+   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 Example
@@ -149,7 +167,7 @@ See Also
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 - :doc:`Using OpenVINO™ Toolkit Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Model Downloader <omz_tools_downloader>`
-- :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 
 @endsphinxdirective
 

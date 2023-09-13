@@ -6,8 +6,8 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/xor.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/xor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -25,6 +25,7 @@ shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalXor>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace logxor {
 namespace {
 template <element::Type_t ET>
@@ -32,12 +33,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::logical_xor(arg0->get_data_ptr<ET>(),
-                                    arg1->get_data_ptr<ET>(),
-                                    out->get_data_ptr<ET>(),
-                                    arg0->get_shape(),
-                                    arg1->get_shape(),
-                                    broadcast_spec);
+    ov::reference::logical_xor(arg0->get_data_ptr<ET>(),
+                               arg1->get_data_ptr<ET>(),
+                               out->get_data_ptr<ET>(),
+                               arg0->get_shape(),
+                               arg1->get_shape(),
+                               broadcast_spec);
     return true;
 }
 

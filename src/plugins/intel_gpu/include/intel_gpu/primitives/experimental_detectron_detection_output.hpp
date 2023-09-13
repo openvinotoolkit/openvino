@@ -14,6 +14,8 @@ namespace cldnn {
 struct experimental_detectron_detection_output : public primitive_base<experimental_detectron_detection_output> {
     CLDNN_DECLARE_PRIMITIVE(experimental_detectron_detection_output)
 
+    experimental_detectron_detection_output() : primitive_base("", {}) {}
+
     /// @brief Constructs experimental_detectron_detection_output primitive
     /// @param id This primitive id
     /// @param input_rois input rois
@@ -62,13 +64,13 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
 
     primitive_id output_classes;
     primitive_id output_scores;
-    float score_threshold;
-    float nms_threshold;
-    int num_classes;
-    int post_nms_count;
-    int max_detections_per_image;
-    bool class_agnostic_box_regression;
-    float max_delta_log_wh;
+    float score_threshold = 0.0f;
+    float nms_threshold = 0.0f;
+    int num_classes = 0;
+    int post_nms_count = 0;
+    int max_detections_per_image = 0;
+    bool class_agnostic_box_regression = false;
+    float max_delta_log_wh  = 0.0f;
     std::vector<float> deltas_weights;
 
     size_t hash() const override {
@@ -104,6 +106,34 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
                cmp_fields(output_classes.empty()) &&
                cmp_fields(output_scores.empty());
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<experimental_detectron_detection_output>::save(ob);
+        ob << output_classes;
+        ob << output_scores;
+        ob << score_threshold;
+        ob << nms_threshold;
+        ob << num_classes;
+        ob << post_nms_count;
+        ob << max_detections_per_image;
+        ob << class_agnostic_box_regression;
+        ob << max_delta_log_wh;
+        ob << deltas_weights;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<experimental_detectron_detection_output>::load(ib);
+        ib >> output_classes;
+        ib >> output_scores;
+        ib >> score_threshold;
+        ib >> nms_threshold;
+        ib >> num_classes;
+        ib >> post_nms_count;
+        ib >> max_detections_per_image;
+        ib >> class_agnostic_box_regression;
+        ib >> max_delta_log_wh;
+        ib >> deltas_weights;
     }
 
 protected:

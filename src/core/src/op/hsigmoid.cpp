@@ -10,7 +10,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/hsigmoid.hpp"
+#include "openvino/reference/hsigmoid.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -29,12 +29,13 @@ shared_ptr<Node> op::v5::HSigmoid::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v5::HSigmoid>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
 
-    runtime::reference::hsigmoid<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::hsigmoid<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 

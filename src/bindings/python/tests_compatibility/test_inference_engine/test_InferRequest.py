@@ -374,7 +374,7 @@ def test_get_perf_counts(device):
     request = exec_net.requests[0]
     request.infer({'data': img})
     pc = request.get_perf_counts()
-    assert pc['29']["status"] == "EXECUTED"
+    assert pc['29/WithoutBiases']["status"] == "EXECUTED"
     del exec_net
     del ie_core
     del net
@@ -399,23 +399,6 @@ def test_blob_setter(device):
     request.infer()
     res_2 = np.sort(request.output_blobs['fc_out'].buffer)
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
-
-
-def test_blob_setter_with_preprocess(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
-
-    img = generate_image()
-    tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
-    img_blob = ie.Blob(tensor_desc, img)
-    preprocess_info = ie.PreProcessInfo()
-    preprocess_info.mean_variant = ie.MeanVariant.MEAN_IMAGE
-
-    request = exec_net.requests[0]
-    request.set_blob('data', img_blob, preprocess_info)
-    pp = request.preprocess_info["data"]
-    assert pp.mean_variant == ie.MeanVariant.MEAN_IMAGE
 
 
 def test_getting_preprocess(device):

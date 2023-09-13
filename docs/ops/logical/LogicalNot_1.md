@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about LogicalNot-1 - an element-wise, logical binary 
+                operation, which can be performed on a single input tensor.
+
 **Versioned name**: *LogicalNot-1*
 
 **Category**: *Logical unary*
@@ -36,7 +40,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="LogicalNot">
        <input>

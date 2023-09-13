@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/non_zero.hpp>
@@ -10,7 +11,7 @@
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/graph/network.hpp>
-#include "ngraph/runtime/reference/non_zero.hpp"
+#include "openvino/reference/non_zero.hpp"
 
 #include <cstddef>
 
@@ -26,13 +27,14 @@ struct empty_tensor_test_params {
 class test_empty_tensor : public testing::TestWithParam<empty_tensor_test_params> {};
 
 TEST_P(test_empty_tensor, concat_two_inputs) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto p = GetParam();
     auto& engine = get_test_engine();
 
     auto nonzero_input_mem = engine.allocate_memory(p.nonzero_input_layout);
     auto concat_data_mem = engine.allocate_memory(p.concat_input_layout);
 
-    std::vector<int32_t> concat_another_input_data = generate_random_1d<int32_t>(p.concat_input_layout.count(), 0, 100);
+    std::vector<int32_t> concat_another_input_data = rg.generate_random_1d<int32_t>(p.concat_input_layout.count(), 0, 100);
 
     set_values(concat_data_mem, concat_another_input_data);
 

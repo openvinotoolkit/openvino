@@ -6,7 +6,10 @@
 #include <gtest/gtest.h>
 #include <ie_blob.h>
 
+#include "openvino/runtime/make_tensor.hpp"
 #include "unit_test_utils/mocks/mock_allocator.hpp"
+
+IE_SUPPRESS_DEPRECATED_START
 
 class BlobTests : public ::testing::Test {
 protected:
@@ -593,4 +596,28 @@ TEST_F(BlobTests, readRangeRoiBlob) {
             ASSERT_EQ(roiPtr[i], i + roiOffset);
         }
     }
+}
+
+TEST_F(BlobTests, setBiggerShapeOnPreAllocatedMemory) {
+    const auto t = ov::make_tensor(ov::element::i64, ov::Shape{2, 6});
+    const auto b = ov::tensor_to_blob({t, nullptr});
+
+    const auto origin_ptr = t->data();
+    b->setShape({2, 8});
+
+    ASSERT_EQ(b->buffer(), t->data());
+    // New allocation, pointer different than origin.
+    ASSERT_NE(b->buffer().as<void*>(), origin_ptr);
+}
+
+TEST_F(BlobTests, setSmallerShapeOnPreAllocatedMemory) {
+    const auto t = ov::make_tensor(ov::element::i64, ov::Shape{2, 6});
+    const auto b = ov::tensor_to_blob({t, nullptr});
+
+    const auto origin_ptr = t->data();
+    b->setShape({2, 4});
+
+    ASSERT_EQ(b->buffer(), t->data());
+    // No new allocation same as origin pointer
+    ASSERT_EQ(b->buffer(), origin_ptr);
 }

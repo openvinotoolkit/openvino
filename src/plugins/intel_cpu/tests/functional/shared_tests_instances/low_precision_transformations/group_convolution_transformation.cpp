@@ -14,7 +14,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
@@ -88,7 +88,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
          ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
@@ -139,7 +139,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
          ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
@@ -191,7 +191,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
          ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
@@ -255,7 +255,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
@@ -287,7 +287,7 @@ const std::vector<bool> addPrecisionPreserved = {false};
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),

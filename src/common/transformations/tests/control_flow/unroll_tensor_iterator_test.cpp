@@ -2,28 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/control_flow/unroll_tensor_iterator.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <queue>
 #include <string>
-#include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
@@ -32,21 +33,21 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
         auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{384}, b_val);
 
         auto gru_cell = std::make_shared<opset4::GRUCell>(squeeze, Yi, W, R, B, 128);
         auto res_1 = std::make_shared<opset4::Result>(gru_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
+        auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -59,9 +60,9 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
@@ -73,18 +74,18 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis_split = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis_split = opset4::Constant::create(element::i64, Shape{}, {0});
         auto split = std::make_shared<opset4::Split>(X, axis_split, 2);
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze_1 = std::make_shared<opset4::Squeeze>(split->output(0), axis);
         auto squeeze_2 = std::make_shared<opset4::Squeeze>(split->output(1), axis);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{384}, b_val);
 
         auto gru_cell_1 = std::make_shared<opset4::GRUCell>(squeeze_1, Y, W, R, B, 128);
         auto gru_cell_2 = std::make_shared<opset4::GRUCell>(squeeze_2, gru_cell_1, W, R, B, 128);
@@ -95,7 +96,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(concat);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -103,7 +104,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
 }
 
 TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
@@ -112,21 +113,21 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
         auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{128}, b_val);
 
         auto rnn_cell = std::make_shared<opset4::RNNCell>(squeeze, Yi, W, R, B, 128);
         auto res_1 = std::make_shared<opset4::Result>(rnn_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(rnn_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
+        auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -139,9 +140,9 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
@@ -153,18 +154,18 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis_split = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis_split = opset4::Constant::create(element::i64, Shape{}, {0});
         auto split = std::make_shared<opset4::Split>(X, axis_split, 2);
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze_1 = std::make_shared<opset4::Squeeze>(split->output(0), axis);
         auto squeeze_2 = std::make_shared<opset4::Squeeze>(split->output(1), axis);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{128}, b_val);
 
         auto rnn_cell_1 = std::make_shared<opset4::RNNCell>(squeeze_1, Y, W, R, B, 128);
         auto rnn_cell_2 = std::make_shared<opset4::RNNCell>(squeeze_2, rnn_cell_1, W, R, B, 128);
@@ -175,7 +176,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(concat);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -183,7 +184,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
 }
 
 TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
@@ -194,21 +195,21 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
         auto Zi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
 
         auto lstm_cell = std::make_shared<opset4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
         auto res_1 = std::make_shared<opset4::Result>(lstm_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
+        auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -222,9 +223,9 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
@@ -237,18 +238,18 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
         auto Z = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis_split = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis_split = opset4::Constant::create(element::i64, Shape{}, {0});
         auto split = std::make_shared<opset4::Split>(X, axis_split, 2);
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze_1 = std::make_shared<opset4::Squeeze>(split->output(0), axis);
         auto squeeze_2 = std::make_shared<opset4::Squeeze>(split->output(1), axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
 
         auto lstm_cell_1 = std::make_shared<opset4::LSTMCell>(squeeze_1, Y, Z, W, R, B, 128);
         auto lstm_cell_2 = std::make_shared<opset4::LSTMCell>(squeeze_2, lstm_cell_1, Z, W, R, B, 128);
@@ -259,7 +260,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(concat);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -267,7 +268,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
 }
 
 TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
@@ -276,21 +277,21 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
         auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{384}, b_val);
 
         auto gru_cell = std::make_shared<opset4::GRUCell>(squeeze, Yi, W, R, B, 128);
         auto res_1 = std::make_shared<opset4::Result>(gru_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
+        auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -303,9 +304,9 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
@@ -317,15 +318,15 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze_1 = std::make_shared<opset4::Squeeze>(X, axis);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{384}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{384}, b_val);
 
         auto gru_cell_1 = std::make_shared<opset4::GRUCell>(squeeze_1, Y, W, R, B, 128);
 
@@ -333,7 +334,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(unsqueeze_1);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -341,7 +342,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
 }
 
 TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
@@ -350,21 +351,21 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
         auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{128}, b_val);
 
         auto rnn_cell = std::make_shared<opset4::RNNCell>(squeeze, Yi, W, R, B, 128);
         auto res_1 = std::make_shared<opset4::Result>(rnn_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(rnn_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
+        auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -377,9 +378,9 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
@@ -391,22 +392,22 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze_1 = std::make_shared<opset4::Squeeze>(X, axis);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{128}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{128}, b_val);
 
         auto rnn_cell_1 = std::make_shared<opset4::RNNCell>(squeeze_1, Y, W, R, B, 128);
 
         auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(rnn_cell_1, axis);
         auto res_ti_1 = std::make_shared<opset4::Result>(unsqueeze_1);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -414,7 +415,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
 }
 
 TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleIteration) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
@@ -425,21 +426,21 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
         auto Zi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
 
         auto lstm_cell = std::make_shared<opset4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
         auto res_1 = std::make_shared<opset4::Result>(lstm_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
+        auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -453,9 +454,9 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
@@ -468,22 +469,22 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
         auto Z = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze_1 = std::make_shared<opset4::Squeeze>(X, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
 
         auto lstm_cell_1 = std::make_shared<opset4::LSTMCell>(squeeze_1, Y, Z, W, R, B, 128);
 
         auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(lstm_cell_1, axis);
         auto res_ti_1 = std::make_shared<opset4::Result>(unsqueeze_1);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -510,18 +511,18 @@ void collect_legacy_tensor_names(const std::shared_ptr<ov::Model>& model, std::v
 // after UnrollTI transformation: Params -> [Unrolled TI] -> Unsqueeze -> Results
 // No new tensor names after [UnrolledTI]
 TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
         auto X = std::make_shared<opset8::Parameter>(element::f32, PartialShape{-1, 2, -1});
         auto Y = std::make_shared<opset8::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto seq_lengths = ngraph::opset8::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = opset8::Constant::create(element::i32, Shape{1}, {2});
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384, 16}, w_val);
-        auto R = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384, 128}, r_val);
-        auto B = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384}, b_val);
+        auto W = opset8::Constant::create(element::f32, Shape{1, 384, 16}, w_val);
+        auto R = opset8::Constant::create(element::f32, Shape{1, 384, 128}, r_val);
+        auto B = opset8::Constant::create(element::f32, Shape{1, 384}, b_val);
 
         auto rnn_sequence = std::make_shared<opset8::GRUSequence>(X,
                                                                   Y,
@@ -534,13 +535,13 @@ TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
         auto Y_out = std::make_shared<opset8::Result>(rnn_sequence->output(0));
         auto Ho = std::make_shared<opset8::Result>(rnn_sequence->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{Y_out, Ho}, ngraph::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho}, ParameterVector{X, Y});
     }
 
     std::vector<std::string> names_before;
     collect_legacy_tensor_names(f, names_before);
 
-    ngraph::pass::Manager m;
+    pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();  // inserts Unsqueeze after TI
     m.register_pass<ov::pass::UnrollTensorIterator>();
@@ -559,7 +560,7 @@ TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
 // original net:                  Params -> TI -> Results
 // after UnrollTI transformation: Params -> [Unrolled TI] - tensor names -> Results
 TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
         auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
@@ -570,21 +571,21 @@ TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
         auto Zi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
-        auto R = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
-        auto B = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
+        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
 
         auto lstm_cell = std::make_shared<opset4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
         auto res_1 = std::make_shared<opset4::Result>(lstm_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
+        auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
 
@@ -601,14 +602,13 @@ TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1, res_ti_2},
-                                               ngraph::ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, Y, Z});
     }
 
     std::vector<std::string> names_before;
     collect_legacy_tensor_names(f, names_before);
 
-    ngraph::pass::Manager m;
+    pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::UnrollTensorIterator>();
     m.run_passes(f);

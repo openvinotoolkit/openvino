@@ -30,7 +30,7 @@ public:
     }
 
 private:
-    std::function<void()> exec_func;
+    std::unique_ptr<arm_compute::IFunction> ifunc;
     ReduceAttrs reduceAttrs;
     impl_desc_type implType = impl_desc_type::acl;
 
@@ -74,7 +74,7 @@ public:
             for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
                 auto axe = axisCast(reduceAttrs.axes[i], srcDescs[0]->getShape().getRank());
                 if (axe > 3) {
-                    DEBUG_LOG("ACL supports 3 or less axis for Reduce op");
+                    DEBUG_LOG("ACL supports tensor rank up to 4 for ReduceMean operation. Tensor rank: ", axe);
                     return false;
                 }
             }
@@ -84,6 +84,7 @@ public:
              reduceAttrs.operation == Algorithm::ReduceMin ||
              reduceAttrs.operation == Algorithm::ReduceProd) &&
              reduceAttrs.axes.size() != 1) {
+                DEBUG_LOG("ACL supports single axes reduce only. Number of axes: ", reduceAttrs.axes.size());
                 return false;
              }
 

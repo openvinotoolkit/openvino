@@ -20,6 +20,8 @@ namespace cldnn {
 struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
     CLDNN_DECLARE_PRIMITIVE(lstm_dynamic_input)
 
+    lstm_dynamic_input() : primitive_base("", {}) {}
+
     /// @brief Constructs lstm_dynamic layer.
     /// @param id This primitive id.
     /// @param input Primitive id of input layer.
@@ -55,6 +57,20 @@ struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
         auto rhs_casted = downcast<const lstm_dynamic_input>(rhs);
 
         return bias.empty() == rhs_casted.bias.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lstm_dynamic_input>::save(ob);
+        ob << dyn_length;
+        ob << weights;
+        ob << bias;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lstm_dynamic_input>::load(ib);
+        ib >> dyn_length;
+        ib >> weights;
+        ib >> bias;
     }
 
 protected:

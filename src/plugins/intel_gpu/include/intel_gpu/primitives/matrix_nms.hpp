@@ -3,16 +3,18 @@
 //
 
 #pragma once
-#include <vector>
 
-#include "ngraph/op/matrix_nms.hpp"
+#include "openvino/op/matrix_nms.hpp"
 #include "primitive.hpp"
+#include <vector>
 
 namespace cldnn {
 
 /// @brief Performs matrix nms of input boxes and returns indices of selected boxes.
 struct matrix_nms : public primitive_base<matrix_nms> {
     CLDNN_DECLARE_PRIMITIVE(matrix_nms)
+
+    matrix_nms() : primitive_base("", {}) {}
 
     enum decay_function { gaussian, linear };
 
@@ -50,7 +52,7 @@ struct matrix_nms : public primitive_base<matrix_nms> {
 
         attributes() {}
 
-        attributes(const ngraph::op::v8::MatrixNms::Attributes& attrs)
+        attributes(const ov::op::v8::MatrixNms::Attributes& attrs)
             : attributes(from(attrs.sort_result_type),
                          attrs.sort_result_across_batch,
                          attrs.score_threshold,
@@ -82,6 +84,32 @@ struct matrix_nms : public primitive_base<matrix_nms> {
               gaussian_sigma(gaussian_sigma),
               post_threshold(post_threshold),
               normalized(normalized) {}
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << make_data(&sort_type, sizeof(sort_result_type));
+            ob << sort_result_across_batch;
+            ob << score_threshold;
+            ob << nms_top_k;
+            ob << keep_top_k;
+            ob << background_class;
+            ob << make_data(&decay, sizeof(decay_function));
+            ob << gaussian_sigma;
+            ob << post_threshold;
+            ob << normalized;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> make_data(&sort_type, sizeof(sort_result_type));
+            ib >> sort_result_across_batch;
+            ib >> score_threshold;
+            ib >> nms_top_k;
+            ib >> keep_top_k;
+            ib >> background_class;
+            ib >> make_data(&decay, sizeof(decay_function));
+            ib >> gaussian_sigma;
+            ib >> post_threshold;
+            ib >> normalized;
+        }
     };
 
     /// @brief Constructs matrix_nms primitive.
@@ -112,7 +140,7 @@ struct matrix_nms : public primitive_base<matrix_nms> {
                const input_info& scores,
                const input_info& second_output,
                const input_info& third_output,
-               const ngraph::op::v8::MatrixNms::Attributes& attrs)
+               const ov::op::v8::MatrixNms::Attributes& attrs)
         : primitive_base(id, {boxes, scores, second_output, third_output}),
           attribs(attrs) {}
 
@@ -153,24 +181,34 @@ struct matrix_nms : public primitive_base<matrix_nms> {
         #undef cmp_fields
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<matrix_nms>::save(ob);
+        ob << attribs;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<matrix_nms>::load(ib);
+        ib >> attribs;
+    }
+
 private:
-    static cldnn::matrix_nms::decay_function from(ngraph::op::v8::MatrixNms::DecayFunction decay) {
+    static cldnn::matrix_nms::decay_function from(ov::op::v8::MatrixNms::DecayFunction decay) {
         switch (decay) {
-        case ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN:
+        case ov::op::v8::MatrixNms::DecayFunction::GAUSSIAN:
             return cldnn::matrix_nms::decay_function::gaussian;
-        case ngraph::op::v8::MatrixNms::DecayFunction::LINEAR:
+        case ov::op::v8::MatrixNms::DecayFunction::LINEAR:
         default:
             return cldnn::matrix_nms::decay_function::linear;
         }
     }
 
-    static cldnn::matrix_nms::sort_result_type from(ngraph::op::v8::MatrixNms::SortResultType type) {
+    static cldnn::matrix_nms::sort_result_type from(ov::op::v8::MatrixNms::SortResultType type) {
         switch (type) {
-        case ngraph::op::v8::MatrixNms::SortResultType::CLASSID:
+        case ov::op::v8::MatrixNms::SortResultType::CLASSID:
             return cldnn::matrix_nms::sort_result_type::class_id;
-        case ngraph::op::v8::MatrixNms::SortResultType::SCORE:
+        case ov::op::v8::MatrixNms::SortResultType::SCORE:
             return cldnn::matrix_nms::sort_result_type::score;
-        case ngraph::op::v8::MatrixNms::SortResultType::NONE:
+        case ov::op::v8::MatrixNms::SortResultType::NONE:
         default:
             return cldnn::matrix_nms::sort_result_type::none;
         }

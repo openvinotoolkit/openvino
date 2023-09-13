@@ -72,7 +72,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         kInputsNum
     };
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::slice_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<slice_impl>(*this);
@@ -141,3 +141,4 @@ attach_slice_impl::attach_slice_impl() {
 } // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::slice_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::slice)

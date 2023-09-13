@@ -11,7 +11,7 @@ Previously, these 2 precisions were interrelated, and model storage precision co
 
 With the ``2023.0`` release this behavior has been changed and the inference precision no longer depends on the precision of IR. Now users have several knobs to find the balance between model performance and accuracy.
 
-Essentially, the IR precision becomes a way of compressing the model by reducing the precision of the weights, and it does not affect how the devices execute the model. This change clears up a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU by default, and the behavior between devicess was different. 
+Essentially, the IR precision becomes a way of compressing the model by reducing the precision of the weights, and it does not affect how the devices execute the model. This change clears up a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU by default, and the behavior between devices was different. 
 
 This guide will focus on how to control inference precision. And using lower precision is important for performance because compute bandwidth tends to be higher for smaller data types, and hardware often has special blocks for efficient multiply-accumulate operations with smaller data types only (e.g. Intel Xᵉ Matrix Extensions (XMX) on GPU and Intel Advanced Matrix Extensions (AMX) on CPU do not support ``f32``). Also, I/O operations requires less memory due to the smaller tensor byte size. This guide will focus on how to control inference precision.
 
@@ -25,6 +25,25 @@ Execution Mode
 * In **PERFORMANCE mode**, the device can convert to smaller data types and apply other optimizations that may have some impact on accuracy rates, although we still try to minimize accuracy loss and may use mixed precision execution in some cases.
 
 If the model has been quantized using :doc:`OpenVINO optimization tools <ptq_introduction>` or any other method, the quantized operators will be executed with the target integer precision if the device has hardware acceleration for that type. For example, quantized ``int8`` primitives are executed with ``int8`` precision for both **ACCURACY** and **PERFORMANCE modes** if the device provides higher compute bandwidth for 8-bit data types compared to any available floating-point type. On the other hand, devices without hardware acceleration for the ``int8`` data type can keep such operators in floating point precision, and the exact floating point type will be affected by ``execution_mode`` and ``inference_precision`` properties.
+
+Code examples:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.py
+         :language: python
+         :fragment: [ov:execution_mode:part0]
+
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.cpp
+         :language: cpp
+         :fragment: [ov:execution_mode:part0]
+
 
 Inference Precision
 ###################

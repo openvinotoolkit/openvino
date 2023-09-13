@@ -5,6 +5,7 @@
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/detection_output.hpp>
 
 using namespace cldnn;
@@ -145,7 +146,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -179,8 +180,8 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output_1", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
-        topology.add(detection_output("detection_output_2", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output_1", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output_2", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -222,7 +223,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box")}, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -270,7 +271,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -312,7 +313,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -365,7 +366,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -424,13 +425,17 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"),
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") },
             this->num_classes, keep_top_k, share_location, background_label_id, nms_threshold,
             top_k, eta, code_type, variance_encoded_in_target, confidence_threshold, prior_info_size,
             prior_coordinates_offset, prior_is_normalized, input_width, input_height, decrease_label_id
         ));
+        topology.add(reorder("output_reorder", input_info("detection_output"), format::bfyx, type_to_data_type<T>::value));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"detection_output", {format::bfyx, "", impl_types::cpu}}}));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -439,7 +444,7 @@ public:
         auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.begin()->first, "output_reorder");
 
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
@@ -478,7 +483,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -539,7 +544,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -587,7 +592,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -638,7 +643,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -684,9 +689,13 @@ public:
         topology.add(reorder("input_location_padded", input_info("input_location"), input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
         topology.add(reorder("input_confidence_padded", input_info("input_confidence"), input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
 
-        topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(reorder("output_reorder", input_info("detection_output"), format::bfyx, type_to_data_type<T>::value));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"detection_output", {format::bfyx, "", impl_types::cpu}}}));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -695,7 +704,7 @@ public:
         auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.begin()->first, "output_reorder");
 
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
@@ -742,14 +751,18 @@ public:
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
         topology.add(reorder("input_location_padded", input_info("input_location"), input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
         topology.add(reorder("input_confidence_padded", input_info("input_confidence"), input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
+        topology.add(reorder("output_reorder", input_info("detection_output"), format::bfyx, type_to_data_type<T>::value));
 
-        topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"),
+        topology.add(detection_output("detection_output", { input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box") },
             this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k,
             eta, code_type, variance_encoded_in_target, confidence_threshold, prior_info_size, prior_coordinates_offset,
             prior_is_normalized, this->img_size, this->img_size
         ));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"detection_output", {format::bfyx, "", impl_types::cpu}}}));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -758,7 +771,7 @@ public:
         auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.begin()->first, "output_reorder");
 
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);

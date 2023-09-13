@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about AdaptiveMaxPool-8 - a pooling operation, which can 
+                be performed on two required input tensors.
+
 **Versioned name**: *AdaptiveMaxPool-8*
 
 **Category**: *Pooling*
@@ -55,7 +59,8 @@ The output is calculated following this formula:
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="AdaptiveMaxPool" ... >
        <data output_type="i64"/>

@@ -1,12 +1,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <gmock/gmock.h>
+
 #include <array>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "embeddingbag_offsets_shape_inference.hpp"
-
-#include "gmock/gmock.h"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
@@ -31,19 +31,19 @@ TEST_F(EmbeddingBagOffsetsSumV3StaticShapeInferenceTest, default_ctor) {
     // 3 inputs
     {
         input_shapes = {StaticShape{3, 4, 5, 6}, StaticShape{2}, StaticShape{batch}};
-        shape_infer(op.get(), input_shapes, output_shapes);
+        output_shapes = shape_inference(op.get(), input_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
     // 4 inputs
     {
         input_shapes = {StaticShape{3, 4, 5, 6}, StaticShape{2}, StaticShape{batch}, StaticShape{}};
-        shape_infer(op.get(), input_shapes, output_shapes);
+        output_shapes = shape_inference(op.get(), input_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
     // 5 inputs
     {
         input_shapes = {StaticShape{3, 4, 5, 6}, StaticShape{2}, StaticShape{batch}, StaticShape{}, StaticShape{2}};
-        shape_infer(op.get(), input_shapes, output_shapes);
+        output_shapes = shape_inference(op.get(), input_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
 }
@@ -58,7 +58,7 @@ TEST_F(EmbeddingBagOffsetsSumV3StaticShapeInferenceTest, basic_3in) {
     auto expected_output = StaticShape{3, 2, 6};
 
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{4}, StaticShape{3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], expected_output);
 }
 
@@ -73,7 +73,7 @@ TEST_F(EmbeddingBagOffsetsSumV3StaticShapeInferenceTest, basic_4in) {
     auto expected_output = StaticShape{3, 2, 6};
 
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{4}, StaticShape{3}, StaticShape{}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], expected_output);
 }
 
@@ -89,6 +89,6 @@ TEST_F(EmbeddingBagOffsetsSumV3StaticShapeInferenceTest, basic_5in) {
     auto expected_output = StaticShape{3, 2, 6};
 
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{4}, StaticShape{3}, StaticShape{}, StaticShape{4}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], expected_output);
 }

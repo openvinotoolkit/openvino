@@ -10,80 +10,56 @@
     "openvino_license": {
       "mandatory" : "yes",
       "files": [
-        "docs/licensing"
+        "licenses"
       ]
     },
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/lib/intel64/Release/libopenvino.2023.0.0.dylib",
-        "runtime/lib/intel64/Release/libopenvino.2300.dylib",
+        "runtime/lib/intel64/Release/libopenvino.2023.1.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino.2310.dylib",
         "runtime/lib/intel64/Release/libopenvino.dylib",
         "runtime/lib/intel64/Release/libopenvino_gapi_preproc.so",
-        "runtime/lib/intel64/Release/libopenvino_c.2023.0.0.dylib",
-        "runtime/lib/intel64/Release/libopenvino_c.2300.dylib",
+        "runtime/lib/intel64/Release/libopenvino_c.2023.1.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_c.2310.dylib",
         "runtime/lib/intel64/Release/libopenvino_c.dylib",
         "runtime/lib/intel64/Release/libopenvino_hetero_plugin.so",
         "runtime/lib/intel64/Release/libopenvino_auto_plugin.so",
         "runtime/lib/intel64/Release/libopenvino_auto_batch_plugin.so",
-        "runtime/lib/intel64/Release/libopenvino_ir_frontend.2023.0.0.dylib",
-        "runtime/lib/intel64/Release/libopenvino_ir_frontend.2300.dylib",
-        "runtime/lib/intel64/Release/libopenvino_onnx_frontend.2023.0.0.dylib",
-        "runtime/lib/intel64/Release/libopenvino_onnx_frontend.2300.dylib",
+        "runtime/lib/intel64/Release/libopenvino_ir_frontend.2023.1.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_ir_frontend.2310.dylib",
+        "runtime/lib/intel64/Release/libopenvino_onnx_frontend.2023.1.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_onnx_frontend.2310.dylib",
         "runtime/lib/intel64/Release/libopenvino_onnx_frontend.dylib",
-        "runtime/lib/intel64/Release/libopenvino_paddle_frontend.2023.0.0.dylib",
-        "runtime/lib/intel64/Release/libopenvino_paddle_frontend.2300.dylib",
+        "runtime/lib/intel64/Release/libopenvino_paddle_frontend.2023.1.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_paddle_frontend.2310.dylib",
         "runtime/lib/intel64/Release/libopenvino_paddle_frontend.dylib",
-        "runtime/lib/intel64/Release/libopenvino_pytorch_frontend.2023.0.0.dylib",
-        "runtime/lib/intel64/Release/libopenvino_pytorch_frontend.2300.dylib",
+        "runtime/lib/intel64/Release/libopenvino_pytorch_frontend.2023.1.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_pytorch_frontend.2310.dylib",
         "runtime/lib/intel64/Release/libopenvino_pytorch_frontend.dylib",
-        "runtime/lib/intel64/Release/libopenvino_tensorflow_frontend.2023.0.0.dylib",
-        "runtime/lib/intel64/Release/libopenvino_tensorflow_frontend.2300.dylib",
+        "runtime/lib/intel64/Release/libopenvino_tensorflow_frontend.2023.1.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_tensorflow_frontend.2310.dylib",
         "runtime/lib/intel64/Release/libopenvino_tensorflow_frontend.dylib",
-        "runtime/lib/intel64/Release/libopenvino_tensorflow_lite_frontend.2023.0.0.dylib",
-        "runtime/lib/intel64/Release/libopenvino_tensorflow_lite_frontend.2300.dylib",
+        "runtime/lib/intel64/Release/libopenvino_tensorflow_lite_frontend.2023.1.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_tensorflow_lite_frontend.2310.dylib",
         "runtime/lib/intel64/Release/libopenvino_tensorflow_lite_frontend.dylib",
         "runtime/3rdparty/tbb"
       ]
     },
     "cpu": {
-      "ui_name": "Inference Engine Runtime for Intel(R) CPU",
+      "ui_name": "OpenVINO Runtime for Intel(R) CPU",
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/Release/libopenvino_intel_cpu_plugin.so"
       ]
     },
-    "python3.7": {
-      "ui_name": "OpenVINO Python API for Python 3.7",
+    "python": {
+      "ui_name": "OpenVINO Python API",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
-        "python/python3.7"
-      ]
-    },
-    "python3.8": {
-      "ui_name": "OpenVINO Python API for Python 3.8",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.8"
-      ]
-    },
-    "python3.9": {
-      "ui_name": "OpenVINO Python API for Python 3.9",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.9"
-      ]
-    },
-    "python3.10": {
-      "ui_name": "OpenVINO Python API for Python 3.10",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.10"
+        "python"
       ]
     }
   }

@@ -2,94 +2,46 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/i420_to_bgr.hpp"
+
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-
-#include "ngraph/op/result.hpp"
-
 #include "intel_gpu/primitives/reorder.hpp"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
-    OutputsDataMap networkOutputs = p.GetNetworkOutputs();
+static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Result>& op) {
     validate_inputs_count(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    auto inputID = ov::descriptor::get_ov_tensor_legacy_name(op->get_input_source_output(0).get_tensor());
-    NGRAPH_SUPPRESS_DEPRECATED_END
-    if (inputID.empty()) {
-        inputID = prev->get_friendly_name();
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto input_id = ov::descriptor::get_ov_tensor_legacy_name(op->get_input_source_output(0).get_tensor());
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    if (input_id.empty()) {
+        input_id = prev->get_friendly_name();
         if (prev->get_output_size() > 1) {
-            inputID += "." + std::to_string(op->get_input_source_output(0).get_index());
+            input_id += "." + std::to_string(op->get_input_source_output(0).get_index());
         }
     }
-    auto it = networkOutputs.find(inputID);
-    if (it == networkOutputs.end()) {
-        IE_THROW() << "Can't find output " << inputID << " in OutputsDataMap";
-    }
-    std::string originalOutName = it->first;
-    DataPtr outputData = it->second;
-
     auto inputs = p.GetInputInfo(op);
-    const auto outputDesc = outputData->getTensorDesc();
-    auto outputlayout = outputDesc.getLayout();
 
-    if (ngraph::is_type<ngraph::op::v8::NV12toRGB>(prev) ||
-        ngraph::is_type<ngraph::op::v8::NV12toBGR>(prev) ||
-        ngraph::is_type<ngraph::op::v8::I420toRGB>(prev) ||
-        ngraph::is_type<ngraph::op::v8::I420toBGR>(prev)) {
-        outputlayout = NHWC;
-    }
-
-    // TODO: add precision check once there's an outputInfo object
-    if (outputlayout != NCHW &&
-        // TODO: change 6d case once new layout added in IE
-        outputlayout != BLOCKED &&
-        outputlayout != NCDHW &&
-        outputlayout != NHWC &&
-        outputlayout != CHW &&
-        outputlayout != NC &&
-        outputlayout != C &&
-        outputlayout != SCALAR) {
-        IE_THROW() << "Unsupported layout (" << outputlayout << ") in output: " << originalOutName;
-    }
     auto out_rank = op->get_output_partial_shape(0).size();
     auto out_format = cldnn::format::get_default_format(out_rank);
-    std::vector<size_t> default_order(out_rank);
-    std::iota(default_order.begin(), default_order.end(), 0);
-    // For legacy API we need to handle NHWC as well, so check non default order
-    if (outputlayout == NHWC) {
-        out_format = FormatFromLayout(outputlayout);
-    }
 
-    auto outLayerName = layer_type_name_ID(op);
-    Precision precision = outputData->getPrecision();
-    cldnn::input_info outputID = inputs[0];
+    auto out_primitive_name = layer_type_name_ID(op);
+    auto out_data_type = cldnn::element_type_to_data_type(convert_to_supported_device_type(op->get_input_element_type(0)));
 
-    if (p.use_new_shape_infer()
-        // Note:: Currently Split/Variadic Split are divided to multiple crops
-        && !ngraph::is_type<ngraph::op::v1::Split>(prev)
-        && !ngraph::is_type<ngraph::op::v1::VariadicSplit>(prev)) {
-        auto reorder_primitive = cldnn::reorder(outLayerName,
-                                                outputID,
-                                                out_format,
-                                                DataTypeFromPrecision(precision));
-        p.add_primitive(*op, reorder_primitive, {originalOutName});
-
-    } else {
-        auto reorder_primitive = cldnn::reorder(outLayerName,
-                                                outputID,
-                                                out_format,
-                                                DataTypeFromPrecision(precision));
-        p.add_primitive(*op, reorder_primitive, {originalOutName});
-    }
-    p.outputDims[originalOutName] = outputDesc.getDims();
-    p.prevPrimitiveIDs[outLayerName] = {originalOutName};
+    auto reorder_primitive = cldnn::reorder(out_primitive_name,
+                                            inputs[0],
+                                            out_format,
+                                            out_data_type);
+    p.add_primitive(*op, reorder_primitive, {input_id, op->get_friendly_name()});
+    p.prevPrimitiveIDs[out_primitive_name] = {input_id};
 }
 
 REGISTER_FACTORY_IMPL(v0, Result);

@@ -6,9 +6,9 @@
 
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
@@ -16,8 +16,8 @@
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 typedef std::tuple<bool,    // isConvert
                    bool,    // isSubtract
@@ -41,7 +41,7 @@ public:
                                                                                            subDataInput,
                                                                                            mulDataInput);
         auto dequantization =
-            ngraph::pass::low_precision::NetworkHelper::getDequantization(actualFunction->get_result());
+            ov::pass::low_precision::NetworkHelper::getDequantization(actualFunction->get_result());
         referenceFunction = ngraph::builder::subgraph::GetDequantizationFunction::getReference(dequantization);
     }
 

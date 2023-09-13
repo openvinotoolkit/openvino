@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include <gmock/gmock.h>
+
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 struct ReduceParams {
     PartialShape data_ps;
@@ -20,15 +23,15 @@ struct ReduceParams {
 
 template <class T>
 static std::shared_ptr<Node> makeReduceOp(const ReduceParams& p, bool axes_as_param = false) {
-    auto in_data = make_shared<op::Parameter>(p.data_et, p.data_ps);
+    auto in_data = make_shared<ov::op::v0::Parameter>(p.data_et, p.data_ps);
     shared_ptr<Node> in_axes;
     if (axes_as_param) {
-        in_axes = make_shared<op::Parameter>(p.axes_et, p.axes_ps);
+        in_axes = make_shared<ov::op::v0::Parameter>(p.axes_et, p.axes_ps);
     } else {
         if (shape_size(p.axes_ps) != p.axes.size()) {
             OPENVINO_THROW("Axes shape does not match with axes elements");
         }
-        in_axes = make_shared<op::Constant>(p.axes_et, p.axes_ps, p.axes);
+        in_axes = make_shared<ov::op::v0::Constant>(p.axes_et, p.axes_ps, p.axes);
     }
     return make_shared<T>(in_data, in_axes, p.keep_dims);
 }
@@ -37,6 +40,31 @@ template <class T>
 class ReduceTest : public testing::Test {};
 
 TYPED_TEST_SUITE_P(ReduceTest);
+
+TYPED_TEST_P(ReduceTest, reduce_default_ctor) {
+    PartialShape data_ps{3, 4, 5};
+    element::Type data_et = element::dynamic;
+
+    Shape axes_ps{2};
+    element::Type axes_et = element::i64;
+    std::vector<int64_t> axes{1, 2};
+
+    bool keep_dims = true;
+
+    const auto data = make_shared<ov::op::v0::Parameter>(data_et, data_ps);
+    const auto in_axes = make_shared<ov::op::v0::Parameter>(axes_et, axes_ps);
+
+    auto op = std::make_shared<TypeParam>();
+    op->set_arguments(OutputVector{data, in_axes});
+    op->set_keep_dims(keep_dims);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_input_size(), 2);
+    EXPECT_EQ(op->get_output_size(), 1);
+
+    EXPECT_EQ(op->get_keep_dims(), keep_dims);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
 
 TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer) {
     PartialShape data_ps{3, 4, 5};
@@ -70,6 +98,40 @@ TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_keep_dims) {
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
     ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
+}
+
+TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_duplicated_axes) {
+    PartialShape data_ps{3, 4, 5};
+    element::Type data_et = element::dynamic;
+
+    Shape axes_ps{2};
+    element::Type axes_et = element::i64;
+    std::vector<int64_t> axes{1, 1};
+
+    bool keep_dims = false;
+
+    PartialShape out_ps{3, 5};
+
+    const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
+    auto reduce_op = makeReduceOp<TypeParam>(params);
+    EXPECT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
+}
+
+TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_keep_dims_duplicated_axes) {
+    PartialShape data_ps{3, 4, 5};
+    element::Type data_et = element::dynamic;
+
+    Shape axes_ps{2};
+    element::Type axes_et = element::i64;
+    std::vector<int64_t> axes{1, 1};
+
+    bool keep_dims = true;
+
+    PartialShape out_ps{3, 1, 5};
+
+    const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
+    auto reduce_op = makeReduceOp<TypeParam>(params);
+    EXPECT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_scalar_axis) {
@@ -192,6 +254,62 @@ TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_data) {
     ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
+TYPED_TEST_P(ReduceTest, dynamic_interval_labeled_shape_data_axes_const) {
+    using namespace testing;
+
+    PartialShape data_ps{-1, -1, 1, 1, 6, 16, {-1, 8}, {-1, 18}, {4, -1}, {14, -1}, {3, 9}, {13, 19}};
+    element::Type data_et = element::dynamic;
+
+    set_shape_labels(data_ps, 10);
+
+    Shape axes_ps{6};
+    element::Type axes_et = element::i64;
+    std::vector<int64_t> axes{1, 3, 5, 7, 9, 11};
+
+    bool keep_dims = false;
+
+    PartialShape out_ps{-1, 1, 6, {-1, 8}, {4, -1}, {3, 9}};
+
+    const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
+    auto reduce_op = makeReduceOp<TypeParam>(params);
+    EXPECT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
+    EXPECT_THAT(get_shape_labels(reduce_op->get_output_partial_shape(0)), ElementsAre(10, 12, 14, 16, 18, 20));
+}
+
+TYPED_TEST_P(ReduceTest, dynamic_interval_labeled_shape_data_axes_const_keep_dims) {
+    using namespace testing;
+
+    PartialShape data_ps{-1, -1, 1, 1, 6, 16, {-1, 8}, {-1, 18}, {4, -1}, {14, -1}, {3, 9}, {13, 19}};
+    element::Type data_et = element::dynamic;
+
+    set_shape_labels(data_ps, 10);
+
+    Shape axes_ps{6};
+    element::Type axes_et = element::i64;
+    std::vector<int64_t> axes{1, 3, 5, 7, 9, 11};
+
+    bool keep_dims = true;
+
+    PartialShape out_ps{-1, 1, 1, 1, 6, 1, {-1, 8}, 1, {4, -1}, 1, {3, 9}, 1};
+
+    const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
+    auto reduce_op = makeReduceOp<TypeParam>(params);
+    EXPECT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
+    EXPECT_THAT(get_shape_labels(reduce_op->get_output_partial_shape(0)),
+                ElementsAre(10,
+                            ov::no_label,
+                            12,
+                            ov::no_label,
+                            14,
+                            ov::no_label,
+                            16,
+                            ov::no_label,
+                            18,
+                            ov::no_label,
+                            20,
+                            ov::no_label));
+}
+
 TYPED_TEST_P(ReduceTest, reduce_invalid_axis_out_of_range) {
     PartialShape data_ps{1, 2, 3};
     element::Type data_et = element::dynamic;
@@ -256,8 +374,11 @@ TYPED_TEST_P(ReduceTest, reduce_invalid_axes_et) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(ReduceTest,
+                            reduce_default_ctor,
                             reduce_basic_shape_infer,
                             reduce_basic_shape_infer_keep_dims,
+                            reduce_basic_shape_infer_duplicated_axes,
+                            reduce_basic_shape_infer_keep_dims_duplicated_axes,
                             reduce_basic_shape_infer_scalar_axis,
                             reduce_basic_shape_infer_axes_as_param,
                             reduce_dynamic_shape_data,
@@ -265,6 +386,8 @@ REGISTER_TYPED_TEST_SUITE_P(ReduceTest,
                             reduce_dynamic_shape_reduced_axes_static_keep_dims,
                             reduce_dynamic_shape_reduced_axes_not_static,
                             reduce_dynamic_shape_reduced_axes_not_static_keep_dims,
+                            dynamic_interval_labeled_shape_data_axes_const_keep_dims,
+                            dynamic_interval_labeled_shape_data_axes_const,
                             reduce_invalid_axis_out_of_range,
                             reduce_invalid_axes_shape,
                             reduce_invalid_axes_et);

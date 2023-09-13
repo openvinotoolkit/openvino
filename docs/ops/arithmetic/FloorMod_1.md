@@ -2,6 +2,10 @@
  
 @sphinxdirective
 
+.. meta::
+  :description: Learn about FloorMod-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *FloorMod-1*
 
 **Category**: *Arithmetic binary*
@@ -50,7 +54,8 @@ Python programming language: :math:`floor(x / y) * y + floor\_mod(x, y) = x`. Th
 
 *Example 1 - no broadcasting*
 
-.. code-block::
+.. code-block:: xml
+   :force:
 
    <layer ... type="FloorMod">
        <data auto_broadcast="none"/>
@@ -74,7 +79,8 @@ Python programming language: :math:`floor(x / y) * y + floor\_mod(x, y) = x`. Th
 
 *Example 2: numpy broadcasting*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="FloorMod">
        <data auto_broadcast="numpy"/>

@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <memory>
 
 #include "ie_api.h"
@@ -20,8 +30,7 @@ namespace details {
  * @deprecated This is internal stuff. Use Inference Engine Plugin API
  * @brief This class provides an OS shared module abstraction
  */
-class INFERENCE_ENGINE_DEPRECATED("This is internal stuff. Use Inference Engine Plugin API")
-    INFERENCE_ENGINE_API_CLASS(SharedObjectLoader) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(SharedObjectLoader) {
     std::shared_ptr<void> _so;
 
 public:

@@ -1,7 +1,7 @@
 import os
 from utils.helpers import fetchAppOutput, getActualPath
 from utils.helpers import getMeaningfullCommitTail
-from utils.helpers import handleCommit, runCommandList, getBlobDiff
+from utils.helpers import handleCommit, getBlobDiff
 from utils.helpers import getCommitLogger, CashError, CfgError, CmdError
 import re
 import shutil
@@ -18,23 +18,19 @@ class CheckOutputMode(Mode):
         if not ("stopPattern" in cfg["runConfig"]):
             raise CfgError("stopPattern is not configured")
 
-    def checkIfBordersDiffer(self, i1, i2, list, cfg):
-        isLeftBorderFailed = False
-        if i1 != 0 or cfg["checkIfBordersDiffer"]:
-            isLeftBorderFailed = self.isBadVersion(list[i1], cfg)
-
-        isRightBorderGood = not self.isBadVersion(list[i2], cfg)
-        rightCommit = list[i2]
-        rightCommit = rightCommit.replace('"', "")
-        commitLogger = getCommitLogger(cfg, rightCommit)
+    def compareCommits(self, lCommit, rCommit, list, cfg):
+        isLeftBorderFailed = self.getPseudoMetric(lCommit, cfg)
+        isRightBorderGood = not self.getPseudoMetric(rCommit, cfg)
+        curCommit = rCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, curCommit)
         commitLogger.info(
             "Commit {c} is {status}".format(
                 status=("good" if isRightBorderGood else "bad"),
-                c=list[i2])
+                c=rCommit)
         )
         return isLeftBorderFailed == isRightBorderGood
 
-    def isBadVersion(self, commit, cfg):
+    def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
         checkOut = ""
         commitLogger = getCommitLogger(cfg, commit)
@@ -49,11 +45,13 @@ class CheckOutputMode(Mode):
                 commit=commit)
             )
             handleCommit(commit, cfg)
-            checkOut = fetchAppOutput(cfg)
+            checkOut = fetchAppOutput(cfg, commit)
             commitLogger.info(checkOut)
             self.setCommitCash(commit, checkOut)
         stopPattern = cfg["runConfig"]["stopPattern"]
         isFound = re.search(stopPattern, checkOut)
+        if isFound is None:
+            isFound = False
         return isFound
 
 
@@ -64,9 +62,9 @@ class BenchmarkAppPerformanceMode(Mode):
         self.perfRel = 0
         self.createCash()
 
-    def prepareRun(self, i1, i2, list, cfg):
-        super().prepareRun(i1, i2, list, cfg)
-        sampleCommit = list[i1]
+    def prepareRun(self, list, cfg):
+        super().prepareRun(list, cfg)
+        sampleCommit = list[0]
         sampleCommit = sampleCommit.replace('"', "")
         self.commonLogger.info(
             "Prepare sample commit - {commit}".format(commit=sampleCommit)
@@ -80,8 +78,8 @@ class BenchmarkAppPerformanceMode(Mode):
             commitLogger.info(logMsg)
             foundThroughput = cashedThroughput
         else:
-            runCommandList(sampleCommit, cfg, enforceClean=True)
-            output = fetchAppOutput(cfg)
+            handleCommit(sampleCommit, cfg)
+            output = fetchAppOutput(cfg, sampleCommit)
             commitLogger.info(output)
             foundThroughput = re.search(
                 self.outPattern, output, flags=re.MULTILINE
@@ -96,23 +94,22 @@ class BenchmarkAppPerformanceMode(Mode):
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
 
-    def checkIfBordersDiffer(self, i1, i2, list, cfg):
-        leftThroughput = self.getThroughputByCommit(list[i1], cfg)
-        rightCommit = list[i2]
-        rightThroughput = self.getThroughputByCommit(rightCommit, cfg)
+    def compareCommits(self, lCommit, rCommit, list, cfg):
+        leftThroughput = self.getPseudoMetric(lCommit, cfg)
+        rightThroughput = self.getPseudoMetric(rCommit, cfg)
         curRel = rightThroughput / leftThroughput
         isBad = not ((1 - curRel) < self.apprDev)
         if isBad:
             self.perfRel = curRel
-        rightCommit = rightCommit.replace('"', "")
-        commitLogger = getCommitLogger(cfg, rightCommit)
+        curCommit = rCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, curCommit)
         commitLogger.info("Performance relation is {rel}".format(rel=curRel))
         commitLogger.info(
             "Commit is {status}".format(status=("bad" if isBad else "good"))
         )
         return isBad
 
-    def getThroughputByCommit(self, commit, cfg):
+    def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
         curThroughput = 0
         commitLogger = getCommitLogger(cfg, commit)
@@ -127,24 +124,22 @@ class BenchmarkAppPerformanceMode(Mode):
                 commit=commit)
             )
             handleCommit(commit, cfg)
-            output = fetchAppOutput(cfg)
+            output = fetchAppOutput(cfg, commit)
+            commitLogger.info(output)
             foundThroughput = re.search(
                 self.outPattern, output, flags=re.MULTILINE
             ).group(1)
             curThroughput = float(foundThroughput)
-            commitLogger.info(output)
             self.setCommitCash(commit, curThroughput)
         return curThroughput
 
     def setOutputInfo(self, pathCommit):
         pathCommit.perfRel = self.perfRel
 
-    def getResult(self):
-        for pathCommit in self.commitPath.getList():
-            print("Break commit: {c}, perf. ratio = {d}".format(
-                c=self.commitList[pathCommit.id],
-                d=pathCommit.perfRel)
-            )
+    def getCommitInfo(self, commit):
+        return "{ci}, perf. ratio = {d}".format(
+                ci=super().getCommitInfo(commit),
+                d=commit.perfRel)
 
 
 class CompareBlobsMode(Mode):
@@ -153,7 +148,7 @@ class CompareBlobsMode(Mode):
         self.createCash()
         self.maxDiff = 0
 
-    def getOutNameByCommit(self, commit, cfg):
+    def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
         commitLogger = getCommitLogger(cfg, commit)
         filename = ''
@@ -167,26 +162,26 @@ class CompareBlobsMode(Mode):
             self.commonLogger.info("New commit: {commit}".format(
                 commit=commit)
             )
-            runCommandList(commit, cfg, enforceClean=True)
-            output = fetchAppOutput(cfg)
+            handleCommit(commit, cfg)
+            output = fetchAppOutput(cfg, commit)
             commitLogger.info(output)
             filename = self.setCommitCash(commit, None)
         return filename
 
-    def checkIfBordersDiffer(self, i1, i2, list, cfg):
-        leftBorderOutputName = self.getOutNameByCommit(list[i1], cfg)
-        rightBorderOutputName = self.getOutNameByCommit(list[i2], cfg)
+    def compareCommits(self, lCommit, rCommit, list, cfg):
+        leftBorderOutputName = self.getPseudoMetric(lCommit, cfg)
+        rightBorderOutputName = self.getPseudoMetric(rCommit, cfg)
         fullLeftFileName = os.path.join(self.cachePath, leftBorderOutputName)
         fullRightName = os.path.join(self.cachePath, rightBorderOutputName)
         curMaxDiff = getBlobDiff(fullLeftFileName, fullRightName)
         isDiff = True if curMaxDiff > self.limit else False
-        rightCommit = list[i2]
-        rightCommit = rightCommit.replace('"', "")
-        commitLogger = getCommitLogger(cfg, rightCommit)
+        curCommit = rCommit
+        curCommit = curCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, curCommit)
         commitLogger.info(
             "Commit {status} from {c}".format(
-                status=("differs" if isDiff else "doesn't differ"),
-                c=list[i2])
+                status=("differs" if isDiff else "don't differ"),
+                c=rCommit)
         )
         if isDiff:
             self.maxDiff = curMaxDiff
@@ -248,9 +243,7 @@ class CompareBlobsMode(Mode):
     def setOutputInfo(self, pathCommit):
         pathCommit.diff = self.maxDiff
 
-    def getResult(self):
-        for pathcommit in self.commitPath.getList():
-            print("Break commit: {c}, diff = {d}".format(
-                c=self.commitList[pathcommit.id],
-                d=pathcommit.diff)
-            )
+    def getCommitInfo(self, commit):
+        return "{ci}, diff = {d}".format(
+                ci=super().getCommitInfo(commit),
+                d=commit.diff)

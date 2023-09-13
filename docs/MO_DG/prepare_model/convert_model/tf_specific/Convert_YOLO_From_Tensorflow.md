@@ -2,12 +2,17 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert YOLO models from 
+                 TensorFlow to the OpenVINO Intermediate Representation.
+
+
 This document explains how to convert real-time object detection YOLOv1, YOLOv2, YOLOv3 and YOLOv4 public models to the Intermediate Representation (IR). All YOLO models are originally implemented in the DarkNet framework and consist of two files:
 
 * The ``.cfg`` file with model configurations
 * The ``.weights`` file with model weights
 
-Depending on a YOLO model version, the Model Optimizer converts it differently:
+Depending on a YOLO model version, the ``convert_model()`` method converts it differently:
 
 - YOLOv4 must be first converted from Keras to TensorFlow 2.
 - YOLOv3 has several implementations. This tutorial uses a TensorFlow implementation of YOLOv3 model, which can be directly converted to an IR.
@@ -46,11 +51,11 @@ This section explains how to convert the YOLOv4 Keras model from the `repository
         python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4-tiny.cfg <path_to_weights>/yolov4-tiny.weights <saved_model_dir>
 
 
-4. Run Model Optimizer to converter the model from the TensorFlow 2 format to an IR:
+4. Run model conversion for from the TensorFlow 2 format to an IR:
 
    .. note::
 
-      Before you run the conversion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
+      Before you run the conversion, make sure you have installed all the model conversion API dependencies for TensorFlow 2.
 
    .. code-block:: sh
 
@@ -162,7 +167,7 @@ where:
 - ``id`` and ``match_kind`` are parameters that you cannot change.
 - ``custom_attributes`` is a parameter that stores all the YOLOv3 specific attributes:
 
-  - ``classes``, ``coords``, ``num``, and ``masks`` are attributes that you should copy from the configuration file that was used for model training. If you used DarkNet officially shared weights, you can use ``yolov3.cfg`` or ``yolov3-tiny.cfg`` configuration file from `GitHub repository <https://github.com/david8862/keras-YOLOv3-model-set/tree/master/cfg>`__. eplace the default values in ``custom_attributes`` with the parameters that follow the ``[yolo]`` titles in the configuration file.
+  - ``classes``, ``coords``, ``num``, and ``masks`` are attributes that you should copy from the configuration file that was used for model training. If you used DarkNet officially shared weights, you can use ``yolov3.cfg`` or ``yolov3-tiny.cfg`` configuration file from `GitHub repository <https://github.com/david8862/keras-YOLOv3-model-set/tree/master/cfg>`__. Replace the default values in ``custom_attributes`` with the parameters that follow the ``[yolo]`` titles in the configuration file.
   - ``anchors`` is an optional parameter that is not used while inference of the model, but it used in a demo to parse ``Region`` layer output
   - ``entry_points`` is a node name list to cut off the model and append the ``Region`` layer with custom attributes specified above.
 
@@ -191,12 +196,12 @@ To generate an IR of the YOLOv3-tiny TensorFlow model, run:
 
 where:
 
-* ``--batch`` defines shape of model input. In the example, ``--batch`` is equal to 1, but you can also specify other integers larger than 1.
-* ``--transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``.
+* ``batch`` defines shape of model input. In the example, ``batch`` is equal to 1, but you can also specify other integers larger than 1.
+* ``transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``.
 
 .. note::
 
-   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 
 OpenVINO toolkit provides a demo that uses YOLOv3 model. Refer to the :doc:`Object Detection C++ Demo <omz_demos_object_detection_demo_cpp>` for more information.
@@ -281,7 +286,7 @@ To recreate the original model structure, use the corresponding yolo ``.json`` c
 
 If chosen model has specific values of these parameters, create another configuration file with custom operations and use it for conversion.
 
-To generate the IR of the YOLOv1 model, provide TensorFlow YOLOv1 or YOLOv2 model to Model Optimizer with the following parameters:
+To generate the IR of the YOLOv1 model, provide TensorFlow YOLOv1 or YOLOv2 model to model conversion API with the following parameters:
 
 .. code-block:: sh
 
@@ -294,13 +299,13 @@ To generate the IR of the YOLOv1 model, provide TensorFlow YOLOv1 or YOLOv2 mode
 
 where:
 
-* ``--batch`` defines shape of model input. In the example, ``--batch`` is equal to 1, but you can also specify other integers larger than 1.
-* ``--scale`` specifies scale factor that input values will be divided by. The model was trained with input values in the range ``[0,1]``. OpenVINO toolkit samples read input images as values in ``[0,255]`` range, so the scale 255 must be applied.
-* ``--transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``. For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
+* ``batch`` defines shape of model input. In the example, ``batch`` is equal to 1, but you can also specify other integers larger than 1.
+* ``scale`` specifies scale factor that input values will be divided by. The model was trained with input values in the range ``[0,1]``. OpenVINO toolkit samples read input images as values in ``[0,255]`` range, so the scale 255 must be applied.
+* ``transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``. For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 
 .. note::
 
-   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 
 @endsphinxdirective

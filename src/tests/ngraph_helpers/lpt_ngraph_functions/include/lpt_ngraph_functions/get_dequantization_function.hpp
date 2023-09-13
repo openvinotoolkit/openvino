@@ -27,13 +27,13 @@ public:
         const ngraph::element::Type& precision,
         const Shape& shape,
         const FakeQuantizeOnData& fakeQuantize,
-        const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization);
+        const ov::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         bool isConvert, bool isSubtract, size_t subDataInput, size_t mulDataInput);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        ngraph::pass::low_precision::FakeQuantizeDequantization dequantization);
+        ov::pass::low_precision::FakeQuantizeDequantization dequantization);
 };
 }  // namespace subgraph
 }  // namespace builder

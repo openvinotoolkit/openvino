@@ -23,7 +23,7 @@ public:
 
     wait_for_events_impl() : primitive_impl() {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::wait_for_events_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<wait_for_events_impl>(*this);
@@ -40,7 +40,9 @@ public:
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
-        return stream.enqueue_marker(events);
+
+        return events.empty() ? stream.create_user_event(true)
+                              : stream.enqueue_marker(events);
     }
 
     static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
@@ -78,3 +80,5 @@ attach_prior_box_common::attach_prior_box_common() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::wait_for_events_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::data)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::input_layout)

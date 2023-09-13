@@ -46,7 +46,7 @@ struct format_traits {
     /// @brief Characters representing feature map/channel dimensions in an order.
     static const char* feature_chars() { return "fic"; }
     /// @brief Characters representing spatial dimensions in an order.
-    static const char* spatial_chars() { return "xyzhsw"; }
+    static const char* spatial_chars() { return "xyzwuvhs"; }
     /// @brief Characters representing group dimensions in an order.
     static const char* group_chars() { return "g"; }
     /// @brief Checks if @p c represents batch dimension.
@@ -82,6 +82,8 @@ struct format {
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
         bzyxf,
+        byfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        bxfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
                                                 ///< for user provided formats.
         b_fs_yx_fsv2,
         b_fs_zyx_fsv2,
@@ -129,6 +131,8 @@ struct format {
         iozyx,                                        ///< 3D weights format for deconvolutions
         iyxo,
         oyxi,
+        oyix,
+        oxiy,
         os_iyx_osv16,                                 ///< format used only for convolution weights
         o_is_yx_isv16,                                ///< format used only for convolution weights
         os_yxi_osv16,                                 ///< format used only for convolution weights
@@ -142,6 +146,8 @@ struct format {
         is_os_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D deconvolution
         is_os_yx_isv16_osv16,                         ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv8,                          ///< format used for weights for blocked deconvolution
+        is_os_yx_isv16_osv4,                          ///< format used for weights for blocked deconvolution
+        is_os_yx_isv16_osv2,                          ///< format used for weights for blocked deconvolution
         os_is_yx_isv8_osv16_isv2,                     ///< format used for weights for blocked 2D convolution
         os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
@@ -184,6 +190,7 @@ struct format {
         os_is_yx_isa8_osv8_isv2,
         is_os_yx_isa8_osv8_isv2,
         is_os_yx_isa8_osv8_isv4,
+        is_os_yx_osa8_isv16_osv4,
         os_is_zyx_isa8_osv8_isv2,
         is_os_zyx_isa8_osv8_isv2,
         is_os_zyx_isa8_osv8_isv4,
@@ -213,6 +220,7 @@ struct format {
         iy_xs_os_xsv2_osv16__ao32,
         i_yxs_os_yxsv2_osv16,
         os_i_yxs_osv4_yxsv4,
+        os_i_osv16,                                   ///< format used only for fully connected weights
         os_i_osv16__ai8,                              ///< format used only for fully connected weights
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
         os_y_is_x_osv8_isv2,
@@ -331,6 +339,7 @@ struct format {
     /// @brief Checks if @p format is simple data format
     static bool is_simple_data_format(type fmt) {
         return (fmt == yxfb || fmt == byxf ||
+                fmt == byfx || fmt == bxfy ||
                 fmt == bfyx || fmt == fyxb ||
                 fmt == bfzyx || fmt == bfwzyx ||
                 fmt == bfuwzyx || fmt == bfvuwzyx);

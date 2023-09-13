@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: OpenVINO IR, known as Intermediate Representation, is the result 
+                of model conversion in OpenVINO and is represented by two files: 
+                an XML and a binary file.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -11,7 +16,7 @@
 
 The models, built and trained using various frameworks, can be large and architecture-dependent. To successfully run inference from any device and maximize the benefits of OpenVINO tools, you can convert the model to the OpenVINO Intermediate Representation (IR) format. 
 
-OpenVINO IR is the proprietary model format of OpenVINO. It is produced after converting a model with the Model Optimizer tool. Model Optimizer translates the frequently used deep learning operations to their respective similar representation in OpenVINO and tunes them with the associated weights and biases from the trained model. The resulting IR contains two files:
+OpenVINO IR is the proprietary model format of OpenVINO. It is produced after converting a model with model conversion API. Model conversion API translates the frequently used deep learning operations to their respective similar representation in OpenVINO and tunes them with the associated weights and biases from the trained model. The resulting IR contains two files:
 
 * ``.xml`` - Describes the model topology.
 * ``.bin`` - Contains the weights and binary data.

@@ -49,10 +49,9 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
     DEFINES ${DEFINES}
     DEPENDENCIES ${DEPENDENCIES}
     LINK_LIBRARIES ${LINK_LIBRARIES}
-    ADD_CPPLINT
     LABELS
     CPU
   )
 
-  set_ie_threading_interface_for(${SUBSET_TARGET_NAME})
+  ov_set_threading_interface_for(${SUBSET_TARGET_NAME})
 endif()

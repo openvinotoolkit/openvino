@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/shuffle_channels.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
-#include "gmock/gmock.h"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 TEST(type_prop, shuffle_channels_default_4D) {
     const auto data_input_shape = Shape{3, 9, 4, 5};
-    const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
     const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data);
 
     EXPECT_EQ(shuffle_channels->get_element_type(), element::f32);
@@ -22,7 +22,7 @@ TEST(type_prop, shuffle_channels_default_4D) {
 
 TEST(type_prop, shuffle_channels_basic_4D) {
     const auto data_input_shape = Shape{3, 9, 4, 5};
-    const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
     const auto axis = 1;
     const auto group = 3;
     const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, axis, group);
@@ -34,7 +34,7 @@ TEST(type_prop, shuffle_channels_basic_4D) {
 TEST(type_prop, shuffle_channels_dynamic_4D) {
     auto data_input_shape = PartialShape{Dimension::dynamic(), Dimension(3, 9), 4, Dimension(4, 15)};
     set_shape_labels(data_input_shape, 10);
-    const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
     const auto axis = 1;
     const auto group = 3;
     const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, axis, group);
@@ -46,7 +46,7 @@ TEST(type_prop, shuffle_channels_dynamic_4D) {
 
 TEST(type_prop, shuffle_channels_dynamic_fully) {
     const auto data_input_shape = PartialShape::dynamic();
-    const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
     const auto axis = 1;
     const auto group = 3;
     const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, axis, group);
@@ -59,7 +59,7 @@ TEST(type_prop, shuffle_channels_ND_bigger) {
     {
         // 5D
         const auto data_input_shape = Shape{2, 3, 9, 4, 5};
-        const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
+        const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
         const auto axis = 2;
         const auto group = 3;
         const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, axis, group);
@@ -69,7 +69,7 @@ TEST(type_prop, shuffle_channels_ND_bigger) {
     {
         // 6D
         const auto data_input_shape = Shape{6, 2, 3, 9, 4, 5};
-        const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
+        const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
         const auto axis = 3;
         const auto group = 3;
         const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, axis, group);
@@ -82,7 +82,7 @@ TEST(type_prop, shuffle_channels_ND_smaller) {
     {
         // 3D
         const auto data_input_shape = Shape{5, 4, 9};
-        const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
+        const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
         const auto axis = 2;
         const auto group = 3;
         const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, axis, group);
@@ -92,7 +92,7 @@ TEST(type_prop, shuffle_channels_ND_smaller) {
     {
         // 2D
         const auto data_input_shape = Shape{9, 20};
-        const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
+        const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
         const auto axis = 0;
         const auto group = 3;
         const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, axis, group);
@@ -102,7 +102,7 @@ TEST(type_prop, shuffle_channels_ND_smaller) {
     {
         // 1D
         const auto data_input_shape = Shape{9};
-        const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
+        const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
         const auto axis = 0;
         const auto group = 3;
         const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, axis, group);
@@ -112,7 +112,7 @@ TEST(type_prop, shuffle_channels_ND_smaller) {
 }
 
 TEST(type_prop, shuffle_channels_axis_validation) {
-    const auto data = make_shared<op::Parameter>(element::f64, Shape{1, 2, 3, 4});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f64, Shape{1, 2, 3, 4});
 
     OV_EXPECT_THROW(const auto op = make_shared<op::v0::ShuffleChannels>(data, -5, 5),
                     ov::AssertFailure,
@@ -120,7 +120,7 @@ TEST(type_prop, shuffle_channels_axis_validation) {
 }
 
 TEST(type_prop, shuffle_channels_negative_axis_calculation) {
-    const auto data = make_shared<op::Parameter>(element::f64, Shape{1, 2, 3, 4});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f64, Shape{1, 2, 3, 4});
 
     const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, -3, 2);
 
@@ -132,21 +132,21 @@ TEST(type_prop, shuffle_channels_infer_shape_with_negative_axis_calculation) {
     const auto group = 2;
     {
         const auto data_input_shape = Shape{1, 3, 5, 8};
-        const auto data = make_shared<op::Parameter>(element::f64, data_input_shape);
+        const auto data = make_shared<ov::op::v0::Parameter>(element::f64, data_input_shape);
 
         const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, -1, group);
         EXPECT_EQ(shuffle_channels->get_output_partial_shape(0), data_input_shape);
     }
     {
         const auto data_input_shape = Shape{1, 3, 8, 5};
-        const auto data = make_shared<op::Parameter>(element::f64, data_input_shape);
+        const auto data = make_shared<ov::op::v0::Parameter>(element::f64, data_input_shape);
 
         const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, -2, group);
         EXPECT_EQ(shuffle_channels->get_output_partial_shape(0), data_input_shape);
     }
     {
         const auto data_input_shape = Shape{8, 3, 5, 7};
-        const auto data = make_shared<op::Parameter>(element::f64, data_input_shape);
+        const auto data = make_shared<ov::op::v0::Parameter>(element::f64, data_input_shape);
 
         const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, -4, group);
         EXPECT_EQ(shuffle_channels->get_output_partial_shape(0), data_input_shape);
@@ -154,7 +154,7 @@ TEST(type_prop, shuffle_channels_infer_shape_with_negative_axis_calculation) {
 }
 
 TEST(type_prop, shuffle_channels_invalid_input_shape) {
-    const auto data = make_shared<op::Parameter>(element::f64, Shape{});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f64, Shape{});
 
     OV_EXPECT_THROW(const auto op = make_shared<op::v0::ShuffleChannels>(data, 0, 1),
                     NodeValidationFailure,
@@ -162,7 +162,7 @@ TEST(type_prop, shuffle_channels_invalid_input_shape) {
 }
 
 TEST(type_prop, shuffle_channels_invalid_groups_value) {
-    const auto data = make_shared<op::Parameter>(element::f64, Shape{1, 2, 3, 15});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f64, Shape{1, 2, 3, 15});
 
     OV_EXPECT_THROW(const auto op = make_shared<op::v0::ShuffleChannels>(data, -1, 2),
                     NodeValidationFailure,
@@ -171,7 +171,7 @@ TEST(type_prop, shuffle_channels_invalid_groups_value) {
 
 TEST(type_prop, shuffle_channels_default_ctor) {
     const auto data_shape = PartialShape{{2, 5}, {0, 2}, 3, {2, -1}};
-    const auto data = make_shared<op::Parameter>(element::i32, data_shape);
+    const auto data = make_shared<ov::op::v0::Parameter>(element::i32, data_shape);
 
     const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>();
     shuffle_channels->set_axis(-3);

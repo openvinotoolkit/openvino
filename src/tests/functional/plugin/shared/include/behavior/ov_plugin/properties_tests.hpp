@@ -56,7 +56,7 @@ public:
     AnyMap compileModelProperties;
 };
 
-class OVPropertiesTestsWithComplieModelProps : public testing::WithParamInterface<PropertiesParams>,
+class OVPropertiesTestsWithCompileModelProps : public testing::WithParamInterface<PropertiesParams>,
                                                public OVPropertiesBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PropertiesParams> obj);
@@ -77,10 +77,10 @@ public:
     static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
 };
 
-using OVCheckSetSupportedRWMetricsPropsTests = OVPropertiesTestsWithComplieModelProps;
-using OVCheckGetSupportedROMetricsPropsTests = OVPropertiesTestsWithComplieModelProps;
-using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithComplieModelProps;
-using OVCheckMetricsPropsTests_ModelDependceProps = OVPropertiesTestsWithComplieModelProps;
+using OVCheckSetSupportedRWMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
+using OVCheckGetSupportedROMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
+using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithCompileModelProps;
+using OVCheckMetricsPropsTests_ModelDependceProps = OVPropertiesTestsWithCompileModelProps;
 
 class OVClassSetDefaultDeviceIDPropTest : public OVPluginTestBase,
                                           public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
@@ -103,6 +103,7 @@ using OVClassCompileModelDoNotReturnDefaultHintTest = OVClassSetDevicePriorityCo
 using OVClassCompileModelAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigPropsTest;
 
 using OVGetConfigTest = OVClassBaseTestP;
+using OVSpecificDeviceSetConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceGetConfigTest = OVClassBaseTestP;
 using OVGetAvailableDevicesPropsTest = OVClassBaseTestP;
 using OVGetMetricPropsTest = OVClassBaseTestP;
@@ -123,7 +124,7 @@ public:
         APIBaseTest::SetUp();
         pluginName += IE_BUILD_POSTFIX;
         if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
-            pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
+            pluginName = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName);
         }
     }
 };

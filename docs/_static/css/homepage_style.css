@@ -1,102 +1,173 @@
 /* overrides */
-.switcher-set, .prev-next-bottom {display: none;}
-
+.switcher-set, .prev-next-bottom, .bd-toc {display: none!important;}
 #openvino-documentation > h1 {
-	display: none;
+    display: none;
 }
 
-img {
-	cursor: default;
-}
-/* === OPENVINO INTRO ================================================= */
-
-.openvino-intro-text {
-
-	font-size: 1em;
-
-}
-/* === OPENVINO DIAGRAM ================================================= */
-
-@media only screen and (min-width: 1100px) {
-	.openvino-diagram {
-		width: 70%;
-	}
-	}
-
-@media only screen and (max-width: 1099px) {
-	.openvino-diagram {
-		width: 100%;
-	}
-	}
-
-
-
-/* === PANELS ================================================= */
-
-.homepage-panels {
-	background: #0068B5;
-	border: none!important;
-	border-radius: 0!important;
-}
-.homepage-panels p.card-text  {
-	color:white;
-}
-.homepage-panels p:first-of-type {
-	border-bottom: 1px solid white;
+h1 {
+    /*font-size: var(--pst-font-size-h2);*/
+    /*margin-bottom: 3rem;*/
+    display: none!important;
 }
 
-/* === OV workflow chart ===================================================== */
-#hp-flow-container {
-	margin: 0 auto;
-	width: 90%;
+
+#ov-homepage-banner, .openvino-diagram, .ov-homepage-higlight-grid {
+    margin-bottom: 90px!important;
 }
 
-#hp-flow-container div {
-	margin: 0;
-	float: left;
+#ov-homepage-banner {
+    padding: 2rem;
+    background-color: #76CEFF;
+    background-image: linear-gradient(346deg, #728EFA 0%, #76CEFF 50%, #BBE8BD 100%);
+    border-bottom: 5px solid #0068b5;
 }
 
-div.hp-flow-arrow {
-	width: 5%;
-	padding: 40px 5px;
+#ov-homepage-banner p:first-of-type {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+    color: rgb(38, 38, 38);
+    display: block;
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 1em;
+    text-align: left;
 }
 
-div.hp-flow-btn {
-	width: 30%;
-	background-repeat: no-repeat;
+#ov-homepage-banner .line-block {
+    line-height: 1.5;
+    text-align: left;
+    color: #000000;
 }
 
-#hp-flow-container div.hp-flow-btn:nth-of-type(1) {
-	background-image: url("../images/OV_flow_model.svg");
-}
-#hp-flow-container div.hp-flow-btn:nth-of-type(3) {
-	background-image: url("../images/OV_flow_optimization.svg");
-}
-#hp-flow-container div.hp-flow-btn:nth-of-type(5) {
-	background-image: url("../images/OV_flow_deployment.svg");
+.ov-homepage-banner-btn {
+    transition: 0.7s;
+    font-weight: bold;
+    background-color: #0068b5;
+    color: #ffffff !important;
 }
 
-div.hp-flow-btn a img {
-	width: 100%;
-	visibility: hidden;
+.ov-homepage-banner-btn:hover {
+    background-color: white!important;
+    color: var(--sd-color-primary)!important;
 }
 
-div.hp-flow-btn:hover a img {
-	visibility: visible;
+#ov-homepage-banner > p:nth-child(3) {
+    margin-bottom: 0;
 }
+
+#ov-homepage-banner a,
+#ov-homepage-banner a:visited {
+    text-decoration: none;
+    color: #00A3F6;
+    transition: .7s;
+    font-weight: 600;
+}
+
+#ov-homepage-banner a:hover {
+    color: #653171;
+}
+
+.openvino-diagram {
+    width: 65%;
+    margin-bottom: 3rem;
+}
+
+@media (max-width: 720px) {
+    .openvino-diagram {
+        width: 90%;
+    }
+}
+
+.ov-homepage-higlight-grid {
+    padding: 0;
+}
+
+.ov-homepage-higlight-grid > div {
+    justify-content:space-evenly;
+    row-gap: 20px;
+}
+
+.ov-homepage-higlight-grid > div > div.sd-col {
+    width: 230px;
+    min-height: 300px;
+    padding: 0;
+    margin-inline: 5px;
+}
+
+.ov-homepage-higlight-grid .sd-card {
+    box-shadow: 0 0 20px 5px #f3f3f3!important;
+    transition: 0.5s;
+    overflow: hidden;
+}
+
+.ov-homepage-higlight-grid .sd-card-hover:hover {
+    border-color: var(--sd-color-card-border)!important;
+    transform: scale(1.00)!important;
+}
+
+.ov-homepage-higlight-grid .sd-shadow-sm:hover {
+    box-shadow: 0 0 10px 2px rgba(108,36,240,0.3) !important;
+}
+
+.ov-homepage-higlight-grid .sd-card-title {
+    height: 52.781px;
+    margin-bottom: 2rem;
+}
+
+.ov-homepage-higlight-grid .sd-card-text {
+    font-size: 0.9rem;
+}
+
+.ov-homepage-higlight-grid .sd-card::after {
+    align-self: flex-end;
+    display: block;
+    content: "LEARN MORE";
+    width: 100%;
+    font-size: 0.8rem;
+    text-align: center;
+    padding-top: 0.8rem;
+    font-weight: 600;
+    color: #00A3F6;
+    height: 3rem;
+    background-color: #CDEDFF;
+}
+
+.ov-homepage-feature-grid .sd-col {
+    padding: 0;
+    max-width: 48%;
+}
+
+.ov-homepage-feature-grid .sd-card {
+    border: none;
+    box-shadow: 0 0 20px 2px #f3f3f3!important;
+    /* box-shadow: none!important; */
+}
+
+.ov-homepage-feature-grid .sd-row {
+    gap: 1rem;
+    justify-content: center;
+}
+
 
 /* =================================================================== */
-@media only screen and (max-width: 500px) {
-	#hp-flow-container div {
-		float: none;
-		margin: 0 auto;
-	}
+/* @media screen and (min-width: 720px) {
+    main.col-xl-7.bd-content {
+        flex: 0 0 75%!important;
+        max-width: 75%!important;
+    }
+}*/
 
-	div.hp-flow-arrow {
-		display: none;
-	}
+@media screen and (max-width: 535px) {
+    .ov-homepage-feature-grid .sd-row {
+        flex-direction: column;
+        align-items: center;
+    }
+    .ov-homepage-feature-grid .sd-col {
+        max-width: 100%;
+    }
+}
 
-	div.hp-flow-btn {
-		width: 50%;
-	}
+.sd-row {
+    --sd-gutter-x: 0rem!important;
 }

@@ -162,12 +162,12 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         std::make_shared<ngraph::opset1::Constant>(precision, Shape({}), std::vector<float>({0.01f})));
 
     if (values.fakeQuantizeOnDataOutPrecision != precision) {
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, values.fakeQuantizeOnDataOutPrecision);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, values.fakeQuantizeOnDataOutPrecision);
 
         if (values.operationBeforeLimitedOperationIsPrecisionTransparent) {
             auto intermediateOpTr = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(branch1Pooling);
             if (intermediateOpTr != nullptr) {
-                ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(branch1Pooling, values.fakeQuantizeOnDataOutPrecision);
+                ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(branch1Pooling, values.fakeQuantizeOnDataOutPrecision);
             } else {
                 // TODO: potential workaround for the same case:
                 // openvino\inference-engine\tests\ngraph_functions\src\low_precision_transformations\concat_function.cpp, line #496
@@ -178,10 +178,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         if (values.fakeQuantizeOnWeights.empty()) {
             replace_node(
                 weights,
-                ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(weights, ngraph::element::i8));
+                ov::pass::low_precision::fold<ngraph::opset1::Convert>(weights, ngraph::element::i8));
         }
 
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(branch2PRelu, precision);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecision(branch2PRelu, precision);
     }
 
 

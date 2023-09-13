@@ -19,6 +19,8 @@ namespace cldnn {
 struct permute : public primitive_base<permute> {
     CLDNN_DECLARE_PRIMITIVE(permute)
 
+    permute() : primitive_base("", {}) {}
+
     /// @brief Constructs permute primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -45,6 +47,16 @@ struct permute : public primitive_base<permute> {
         auto rhs_casted = downcast<const permute>(rhs);
 
         return permute_order == rhs_casted.permute_order;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<permute>::save(ob);
+        ob << permute_order;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<permute>::load(ib);
+        ib >> permute_order;
     }
 };
 }  // namespace cldnn

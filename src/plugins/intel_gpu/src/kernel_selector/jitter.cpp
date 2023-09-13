@@ -190,14 +190,14 @@ std::string toCodeString(size_t val) {
 std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded, bool pad_is_dynamic, size_t pad_offset) {
     std::string pad_str = "";
     if (padded) {
-        if (dim.pad.is_dynamic) {
+        if (pad_is_dynamic) {
             pad_str = " + (shape_info[" + std::to_string(pad_offset) + "] + shape_info[" +
                       std::to_string(pad_offset + 1) + "])";
         } else {
             pad_str = " + " + std::to_string(dim.pad.Total());
         }
     }
-    if (dim.is_dynamic) {
+    if (dim.is_dynamic || pad_is_dynamic) {
         snprintf(buf, sizeof(buf), "(shape_info[%zu] %s)", offset, pad_str.c_str());
     } else {
         snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));
@@ -265,7 +265,6 @@ public:
 
         if (!t.is_dynamic()) {
             definitions.push_back({_name + "_OFFSET", toCodeString(t.GetFirstElementOffset())});
-            definitions.push_back({_name + "_SIZE", toCodeString(t.GetDims().size())});
             definitions.push_back(
                 {_name + "_SIZES_DATA",
                 toVectorString(t.GetDims(), "", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
@@ -359,7 +358,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     };
     if (_tensor.is_dynamic()) {
         if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
-            _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx) {
+            _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
+            _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x()});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x(), dims_padded.y()})});
@@ -1541,11 +1541,11 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
         std::string nl_n = toCodeString(params[i].n);
         if (params[i].function == ActivationFunction::CLAMP) {
             if (out_dt == Datatype::INT8) {
-                nl_m = toCodeString(std::max(params[i].m, static_cast<float>(SCHAR_MIN)));
-                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(SCHAR_MAX)));
+                nl_m = toCodeString(std::max<float>(params[i].m, std::numeric_limits<signed char>::min()));
+                nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<signed char>::max()));
             } else if (out_dt == Datatype::UINT8) {
                 nl_m = toCodeString(std::max(params[i].m, 0.0f));
-                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(UCHAR_MAX)));
+                nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<unsigned char>::max()));
             }
         }
         auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, nl_m),
@@ -1708,6 +1708,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     auto vec_size = conf.vec_size;
     std::string shuffle_var = conf.shuffle_var_name;
     bool is_shuffled = false;
+    bool floor_integer_div = false;
 
     auto& dep_data = desc.dep_data;
     int first_fused_ops_idx = -1;
@@ -1739,14 +1740,39 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         in_vars_converted.push_back(in_name);
     }
 
+    if (desc.GetType() == KernelType::ELTWISE) {
+        auto p = desc.GetOpParams<eltwise_fuse_params>();
+        OPENVINO_ASSERT(p != nullptr, "[GPU] Eltwise fuse params can't be nullptr");
+
+        if (p->mode == kernel_selector::EltwiseMode::DIV) {
+            if (p->m_pythondiv)
+                floor_integer_div = true;
+        }
+    }
+
     auto get_acc_t = [&]() -> Datatype {
         std::vector<Datatype> input_types = {desc.output_tensor.GetDType()};
         for (auto& dep : dep_data) {
             input_types.push_back(dep.data_type);
         }
 
-        std::vector<Datatype> types_prioritized = { Datatype::F32, Datatype::F16 };
+        std::vector<Datatype> types_prioritized = { };
+        if (floor_integer_div) {
+            if (std::all_of(input_types.begin(), input_types.end(),
+                            [=](const Datatype& t) -> bool { return (t != Datatype::F32 && t != Datatype::F16); })) {
+                types_prioritized = { Datatype::INT64, Datatype::INT32, Datatype::UINT32, Datatype::INT16, Datatype::UINT16, Datatype::INT8, Datatype::UINT8 };
+                for (auto& type : types_prioritized) {
+                    if (std::any_of(input_types.begin(), input_types.end(),
+                                [=](const Datatype& t) -> bool { return (t == type); })) {
+                        return type;
+                    }
+                }
+            }
+        }
 
+        floor_integer_div = false;
+        types_prioritized.clear();
+        types_prioritized = { Datatype::F32, Datatype::F16 };
         for (auto& type : types_prioritized) {
             if (std::any_of(input_types.begin(), input_types.end(), [=](const Datatype& t) -> bool { return t == type; })) {
                 return type;
@@ -1777,8 +1803,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     switch (desc.GetType()) {
         case KernelType::ELTWISE: {
             auto p = desc.GetOpParams<eltwise_fuse_params>();
-            if (!p)
-                throw std::runtime_error("[clDNN] Eltwise fuse params can't be nullptr");
             std::string op = "";
             switch (p->mode) {
             case kernel_selector::EltwiseMode::ADD:
@@ -1798,7 +1822,13 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             }
 
             auto tmp_var = out_var + "_tmp";
-            op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = " + input_vars[0] + op + input_vars[1] + ";";
+            auto acc_t_type = GetType(get_acc_t(), vec_size);
+            op_decls += "\\\n\t" + acc_t_type + " " + tmp_var + " = " + input_vars[0] + op + input_vars[1] + ";";
+            if (floor_integer_div) {
+                auto tmp_var_rem = tmp_var + "_rem";
+                op_decls += "\\\n\t" + acc_t_type + " " + tmp_var_rem + " = " + input_vars[0] + " % " + input_vars[1] + ";";
+                op_decls += "\\\n\t" + tmp_var + " -= " + "((" + tmp_var_rem + " != 0 && (" + input_vars[0] + " < 0) != (" + input_vars[1] + " < 0)) ? 1 : 0);";
+            }
             op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(tmp_var, vec_size) + ";";
             break;
         }
@@ -1920,11 +1950,11 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
                 if (activation_p.function == ActivationFunction::CLAMP) {
                     if (out_type == Datatype::INT8) {
-                        nl_m = toCodeString(std::max(activation_p.m, static_cast<float>(SCHAR_MIN)));
-                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(SCHAR_MAX)));
+                        nl_m = toCodeString(std::max<float>(activation_p.m, std::numeric_limits<signed char>::min()));
+                        nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<signed char>::max()));
                     } else if (out_type == Datatype::UINT8) {
                         nl_m = toCodeString(std::max(activation_p.m, 0.0f));
-                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(UCHAR_MAX)));
+                        nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<unsigned char>::max()));
                     }
                 }
 

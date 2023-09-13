@@ -18,6 +18,8 @@ namespace cldnn {
 struct softmax : public primitive_base<softmax> {
     CLDNN_DECLARE_PRIMITIVE(softmax)
 
+    softmax() : primitive_base("", {}) {}
+
     /// @brief Constructs softmax primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -37,7 +39,7 @@ struct softmax : public primitive_base<softmax> {
     /// - when softmax dimension is set to 2 (y dim) each input column is normalized independently,
     /// - when softmax dimension is set to 3 (x dim) each input row is normalized independently.
 
-    int64_t dimension;
+    int64_t dimension = 1;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -52,6 +54,16 @@ struct softmax : public primitive_base<softmax> {
         auto rhs_casted = downcast<const softmax>(rhs);
 
         return dimension == rhs_casted.dimension;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<softmax>::save(ob);
+        ob << dimension;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<softmax>::load(ib);
+        ib >> dimension;
     }
 };
 }  // namespace cldnn

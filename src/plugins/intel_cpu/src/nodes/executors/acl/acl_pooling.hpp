@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    std::function<void()> exec_func;
+    std::unique_ptr<arm_compute::IFunction> ifunc;
     PoolingAttrs poolingAttrs;
     impl_desc_type implType = impl_desc_type::acl;
 
@@ -63,7 +63,7 @@ public:
             return false;
         }
 
-        if (srcDescs.size() == 2 &&
+        if (srcDescs.size() == 2u &&
             (srcDescs[1]->getPrecision() != InferenceEngine::Precision::FP32 &&
              srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
              dstDescs[0]->getPrecision() != InferenceEngine::Precision::FP32) &&
@@ -77,7 +77,7 @@ public:
             return false;
         }
 
-        if (dstDescs.size() == 2 &&
+        if (dstDescs.size() == 2u &&
             dstDescs[1]->getPrecision() != InferenceEngine::Precision::U32) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",
                       " dst[1]=", dstDescs[1]->getPrecision());
@@ -94,7 +94,7 @@ public:
                     " dst=", dstDescs[0]->serializeFormat());
                     return false;
                 }
-            if (srcDescs.size() == 2 &&
+            if (srcDescs.size() == 2u &&
               !(srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
                 srcDescs[1]->hasLayoutType(LayoutType::ncsp) &&
                 dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&

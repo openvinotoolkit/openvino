@@ -13,6 +13,8 @@ namespace cldnn {
 struct gather_tree : public primitive_base<gather_tree> {
     CLDNN_DECLARE_PRIMITIVE(gather_tree)
 
+    gather_tree() : primitive_base("", {}) {}
+
     /// @brief Constructs gather tree primitive / layer.
     ///
     /// @param id                      An identifier of new primitive.

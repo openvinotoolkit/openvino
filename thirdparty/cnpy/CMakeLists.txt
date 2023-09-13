@@ -13,7 +13,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
                                           PRIVATE -Wno-all)
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC zlib::zlib)
+target_link_libraries(${TARGET_NAME} PUBLIC ZLIB::ZLIB)
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER thirdparty)

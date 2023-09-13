@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 import os
 
-from openvino.runtime import Core, Type, OVAny, properties
+from openvino import Core, Type, OVAny, properties
 
 
 ###
@@ -153,12 +153,15 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (properties.optimal_batch_size, "OPTIMAL_BATCH_SIZE"),
         (properties.max_batch_size, "MAX_BATCH_SIZE"),
         (properties.range_for_async_infer_requests, "RANGE_FOR_ASYNC_INFER_REQUESTS"),
+        (properties.execution_devices, "EXECUTION_DEVICES"),
+        (properties.loaded_from_cache, "LOADED_FROM_CACHE"),
         (properties.device.full_name, "FULL_DEVICE_NAME"),
         (properties.device.architecture, "DEVICE_ARCHITECTURE"),
         (properties.device.type, "DEVICE_TYPE"),
         (properties.device.gops, "DEVICE_GOPS"),
         (properties.device.thermal, "DEVICE_THERMAL"),
         (properties.device.uuid, "DEVICE_UUID"),
+        (properties.device.luid, "DEVICE_LUID"),
         (properties.device.capabilities, "OPTIMIZATION_CAPABILITIES"),
         (properties.intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
         (properties.intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
@@ -328,6 +331,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            properties.intel_gpu.disable_winograd_convolution,
+            "GPU_DISABLE_WINOGRAD_CONVOLUTION",
+            ((True, True),),
+        ),
+        (
             properties.intel_gpu.hint.queue_throttle,
             "GPU_QUEUE_THROTTLE",
             ((properties.intel_gpu.hint.ThrottleLevel.LOW, properties.hint.Priority.LOW),),
@@ -436,7 +444,7 @@ def test_properties_capability_gpu():
 
 def test_properties_hint_model():
     # Temporary imports
-    from tests.test_utils.test_utils import generate_add_model
+    from tests.utils.helpers import generate_add_model
 
     model = generate_add_model()
 
@@ -500,6 +508,7 @@ def test_single_property_setting(device):
             properties.hint.scheduling_core_type(): properties.hint.SchedulingCoreType.PCORE_ONLY,
             properties.hint.num_requests(): 12,
             "NUM_STREAMS": properties.streams.Num(5),
+            "ENABLE_MMAP": "NO",
         },
     ],
 )

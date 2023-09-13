@@ -23,8 +23,8 @@ std::string TransposeSoftmax::getTestCaseName(testing::TestParamInfo<ov::test::s
 
     std::ostringstream result;
     for (size_t i = 0; i < inputShapes.size(); ++i)
-        result << "IS[" << i << "]=" << CommonTestUtils::vec2str(inputShapes[i]) << "_";
-    result << "TO=" << CommonTestUtils::vec2str(order) << "_";
+        result << "IS[" << i << "]=" << ov::test::utils::vec2str(inputShapes[i]) << "_";
+    result << "TO=" << ov::test::utils::vec2str(order) << "_";
     result << "Axis=" << axis << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -67,11 +67,13 @@ void TransposeSoftmaxEltwise::SetUp() {
 }
 
 TEST_P(TransposeSoftmax, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(TransposeSoftmaxEltwise, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }

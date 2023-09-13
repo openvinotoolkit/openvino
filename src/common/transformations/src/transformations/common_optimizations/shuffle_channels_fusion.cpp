@@ -5,19 +5,22 @@
 #include "transformations/common_optimizations/shuffle_channels_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset6.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
-bool check_shapes(const ngraph::PartialShape& pshape_input,
-                  const ngraph::PartialShape& pshape_reshape_before,
-                  const ngraph::AxisVector& transpose_constant_values,
-                  const ngraph::PartialShape& pshape_reshape_after) {
+bool check_shapes(const ov::PartialShape& pshape_input,
+                  const ov::PartialShape& pshape_reshape_before,
+                  const ov::AxisVector& transpose_constant_values,
+                  const ov::PartialShape& pshape_reshape_after) {
     // x: [N, C, H, W]
     const auto rank = pshape_input.rank();
     if (rank.is_dynamic() || rank.get_length() != 4) {
@@ -25,7 +28,7 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
     }
 
     // check that all dimensions except batch are static
-    if (std::any_of(pshape_input.begin() + 1, pshape_input.end(), [](const ngraph::Dimension& x) {
+    if (std::any_of(pshape_input.begin() + 1, pshape_input.end(), [](const ov::Dimension& x) {
             return x.is_dynamic();
         })) {
         return false;
@@ -37,7 +40,7 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
     }
 
     const auto group = pshape_reshape_before[1].get_length();
-    ngraph::PartialShape expected_reshape_before;
+    ov::PartialShape expected_reshape_before;
     if (pshape_reshape_before.rank().get_length() == 4) {
         expected_reshape_before = {pshape_input[0],
                                    group,
@@ -60,7 +63,7 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
         return false;
     }
 
-    ngraph::AxisVector expected_transpose_values{0, 2, 1, 3};
+    ov::AxisVector expected_transpose_values{0, 2, 1, 3};
     if (transpose_constant_values.size() == 5) {
         expected_transpose_values.push_back(4);
     }
@@ -82,31 +85,32 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
 ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
     auto input = pass::pattern::any_input(pattern::rank_equals(4));
-    auto reshape_before_const_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
-    auto transpose_const_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
-    auto reshape_after_const_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
+    auto reshape_before_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto transpose_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto reshape_after_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
     auto reshape_before_pattern =
-        ngraph::pattern::wrap_type<opset6::Reshape>({input, reshape_before_const_pattern}, pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_before_const_pattern},
+                                                          pattern::consumers_count(1));
     auto transpose_pattern =
-        ngraph::pattern::wrap_type<opset6::Transpose>({reshape_before_pattern, transpose_const_pattern},
-                                                      pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before_pattern, transpose_const_pattern},
+                                                            pattern::consumers_count(1));
     auto reshape_after_pattern =
-        ngraph::pattern::wrap_type<opset6::Reshape>({transpose_pattern, reshape_after_const_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({transpose_pattern, reshape_after_const_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto data = pattern_map.at(input);
-        auto reshape_before_constant = std::dynamic_pointer_cast<opset6::Constant>(
+        auto reshape_before_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(
             pattern_map.at(reshape_before_const_pattern).get_node_shared_ptr());
-        auto reshape_before =
-            std::dynamic_pointer_cast<opset6::Reshape>(pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
+        auto reshape_before = std::dynamic_pointer_cast<ov::op::v1::Reshape>(
+            pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
         auto transpose =
-            std::dynamic_pointer_cast<opset6::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
         auto reshape_after =
-            std::dynamic_pointer_cast<opset6::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
-        auto reshape_after_constant = std::dynamic_pointer_cast<opset6::Constant>(
+            std::dynamic_pointer_cast<ov::op::v1::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
+        auto reshape_after_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(
             pattern_map.at(reshape_after_const_pattern).get_node_shared_ptr());
         if (!reshape_after || !transpose || !reshape_after || !reshape_before_constant || !reshape_after_constant) {
             return false;
@@ -131,8 +135,8 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
         auto pshape_reshape_before = reshape_before->get_output_partial_shape(0);
         auto pshape_reshape_after = reshape_after->get_output_partial_shape(0);
 
-        auto transpose_constant =
-            std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(transpose_const_pattern).get_node_shared_ptr());
+        auto transpose_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+            pattern_map.at(transpose_const_pattern).get_node_shared_ptr());
         auto transpose_constant_values = transpose_constant->get_axis_vector_val();
         if (!check_shapes(pshape_input, pshape_reshape_before, transpose_constant_values, pshape_reshape_after)) {
             return false;
@@ -141,19 +145,19 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
         int64_t axis = 1ul;
         int64_t group = pshape_reshape_before[1].get_length();
 
-        auto shuffle_shannels = std::make_shared<opset6::ShuffleChannels>(data, axis, group);
+        auto shuffle_shannels = std::make_shared<ov::op::v0::ShuffleChannels>(data, axis, group);
         shuffle_shannels->set_friendly_name(reshape_after->get_friendly_name());
-        ngraph::copy_runtime_info({reshape_before,
-                                   reshape_before_constant,
-                                   transpose,
-                                   transpose_constant,
-                                   reshape_after,
-                                   reshape_after_constant},
-                                  shuffle_shannels);
-        ngraph::replace_node(reshape_after, shuffle_shannels);
+        ov::copy_runtime_info({reshape_before,
+                               reshape_before_constant,
+                               transpose,
+                               transpose_constant,
+                               reshape_after,
+                               reshape_after_constant},
+                              shuffle_shannels);
+        ov::replace_node(reshape_after, shuffle_shannels);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_after_pattern, matcher_name);
     register_matcher(m, callback);
 }

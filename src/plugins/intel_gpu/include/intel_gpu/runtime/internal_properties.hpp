@@ -52,10 +52,9 @@ static constexpr Property<std::vector<std::string>, PropertyMutability::RW> cust
 static constexpr Property<ImplForcingMap, PropertyMutability::RW> force_implementations{"GPU_FORCE_IMPLEMENTATIONS"};
 static constexpr Property<std::string, PropertyMutability::RW> config_file{"CONFIG_FILE"};
 static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
-static constexpr Property<bool, PropertyMutability::RW> enable_dynamic_batch{"DYN_BATCH_ENABLED"};
 static constexpr Property<size_t, PropertyMutability::RW> max_dynamic_batch{"DYN_BATCH_LIMIT"};
-static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests{"EXCLUSIVE_ASYNC_REQUESTS"};
 static constexpr Property<bool, PropertyMutability::RW> nv12_two_inputs{"GPU_NV12_TWO_INPUTS"};
+static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_ratio{"GPU_BUFFERS_PREALLOCATION_RATIO"};
 
 }  // namespace intel_gpu
 }  // namespace ov

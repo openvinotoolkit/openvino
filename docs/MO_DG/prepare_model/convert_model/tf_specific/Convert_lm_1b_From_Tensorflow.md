@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a TensorFlow Language 
+                 Model on One Billion Word Benchmark to the OpenVINO Intermediate 
+                 Representation.
+
+
 Downloading a Pre-trained Language Model on One Billion Word Benchmark
 ######################################################################
 
@@ -11,55 +17,55 @@ To download the model for IR conversion, follow the instructions:
 
 1. Create new directory to store the model:
 
-.. code-block:: shell
+   .. code-block:: sh
 
-   mkdir lm_1b
+      mkdir lm_1b
 
 2. Go to the ``lm_1b`` directory:
 
-.. code-block:: shell
+   .. code-block:: sh
 
-   cd lm_1b
+      cd lm_1b
 
 3. Download the model GraphDef file:
 
-.. code-block:: shell
+   .. code-block:: sh
 
-   wget http://download.tensorflow.org/models/LM_LSTM_CNN/graph-2016-09-10.pbtxt
+      wget http://download.tensorflow.org/models/LM_LSTM_CNN/graph-2016-09-10.pbtxt
 
 4. Create new directory to store 12 checkpoint shared files:
 
-.. code-block:: shell
+   .. code-block:: sh
 
-   mkdir ckpt
+      mkdir ckpt
 
 5. Go to the ``ckpt`` directory:
 
-.. code-block:: shell
+   .. code-block:: sh
 
-   cd ckpt
+      cd ckpt
 
 6. Download 12 checkpoint shared files:
 
-.. code-block:: shell
-  
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-base
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-char-embedding
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-lstm
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax0
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax1
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax2
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax3
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax4
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax5
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax6
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax7
-    wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax8
+   .. code-block:: sh
+
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-base
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-char-embedding
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-lstm
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax0
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax1
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax2
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax3
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax4
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax5
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax6
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax7
+       wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-softmax8
 
 
 Once you have downloaded the pretrained model files, you will have the ``lm_1b`` directory with the following hierarchy:
 
-.. code-block:: shell
+.. code-block:: sh
 
     lm_1b/
         graph-2016-09-10.pbtxt
@@ -103,7 +109,7 @@ There is a certain limitation for the model conversion: the original model canno
 To generate the ``lm_1b`` Intermediate Representation (IR), provide TensorFlow ``lm_1b`` model to the
 Model Optimizer with parameters:
 
-.. code-block:: shell
+.. code-block:: sh
 
     mo
     --input_model lm_1b/graph-2016-09-10.pbtxt  \

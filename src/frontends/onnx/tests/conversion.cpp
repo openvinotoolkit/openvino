@@ -7,9 +7,9 @@
 #include "common_test_utils/file_utils.hpp"
 #include "conversion_extension.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/op/add.hpp"
-#include "so_extension.hpp"
 
 using namespace ov::frontend;
 
@@ -68,7 +68,7 @@ TEST(ONNXConversionExtensionTest, custom_op_with_custom_domain) {
     auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
     fe->add_extension(ext);
 
-    const auto input_model = fe->load(CommonTestUtils::getModelFromTestModelZoo(
+    const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
         ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "missing_op_domain.onnx"})));
 
     std::shared_ptr<ov::Model> model;
@@ -96,7 +96,7 @@ TEST(ONNXConversionExtensionTest, custom_op_with_incorrect_numer_of_outputs_exce
     auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
     fe->add_extension(ext);
 
-    const auto input_model = fe->load(CommonTestUtils::getModelFromTestModelZoo(
+    const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
         ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "missing_op_domain.onnx"})));
 
     std::shared_ptr<ov::Model> model;

@@ -13,6 +13,8 @@ namespace cldnn {
 struct reverse_sequence : public primitive_base<reverse_sequence> {
     CLDNN_DECLARE_PRIMITIVE(reverse_sequence)
 
+    reverse_sequence() : primitive_base("", {}) {}
+
     /// @brief Constructs reverse_sequence primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -48,9 +50,9 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
     }
 
     /// @brief The axis which is partially reversed.
-    int32_t seq_axis;
+    int32_t seq_axis = 0;
     /// @brief The axis along which reversal is performed.
-    int32_t batch_axis;
+    int32_t batch_axis = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -67,6 +69,18 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
 
         return seq_axis == rhs_casted.seq_axis &&
                batch_axis == rhs_casted.batch_axis;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reverse_sequence>::save(ob);
+        ob << seq_axis;
+        ob << batch_axis;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<reverse_sequence>::load(ib);
+        ib >> seq_axis;
+        ib >> batch_axis;
     }
 };
 }  // namespace cldnn

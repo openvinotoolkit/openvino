@@ -10,30 +10,26 @@
 
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
+#include "shape_types.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace utils {
 
 // Get non-scalar Constant count that will be created after FakeQuantize decomposition.
 // This count is needed to know exact count of non-scalar Constants during tokenization.
-auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) -> size_t;
+auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::opset1::FakeQuantize>& fq) -> size_t;
 
-inline auto is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_output_node) -> bool {
-    return ngraph::is_type<ngraph::opset1::Constant>(source_output_node) && ngraph::shape_size(source_output_node->get_shape()) == 1;
+inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_node) -> bool {
+    return ov::is_type<ov::opset1::Constant>(source_output_node) && ov::shape_size(source_output_node->get_shape()) == 1;
 }
 
-
-ov::PartialShape get_port_planar_shape(const Output<Node>& out);
-ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout);
-std::vector<size_t> get_node_output_layout(const std::shared_ptr<Node>& node);
-std::vector<size_t> get_node_output_layout(const Node* node);
-void set_transpose_output_layout(const ov::Output<Node>& port, const std::shared_ptr<opset1::Transpose>& node);
-void set_output_layout(const ov::Output<Node>& port, const std::vector<size_t>& layout);
-
-inline ov::Dimension get_inner_dim(const ov::PartialShape &shape) { return *(shape.rbegin()); }
-inline ov::Dimension get_outer_dim(const ov::PartialShape &shape) { return *(shape.rbegin() + 1); }
+ov::PartialShape get_planar_pshape(const Input<Node>& out);
+ov::PartialShape get_planar_pshape(const Output<Node>& out);
+ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& layout);
+VectorDims pshape_to_vdims(const PartialShape&);
+ov::PartialShape vdims_to_pshape(const VectorDims&);
 
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
@@ -54,6 +50,11 @@ template <typename T, typename P, typename... Args>
 constexpr bool everyone_is(T val, P item, Args... item_others) {
     return val == item && everyone_is(val, item_others...);
 }
+
+VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& layout);
+VectorDims get_planar_vdims(const snippets::lowered::PortDescriptorPtr& port_desc);
+VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
+
 } // namespace utils
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

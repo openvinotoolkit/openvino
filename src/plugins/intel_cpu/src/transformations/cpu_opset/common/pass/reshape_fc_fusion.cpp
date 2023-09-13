@@ -17,11 +17,8 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
     auto m_reshape = ngraph::pattern::wrap_type<ngraph::opset1::Reshape>({ngraph::pattern::any_input(ov::pass::pattern::has_static_shape()),
                                                                           ngraph::pattern::any_input()},
                                                                          ngraph::pattern::has_static_shape());
-    ngraph::OutputVector twoInputs = {m_reshape, ngraph::pattern::any_input()};
-    ngraph::OutputVector threeInputs = {m_reshape, ngraph::pattern::any_input(), ngraph::pattern::any_input()};
-    auto fcTwoInputs = ngraph::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(twoInputs, ngraph::pattern::has_static_shape());
-    auto fcThreeInputs = ngraph::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(threeInputs, ngraph::pattern::has_static_shape());
-    const auto fcTwoOrThreeInputs = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fcTwoInputs, fcThreeInputs});
+    ngraph::OutputVector fcInputs = {m_reshape, ngraph::pattern::any_input()};
+    auto fc = ngraph::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(fcInputs, ngraph::pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto fc = std::dynamic_pointer_cast<ov::intel_cpu::FullyConnectedNode>(m.get_match_root());
@@ -52,7 +49,7 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
             newWeightsShape = ngraph::Shape({outShape[2], shape_in[2]});
         } else {
             newWeightsShape.push_back(outShape[1]);
-            for (int i = 1; i < shape_in.size(); i++)
+            for (size_t i = 1; i < shape_in.size(); i++)
                 newWeightsShape.push_back(shape_in[i]);
         }
 
@@ -62,21 +59,11 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
             new_ops.push_back(weightInput.get_node_shared_ptr());
         }
 
-        std::shared_ptr<ngraph::Node> new_fc;
-        if (fc->get_input_size() == 2) {
-            new_fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(reshape->input_value(0),
+        std::shared_ptr<ngraph::Node> new_fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(
+                                                                        reshape->input_value(0),
                                                                         weightInput,
                                                                         ngraph::Rank(outShape.size()),
                                                                         fc->output(0).get_element_type());
-        } else if (fc->get_input_size() == 3) {
-            new_fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(reshape->input_value(0),
-                                                                        weightInput,
-                                                                        fc->input_value(2),
-                                                                        ngraph::Rank(outShape.size()),
-                                                                        fc->output(0).get_element_type());
-        } else {
-            return false;
-        }
         new_ops.push_back(new_fc);
         new_fc->set_friendly_name(fc->get_friendly_name());
         ngraph::copy_runtime_info({reshape, fc}, new_ops);
@@ -84,6 +71,6 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fcTwoOrThreeInputs, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(fc, matcher_name);
     register_matcher(m, callback);
 }

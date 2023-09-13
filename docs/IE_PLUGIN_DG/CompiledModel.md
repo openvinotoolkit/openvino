@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Use the ov::CompiledModel class as the base class for a compiled 
+                 model and to create an arbitrary number of ov::InferRequest objects.
+
 ov::CompiledModel class functionality:
 
 * Compile an ov::Model instance to a backend specific graph representation

@@ -12,8 +12,8 @@
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/util/multi_subgraph_base.hpp"
-#include "ngraph/runtime/reference/if.hpp"
 #include "ngraph/specialize_function.hpp"
+#include "openvino/reference/if.hpp"
 
 using namespace std;
 
@@ -107,8 +107,12 @@ void ov::op::v8::If::validate_and_infer_types() {
                               val.size() == 1,
                               "The number of values in the If condition constant is greater than 1");
 
-        validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
-        validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        // Condition is constant we only need to validate one body
+        if (val[0]) {
+            validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
+        } else {
+            validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        }
         auto output_nodes = outputs();
 
         auto cond_index = val[0] ? THEN_BODY_INDEX : ELSE_BODY_INDEX;

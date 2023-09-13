@@ -17,11 +17,14 @@ std::string PermConvPermConcat::getTestCaseName(const testing::TestParamInfo<Per
     std::tie(netPrecision, targetName, input_shape, kernel_shape, output_channels, configuration) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
-    results << "KS=" << CommonTestUtils::vec2str(std::vector<size_t>(kernel_shape.begin(), kernel_shape.end())) << "_";
+    results << "IS=" << ov::test::utils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
+    results << "KS=" << ov::test::utils::vec2str(std::vector<size_t>(kernel_shape.begin(), kernel_shape.end())) << "_";
     results << "OC=" << output_channels << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName;
+    for (auto const& configItem : configuration) {
+        results << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return results.str();
 }
 
@@ -44,7 +47,7 @@ void PermConvPermConcat::SetUp() {
     std::vector<size_t> permute_in_order = { 0, 3, 1, 2 };
     std::vector<size_t> permute_out_order = { 0, 2, 3, 1 };
 
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto reshape_in_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
         ngraph::Shape{4},
@@ -58,7 +61,7 @@ void PermConvPermConcat::SetUp() {
     auto conv_in_shape = permute_in->get_output_shape(0);
     auto conv_weights_size = output_channels * (conv_in_shape[1]) * kernel_shape[0] * kernel_shape[1];
     auto conv = ngraph::builder::makeConvolution(permute_in, ngPrc, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
-        ngraph::op::PadType::VALID, output_channels, false, CommonTestUtils::generate_float_numbers(conv_weights_size, -0.5f, 0.5f));
+        ngraph::op::PadType::VALID, output_channels, false, ov::test::utils::generate_float_numbers(conv_weights_size, -0.5f, 0.5f));
 
     auto permute_out_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
         ngraph::Shape{4},
@@ -68,7 +71,7 @@ void PermConvPermConcat::SetUp() {
     auto permute_out_shape = permute_out->get_output_shape(0);
 
     auto concat_const = ngraph::builder::makeConstant(ngPrc, {1, 1, 1, permute_out_shape[3]},
-                                                      CommonTestUtils::generate_float_numbers(permute_out_shape[3], -10, 10));
+                                                      ov::test::utils::generate_float_numbers(permute_out_shape[3], -10, 10));
 
     auto concat = ngraph::builder::makeConcat({permute_out, concat_const}, 2);
 
@@ -97,11 +100,6 @@ void PermConvPermConcat::Run() {
         FuncTestUtils::fillInputsBySinValues(blob);
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
-    }
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        inferRequest.SetBatch(batchSize);
     }
     inferRequest.Infer();
 

@@ -10,7 +10,7 @@ ov_add_test_target(
     DEPENDENCIES
     LINK_LIBRARIES
         gmock
-        funcTestUtils
+        func_test_utils
         offline_transformations
         sharedTestClasses
         lptNgraphFunctions

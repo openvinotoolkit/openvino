@@ -50,9 +50,9 @@ std::shared_ptr<Node> FunctionHelper::applyPrerequisites(const std::shared_ptr<N
 
 std::shared_ptr<Node> FunctionHelper::getSubgraph(const std::shared_ptr<Model>& f, const int index) {
     int currentIndex = 0;
-    std::shared_ptr<ngraph::snippets::op::Subgraph> subgraph;
+    std::shared_ptr<ov::snippets::op::Subgraph> subgraph;
     for (const auto& op : f->get_ordered_ops()) {
-        auto tmp_subgraph = as_type_ptr<ngraph::snippets::op::Subgraph>(op);
+        auto tmp_subgraph = as_type_ptr<ov::snippets::op::Subgraph>(op);
         if (tmp_subgraph != nullptr) {
             if (index == currentIndex) {
                 return tmp_subgraph;

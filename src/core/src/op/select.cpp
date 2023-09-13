@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/reference/select.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/select.hpp"
 #include "select_shape_inference.hpp"
 
 using namespace std;
@@ -43,9 +43,7 @@ void op::v1::Select::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -61,6 +59,7 @@ bool op::v1::Select::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace detail {
 namespace {
 template <element::Type_t ET>
@@ -75,14 +74,14 @@ bool evaluate(const HostTensorVector& output_values,
 
     const auto& out = output_values[0];
 
-    runtime::reference::select<T>(in_cond->get_data_ptr<char>(),
-                                  in_then->get_data_ptr<T>(),
-                                  in_else->get_data_ptr<T>(),
-                                  out->get_data_ptr<T>(),
-                                  in_cond->get_shape(),
-                                  in_then->get_shape(),
-                                  in_else->get_shape(),
-                                  autob);
+    ov::reference::select<T>(in_cond->get_data_ptr<char>(),
+                             in_then->get_data_ptr<T>(),
+                             in_else->get_data_ptr<T>(),
+                             out->get_data_ptr<T>(),
+                             in_cond->get_shape(),
+                             in_then->get_shape(),
+                             in_else->get_shape(),
+                             autob);
     return true;
 }
 

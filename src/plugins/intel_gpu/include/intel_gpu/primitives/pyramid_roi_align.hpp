@@ -24,6 +24,8 @@ namespace cldnn {
 struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
     CLDNN_DECLARE_PRIMITIVE(pyramid_roi_align)
 
+    pyramid_roi_align() : primitive_base("", {}) {}
+
     /// @param id This primitive id.
     /// @param rois Input RoI boxes as tuple [x1, y1, x2, y2] describing two opposite corners of the region.
     /// @param P2 First level of the image pyramid.
@@ -54,10 +56,10 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
         , pyramid_starting_level(pyramid_starting_level)
     {}
 
-    int output_size;
-    int sampling_ratio;
+    int output_size = 0;
+    int sampling_ratio = 0;
     std::vector<int> pyramid_scales;
-    int pyramid_starting_level;
+    int pyramid_starting_level = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -77,6 +79,22 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
                sampling_ratio == rhs_casted.sampling_ratio &&
                pyramid_scales == rhs_casted.pyramid_scales &&
                pyramid_starting_level == rhs_casted.pyramid_starting_level;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<pyramid_roi_align>::save(ob);
+        ob << output_size;
+        ob << sampling_ratio;
+        ob << pyramid_scales;
+        ob << pyramid_starting_level;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<pyramid_roi_align>::load(ib);
+        ib >> output_size;
+        ib >> sampling_ratio;
+        ib >> pyramid_scales;
+        ib >> pyramid_starting_level;
     }
 };
 }  // namespace cldnn
