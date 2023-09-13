@@ -313,11 +313,10 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
     std::tie(req_data_type, req_format) = GetParam();
     const auto reorder_prim_id = "surface_input_reorder_prim";
 
-    auto in_size = tensor{1, 1, 8, 8};
     auto weights_size = tensor{32, 1, 8, 8};
-    auto in_layout = layout(data_types::u8, format::nv12, in_size);
+    auto in_layout = layout({1, 8, 8, 1}, data_types::u8, format::nv12);
     // Set data type the same as input's data type
-    auto reorder_layout = layout(data_types::u8, format::bfyx, in_size);
+    auto reorder_layout = layout({1, 8, 8, 1}, data_types::u8, format::bfyx);
 
     auto input_data = engine.allocate_memory({ in_layout });
     auto weights_dt = req_data_type == data_types::u8 ? data_types::i8 : req_data_type;
@@ -328,9 +327,10 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
     auto surface_input_reorder_prim = reorder(reorder_prim_id, input_info("input"), reorder_layout);
     surface_input_reorder_prim.input_mem_type = reorder::memory_type::surface;
     auto conv_input_reorder_prim = reorder("reorder_conv", input_info(reorder_prim_id), req_format, req_data_type);
-    auto conv_prim = cldnn::convolution("conv", input_info("reorder_conv"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
+    auto transpose = permute("permute",  input_info("reorder_conv"), {0, 3, 1, 2});
+    auto conv_prim = cldnn::convolution("conv", input_info("permute"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
 
-    topology.add(input_layout_prim, weights_data_prim, surface_input_reorder_prim, conv_input_reorder_prim, conv_prim);
+    topology.add(input_layout_prim, weights_data_prim, surface_input_reorder_prim, conv_input_reorder_prim, transpose, conv_prim);
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
@@ -370,11 +370,10 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
     const auto reorder_prim_id1 = "surface_input_reorder_prim1";
     const auto reorder_prim_id2 = "surface_input_reorder_prim2";
 
-    auto in_size = tensor{1, 1, 8, 8};
     auto weights_size = tensor{32, 1, 8, 8};
-    auto in_layout = layout(data_types::u8, format::nv12, in_size);
+    auto in_layout = layout({1, 8, 8, 1}, data_types::u8, format::nv12);
     // Set data type the same as input's data type
-    auto reorder_layout = layout(data_types::u8, format::bfyx, in_size);
+    auto reorder_layout = layout({1, 8, 8, 1}, data_types::u8, format::bfyx);
 
     auto input_data = engine.allocate_memory({ in_layout });
     auto weights_dt = req_data_type == data_types::u8 ? data_types::i8 : req_data_type;
@@ -389,10 +388,11 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
     surface_input_reorder_prim2.input_mem_type = reorder::memory_type::surface;
     auto concat = concatenation("concat",{ input_info(reorder_prim_id1),input_info(reorder_prim_id2) }, 0);
     auto conv_input_reorder_prim = reorder("reorder_conv", input_info("concat"), req_format, req_data_type);
-    auto conv_prim = cldnn::convolution("conv", input_info("reorder_conv"), "weights" , "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
+    auto transpose = permute("permute",  input_info("reorder_conv"), {0, 3, 1, 2});
+    auto conv_prim = cldnn::convolution("conv", input_info("permute"), "weights" , "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
 
     topology.add(input_layout_prim1, input_layout_prim2, weights_data_prim,
-                 surface_input_reorder_prim1, surface_input_reorder_prim2,
+                 surface_input_reorder_prim1, surface_input_reorder_prim2, transpose,
                  conv_input_reorder_prim, concat, conv_prim);
 
     ExecutionConfig cfg = get_test_default_config(engine);

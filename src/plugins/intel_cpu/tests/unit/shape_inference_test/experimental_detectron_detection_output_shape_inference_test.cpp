@@ -30,7 +30,7 @@ TEST_F(ExperimentalDetectronDetectionOutputV6StaticShapeInferenceTest, default_c
     op->set_attrs({.05f, .5f, 4.1352f, 12, 20, 7, false, {10.0f, 10.0f, 5.0f, 5.0f}});
 
     input_shapes = ShapeVector{{10, 4}, {10, 48}, {10, 12}, {1, 3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes, ShapeVector({{7, 4}, {7}, {7}}));
 }
@@ -43,7 +43,7 @@ TEST_F(ExperimentalDetectronDetectionOutputV6StaticShapeInferenceTest, inputs_dy
     op = make_op(rois, deltas, scores, im_info, make_attrs());
 
     input_shapes = ShapeVector{{10, 4}, {10, 40}, {10, 10}, {1, 3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes, ShapeVector({{5, 4}, {5}, {5}}));
 }
@@ -56,7 +56,7 @@ TEST_F(ExperimentalDetectronDetectionOutputV6StaticShapeInferenceTest, inputs_st
     op = make_op(rois, deltas, scores, im_info, make_attrs());
 
     input_shapes = ShapeVector{{10, 4}, {10, 40}, {10, 10}, {1, 3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes, ShapeVector({{5, 4}, {5}, {5}}));
 }
@@ -69,7 +69,7 @@ TEST_F(ExperimentalDetectronDetectionOutputV6StaticShapeInferenceTest, im_info_b
     op = make_op(rois, deltas, scores, im_info, make_attrs());
 
     input_shapes = ShapeVector{{10, 4}, {10, 40}, {10, 10}, {3}};
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Input image info shape must be compatible with [1,3]"));
 }
@@ -82,7 +82,7 @@ TEST_F(ExperimentalDetectronDetectionOutputV6StaticShapeInferenceTest, deltas_no
     op = make_op(rois, deltas, scores, im_info, make_attrs());
 
     input_shapes = ShapeVector{{10, 4}, {10, 40, 1}, {10, 10}, {1, 3}};
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Input deltas rank must be equal to 2"));
 }
@@ -96,7 +96,7 @@ TEST_F(ExperimentalDetectronDetectionOutputV6StaticShapeInferenceTest, rois_1st_
 
     input_shapes = ShapeVector{{9, 4}, {10, 40}, {10, 10}, {1, 3}};
     OV_EXPECT_THROW(
-        shape_inference(op.get(), input_shapes, output_shapes),
+        shape_inference(op.get(), input_shapes),
         NodeValidationFailure,
         HasSubstr("The first dimension of inputs 'input_rois', 'input_deltas', 'input_scores' must be the compatible"));
 }

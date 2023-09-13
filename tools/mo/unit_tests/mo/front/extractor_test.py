@@ -4,6 +4,7 @@
 import unittest
 
 import numpy as np
+import pytest
 from openvino.tools.mo.front.common.partial_infer.utils import strict_compare_tensors
 from openvino.tools.mo.front.extractor import input_user_data_repack, output_user_data_repack, update_ie_fields, add_input_op, \
     get_node_id_with_ports
@@ -437,53 +438,46 @@ class TestInputAddition(UnitTestWithMockedTelemetry):
         self.assertTrue(Node(graph, 'relu_1').in_edge(0)['edge_attr'] == 'edge_value')
 
 
-class TestOutputCut(unittest.TestCase):
+class TestOutputCut():
     # {'embeddings': [{'port': None}]}
-    def test_output_port_cut(self):
-        test_cases =[{'C': [{'port': None}]},
-                     {'C': [{'out': 0}]},
-                     {'C': [{'out': 1}]}]
-        for idx, (output) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                nodes = {'A': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
-                        'B': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
-                        'C': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
-                        'D': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
-                        'E': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
-                        }
-                edges = [
-                    ('A', 'C', {'in': 0, 'out': 0}),
-                    ('B', 'C', {'in': 1, 'out': 0}),
-                    ('C', 'D', {'in': 0, 'out': 0}),
-                    ('C', 'E', {'in': 0, 'out': 1})
-                ]
-                graph = build_graph_with_edge_attrs(nodes, edges)
-                sinks = add_output_ops(graph, output)
-                graph.clean_up()
-                self.assertEqual(len(Node(graph, 'C').out_nodes()), 1)
-                self.assertEqual(len(Node(graph, 'C').in_nodes()), 2)
+    @pytest.mark.parametrize("output",[{'C':[{'port': None}]}, {'C': [{'out': 0}]}, {'C': [{'out': 1}]}])
+    def test_output_port_cut(self, output):
+        nodes = {'A': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'B': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'C': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'D': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'E': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 }
+        edges = [
+            ('A', 'C', {'in': 0, 'out': 0}),
+            ('B', 'C', {'in': 1, 'out': 0}),
+            ('C', 'D', {'in': 0, 'out': 0}),
+            ('C', 'E', {'in': 0, 'out': 1})
+        ]
+        graph = build_graph_with_edge_attrs(nodes, edges)
+        sinks = add_output_ops(graph, output)
+        graph.clean_up()
+        assert len(Node(graph, 'C').out_nodes()) == 1
+        assert len(Node(graph, 'C').in_nodes()) == 2
 
-    def test_output_port_cut2(self):
-        test_cases =[{'C': [{'in': 0}]},
-                     {'C': [{'in': 1}]}]
-        for idx,(output) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                nodes = {'A': {'op': 'Parameter', 'kind': 'op'},
-                        'B': {'op': 'Parameter', 'kind': 'op'},
-                        'C': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
-                        'D': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
-                        'E': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
-                        }
-                edges = [
-                    ('A', 'C', {'in': 0, 'out': 0}),
-                    ('B', 'C', {'in': 1, 'out': 0}),
-                    ('C', 'D', {'in': 0, 'out': 0}),
-                    ('C', 'E', {'in': 0, 'out': 1})
-                ]
-                graph = build_graph_with_edge_attrs(nodes, edges)
-                sinks = add_output_ops(graph, output)
-                graph.clean_up()
-                self.assertEqual(len(graph.nodes()), 2)
+    @pytest.mark.parametrize("output",[{'C': [{'in': 0}]}, {'C': [{'in': 1}]}])
+    def test_output_port_cut(self, output):
+        nodes = {'A': {'op': 'Parameter', 'kind': 'op'},
+                 'B': {'op': 'Parameter', 'kind': 'op'},
+                 'C': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'D': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'E': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 }
+        edges = [
+            ('A', 'C', {'in': 0, 'out': 0}),
+            ('B', 'C', {'in': 1, 'out': 0}),
+            ('C', 'D', {'in': 0, 'out': 0}),
+            ('C', 'E', {'in': 0, 'out': 1})
+        ]
+        graph = build_graph_with_edge_attrs(nodes, edges)
+        sinks = add_output_ops(graph, output)
+        graph.clean_up()
+        assert len(graph.nodes()) == 2
 
 
 class TestUserDataRepack(UnitTestWithMockedTelemetry):

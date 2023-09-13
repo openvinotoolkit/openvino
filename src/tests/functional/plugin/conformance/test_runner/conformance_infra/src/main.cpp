@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
-    FuncTestUtils::SkipTestsConfig::disable_tests_skipping = FLAGS_disable_test_config;
+    ov::test::utils::disable_tests_skipping = FLAGS_disable_test_config;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
