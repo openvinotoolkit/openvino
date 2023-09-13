@@ -1188,10 +1188,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 }
 
 void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
-    std::function<bool(const cldnn::program_node*)> is_weights_path =
-        [&is_weights_path](const cldnn::program_node* node) {
+    std::function<const program_node*(const program_node*)> get_weightable_node =
+        [&get_weightable_node](const program_node* node) -> const program_node* {
         if (node->get_users().empty())
-            return false;
+            return nullptr;
 
         const auto* next_node = node->get_users().front();
 
@@ -1201,13 +1201,14 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
             next_node->is_type<binary_convolution>() ||
             next_node->is_type<deformable_conv>()) {
             size_t weights_offset = next_node->get_primitive()->input_size();
-            return &next_node->get_dependency(weights_offset) == node;
+            return &next_node->get_dependency(weights_offset) == node ? next_node
+                                                                      : nullptr;
         }
 
         if (node->is_constant() && node->get_users().size() == 1)
-            return is_weights_path(next_node);
+            return get_weightable_node(next_node);
 
-        return false;
+        return nullptr;
     };
 
     auto convert_data_format_by_order = [](format fmt, const std::vector<uint16_t>& order) -> format {
@@ -1230,7 +1231,9 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
         auto& permute_node = node->as<permute>();
 
-        if (!is_weights_path(&permute_node) || !permute_node.get_dependency(0).is_type<data>())
+        auto weightable_node = get_weightable_node(&permute_node);
+
+        if (weightable_node == nullptr || !permute_node.get_dependency(0).is_type<data>())
             continue;
 
         auto& prev_const = permute_node.get_dependency(0).as<data>();
@@ -1238,7 +1241,16 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
         if (prev_const.get_users().size() != 1)
             continue;
 
-        const auto& permute_order = permute_node.get_primitive()->permute_order;
+        auto permute_order = permute_node.get_primitive()->permute_order;
+        // Assumption that fc weights will be reshaped to 2d
+        if (permute_order.size() != 2 && weightable_node->is_type<fully_connected>()) {
+            if (permute_order == std::vector<uint16_t>{0, 2, 1} ||
+                permute_order == std::vector<uint16_t>{0, 1, 3, 2}) {
+                permute_order = {1, 0};
+            } else {
+                continue;
+            }
+        }
 
         format new_fmt = format::any;
         try {
