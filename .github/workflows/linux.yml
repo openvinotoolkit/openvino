@@ -568,8 +568,8 @@ jobs:
       - name: Install python dependencies
         run: |
           # For Python API
-          su - ${{ env.TEST_USER_NAME }} -c "python3 -m pip install --upgrade pip"
-          su - ${{ env.TEST_USER_NAME }} -c "python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt ${OPENVINO_REPO}/src/bindings/python/requirements.txt"
+          pip install --upgrade pip
+          pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt ${OPENVINO_REPO}/src/bindings/python/requirements.txt
 
           # For running Python API tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
