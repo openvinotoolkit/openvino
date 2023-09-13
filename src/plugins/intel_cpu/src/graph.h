@@ -183,8 +183,6 @@ public:
      */
     bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    bool ReplaceNode(EdgePtr edge, NodePtr oldNode, NodePtr newNode, bool initNode);
-
     std::shared_ptr<ov::Model> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
