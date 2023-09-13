@@ -34,7 +34,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/ci/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -61,8 +61,8 @@ jobs:
     steps:
       - name: Install git
         run: |
-          apt-get update
-          apt-get install -y git git-lfs
+          sudo -E apt-get update
+          sudo -E apt-get install -y git git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -91,9 +91,9 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          apt update
-          apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
+          sudo -E ${OPENVINO_REPO}/install_build_dependencies.sh
+          sudo -E apt update
+          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
           wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
           unzip ninja-linux.zip
@@ -296,7 +296,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/ci/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -314,8 +314,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          apt update
-          apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers libsnappy-dev
+          sudo -E apt update
+          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers libsnappy-dev
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -496,7 +496,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/ci/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -520,8 +520,8 @@ jobs:
 
       - name: Install git
         run: |
-          apt update
-          apt --assume-yes install git git-lfs
+          sudo -E apt update
+          sudo -E apt --assume-yes install git git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -535,8 +535,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          apt update
-          apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers libsnappy-dev
+          sudo -E apt update
+          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers libsnappy-dev
 
       - uses: actions/setup-python@v4
         with:
@@ -775,7 +775,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/ci/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -790,8 +790,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          apt update
-          apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers libsnappy-dev
+          sudo -E apt update
+          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers libsnappy-dev
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
