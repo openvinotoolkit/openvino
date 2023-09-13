@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace util {
