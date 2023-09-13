@@ -68,7 +68,9 @@ model is already downloaded. The selected model comes from the public
 directory, which means it must be converted into OpenVINO Intermediate
 Representation (OpenVINO IR).
 
-   **Note**: To change the model, replace the name of the model in the
+.. note::
+    
+   To change the model, replace the name of the model in the
    code below, for example to ``"vehicle-detection-0201"`` or
    ``"vehicle-detection-0202"``. Keep in mind that they support
    different image input sizes in detection. Also, you can change the

@@ -53,7 +53,7 @@ Prepare the Model
 ###############################################################################################################################
 
 Download the pre-trained PointNet ONNX model. This pre-trained model is
-provided by ```axinc-ai`` <https://github.com/axinc-ai>`__, and you can
+provided by `axinc-ai <https://github.com/axinc-ai>`__, and you can
 find more point clouds examples
 `here <https://github.com/axinc-ai/ailia-models/tree/master/point_segmentation>`__.
 
