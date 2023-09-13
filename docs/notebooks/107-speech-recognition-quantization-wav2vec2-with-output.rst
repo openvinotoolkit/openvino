@@ -23,26 +23,26 @@ steps:
 Table of content:
 ~~~~~~~~~~~~~~~~~
 
--  `Imports <#Imports-Uparrow>`__
--  `Settings <#Settings-Uparrow>`__
--  `Prepare the Model <#Prepare-the-Model-Uparrow>`__
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
+-  `Prepare the Model <#Prepare-the-Model>`__
 -  `Prepare LibriSpeech
-   Dataset <#Prepare-LibriSpeech-Dataset-Uparrow>`__
--  `Define DataLoader <#Define-DataLoader-Uparrow>`__
--  `Run Quantization <#Run-Quantization-Uparrow>`__
+   Dataset <#Prepare-LibriSpeech-Dataset>`__
+-  `Define DataLoader <#Define-DataLoader>`__
+-  `Run Quantization <#Run-Quantization>`__
 -  `Model Usage Example with Inference
-   Pipeline <#Model-Usage-Example-with-Inference-Pipeline-Uparrow>`__
+   Pipeline <#Model-Usage-Example-with-Inference-Pipeline>`__
 -  `Validate model accuracy on
-   dataset <#Validate-model-accuracy-on-dataset-Uparrow>`__
+   dataset <#Validate-model-accuracy-on-dataset>`__
 -  `Compare Performance of the Original and Quantized
-   Models <#Compare-Performance-of-the-Original-and-Quantized-Models-Uparrow>`__
+   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
 
 .. code:: ipython3
 
     !pip install -q "openvino==2023.1.0.dev20230811" "nncf>=2.5.0"
     !pip install -q soundfile librosa transformers onnx
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 -------------------------------------------------
 
 .. code:: ipython3
@@ -72,7 +72,7 @@ Imports `⇑ <#Table-of-content:>`__
     2023-09-08 22:38:43.332490: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Settings `⇑ <#Table-of-content:>`__
+Settings
 --------------------------------------------------
 
 .. code:: ipython3
@@ -85,7 +85,7 @@ Settings `⇑ <#Table-of-content:>`__
     MODEL_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
 
-Prepare the Model `⇑ <#Table-of-content:>`__
+Prepare the Model
 -----------------------------------------------------------
 
 Perform the following: - Download and unpack a pre-trained Wav2Vec2
@@ -172,7 +172,7 @@ it to the ONNX representation.
     ir_model_path = MODEL_DIR / "wav2vec2_base.xml"
     ov.save_model(ov_model, str(ir_model_path))
 
-Prepare LibriSpeech Dataset `⇑ <#Table-of-content:>`__
+Prepare LibriSpeech Dataset
 ---------------------------------------------------------------------
 
 Use the code below to download and unpack the archives with ‘dev-clean’
@@ -203,7 +203,7 @@ and ‘test-clean’ subsets of LibriSpeech Dataset.
     ../data/datasets/librispeech/test-clean.tar.gz:   0%|          | 0.00/331M [00:00<?, ?B/s]
 
 
-Define DataLoader `⇑ <#Table-of-content:>`__
+Define DataLoader
 -----------------------------------------------------------
 
 Wav2Vec2 model accepts a raw waveform of the speech signal as input and
@@ -275,7 +275,7 @@ convert them to waveform.
                         # Limit exceeded
                         return
 
-Run Quantization `⇑ <#Table-of-content:>`__
+Run Quantization
 ----------------------------------------------------------
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
@@ -509,7 +509,7 @@ function.
     quantized_model_path = Path(f"{MODEL_NAME}_openvino_model/{MODEL_NAME}_quantized.xml")
     ov.save_model(quantized_model, str(quantized_model_path))
 
-Model Usage Example with Inference Pipeline `⇑ <#Table-of-content:>`__
+Model Usage Example with Inference Pipeline
 -------------------------------------------------------------------------------------
 
 Both initial (``FP16``) and quantized (``INT8``) models are exactly the
@@ -555,7 +555,7 @@ Next, make a prediction.
 
     predictions = compiled_model([input_data])[output_layer]
 
-Validate model accuracy on dataset `⇑ <#Table-of-content:>`__
+Validate model accuracy on dataset
 ----------------------------------------------------------------------------
 
 The code below is used for running model inference on a single sample
@@ -760,7 +760,7 @@ quantized model.
     [Quantized OpenVino]  Word Error Rate: 0.0422
 
 
-Compare Performance of the Original and Quantized Models `⇑ <#Table-of-content:>`__
+Compare Performance of the Original and Quantized Models
 --------------------------------------------------------------------------------------------------
 
 Finally, use `Benchmark

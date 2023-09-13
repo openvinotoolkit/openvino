@@ -30,25 +30,25 @@ deployment:
    scaling.
 
 |ovms_diagram| #### Table of content:- `Serving with OpenVINO Model
-Server <#Serving-with-OpenVINO-Model-Server-Uparrow>`__ - `Step 1:
-Prepare Docker <#Step-1:-Prepare-Docker-Uparrow>`__ - `Step 2: Preparing
-a Model Repository <#Step-2:-Preparing-a-Model-Repository-Uparrow>`__ -
+Server <#Serving-with-OpenVINO-Model-Server>`__ - `Step 1:
+Prepare Docker <#Step-1:-Prepare-Docker>`__ - `Step 2: Preparing
+a Model Repository <#Step-2:-Preparing-a-Model-Repository>`__ -
 `Step 3: Start the Model Server
-Container <#Step-3:-Start-the-Model-Server-Container-Uparrow>`__ - `Step
+Container <#Step-3:-Start-the-Model-Server-Container>`__ - `Step
 4: Prepare the Example Client
-Components <#Step-4:-Prepare-the-Example-Client-Components-Uparrow>`__ -
-`Prerequisites <#Prerequisites-Uparrow>`__ -
-`Imports <#Imports-Uparrow>`__ - `Request Model
-Status <#Request-Model-Status-Uparrow>`__ - `Request Model
-Metadata <#Request-Model-Metadata-Uparrow>`__ - `Load input
-image <#Load-input-image-Uparrow>`__ - `Request Prediction on a Numpy
-Array <#Request-Prediction-on-a-Numpy-Array-Uparrow>`__ -
-`Visualization <#Visualization-Uparrow>`__ -
-`References <#References-Uparrow>`__
+Components <#Step-4:-Prepare-the-Example-Client-Components>`__ -
+`Prerequisites <#Prerequisites>`__ -
+`Imports <#Imports>`__ - `Request Model
+Status <#Request-Model-Status>`__ - `Request Model
+Metadata <#Request-Model-Metadata>`__ - `Load input
+image <#Load-input-image>`__ - `Request Prediction on a Numpy
+Array <#Request-Prediction-on-a-Numpy-Array>`__ -
+`Visualization <#Visualization>`__ -
+`References <#References>`__
 
 .. |ovms_diagram| image:: https://user-images.githubusercontent.com/91237924/215658773-4720df00-3b95-4a84-85a2-40f06138e914.png
 
-Serving with OpenVINO Model Server `⇑ <#Table-of-content:>`__
+Serving with OpenVINO Model Server
 ----------------------------------------------------------------------------
 
 OpenVINO Model Server (OVMS) is a high-performance system for serving
@@ -65,7 +65,7 @@ making deploying new algorithms and AI experiments easy.
 
 To quickly start using OpenVINO™ Model Server, follow these steps:
 
-Step 1: Prepare Docker `⇑ <#Table-of-content:>`__
+Step 1: Prepare Docker
 ----------------------------------------------------------------
 
 Install `Docker Engine <https://docs.docker.com/engine/install/>`__,
@@ -106,7 +106,7 @@ image and a message.
     
 
 
-Step 2: Preparing a Model Repository `⇑ <#Table-of-content:>`__
+Step 2: Preparing a Model Repository
 ------------------------------------------------------------------------------
 
 The models need to be placed and mounted in a particular directory
@@ -190,7 +190,7 @@ structure and according to the following rules:
     Model Copied to "./models/detection/1".
 
 
-Step 3: Start the Model Server Container `⇑ <#Table-of-content:>`__
+Step 3: Start the Model Server Container
 ----------------------------------------------------------------------------------
 
 Pull and start the container:
@@ -639,7 +639,7 @@ openvino/model_server:latest
 If the serving port ``9000`` is already in use, please switch it to
 another available port on your system. For example:\ ``-p 9020:9000``
 
-Step 4: Prepare the Example Client Components `⇑ <#Table-of-content:>`__
+Step 4: Prepare the Example Client Components
 ---------------------------------------------------------------------------------------
 
 OpenVINO Model Server exposes two sets of APIs: one compatible with
@@ -650,7 +650,7 @@ into existing systems the already leverage one of these APIs for
 inference. This example will demonstrate how to write a TensorFlow
 Serving API client for object detection.
 
-Prerequisites `⇑ <#Table-of-content:>`__
+Prerequisites
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Install necessary packages.
@@ -685,7 +685,7 @@ Install necessary packages.
     You should consider upgrading via the '/home/adrian/repos/openvino_notebooks_adrian/venv/bin/python -m pip install --upgrade pip' command.
     
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -695,7 +695,7 @@ Imports `⇑ <#Table-of-content:>`__
     import matplotlib.pyplot as plt
     from ovmsclient import make_grpc_client
 
-Request Model Status `⇑ <#Table-of-content:>`__
+Request Model Status
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -713,7 +713,7 @@ Request Model Status `⇑ <#Table-of-content:>`__
     {1: {'state': 'AVAILABLE', 'error_code': 0, 'error_message': 'OK'}}
 
 
-Request Model Metadata `⇑ <#Table-of-content:>`__
+Request Model Metadata
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -727,7 +727,7 @@ Request Model Metadata `⇑ <#Table-of-content:>`__
     {'model_version': 1, 'inputs': {'image': {'shape': [1, 3, 704, 704], 'dtype': 'DT_FLOAT'}}, 'outputs': {'1469_1470.0': {'shape': [-1], 'dtype': 'DT_FLOAT'}, '1078_1079.0': {'shape': [1000], 'dtype': 'DT_FLOAT'}, '1330_1331.0': {'shape': [36], 'dtype': 'DT_FLOAT'}, 'labels': {'shape': [-1], 'dtype': 'DT_INT32'}, '1267_1268.0': {'shape': [121], 'dtype': 'DT_FLOAT'}, '1141_1142.0': {'shape': [1000], 'dtype': 'DT_FLOAT'}, '1204_1205.0': {'shape': [484], 'dtype': 'DT_FLOAT'}, 'boxes': {'shape': [-1, 5], 'dtype': 'DT_FLOAT'}}}
 
 
-Load input image `⇑ <#Table-of-content:>`__
+Load input image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -758,7 +758,7 @@ Load input image `⇑ <#Table-of-content:>`__
 .. image:: 117-model-server-with-output_files/117-model-server-with-output_20_1.png
 
 
-Request Prediction on a Numpy Array `⇑ <#Table-of-content:>`__
+Request Prediction on a Numpy Array
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -783,7 +783,7 @@ Request Prediction on a Numpy Array `⇑ <#Table-of-content:>`__
      [2.2261986e+01 4.5406548e+01 1.8868817e+02 1.0225631e+02 3.0407205e-01]]
 
 
-Visualization `⇑ <#Table-of-content:>`__
+Visualization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -866,7 +866,7 @@ command:
     ovms
 
 
-References `⇑ <#Table-of-content:>`__
+References
 ----------------------------------------------------
 
 1. `OpenVINO™ Model Server

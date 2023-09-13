@@ -22,18 +22,18 @@ segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
 
-Table of content:- `Imports <#Imports-Uparrow>`__
+Table of content:- `Imports <#Imports>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
--  `Prepare the Model <#Prepare-the-Model-Uparrow>`__
--  `Data Processing Module <#Data-Processing-Module-Uparrow>`__
+-  `Prepare the Model <#Prepare-the-Model>`__
+-  `Data Processing Module <#Data-Processing-Module>`__
 -  `Visualize the original 3D
-   data <#Visualize-the-original-3D-data-Uparrow>`__
--  `Run inference <#Run-inference-Uparrow>`__
+   data <#Visualize-the-original-3D-data>`__
+-  `Run inference <#Run-inference>`__
 
-   -  `Select inference device <#Select-inference-device-Uparrow>`__
+   -  `Select inference device <#Select-inference-device>`__
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 -------------------------------------------------
 
 .. code:: ipython3
@@ -50,7 +50,7 @@ Imports `⇑ <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Prepare the Model `⇑ <#Table-of-content:>`__
+Prepare the Model
 -----------------------------------------------------------
 
 Download the pre-trained PointNet ONNX model. This pre-trained model is
@@ -93,7 +93,7 @@ conversion Python API, see this
         model = core.read_model(model=ir_model_xml)
         
 
-Data Processing Module `⇑ <#Table-of-content:>`__
+Data Processing Module
 ----------------------------------------------------------------
 
 .. code:: ipython3
@@ -148,7 +148,7 @@ Data Processing Module `⇑ <#Table-of-content:>`__
     
         return ax
 
-Visualize the original 3D data `⇑ <#Table-of-content:>`__
+Visualize the original 3D data
 ------------------------------------------------------------------------
 
 The point cloud data can be downloaded from
@@ -174,7 +174,7 @@ chair for example.
 .. image:: 224-3D-segmentation-point-clouds-with-output_files/224-3D-segmentation-point-clouds-with-output_10_0.png
 
 
-Run inference `⇑ <#Table-of-content:>`__
+Run inference
 -------------------------------------------------------
 
 Run inference and visualize the results of 3D segmentation. - The input
@@ -203,7 +203,7 @@ each input point.
     output shape: [1,?,4]
 
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO

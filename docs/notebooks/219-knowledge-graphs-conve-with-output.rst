@@ -16,30 +16,30 @@ Knowledge Graph Embeddings” (https://arxiv.org/abs/1707.01476). The
 sample dataset can be downloaded from:
 https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
 #### Table of content:- `Windows specific
-settings <#Windows-specific-settings-Uparrow>`__ - `Import the packages
+settings <#Windows-specific-settings>`__ - `Import the packages
 needed for successful
-execution <#Import-the-packages-needed-for-successful-execution-Uparrow>`__
+execution <#Import-the-packages-needed-for-successful-execution>`__
 - `Settings: Including path to the serialized model files and input data
-files <#Settings:-Including-path-to-the-serialized-model-files-and-input-data-files-Uparrow>`__
-- `Download Model Checkpoint <#Download-Model-Checkpoint-Uparrow>`__ -
+files <#Settings:-Including-path-to-the-serialized-model-files-and-input-data-files>`__
+- `Download Model Checkpoint <#Download-Model-Checkpoint>`__ -
 `Defining the ConvE model
-class <#Defining-the-ConvE-model-class-Uparrow>`__ - `Defining the
-dataloader <#Defining-the-dataloader-Uparrow>`__ - `Evaluate the trained
-ConvE model <#Evaluate-the-trained-ConvE-model-Uparrow>`__ - `Prediction
-on the Knowledge graph. <#Prediction-on-the-Knowledge-graph.-Uparrow>`__
+class <#Defining-the-ConvE-model-class>`__ - `Defining the
+dataloader <#Defining-the-dataloader>`__ - `Evaluate the trained
+ConvE model <#Evaluate-the-trained-ConvE-model>`__ - `Prediction
+on the Knowledge graph. <#Prediction-on-the-Knowledge-graph.>`__
 - `Convert the trained PyTorch model to ONNX format for OpenVINO
-inference <#Convert-the-trained-PyTorch-model-to-ONNX-format-for-OpenVINO-inference-Uparrow>`__
+inference <#Convert-the-trained-PyTorch-model-to-ONNX-format-for-OpenVINO-inference>`__
 - `Evaluate the model performance with
-OpenVINO <#Evaluate-the-model-performance-with-OpenVINO-Uparrow>`__ -
-`Select inference device <#Select-inference-device-Uparrow>`__ -
+OpenVINO <#Evaluate-the-model-performance-with-OpenVINO>`__ -
+`Select inference device <#Select-inference-device>`__ -
 `Determine the platform specific speedup obtained through OpenVINO graph
-optimizations <#Determine-the-platform-specific-speedup-obtained-through-OpenVINO-graph-optimizations-Uparrow>`__
+optimizations <#Determine-the-platform-specific-speedup-obtained-through-OpenVINO-graph-optimizations>`__
 - `Benchmark the converted OpenVINO model using benchmark
-app <#Benchmark-the-converted-OpenVINO-model-using-benchmark-app-Uparrow>`__
-- `Conclusions <#Conclusions-Uparrow>`__ -
-`References <#References-Uparrow>`__
+app <#Benchmark-the-converted-OpenVINO-model-using-benchmark-app>`__
+- `Conclusions <#Conclusions>`__ -
+`References <#References>`__
 
-Windows specific settings `⇑ <#Table-of-content:>`__
+Windows specific settings
 -------------------------------------------------------------------
 
 .. code:: ipython3
@@ -82,7 +82,7 @@ Windows specific settings `⇑ <#Table-of-content:>`__
             os.environ["LIB"] = os.pathsep.join(b.library_dirs)
             print(f"Added {vs_dir} to PATH")
 
-Import the packages needed for successful execution `⇑ <#Table-of-content:>`__
+Import the packages needed for successful execution
 ---------------------------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -103,7 +103,7 @@ Import the packages needed for successful execution `⇑ <#Table-of-content:>`__
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Settings: Including path to the serialized model files and input data files `⇑ <#Table-of-content:>`__
+Settings: Including path to the serialized model files and input data files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -144,7 +144,7 @@ Settings: Including path to the serialized model files and input data files `⇑
     Using cpu device
 
 
-Download Model Checkpoint `⇑ <#Table-of-content:>`__
+Download Model Checkpoint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -168,7 +168,7 @@ Download Model Checkpoint `⇑ <#Table-of-content:>`__
 
 
 
-Defining the ConvE model class `⇑ <#Table-of-content:>`__
+Defining the ConvE model class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -226,7 +226,7 @@ Defining the ConvE model class `⇑ <#Table-of-content:>`__
             pred = torch.nn.functional.softmax(x, dim=1)
             return pred
 
-Defining the dataloader `⇑ <#Table-of-content:>`__
+Defining the dataloader
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -275,7 +275,7 @@ Defining the dataloader `⇑ <#Table-of-content:>`__
             dp.close()
             return triples_list
 
-Evaluate the trained ConvE model `⇑ <#Table-of-content:>`__
+Evaluate the trained ConvE model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, we will evaluate the model performance using PyTorch. The goal is
@@ -324,7 +324,7 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
     Mean accuracy of the model on the test dataset: 0.875
 
 
-Prediction on the Knowledge graph. `⇑ <#Table-of-content:>`__
+Prediction on the Knowledge graph.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Here, we perform the entity prediction on the knowledge graph, as a
@@ -358,7 +358,7 @@ knowledge graph.
     Source Entity: san_marino, Relation: locatedin, Target entity prediction: europe
 
 
-Convert the trained PyTorch model to ONNX format for OpenVINO inference `⇑ <#Table-of-content:>`__
+Convert the trained PyTorch model to ONNX format for OpenVINO inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To evaluate performance with OpenVINO, we can either convert the trained
@@ -379,7 +379,7 @@ https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimize
     Converting the trained conve model to ONNX format
 
 
-Evaluate the model performance with OpenVINO `⇑ <#Table-of-content:>`__
+Evaluate the model performance with OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, we evaluate the model performance with the OpenVINO framework. In
@@ -397,7 +397,7 @@ Then, the model can be inferred on by using the
     core = Core()
     ov_model = core.read_model(model=fp32_onnx_path)
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -458,7 +458,7 @@ select device from dropdown list for running inference using OpenVINO
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
-Determine the platform specific speedup obtained through OpenVINO graph optimizations `⇑ <#Table-of-content:>`__
+Determine the platform specific speedup obtained through OpenVINO graph optimizations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -471,7 +471,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
     Speedup with OpenVINO optimizations: 0.48 X
 
 
-Benchmark the converted OpenVINO model using benchmark app `⇑ <#Table-of-content:>`__
+Benchmark the converted OpenVINO model using benchmark app
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The OpenVINO toolkit provides a benchmarking application to gauge the
@@ -499,7 +499,7 @@ inference can also be obtained by looking at the benchmark app results.
     /bin/bash: benchmark_app: command not found
 
 
-Conclusions `⇑ <#Table-of-content:>`__
+Conclusions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In this notebook, we convert the trained PyTorch knowledge graph
@@ -511,7 +511,7 @@ OpenVINO graph optimizations. To learn more about the OpenVINO
 performance optimizations, refer to:
 https://docs.openvino.ai/2023.0/openvino_docs_optimization_guide_dldt_optimization_guide.html
 
-References `⇑ <#Table-of-content:>`__
+References
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Convolutional 2D Knowledge Graph Embeddings, Tim Dettmers et

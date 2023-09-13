@@ -27,34 +27,34 @@ quantization, not demanding the fine-tuning of the model.
 Table of content:
 ^^^^^^^^^^^^^^^^^
 
--  `Preparations <#Preparations-Uparrow>`__
+-  `Preparations <#Preparations>`__
 
-   -  `Imports <#Imports-Uparrow>`__
-   -  `Settings <#Settings-Uparrow>`__
+   -  `Imports <#Imports>`__
+   -  `Settings <#Settings>`__
    -  `Download and Prepare Tiny ImageNet
-      dataset <#Download-and-Prepare-Tiny-ImageNet-dataset-Uparrow>`__
+      dataset <#Download-and-Prepare-Tiny-ImageNet-dataset>`__
    -  `Helpers classes and
-      functions <#Helpers-classes-and-functions-Uparrow>`__
-   -  `Validation function <#Validation-function-Uparrow>`__
+      functions <#Helpers-classes-and-functions>`__
+   -  `Validation function <#Validation-function>`__
    -  `Create and load original uncompressed
-      model <#Create-and-load-original-uncompressed-model-Uparrow>`__
+      model <#Create-and-load-original-uncompressed-model>`__
    -  `Create train and validation
-      DataLoaders <#Create-train-and-validation-DataLoaders-Uparrow>`__
+      DataLoaders <#Create-train-and-validation-DataLoaders>`__
 
 -  `Model quantization and
-   benchmarking <#Model-quantization-and-benchmarking-Uparrow>`__
+   benchmarking <#Model-quantization-and-benchmarking>`__
 
    -  `I. Evaluate the loaded
-      model <#I.-Evaluate-the-loaded-model-Uparrow>`__
+      model <#I.-Evaluate-the-loaded-model>`__
    -  `II. Create and initialize
-      quantization <#II.-Create-and-initialize-quantization-Uparrow>`__
+      quantization <#II.-Create-and-initialize-quantization>`__
    -  `III. Convert the models to OpenVINO Intermediate Representation
       (OpenVINO
-      IR) <#III.-Convert-the-models-to-OpenVINO-Intermediate-Representation-(OpenVINO-IR)-Uparrow>`__
+      IR) <#III.-Convert-the-models-to-OpenVINO-Intermediate-Representation-(OpenVINO-IR)>`__
    -  `IV. Compare performance of INT8 model and FP32 model in
-      OpenVINO <#IV.-Compare-performance-of-INT8-model-and-FP32-model-in-OpenVINO-Uparrow>`__
+      OpenVINO <#IV.-Compare-performance-of-INT8-model-and-FP32-model-in-OpenVINO>`__
 
-Preparations `⇑ <#Table-of-content:>`__
+Preparations
 ------------------------------------------------------
 
 .. code:: ipython3
@@ -99,7 +99,7 @@ Preparations `⇑ <#Table-of-content:>`__
             os.environ["LIB"] = os.pathsep.join(b.library_dirs)
             print(f"Added {vs_dir} to PATH")
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -135,7 +135,7 @@ Imports `⇑ <#Table-of-content:>`__
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Settings `⇑ <#Table-of-content:>`__
+Settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -182,7 +182,7 @@ Settings `⇑ <#Table-of-content:>`__
 
 
 
-Download and Prepare Tiny ImageNet dataset `⇑ <#Table-of-content:>`__
+Download and Prepare Tiny ImageNet dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 -  100k images of shape 3x64x64,
@@ -242,7 +242,7 @@ Download and Prepare Tiny ImageNet dataset `⇑ <#Table-of-content:>`__
     Successfully downloaded and extracted dataset to: output
 
 
-Helpers classes and functions `⇑ <#Table-of-content:>`__
+Helpers classes and functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The code below will help to count accuracy and visualize validation
@@ -308,7 +308,7 @@ process.
     
             return res
 
-Validation function `⇑ <#Table-of-content:>`__
+Validation function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -361,7 +361,7 @@ Validation function `⇑ <#Table-of-content:>`__
             )
         return top1.avg
 
-Create and load original uncompressed model `⇑ <#Table-of-content:>`__
+Create and load original uncompressed model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ResNet-50 from the ```torchivision``
@@ -389,7 +389,7 @@ values.
     
     model = create_model(MODEL_DIR / fp32_checkpoint_filename)
 
-Create train and validation DataLoaders `⇑ <#Table-of-content:>`__
+Create train and validation DataLoaders
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -439,14 +439,14 @@ Create train and validation DataLoaders `⇑ <#Table-of-content:>`__
     
     train_loader, val_loader = create_dataloaders()
 
-Model quantization and benchmarking `⇑ <#Table-of-content:>`__
+Model quantization and benchmarking
 -----------------------------------------------------------------------------
 
 With the validation pipeline, model files, and data-loading procedures
 for model calibration now prepared, it’s time to proceed with the actual
 post-training quantization using NNCF.
 
-I. Evaluate the loaded model `⇑ <#Table-of-content:>`__
+I. Evaluate the loaded model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -469,7 +469,7 @@ I. Evaluate the loaded model `⇑ <#Table-of-content:>`__
     Test accuracy of FP32 model: 60.740
 
 
-II. Create and initialize quantization `⇑ <#Table-of-content:>`__
+II. Create and initialize quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 NNCF enables post-training quantization by adding the quantization
@@ -552,7 +552,7 @@ added to the model by NNCF. However, the model’s performance will
 significantly improve when it is in the OpenVINO Intermediate
 Representation (IR) format.
 
-III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR) `⇑ <#Table-of-content:>`__
+III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To convert the Pytorch models to OpenVINO IR, use model conversion
@@ -668,7 +668,7 @@ Evaluate the FP32 and INT8 models.
     Accuracy of INT8 IR model: 61.050
 
 
-IV. Compare performance of INT8 model and FP32 model in OpenVINO `⇑ <#Table-of-content:>`__
+IV. Compare performance of INT8 model and FP32 model in OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``

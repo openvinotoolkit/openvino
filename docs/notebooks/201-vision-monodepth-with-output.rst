@@ -31,34 +31,34 @@ Transactions on Pattern Analysis and Machine Intelligence, doi:
 Table of content:
 ^^^^^^^^^^^^^^^^^
 
--  `Preparation <#Preparation-Uparrow>`__
+-  `Preparation <#Preparation>`__
 
-   -  `Install requirements <#Install-requirements-Uparrow>`__
-   -  `Imports <#Imports-Uparrow>`__
-   -  `Download the model <#Download-the-model-Uparrow>`__
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
+   -  `Download the model <#Download-the-model>`__
 
--  `Functions <#Functions-Uparrow>`__
--  `Select inference device <#Select-inference-device-Uparrow>`__
--  `Load the Model <#Load-the-Model-Uparrow>`__
--  `Monodepth on Image <#Monodepth-on-Image-Uparrow>`__
+-  `Functions <#Functions>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Load the Model <#Load-the-Model>`__
+-  `Monodepth on Image <#Monodepth-on-Image>`__
 
    -  `Load, resize and reshape input
-      image <#Load,-resize-and-reshape-input-image-Uparrow>`__
-   -  `Do inference on the image <#Do-inference-on-the-image-Uparrow>`__
-   -  `Display monodepth image <#Display-monodepth-image-Uparrow>`__
+      image <#Load,-resize-and-reshape-input-image>`__
+   -  `Do inference on the image <#Do-inference-on-the-image>`__
+   -  `Display monodepth image <#Display-monodepth-image>`__
 
--  `Monodepth on Video <#Monodepth-on-Video-Uparrow>`__
+-  `Monodepth on Video <#Monodepth-on-Video>`__
 
-   -  `Video Settings <#Video-Settings-Uparrow>`__
-   -  `Load the Video <#Load-the-Video-Uparrow>`__
+   -  `Video Settings <#Video-Settings>`__
+   -  `Load the Video <#Load-the-Video>`__
    -  `Do Inference on a Video and Create Monodepth
-      Video <#Do-Inference-on-a-Video-and-Create-Monodepth-Video-Uparrow>`__
-   -  `Display Monodepth Video <#Display-Monodepth-Video-Uparrow>`__
+      Video <#Do-Inference-on-a-Video-and-Create-Monodepth-Video>`__
+   -  `Display Monodepth Video <#Display-Monodepth-Video>`__
 
-Preparation `⇑ <#Table-of-content:>`__
+Preparation
 -----------------------------------------------------
 
-Install requirements `⇑ <#Table-of-content:>`__
+Install requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -82,7 +82,7 @@ Install requirements `⇑ <#Table-of-content:>`__
 
 
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -107,7 +107,7 @@ Imports `⇑ <#Table-of-content:>`__
     
     from notebook_utils import download_file, load_image
 
-Download the model `⇑ <#Table-of-content:>`__
+Download the model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -136,7 +136,7 @@ Download the model `⇑ <#Table-of-content:>`__
     model/MiDaS_small.bin:   0%|          | 0.00/31.6M [00:00<?, ?B/s]
 
 
-Functions `⇑ <#Table-of-content:>`__
+Functions
 ---------------------------------------------------
 
 .. code:: ipython3
@@ -169,7 +169,7 @@ Functions `⇑ <#Table-of-content:>`__
         """
         return cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB)
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -197,7 +197,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model `⇑ <#Table-of-content:>`__
+Load the Model
 --------------------------------------------------------
 
 Load the model in OpenVINO Runtime with ``core.read_model`` and compile
@@ -217,10 +217,10 @@ output keys and the expected input shape for the model.
     network_input_shape = list(input_key.shape)
     network_image_height, network_image_width = network_input_shape[2:]
 
-Monodepth on Image `⇑ <#Table-of-content:>`__
+Monodepth on Image
 ------------------------------------------------------------
 
-Load, resize and reshape input image `⇑ <#Table-of-content:>`__
+Load, resize and reshape input image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input image is read with OpenCV, resized to network input size, and
@@ -238,7 +238,7 @@ H=height, W=width).
     # Reshape the image to network input shape NCHW.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
 
-Do inference on the image `⇑ <#Table-of-content:>`__
+Do inference on the image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Do inference, convert the result to an image, and resize it to the
@@ -256,7 +256,7 @@ original image shape.
     # in (width, height), [::-1] reverses the (height, width) shape to match this.
     result_image = cv2.resize(result_image, image.shape[:2][::-1])
 
-Display monodepth image `⇑ <#Table-of-content:>`__
+Display monodepth image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -270,14 +270,14 @@ Display monodepth image `⇑ <#Table-of-content:>`__
 .. image:: 201-vision-monodepth-with-output_files/201-vision-monodepth-with-output_18_0.png
 
 
-Monodepth on Video `⇑ <#Table-of-content:>`__
+Monodepth on Video
 ------------------------------------------------------------
 
 By default, only the first 100 frames are processed in order to quickly
 check that everything works. Change ``NUM_FRAMES`` in the cell below to
 modify this. Set ``NUM_FRAMES`` to 0 to process the whole video.
 
-Video Settings `⇑ <#Table-of-content:>`__
+Video Settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -306,7 +306,7 @@ Video Settings `⇑ <#Table-of-content:>`__
     output_directory.mkdir(exist_ok=True)
     result_video_path = output_directory / f"{Path(VIDEO_FILE).stem}_monodepth.mp4"
 
-Load the Video `⇑ <#Table-of-content:>`__
+Load the Video
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Load the video from a ``VIDEO_FILE``, set in the *Video Settings* cell
@@ -344,7 +344,7 @@ compute values for these properties for the monodepth video.
     The monodepth video will be scaled with a factor 0.5, have width 320,  height 180, and run at 15.00 fps
 
 
-Do Inference on a Video and Create Monodepth Video `⇑ <#Table-of-content:>`__
+Do Inference on a Video and Create Monodepth Video
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -448,7 +448,7 @@ Do Inference on a Video and Create Monodepth Video `⇑ <#Table-of-content:>`__
     Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
 
 
-Display Monodepth Video `⇑ <#Table-of-content:>`__
+Display Monodepth Video
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3

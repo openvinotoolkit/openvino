@@ -56,41 +56,41 @@ purposes, use a representative dataset for quantizing the model.
 Table of content:
 ^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports-Uparrow>`__
--  `Settings <#Settings-Uparrow>`__
--  `Load PyTorch Model <#Load-PyTorch-Model-Uparrow>`__
--  `Download CT-scan Data <#Download-CT-scan-Data-Uparrow>`__
--  `Configuration <#Configuration-Uparrow>`__
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
+-  `Load PyTorch Model <#Load-PyTorch-Model>`__
+-  `Download CT-scan Data <#Download-CT-scan-Data>`__
+-  `Configuration <#Configuration>`__
 
-   -  `Dataset <#Dataset-Uparrow>`__
-   -  `Metric <#Metric-Uparrow>`__
+   -  `Dataset <#Dataset>`__
+   -  `Metric <#Metric>`__
 
--  `Quantization <#Quantization-Uparrow>`__
+-  `Quantization <#Quantization>`__
 -  `Compare FP32 and INT8
-   Model <#Compare-FP32-and-INT8-Model-Uparrow>`__
+   Model <#Compare-FP32-and-INT8-Model>`__
 
-   -  `Compare File Size <#Compare-File-Size-Uparrow>`__
+   -  `Compare File Size <#Compare-File-Size>`__
    -  `Compare Metrics for the original model and the quantized model to
       be sure that there no
-      degradation. <#Compare-Metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation.-Uparrow>`__
+      degradation. <#Compare-Metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation.>`__
    -  `Compare Performance of the FP32 IR Model and Quantized
-      Models <#Compare-Performance-of-the-FP32-IR-Model-and-Quantized-Models-Uparrow>`__
+      Models <#Compare-Performance-of-the-FP32-IR-Model-and-Quantized-Models>`__
    -  `Visually Compare Inference
-      Results <#Visually-Compare-Inference-Results-Uparrow>`__
+      Results <#Visually-Compare-Inference-Results>`__
 
--  `Show Live Inference <#Show-Live-Inference-Uparrow>`__
+-  `Show Live Inference <#Show-Live-Inference>`__
 
    -  `Load Model and List of Image
-      Files <#Load-Model-and-List-of-Image-Files-Uparrow>`__
-   -  `Show Inference <#Show-Inference-Uparrow>`__
+      Files <#Load-Model-and-List-of-Image-Files>`__
+   -  `Show Inference <#Show-Inference>`__
 
--  `References <#References-Uparrow>`__
+-  `References <#References>`__
 
 .. code:: ipython3
 
     !pip install -q "openvino==2023.1.0.dev20230811" "monai>=0.9.1,<1.0.0" "torchmetrics>=0.11.0"
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 -------------------------------------------------
 
 .. code:: ipython3
@@ -186,7 +186,7 @@ Imports `⇑ <#Table-of-content:>`__
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Settings `⇑ <#Table-of-content:>`__
+Settings
 --------------------------------------------------
 
 By default, this notebook will download one CT scan from the KITS19
@@ -202,7 +202,7 @@ dataset that will be used for quantization. To use the full dataset, set
     MODEL_DIR = Path("model")
     MODEL_DIR.mkdir(exist_ok=True)
 
-Load PyTorch Model `⇑ <#Table-of-content:>`__
+Load PyTorch Model
 ------------------------------------------------------------
 
 Download the pre-trained model weights, load the PyTorch model and the
@@ -248,7 +248,7 @@ notebook <pytorch-monai-training.ipynb>`__.
 
 
 
-Download CT-scan Data `⇑ <#Table-of-content:>`__
+Download CT-scan Data
 ---------------------------------------------------------------
 
 .. code:: ipython3
@@ -274,10 +274,10 @@ Download CT-scan Data `⇑ <#Table-of-content:>`__
     Data for case_00117 exists
 
 
-Configuration `⇑ <#Table-of-content:>`__
+Configuration
 -------------------------------------------------------
 
-Dataset `⇑ <#Table-of-content:>`__
+Dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``KitsDataset`` class in the next cell expects images and masks in
@@ -375,7 +375,7 @@ kidney pixels to verify that the annotations look correct:
 .. image:: 110-ct-segmentation-quantize-nncf-with-output_files/110-ct-segmentation-quantize-nncf-with-output_15_1.png
 
 
-Metric `⇑ <#Table-of-content:>`__
+Metric
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Define a metric to determine the performance of the model.
@@ -410,7 +410,7 @@ library.
                 metric.update(label.flatten(), prediction.flatten())
         return metric.compute()
 
-Quantization `⇑ <#Table-of-content:>`__
+Quantization
 ------------------------------------------------------
 
 Before quantizing the model, we compute the F1 score on the ``FP32``
@@ -523,10 +523,10 @@ than quantization. See the `NNCF
 documentation <https://github.com/openvinotoolkit/nncf/>`__ in the NNCF
 repository for more information.
 
-Compare FP32 and INT8 Model `⇑ <#Table-of-content:>`__
+Compare FP32 and INT8 Model
 ---------------------------------------------------------------------
 
-Compare File Size `⇑ <#Table-of-content:>`__
+Compare File Size
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -544,7 +544,7 @@ Compare File Size `⇑ <#Table-of-content:>`__
     INT8 model size: 1940.41 KB
 
 
-Compare Metrics for the original model and the quantized model to be sure that there no degradation. `⇑ <#Table-of-content:>`__
+Compare Metrics for the original model and the quantized model to be sure that there no degradation.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -564,7 +564,7 @@ Compare Metrics for the original model and the quantized model to be sure that t
     INT8 F1: 0.999
 
 
-Compare Performance of the FP32 IR Model and Quantized Models `⇑ <#Table-of-content:>`__
+Compare Performance of the FP32 IR Model and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To measure the inference performance of the ``FP32`` and ``INT8``
@@ -732,7 +732,7 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Throughput:   64.05 FPS
 
 
-Visually Compare Inference Results `⇑ <#Table-of-content:>`__
+Visually Compare Inference Results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Visualize the results of the model on four slices of the validation set.
@@ -821,7 +821,7 @@ seed is displayed to enable reproducing specific runs of this cell.
 .. image:: 110-ct-segmentation-quantize-nncf-with-output_files/110-ct-segmentation-quantize-nncf-with-output_37_1.png
 
 
-Show Live Inference `⇑ <#Table-of-content:>`__
+Show Live Inference
 -------------------------------------------------------------
 
 To show live inference on the model in the notebook, we will use the
@@ -841,7 +841,7 @@ printed.
    If you experience flickering on Firefox, consider using
    Chrome or Edge to run this notebook.
 
-Load Model and List of Image Files `⇑ <#Table-of-content:>`__
+Load Model and List of Image Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We load the segmentation model to OpenVINO Runtime with
@@ -868,7 +868,7 @@ overlay of the segmentation mask on the original image/frame.
     case_00117, 69 images
 
 
-Show Inference `⇑ <#Table-of-content:>`__
+Show Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the next cell, we run the ``show_live_inference`` function, which
@@ -897,7 +897,7 @@ performs inference, and displays the results on the frames loaded in
     Total time for 68 frames: 3.46 seconds, fps:19.95
 
 
-References `⇑ <#Table-of-content:>`__
+References
 ----------------------------------------------------
 
 **OpenVINO** - `NNCF

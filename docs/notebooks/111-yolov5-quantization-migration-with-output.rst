@@ -26,46 +26,46 @@ The tutorial consists from the following parts:
 Table of content:
 ~~~~~~~~~~~~~~~~~
 
--  `Preparation <#Preparation-Uparrow>`__
+-  `Preparation <#Preparation>`__
 
-   -  `Download the YOLOv5 model <#Download-the-YOLOv5-model-Uparrow>`__
+   -  `Download the YOLOv5 model <#Download-the-YOLOv5-model>`__
    -  `Conversion of the YOLOv5 model to
-      OpenVINO <#Conversion-of-the-YOLOv5-model-to-OpenVINO-Uparrow>`__
-   -  `Imports <#Imports-Uparrow>`__
+      OpenVINO <#Conversion-of-the-YOLOv5-model-to-OpenVINO>`__
+   -  `Imports <#Imports>`__
 
 -  `Prepare dataset for
-   quantization <#Prepare-dataset-for-quantization-Uparrow>`__
+   quantization <#Prepare-dataset-for-quantization>`__
 
    -  `Create YOLOv5 DataLoader class for
-      POT <#Create-YOLOv5-DataLoader-class-for-POT-Uparrow>`__
-   -  `Create NNCF Dataset <#Create-NNCF-Dataset-Uparrow>`__
+      POT <#Create-YOLOv5-DataLoader-class-for-POT>`__
+   -  `Create NNCF Dataset <#Create-NNCF-Dataset>`__
 
 -  `Configure quantization
-   pipeline <#Configure-quantization-pipeline-Uparrow>`__
+   pipeline <#Configure-quantization-pipeline>`__
 
    -  `Prepare config and pipeline for
-      POT <#Prepare-config-and-pipeline-for-POT-Uparrow>`__
+      POT <#Prepare-config-and-pipeline-for-POT>`__
    -  `Prepare configuration parameters for
-      NNCF <#Prepare-configuration-parameters-for-NNCF-Uparrow>`__
+      NNCF <#Prepare-configuration-parameters-for-NNCF>`__
 
--  `Perform model optimization <#Perform-model-optimization-Uparrow>`__
+-  `Perform model optimization <#Perform-model-optimization>`__
 
    -  `Run quantization using
-      POT <#Run-quantization-using-POT-Uparrow>`__
+      POT <#Run-quantization-using-POT>`__
    -  `Run quantization using
-      NNCF <#Run-quantization-using-NNCF-Uparrow>`__
+      NNCF <#Run-quantization-using-NNCF>`__
 
 -  `Compare accuracy FP32 and INT8
-   models <#Compare-accuracy-FP32-and-INT8-models-Uparrow>`__
+   models <#Compare-accuracy-FP32-and-INT8-models>`__
 -  `Inference Demo Performance
-   Comparison <#Inference-Demo-Performance-Comparison-Uparrow>`__
--  `Benchmark <#Benchmark-Uparrow>`__
--  `References <#References-Uparrow>`__
+   Comparison <#Inference-Demo-Performance-Comparison>`__
+-  `Benchmark <#Benchmark>`__
+-  `References <#References>`__
 
-Preparation `⇑ <#Table-of-content:>`__
+Preparation
 -----------------------------------------------------
 
-Download the YOLOv5 model `⇑ <#Table-of-content:>`__
+Download the YOLOv5 model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -102,7 +102,7 @@ Download the YOLOv5 model `⇑ <#Table-of-content:>`__
 ``git clone https://github.com/ultralytics/yolov5.git -b v7.0``
 
 
-Conversion of the YOLOv5 model to OpenVINO `⇑ <#Table-of-content:>`__
+Conversion of the YOLOv5 model to OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are three variables provided for easy run through all the notebook
@@ -214,7 +214,7 @@ saved with FP16 precision.
     Export ONNX to OpenVINO FP16 IR to: yolov5/yolov5m/FP16_openvino_model/yolov5m_fp16.xml
 
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -224,7 +224,7 @@ Imports `⇑ <#Table-of-content:>`__
     from yolov5.utils.dataloaders import create_dataloader
     from yolov5.utils.general import check_dataset
 
-Prepare dataset for quantization `⇑ <#Table-of-content:>`__
+Prepare dataset for quantization
 --------------------------------------------------------------------------
 
 Before starting quantization, we should prepare dataset, which will be
@@ -277,7 +277,7 @@ first.
     New cache created: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache
 
 
-Create YOLOv5 DataLoader class for POT `⇑ <#Table-of-content:>`__
+Create YOLOv5 DataLoader class for POT
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create a class for loading the YOLOv5 dataset and annotation which
@@ -366,7 +366,7 @@ index. Any implementation should override the following methods:
     Nevergrad package could not be imported. If you are planning to use any hyperparameter optimization algo, consider installing it using pip. This implies advanced usage of the tool. Note that nevergrad is compatible only with Python 3.7+
 
 
-Create NNCF Dataset `⇑ <#Table-of-content:>`__
+Create NNCF Dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For preparing quantization dataset for NNCF, we should wrap
@@ -413,12 +413,12 @@ format).
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Configure quantization pipeline `⇑ <#Table-of-content:>`__
+Configure quantization pipeline
 -------------------------------------------------------------------------
 
 Next, we should define quantization algorithm parameters.
 
-Prepare config and pipeline for POT `⇑ <#Table-of-content:>`__
+Prepare config and pipeline for POT
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 in POT, all quantization parameters should be defined using
@@ -467,7 +467,7 @@ pipeline using ``create_pipeline`` function.
     # Step 5: Create a pipeline of compression algorithms.
     pipeline = create_pipeline(algorithms_config, engine)
 
-Prepare configuration parameters for NNCF `⇑ <#Table-of-content:>`__
+Prepare configuration parameters for NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Post-training quantization pipeline in NNCF represented by
@@ -487,10 +487,10 @@ in our case ``ov.Model`` instance created using ``core.read_model`` or
     subset_size = 300
     preset = nncf.QuantizationPreset.MIXED
 
-Perform model optimization `⇑ <#Table-of-content:>`__
+Perform model optimization
 --------------------------------------------------------------------
 
-Run quantization using POT `⇑ <#Table-of-content:>`__
+Run quantization using POT
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To start model quantization using POT API, we should call
@@ -511,7 +511,7 @@ size of final .bin file.
     save_model(compressed_model, optimized_save_dir, model_config["model_name"] + "_int8")
     pot_int8_path = f"{optimized_save_dir}/{MODEL_NAME}_int8.xml"
 
-Run quantization using NNCF `⇑ <#Table-of-content:>`__
+Run quantization using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To run NNCF quantization, we should call ``nncf.quantize`` function. As
@@ -537,7 +537,7 @@ device for inference and can be saved on disk using
     Biases correction: 100%|██████████| 82/82 [00:10<00:00,  7.60it/s]
 
 
-Compare accuracy FP32 and INT8 models `⇑ <#Table-of-content:>`__
+Compare accuracy FP32 and INT8 models
 -------------------------------------------------------------------------------
 
 For getting accuracy results, we will use ``yolov5.val.run`` function
@@ -761,7 +761,7 @@ model.
 .. image:: 111-yolov5-quantization-migration-with-output_files/111-yolov5-quantization-migration-with-output_34_0.png
 
 
-Inference Demo Performance Comparison `⇑ <#Table-of-content:>`__
+Inference Demo Performance Comparison
 -------------------------------------------------------------------------------
 
 This part shows how to use the Ultralytics model detection code
@@ -881,7 +881,7 @@ images.
 .. image:: 111-yolov5-quantization-migration-with-output_files/111-yolov5-quantization-migration-with-output_40_0.png
 
 
-Benchmark `⇑ <#Table-of-content:>`__
+Benchmark
 ---------------------------------------------------
 
 .. code:: ipython3
@@ -950,7 +950,7 @@ Benchmark `⇑ <#Table-of-content:>`__
     /bin/bash: benchmark_app: command not found
 
 
-References `⇑ <#Table-of-content:>`__
+References
 ----------------------------------------------------
 
 -  `Ultralytics YOLOv5 <https://github.com/ultralytics/yolov5>`__

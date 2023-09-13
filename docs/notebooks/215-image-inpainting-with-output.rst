@@ -9,21 +9,21 @@ given a tampered image, is able to create something very similar to the
 original image. The Following pipeline will be used in this notebook.
 |pipeline|
 
-Table of content:- `Download the Model <#Download-the-Model-Uparrow>`__
+Table of content:- `Download the Model <#Download-the-Model>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 -  `Convert Tensorflow model to OpenVINO IR
-   format <#Convert-Tensorflow-model-to-OpenVINO-IR-format-Uparrow>`__
--  `Load the model <#Load-the-model-Uparrow>`__
+   format <#Convert-Tensorflow-model-to-OpenVINO-IR-format>`__
+-  `Load the model <#Load-the-model>`__
 -  `Determine the input shapes of the
-   model <#Determine-the-input-shapes-of-the-model-Uparrow>`__
--  `Create a square mask <#Create-a-square-mask-Uparrow>`__
--  `Load and Resize the Image <#Load-and-Resize-the-Image-Uparrow>`__
+   model <#Determine-the-input-shapes-of-the-model>`__
+-  `Create a square mask <#Create-a-square-mask>`__
+-  `Load and Resize the Image <#Load-and-Resize-the-Image>`__
 -  `Generating the Masked
-   Image <#Generating-the-Masked-Image-Uparrow>`__
--  `Preprocessing <#Preprocessing-Uparrow>`__
--  `Inference <#Inference-Uparrow>`__
--  `Save the Restored Image <#Save-the-Restored-Image-Uparrow>`__
+   Image <#Generating-the-Masked-Image>`__
+-  `Preprocessing <#Preprocessing>`__
+-  `Inference <#Inference>`__
+-  `Save the Restored Image <#Save-the-Restored-Image>`__
 
 .. |pipeline| image:: https://user-images.githubusercontent.com/4547501/165792473-ba784c0d-0a37-409f-a5f6-bb1849c1d140.png
 
@@ -41,7 +41,7 @@ Table of content:- `Download the Model <#Download-the-Model-Uparrow>`__
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Download the Model `⇑ <#Table-of-content:>`__
+Download the Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Download ``gmcnn-places2-tf``\ model (this step will be skipped if the
@@ -73,7 +73,7 @@ be obtained from original model checkpoint can be found in this
     Already downloaded
 
 
-Convert Tensorflow model to OpenVINO IR format `⇑ <#Table-of-content:>`__
+Convert Tensorflow model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
@@ -100,7 +100,7 @@ This step is also skipped if the model is already converted.
     model/public/ir/frozen_model.xml already exists.
 
 
-Load the model `⇑ <#Table-of-content:>`__
+Load the model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, load the OpenVINO IR model and perform as follows:
@@ -150,7 +150,7 @@ Only a few lines of code are required to run the model:
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
 
-Determine the input shapes of the model `⇑ <#Table-of-content:>`__
+Determine the input shapes of the model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Note that both input shapes are the same. However, the second input has
@@ -160,7 +160,7 @@ Note that both input shapes are the same. However, the second input has
 
     N, H, W, C = input_layer.shape
 
-Create a square mask `⇑ <#Table-of-content:>`__
+Create a square mask
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Next, create a single channeled mask that will be laid on top of the
@@ -203,7 +203,7 @@ original image.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_14_0.png
 
 
-Load and Resize the Image `⇑ <#Table-of-content:>`__
+Load and Resize the Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This image will be altered by using the mask. You can process any image
@@ -232,7 +232,7 @@ you like. Just change the URL below.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_16_0.png
 
 
-Generating the Masked Image `⇑ <#Table-of-content:>`__
+Generating the Masked Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This multiplication of the image and the mask gives the result of the
@@ -251,7 +251,7 @@ will be the first input to the GMCNN model.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_18_0.png
 
 
-Preprocessing `⇑ <#Table-of-content:>`__
+Preprocessing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The model expects the input dimensions to be ``NHWC``.
@@ -264,7 +264,7 @@ The model expects the input dimensions to be ``NHWC``.
     masked_image = masked_image[None, ...]
     mask = mask[None, ...]
 
-Inference `⇑ <#Table-of-content:>`__
+Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Do inference with the given masked image and the mask. Then, show the
@@ -282,7 +282,7 @@ restored image.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_22_0.png
 
 
-Save the Restored Image `⇑ <#Table-of-content:>`__
+Save the Restored Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Save the restored image to the data directory to download it.

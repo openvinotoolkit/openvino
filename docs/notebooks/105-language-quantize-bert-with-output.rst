@@ -25,21 +25,21 @@ and datasets. It consists of the following steps:
 Table of content:
 ~~~~~~~~~~~~~~~~~
 
--  `Imports <#Imports-Uparrow>`__
--  `Settings <#Settings-Uparrow>`__
--  `Prepare the Model <#Prepare-the-Model-Uparrow>`__
--  `Prepare the Dataset <#Prepare-the-Dataset-Uparrow>`__
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
+-  `Prepare the Model <#Prepare-the-Model>`__
+-  `Prepare the Dataset <#Prepare-the-Dataset>`__
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API-Uparrow>`__
+   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
 -  `Load and Test OpenVINO
-   Model <#Load-and-Test-OpenVINO-Model-Uparrow>`__
+   Model <#Load-and-Test-OpenVINO-Model>`__
 
-   -  `Select inference device <#Select-inference-device-Uparrow>`__
+   -  `Select inference device <#Select-inference-device>`__
 
 -  `Compare F1-score of FP32 and INT8
-   models <#Compare-F1-score-of-FP32-and-INT8-models-Uparrow>`__
+   models <#Compare-F1-score-of-FP32-and-INT8-models>`__
 -  `Compare Performance of the Original, Converted and Quantized
-   Models <#Compare-Performance-of-the-Original,-Converted-and-Quantized-Models-Uparrow>`__
+   Models <#Compare-Performance-of-the-Original,-Converted-and-Quantized-Models>`__
 
 .. code:: ipython3
 
@@ -47,7 +47,7 @@ Table of content:
     !pip install -q transformers datasets evaluate
     !pip install -q "openvino==2023.1.0.dev20230811"
 
-Imports `⇑ <#Table-of-content:>`__
+Imports
 -------------------------------------------------
 
 .. code:: ipython3
@@ -86,7 +86,7 @@ Imports `⇑ <#Table-of-content:>`__
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Settings `⇑ <#Table-of-content:>`__
+Settings
 --------------------------------------------------
 
 .. code:: ipython3
@@ -101,7 +101,7 @@ Settings `⇑ <#Table-of-content:>`__
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
 
-Prepare the Model `⇑ <#Table-of-content:>`__
+Prepare the Model
 -----------------------------------------------------------
 
 Perform the following:
@@ -173,7 +173,7 @@ PyTorch model formats are supported:
       warnings.warn("TorchScript will treat type annotations of Tensor "
 
 
-Prepare the Dataset `⇑ <#Table-of-content:>`__
+Prepare the Dataset
 -------------------------------------------------------------
 
 We download the `General Language Understanding Evaluation
@@ -198,7 +198,7 @@ tokenizer from HuggingFace.
     
     data_source = create_data_source()
 
-Optimize model using NNCF Post-training Quantization API `⇑ <#Table-of-content:>`__
+Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------------------------------------------------
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
@@ -415,7 +415,7 @@ The optimization process contains the following steps:
     compressed_model_xml = Path(MODEL_DIR) / "quantized_bert_mrpc.xml"
     ov.save_model(quantized_model, compressed_model_xml)
 
-Load and Test OpenVINO Model `⇑ <#Table-of-content:>`__
+Load and Test OpenVINO Model
 ----------------------------------------------------------------------
 
 To load and test converted model, perform the following:
@@ -425,7 +425,7 @@ To load and test converted model, perform the following:
 -  Run the inference.
 -  Get the answer from the model output.
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
@@ -484,7 +484,7 @@ changing ``sample_idx`` to another value (from 0 to 407).
     The same meaning: yes
 
 
-Compare F1-score of FP32 and INT8 models `⇑ <#Table-of-content:>`__
+Compare F1-score of FP32 and INT8 models
 ----------------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -528,7 +528,7 @@ Compare F1-score of FP32 and INT8 models `⇑ <#Table-of-content:>`__
     F1 score: 0.8983
 
 
-Compare Performance of the Original, Converted and Quantized Models `⇑ <#Table-of-content:>`__
+Compare Performance of the Original, Converted and Quantized Models
 -------------------------------------------------------------------------------------------------------------
 
 Compare the original PyTorch model with OpenVINO converted and quantized

@@ -15,13 +15,13 @@ following structure: ``<s>`` + *tokenized sentence* + ``<s>`` +
 
 **Output** After the inference, we have a sequence of up to 200 tokens.
 The structure is the same as the one for the input. #### Table of
-content:- `Downloading model <#Downloading-model-Uparrow>`__ - `Load and
-configure the model <#Load-and-configure-the-model-Uparrow>`__ - `Select
-inference device <#Select-inference-device-Uparrow>`__ - `Load
-tokenizers <#Load-tokenizers-Uparrow>`__ - `Perform
-translation <#Perform-translation-Uparrow>`__ - `Translate the
-sentence <#Translate-the-sentence-Uparrow>`__ - `Test your
-translation <#Test-your-translation-Uparrow>`__
+content:- `Downloading model <#Downloading-model>`__ - `Load and
+configure the model <#Load-and-configure-the-model>`__ - `Select
+inference device <#Select-inference-device>`__ - `Load
+tokenizers <#Load-tokenizers>`__ - `Perform
+translation <#Perform-translation>`__ - `Translate the
+sentence <#Translate-the-sentence>`__ - `Test your
+translation <#Test-your-translation>`__
 
 .. code:: ipython3
 
@@ -44,7 +44,7 @@ translation <#Test-your-translation-Uparrow>`__
     import itertools
     from tokenizers import SentencePieceBPETokenizer
 
-Downloading model `⇑ <#Table-of-content:>`__
+Downloading model
 -----------------------------------------------------------
 
 The following command will download the model to the current directory.
@@ -85,7 +85,7 @@ Make sure you have run ``pip install openvino-dev`` beforehand.
     
 
 
-Load and configure the model `⇑ <#Table-of-content:>`__
+Load and configure the model
 ----------------------------------------------------------------------
 
 The model is now available in the ``intel/`` folder. Below, we load and
@@ -100,7 +100,7 @@ configure its inputs and outputs.
     model.output(output_name)
     max_tokens = model.input(input_name).shape[1]
 
-Select inference device `⇑ <#Table-of-content:>`__
+Select inference device
 -----------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
@@ -133,7 +133,7 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model, device.value)
 
-Load tokenizers `⇑ <#Table-of-content:>`__
+Load tokenizers
 ---------------------------------------------------------
 
 NLP models usually take a list of tokens as standard input. A token is a
@@ -160,7 +160,7 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
         'intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt'
     )
 
-Perform translation `⇑ <#Table-of-content:>`__
+Perform translation
 -------------------------------------------------------------
 
 The following function translates a sentence in English to German.
@@ -209,7 +209,7 @@ The following function translates a sentence in English to German.
         sentence = " ".join(key for key, _ in itertools.groupby(sentence))
         return sentence
 
-Translate the sentence `⇑ <#Table-of-content:>`__
+Translate the sentence
 ----------------------------------------------------------------
 
 The following function is a basic loop that translates sentences.
@@ -239,7 +239,7 @@ The following function is a basic loop that translates sentences.
     # uncomment the following line for a real time translation of your input
     # run_translator()
 
-Test your translation `⇑ <#Table-of-content:>`__
+Test your translation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Run the following cell with an English sentence to have it translated to
