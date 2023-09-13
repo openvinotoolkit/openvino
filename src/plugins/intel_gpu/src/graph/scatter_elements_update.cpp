@@ -52,5 +52,27 @@ std::string scatter_elements_update_inst::to_string(scatter_elements_update_node
 }
 
 scatter_elements_update_inst::typed_primitive_inst(network& network, scatter_elements_update_node const& node) : parent(network, node) {}
+void scatter_elements_update_inst::on_execute() {
+    if (can_be_optimized())
+        reuse_input();
+}
 
+void scatter_elements_update_inst::reuse_input() {
+    update_output_memory();
+}
+
+void scatter_elements_update_inst::update_output_memory() {
+    if (!can_be_optimized())
+        return;
+
+    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    if (_node != nullptr)
+        build_deps();
+
+    _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
+    _mem_allocated = false;
+}
 }  // namespace cldnn
