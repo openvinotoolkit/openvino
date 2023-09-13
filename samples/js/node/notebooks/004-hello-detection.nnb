@@ -19,19 +19,7 @@
             "source": [
                 "const cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\nconst { transform, getImageData, displayArrayAsImage, downloadFile } = require('../helpers.js');\n// const { addon: ov } = require('openvinojs-node'); "
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         },
         {
             "language": "markdown",
@@ -51,9 +39,9 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "Proxy agent configured using: 'http://proxy-dmz.intel.com:911'",
-                                "Proxy agent configured using: 'http://proxy-dmz.intel.com:911'",
-                                "",
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/models/horizontal-text-detection-0001.bin'",
                                 ""
                             ]
                         }
@@ -77,11 +65,12 @@
                 {
                     "items": [
                         {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "",
-                                ""
-                            ]
+                            "mime": "application/vnd.code.notebook.error",
+                            "value": {
+                                "name": "ReferenceError",
+                                "message": "ov is not defined",
+                                "stack": "    at <Cell 7> [1, 0]\n    at <Cell 7> [8, 46]\n    at Script.runInContext (node:vm:134:12)\n    at Script.runInNewContext (node:vm:139:17)\n    at Object.runInNewContext (node:vm:291:38)\n    at C (/home/nvishnya/.vscode-server/extensions/donjayamanne.typescript-notebook-2.0.6/out/extension/server/index.js:2:113345)\n    at t.execCode (/home/nvishnya/.vscode-server/extensions/donjayamanne.typescript-notebook-2.0.6/out/extension/server/index.js:2:114312)\n    at k.<anonymous> (/home/nvishnya/.vscode-server/extensions/donjayamanne.typescript-notebook-2.0.6/out/extension/server/index.js:2:142156)\n    at k.emit (node:events:514:28)\n    at k.emit (node:domain:489:12)"
+                            }
                         }
                     ]
                 }
@@ -97,7 +86,7 @@
         {
             "language": "typescript",
             "source": [
-                "const imgData = await getImageData('../../assets/images/intel_rnb.jpg');\r\nconst originalImage = cv2.matFromImageData(imgData);\r\nconst { cols: originalWidth, rows: originalHeight } = originalImage;\r\n\r\nconst image = new cv2.Mat();\r\nconst resizedImage = new cv2.Mat();\r\ncv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);\r\ncv2.cvtColor(image, image, cv2.COLOR_BGR2RGB);\r\n\r\nconst [B, C, H, W] = inputLayer.shape;\r\n\r\ncv2.resize(image, resizedImage, new cv2.Size(W, H));\r\n\r\nconst inputImage = transform(resizedImage.data, { width: W, height: H }, [0, 1, 2]); // NHWC to NCHW\r\n\r\ndisplayArrayAsImage(originalImage.data, originalWidth, originalHeight, display);\r\n"
+                "const imgData = await getImageData('../../assets/images/intel_rnb.jpg');\nconst originalImage = cv2.matFromImageData(imgData);\nconst { cols: originalWidth, rows: originalHeight } = originalImage;\n\nconst image = new cv2.Mat();\nconst resizedImage = new cv2.Mat();\ncv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);\ncv2.cvtColor(image, image, cv2.COLOR_BGR2RGB);\n\nconst [B, C, H, W] = inputLayer.shape;\n\ncv2.resize(image, resizedImage, new cv2.Size(W, H));\n\nconst inputImage = transform(resizedImage.data, { width: W, height: H }, [0, 1, 2]); // NHWC to NCHW\n\ndisplayArrayAsImage(originalImage.data, originalWidth, originalHeight, display);\n"
             ],
             "outputs": [
                 {
@@ -131,7 +120,7 @@
         {
             "language": "typescript",
             "source": [
-                "const tensorData = new Float32Array(inputImage);\r\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\r\n\r\nconst inferRequest = compiledModel.createInferRequest();\r\ninferRequest.setInputTensor(tensor);\r\ninferRequest.infer();\r\n\r\nconst output = inferRequest.getTensor(outputLayer);\r\nconst { data: boxes } = output;\r\n"
+                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\nconst { data: boxes } = output;\n"
             ],
             "outputs": [
                 {

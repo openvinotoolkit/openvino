@@ -17,21 +17,9 @@
         {
             "language": "javascript",
             "source": [
-                "const cv2 = require('opencv.js');\r\nconst { display } = require('node-kernel');\r\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\r\nconst { addon: ov } = require('openvinojs-node'); "
+                "const cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\nconst { addon: ov } = require('openvinojs-node'); "
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         },
         {
             "language": "markdown",
@@ -43,7 +31,7 @@
         {
             "language": "javascript",
             "source": [
-                "const baseArtifactsDir = '../../assets/models';\r\n\r\nconst modelName = 'v3-small_224_1.0_float';\r\nconst modelXMLName = `${modelName}.xml`;\r\nconst modelBINName = `${modelName}.bin`;\r\n\r\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\r\n\r\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/';\r\n\r\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\r\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
+                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'v3-small_224_1.0_float';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
             ],
             "outputs": [
                 {
@@ -51,10 +39,9 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "Proxy agent configured using: 'http://proxy-dmz.intel.com:911'",
-                                "Proxy agent configured using: 'http://proxy-dmz.intel.com:911'",
-                                "File successfully stored at 'c:\\Users\\nvishnya\\Code\\ovjs-sample\\ovjs-node\\samples\\js\\assets\\models\\v3-small_224_1.0_float.bin'",
-                                "",
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/models/v3-small_224_1.0_float.bin'",
                                 ""
                             ]
                         }
@@ -74,19 +61,7 @@
             "source": [
                 "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         },
         {
             "language": "markdown",
