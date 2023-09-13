@@ -71,8 +71,6 @@ struct eltwise : public primitive_base<eltwise> {
 
     eltwise() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
