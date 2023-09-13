@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-using namespace ngraph;
+using namespace ov;
 using namespace ov;
 
 PrecisionPreservedAttribute::PrecisionPreservedAttribute(const bool value) :
