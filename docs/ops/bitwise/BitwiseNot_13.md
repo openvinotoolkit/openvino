@@ -15,7 +15,7 @@
 
 For ``boolean`` type tensors, BitwiseNot is equivalent to :doc:`LogicalNot <openvino_docs_ops_logical_LogicalNot_1>`.
 
-If tensor is of ``any supported intiger`` type, for each element of tensor:
+If tensor is of ``any supported integer`` type, for each element of tensor:
 1. Convert value from input tensor to binary representation according to input tensor datatype,
 2. Perform logical negation on each bit in binary representation, where value ``0`` represents ``false`` and value ``1`` represents ``true``,
 3. Convert back binary representation to input datatype.
@@ -56,7 +56,7 @@ Example 2 - *BitwiseNot* output for uint8 tensor:
 
 **Types**
 
-* *T*: ``any suported integer or boolean type``.
+* *T*: ``any supported integer or boolean type``.
 
 **Example**
 

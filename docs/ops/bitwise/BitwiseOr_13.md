@@ -15,9 +15,9 @@
 
 After broadcasting input tensors *a* and *b*, *BitwiseOr* performs bitwise logical OR operation for each corresponding element in given tensors, based on following algorithm.
 
-For ``boolean`` type tensors, BitwiseOr is equivalent to :doc:`LogicalOr <openvino_docs_ops_logical_LogicalOr_1>`..
+For ``boolean`` type tensors, BitwiseOr is equivalent to :doc:`LogicalOr <openvino_docs_ops_logical_LogicalOr_1>`.
 
-If tensor is of ``any supported intiger`` type, for each element of tensor:
+If tensor is of ``any supported integer`` type, for each element of tensor:
 1. Convert values from input tensors to binary representation according to input tensor datatype,
 2. Perform logical OR on each bit in binary representation of values from *a* and *b*, where value ``0`` represents ``false`` and value ``1`` represents ``true``,
 3. Convert results of OR in binary representation to input datatype.
@@ -75,7 +75,7 @@ Example 2 - *BitwiseOr* output for uint8 tensor:
 
 **Types**
 
-* *T*: ``any suported integer or boolean type``.
+* *T*: ``any supported integer or boolean type``.
 
 **Examples**
 
