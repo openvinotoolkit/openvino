@@ -154,6 +154,7 @@ def main():
                 sys.exit(1)
 
     return_code, _ = run([sys.executable, args.gtest_parallel,
+                          '--serialize_test_cases',
                           '--output_dir', f'{args.output_dir}',
                           '--workers', f'{args.workers}',
                           '--timeout', f'{args.timeout}',
