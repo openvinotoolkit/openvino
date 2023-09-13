@@ -8,8 +8,7 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
 
-    permissions:
-      actions: write-all
+    permissions: write-all
 
     steps:
       - name: Check out code
