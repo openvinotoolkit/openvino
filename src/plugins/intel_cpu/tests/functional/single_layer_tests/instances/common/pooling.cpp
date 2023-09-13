@@ -137,7 +137,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
                              ::testing::ValuesIn(inputShapes5D()),
                              ::testing::ValuesIn((inpOutPrecision())),
                              ::testing::Values(false),
-                             ::testing::ValuesIn(vecCpuConfigs)),
+                             ::testing::ValuesIn(vecCpuConfigs),
                              ::testing::Values(emptyFusingSpec)),
                          PoolingLayerCPUTest::getTestCaseName);
 
