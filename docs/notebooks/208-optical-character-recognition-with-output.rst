@@ -36,7 +36,7 @@ information, refer to the
 - `Text Recognition <#text-recognition>`__
 
   - `Load Text Recognition Model <#load-text-recognition-model>`__
-  - `Do Inference <#do-inference>`__
+  - `Do Inference <#do-the-inference>`__
 
 - `Show Results <#show-results>`__
 

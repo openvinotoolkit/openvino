@@ -26,9 +26,9 @@ https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
   - `Defining the ConvE model class <#defining-the-conve-model-class>`__ 
   - `Defining the dataloader <#defining-the-dataloader>`__ 
   - `Evaluate the trained ConvE model <#evaluate-the-trained-conve-model>`__ 
-  - `Prediction on the Knowledge graph. <#prediction-on-the-knowledge-graph.>`__
+  - `Prediction on the Knowledge graph. <#prediction-on-the-knowledge-graph>`__
   - `Convert the trained PyTorch model to ONNX format for OpenVINO inference <#convert-the-trained-pytorch-model-to-onnx-format-for-openvino-inference>`__
-  - `Evaluate the model performance with OpenVINO <#evaluate-the-model-performance-with-openVINO>`__ 
+  - `Evaluate the model performance with OpenVINO <#evaluate-the-model-performance-with-openvino>`__ 
 
 - `Select inference device <#select-inference-device>`__ 
 

@@ -58,9 +58,9 @@ A similar notebook focused on the latency mode is available
   - `OpenVINO IR model + bigger batch <#openvino-ir-model-+-bigger-batch>`__
   - `Asynchronous processing <#asynchronous-processing>`__
   - `OpenVINO IR model in throughput mode <#openvino-ir-model-in-throughput-mode>`__
-  - `OpenVINO IR model in throughput mode on GPU <#openvino-ir-model-in-throughput-mode-on-GPU>`__
-  - `OpenVINO IR model in throughput mode on AUTO <#openvino-ir-model-in-throughput-mode-on-AUTO>`__
-  - `OpenVINO IR model in cumulative throughput mode on AUTO <#openvino-ir-model-in-cumulative-throughput-mode-on-AUTO>`__
+  - `OpenVINO IR model in throughput mode on GPU <#openvino-ir-model-in-throughput-mode-on-gpu>`__
+  - `OpenVINO IR model in throughput mode on AUTO <#openvino-ir-model-in-throughput-mode-on-auto>`__
+  - `OpenVINO IR model in cumulative throughput mode on AUTO <#openvino-ir-model-in-cumulative-throughput-mode-on-auto>`__
   - `Other tricks <#other-tricks>`__
 
 - `Performance comparison <#performance-comparison>`__

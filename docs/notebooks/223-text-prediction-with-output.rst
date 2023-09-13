@@ -85,10 +85,10 @@ and the sequence is passed back into the model.
 
   - `Define Softmax layer <#define-softmax-layer>`__
   - `Set the minimum sequence length <#set-the-minimum-sequence-length>`__
-  - `Top-K sampling <#Top-k-sampling>`__
+  - `Top-K sampling <#top-k-sampling>`__
   - `Main Processing Function <#main-processing-function>`__
 
-- `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neo/gpt-2>`__
+- `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neo-gpt-2>`__
 - `Conversation with PersonaGPT using OpenVINO™ <#conversation-with-personagpt-using-openvino>`__
 - `Converse Function <#converse-function>`__
 - `Conversation Class <#conversation-class>`__

@@ -61,7 +61,7 @@ A similar notebook focused on the throughput mode is available
   - `PyTorch model <#pytorch-model>`__
   - `ONNX model <#onnx-model>`__
   - `OpenVINO IR model <#openvino-ir-model>`__
-  - `OpenVINO IR model on GPU <#openvino-ir-model-on-GPU>`__
+  - `OpenVINO IR model on GPU <#openvino-ir-model-on-gpu>`__
   - `OpenVINO IR model + more inference threads <#openvino-ir-model-+-more-inference-threads>`__
   - `OpenVINO IR model in latency mode <#openvino-ir-model-in-latency-mode>`__
   - `OpenVINO IR model in latency mode + shared memory <#openvino-ir-model-in-latency-mode-+-shared-memory>`__

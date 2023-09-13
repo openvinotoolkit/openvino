@@ -25,7 +25,7 @@ This notebook works best with small images (up to 800x600 resolution).
   - `Investigate PaddleGAN Model <#investigate-paddlegan-model>`__
   - `Do Inference <#do-inference>`__
 
-- `Convert PaddleGAN Model to ONNX and OpenVINO IR <#convert-paddlegan-model-to-onnx-and-openvino-iR>`__
+- `Convert PaddleGAN Model to ONNX and OpenVINO IR <#convert-paddlegan-model-to-onnx-and-openvino-ir>`__
 
   - `Convert PaddlePaddle Model to ONNX <#convert-paddlepaddle-model-to-onnx>`__
   - `Convert ONNX Model to OpenVINO IR with Model Conversion Python API <#convert-onnx-model-to-openvino-ir-with-model-conversion-python-api>`__

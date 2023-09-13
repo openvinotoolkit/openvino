@@ -26,7 +26,7 @@ quantization, not demanding the fine-tuning of the model.
 
 **Table of contents:**
 
-- `Preparations <#Preparations>`__
+- `Preparations <#preparations>`__
 
   - `Imports <#imports>`__
   - `Settings <#settings>`__
@@ -34,13 +34,13 @@ quantization, not demanding the fine-tuning of the model.
   - `Helpers classes and functions <#helpers-classes-and-functions>`__
   - `Validation function <#validation-function>`__
   - `Create and load original uncompressed model <#create-and-load-original-uncompressed-model>`__
-  - `Create train and validation DataLoaders <#create-train-and-validation-DataLoaders>`__
+  - `Create train and validation DataLoaders <#create-train-and-validation-dataloaders>`__
 
 - `Model quantization and benchmarking <#model-quantization-and-benchmarking>`__
 
   - `I. Evaluate the loaded model <#i-evaluate-the-loaded-model>`__
   - `II. Create and initialize quantization <#ii-create-and-initialize-quantization>`__
-  - `III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR) <#iii-convert-the-models-to-openvino-intermediate-representation-(openvino-ir)>`__
+  - `III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR) <#iii-convert-the-models-to-openvino-intermediate-representation-openvino-ir>`__
   - `IV. Compare performance of INT8 model and FP32 model in OpenVINO <#iv-compare-performance-of-int8-model-and-fp32-model-in-openvino>`__
 
 Preparations

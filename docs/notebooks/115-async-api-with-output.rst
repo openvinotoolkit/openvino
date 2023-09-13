@@ -25,11 +25,11 @@ requests) rather than wait for the current inference to complete first.
 
   - `Sync Mode (default) <#sync-mode-default>`__
   - `Test performance in Sync Mode <#test-performance-in-sync-mode>`__
-  - `Async Mode <#Async-Mode>`__
+  - `Async Mode <#async-mode>`__
   - `Test the performance in Async Mode <#test-the-performance-in-async-mode>`__
   - `Compare the performance <#compare-the-performance>`__
 
-- `AsyncInferQueue <asyncinferqueue>`__
+- `AsyncInferQueue <#asyncinferqueue>`__
 
   - `Setting Callback <#setting-callback>`__
   - `Test the performance with AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
