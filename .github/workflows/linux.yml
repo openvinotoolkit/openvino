@@ -1,4 +1,4 @@
-name: Tests on Linux (Ubuntu 22.04, Python 3.11)
+name: Tests on Linux (Ubuntu 20.04, Python 3.11)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
