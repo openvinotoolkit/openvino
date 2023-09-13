@@ -6,15 +6,8 @@
 
 #include <exception>
 #include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <list>
-#include <memory>
-#include <random>
+#include <numeric>
 #include <vector>
-
-#include "gtest/gtest.h"
-#include "ngraph/function.hpp"
 
 /// \brief      Reads a binary file to a vector.
 ///

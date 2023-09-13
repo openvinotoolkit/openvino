@@ -43,7 +43,7 @@ public:
         ngraph::element::Type iPrecision;
         std::tie(shapes, blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision) = obj.param;
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (std::vector<ngraph::Shape>& staticShapes : shapes.second) {
             for (ngraph::Shape& shape : staticShapes) {
@@ -75,7 +75,7 @@ protected:
         ngraph::element::Type iPrecision;
         std::tie(shapes, blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision) = GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         selectedType = std::string("ref_any_FP32");
 
         for (std::vector<ngraph::Shape>& staticShapes : shapes.second) {
@@ -96,7 +96,11 @@ protected:
         std::vector<ngraph::element::Type> types{fPrecision, iPrecision, iPrecision, iPrecision};
         std::vector<ov::PartialShape> partialShapes{inputDynamicShapesValues, shapeN, shapeNT, shapeN};
 
-        auto params = ngraph::builder::makeDynamicParams(types, partialShapes);
+        ov::ParameterVector params;
+        for (size_t i = 0; i < types.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], partialShapes[i]);
+            params.push_back(param_node);
+        }
         auto bankNode = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ }, {blank});
 
         auto ctcLoss = std::make_shared<ngraph::opset4::CTCLoss>(params[0], params[1], params[2],

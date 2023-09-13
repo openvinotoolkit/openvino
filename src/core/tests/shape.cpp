@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/shape.hpp"
+
+#include <gtest/gtest.h>
+
 #include <memory>
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(shape, test_shape_size) {
-    ASSERT_EQ(1, shape_size(Shape{}));
+    ASSERT_EQ(1, shape_size(ov::Shape{}));
     ASSERT_EQ(2 * 3 * 5, shape_size(Shape{2, 3, 5}));
 }
 

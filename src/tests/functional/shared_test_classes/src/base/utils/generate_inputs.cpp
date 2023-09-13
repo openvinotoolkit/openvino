@@ -14,6 +14,8 @@
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
+#include "openvino/pass/constant_folding.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -335,7 +337,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling>& node
     if (port == 1) {
         const auto &inputShape = node->get_input_shape(0);
         ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
-#define CASE(X) case X: ::CommonTestUtils::fill_roi_raw_ptr(                   \
+#define CASE(X) case X: ::ov::test::utils::fill_roi_raw_ptr(                   \
     tensor.data<element_type_traits<X>::value_type>(),                         \
     tensor.get_size(),                                                         \
     node->get_input_shape(0).front() - 1,                                      \
@@ -505,8 +507,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::ReduceLogical
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
-
-
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& node,
                              size_t port,
@@ -934,6 +934,35 @@ ov::runtime::Tensor generate(const
     }
 }
 
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v1::TopK>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    auto tensor = ov::Tensor{elemType, targetShape};
+    size_t size = tensor.get_size();
+    int start = - static_cast<int>(size / 2);
+    std::vector<int> data(size);
+    std::iota(data.begin(), data.end(), start);
+    std::mt19937 gen(0);
+    std::shuffle(data.begin(), data.end(), gen);
+
+    float divisor = size / 10.0;
+
+    if (tensor.get_element_type() == ov::element::f32) {
+        auto *p = tensor.data<float>();
+        for (size_t i = 0; i < size; i++)
+            p[i] = static_cast<float>(data[i] / divisor);
+    } else if (tensor.get_element_type() == ov::element::f16) {
+        auto *p = tensor.data<ov::float16>();
+        for (size_t i = 0; i < size; i++)
+            p[i] = static_cast<ov::float16>(data[i] / divisor);
+    } else {
+        OPENVINO_THROW("Unsupported element type: ", tensor.get_element_type());
+    }
+    return tensor;
+}
+
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,
@@ -958,6 +987,7 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

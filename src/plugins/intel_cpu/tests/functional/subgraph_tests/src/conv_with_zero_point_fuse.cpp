@@ -18,13 +18,13 @@ std::string ConvWithZeroPointFuseSubgraphTest::getTestCaseName(testing::TestPara
     std::tie(type, inputShapes) = obj.param;
 
     result << "Type=" << nodeType2str(type) << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
 
     return result.str();
 }
 
 void ConvWithZeroPointFuseSubgraphTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
     nodeType type;
     SizeVector inputShapes;
     std::tie(type, inputShapes) = this->GetParam();
@@ -40,7 +40,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
 
     selectedType = ".*_I8";
 
-    auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShapes});
+    ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShapes))};
     const auto fq = ngraph::builder::makeFakeQuantize(
         inputParams[0],
         ov::element::f32,

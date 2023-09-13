@@ -18,7 +18,8 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
     ElementType inputPrecision, outputPrecision;
-    std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision) = obj.param;
+    std::map<std::string, ov::element::Type> additionalConfig;
+    std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision, additionalConfig) = obj.param;
 
     InputShape inputShapes;
     ElementType netPrecision;
@@ -28,14 +29,14 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
     std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+    result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
     result << "TS=";
     for (const auto& shape : inputShapes.second) {
-        result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+        result << "(" << ov::test::utils::vec2str(shape) << ")_";
     }
     result << "Precision=" << netPrecision << "_";
     if (!axes.empty()) {
-        result << "ReductionAxes=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
+        result << "ReductionAxes=" << ov::test::utils::vec2str(axes.to_vector()) << "_";
     } else {
         result << "AcrossChannels=" << (acrossChanels ? "TRUE" : "FALSE") << "_";
     }
@@ -45,6 +46,13 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
            << "CNNInpPrc=" << inputPrecision;
     result << "_"
            << "CNNOutPrc=" << outputPrecision;
+
+    if (!additionalConfig.empty()) {
+        result << "_PluginConf";
+        for (auto& item : additionalConfig) {
+            result << "_" << item.first << "=" << item.second.get_type_name();
+        }
+    }
 
     result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -65,14 +73,15 @@ bool MvnLayerCPUTest::isSupportedTestCase() {
 }
 
 void MvnLayerCPUTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     basicCpuMvnParams basicParamsSet;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
     ElementType inPrc;
     ElementType outPrc;
-    std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc) = this->GetParam();
+    std::map<std::string, ov::element::Type> additionalConfig;
+    std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc, additionalConfig) = this->GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
@@ -90,19 +99,27 @@ void MvnLayerCPUTest::SetUp() {
 
     init_input_shapes({inputShapes});
 
-    auto param = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
+        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
     if (!axes.empty()) {
         mvn = ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps);
     }
 
-    selectedType = getPrimitiveType();
-    selectedType = makeSelectedTypeStr(selectedType, netPrecision);
-
     rel_threshold = 0.015f;
-    function = makeNgraphFunction(netPrecision, param, mvn, "mvn");
+    if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
+        //FIXME: ref and acl mvn implementation has accuracy issues on fp16 (#116344)
+        abs_threshold = .05f;
+        rel_threshold = 250.f;
+    }
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
+    updateSelectedType(getPrimitiveType(), netPrecision, configuration);
+
+    function = makeNgraphFunction(netPrecision, params, mvn, "mvn");
 }
 
 TEST_P(MvnLayerCPUTest, CompareWithRefs) {
@@ -111,6 +128,14 @@ TEST_P(MvnLayerCPUTest, CompareWithRefs) {
 }
 
 namespace MVN {
+const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig() {
+    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+        {{ov::hint::inference_precision.name(), ov::element::f32}},
+        {{ov::hint::inference_precision.name(), ov::element::f16}}
+    };
+    return additionalConfig;
+}
+
 const std::vector<InputShape>& inputShapes_1D() {
     static const std::vector<InputShape> inputShapes_1D = {
         { {}, {{5}}},

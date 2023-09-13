@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
@@ -58,13 +59,17 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
             ov::is_shape_subgraph(node->shared_from_this()))
             return false;
 
+        if (transformation_callback(node)) {
+            return false;
+        }
+
         disable_constant_folding(node);
 
         if (!is_type<ov::op::v0::Constant>(node->input_value(0).get_node_shared_ptr()))
-            return true;
+            return false;
         enable_keep_fp16_const(node->input_value(0).get_node_shared_ptr());
 
-        return true;
+        return false;
     };
     auto m = std::make_shared<pattern::Matcher>(node_pattern, matcher_name);
     register_matcher(m, callback);

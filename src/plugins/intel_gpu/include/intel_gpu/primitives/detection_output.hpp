@@ -39,15 +39,12 @@ struct detection_output : public primitive_base<detection_output> {
           input_height(-1),
           decrease_label_id(false),
           clip_before_nms(false),
-          clip_after_nms(false) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+          clip_after_nms(false),
+          objectness_score(0.0f) {}
 
     /// @brief Constructs detection output primitive.
     /// @param id This primitive id.
-    /// @param input_location Input location primitive id.
-    /// @param input_confidence Input confidence primitive id.
-    /// @param input_prior_box Input prior-box primitive id.
+    /// @param inputs Inputs for primitive id.
     /// @param num_classes Number of classes to be predicted.
     /// @param keep_top_k Number of total bounding boxes to be kept per image after NMS step.
     /// @param share_location If true bounding box are shared among different classes.
@@ -59,10 +56,8 @@ struct detection_output : public primitive_base<detection_output> {
     /// @param variance_encoded_in_target If true, variance is encoded in target; otherwise we need to adjust the predicted offset accordingly.
     /// @param confidence_threshold Only keep detections with confidences larger than this threshold.
     detection_output(const primitive_id& id,
-                     const input_info& input_location,
-                     const input_info& input_confidence,
-                     const input_info& input_prior_box,
-                     const uint32_t num_classes,
+                     const std::vector<input_info>& inputs,
+                     const int32_t num_classes,
                      const uint32_t keep_top_k,
                      const bool share_location = true,
                      const int background_label_id = 0,
@@ -80,8 +75,9 @@ struct detection_output : public primitive_base<detection_output> {
                      const bool decrease_label_id = false,
                      const bool clip_before_nms = false,
                      const bool clip_after_nms = false,
+                     const float objectness_score = 0.0f,
                      const padding& output_padding = padding())
-        : primitive_base(id, {input_location, input_confidence, input_prior_box}, {output_padding}),
+        : primitive_base(id, inputs, {output_padding}),
           num_classes(num_classes),
           keep_top_k(keep_top_k),
           share_location(share_location),
@@ -99,14 +95,15 @@ struct detection_output : public primitive_base<detection_output> {
           input_height(input_height),
           decrease_label_id(decrease_label_id),
           clip_before_nms(clip_before_nms),
-          clip_after_nms(clip_after_nms) {
+          clip_after_nms(clip_after_nms),
+          objectness_score(objectness_score) {
         if (decrease_label_id && background_label_id != 0)
             throw std::invalid_argument(
                 "Cannot use decrease_label_id and background_label_id parameter simultaneously.");
     }
 
     /// @brief Number of classes to be predicted.
-    const uint32_t num_classes;
+    const int num_classes;
     /// @brief Number of total bounding boxes to be kept per image after NMS step.
     const int keep_top_k;
     /// @brief If true, bounding box are shared among different classes.
@@ -141,6 +138,8 @@ struct detection_output : public primitive_base<detection_output> {
     const bool clip_before_nms;
     /// @brief Clip decoded boxes after nms step
     const bool clip_after_nms;
+    /// @brief Threshold to sort out condifence predictions
+    const float objectness_score;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -162,6 +161,7 @@ struct detection_output : public primitive_base<detection_output> {
         seed = hash_combine(seed, decrease_label_id);
         seed = hash_combine(seed, clip_before_nms);
         seed = hash_combine(seed, clip_after_nms);
+        seed = hash_combine(seed, objectness_score);
         return seed;
     }
 
@@ -189,7 +189,8 @@ struct detection_output : public primitive_base<detection_output> {
                cmp_fields(input_height) &&
                cmp_fields(decrease_label_id) &&
                cmp_fields(clip_before_nms) &&
-               cmp_fields(clip_after_nms);
+               cmp_fields(clip_after_nms) &&
+               cmp_fields(objectness_score);
         #undef cmp_fields
     }
 
@@ -213,11 +214,12 @@ struct detection_output : public primitive_base<detection_output> {
         ob << decrease_label_id;
         ob << clip_before_nms;
         ob << clip_after_nms;
+        ob << objectness_score;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<detection_output>::load(ib);
-        ib >> *const_cast<uint32_t*>(&num_classes);
+        ib >> *const_cast<int32_t*>(&num_classes);
         ib >> *const_cast<int*>(&keep_top_k);
         ib >> *const_cast<bool*>(&share_location);
         ib >> *const_cast<int*>(&background_label_id);
@@ -235,6 +237,7 @@ struct detection_output : public primitive_base<detection_output> {
         ib >> *const_cast<bool*>(&decrease_label_id);
         ib >> *const_cast<bool*>(&clip_before_nms);
         ib >> *const_cast<bool*>(&clip_after_nms);
+        ib >> *const_cast<float*>(&objectness_score);
     }
 
 protected:

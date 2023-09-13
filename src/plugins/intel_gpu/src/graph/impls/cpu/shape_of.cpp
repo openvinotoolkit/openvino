@@ -20,7 +20,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     std::string variable_id;
     bool calculated = false;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::shape_of_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<shape_of_impl>(*this);
@@ -39,6 +39,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, shape_of_inst& instance) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "shape_of::execute_impl");
         auto& stream = instance.get_network().get_stream();
+        auto ev = stream.create_user_event(false);
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
@@ -58,15 +59,9 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
             OPENVINO_THROW("[GPU] Couldn't execute shape_of operation: unsupported output data type (", output_dt , ")");
         }
 
-        if (stream.get_queue_type() == QueueTypes::out_of_order) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
-        }
+        ev->set();
 
-        return stream.create_user_event(true);
+        return ev;
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}

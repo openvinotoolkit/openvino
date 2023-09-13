@@ -37,15 +37,15 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({shapes.first}) << "_";
         result << "TS=";
         for (const auto& shape : shapes.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "axis=" << axis << "_";
         result << "splitLengths=(";
         for (const auto& lengths : splitLengths) {
-            result << CommonTestUtils::vec2str(lengths) << ",";
+            result << ov::test::utils::vec2str(lengths) << ",";
         }
         result << ")_lengthsType=" << lengthsType << "_";
         result << "netPRC=" << netPrecision << "_";
@@ -55,7 +55,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         InputShape inputShapes;
         int64_t axis;
@@ -74,7 +74,7 @@ protected:
         }
 
         init_input_shapes(shapesToInit);
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
         std::shared_ptr<ov::Node> splitLengthsOp;
         if (lengthsType == ngraph::helpers::InputLayerType::PARAMETER) {

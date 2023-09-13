@@ -13,7 +13,8 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 #include <memory>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
+#include "transformations/utils/utils.hpp"
 
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -216,9 +217,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 
         if (one_of(op->get_type_info(), ov::op::v0::RNNCell::get_type_info_static(), ov::op::v3::GRUCell::get_type_info_static())) {
             // Plug-in does not support dynamism on weights.
-            if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(2)) ||
-                    !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(3)) ||
-                    (op->get_input_size() > 4 && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(4)))) {
+            if (!ov::op::util::is_on_constant_path(op->input_value(2)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(3)) ||
+                (op->get_input_size() > 4 && !ov::op::util::is_on_constant_path(op->input_value(4)))) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
@@ -228,9 +229,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 ov::op::v5::GRUSequence::get_type_info_static(),
                 ov::op::v5::RNNSequence::get_type_info_static())) {
             // Plug-in does not support dynamism on weights.
-            if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(3)) ||
-                    !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(4)) ||
-                    (op->get_input_size() > 5 && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(5)))) {
+            if (!ov::op::util::is_on_constant_path(op->input_value(3)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(4)) ||
+                (op->get_input_size() > 5 && !ov::op::util::is_on_constant_path(op->input_value(5)))) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
@@ -246,33 +247,81 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 return false;
             }
             // Plug-in does not support dynamism on weights.
-            if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(4)) ||
-                    !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(5)) ||
-                    !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(6))) {
-                errorMessage = "Node expects constants as W, R, B inputs.";
+            if (!ov::op::util::is_on_constant_path(op->input_value(4)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(5)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(6))) {
+                errorMessage = "Node expects static shaped W, R, B inputs.";
                 return false;
             }
         }
 
         auto rnnCellBase = ov::as_type_ptr<const ov::op::util::RNNCellBase>(op);
-        if (rnnCellBase && rnnCellBase->get_clip() != 0.f) {
-            errorMessage = "Clipping is not supported for RNN primitive.";
-            return false;
+        if (rnnCellBase) {
+            if (rnnCellBase->get_clip() != 0.f) {
+                errorMessage = "Clipping is not supported for RNN primitive.";
+                return false;
+            }
+            if (one_of(rnnCellBase->get_type_info(),
+                    ov::op::v0::LSTMCell::get_type_info_static(),
+                    ov::op::v4::LSTMCell::get_type_info_static(),
+                    ov::op::v5::LSTMSequence::get_type_info_static())) {
+                if (rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"}) {
+                    errorMessage = "Not supported activation functions";
+                    return false;
+                }
+            } else if (!ov::is_type<ov::op::v5::RNNSequence>(op) && rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh"}) {
+                errorMessage = "Not supported activation functions";
+                return false;
+            }
         }
 
         ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
-        if (ov::is_type<ov::op::v5::GRUSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op)->get_direction();
-        } else if (ov::is_type<ov::op::v0::LSTMSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v0::LSTMSequence>(op)->get_direction();
-        } else if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(op)->get_direction();
-        } else if (ov::is_type<ov::op::v5::RNNSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v5::RNNSequence>(op)->get_direction();
+        int64_t seqLenIdx = -1;
+        if (auto gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op)) {
+            direction = gru_seq->get_direction();
+            seqLenIdx = 2;
+        } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v0::LSTMSequence>(op)) {
+            if (lstm_seq->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"}) {
+                errorMessage = "Not supported activation functions";
+                return false;
+            }
+            direction = lstm_seq->get_direction();
+            seqLenIdx = 3;
+        } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(op)) {
+            direction = lstm_seq->get_direction();
+            seqLenIdx = 3;
+        } else if (auto augru_seq = ov::as_type_ptr<const ov::op::internal::AUGRUSequence>(op)) {
+            direction = augru_seq->get_direction();
+            seqLenIdx = 2;
+        } else if (auto rnn_seq = ov::as_type_ptr<const ov::op::v5::RNNSequence>(op)) {
+            direction = rnn_seq->get_direction();
+            seqLenIdx = 2;
         }
+
         if (!one_of(direction, ov::op::RecurrentSequenceDirection::FORWARD, ov::op::RecurrentSequenceDirection::REVERSE)) {
             errorMessage = "Unsupported sequence direction.";
             return false;
+        }
+
+        if (seqLenIdx > 0) {
+            const auto& data_pshape = op->get_input_partial_shape(0);
+
+            // WA: dynamic shapes make impossible to check seq_len due to shapeOf subgraphs
+            // but the sequence is still supported in CPU and doesn't need to be decomposed
+            if (data_pshape.is_dynamic())
+                return true;
+
+            const int64_t maxSeqLenDimIdx = 1;
+
+            if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > maxSeqLenDimIdx && !data_pshape[maxSeqLenDimIdx].is_static()) {
+                errorMessage = "Max sequence length dimension is dynamic";
+                return false;
+            }
+            auto maxSeqLen = data_pshape[maxSeqLenDimIdx].get_length();
+            if (ov::op::util::is_seq_len_provided(op->get_input_node_shared_ptr(seqLenIdx), maxSeqLen)) {
+                errorMessage = "Unsupported sequence length.";
+                return false;
+            }
         }
     } catch (...) {
         return false;
@@ -302,9 +351,9 @@ bool RNN::testNativeOrder(const std::shared_ptr<const ngraph::Node>& op) {
 
 namespace {
 /**
- * Extends Rnn ngraph shape inference implementation. The main purpose of this class is to do the trick with 
+ * Extends Rnn ngraph shape inference implementation. The main purpose of this class is to do the trick with
  * dimentions permutation, necessary due to the mismatch between the ngrpah and the oneDNN RNN node descriptions.
- *  
+ *
  */
 class RnnShapeInfer : public NgraphShapeInfer {
 public:

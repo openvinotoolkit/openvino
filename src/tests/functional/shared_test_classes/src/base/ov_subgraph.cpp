@@ -37,13 +37,13 @@ namespace ov {
 namespace test {
 
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
-    os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
+    os << ov::test::utils::partialShape2str({inputShape.first}) << "_" << ov::test::utils::vec2str(inputShape.second);
     return os;
 }
 
 void SubgraphBaseTest::run() {
     is_reported = true;
-    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
          ov::test::utils::PassRate::Statuses::SKIPPED :
@@ -55,16 +55,16 @@ void SubgraphBaseTest::run() {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
 
         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
@@ -82,7 +82,7 @@ void SubgraphBaseTest::run() {
                     generate_inputs(targetStaticShapeVec);
                 } catch (const std::exception& ex) {
                     throw std::runtime_error("[IE TEST INFRA] Impossible to reshape ov::Model using the shape: " +
-                        CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+                        ov::test::utils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
                 validate();
             }
@@ -98,9 +98,9 @@ void SubgraphBaseTest::run() {
         if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
     }
@@ -109,7 +109,7 @@ void SubgraphBaseTest::run() {
 void SubgraphBaseTest::serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = CommonTestUtils::generateTestFilePrefix();
+    std::string output_name = ov::test::utils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -133,7 +133,7 @@ void SubgraphBaseTest::serialize() {
 
     EXPECT_TRUE(success) << message;
 
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 void SubgraphBaseTest::query_model() {
@@ -244,12 +244,13 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
                 ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});
+                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
                         break;
                     }
                 }
             }
         }
+        itTargetShape++;
     }
 }
 
@@ -261,14 +262,12 @@ void SubgraphBaseTest::infer() {
     inferRequest.infer();
 }
 
-std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
-    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
-
-    auto functionToProcess = functionRefs->clone();
+precisions_map SubgraphBaseTest::get_ref_precisions_convert_map() {
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
     precisions_map precisions = {
             { ngraph::element::bf16, ngraph::element::f32 }
     };
+
     auto convert_added = false;
     for (const auto &param : function->get_parameters()) {
         for (size_t i = 0; i < param->get_output_size(); i++) {
@@ -281,11 +280,21 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             }
         }
     }
+
     if (!convert_added) {
         precisions.insert({ ngraph::element::f16, ngraph::element::f32});
     }
+
+    return precisions;
+}
+
+std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
+
+    auto functionToProcess = functionRefs->clone();
+    precisions_map convert_precisions = get_ref_precisions_convert_map();
     pass::Manager manager;
-    manager.register_pass<ov::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions);
     manager.run_passes(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 

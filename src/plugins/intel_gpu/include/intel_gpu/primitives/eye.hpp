@@ -14,8 +14,6 @@ struct eye : public primitive_base<eye> {
 
     eye() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs eye primitive.
     /// @param id This primitive id.
     /// @param inputs List of primitive ids.
@@ -33,7 +31,7 @@ struct eye : public primitive_base<eye> {
           shift{shift} {}
 
     tensor output_shape;
-    int32_t shift;
+    int32_t shift = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

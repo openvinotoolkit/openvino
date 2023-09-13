@@ -4,14 +4,15 @@
 #pragma once
 
 #include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v6 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const ExperimentalDetectronPriorGridGenerator* op,
-                                const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ExperimentalDetectronPriorGridGenerator* op,
+                                 const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
     const auto& priors_shape = input_shapes[0];
     const auto& featmap_shape = input_shapes[1];
@@ -20,7 +21,7 @@ std::vector<TShape> shape_infer(const ExperimentalDetectronPriorGridGenerator* o
     const auto is_flatten = op->get_attrs().flatten;
     const size_t output_size = is_flatten ? 2 : 4;
 
-    TShape output_shape;
+    TRShape output_shape;
     output_shape.resize(output_size);
     output_shape[output_size - 1] = 4;
 
@@ -70,14 +71,6 @@ std::vector<TShape> shape_infer(const ExperimentalDetectronPriorGridGenerator* o
 
     return {output_shape};
 }
-
-template <class TShape>
-void shape_infer(const ExperimentalDetectronPriorGridGenerator* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
-}
-
 }  // namespace v6
 }  // namespace op
 }  // namespace ov

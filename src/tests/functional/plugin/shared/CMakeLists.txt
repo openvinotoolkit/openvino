@@ -28,7 +28,6 @@ if(ENABLE_TEMPLATE)
     list(APPEND DEPENDENCIES openvino_template_plugin)
 endif()
 
-# remove once CVS-69781 is fixed
 if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
 endif()
@@ -40,7 +39,7 @@ else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx)
 endif()
 
-if (TARGET inference_engine_snippets)
+if (TARGET openvino::snippets)
     list(APPEND LINK_LIBRARIES_PRIVATE snippetsNgraphFunctions)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)

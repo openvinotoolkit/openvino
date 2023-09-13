@@ -5,6 +5,7 @@
 #include "openvino/frontend/ir/frontend.hpp"
 
 #include <array>
+#include <pugixml.hpp>
 #include <vector>
 
 #include "input_model.hpp"
@@ -14,9 +15,8 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
-#include "xml_parse_utils.h"
-
-using namespace ov;
+#include "transformations/resolve_names_collisions.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -24,7 +24,7 @@ namespace ir {
 namespace {
 
 inline size_t get_ir_version(pugi::xml_node& root) {
-    return pugixml::utils::GetUIntAttr(root, "version", 0);
+    return static_cast<size_t>(pugixml::utils::get_uint64_attr(root, "version", 0));
 }
 
 /**
@@ -116,6 +116,7 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
@@ -231,6 +232,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                 aligned_weights_buffer);
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return create_input_model();
 }
@@ -238,11 +240,19 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto ir_model = std::dynamic_pointer_cast<InputModel>(model);
     OPENVINO_ASSERT(ir_model != nullptr);
-    return ir_model->convert();
+    const auto& converted_model = ir_model->convert();
+    normalize(converted_model);
+    return converted_model;
 }
 
 std::string FrontEnd::get_name() const {
     return "ir";
+}
+
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<pass::ResolveNameCollisions>();
+    manager.run_passes(model);
 }
 
 }  // namespace ir
@@ -254,7 +264,7 @@ IR_C_API ov::frontend::FrontEndVersion get_api_version() {
 }
 
 IR_C_API void* get_front_end_data() {
-    frontend::FrontEndPluginInfo* res = new frontend::FrontEndPluginInfo();
+    ov::frontend::FrontEndPluginInfo* res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "ir";
     res->m_creator = []() {
         return std::make_shared<ov::frontend::ir::FrontEnd>();

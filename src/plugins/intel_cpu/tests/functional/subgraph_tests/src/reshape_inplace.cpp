@@ -41,11 +41,10 @@ protected:
         const auto rtPrc = ov::element::f32;
         const ov::Shape inpShape = {21660, 4};
         const ov::Shape secShape = {4};
-        ngraph::ParameterVector params(2);
         targetStaticShapes = {{inpShape, secShape}};
-        targetDevice = CommonTestUtils::DEVICE_CPU;
-        params[0] = ngraph::builder::makeParams(rtPrc, {inpShape})[0];
-        params[1] = ngraph::builder::makeParams(ov::element::i32, {secShape})[0];
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(rtPrc, inpShape),
+                                   std::make_shared<ov::op::v0::Parameter>(ov::element::i32, secShape)};
         auto shape = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
         auto c = ngraph::builder::makeConstant<float>(rtPrc, {}, {1.0f});
         auto broadcast = std::make_shared<ov::op::v3::Broadcast>(c, shape);

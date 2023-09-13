@@ -4,7 +4,6 @@
 
 #include "library_extension.hpp"
 
-#include <common_test_utils/graph_comparator.hpp>
 #include <ostream>
 
 #include "common_test_utils/file_utils.hpp"
@@ -31,7 +30,7 @@ void FrontendLibraryExtensionTest::initParamTest() {
 }
 
 inline std::string get_lib_path(const std::string& lib_name) {
-    return ov::util::make_plugin_library_name<char>(CommonTestUtils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
                                                     lib_name + IE_BUILD_POSTFIX);
 }
 

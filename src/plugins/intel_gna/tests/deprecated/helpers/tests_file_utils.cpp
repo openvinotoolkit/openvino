@@ -17,8 +17,12 @@
 
 #ifdef _WIN32
 // Copied from linux libc sys/stat.h:
+#ifndef S_ISREG
 # define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
+#ifndef S_ISDIR
 # define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
 #endif
 
 using namespace ::testing;
@@ -37,8 +41,8 @@ void FileUtils::readAllFile(const std::string &file_name, void *buffer, size_t m
 }
 
 std::string FileUtils::folderOf(const std::string &filepath) {
-    auto pos = filepath.rfind(CommonTestUtils::FileSeparator);
-    if (pos == std::string::npos) pos = filepath.rfind(FileSeparator2);
+    auto pos = filepath.rfind(ov::test::utils::FileSeparator);
+    if (pos == std::string::npos) pos = filepath.rfind(ov::test::utils::FileSeparator);
     if (pos == std::string::npos) return "";
     return filepath.substr(0, pos);
 }

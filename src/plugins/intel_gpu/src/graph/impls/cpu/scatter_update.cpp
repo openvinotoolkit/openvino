@@ -17,11 +17,11 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
     using parent = typed_primitive_impl<scatter_update>;
     using parent::parent;
 
-    int64_t axis;
+    int64_t axis = 0;
 
     std::shared_ptr<ov::op::v3::ScatterUpdate> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::scatter_update_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scatter_update_impl>(*this);

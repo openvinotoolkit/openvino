@@ -6,8 +6,8 @@
 
 #include "grid_sample_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/grid_sample.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/grid_sample.hpp"
 
 namespace ov {
 op::v9::GridSample::GridSample(const Output<Node>& data, const Output<Node>& grid, const Attributes& attributes)
@@ -32,8 +32,10 @@ void op::v9::GridSample::validate_and_infer_types() {
                               "The element type of the grid input tensor must be a floating point type.");
     }
 
-    std::vector<PartialShape> out_shapes(1);
-    shape_infer(this, {get_input_partial_shape(0), get_input_partial_shape(1)}, out_shapes);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto out_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), out_shapes[0]);
 }
 
@@ -71,6 +73,7 @@ NGRAPH_API EnumNames<op::v9::GridSample::PaddingMode>& EnumNames<op::v9::GridSam
     return enum_names;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 template <element::Type_t DATA_ET, element::Type_t GRID_ET>
@@ -78,14 +81,14 @@ bool evaluate_exec(const HostTensorPtr& output,
                    const HostTensorPtr& data,
                    const HostTensorPtr& grid,
                    const op::v9::GridSample::Attributes& attributes) {
-    ngraph::runtime::reference::grid_sample(output->get_data_ptr<DATA_ET>(),
-                                            data->get_data_ptr<DATA_ET>(),
-                                            grid->get_data_ptr<GRID_ET>(),
-                                            data->get_shape(),
-                                            grid->get_shape(),
-                                            attributes.align_corners,
-                                            attributes.mode,
-                                            attributes.padding_mode);
+    ov::reference::grid_sample(output->get_data_ptr<DATA_ET>(),
+                               data->get_data_ptr<DATA_ET>(),
+                               grid->get_data_ptr<GRID_ET>(),
+                               data->get_shape(),
+                               grid->get_shape(),
+                               attributes.align_corners,
+                               attributes.mode,
+                               attributes.padding_mode);
     return true;
 }
 

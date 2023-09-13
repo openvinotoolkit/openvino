@@ -4,20 +4,22 @@
 
 #pragma once
 
-#include "openvino/core/partial_shape.hpp"
-
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <iterator>
 #include <memory>
 #include <ostream>
 #include <set>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <vector>
 
-namespace CommonTestUtils {
+#include "openvino/core/partial_shape.hpp"
+
+namespace ov {
+namespace test {
+namespace utils {
 
 enum class OpType { SCALAR, VECTOR };
 
@@ -186,4 +188,10 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
 }
 
 std::string generateTestFilePrefix();
-}  // namespace CommonTestUtils
+
+size_t getVmSizeInKB();
+
+size_t getVmRSSInKB();
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

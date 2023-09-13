@@ -16,8 +16,6 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
 
     experimental_detectron_detection_output() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs experimental_detectron_detection_output primitive
     /// @param id This primitive id
     /// @param input_rois input rois
@@ -66,13 +64,13 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
 
     primitive_id output_classes;
     primitive_id output_scores;
-    float score_threshold;
-    float nms_threshold;
-    int num_classes;
-    int post_nms_count;
-    int max_detections_per_image;
-    bool class_agnostic_box_regression;
-    float max_delta_log_wh;
+    float score_threshold = 0.0f;
+    float nms_threshold = 0.0f;
+    int num_classes = 0;
+    int post_nms_count = 0;
+    int max_detections_per_image = 0;
+    bool class_agnostic_box_regression = false;
+    float max_delta_log_wh  = 0.0f;
     std::vector<float> deltas_weights;
 
     size_t hash() const override {

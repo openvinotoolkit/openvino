@@ -67,11 +67,13 @@ OPENVINO_RUNTIME_API ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& te
 
 IE_SUPPRESS_DEPRECATED_START
 /** @cond INTERNAL */
-ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor);
+ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor, bool unwrap = false);
 const InferenceEngine::Blob* get_hardware_blob(const InferenceEngine::Blob* blob);
 InferenceEngine::Blob* get_hardware_blob(InferenceEngine::Blob* blob);
 
-std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const ov::SoPtr<ITensor>& tensor, bool unwrap = true);
+OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const ov::SoPtr<ITensor>& tensor,
+                                                                           bool unwrap = true,
+                                                                           InferenceEngine::TensorDesc desc = {});
 /** @endcond */
 
 IE_SUPPRESS_DEPRECATED_END

@@ -34,20 +34,20 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
     std::ostringstream result;
     const char separator = '_';
 
-    result << "IS="      << CommonTestUtils::vec2str(inputShapes) << separator;
-    result << "imageS="  << CommonTestUtils::vec2str(imageShapes) << separator;
+    result << "IS="      << ov::test::utils::vec2str(inputShapes) << separator;
+    result << "imageS="  << ov::test::utils::vec2str(imageShapes) << separator;
     result << "netPRC="  << netPrecision.name()   << separator;
     result << "inPRC="   << inPrc.name() << separator;
     result << "outPRC="  << outPrc.name() << separator;
     result << "inL="     << inLayout << separator;
     result << "outL="    << outLayout << separator;
-    result << "widths="  << CommonTestUtils::vec2str(widths)  << separator;
-    result << "heights=" << CommonTestUtils::vec2str(heights) << separator;
+    result << "widths="  << ov::test::utils::vec2str(widths)  << separator;
+    result << "heights=" << ov::test::utils::vec2str(heights) << separator;
     result << "variances=";
     if (variances.empty())
         result << "()" << separator;
     else
-        result << CommonTestUtils::vec2str(variances) << separator;
+        result << ov::test::utils::vec2str(variances) << separator;
     result << "stepWidth="  << step_width  << separator;
     result << "stepHeight=" << step_height << separator;
     result << "step="       << step << separator;
@@ -73,7 +73,8 @@ void PriorBoxClusteredLayerTest::SetUp() {
         variances) = specParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShapes, imageShapes });
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes)),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
 
     ngraph::op::PriorBoxClusteredAttrs attributes;
     attributes.widths = widths;

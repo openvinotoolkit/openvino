@@ -20,8 +20,6 @@ struct deconvolution : public primitive_base<deconvolution> {
 
     deconvolution() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs deconvolution primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -358,11 +356,11 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @brief Defines the distance in width and height between elements in the filter.
     ov::Strides dilations;
     /// @brief Indicates that the primitive has user-defined output size (non-zero value).
-    bool with_output_size;
+    bool with_output_size = true;
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
     /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
-    uint32_t groups;
+    uint32_t groups = 1;
     /// @brief Defines a padding added to input image on left (x axis) and top (y axis).
     ov::CoordinateDiff pads_begin;
     /// @brief Defines a padding added to input image on right (x axis) and bottom (y axis).
@@ -370,7 +368,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @brief Defines additional amount of paddings per each spatial axis added to output tensor.
     ov::CoordinateDiff out_padding;
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
-    bool grouped_weights_shape;
+    bool grouped_weights_shape = false;
     /// @brief Defines spatial shape of the output.
     ov::PartialShape output_partial_shape;
     /// @brief Data primitive id containing spatial shape of the output.

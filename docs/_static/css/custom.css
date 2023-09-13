@@ -94,6 +94,38 @@ ul#navbar-main-elements > li:hover {
     font-weight: bold;
 }
 
+/* Move sidebar menu arrows to the left */
+.bd-sidebar label {
+    left: 0px;
+    height: 20px;
+    width: 20px;
+    top: 5px;
+}
+
+/* Moving dropdown arrows to the left */
+details.sd-dropdown .sd-summary-up,
+details.sd-dropdown .sd-summary-down {
+    left: 10px;
+}
+
+
+/* Ttile is at the same place for both open and close states */
+details.sd-dropdown:not([open]).sd-card {
+    padding: 0px;
+}
+
+
+/* Ttile is at the same place for both open and close states */
+details.sd-dropdown[open].sd-card {
+    padding: 0px;
+}
+
+/* Move title 40px away from the arrow */
+details.sd-dropdown .sd-summary-title {
+    padding-left: 40px;
+}
+
+
 
 /* Second level items                 */
 #bd-docs-nav > div > ul > li > ul {
@@ -108,28 +140,6 @@ ul#navbar-main-elements > li:hover {
 
 .toctree-checkbox:checked~label i {
     transform: rotate(0deg);
-}
-
-
-/* Footer */
-/* =================================================== */
-footer iframe {
-    background-color: white;
-    width: 100%;
-    border: none;
-    height: 70px;
-}
-
-@media screen and (min-width: 860px) {
-    footer iframe {
-        height: 60px;
-    }
-}
-
-@media screen and (max-width: 596px) {
-    footer iframe {
-        height: 85px;
-    }
 }
 
 
@@ -1025,8 +1035,8 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
     box-shadow: 0 0 5px 2px #a8a8a8;
 }
 
-.newsletter-btn,
-.newsletter-btn:focus {
+.newsletter-submit-btn,
+.newsletter-submit-btn:focus {
     background: #cdedff;
     color: rgba(0, 104, 181, 1);
     border: 0;
@@ -1043,19 +1053,19 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
     outline: none;
 }
 
-.newsletter-btn:hover,
-.newsletter-btn:active {
+.newsletter-submit-btn:hover,
+.newsletter-submit-btn:active {
     background: #00A3F6;
     color: white;
     outline: none;
 }
 
-.newsletter-btn:disabled {
+.newsletter-submit-btn:disabled {
     background: #a8a8a8;
     color: white;
 }
 
-.newsletter-btn:before {
+.newsletter-submit-btn:before {
     font-family: "Font Awesome 5 Free";
     content: "\f0e0\00a0"; 
     font-size: 1rem;
@@ -1139,4 +1149,11 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
 
 input:-webkit-autofill {
     -webkit-box-shadow: 0 0 0px 1000px white inset;
+}
+
+
+/* Splide carousel */
+.splide__slide {
+    margin-right: 2rem;
+    overflow: hidden;
 }

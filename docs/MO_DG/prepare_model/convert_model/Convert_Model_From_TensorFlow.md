@@ -11,8 +11,6 @@ This page provides general instructions on how to run model conversion from a Te
 
 .. note:: TensorFlow models are supported via :doc:`FrontEnd API <openvino_docs_MO_DG_TensorFlow_Frontend>`. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
 
-To use model conversion API, install OpenVINO Development Tools by following the :doc:`installation instructions <openvino_docs_install_guides_install_dev_tools>`.
-
 Converting TensorFlow 1 Models
 ###############################
 
@@ -298,6 +296,10 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      # ...
      checkpoint.restore(save_path)
      ov_model = convert_model(checkpoint)
+
+.. important::
+
+   The ``convert_model()`` method returns ``ov.Model`` that you can optimize, compile, or save to a file for subsequent use.
 
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################

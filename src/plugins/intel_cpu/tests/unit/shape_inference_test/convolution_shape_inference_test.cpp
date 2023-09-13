@@ -29,7 +29,8 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, default_ctor) {
 
     input_shapes = ShapeVector{{1, 3, 10, 12}, {2, 3, 5, 5}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 2, 6, 8}));
@@ -48,7 +49,8 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, default_ctor_three_input_shapes) {
     // Third input shape (bias) can be provided, but is not used
     input_shapes = ShapeVector{{1, 3, 10, 12}, {2, 3, 5, 5}, {2}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 2, 6, 8}));
@@ -69,7 +71,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, 2d_auto_pads_same_lower_inputs_dyn
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     input_shapes = ShapeVector{{3, 6, 5, 5}, {7, 6, 3, 3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({3, 7, 5, 5}));
@@ -88,7 +90,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, 3d_auto_pad_same_lower_inputs_stat
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     input_shapes = ShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3, 3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({3, 7, 5, 5, 5}));
@@ -108,7 +110,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, data_and_filters_num_channels_not_
 
     input_shapes = ShapeVector{{3, 5, 5, 5, 5}, {7, 6, 3, 3, 3}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Data batch channel count (5) does not match filter"));
 }
@@ -127,7 +129,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, data_rank_not_compatible_with_filt
 
     input_shapes = ShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Data batch and filters rank do not match"));
 }

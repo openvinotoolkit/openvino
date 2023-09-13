@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
+#include "functional_test_utils/summary/op_summary.hpp"
 
+#include <algorithm>
 #include <pugixml.hpp>
 
-
-#include "functional_test_utils/summary/op_summary.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 using namespace ov::test::utils;
 
 #ifdef _WIN32
-# define getpid _getpid
+#    define getpid _getpid
 #endif
 
-OpSummary *OpSummary::p_instance = nullptr;
+OpSummary* OpSummary::p_instance = nullptr;
 bool OpSummary::extractBody = false;
 OpSummaryDestroyer OpSummary::destroyer;
 
@@ -24,15 +23,15 @@ OpSummaryDestroyer::~OpSummaryDestroyer() {
     delete p_instance;
 }
 
-void OpSummaryDestroyer::initialize(OpSummary *p) {
+void OpSummaryDestroyer::initialize(OpSummary* p) {
     p_instance = p;
 }
 
 OpSummary::OpSummary() {
-    reportFilename = CommonTestUtils::OP_REPORT_FILENAME;
+    reportFilename = ov::test::utils::OP_REPORT_FILENAME;
 }
 
-OpSummary &OpSummary::getInstance() {
+OpSummary& OpSummary::getInstance() {
     if (!p_instance) {
         p_instance = new OpSummary();
         destroyer.initialize(p_instance);
@@ -40,12 +39,14 @@ OpSummary &OpSummary::getInstance() {
     return *p_instance;
 }
 
-void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status, double rel_influence_coef) {
+void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
+                               const PassRate::Statuses& status,
+                               double rel_influence_coef) {
     auto it = opsStats.find(op);
     if (opsStats.find(op) == opsStats.end()) {
         opsStats.insert({op, PassRate()});
     }
-    auto &passrate = opsStats[op];
+    auto& passrate = opsStats[op];
     if (isCrashReported) {
         isCrashReported = false;
         if (passrate.crashed > 0)
@@ -58,33 +59,33 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statu
         return;
     }
     switch (status) {
-        case PassRate::PASSED:
-            if (!passrate.isImplemented) {
-                passrate.isImplemented = true;
-            }
-            passrate.passed++;
-            passrate.rel_passed += rel_influence_coef;
-            break;
-        case PassRate::FAILED:
-            passrate.failed++;
-            break;
-        case PassRate::SKIPPED:
-            passrate.skipped++;
-            break;
-        case PassRate::CRASHED: {
-            passrate.crashed++;
-            isCrashReported = true;
-            break;
+    case PassRate::PASSED:
+        if (!passrate.isImplemented) {
+            passrate.isImplemented = true;
         }
-        case PassRate::HANGED: {
-            passrate.hanged++;
-            isHangReported = true;
-            break;
-        }
+        passrate.passed++;
+        passrate.rel_passed += rel_influence_coef;
+        break;
+    case PassRate::FAILED:
+        passrate.failed++;
+        break;
+    case PassRate::SKIPPED:
+        passrate.skipped++;
+        break;
+    case PassRate::CRASHED: {
+        passrate.crashed++;
+        isCrashReported = true;
+        break;
+    }
+    case PassRate::HANGED: {
+        passrate.hanged++;
+        isHangReported = true;
+        break;
+    }
     }
 }
 
-void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo &op, const bool implStatus) {
+void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo& op, const bool implStatus) {
     auto it = opsStats.find(op);
     if (it != opsStats.end()) {
         if (!it->second.isImplemented && implStatus) {
@@ -119,7 +120,7 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.child(deviceName.c_str());
     std::map<std::string, PassRate> oldOpsStat;
-    for (auto &child : currentDeviceNode.children()) {
+    for (auto& child : currentDeviceNode.children()) {
         std::string entry = child.name();
         auto p = std::stoi(child.attribute("passed").value());
         auto f = std::stoi(child.attribute("failed").value());
@@ -134,12 +135,12 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
     return oldOpsStat;
 }
 
-void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status, double k) {
+void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const PassRate::Statuses& status, double k) {
     if (model->get_parameters().empty()) {
         return;
     }
     bool isFunctionalGraph = false, isReportConvert = true;
-    for (const auto &op : model->get_ordered_ops()) {
+    for (const auto& op : model->get_ordered_ops()) {
         if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
@@ -154,10 +155,11 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const Pa
         }
     }
 
-    for (const auto &op : model->get_ordered_ops()) {
+    for (const auto& op : model->get_ordered_ops()) {
         if ((std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
              std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) && isFunctionalGraph) {
+             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) &&
+            isFunctionalGraph) {
             continue;
         }
         // todo: remove w/a to provide correct convert reporting after merge CVS-110714
@@ -193,12 +195,12 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const Pa
     }
 }
 
-void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model> &model, const bool implStatus) {
+void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model>& model, const bool implStatus) {
     if (model->get_parameters().empty()) {
         return;
     }
     bool isFunctionalGraph = false;
-    for (const auto &op : model->get_ordered_ops()) {
+    for (const auto& op : model->get_ordered_ops()) {
         if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
@@ -207,10 +209,11 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model> &model, con
         }
     }
 
-    for (const auto &op : model->get_ordered_ops()) {
+    for (const auto& op : model->get_ordered_ops()) {
         if ((std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
              std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) && isFunctionalGraph) {
+             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) &&
+            isFunctionalGraph) {
             continue;
         } else if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
             updateOPsImplStatus(op->get_type_info(), implStatus);
@@ -229,15 +232,21 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model> &model, con
 }
 
 #ifdef IE_TEST_DEBUG
-void Summary::saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
-                              unsigned long skipped, unsigned long crashed, unsigned long hanged) {
+void Summary::saveDebugReport(const char* className,
+                              const char* opName,
+                              unsigned long passed,
+                              unsigned long failed,
+                              unsigned long skipped,
+                              unsigned long crashed,
+                              unsigned long hanged) {
     std::string outputFilePath = "./part_report.txt";
     std::ofstream file;
     file.open(outputFilePath, std::ios_base::app);
-    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << ' ' << hanged << '\n';
+    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << ' '
+         << hanged << '\n';
     file.close();
 }
-#endif  //IE_TEST_DEBUG
+#endif  // IE_TEST_DEBUG
 
 void OpSummary::saveReport() {
     if (isReported) {
@@ -253,19 +262,19 @@ void OpSummary::saveReport() {
         auto processId = std::to_string(getpid());
         filename += "_" + processId + "_" + ts;
     }
-    filename += CommonTestUtils::REPORT_EXTENSION;
+    filename += ov::test::utils::REPORT_EXTENSION;
 
-    if (!CommonTestUtils::directoryExists(outputFolder)) {
-        CommonTestUtils::createDirectoryRecursive(outputFolder);
+    if (!ov::test::utils::directoryExists(outputFolder)) {
+        ov::test::utils::createDirectoryRecursive(outputFolder);
     }
 
-    std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
+    std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;
 
     std::map<ov::NodeTypeInfo, std::string> opsInfo;
-    for (const auto &opset_pair : get_available_opsets()) {
+    for (const auto& opset_pair : get_available_opsets()) {
         std::string opset_version = opset_pair.first;
         const ov::OpSet& opset = opset_pair.second();
-        const auto &type_info_set = opset.get_type_info_set();
+        const auto& type_info_set = opset.get_type_info_set();
         for (const auto& type_info : type_info_set) {
             auto it = opsInfo.find(type_info);
             std::string op_version = getOpVersion(opset_version);
@@ -278,20 +287,20 @@ void OpSummary::saveReport() {
         }
     }
 
-    auto &summary = OpSummary::getInstance();
+    auto& summary = OpSummary::getInstance();
     auto stats = summary.getOPsStats();
 
     pugi::xml_document doc;
 
-    const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
+    const bool fileExists = ov::test::utils::fileExists(outputFilePath);
 
     time_t rawtime;
-    struct tm *timeinfo;
+    struct tm* timeinfo;
     char timeNow[80];
 
     time(&rawtime);
     // cpplint require to use localtime_r instead which is not available in C++11
-    timeinfo = localtime(&rawtime); // NOLINT
+    timeinfo = localtime(&rawtime);  // NOLINT
 
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
 
@@ -299,7 +308,7 @@ void OpSummary::saveReport() {
     if (fileExists) {
         doc.load_file(outputFilePath.c_str());
         root = doc.child("report");
-        //Ugly but shorter than to write predicate for find_atrribute() to update existing one
+        // Ugly but shorter than to write predicate for find_atrribute() to update existing one
         root.remove_attribute("timestamp");
         root.append_attribute("timestamp").set_value(timeNow);
 
@@ -312,7 +321,7 @@ void OpSummary::saveReport() {
     }
 
     pugi::xml_node opsNode = root.append_child("ops_list");
-    for (const auto &op : opsInfo) {
+    for (const auto& op : opsInfo) {
         std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first.version_id);
         opsNode.append_child(name.c_str()).append_attribute("opsets").set_value(op.second.c_str());
     }
@@ -320,7 +329,7 @@ void OpSummary::saveReport() {
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
-    for (const auto &it : stats) {
+    for (const auto& it : stats) {
         std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first.version_id);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
@@ -338,7 +347,7 @@ void OpSummary::saveReport() {
 
     if (extendReport && fileExists) {
         auto opStataFromReport = summary.getStatisticFromReport();
-        for (auto &item : opStataFromReport) {
+        for (auto& item : opStataFromReport) {
             pugi::xml_node entry;
             if (opList.find(item.first) == opList.end()) {
                 entry = currentDeviceNode.append_child(item.first.c_str());
@@ -364,9 +373,8 @@ void OpSummary::saveReport() {
                 auto rel_all = std::stoi(entry.attribute("relative_all").value()) + item.second.rel_all;
                 PassRate obj(p, f, s, c, h, rel_passed, rel_all);
 
-                (implStatus || obj.isImplemented)
-                ? entry.attribute("implemented").set_value(true)
-                : entry.attribute("implemented").set_value(false);
+                (implStatus || obj.isImplemented) ? entry.attribute("implemented").set_value(true)
+                                                  : entry.attribute("implemented").set_value(false);
                 entry.attribute("passed").set_value(static_cast<unsigned long long>(obj.passed));
                 entry.attribute("failed").set_value(static_cast<unsigned long long>(obj.failed));
                 entry.attribute("skipped").set_value(static_cast<unsigned long long>(obj.skipped));

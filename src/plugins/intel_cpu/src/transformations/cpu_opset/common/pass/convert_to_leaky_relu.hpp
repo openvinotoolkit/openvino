@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertToLeakyRelu: public ngraph::pass::MatcherPass {
+class ConvertToLeakyRelu: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertToLeakyRelu", "0");
     ConvertToLeakyRelu();

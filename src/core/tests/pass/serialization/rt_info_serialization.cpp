@@ -4,12 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/file_utils.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph/pass/serialize.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
 class RTInfoSerializationTest : public ov::test::TestsCommon {
@@ -18,13 +18,13 @@ protected:
     std::string m_out_bin_path;
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }
 
     void TearDown() override {
-        CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
+        ov::test::utils::removeIRFiles(m_out_xml_path, m_out_bin_path);
     }
 
     std::shared_ptr<ov::Model> getWithIRFrontend(const std::string& model_path, const std::string& weights_path) {

@@ -26,7 +26,7 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
     using parent = typed_primitive_onednn_impl<convolution>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::convolution_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -212,6 +212,8 @@ public:
                                     *_attrs.get());
             _pd = *prim_desc;
         }
+
+        _scratchpad_md = _pd.scratchpad_desc();
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;

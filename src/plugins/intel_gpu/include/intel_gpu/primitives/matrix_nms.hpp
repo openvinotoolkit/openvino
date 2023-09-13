@@ -3,10 +3,10 @@
 //
 
 #pragma once
-#include <vector>
 
-#include "ngraph/op/matrix_nms.hpp"
+#include "openvino/op/matrix_nms.hpp"
 #include "primitive.hpp"
+#include <vector>
 
 namespace cldnn {
 
@@ -15,8 +15,6 @@ struct matrix_nms : public primitive_base<matrix_nms> {
     CLDNN_DECLARE_PRIMITIVE(matrix_nms)
 
     matrix_nms() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     enum decay_function { gaussian, linear };
 
@@ -54,7 +52,7 @@ struct matrix_nms : public primitive_base<matrix_nms> {
 
         attributes() {}
 
-        attributes(const ngraph::op::v8::MatrixNms::Attributes& attrs)
+        attributes(const ov::op::v8::MatrixNms::Attributes& attrs)
             : attributes(from(attrs.sort_result_type),
                          attrs.sort_result_across_batch,
                          attrs.score_threshold,
@@ -142,7 +140,7 @@ struct matrix_nms : public primitive_base<matrix_nms> {
                const input_info& scores,
                const input_info& second_output,
                const input_info& third_output,
-               const ngraph::op::v8::MatrixNms::Attributes& attrs)
+               const ov::op::v8::MatrixNms::Attributes& attrs)
         : primitive_base(id, {boxes, scores, second_output, third_output}),
           attribs(attrs) {}
 
@@ -194,23 +192,23 @@ struct matrix_nms : public primitive_base<matrix_nms> {
     }
 
 private:
-    static cldnn::matrix_nms::decay_function from(ngraph::op::v8::MatrixNms::DecayFunction decay) {
+    static cldnn::matrix_nms::decay_function from(ov::op::v8::MatrixNms::DecayFunction decay) {
         switch (decay) {
-        case ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN:
+        case ov::op::v8::MatrixNms::DecayFunction::GAUSSIAN:
             return cldnn::matrix_nms::decay_function::gaussian;
-        case ngraph::op::v8::MatrixNms::DecayFunction::LINEAR:
+        case ov::op::v8::MatrixNms::DecayFunction::LINEAR:
         default:
             return cldnn::matrix_nms::decay_function::linear;
         }
     }
 
-    static cldnn::matrix_nms::sort_result_type from(ngraph::op::v8::MatrixNms::SortResultType type) {
+    static cldnn::matrix_nms::sort_result_type from(ov::op::v8::MatrixNms::SortResultType type) {
         switch (type) {
-        case ngraph::op::v8::MatrixNms::SortResultType::CLASSID:
+        case ov::op::v8::MatrixNms::SortResultType::CLASSID:
             return cldnn::matrix_nms::sort_result_type::class_id;
-        case ngraph::op::v8::MatrixNms::SortResultType::SCORE:
+        case ov::op::v8::MatrixNms::SortResultType::SCORE:
             return cldnn::matrix_nms::sort_result_type::score;
-        case ngraph::op::v8::MatrixNms::SortResultType::NONE:
+        case ov::op::v8::MatrixNms::SortResultType::NONE:
         default:
             return cldnn::matrix_nms::sort_result_type::none;
         }

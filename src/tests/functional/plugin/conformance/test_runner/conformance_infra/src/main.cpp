@@ -22,7 +22,7 @@ void RegisterTestCustomQueries(void) {
     std::map<std::string, std::string>& extTestQueries = *::PostgreSQLLink::get_ext_test_queries();
     std::map<std::string, std::string>& extTestNames = *::PostgreSQLLink::get_ext_test_names();
 
-    std::string testName("checkPluginImplementation");
+    std::string testName("checkPluginImplementationCompileModel");
     extTestQueries[testName + "_ON_START"] =
         "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', "
         "'$targetDevice', '$targetDeviceArch', '$targetDeviceName', '$config', $__is_temp)";
@@ -31,7 +31,7 @@ void RegisterTestCustomQueries(void) {
         "OpImplCheck_CheckPluginImpl($__test_id)";  // Query expected in case of a refused results
     extTestNames[testName] = "$opName";
 
-    testName = "ReadIR";
+    testName = "Inference";
     extTestQueries[testName + "_ON_START"] =
         "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
         "'$targetDevice', '$targetDeviceArch', '$targetDeviceName', '$hashXml', '$pathXml', '$config', "
@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
-    FuncTestUtils::SkipTestsConfig::disable_tests_skipping = FLAGS_disable_test_config;
+    ov::test::utils::disable_tests_skipping = FLAGS_disable_test_config;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
@@ -94,19 +94,19 @@ int main(int argc, char* argv[]) {
             FLAGS_shape_mode + "`");
     }
 
-    CommonTestUtils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
-    CommonTestUtils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
+    ov::test::utils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
+    ov::test::utils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();
-    ov::test::conformance::IRFolderPaths = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    ov::test::conformance::IRFolderPaths = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
     ov::test::conformance::refCachePath = FLAGS_ref_dir.c_str();
     if (!FLAGS_plugin_lib_name.empty()) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_skip_config_path.empty()) {
         ov::test::conformance::disabledTests =
-            CommonTestUtils::readListFiles(CommonTestUtils::splitStringByDelimiter(FLAGS_skip_config_path));
+            ov::test::utils::readListFiles(ov::test::utils::splitStringByDelimiter(FLAGS_skip_config_path));
     }
     if (!FLAGS_config_path.empty()) {
         ov::test::conformance::pluginConfig = ov::test::conformance::readPluginConfig(FLAGS_config_path);

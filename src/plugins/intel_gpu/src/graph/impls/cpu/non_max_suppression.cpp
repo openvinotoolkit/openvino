@@ -309,7 +309,7 @@ void store_second_output(stream& stream, memory::ptr mem, const std::vector<resu
 }
 
 template <typename T>
-void store_third_output_impl(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
+void store_third_output_impl(stream& stream, const memory::ptr& mem, const std::vector<result_indices>& result) {
     mem_lock<T, mem_lock_type::write> lock(mem, stream);
     auto ptr = lock.data();
     ptr[0] = static_cast<T>(result.size());
@@ -394,7 +394,7 @@ void run(non_max_suppression_inst& instance) {
 struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     using parent = typed_primitive_impl<non_max_suppression>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::non_max_suppression_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<non_max_suppression_impl>(*this);

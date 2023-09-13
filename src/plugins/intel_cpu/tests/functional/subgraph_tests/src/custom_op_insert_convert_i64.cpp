@@ -94,14 +94,17 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         ElementType inType;
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
 
         init_input_shapes({inputShape});
-        auto inputParams = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(inputParams));
         auto customOp = std::make_shared<CustomOpI64>(paramOuts);
 

@@ -16,6 +16,12 @@ TRANSFORMATIONS_API void enable_fp16_compression(const std::shared_ptr<Node>& no
 
 TRANSFORMATIONS_API bool fp16_compression_is_disabled(const std::shared_ptr<const Node>& node);
 
+TRANSFORMATIONS_API void postpone_fp16_compression(RTMap& rt_info);
+
+TRANSFORMATIONS_API bool is_fp16_compression_postponed(const RTMap& rt_info);
+
+TRANSFORMATIONS_API void do_not_postpone_fp16_compression(RTMap& rt_info);
+
 /**
  * @ingroup ie_runtime_attr_api
  * @brief DisableFP16Compression class represents runtime info attribute that marks operation

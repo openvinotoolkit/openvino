@@ -28,10 +28,16 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     }
 
     if (ifmt.is_nv12() && !desc->has_surface_input()) {
-        auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
-                                 input_layout.spatial(0), input_layout.spatial(1) };
+        const size_t h_dim = 1;
+        const size_t c_dim = 3;
+
+        auto out_shape = input_layout.get_partial_shape();
+        out_shape[c_dim] = 3;
+        if (desc->input_size() == 1)
+            out_shape[h_dim] = out_shape[h_dim] * 2 / 3;
+
         if (ofmt != ifmt)
-            return layout(odt, ofmt, data_size, op);
+            return layout(out_shape, odt, ofmt, op);
 
         CLDNN_ERROR_MESSAGE(desc->id, "No image_nv12 to image_nv12 reorder is supported");
     } else if (ofmt.is_winograd() && ifmt.is_winograd()) {
@@ -209,9 +215,10 @@ reorder_inst::typed_primitive_inst(network& network) : parent(network) {
     _type = reorder::type_id();
 }
 
-reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
-    : parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false)
-    , _req_reinterpr(node.requires_reinterpret()) {
+reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
+        parent(network, node, !node.can_be_optimized()
+                              && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound()))
+        , _req_reinterpr(node.requires_reinterpret()) {
     if (node.can_be_optimized())
         reuse_input();
 

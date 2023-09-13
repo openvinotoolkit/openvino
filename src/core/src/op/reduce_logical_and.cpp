@@ -10,7 +10,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/logical_reduction.hpp"
+#include "openvino/reference/logical_reduction.hpp"
 #include "openvino/util/log.hpp"
 
 using namespace ngraph;
@@ -29,6 +29,7 @@ shared_ptr<Node> op::v1::ReduceLogicalAnd::clone_with_new_inputs(const OutputVec
     return make_shared<op::v1::ReduceLogicalAnd>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reduce_and {
 namespace {
 bool evaluate_reduce_logical_and(const HostTensorPtr& data,
@@ -38,10 +39,10 @@ bool evaluate_reduce_logical_and(const HostTensorPtr& data,
     OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(data->get_shape(), reduction_axes, keep_dims));
     try {
-        runtime::reference::reduce_logical_and(data->get_data_ptr<char>(),
-                                               out->get_data_ptr<char>(),
-                                               data->get_shape(),
-                                               reduction_axes);
+        ov::reference::reduce_logical_and(data->get_data_ptr<char>(),
+                                          out->get_data_ptr<char>(),
+                                          data->get_shape(),
+                                          reduction_axes);
         return true;
     } catch (const ngraph_error& e) {
         OPENVINO_WARN << e.what();

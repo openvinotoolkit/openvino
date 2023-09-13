@@ -55,14 +55,14 @@ public:
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             if (!shape.second.empty()) {
                 for (const auto& itr : shape.second) {
-                    result << CommonTestUtils::vec2str(itr);
+                    result << ov::test::utils::vec2str(itr);
                 }
             }
             result << ")";
@@ -74,13 +74,15 @@ public:
         constexpr size_t number_of_params = 4ul;
         constexpr size_t softmax_axis = 1ul;
         constexpr int concat_axis = 0;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         auto netPrc = ov::element::f32;
         auto& InputShapes = this->GetParam();
         ASSERT_EQ(InputShapes.size(), number_of_params) << "Unexpected number of input shapes";
         init_input_shapes(InputShapes);
-        auto input_params = ngraph::builder::makeDynamicParams(netPrc, inputDynamicShapes);
-
+        ov::ParameterVector input_params;
+        for (auto&& shape : inputDynamicShapes) {
+            input_params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrc, shape));
+        }
         ov::NodeVector first_level_reshapes;
 
         for (size_t i = 0; i < number_of_params; ++i) {
@@ -110,27 +112,23 @@ public:
             results.push_back(std::make_shared<ngraph::opset1::Result>(soft_max->output(i)));
 
         function = std::make_shared<ngraph::Function>(results, input_params, "ConcatReshapeConcatPattern");
-        ov::pass::Serialize serializer("ngraph.xml", "ngraph.bin");
-        serializer.run_on_model(function);
     }
 };
 
 TEST_P(ConcatReshapeConcatSubgraphTest, CompareWithRefs) {
     run();
-    ov::pass::Serialize serializer("exec_graph_dyn.xml", "exec_graph_dyn.bin");
-    serializer.run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
 }
 
 namespace {
 
 const std::vector<std::vector<InputShape>> inputShapes = {
-    // {
-    //     // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-    //     {{2, 64}, {{2, 64}}}, // input 0
-    //     {{2, 64}, {{2, 64}}}, // input 1
-    //     {{2, 64}, {{2, 64}}}, // input 2
-    //     {{2, 64}, {{2, 64}}}  // input 3
-    // },
+    {
+        // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+        {{2, 64}, {{2, 64}}}, // input 0
+        {{2, 64}, {{2, 64}}}, // input 1
+        {{2, 64}, {{2, 64}}}, // input 2
+        {{2, 64}, {{2, 64}}}  // input 3
+    },
     {
         // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
         {{2, -1}, {{2, 64}}}, // input 0

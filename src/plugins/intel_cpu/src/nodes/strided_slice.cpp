@@ -8,8 +8,9 @@
 #include "common/cpu_memcpy.h"
 #include "input.h"
 #include <ngraph/opsets/opset1.hpp>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
 #include "slice_shape_inference_utils.hpp"
+#include "shape_inference/custom/strided_slice.hpp"
 
 #include <string>
 
@@ -33,111 +34,6 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     }
     return true;
 }
-
-namespace {
-
-constexpr IShapeInfer::port_mask_t port_mask = PortMask(/*BEGIN_ID*/1, /*END_ID*/2, /*STRIDE_ID*/3, /*AXES_ID*/4);
-
-class StridedSliceShapeInfer : public ShapeInferEmptyPads {
-public:
-    StridedSliceShapeInfer(size_t output_size,
-                           std::unordered_set<int64_t> begin_mask,
-                           std::unordered_set<int64_t> end_mask,
-                           std::unordered_set<int64_t> new_axis_mask,
-                           std::unordered_set<int64_t> shrink_axis_mask)
-    : m_outputShape(output_size, 1),
-      m_begin_mask_set(std::move(begin_mask)),
-      m_end_mask_set(std::move(end_mask)),
-      m_new_axis_mask_set(std::move(new_axis_mask)),
-      m_shrink_axis_mask_set(std::move(shrink_axis_mask)) {}
-
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        // align with intel_cpu::node::StridedSlice
-        static constexpr size_t DATA_ID = 0, BEGIN_ID = 1, END_ID = 2, STRIDE_ID = 3;
-        const VectorDims& shapeIn = input_shapes[DATA_ID].get();
-        const VectorDims& shapeBegin = input_shapes[BEGIN_ID].get();
-        if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != Precision::I32 ||
-            data_dependency.at(END_ID)->getDesc().getPrecision() != Precision::I32 ||
-            data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != Precision::I32) {
-            IE_THROW(Unexpected) << "The data type of begin/end/stride is NOT I32, which is unexpected!";
-        }
-        auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->getData());
-        auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->getData());
-        auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(STRIDE_ID)->getData());
-
-        for (size_t i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
-            if (m_new_axis_mask_set.count(i)) {
-                // deal with new_axis_mask
-                m_outputShape[new_idx] = 1;
-                m_outputShape[new_idx+1] = shapeIn[i];
-                new_idx+=2;
-            } else if (!m_shrink_axis_mask_set.count(i)) {
-                // deal with begin_mask and end_mask
-                if ((i >= shapeBegin[0]) || (shapeIn[i] == 0)) {
-                    m_outputShape[new_idx] = shapeIn[i];
-                } else {
-                    auto begin = m_begin_mask_set.count(i) ? 0 : beginPtr[i];
-                    auto end  = m_end_mask_set.count(i) ? shapeIn[i] : endPtr[i];
-                    m_outputShape[new_idx] = ov::op::slice::get_sliced_value(shapeIn[i], begin, end, stridePtr[i]);
-                }
-                new_idx += 1;
-            }
-        }
-        return {{m_outputShape}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return port_mask;
-    }
-
-private:
-    VectorDims m_outputShape;
-    const std::unordered_set<int64_t> m_begin_mask_set;
-    const std::unordered_set<int64_t> m_end_mask_set;
-    const std::unordered_set<int64_t> m_new_axis_mask_set;
-    const std::unordered_set<int64_t> m_shrink_axis_mask_set;
-};
-
-class StridedSliceShapeInferFactory : public ShapeInferFactory {
-public:
-    StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op)
-    : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        if (const auto Slice_op = ov::as_type_ptr<const ov::op::v8::Slice>(m_op)) {
-            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
-        } else if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
-            const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
-            if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
-                return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
-            } else {
-                auto vec_to_set = [](const std::vector<int64_t>& vec){
-                    std::unordered_set<int64_t> to_set;
-                    for (size_t i = 0; i < vec.size(); ++i) {
-                        if (vec[i] == 1) {
-                            to_set.emplace(i);
-                        }
-                    }
-                    return to_set;
-                };
-                return std::make_shared<StridedSliceShapeInfer>(
-                    m_op->get_output_partial_shape(0).rank().get_length(),
-                    vec_to_set(StridedSlice_op->get_begin_mask()),
-                    vec_to_set(StridedSlice_op->get_end_mask()),
-                    vec_to_set(StridedSlice_op->get_new_axis_mask()),
-                    vec_to_set(StridedSlice_op->get_shrink_axis_mask()));
-            }
-        } else {
-            IE_THROW(NotImplemented) << "not Slice or StridedSlice";
-        }
-    }
-
-private:
-    const std::shared_ptr<ov::Node> m_op;
-};
-
-}  // namespace
 
 StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, StridedSliceShapeInferFactory(op)) {

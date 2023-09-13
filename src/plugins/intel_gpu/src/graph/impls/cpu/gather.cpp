@@ -17,12 +17,12 @@ struct gather_impl : public typed_primitive_impl<gather> {
     using parent = typed_primitive_impl<gather>;
     using parent::parent;
 
-    int64_t axis;
-    int64_t batch_dims;
+    int64_t axis = 0;
+    int64_t batch_dims = 0;
 
     std::shared_ptr<ov::op::v8::Gather> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::gather_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_impl>(*this);

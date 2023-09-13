@@ -16,7 +16,8 @@ namespace target {
 enum class DeviceVersion {
     NotSet = -1,
     SoftwareEmulation = 0,
-    GNA1_0 = 0x10e,
+    GNA1_0 = 0x10,
+    GNAEmbedded1_0 = 0x10e,
     GNA2_0 = 0x20,
     GNA3_0 = 0x30,
     GNA3_1 = 0x31e,
@@ -24,7 +25,7 @@ enum class DeviceVersion {
     GNAEmbedded3_5 = 0x35e,
     GNA3_6 = 0x36e,
     GNA4_0 = 0x40e,
-    Default = GNA3_0
+    Default = GNA3_5
 };
 
 class Target {

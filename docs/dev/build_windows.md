@@ -44,11 +44,17 @@ Supported configurations:
     ```sh
     cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release <openvino>
     ```
-
+    
    On Windows on ARM for ARM64 architecture:
     ```sh
     cmake -G "Visual Studio 16 2019" -DOPENVINO_EXTRA_MODULES=<openvino_contrib>/modules/arm_plugin -DCMAKE_BUILD_TYPE=Release <openvino>
     ```
+    
+   > **HINT**: **Generating PDB Files and Debugging Your Build** <br>
+   > If you intend to generate PDB files and debug your build, it is essential to set the CMake build type appropriately.
+   > You should utilize one of the following CMake build type options: <br>
+   >* `-DCMAKE_BUILD_TYPE=RelWithDebInfo`: This option generates PDB files with release information, making it suitable for debugging optimized builds. <br>
+   >* `-DCMAKE_BUILD_TYPE=Debug`: This option generates PDB files optimized for debugging, providing comprehensive debugging information. 
 
 4. Build generated solution in Visual Studio or run `cmake --build . --config Release --verbose -j8` to build from the command line. Be aware that this process may take some time.
 
@@ -81,8 +87,8 @@ Supported configurations:
      ```
   4. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
-     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python_api/python3.11;%PYTHONPATH%
-     set OPENVINO_LIB_PATH=<openvino_repo>/bin/<arch>/Release;%OPENVINO_LIB_PATH%
+     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;%PYTHONPATH%
+     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;%OPENVINO_LIB_PATH%
      ```
      or install the wheel with pip:
      ```

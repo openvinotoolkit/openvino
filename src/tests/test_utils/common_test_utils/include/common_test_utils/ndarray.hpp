@@ -10,16 +10,9 @@
 
 #pragma once
 
-#include <algorithm>
-#include <cstring>
-#include <memory>
-#include <type_traits>
-#include <vector>
+#include "openvino/core/shape.hpp"
 
-#include "ngraph/log.hpp"
-#include "ngraph/shape.hpp"
-
-namespace ngraph {
+namespace ov {
 namespace test {
 namespace init {
 // Recursively define types for N-deep initializer lists
@@ -47,12 +40,12 @@ using NestedInitializerList = typename NestedInitializerListWrapper<T, N>::type;
 // Fill in a shape from a nested initializer list
 // For a scalar, nothing to do.
 template <typename T, size_t N>
-typename std::enable_if<(N == 0), void>::type fill_shape(Shape& /* shape */,
+typename std::enable_if<(N == 0), void>::type fill_shape(ov::Shape& /* shape */,
                                                          const NestedInitializerList<T, N>& /* inits */) {}
 
 // Check that the inits match the shape
 template <typename T, size_t N>
-typename std::enable_if<(N == 0), void>::type check_shape(const Shape& shape,
+typename std::enable_if<(N == 0), void>::type check_shape(const ov::Shape& shape,
                                                           const NestedInitializerList<T, N>& /* inits */) {
     if (shape.size() != 0) {
         throw std::invalid_argument("Initializers do not match shape");
@@ -61,12 +54,12 @@ typename std::enable_if<(N == 0), void>::type check_shape(const Shape& shape,
 
 // For a plain initializer list, the shape is the length of the list.
 template <typename T, size_t N>
-typename std::enable_if<(N == 1)>::type fill_shape(Shape& shape, const NestedInitializerList<T, N>& inits) {
+typename std::enable_if<(N == 1)>::type fill_shape(ov::Shape& shape, const NestedInitializerList<T, N>& inits) {
     shape.push_back(inits.size());
 }
 
 template <typename T, size_t N>
-typename std::enable_if<(N == 1)>::type check_shape(const Shape& shape, const NestedInitializerList<T, N>& inits) {
+typename std::enable_if<(N == 1)>::type check_shape(const ov::Shape& shape, const NestedInitializerList<T, N>& inits) {
     if (shape.at(shape.size() - N) != inits.size()) {
         throw std::invalid_argument("Initializers do not match shape");
     }
@@ -74,13 +67,14 @@ typename std::enable_if<(N == 1)>::type check_shape(const Shape& shape, const Ne
 
 // In the general case, we append our level's length and recurse.
 template <typename T, size_t N>
-typename std::enable_if<(N > 1), void>::type fill_shape(Shape& shape, const NestedInitializerList<T, N>& inits) {
+typename std::enable_if<(N > 1), void>::type fill_shape(ov::Shape& shape, const NestedInitializerList<T, N>& inits) {
     shape.push_back(inits.size());
     fill_shape<T, N - 1>(shape, *inits.begin());
 }
 
 template <typename T, size_t N>
-typename std::enable_if<(N > 1), void>::type check_shape(const Shape& shape, const NestedInitializerList<T, N>& inits) {
+typename std::enable_if<(N > 1), void>::type check_shape(const ov::Shape& shape,
+                                                         const NestedInitializerList<T, N>& inits) {
     if (shape.at(shape.size() - N) != inits.size()) {
         throw std::invalid_argument("Initializers do not match shape");
     }
@@ -91,8 +85,8 @@ typename std::enable_if<(N > 1), void>::type check_shape(const Shape& shape, con
 
 // Get the shape of inits.
 template <typename T, size_t N>
-Shape get_shape(const NestedInitializerList<T, N>& inits) {
-    Shape shape;
+ov::Shape get_shape(const NestedInitializerList<T, N>& inits) {
+    ov::Shape shape;
     fill_shape<T, N>(shape, inits);
     check_shape<T, N>(shape, inits);
     return shape;
@@ -100,7 +94,7 @@ Shape get_shape(const NestedInitializerList<T, N>& inits) {
 
 template <typename IT, typename T, size_t N>
 typename std::enable_if<(N == 1), IT>::type flatten(IT it,
-                                                    const Shape& shape,
+                                                    const ov::Shape& shape,
                                                     const NestedInitializerList<T, N>& inits) {
     if (inits.size() != shape.at(shape.size() - N)) {
         throw std::invalid_argument("Initializers do not match shape");
@@ -113,7 +107,7 @@ typename std::enable_if<(N == 1), IT>::type flatten(IT it,
 
 template <typename IT, typename T, size_t N>
 typename std::enable_if<(N > 1), IT>::type flatten(IT it,
-                                                   const Shape& shape,
+                                                   const ov::Shape& shape,
                                                    const NestedInitializerList<T, N>& inits) {
     if (inits.size() != shape.at(shape.size() - N)) {
         throw std::invalid_argument("Initializers do not match shape");
@@ -126,7 +120,7 @@ typename std::enable_if<(N > 1), IT>::type flatten(IT it,
 
 template <typename IT, typename T, size_t N>
 typename std::enable_if<(N == 0), IT>::type flatten(IT it,
-                                                    const Shape& shape,
+                                                    const ov::Shape& shape,
                                                     const NestedInitializerList<T, 0>& init) {
     if (shape.size() != 0) {
         throw std::invalid_argument("Initializers do not match shape");
@@ -145,9 +139,9 @@ public:
     using iterator = typename vtype::iterator;
     using const_iterator = typename vtype::const_iterator;
 
-    NDArrayBase(const Shape& shape) : m_shape(shape), m_elements(shape_size(m_shape)) {}
+    NDArrayBase(const ov::Shape& shape) : m_shape(shape), m_elements(shape_size(m_shape)) {}
 
-    const Shape& get_shape() const {
+    const ov::Shape& get_shape() const {
         return m_shape;
     }
     const_iterator begin() const {
@@ -179,7 +173,7 @@ public:
     }
 
 protected:
-    Shape m_shape;
+    ov::Shape m_shape;
     vtype m_elements;
 };
 
@@ -195,4 +189,4 @@ public:
     }
 };
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

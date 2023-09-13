@@ -191,7 +191,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     explicit proposal_impl(const proposal_node& arg) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::proposal_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
@@ -284,7 +284,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         int fm_sz = fm_w * fm_h;
 
         mem_lock<dtype, mem_lock_type::read> cls_scores_ptr{cls_scores, stream};
-        mem_lock<dtype, mem_lock_type::read> bbox_pred_ptr{bbox_pred, stream};
+        mem_lock<dtype, mem_lock_type::read> bbox_pred_ptr{std::move(bbox_pred), stream};
         const dtype* cls_scores_mem = cls_scores_ptr.data();
         const dtype* bbox_pred_mem = bbox_pred_ptr.data();
 

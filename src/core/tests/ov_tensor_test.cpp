@@ -12,11 +12,11 @@
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
 
-#include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -71,9 +71,24 @@ TEST_F(OVTensorTest, canAccessF16Tensor) {
     EXPECT_NE(nullptr, t.data());
     EXPECT_NO_THROW(t.data(ov::element::f16));
     EXPECT_NO_THROW(t.data<ov::float16>());
-    EXPECT_THROW(t.data<ov::bfloat16>(), ov::Exception);
+    EXPECT_NO_THROW(t.data<ov::bfloat16>());
     EXPECT_THROW(t.data<std::uint16_t>(), ov::Exception);
     EXPECT_THROW(t.data<std::int16_t>(), ov::Exception);
+}
+
+TEST_F(OVTensorTest, canAccessU8Tensor) {
+    ov::Shape shape = {4, 3, 2};
+    ov::Tensor t{ov::element::u8, shape};
+    EXPECT_NE(nullptr, t.data());
+    EXPECT_NO_THROW(t.data(ov::element::u8));
+    EXPECT_NO_THROW(t.data<char>());
+    EXPECT_NO_THROW(t.data<unsigned char>());
+    EXPECT_NO_THROW(t.data<bool>());
+    EXPECT_NO_THROW(t.data<uint8_t>());
+    EXPECT_NO_THROW(t.data<int8_t>());
+    EXPECT_THROW(t.data<float>(), ov::Exception);
+    EXPECT_THROW(t.data<double>(), ov::Exception);
+    EXPECT_THROW(t.data<uint32_t>(), ov::Exception);
 }
 
 TEST_F(OVTensorTest, emptySize) {
@@ -343,7 +358,7 @@ TEST_F(OVTensorTest, readRangeRoiBlob) {
         const std::uint8_t* roi = reinterpret_cast<const std::uint8_t*>(roi_tensor.data());
         ASSERT_NE(nullptr, roi);
         auto strides = roi_tensor.get_strides();
-        for (auto&& c : ngraph::CoordinateTransformBasic{roi_tensor.get_shape()}) {
+        for (auto&& c : ov::CoordinateTransformBasic{roi_tensor.get_shape()}) {
             auto actual_addr = roi + c[3] * strides[3] + c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0];
             auto expected_addr = t.data<int32_t>() + ((c[3] + 4) * strides[3] + (c[2] + 2) * strides[2] +
                                                       (c[1] + 0) * strides[1] + (c[0] + 0) * strides[0]) /
@@ -368,7 +383,7 @@ std::vector<T> fill_data(const ov::Tensor& tensor) {
     std::vector<T> actual;
     const T* data = tensor.data<T>();
     auto strides = tensor.get_strides();
-    for (auto&& c : ngraph::CoordinateTransformBasic{tensor.get_shape()}) {
+    for (auto&& c : ov::CoordinateTransformBasic{tensor.get_shape()}) {
         size_t offset = 0;
         for (size_t i = 0; i < strides.size(); i++)
             offset += c[i] * strides[i];
@@ -535,7 +550,7 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                             ),
                                             ::testing::Values(
                                                               TestParams {
-                                                                  ov::Shape{1, 3, 4, 8}, {}, 
+                                                                  ov::Shape{1, 3, 4, 8}, {},
                                                                   {0}, {}
                                                               },
                                                               TestParams {
@@ -551,15 +566,15 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                                   ov::Shape{3, 2, 2}, ov::Strides{128, 24, 8}
                                                               },
                                                               TestParams {
-                                                                  ov::Shape{}, {}, 
+                                                                  ov::Shape{}, {},
                                                                   {}, {}
                                                               },
                                                               TestParams {
-                                                                  ov::Shape{1}, {}, 
+                                                                  ov::Shape{1}, {},
                                                                   {}, {}
                                                               },
                                                               TestParams {
-                                                                  ov::Shape{}, {}, 
+                                                                  ov::Shape{}, {},
                                                                   {1}, {}
                                                               }
                                            )));

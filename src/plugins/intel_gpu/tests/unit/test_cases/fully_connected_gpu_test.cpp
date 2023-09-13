@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/layout.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "test_utils.h"
+#include "float16.h"
 #include "random_generator.hpp"
 #include "network_test.h"
 #include <intel_gpu/runtime/utils.hpp>
@@ -656,6 +660,172 @@ TEST(fully_connected_gpu, x_f32_relu) {
     ASSERT_EQ(0.00f, output_ptr[3]);
 }
 
+TEST(fully_connected_gpu, compressed_scale_zp_bias) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f32, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+
+    set_values(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f,
+                            0.5f, -2.0f, -0.5f, -1.0f });
+    set_values(weights_mem, { 1.5f,  1.0f,  0.5f, -1.0f,
+                              0.0f,  0.5f,  0.5f, -0.5f,
+                             -2.0f, -0.5f,  1.0f,  1.5f,
+                             -2.0f, -0.5f,  1.0f,  1.5f,
+                              2.0f,  0.5f, -1.0f, -1.5f,
+                              2.0f,  0.5f, -1.0f, -1.5f,
+                             -1.5f, -1.0f, -0.5f,  1.0f,
+                              0.0f, -0.5f, 0.5f, 0.5f });
+
+    set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f  });
+    set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f  });
+    set_values(zp_mem, { 1.0f, 2.0f, 2.0f, 1.0f, 4.0f, 1.0f, 6.0f, 2.0f });
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        data("scale", scale_mem),
+        data("zp", zp_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, padding(), 3, 2)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr (output_mem, get_test_stream());
+
+    ov::PartialShape expected_shape{1, 2, 8};
+    ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+    std::vector<float> expected_result = {-4.0f, -23.0f, 11.0f, 0.0f, -2.0f, -3.5f, -30.0f, -10.5f,
+                                          6.0f, 19.0f, -5.0f, -8.0f, 12.0f, -8.5f, 44.0f, 14.5f};
+
+    for (size_t i = 0; i < expected_result.size(); i++) {
+        ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+    }
+}
+
+TEST(fully_connected_gpu, compressed_scale_bias) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f32, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+
+    set_values(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f,
+                            0.5f, -2.0f, -0.5f, -1.0f });
+    set_values(weights_mem, { 1.5f,  1.0f,  0.5f, -1.0f,
+                              0.0f,  0.5f,  0.5f, -0.5f,
+                             -2.0f, -0.5f,  1.0f,  1.5f,
+                             -2.0f, -0.5f,  1.0f,  1.5f,
+                              2.0f,  0.5f, -1.0f, -1.5f,
+                              2.0f,  0.5f, -1.0f, -1.5f,
+                             -1.5f, -1.0f, -0.5f,  1.0f,
+                              0.0f, -0.5f, 0.5f, 0.5f });
+
+    set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f });
+    set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 1.0f });
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        data("scale", scale_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "", data_types::f32, padding(), 3, 2)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr (output_mem, get_test_stream());
+
+    ov::PartialShape expected_shape{1, 2, 8};
+    ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+    std::vector<float> expected_result = {2.0f, 1.0f, -1.0f, -12.0f, 4.0f, -5.0f, 6.0f, -8.25f,
+                                          0.0f, -5.0f, 7.0f, 4.0f, 6.0f, -7.0f, 8.0f, -7.75f};
+
+    for (size_t i = 0; i < expected_result.size(); i++) {
+        ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+    }
+}
+
+TEST(fully_connected_gpu, compressed_scale_fp16) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory({ { 2, 4}, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f16, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {1, 8}, data_types::f16, format::bfyx });
+
+    set_values<FLOAT16>(input_mem, { FLOAT16(-0.5f), FLOAT16(2.0f),  FLOAT16(0.5f),  FLOAT16(1.0f),
+                                     FLOAT16(0.5f),  FLOAT16(-2.0f), FLOAT16(-0.5f), FLOAT16(-1.0f) });
+    set_values<FLOAT16>(weights_mem, {FLOAT16( 1.5f), FLOAT16( 1.0f), FLOAT16( 0.5f), FLOAT16(-1.0f),
+                                      FLOAT16( 0.0f), FLOAT16( 0.5f), FLOAT16( 0.5f), FLOAT16(-0.5f),
+                                      FLOAT16(-2.0f), FLOAT16(-0.5f), FLOAT16( 1.0f), FLOAT16( 1.5f),
+                                      FLOAT16(-2.0f), FLOAT16(-0.5f), FLOAT16( 1.0f), FLOAT16( 1.5f),
+                                      FLOAT16( 2.0f), FLOAT16( 0.5f), FLOAT16(-1.0f), FLOAT16(-1.5f),
+                                      FLOAT16( 2.0f), FLOAT16( 0.5f), FLOAT16(-1.0f), FLOAT16(-1.5f),
+                                      FLOAT16(-1.5f), FLOAT16(-1.0f), FLOAT16(-0.5f), FLOAT16( 1.0f),
+                                      FLOAT16( 0.0f), FLOAT16(-0.5f), FLOAT16(0.5f),  FLOAT16( 0.5f) });
+
+    set_values<FLOAT16>(scale_mem, {FLOAT16(2.0f), FLOAT16(4.0f), FLOAT16(-2.0f), FLOAT16(-4.0f), FLOAT16(0.5f), FLOAT16(-0.5f), FLOAT16(2.0f), FLOAT16(2.0f)});
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("scale", scale_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f32, padding(), 2, 2)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<FLOAT16> output_ptr (output_mem, get_test_stream());
+
+    ov::PartialShape expected_shape{2, 8};
+    ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+   std::vector<FLOAT16> expected_result = {
+        FLOAT16(1.0f), FLOAT16( 3.0f), FLOAT16(-4.0f), FLOAT16(-8.0f), FLOAT16(-1.0f), FLOAT16( 1.0f), FLOAT16(-1.0f), FLOAT16(-0.5f),
+        FLOAT16(-1.0f), FLOAT16(-3.0f), FLOAT16( 4.0f), FLOAT16( 8.0f), FLOAT16( 1.0f), FLOAT16(-1.0f), FLOAT16( 1.0f), FLOAT16( 0.5f)};
+
+    for (size_t i = 0; i < expected_result.size(); i++) {
+        ASSERT_FLOAT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+    }
+}
+
 TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
     //  Input  : 3x1
     //  Output : 4x1
@@ -1076,6 +1246,20 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
         ::testing::Values(""),
+        ::testing::Values(false))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_fully_connected_gpu_bs_f_bsv16_af8_vload,
+    fully_connected_random_test_f16,
+    ::testing::Combine(
+        ::testing::Values(16),
+        ::testing::Values(shared_dims{3, 1, 1},
+                          shared_dims{17, 1, 1}),
+        ::testing::Values(3, 32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values("fully_connected_gpu_bs_f_bsv16_af8_vload"),
         ::testing::Values(false))
 );
 
@@ -1738,8 +1922,8 @@ TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
     ASSERT_EQ(-2.25f, output_ptr[2]);
     ASSERT_EQ(3.0f, output_ptr[3]);
 
-    // WA: Call cancel() to wait for all queued kernels compilation finish
-    network.get_program()->get_compilation_context().cancel();
+    // WA: Call wait_all() to wait for all queued kernels compilation finish
+    network.get_program()->get_compilation_context().wait_all();
 
     // Check if OneDNN's impl is used for the next execute() call
     network.execute();
@@ -2512,7 +2696,9 @@ TEST(fully_connected_gpu, has_cached_weights_reorder) {
     auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
     ASSERT_TRUE(reorder_kernel_params != nullptr);
     auto reorder_impl = network.get_program()->get_implementations_cache().get(*reorder_kernel_params);
-    ASSERT_TRUE(reorder_impl != nullptr);
+    // cldnn shape agnostic kernel reorder is done in build time
+    // therefore the reorder is no longer in cache, but the program_node of weight data is in the preferred format
+    ASSERT_TRUE(reorder_impl == nullptr);
 
     auto out_l = network.get_output_layout(outputs.begin()->first);
     ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment

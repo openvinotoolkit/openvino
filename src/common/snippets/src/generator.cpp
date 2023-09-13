@@ -34,7 +34,8 @@ Generator::LoweringResult Generator::generate(lowered::LinearIR& linear_ir, cons
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     auto loops2DKernel = std::make_shared<op::Kernel>(linear_ir);
     loops2DKernel->compile_params = compile_params;
-    std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernel);
+    auto loops2DKernelExpr = linear_ir.create_expression(loops2DKernel, std::vector<lowered::PortConnectorPtr>{});
+    std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernelExpr);
 
     kernel->emit_code({}, {});
 
@@ -81,7 +82,8 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
              std::dynamic_pointer_cast<op::BroadcastMove>(op) ||
              std::dynamic_pointer_cast<op::Scalar>(op) ||
              std::dynamic_pointer_cast<op::HorizonMax>(op) ||
-             std::dynamic_pointer_cast<op::HorizonSum>(op))
+             std::dynamic_pointer_cast<op::HorizonSum>(op) ||
+             std::dynamic_pointer_cast<op::Fill>(op))
         return vec2vec;
     else
         return get_specific_op_reg_type(op);

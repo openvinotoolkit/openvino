@@ -35,8 +35,8 @@ struct primitive_info;
 /// @details Contains infomation about id and output index of input primitive.
 struct input_info {
     input_info() : pid(""), idx(0) {}
-    input_info(primitive_id pid) : pid(pid), idx(0) {}
-    input_info(primitive_id pid, int idx) : pid(pid), idx(idx) {}
+    input_info(primitive_id pid) : pid(std::move(pid)), idx(0) {}
+    input_info(primitive_id pid, int idx) : pid(std::move(pid)), idx(idx) {}
 
     /// @brief Copy assignment.
     input_info& operator=(const input_info& other) {
@@ -203,7 +203,7 @@ public:
 
     size_t num_outputs;
 
-    virtual std::string get_type() const { return "NONE"; }
+    virtual const std::string& get_type_info() const = 0;
     virtual void save(BinaryOutputBuffer& ob) const {
         ob << type_string();
         ob << id;
@@ -313,6 +313,7 @@ struct primitive_info {
     }
 
 #define CLDNN_DECLARE_PRIMITIVE(PType)       \
+    DECLARE_OBJECT_TYPE_SERIALIZATION(PType) \
     CLDNN_DEFINE_TYPE_ID(PType)              \
     CLDNN_DEFINE_TYPE_STRING(PType)
 

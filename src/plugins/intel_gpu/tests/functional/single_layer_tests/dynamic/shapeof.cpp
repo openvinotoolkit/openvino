@@ -33,17 +33,17 @@ public:
         result << std::to_string(obj.index) << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")";
         return result.str();
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         auto netPrecision = ElementType::undefined;
         InputShape inputShape;
@@ -51,10 +51,12 @@ protected:
 
         init_input_shapes({inputShape});
 
-        inType = ov::element::Type(netPrecision);
         outType = ElementType::i32;
 
-        auto functionParams = builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector functionParams;
+        for (auto&& shape : inputDynamicShapes) {
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset3::Parameter>(functionParams));
         auto shapeOfOp = std::make_shared<opset3::ShapeOf>(paramOuts[0], element::i32);
 

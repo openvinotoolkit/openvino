@@ -18,6 +18,7 @@
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace ov {
 namespace onnx_editor {
@@ -38,7 +39,9 @@ public:
                              const bool enable_mmap = false,
                              frontend::ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ONNXModelEditor(const std::wstring& model_path, const bool enable_mmap, frontend::ExtensionHolder extensions = {});
+    ONNXModelEditor(const std::wstring& model_path,
+                    const bool enable_mmap = false,
+                    frontend::ExtensionHolder extensions = {});
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded
@@ -305,7 +308,7 @@ private:
     void update_mapper_if_needed() const;
 
     const std::string m_model_path;
-    const bool m_enable_mmap;
+    ngraph::onnx_import::detail::MappedMemoryHandles m_mmap_cache;
     frontend::ExtensionHolder m_extensions;
 
     struct Impl;

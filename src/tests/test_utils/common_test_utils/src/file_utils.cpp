@@ -2,30 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstring>
-#include <numeric>
-#include <openvino/util/file_util.hpp>
-#include <regex>
-#include <sstream>
+#include "common_test_utils/file_utils.hpp"
+
+#include "precomp.hpp"
 
 #ifdef __APPLE__
-# include <mach-o/dyld.h>
+#    include <mach-o/dyld.h>
 #endif
 
 #ifdef _WIN32
-# ifndef NOMINMAX
-#  define NOMINMAX
-# endif
-# include <windows.h>
-# include <direct.h>
-# include <stdlib.h>
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <direct.h>
+#    include <stdlib.h>
+#    include <windows.h>
 #else
-# include <dlfcn.h>
-# include <unistd.h>
-# include <limits.h>
+#    include <dlfcn.h>
+#    include <limits.h>
+#    include <unistd.h>
 #endif
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 std::string getExecutableDirectory() {
     std::string path;
@@ -35,7 +35,7 @@ std::string getExecutableDirectory() {
 #elif defined(__APPLE__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(getExecutableDirectory), &info);
-    const char * buffer = info.dli_fname;
+    const char* buffer = info.dli_fname;
     int len = std::strlen(buffer);
 #else
     char buffer[PATH_MAX];
@@ -51,7 +51,7 @@ std::string getExecutableDirectory() {
 std::string getCurrentWorkingDir() {
     std::string path;
 #ifdef _WIN32
-    char * buffer = _getcwd(NULL, 0);
+    char* buffer = _getcwd(NULL, 0);
     if (buffer != NULL) {
         path = std::string(buffer);
         free(buffer);
@@ -72,7 +72,7 @@ std::string getCurrentWorkingDir() {
 }
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath) {
-    return ov::util::path_join({CommonTestUtils::getExecutableDirectory(), relModelPath});
+    return ov::util::path_join({getExecutableDirectory(), relModelPath});
 }
 
 std::string getRelativePath(const std::string& from, const std::string& to) {
@@ -131,4 +131,6 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
     return output;
 }
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

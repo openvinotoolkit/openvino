@@ -47,10 +47,10 @@ public:
 
         std::ostringstream results;
         results << "IS=(";
-        results << CommonTestUtils::partialShape2str({inputShapes.first}) << ")_";
+        results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
         results << "TS=";
         for (const auto& shape : inputShapes.second) {
-            results << CommonTestUtils::vec2str(shape) << "_";
+            results << ov::test::utils::vec2str(shape) << "_";
         }
         results << "Prc=" << inPrc << "_";
         switch (poolType) {
@@ -62,10 +62,10 @@ public:
                 results << "ExcludePad=" << excludePad << "_";
                 break;
         }
-        results << "K" << CommonTestUtils::vec2str(kernel) << "_";
-        results << "S" << CommonTestUtils::vec2str(stride) << "_";
-        results << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        results << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+        results << "K" << ov::test::utils::vec2str(kernel) << "_";
+        results << "S" << ov::test::utils::vec2str(stride) << "_";
+        results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
         results << "Rounding=" << roundingType << "_";
         results << "AutoPad=" << padType << "_";
         results << "INT8=" << isInt8 << "_";
@@ -77,7 +77,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         LayerTestsDefinitions::poolSpecificParams basicParamsSet;
         InputShape inputShapes;
@@ -108,8 +108,10 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
-
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
         std::shared_ptr<ngraph::Node> poolInput = params[0];
         if (isInt8) {
             ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
@@ -150,18 +152,18 @@ public:
 
         std::ostringstream results;
         results << "IS=(";
-        results << CommonTestUtils::partialShape2str({inputShapes.first}) << ")_";
+        results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
         results << "TS=";
         for (const auto& shape : inputShapes.second) {
-            results << CommonTestUtils::vec2str(shape) << "_";
+            results << ov::test::utils::vec2str(shape) << "_";
         }
         results << "Prc=" << inPrc << "_";
         results << "MaxPool_";
-        results << "K" << CommonTestUtils::vec2str(kernel) << "_";
-        results << "S" << CommonTestUtils::vec2str(stride) << "_";
-        results << "D" << CommonTestUtils::vec2str(dilation) << "_";
-        results << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        results << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+        results << "K" << ov::test::utils::vec2str(kernel) << "_";
+        results << "S" << ov::test::utils::vec2str(stride) << "_";
+        results << "D" << ov::test::utils::vec2str(dilation) << "_";
+        results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
         results << "Rounding=" << roundingType << "_";
         results << "AutoPad=" << padType << "_";
 
@@ -171,7 +173,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         LayerTestsDefinitions::maxPoolV8SpecificParams basicParamsSet;
         InputShape inputShapes;
@@ -194,7 +196,10 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
         std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makeMaxPoolingV8(params[0], stride, dilation, padBegin, padEnd,
                                                                                   kernel, roundingType, padType,
                                                                                   indexElementType, axis);

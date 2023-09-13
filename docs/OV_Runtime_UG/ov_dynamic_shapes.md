@@ -62,7 +62,7 @@ Model input dimensions can be specified as dynamic using the model.reshape metho
    
    Some models may already have dynamic shapes out of the box and do not require additional configuration. This can either be because it was generated with dynamic shapes from the source framework, or because it was converted with Model Conversion API to use dynamic shapes. For more information, see the Dynamic Dimensions “Out of the Box” section.
 
-The examples below show how to set dynamic dimensions with a model that has a static ``[1, 3, 224, 224]`` input shape (such as `mobilenet-v2 <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v2.html>`__). The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
+The examples below show how to set dynamic dimensions with a model that has a static ``[1, 3, 224, 224]`` input shape (such as `mobilenet-v2 <https://docs.openvino.ai/2023.1/omz_models_model_mobilenet_v2.html>`__). The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
 
 .. tab-set::
 
@@ -175,7 +175,7 @@ The lower and/or upper bounds of a dynamic dimension can also be specified. They
     .. tab-item:: C
         :sync: c
         
-        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2023.0/structov_dimension.html#doxid-structov-dimension>`__, as shown in these examples:
+        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2023.1/structov_dimension.html#doxid-structov-dimension>`__, as shown in these examples:
 
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
            :language: cpp
@@ -260,7 +260,7 @@ To determine if the output has dynamic dimensions, the ``partial_shape`` propert
            :fragment: ov_dynamic_shapes:print_dynamic
 
 
-If the output has any dynamic dimensions, they will be reported as ``?`` or as a range (e.g.``1..10``).
+If the output has any dynamic dimensions, they will be reported as ``?`` or as a range (e.g. ``1..10``).
 
 Output layers can also be checked for dynamic dimensions using the ``partial_shape.is_dynamic()`` property. This can be used on an entire output layer, or on an individual dimension, as shown in these examples:
 

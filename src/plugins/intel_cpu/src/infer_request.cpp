@@ -25,6 +25,9 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
+#include "proxy_mem_mgr.h"
+#include "openvino/runtime/make_tensor.hpp"
+#include <utils/general_utils.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -182,6 +185,13 @@ void InferRequestBase::InferImpl() {
 
     ThrowIfCanceled();
 
+    // update output control blocks, if any, in order to refresh internal buffers
+    if (Graph::Status::ReadyDynamic == graph->getStatus()) {
+        for (auto&& item : outputControlBlocks) {
+            item.second.update();
+        }
+    }
+
     graph->PullOutputData(_outputs);
 }
 
@@ -202,93 +212,141 @@ static inline void changeEdgePtr(const EdgePtr &edge, InferenceEngine::Blob::Ptr
 }
 
 void InferRequestBase::changeDefaultPtr() {
+    const auto& inputNodesMap = graph->GetInputNodesMap();
+    const auto& outputNodesMap = graph->GetOutputNodesMap();
+    std::unordered_set<const void*> inputPtrs;
+    std::function<void(const EdgePtr &edge, InferenceEngine::Blob::Ptr blob)> changeInpPtr;
+    if (Graph::Status::ReadyDynamic == graph->getStatus()) {
+        changeInpPtr = [&inputPtrs](const EdgePtr &edge, InferenceEngine::Blob::Ptr blob) {
+            changeEdgePtr(edge, blob);
+            inputPtrs.insert(blob->buffer());
+        };
+    } else {
+        changeInpPtr = [](const EdgePtr &edge, InferenceEngine::Blob::Ptr blob) {
+            changeEdgePtr(edge, blob);
+        };
+    }
+
     for (auto& it : externalPtr) {
-        const auto& inputNodesMap = graph->GetInputNodesMap();
         auto input = inputNodesMap.find(it.first);
-        if (input != inputNodesMap.end()) {
-            NodePtr inputNodePtr = input->second;
-            if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->buffer()))
-                continue;
-            auto& childEdges = inputNodePtr->getChildEdges();
-            // Perform checks that the user's memory will not be modified
-            bool canBeInPlace = true;
-            for (auto& childEdge : childEdges) {
-                auto ce = childEdge.lock();
-                if (!ce)
+        if (inputNodesMap.end() == input) {
+            OPENVINO_ASSERT(outputNodesMap.count(it.first), "Cannot find input/output blob: ", it.first);
+            continue;
+        }
+        NodePtr inputNodePtr = input->second;
+        if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->buffer()))
+            continue;
+        auto& childEdges = inputNodePtr->getChildEdges();
+        // Perform checks that the user's memory will not be modified
+        bool canBeInPlace = true;
+        for (auto& childEdge : childEdges) {
+            auto ce = childEdge.lock();
+            if (!ce)
+                IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
+
+            auto& child = ce->getChild();
+
+            if (child->isConstant()) {
+                canBeInPlace = false;
+                break;
+            }
+
+            // the input memory should be referenced by the children, otherwise it should be written to a
+            // specific location
+            if (ce->inPlace(Edge::LOOK_DOWN)) {
+                canBeInPlace = false;
+                break;
+            }
+
+            if (auto result = ce->modifiedInPlace()) {
+                canBeInPlace = false;
+                break;
+            }
+
+            if (child->getType() == Type::Concatenation && child->isInPlace()) {
+                canBeInPlace = false;
+                break;
+            }
+        }
+        if (canBeInPlace) {
+            for (auto& edge : childEdges) {
+                auto e = edge.lock();
+                if (!e)
                     IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
 
-                auto& child = ce->getChild();
+                changeInpPtr(e, it.second);
+            }
+        }
+    }
 
-                if (child->isConstant()) {
-                    canBeInPlace = false;
-                    break;
-                }
+    for (auto& it : externalPtr) {
+        const auto& name = it.first;
+        auto output = outputNodesMap.find(name);
+        if (outputNodesMap.end() == output) {
+            continue;
+        }
+        auto parentEdge = output->second->getParentEdgeAt(0);
 
-                // the input memory should be referenced by the children, otherwise it should be written to a
-                // specific location
-                if (ce->inPlace(Edge::LOOK_DOWN)) {
-                    canBeInPlace = false;
-                    break;
-                }
+        if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->buffer()))
+            continue;
 
-                if (auto result = ce->modifiedInPlace()) {
-                    canBeInPlace = false;
-                    break;
-                }
+        bool canBeInPlace = true;
+        void* defaultPtr = parentEdge->getMemory().getData();
+        // Cannot be in-place after concat because concat is using different ptrs without offsets
+        auto parent = parentEdge->getParent();
+        NodePtr previousParent;
+        do {
+            previousParent = parent;
+            if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) {
+                canBeInPlace = false;
+                break;
+            }
 
-                if (child->getType() == Type::Concatenation && child->isInPlace()) {
-                    canBeInPlace = false;
+            auto& parentEdges = parent->getParentEdges();
+            for (auto& edge : parentEdges) {
+                auto e = edge.lock();
+                if (!e)
+                    IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
+
+                if (e->getMemory().getData() == defaultPtr) {
+                    parent = e->getParent();
                     break;
                 }
             }
-            if (canBeInPlace) {
-                for (auto& edge : childEdges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
+        } while (previousParent != parent);
+        if (canBeInPlace)
+            changeEdgePtr(parentEdge, it.second);
+    }
 
-                    changeEdgePtr(e, it.second);
-                }
+    if (Graph::Status::ReadyDynamic == graph->getStatus()) {
+        const auto &outMemMngrMap = graph->outputNodesMemMngrMap;
+        for (auto&& item : outMemMngrMap) {
+            const auto& name = item.first;
+
+            // share intel_cpu::Tensor to Graph by injecting to corresponding ProxyMemoryMngr instance.
+            auto outputMemMngr = item.second;
+            OPENVINO_ASSERT(outputMemMngr, "proxy mem manager for output ", name, " is empty.");
+
+            auto controlBlockItr = outputControlBlocks.find(name);
+
+            if (controlBlockItr != outputControlBlocks.end()) {
+                auto output = outputNodesMap.find(name);
+                OPENVINO_ASSERT(outputNodesMap.end() != output, "Node with name: ", name, " is absent in the outputNodesMap");
+                auto parentEdge = output->second->getParentEdgeAt(0);
+                //avoid cyclic memory use
+                auto&& controlBlock = controlBlockItr->second;
+
+                std::shared_ptr<IMemoryMngr> memMngr = inputPtrs.count(controlBlock.rawPtr()) ? // same memory is used on the input and output
+                    controlBlock.nextMemMngr() : // then swap internal buffer to avoid data corruption
+                    controlBlock.currentMemMngr(); // else reuse the existing buffer
+
+                outputMemMngr->setMemMngr(memMngr);
+                DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", controlBlock.currentMemMngr(), " graph ", graph, " inferrequest ", this);
+                DEBUG_LOG(name, ", blob ", controlBlock.blob(), ", tensor ", controlBlock.tensor());
+            } else {
+                outputMemMngr->reset(); // switch to the internal memory since memory sharing is no longer possible
             }
-            continue;
         }
-
-        const auto& outputNodesMap = graph->GetOutputNodesMap();
-        auto output = outputNodesMap.find(it.first);
-        if (output != outputNodesMap.end()) {
-            auto parentEdge = output->second->getParentEdgeAt(0);
-            if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->buffer()))
-                continue;
-
-            bool canBeInPlace = true;
-            void* defaultPtr = parentEdge->getMemory().getData();
-            // Cannot be in-place after concat because concat is using different ptrs without offsets
-            auto parent = parentEdge->getParent();
-            NodePtr previousParent;
-            do {
-                previousParent = parent;
-                if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) {
-                    canBeInPlace = false;
-                    break;
-                }
-
-                auto& parentEdges = parent->getParentEdges();
-                for (auto& edge : parentEdges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
-
-                    if (e->getMemory().getData() == defaultPtr) {
-                        parent = e->getParent();
-                        break;
-                    }
-                }
-            } while (previousParent != parent);
-            if (canBeInPlace)
-                changeEdgePtr(parentEdge, it.second);
-            continue;
-        }
-        IE_THROW() << "Cannot find input/output blob: " << it.first;
     }
 }
 
@@ -716,6 +774,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
             externalPtr.erase(name);
         }
         _outputs[name] = data;
+        outputControlBlocks.erase(name); // now the memory is under user's control
     }
 }
 
@@ -774,22 +833,39 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
         if (_outputs.find(name) == _outputs.end()) {
             auto outputNode = modelOutputsMap.find(name);
             if (modelOutputsMap.find(name) != modelOutputsMap.end()) {
-                const auto shape = outputNode->second->get_input_partial_shape(0);
-                bool isDynamic = shape.is_dynamic();
+                const auto& model_shape = outputNode->second->get_input_partial_shape(0);
+                const auto& graph_shape = output->second->getInputShapeAtPort(0);
+
+                // WA, due to the transformations and constant folding, shape inference of the resulting model may
+                // have static shapes, while they are dynamic in the initial representation
+                const auto& shape = graph_shape.isDynamic() ? model_shape :
+                    (model_shape.is_dynamic() ? graph_shape.toPartialShape() : model_shape);
+
+                const bool isDynamic = shape.is_dynamic();
 
                 if (!data) {
                     InferenceEngine::SizeVector dims;
                     if (isDynamic) {
-                        dims = InferenceEngine::SizeVector(shape.rank().get_length(), 0);
+                        const auto model_prec = InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0));
+                        const auto graph_prec = output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+                        OutputControlBlock control_block{model_prec, Shape{shape}};
+
+                        DEBUG_LOG(name,
+                            ", blob ", control_block.blob(),
+                            ", tensor ", control_block.tensor(),
+                            ", memmngr ", control_block.tensor()->get_memory()->getMemoryMngr(),
+                            "memory object ", control_block.tensor()->get_memory().get());
+
+                        data = control_block.blob();
+                        if (model_prec == graph_prec) outputControlBlocks.emplace(std::make_pair(name, std::move(control_block)));
                     } else {
                         dims = shape.to_shape();
+
+                        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)),
+                                                        dims, InferenceEngine::TensorDesc::getLayoutByRank(dims.size()));
+                        data = make_blob_with_precision(desc);
+                        data->allocate();
                     }
-
-                    InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)),
-                                                     dims, InferenceEngine::TensorDesc::getLayoutByRank(dims.size()));
-
-                    data = make_blob_with_precision(desc);
-                    data->allocate();
                 } else {
                     const auto& blobDims = data->getTensorDesc().getDims();
                     // in static shape case is enough information that shapes are incompatible to throw exception
@@ -831,7 +907,21 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
         IE_THROW() << "Cannot find blob with name: " << name;
     }
 
+    DEBUG_LOG(name, ", blob ", data, ", ", static_cast<void*>(data->buffer()));
     return data;
+}
+
+void InferRequest::checkBlobs() {
+    for (auto const& input : _inputs) {
+        checkBlob(input.second, input.first, true);
+    }
+
+    // won't check dynamic output blobs as they are not allocated.
+    for (auto const& output : _outputs) {
+        const auto out_node = findOutputByNodeName(output.first);
+        const auto isDynamic = out_node && out_node->get_output_partial_shape(0).is_dynamic();
+        if (!isDynamic) checkBlob(output.second, output.first, false);
+    }
 }
 
 void InferRequest::PushInputData() {
@@ -843,6 +933,23 @@ void InferRequest::PushInputData() {
 
         pushInput(inputName, input.second, normToInputSupportedPrec(input));
     }
+}
+
+InferRequestBase::OutputControlBlock::OutputControlBlock(const InferenceEngine::Precision& precision, const Shape& shape) {
+    dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+    m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
+    m_proxyMemMngr = std::make_shared<ProxyMemoryMngr>(m_buffers[m_buffIndx]);
+
+    Shape memShape = shape.isDynamic() ?
+        Shape{VectorDims(shape.getRank(), 0)} : // this is a WA since the ITensor doesn't allow dyn shapes
+        Shape{shape};
+
+    CpuBlockedMemoryDescPtr desc =
+        std::make_shared<CpuBlockedMemoryDesc>(precision, memShape);
+
+    auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemMngr);
+    m_tensor = std::make_shared<Tensor>(memory);
+    m_blob = tensor_to_blob({m_tensor, nullptr});
 }
 
 }   // namespace intel_cpu

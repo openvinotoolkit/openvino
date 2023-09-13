@@ -22,7 +22,7 @@ function(add_common_utils ADD_TARGET_NAME)
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
             EXCLUDED_SOURCE_PATHS
                 ${TARGET_EXCLUDED_SOURCE_PATHS}
-            ADD_CPPLINT
+            ADD_CLANG_FORMAT
             DEVELOPER_PACKAGE
                 tests
             LINK_LIBRARIES
@@ -35,10 +35,12 @@ function(add_common_utils ADD_TARGET_NAME)
                     openvino::runtime::dev
                 PRIVATE
                     openvino::util
-                    ov_shape_inference
+                    openvino::shape_inference
                 INCLUDES
                     PUBLIC
                         "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                    PRIVATE
+                        "${CMAKE_CURRENT_SOURCE_DIR}/src"
 
     )
 
@@ -53,7 +55,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
     ie_faster_build(${ADD_TARGET_NAME}
         UNITY
-        PCH PRIVATE "include/common_test_utils/precomp.hpp"
+        PCH PRIVATE "src/precomp.hpp"
     )
 
     # detecting regex support
@@ -83,7 +85,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
 endfunction()
 
-# Keep old name so that library can be used from VPU repo
+# Keep old name so that library can be used from NPU repo
 set(TARGET_NAME commonTestUtils)
 set(NEW_TARGET_NAME common_test_utils)
 

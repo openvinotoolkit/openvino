@@ -616,4 +616,112 @@ h2 {
 
   .not_run:hover {
     background: #8b000040;
- }
+  }
+
+  .scope_stable {
+    display: flex !important;
+    align-items: center;
+    width: 270px;
+    height: 100px;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 200px;
+    height: 38px;
+    background-color: #ccc;
+    border-radius: 20px;
+  }
+
+  /* hide HTML checkbox */
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    border-radius: 20px;
+    position: absolute;
+    height: 30px;
+    width: 80px;
+    left: 5px;
+    bottom: 4px;
+    background-color: white;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-transition: .4s;
+    transition: .4s;
+  }
+
+  input:checked + .slider {
+    -webkit-transform: translateX(110px);
+    -ms-transform: translateX(110px);
+    transform: translateX(110px);
+  }
+
+  .mandatory {
+    border-radius: 20px;
+    position: absolute;
+    height: 30px;
+    width: 80px;
+    left: 5px;
+    bottom: 4px;
+    background-color: rgb(173, 166, 166);
+    opacity: 0.5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .optional {
+    border-radius: 20px;
+    position: absolute;
+    height: 30px;
+    width: 80px;
+    left: 115px;
+    bottom: 4px;
+    background-color: rgb(173, 166, 166);
+    opacity: 0.5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .toggle_arrow {
+    display: flex;
+    font-size: 20px;
+    justify-content: center;
+    opacity: 0.5;
+  }
+
+  .diagonal {
+    position:   relative;
+    background:  linear-gradient(to right top, #000000 0%,#000000 46.9%,#ffffff 47%,#ffffff 51%,#000000 51.1%,#000000 100%) !important;
+    background-color: transparent;
+    background-color: none !important;
+  }
+
+  .th-sw-plugin {
+    color: white;
+  }
+
+  .th-devices {
+    color: white;
+    display: block;
+    text-align: end;
+  }
+
+  .device {
+    vertical-align: middle !important;
+    font-weight: bold;
+  }
+
+  .entity {
+    vertical-align: middle !important;
+    width: 20%;
+  }
+

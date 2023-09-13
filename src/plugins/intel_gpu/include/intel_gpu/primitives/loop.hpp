@@ -55,8 +55,6 @@ struct loop : public primitive_base<loop> {
     loop() : primitive_base("", {}),
              max_iteration(0) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     struct io_primitive_map {
         /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
         ///
@@ -68,8 +66,8 @@ struct loop : public primitive_base<loop> {
         /// @param stride Step of iteration. Negative value means backward iteration. Applies only when axis >=0.
         io_primitive_map(primitive_id external_id = "", primitive_id internal_id = "",
             int64_t axis = -1, int64_t start = 0, int64_t end = -1, int64_t stride = 1) :
-            external_id(external_id),
-            internal_id(internal_id),
+            external_id(std::move(external_id)),
+            internal_id(std::move(internal_id)),
             axis(axis),
             start(start),
             end(end),

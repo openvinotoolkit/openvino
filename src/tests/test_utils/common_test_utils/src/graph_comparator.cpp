@@ -4,22 +4,8 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <queue>
-#include <sstream>
-#include <string>
-#include <type_traits>
-#include <typeinfo>
-#include <vector>
-
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "gtest/gtest.h"
 #include "ie_common.h"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/op/constant.hpp"
@@ -28,6 +14,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "precomp.hpp"
 
 namespace {
 inline namespace tools {
@@ -483,6 +470,8 @@ public:
     using Result = Comparator::Result;
     using SubGraphOp = ov::op::util::SubGraphOp;
 
+    CompareSubGraphs(Comparator::CmpValues flags) : sub_comparator{flags} {};
+
     Result compare(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs, bool compare_in_outs) {
         const auto lhs_it_no = get_num_iterations(sub_lhs);
         const auto rhs_it_no = get_num_iterations(sub_rhs);
@@ -504,10 +493,22 @@ public:
             }
         }
 
+        const auto lhs_body = sub_lhs->get_function();
+        const auto rhs_body = sub_rhs->get_function();
+        if (lhs_body && rhs_body) {
+            const auto res = sub_comparator.compare(lhs_body, rhs_body);
+            if (!res.valid)
+                return res;
+        } else if (lhs_body || rhs_body) {
+            return Result::error("one subgraph's body is missing");
+        }
+
         return compare_backedges(sub_lhs, sub_rhs);
     }
 
 private:
+    Comparator sub_comparator;
+
     Result compare_inputs(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs) const {
         const auto& lhs_sub_inputs = extract_inputs(sub_lhs);
         const auto& rhs_sub_inputs = extract_inputs(sub_rhs);
@@ -592,11 +593,6 @@ private:
 
 }  // namespace detail
 
-Comparator::Result compare_io(ov::op::util::SubGraphOp* sub_lhs,
-                              ov::op::util::SubGraphOp* sub_rhs,
-                              bool compare_in_outs) {
-    return detail::CompareSubGraphs{}.compare(sub_lhs, sub_rhs, compare_in_outs);
-}
 }  // namespace subgraph
 }  // namespace
 Comparator::Result Comparator::compare(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref) {
@@ -723,7 +719,7 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
     auto type_info2 = node2->get_type_info();
 
     if (!compare_type_info(type_info1, type_info2)) {
-        return Result::error(name(node1) + " and " + name(node2) + "have different type info: " +
+        return Result::error(name(node1) + " and " + name(node2) + " have different type info: " +
                              typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
@@ -733,7 +729,10 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
     const bool subgraph_nodes = subgraph1 && subgraph2;
 
     if (subgraph_nodes) {
-        const auto result = subgraph::compare_io(subgraph1, subgraph2, should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
+        const auto result = subgraph::detail::CompareSubGraphs{get_comparison_flags()}.compare(
+            subgraph1,
+            subgraph2,
+            should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
         if (!result.valid) {
             return result;
         }
@@ -896,6 +895,7 @@ void check_rt_info(const std::shared_ptr<ov::Model>& f) {
 
 namespace attributes {
 namespace detail {
+OPENVINO_SUPPRESS_DEPRECATED_START
 void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) {
     if (auto inputs = ov::as_type<ov::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
         insert(name, inputs->get());
@@ -923,6 +923,7 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccess
                          adapter.get_type_info().name + "']";
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 template <typename AttrValue>
 void ReadAndCompareAttributes::verify(const std::string& name, const AttrValue& attr_value) {
     if (should_return()) {
@@ -941,6 +942,7 @@ void ReadAndCompareAttributes::verify(const std::string& name, const AttrValue& 
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
                                               const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
     if (should_return()) {
@@ -959,6 +961,7 @@ void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
         return;
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAccessor& adapter) {
     if (should_return()) {
@@ -977,6 +980,7 @@ void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAcc
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void ReadAndCompareAttributes::verify_others(const std::string& name, ov::ValueAccessor<void>& adapter) {
     if (auto inputs = ov::as_type<ov::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
         verify(name, inputs->get());
@@ -1001,6 +1005,7 @@ void ReadAndCompareAttributes::verify_others(const std::string& name, ov::ValueA
                         adapter.get_type_info().name + "']";
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace detail
 

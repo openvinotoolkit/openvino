@@ -29,8 +29,6 @@ struct dft : public primitive_base<dft> {
 
     dft() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs DFT primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -57,8 +55,8 @@ struct dft : public primitive_base<dft> {
     std::vector<int64_t> axes;
     std::vector<int64_t> signal_size;
     ov::Shape output_shape;
-    dft_direction direction;
-    dft_mode mode;
+    dft_direction direction = dft_direction::forward;
+    dft_mode mode = dft_mode::complex;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

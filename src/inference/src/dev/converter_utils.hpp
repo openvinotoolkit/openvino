@@ -7,12 +7,15 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie_iextension.h"
 #include "ie_remote_blob.hpp"
+#include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "remote_utils.hpp"
 
 namespace ov {
 namespace legacy_convert {
@@ -38,8 +41,9 @@ ov::SoPtr<::ov::IAsyncInferRequest> convert_infer_request(
     const std::string& plugin_name = "");
 
 std::shared_ptr<InferenceEngine::RemoteContext> convert_remote_context(const ov::SoPtr<ov::IRemoteContext>& context);
-ov::SoPtr<ov::IRemoteContext> convert_remote_context(const std::shared_ptr<InferenceEngine::RemoteContext>& context);
+
+std::vector<ov::Extension::Ptr> convert_extension(const std::vector<InferenceEngine::IExtensionPtr>& exts);
+std::vector<InferenceEngine::IExtensionPtr> convert_extension(const std::vector<ov::Extension::Ptr>& exts);
 
 }  // namespace legacy_convert
 }  // namespace ov
-

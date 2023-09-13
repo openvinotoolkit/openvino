@@ -5,13 +5,14 @@
 #pragma once
 
 #include <gtest/gtest.h>
+#include <setjmp.h>
+#include <signal.h>
 
 #include "common_test_utils/common_utils.hpp"
 
-#include <signal.h>
-#include <setjmp.h>
-
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 extern jmp_buf env;
 
@@ -22,6 +23,7 @@ class CrashHandler {
 private:
     static unsigned int MAX_TEST_WORK_TIME;
     static bool IGNORE_CRASH;
+
 public:
     CrashHandler(CONFORMANCE_TYPE type = CONFORMANCE_TYPE::op);
     ~CrashHandler();
@@ -30,4 +32,6 @@ public:
     void StartTimer();
 };
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
