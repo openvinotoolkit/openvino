@@ -8,7 +8,10 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
 
-    permissions: write-all
+    permissions:
+      # `actions:write` permission is required to delete caches
+      actions: write
+      contents: read
 
     steps:
       - name: Check out code
@@ -44,5 +47,5 @@ jobs:
               gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
           done
           echo "Done"
-        # env:
-        #   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
