@@ -1,4 +1,4 @@
-name: Tests on Linux (Ubuntu 22.04, Python 3.11)
+name: Tests on Linux (Ubuntu 20.04, Python 3.11)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -32,7 +32,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-20.04-8-cores
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
@@ -282,7 +282,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -483,7 +483,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
@@ -738,7 +738,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-20.04-4-cores
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -812,7 +812,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04
+    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -878,7 +878,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04
+    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
