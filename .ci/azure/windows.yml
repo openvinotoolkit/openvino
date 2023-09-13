@@ -54,7 +54,7 @@ jobs:
   timeoutInMinutes: '270' #Temporary change
 
   pool:
-    name: WIN_VMSS_VENV_F16S_WU2
+    name: WIN_VMSS_VENV_F8S_WU2
 
   variables:
     system.debug: true
