@@ -17,7 +17,7 @@
         {
             "language": "typescript",
             "source": [
-                "const cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\nconst { transform, getImageData, displayArrayAsImage, downloadFile } = require('../helpers.js');\nconst { addon: ov } = require('openvinojs-node'); "
+                "const cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\nconst { transform, getImageData, displayArrayAsImage, downloadFile } = require('../helpers.js');\n// const { addon: ov } = require('openvinojs-node'); "
             ],
             "outputs": []
         },
@@ -58,7 +58,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = core.readModel(modelXMLPath);\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output('boxes');"
+                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output('boxes');"
             ],
             "outputs": []
         },

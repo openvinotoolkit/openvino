@@ -42,7 +42,7 @@ async function main(modelPath, images, deviceName) {
   //----------- Step 2. Read a model -------------------------------------------
   console.log(`Reading the model: ${modelPath}`);
   // (.xml and .bin files) or (.onnx file)
-  const model = core.readModel(modelPath);
+  const model = await core.readModel(modelPath);
   const [h, w] = model.inputs[0].shape.slice(-2);
 
   if (model.inputs.length !== 1)
