@@ -14,14 +14,18 @@ following structure: ``<s>`` + *tokenized sentence* + ``<s>`` +
 ``<pad>`` (``<pad>`` tokens pad the remaining blank spaces).
 
 **Output** After the inference, we have a sequence of up to 200 tokens.
-The structure is the same as the one for the input. #### Table of
-content:- `Downloading model <#Downloading-model>`__ - `Load and
-configure the model <#Load-and-configure-the-model>`__ - `Select
-inference device <#Select-inference-device>`__ - `Load
-tokenizers <#Load-tokenizers>`__ - `Perform
-translation <#Perform-translation>`__ - `Translate the
-sentence <#Translate-the-sentence>`__ - `Test your
-translation <#Test-your-translation>`__
+The structure is the same as the one for the input.
+
+**Table of content:**
+
+- `Downloading model <#downloading-model>`__ 
+- `Load and configure the model <#load-and-configure-the-model>`__ 
+- `Select inference device <#select-inference-device>`__ 
+- `Load tokenizers <#load-tokenizers>`__ 
+- `Perform translation <#perform-translation>`__ 
+- `Translate the sentence <#translate-the-sentence>`__ 
+
+  - `Test your translation <#test-your-translation>`__
 
 .. code:: ipython3
 

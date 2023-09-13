@@ -40,15 +40,16 @@ below.
 
 The tutorial consists of the following steps:
 
--  `Prerequisites <#1>`__
--  `Get Pytorch model and OpenVINO IR model <#2>`__
--  `Define validator and data loader <#3>`__
--  `Prepare calibration and validation datasets <#4>`__
--  `Prepare validation function <#5>`__
--  `Run quantization with accuracy control <#6>`__
--  `Compare Performance of the Original and Quantized Models <#7>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Get Pytorch model and OpenVINO IR model <#get-pytorch-model-and-openvino-ir-model>`__
+-  `Define validator and data loader <#define-validator-and-data-loader>`__
+-  `Prepare calibration and validation datasets <#prepare-calibration-and-validation-datasets>`__
+-  `Prepare validation function <#prepare-validation-function>`__
+-  `Run quantization with accuracy control <#run-quantization-with-accuracy-control>`__
+-  `Compare Accuracy and Performance of the Original and Quantized Models <#compare-accuracy-and-performance-of-the-original-and-quantized-models>`__
 
-#### Prerequisites `⇑ <#0>`__
+Prerequisites 
+###############################################################################################################################
 
 Install necessary packages.
 
@@ -219,7 +220,8 @@ Install necessary packages.
     Requirement already satisfied: wrapt<2,>=1.10 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from Deprecated->pymoo@ git+https://github.com/anyoptimization/pymoo.git@695cb26923903f872c7256a9013609769f3cc2bd->nncf==2.5.0.dev0+90a1e860) (1.14.1)
 
 
-## Get Pytorch model and OpenVINO IR model `⇑ <#0>`__
+Get Pytorch model and OpenVINO IR model
+###############################################################################################################################
 
 Generally, PyTorch models represent an instance of the
 ```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
@@ -306,7 +308,10 @@ Load model.
     Visualize:       https://netron.app
 
 
-#### Define validator and data loader `⇑ <#0>`__ The original model
+Define validator and data loader
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+The original model
 repository uses a ``Validator`` wrapper, which represents the accuracy
 validation pipeline. It creates dataloader and evaluation metrics and
 updates metrics on each data batch produced by the dataloader. Besides
@@ -338,7 +343,8 @@ instance.
     val: Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-491/.workspace/scm/datasets/coco128-seg/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 [00:00<?, ?it/s]
 
 
-#### Prepare calibration and validation datasets `⇑ <#0>`__
+Prepare calibration and validation datasets 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 We can use one dataset as calibration and validation datasets. Name it
 ``quantization_dataset``.
@@ -363,7 +369,8 @@ We can use one dataset as calibration and validation datasets. Name it
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-#### Prepare validation function `⇑ <#0>`__
+Prepare validation function
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -414,7 +421,10 @@ We can use one dataset as calibration and validation datasets. Name it
     
     validation_fn = partial(validation_ac, validator=validator)
 
-## Run quantization with accuracy control `⇑ <#0>`__ You should provide
+Run quantization with accuracy control
+###############################################################################################################################
+
+You should provide
 the calibration dataset and the validation dataset. It can be the same
 dataset. - parameter ``max_drop`` defines the accuracy drop threshold.
 The quantization process stops when the degradation of accuracy metric
@@ -427,7 +437,9 @@ rank layers by their contribution to the accuracy drop. Default value is
 300, and the more samples it has the better ranking, potentially. Here
 we use the value 25 to speed up the execution.
 
-   **NOTE**: Execution can take tens of minutes and requires up to 15 GB
+.. note::
+
+   Execution can take tens of minutes and requires up to 15 GB
    of free memory
 
 .. code:: ipython3
@@ -817,8 +829,10 @@ we use the value 25 to speed up the execution.
     	/model.2/cv1/conv/Conv/WithoutBiases
 
 
-## Compare Accuracy and Performance of the Original and Quantized Models
-`⇑ <#0>`__ Now we can compare metrics of the Original non-quantized
+Compare Accuracy and Performance of the Original and Quantized Models
+###############################################################################################################################
+
+Now we can compare metrics of the Original non-quantized
 OpenVINO IR model and Quantized OpenVINO IR model to make sure that the
 ``max_drop`` is not exceeded.
 

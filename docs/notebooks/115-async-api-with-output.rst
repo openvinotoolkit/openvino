@@ -13,32 +13,26 @@ requests) rather than wait for the current inference to complete first.
 
 **Table of content:**
 
--  `Imports <#Imports>`__
--  `Prepare model and data
-   processing <#Prepare-model-and-data-processing>`__
+-  `Imports <#imports>`__
+-  `Prepare model and data processing <#prepare-model-and-data-processing>`__
 
-   -  `Download test model <#Download-test-model>`__
-   -  `Load the model <#Load-the-model>`__
-   -  `Create functions for data
-      processing <#Create-functions-for-data-processing>`__
-   -  `Get the test video <#Get-the-test-video>`__
+   -  `Download test model <#download-test-model>`__
+   -  `Load the model <#load-the-model>`__
+   -  `Create functions for data processing <#create-functions-for-data-processing>`__
+   -  `Get the test video <#get-the-test-video>`__
 
--  `How to improve the throughput of video
-   processing <#How-to-improve-the-throughput-of-video-processing>`__
+-  `How to improve the throughput of video processing <#how-to-improve-the-throughput-of-video-processing>`__
 
-   -  `Sync Mode (default) <#Sync-Mode-(default)>`__
-   -  `Test performance in Sync
-      Mode <#Test-performance-in-Sync-Mode>`__
+   -  `Sync Mode (default) <#sync-mode-default>`__
+   -  `Test performance in Sync Mode <#test-performance-in-sync-mode>`__
    -  `Async Mode <#Async-Mode>`__
-   -  `Test the performance in Async
-      Mode <#Test-the-performance-in-Async-Mode>`__
-   -  `Compare the performance <#Compare-the-performance>`__
+   -  `Test the performance in Async Mode <#test-the-performance-in-async-mode>`__
+   -  `Compare the performance <#compare-the-performance>`__
 
--  ```AsyncInferQueue`` <#%60AsyncInferQueue%60>`__
+-  `AsyncInferQueue <asyncinferqueue>`__
 
-   -  `Setting Callback <#Setting-Callback>`__
-   -  `Test the performance with
-      ``AsyncInferQueue`` <#Test-the-performance-with-%60AsyncInferQueue%60>`__
+   -  `Setting Callback <#setting-callback>`__
+   -  `Test the performance with AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
 
 Imports
 ###############################################################################################################################

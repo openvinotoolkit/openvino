@@ -32,30 +32,25 @@ first inference.
 
 **Table of content:**
 
-- `Import modules and create
-   Core <#Import-modules-and-create-Core>`__
-- `Convert the model to OpenVINO IR
-   format <#Convert-the-model-to-OpenVINO-IR-format>`__
-- `(1) Simplify selection
-   logic <#(1)-Simplify-selection-logic>`__
+- `Import modules and create Core <#import-modules-and-create-core>`__
+- `Convert the model to OpenVINO IR format <#convert-the-model-to-openvino-ir-format>`__
+- `(1) Simplify selection logic <#1-simplify-selection-logic>`__
 
-   - `Default behavior of Core::compile_model API without
-      device_name <#Default-behavior-of-Core::compile_model-API-without-device_name>`__
-   - `Explicitly pass AUTO as device_name to Core::compile_model
-      API <#Explicitly-pass-AUTO-as-device_name-to-Core::compile_model-API>`__
+   - `Default behavior of Core::compile_model API without device_name <#default-behavior-of-core::compile_model-api-without-device_name>`__
+   - `Explicitly pass AUTO as device_name to Core::compile_model API <#explicitly-pass-auto-as-device_name-to-core::compile_model-api>`__
 
-- `(2) Improve the first inference latency <#(2)-Improve-the-first-inference-latency>`__
+- `(2) Improve the first inference latency <#2-improve-the-first-inference-latency>`__
 
-   - `Load an Image <#Load-an-Image>`__
-   - `Load the model to GPU device and perform inference <#Load-the-model-to-GPU-device-and-perform-inference>`__
-   - `Load the model using AUTO device and do inference <#Load-the-model-using-AUTO-device-and-do-inference>`__
+   - `Load an Image <#load-an-image>`__
+   - `Load the model to GPU device and perform inference <#load-the-model-to-gpu-device-and-perform-inference>`__
+   - `Load the model using AUTO device and do inference <#load-the-model-using-auto-device-and-do-inference>`__
 
-- `(3) Achieve different performance for different targets <#(3)-Achieve-different-performance-for-different-targets>`__
+- `(3) Achieve different performance for different targets <#3-achieve-different-performance-for-different-targets>`__
 
-   - `Class and callback definition <#Class-and-callback-definition>`__
-   - `Inference with THROUGHPUT hint <#Inference-with-THROUGHPUT-hint>`__
-   - `Inference with LATENCY hint <#Inference-with-LATENCY-hint>`__
-   - `Difference in FPS and latency <#Difference-in-FPS-and-latency>`__
+   - `Class and callback definition <#class-and-callback-definition>`__
+   - `Inference with THROUGHPUT hint <#inference-with-throughput-hint>`__
+   - `Inference with LATENCY hint <#inference-with-latency-hint>`__
+   - `Difference in FPS and latency <#difference-in-fps-and-latency>`__
 
 Import modules and create Core
 ###############################################################################################################################

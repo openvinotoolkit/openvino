@@ -16,22 +16,19 @@ and do inference with a sample image.
 
 **Table of content:**
 
--  `Preparation <#Preparation>`__
+-  `Preparation <#preparation>`__
 
-   -  `Install requirements <#Install-requirements>`__
-   -  `Imports <#Imports>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
 
--  `Download TFLite model <#Download-TFLite-model>`__
--  `Convert a Model to OpenVINO IR
-   Format <#Convert-a-Model-to-OpenVINO-IR-Format>`__
--  `Load model using OpenVINO TensorFlow Lite
-   Frontend <#Load-model-using-OpenVINO-TensorFlow-Lite-Frontend>`__
--  `Run OpenVINO model
-   inference <#Run-OpenVINO-model-inference>`__
+-  `Download TFLite model <#download-tflite-model>`__
+-  `Convert a Model to OpenVINO IR Format <#convert-a-model-to-openvino-ir-format>`__
+-  `Load model using OpenVINO TensorFlow Lite Frontend <#load-model-using-openvino-tensorflow-lite-frontend>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Estimate Model Performance <#Estimate-Model-Performance>`__
+-  `Estimate Model Performance <#estimate-model-performance>`__
 
 Preparation
 ###############################################################################################################################

@@ -31,20 +31,17 @@ scan to use for inference.
 
 **Table of content:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Benchmark Model
-   Performance <#Benchmark-Model-Performance>`__
--  `Download and Prepare Data <#Download-and-Prepare-Data>`__
--  `Show Live Inference <#Show-Live-Inference>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Benchmark Model Performance <#benchmark-model-performance>`__
+-  `Download and Prepare Data <#download-and-prepare-data>`__
+-  `Show Live Inference <#show-live-inference>`__
 
-   -  `Load Model and List of Image
-      Files <#Load-Model-and-List-of-Image-Files>`__
-   -  `Prepare images <#Prepare-images>`__
-   -  `Specify device <#Specify-device>`__
-   -  `Setting callback function <#Setting-callback-function>`__
-   -  `Create asynchronous inference queue and perform
-      it <#Create-asynchronous-inference-queue-and-perform-it>`__
+   -  `Load Model and List of Image Files <#load-model-and-list-of-image-files>`__
+   -  `Prepare images <#prepare-images>`__
+   -  `Specify device <#specify-device>`__
+   -  `Setting callback function <#setting-callback-function>`__
+   -  `Create asynchronous inference queue and perform it <#create-asynchronous-inference-queue-and-perform-it>`__
 
 .. code:: ipython3
 

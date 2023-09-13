@@ -18,29 +18,23 @@ This notebook works best with small images (up to 800x600 resolution).
 
 **Table of content:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Inference on PaddlePaddle
-   Model <#Inference-on-PaddlePaddle-Model>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Inference on PaddlePaddle Model <#inference-on-paddlepaddle-model>`__
 
-   -  `Investigate PaddleGAN
-      Model <#Investigate-PaddleGAN-Model>`__
-   -  `Do Inference <#Do-Inference>`__
+   -  `Investigate PaddleGAN Model <#investigate-paddlegan-model>`__
+   -  `Do Inference <#do-inference>`__
 
--  `Convert PaddleGAN Model to ONNX and OpenVINO
-   IR <#Convert-PaddleGAN-Model-to-ONNX-and-OpenVINO-IR>`__
+-  `Convert PaddleGAN Model to ONNX and OpenVINO IR <#convert-paddlegan-model-to-onnx-and-openvino-iR>`__
 
-   -  `Convert PaddlePaddle Model to
-      ONNX <#Convert-PaddlePaddle-Model-to-ONNX>`__
-   -  `Convert ONNX Model to OpenVINO IR with Model Conversion Python
-      API <#Convert-ONNX-Model-to-OpenVINO-IR-with-Model-Conversion-Python-API>`__
+   -  `Convert PaddlePaddle Model to ONNX <#convert-paddlepaddle-model-to-onnx>`__
+   -  `Convert ONNX Model to OpenVINO IR with Model Conversion Python API <#convert-onnx-model-to-openvino-ir-with-model-conversion-python-api>`__
 
--  `Do Inference on OpenVINO IR
-   Model <#Do-Inference-on-OpenVINO-IR-Model>`__
+-  `Do Inference on OpenVINO IR Model <#do-inference-on-openvino-ir-model>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Show an Animated GIF <#Show-an-Animated-GIF>`__
-   -  `Create a Comparison Video <#Create-a-Comparison-Video>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Show an Animated GIF <#show-an-animated-gif>`__
+   -  `Create a Comparison Video <#create-a-comparison-video>`__
 
 Imports
 ###############################################################################################################################

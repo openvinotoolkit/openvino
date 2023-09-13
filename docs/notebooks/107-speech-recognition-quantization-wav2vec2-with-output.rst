@@ -22,15 +22,15 @@ steps:
 
 **Table of content:**
 
-- `Imports <#Imports>`__
-- `Settings <#Settings>`__
-- `Prepare the Model <#Prepare-the-Model>`__
-- `Prepare LibriSpeech Dataset <#Prepare-LibriSpeech-Dataset>`__
-- `Define DataLoader <#Define-DataLoader>`__
-- `Run Quantization <#Run-Quantization>`__
-- `Model Usage Example with Inference Pipeline <#Model-Usage-Example-with-Inference-Pipeline>`__
-- `Validate model accuracy on dataset <#Validate-model-accuracy-on-dataset>`__
-- `Compare Performance of the Original and Quantized Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Prepare the Model <#prepare-the-model>`__
+- `Prepare LibriSpeech Dataset <#prepare-librispeech-dataset>`__
+- `Define DataLoader <#define-dataloader>`__
+- `Run Quantization <#run-quantization>`__
+- `Model Usage Example with Inference Pipeline <#model-usage-example-with-inference-pipeline>`__
+- `Validate model accuracy on dataset <#validate-model-accuracy-on-dataset>`__
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
 
 .. code:: ipython3
 

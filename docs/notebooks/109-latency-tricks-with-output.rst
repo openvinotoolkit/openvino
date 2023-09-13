@@ -52,26 +52,23 @@ A similar notebook focused on the throughput mode is available
 
 **Table of content:**
 
--  `Data <#Data>`__
--  `Model <#Model>`__
--  `Hardware <#Hardware>`__
--  `Helper functions <#Helper-functions>`__
--  `Optimizations <#Optimizations>`__
+-  `Data <#data>`__
+-  `Model <#model>`__
+-  `Hardware <#hardware>`__
+-  `Helper functions <#helper-functions>`__
+-  `Optimizations <#optimizations>`__
 
-   -  `PyTorch model <#PyTorch-model>`__
-   -  `ONNX model <#ONNX-model>`__
-   -  `OpenVINO IR model <#OpenVINO-IR-model>`__
-   -  `OpenVINO IR model on GPU <#OpenVINO-IR-model-on-GPU>`__
-   -  `OpenVINO IR model + more inference
-      threads <#OpenVINO-IR-model-+-more-inference-threads>`__
-   -  `OpenVINO IR model in latency
-      mode <#OpenVINO-IR-model-in-latency-mode>`__
-   -  `OpenVINO IR model in latency mode + shared
-      memory <#OpenVINO-IR-model-in-latency-mode-+-shared-memory>`__
-   -  `Other tricks <#Other-tricks>`__
+   -  `PyTorch model <#pytorch-model>`__
+   -  `ONNX model <#onnx-model>`__
+   -  `OpenVINO IR model <#openvino-ir-model>`__
+   -  `OpenVINO IR model on GPU <#openvino-ir-model-on-GPU>`__
+   -  `OpenVINO IR model + more inference threads <#openvino-ir-model-+-more-inference-threads>`__
+   -  `OpenVINO IR model in latency mode <#openvino-ir-model-in-latency-mode>`__
+   -  `OpenVINO IR model in latency mode + shared memory <#openvino-ir-model-in-latency-mode-+-shared-memory>`__
+   -  `Other tricks <#other-tricks>`__
 
--  `Performance comparison <#Performance-comparison>`__
--  `Conclusions <#Conclusions>`__
+-  `Performance comparison <#performance-comparison>`__
+-  `Conclusions <#conclusions>`__
 
 Prerequisites
 ###############################################################################################################################

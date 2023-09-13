@@ -47,29 +47,24 @@ A similar notebook focused on the latency mode is available
 
 **Table of content:**
 
--  `Data <#Data>`__
--  `Model <#Model>`__
--  `Hardware <#Hardware>`__
--  `Helper functions <#Helper-functions>`__
--  `Optimizations <#Optimizations>`__
+-  `Data <#data>`__
+-  `Model <#model>`__
+-  `Hardware <#hardware>`__
+-  `Helper functions <#helper-functions>`__
+-  `Optimizations <#optimizations>`__
 
-   -  `PyTorch model <#PyTorch-model>`__
-   -  `OpenVINO IR model <#OpenVINO-IR-model>`__
-   -  `OpenVINO IR model + bigger
-      batch <#OpenVINO-IR-model-+-bigger-batch>`__
-   -  `Asynchronous processing <#Asynchronous-processing>`__
-   -  `OpenVINO IR model in throughput
-      mode <#OpenVINO-IR-model-in-throughput-mode>`__
-   -  `OpenVINO IR model in throughput mode on
-      GPU <#OpenVINO-IR-model-in-throughput-mode-on-GPU>`__
-   -  `OpenVINO IR model in throughput mode on
-      AUTO <#OpenVINO-IR-model-in-throughput-mode-on-AUTO>`__
-   -  `OpenVINO IR model in cumulative throughput mode on
-      AUTO <#OpenVINO-IR-model-in-cumulative-throughput-mode-on-AUTO>`__
-   -  `Other tricks <#Other-tricks>`__
+   -  `PyTorch model <#pytorch-model>`__
+   -  `OpenVINO IR model <#openvino-ir-model>`__
+   -  `OpenVINO IR model + bigger batch <#openvino-ir-model-+-bigger-batch>`__
+   -  `Asynchronous processing <#asynchronous-processing>`__
+   -  `OpenVINO IR model in throughput mode <#openvino-ir-model-in-throughput-mode>`__
+   -  `OpenVINO IR model in throughput mode on GPU <#openvino-ir-model-in-throughput-mode-on-GPU>`__
+   -  `OpenVINO IR model in throughput mode on AUTO <#openvino-ir-model-in-throughput-mode-on-AUTO>`__
+   -  `OpenVINO IR model in cumulative throughput mode on AUTO <#openvino-ir-model-in-cumulative-throughput-mode-on-AUTO>`__
+   -  `Other tricks <#other-tricks>`__
 
--  `Performance comparison <#Performance-comparison>`__
--  `Conclusions <#Conclusions>`__
+-  `Performance comparison <#performance-comparison>`__
+-  `Conclusions <#conclusions>`__
 
 Prerequisites
 ###############################################################################################################################

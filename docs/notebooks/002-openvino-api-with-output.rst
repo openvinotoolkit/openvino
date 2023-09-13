@@ -21,7 +21,7 @@ covers:
 - `Doing Inference on a Model <#doing-inference-on-a-model>`__
 - `Reshaping and Resizing <#reshaping-and-resizing>`__
 
-  - `Change Image Size <#change-iiage-size>`__
+  - `Change Image Size <#change-image-size>`__
   - `Change Batch Size <#change-batch-size>`__
 
 - `Caching a Model <#caching-a-model>`__

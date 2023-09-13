@@ -40,24 +40,21 @@ Notebook contains the following steps:
 
 **Table of content:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Create PyTorch Models
-   pipeline <#Create-PyTorch-Models-pipeline>`__
--  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
+-  `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `U-net <#U-net>`__
-   -  `VAE <#VAE>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-net <#u-net>`__
+   -  `VAE <#vae>`__
 
--  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
--  `Configure Inference
-   Pipeline <#Configure-Inference-Pipeline>`__
+-  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
-   -  `Text-to-Image generation <#Text-to-Image-generation>`__
-   -  `Image-to-Image generation <#Image-to-Image-generation>`__
+   -  `Text-to-Image generation <#text-to-image-generation>`__
+   -  `Image-to-Image generation <#image-to-image-generation>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 ###############################################################################################################################

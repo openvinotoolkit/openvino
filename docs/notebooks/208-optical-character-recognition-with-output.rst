@@ -21,32 +21,28 @@ information, refer to the
 
 **Table of content:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Download Models <#Download-Models>`__
--  `Convert Models <#Convert-Models>`__
--  `Select inference device <#Select-inference-device>`__
--  `Object Detection <#Object-Detection>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Download Models <#download-models>`__
+-  `Convert Models <#convert-models>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Object Detection <#object-detection>`__
 
-   -  `Load a Detection Model <#Load-a-Detection-Model>`__
-   -  `Load an Image <#Load-an-Image>`__
-   -  `Do Inference <#Do-Inference>`__
-   -  `Get Detection Results <#Get-Detection-Results>`__
+   -  `Load a Detection Model <#load-a-detection-model>`__
+   -  `Load an Image <#load-an-image>`__
+   -  `Do Inference <#do-inference>`__
+   -  `Get Detection Results <#get-detection-results>`__
 
--  `Text Recognition <#Text-Recognition>`__
+-  `Text Recognition <#text-recognition>`__
 
-   -  `Load Text Recognition
-      Model <#Load-Text-Recognition-Model>`__
-   -  `Do Inference <#Do-Inference>`__
+   -  `Load Text Recognition Model <#load-text-recognition-model>`__
+   -  `Do Inference <#do-inference>`__
 
--  `Show Results <#Show-Results>`__
+-  `Show Results <#show-results>`__
 
-   -  `Show Detected Text Boxes and OCR Results for the
-      Image <#Show-Detected-Text-Boxes-and-OCR-Results-for-the-Image>`__
-   -  `Show the OCR Result per Bounding
-      Box <#Show-the-OCR-Result-per-Bounding-Box>`__
-   -  `Print Annotations in Plain Text
-      Format <#Print-Annotations-in-Plain-Text-Format>`__
+   -  `Show Detected Text Boxes and OCR Results for the Image <#show-detected-text-boxes-and-ocr-results-for-the-image>`__
+   -  `Show the OCR Result per Bounding Box <#show-the-ocr-result-per-bounding-box>`__
+   -  `Print Annotations in Plain Text Format <#print-annotations-in-plain-text-format>`__
 
 .. code:: ipython3
 

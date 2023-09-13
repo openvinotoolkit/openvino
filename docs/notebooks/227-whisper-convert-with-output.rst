@@ -29,20 +29,16 @@ Whisper pipeline with OpenVINO models.
 -  `Prerequisites <#Prerequisites>`__
 -  `Instantiate model <#Instantiate-model>`__
 
-   -  `Convert model to OpenVINO Intermediate Representation (IR)
-      format. <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format.>`__
-   -  `Convert Whisper Encoder to OpenVINO
-      IR <#Convert-Whisper-Encoder-to-OpenVINO-IR>`__
-   -  `Convert Whisper decoder to OpenVINO
-      IR <#Convert-Whisper-decoder-to-OpenVINO-IR>`__
+   -  `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+   -  `Convert Whisper Encoder to OpenVINO IR <#convert-whisper-encoder-to-openvino-ir>`__
+   -  `Convert Whisper decoder to OpenVINO IR <#convert-whisper-decoder-to-openvino-ir>`__
 
--  `Prepare inference pipeline <#Prepare-inference-pipeline>`__
+-  `Prepare inference pipeline <#prepare-inference-pipeline>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Run video transcription
-   pipeline <#Run-video-transcription-pipeline>`__
--  `Interactive demo <#Interactive-demo>`__
+-  `Run video transcription pipeline <#run-video-transcription-pipeline>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 ###############################################################################################################################
