@@ -51,9 +51,9 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
   - `Load and Preprocess an Input Image <#load-and-preprocess-an-input-image>`__
   - `Load the OpenVINO IR Network and Run Inference on the ONNX model <#load-the-openvino-ir-network-and-run-inference-on-the-onnx-model>`__
 
-    - `1. ONNX Model in OpenVINO Runtime <#1-onnx-model-in-openvino-runtime>`__
+    - `1. ONNX Model in OpenVINO Runtime <#onnx-model-in-openvino-runtime>`__
     - `Select an inference device <#select-an-inference-device>`__
-    - `2. OpenVINO IR Model in OpenVINO Runtime <#2-openvino-ir-model-in-openvino-runtime>`__
+    - `2. OpenVINO IR Model in OpenVINO Runtime <#openvino-ir-model-in-openvino-runtime>`__
     - `Select the inference device <#select-the-inference-device>`__
 
 - `PyTorch Comparison <#pytorch-comparison>`__

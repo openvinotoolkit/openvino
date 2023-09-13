@@ -28,7 +28,7 @@ to build up a multiple inference task pipeline:
 - `Data Process <#data-process>`__
 - `Main Function <#main-function>`__
 
-  - `Initialize the model and parameters. <#initialize-the-model-and-parameters.>`__
+  - `Initialize the model and parameters. <#initialize-the-model-and-parameters>`__
   - `Run meter detection model <#run-meter-detection-model>`__
   - `Run meter segmentation model <#run-meter-segmentation-model>`__
   - `Postprocess the models result and calculate the final readings <#postprocess-the-models-result-and-calculate-the-final-readings>`__

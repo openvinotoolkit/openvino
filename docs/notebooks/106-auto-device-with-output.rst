@@ -34,18 +34,18 @@ first inference.
 
 - `Import modules and create Core <#import-modules-and-create-core>`__
 - `Convert the model to OpenVINO IR format <#convert-the-model-to-openvino-ir-format>`__
-- `(1) Simplify selection logic <#1-simplify-selection-logic>`__
+- `(1) Simplify selection logic <#simplify-selection-logic>`__
 
   - `Default behavior of Core::compile_model API without device_name <#default-behavior-of-core::compile_model-api-without-device_name>`__
   - `Explicitly pass AUTO as device_name to Core::compile_model API <#explicitly-pass-auto-as-device_name-to-core::compile_model-api>`__
 
-- `(2) Improve the first inference latency <#2-improve-the-first-inference-latency>`__
+- `(2) Improve the first inference latency <#improve-the-first-inference-latency>`__
 
   - `Load an Image <#load-an-image>`__
   - `Load the model to GPU device and perform inference <#load-the-model-to-gpu-device-and-perform-inference>`__
   - `Load the model using AUTO device and do inference <#load-the-model-using-auto-device-and-do-inference>`__
 
-- `(3) Achieve different performance for different targets <#3-achieve-different-performance-for-different-targets>`__
+- `(3) Achieve different performance for different targets <#achieve-different-performance-for-different-targets>`__
 
   - `Class and callback definition <#class-and-callback-definition>`__
   - `Inference with THROUGHPUT hint <#inference-with-throughput-hint>`__

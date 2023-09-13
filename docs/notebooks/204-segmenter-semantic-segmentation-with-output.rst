@@ -30,7 +30,7 @@ Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
 
 - `Get and prepare PyTorch model <#get-and-prepare-pytorch-model>`__ 
   
-  - `Prerequisites <#Prerequisites>`__ 
+  - `Prerequisites <#prerequisites>`__ 
   - `Loading PyTorch model <#loading-pytorch-model>`__ 
 
 - `Preparing preprocessing and visualization functions <#preparing-preprocessing-and-visualization-functions>`__

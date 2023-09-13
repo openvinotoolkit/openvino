@@ -30,14 +30,14 @@ pp. 2777-2784, doi: 10.1109/ICPR.2018.8545760.
 - `Load and Show the Input Image <#load-and-show-the-input-image>`__
 - `Superresolution on a Crop of the Image <#superresolution-on-a-crop-of-the-image>`__
 
-  - `Crop the Input Image once. <#crop-the-input-image-once.>`__
+  - `Crop the Input Image once. <#crop-the-input-image-once>`__
   - `Reshape/Resize Crop for Model Input <#reshape-resize-crop-for-model-input>`__
   - `Do Inference <#do-inference>`__
   - `Show and Save Results <#show-and-save-results>`__
 
     -  `Save Superresolution and Bicubic Image Crop <#save-superresolution-and-bicubic-image-crop>`__
-    -  `Write Animated GIF with Bicubic/Superresolution Comparison <#write-animated-gif-with-bicubic/superresolution-comparison>`__
-    -  `Create a Video with Sliding Bicubic/Superresolution Comparison <#create-a-video-with-sliding-bicubic/superresolution-comparison>`__
+    -  `Write Animated GIF with Bicubic/Superresolution Comparison <#write-animated-gif-with-bicubic-superresolution-comparison>`__
+    -  `Create a Video with Sliding Bicubic/Superresolution Comparison <#create-a-video-with-sliding-bicubic-superresolution-comparison>`__
 
 - `Superresolution on full input image <#superresolution-on-full-input-image>`__
 

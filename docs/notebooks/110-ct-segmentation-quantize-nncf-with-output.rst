@@ -62,7 +62,7 @@ purposes, use a representative dataset for quantizing the model.
 - `Compare FP32 and INT8 Model <#compare-fp32-and-int8-model>`__
 
   - `Compare File Size <#compare-file-size>`__
-  - `Compare Metrics for the original model and the quantized model to be sure that there no degradation. <#compare-metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation.>`__
+  - `Compare Metrics for the original model and the quantized model to be sure that there no degradation. <#compare-metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation>`__
   - `Compare Performance of the FP32 IR Model and Quantized Models <#compare-performance-of-the-fp32-ir-model-and-quantized-models>`__
   - `Visually Compare Inference Results <#visually-compare-inference-results>`__
 

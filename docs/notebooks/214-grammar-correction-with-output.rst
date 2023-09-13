@@ -43,7 +43,7 @@ It consists of the following steps:
 
 **Table of contents:**
 
-- `How does it work? <#how-does-it-work?>`__
+- `How does it work? <#how-does-it-work>`__
 - `Prerequisites <#prerequisites>`__
 - `Download and Convert Models <#download-and-convert-models>`__
 

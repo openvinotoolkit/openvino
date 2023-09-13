@@ -25,7 +25,7 @@ The tutorial consists from the following parts:
 
 **Table of contents:**
 
-- `Preparation <#Preparation>`__
+- `Preparation <#preparation>`__
 
   - `Download the YOLOv5 model <#download-the-yolov5-model>`__
   - `Conversion of the YOLOv5 model to OpenVINO <#conversion-of-the-yolov5-model-to-openvino>`__
