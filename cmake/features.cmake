@@ -113,8 +113,8 @@ ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package"
 
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
-find_host_package(PythonInterp 3 QUIET)
-ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
+find_host_package(Python3 QUIET COMPONENTS Interpreter)
+ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${Python3_Interpreter_FOUND})
 ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)

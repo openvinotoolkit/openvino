@@ -48,7 +48,7 @@ function(ov_model_convert SRC DST OUT)
             add_custom_command(OUTPUT ${full_out_name}
                 COMMAND ${CMAKE_COMMAND} -E make_directory
                     "${DST}/${rel_dir}"
-                COMMAND ${PYTHON_EXECUTABLE} ${onnx_gen_script}
+                COMMAND ${Python3_EXECUTABLE} ${onnx_gen_script}
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
                 COMMENT "Generate ${rel_out_name}"

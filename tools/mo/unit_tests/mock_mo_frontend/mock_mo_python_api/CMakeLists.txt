@@ -25,14 +25,10 @@ set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_mo_python_api.cpp)
 
 source_group("src" FILES ${PYBIND_FE_SRC})
 
-if(PYTHON_VERSION_MINOR GREATER_EQUAL 11)
+if(Python3_VERSION_MINOR GREATER_EQUAL 11)
     set(pybind11_min_version 2.9.2)
 else()
     set(pybind11_min_version 2.8.0)
-endif()
-if(CMAKE_CROSSCOMPILING)
-    # since this version pybind11 has PYBIND11_PYTHONLIBS_OVERWRITE
-    set(pybind11_min_version 2.10.1)
 endif()
 
 find_package(pybind11 ${pybind11_min_version} QUIET)
@@ -43,6 +39,7 @@ if(NOT pybind11_FOUND)
                     EXCLUDE_FROM_ALL)
 endif()
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 pybind11_add_module(${PYBIND_FE_NAME} MODULE NO_EXTRAS ${PYBIND_FE_SRC})
 
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE openvino::runtime)

@@ -74,9 +74,9 @@ You can use the following additional build options:
      ```
   2. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options:
      ```
-     -DPYTHON_EXECUTABLE=`which python3.7` \
-     -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so \
-     -DPYTHON_INCLUDE_DIR=/usr/include/python3.7
+     -DPython3_EXECUTABLE=`which python3.7` \
+     -DPython3_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so \
+     -DPython3_INCLUDE_DIR=/usr/include/python3.7
      ```
   3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
      ```sh

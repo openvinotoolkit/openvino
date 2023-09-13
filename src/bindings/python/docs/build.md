@@ -50,9 +50,9 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
 
 6. Add following flags to the main `cmake` command to use specific virtual environment:
     ```shell
-    -DPYTHON_EXECUTABLE=`which python` \
-    -DPYTHON_LIBRARY=/home/user/.pyenv/versions/3.10.7/lib/libpython3.10.so \
-    -DPYTHON_INCLUDE_DIR=/home/user/.pyenv/versions/3.10.7/include/python3.10
+    -DPython3_EXECUTABLE=`which python` \
+    -DPython3_LIBRARY=/home/user/.pyenv/versions/3.10.7/lib/libpython3.10.so \
+    -DPython3_INCLUDE_DIR=/home/user/.pyenv/versions/3.10.7/include/python3.10
     ```
     *Note: In order to use `which python`, specific virtual environment has to be activated in a current shell.*
 
