@@ -71,10 +71,9 @@ jobs:
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
-      CI_COMPONENT_CHANGED: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).CI }}
     steps:
       - name: This step will be executed only if CI component was changed
-        if: env.CI_COMPONENT_CHANGED
+        if: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).CI }} == "all"
         run: |
           echo "CI component was changed"
 
@@ -506,7 +505,8 @@ jobs:
           if-no-files-found: 'error'
 
   Python_Unit_Tests:
-    needs: Build
+    needs: [Build, Smart_CI]
+    if: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).Python_API }}
     defaults:
       run:
         shell: bash
@@ -761,7 +761,8 @@ jobs:
           if-no-files-found: 'error'
 
   CPU_Functional_Tests:
-    needs: Build
+    needs: [Build, Smart_CI]
+    if: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).CPU }} == "all"
     defaults:
       run:
         shell: bash

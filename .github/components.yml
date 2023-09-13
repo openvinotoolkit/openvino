@@ -1,8 +1,7 @@
 CPU:
   dependencies:
     - Python_API
-    - C_API
 
-C_API:
+Python_API:
   dependencies:
     - CPU.build
