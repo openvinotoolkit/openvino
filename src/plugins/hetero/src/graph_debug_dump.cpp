@@ -30,7 +30,7 @@ void dump_affinities(const std::shared_ptr<ov::Model>& model,
                      const std::map<std::string, std::string>& supported_ops_map,
                      const std::unordered_set<std::string>& devices) {
     auto name = model->get_friendly_name();
-
+    // clang-format off
     ov::pass::VisualizeTree{
         "hetero_affinity_" + name + ".dot",
         [&](const ov::Node& node, std::vector<std::string>& attributes) {
@@ -38,7 +38,7 @@ void dump_affinities(const std::shared_ptr<ov::Model>& model,
             int colorIndex = 0;
             for (auto&& device : devices) {
                 if (device == nodeDevice) {
-                    attributes.push_back(std::string{"fillcolor="} + colors[colorIndex % colors.size()] +
+                    attributes.push_back(std::string {"fillcolor="} + colors[colorIndex % colors.size()] +
                                          " style=filled");
                     auto itLabel =
                         std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
@@ -54,17 +54,18 @@ void dump_affinities(const std::shared_ptr<ov::Model>& model,
             }
         }}
         .run_on_model(model);
+    // clang-format on
 }
 
 void dump_subgraphs(const std::shared_ptr<ov::Model>& model,
                     const std::map<std::string, std::string>& supported_ops_map,
                     const std::map<std::string, int>& map_id) {
     auto name = model->get_friendly_name();
-
+    // clang-format off
     ov::pass::VisualizeTree{
         "hetero_subgraphs_" + name + ".dot",
         [&](const ov::Node& node, std::vector<std::string>& attributes) {
-            attributes.push_back(std::string{"fillcolor="} +
+            attributes.push_back(std::string {"fillcolor="} +
                                  colors[map_id.at(node.get_friendly_name()) % colors.size()] + " style=filled");
             auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
                 return str.find("label") != std::string::npos;
@@ -76,6 +77,7 @@ void dump_subgraphs(const std::shared_ptr<ov::Model>& model,
             (*itLabel) += label;
         }}
         .run_on_model(model);
+    // clang-format on
 }
 }  // namespace debug
 }  // namespace hetero
