@@ -21,15 +21,16 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 
-void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
+void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& m,
                                                        const ov::DimensionTracker& dt) {
     ov::label_t i = 1;
-    for (auto& parameter : f->get_parameters()) {
+    for (auto& parameter : m->get_parameters()) {
         ov::PartialShape new_shape = ov::PartialShape::dynamic(parameter->get_partial_shape().rank());
         for (auto& dim : new_shape)
             dt.set_up_for_tracking(dim, i++);
         parameter->set_partial_shape(new_shape);
     }
+    m->validate_nodes_and_infer_types();
 }
 
 void ov::batch_util::mark_batch(const std::shared_ptr<ov::op::v0::Parameter>& parameter,
@@ -161,15 +162,17 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
 
         for (auto& result : layout_independent_results)
             // there are no layout obvious operations on the Parameter-Result path
-            // considering the outer-most matching dimension is batch
+            // considering the outermost matching dimension is batch
             mark_layout_independent_batch(parameter, result->shared_from_this(), parameter_to_batch_labels);
     }
     return parameter_to_batch_labels;
 }
 
 void ov::batch_util::restore_original_dimensions(
+    const std::shared_ptr<ov::Model>& model,
     const std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape>& parameter_to_shape,
-    bool leave_batch_dynamic) {
+    bool leave_batch_dynamic,
+    bool clear_labels) {
     for (const auto& item : parameter_to_shape) {
         const auto& batch_marked_shape = item.first->get_partial_shape();
         auto original_shape = item.second;
@@ -180,10 +183,33 @@ void ov::batch_util::restore_original_dimensions(
             if (const auto& label = ov::DimensionTracker::get_label(batch_marked_shape[n])) {
                 if (leave_batch_dynamic)
                     original_shape[n] = Dimension::dynamic();
-                ov::DimensionTracker::set_label(original_shape[n], label);
+                if (!clear_labels)
+                    ov::DimensionTracker::set_label(original_shape[n], label);
             }
         }
         item.first->set_partial_shape(original_shape);
+    }
+    std::unordered_map<std::shared_ptr<ov::op::v0::Result>, ov::PartialShape> output_to_shape;
+    if (!clear_labels) {
+        for (const auto& result : model->get_results())
+            output_to_shape[result] = result->get_output_partial_shape(0);
+    }
+
+    model->validate_nodes_and_infer_types();
+
+    if (!clear_labels) {
+        for (const auto& item : output_to_shape) {
+            auto labeled_shape = item.second, current_shape = item.first->get_output_partial_shape(0);
+            auto labeled_rank = labeled_shape.rank(), current_rank = current_shape.rank();
+            if (labeled_rank.is_static() && current_rank.is_static() && labeled_rank == current_rank) {
+                for (size_t i = 0; i < labeled_shape.size(); ++i) {
+                    auto label = ov::DimensionTracker::get_label(labeled_shape[i]);
+                    if (label != ov::no_label)
+                        ov::DimensionTracker::set_label(current_shape[i], label);
+                }
+                item.first->set_output_type(0, item.first->get_element_type(), current_shape);
+            }
+        }
     }
 }
 
@@ -252,6 +278,19 @@ bool ov::batch_util::detach_detection_output(const std::shared_ptr<ov::Model>& f
     return !new_outputs.empty() || !outputs_to_delete.empty();
 }
 
+std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape> collect_original_input_shapes(
+    const std::shared_ptr<ov::Model>& m) {
+    const auto& parameters = m->get_parameters();
+    std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape> parameter_to_shape;
+    for (const auto& parameter : parameters) {
+        auto shape = parameter->get_partial_shape();
+        if (shape.rank().is_dynamic())
+            return {};
+        parameter_to_shape[parameter] = shape;
+    }
+    return parameter_to_shape;
+}
+
 bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(FindBatch);
     auto te = std::make_shared<ov::TableOfEquivalence>();
@@ -261,38 +300,20 @@ bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
     if (detach_do)
         model_has_changed |= batch_util::detach_detection_output(m);
 
-    const auto& parameters = m->get_parameters();
-    std::map<std::shared_ptr<ov::op::v0::Parameter>, PartialShape> parameter_to_shape;
-    for (const auto& parameter : parameters) {
-        auto shape = parameter->get_partial_shape();
-        if (shape.rank().is_dynamic())
-            return model_has_changed;
-        parameter_to_shape[parameter] = shape;
-    }
+    auto parameter_to_shape = collect_original_input_shapes(m);
+    if (parameter_to_shape.empty())
+        return model_has_changed;
 
     ov::batch_util::mark_with_unique_dimension_labels(m, dt);
-    m->validate_nodes_and_infer_types();
 
     ov::batch_util::find_batch(m);
 
     if (!track) {
-        ov::batch_util::restore_original_dimensions(parameter_to_shape, false);
-        m->validate_nodes_and_infer_types();
-        return true;
+        ov::batch_util::restore_original_dimensions(m, parameter_to_shape, false, false);
+        return false;  // we have called validation on this model already
     }
-
-    ov::batch_util::restore_original_dimensions(parameter_to_shape);
-
-    m->validate_nodes_and_infer_types();
-
+    ov::batch_util::restore_original_dimensions(m, parameter_to_shape);
     bool failed_to_propagate_batch = ov::batch_util::check_batch_tracks_through_all_the_nodes(m);
-
-    if (failed_to_propagate_batch) {  // restore original input shape with labels
-        for (const auto& item : parameter_to_shape)
-            item.first->set_partial_shape(item.second);
-    } else {  // restore original input shape with batch labels
-        ov::batch_util::restore_original_dimensions(parameter_to_shape, false);
-    }
-    m->validate_nodes_and_infer_types();
-    return true;
+    ov::batch_util::restore_original_dimensions(m, parameter_to_shape, false, failed_to_propagate_batch);
+    return false;  // we have called validation on this model already
 }
