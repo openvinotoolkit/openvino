@@ -17,8 +17,6 @@ struct reshape : public primitive_base<reshape> {
 
     reshape() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     enum reshape_mode : uint32_t {
         base,
         squeeze,

@@ -7,24 +7,13 @@
 #include <cmath>
 #include <numeric>
 
+#include "openvino/reference/abs.hpp"
 #include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "shape_util.hpp"
 
 namespace ov {
 namespace reference {
-
-namespace func {
-template <class T, typename std::enable_if<std::is_unsigned<T>::value>::type* = nullptr>
-constexpr T abs(const T num) {
-    return num;
-}
-
-template <class T, typename std::enable_if<std::is_signed<T>::value || ov::is_floating_point<T>()>::type* = nullptr>
-T abs(const T num) {
-    return std::abs(num);
-}
-}  // namespace func
 
 /**
  * @brief Reference implementation of ReduceL1 operator.

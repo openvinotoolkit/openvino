@@ -44,7 +44,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
 
     std::shared_ptr<ov::op::Op> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::eltwise_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<eltwise_impl>(*this);

@@ -18,7 +18,7 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using kernel_selector_t = kernel_selector::convolution_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::convolution_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_impl>(*this);

@@ -35,8 +35,6 @@ struct concatenation : public primitive_base<concatenation> {
 
     concatenation() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @li Constructs concatenation primitive.
     /// @param id This primitive id.
     /// @param input Vector of input primitives ids.

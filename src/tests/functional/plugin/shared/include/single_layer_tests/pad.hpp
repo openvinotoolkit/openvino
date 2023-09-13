@@ -12,4 +12,8 @@ TEST_P(PadLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(PadLayerTest12, CompareWithRefs) {
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions

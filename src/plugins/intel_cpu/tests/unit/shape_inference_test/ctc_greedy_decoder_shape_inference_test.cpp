@@ -26,7 +26,7 @@ TEST_F(CTCGreedyDecoderV0StaticShapeInferenceTest, basic) {
 
     input_shapes = {StaticShape{100, 3, 1200}, StaticShape{100, 3}};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({3, 100, 1, 1}));
 }
 
@@ -35,7 +35,7 @@ TEST_F(CTCGreedyDecoderV0StaticShapeInferenceTest, decoder_default_ctor) {
 
     input_shapes = {StaticShape{100, 3, 1200}, StaticShape{100, 3}};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({3, 100, 1, 1}));
 }
 
@@ -46,7 +46,7 @@ TEST_F(CTCGreedyDecoderV0StaticShapeInferenceTest, incompatible_batch) {
 
     input_shapes = {StaticShape{10, 3, 1200}, StaticShape{100, 3}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The first dimensions of input tensors must match"))
 }
@@ -58,7 +58,7 @@ TEST_F(CTCGreedyDecoderV0StaticShapeInferenceTest, incompatible_t_dim) {
 
     input_shapes = {StaticShape{100, 3, 1200}, StaticShape{100, 5}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The second dimensions of input tensors must match"))
 }

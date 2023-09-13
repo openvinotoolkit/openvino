@@ -14,8 +14,6 @@ struct scatter_update : public primitive_base<scatter_update> {
 
     scatter_update() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     enum scatter_update_axis {
         along_b,
         along_f,
