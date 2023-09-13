@@ -232,12 +232,6 @@ macro(ov_define_setup_py_packaging_vars)
     endif()
     set(PUGIXML_LIBS_DIR runtime/3rdparty/pugixml/lib)
 
-    if(USE_BUILD_TYPE_SUBFOLDER)
-        set(build_type ${CMAKE_BUILD_TYPE})
-    else()
-        set(build_type $<CONFIG>)
-    endif()
-
     # define setup.py running environment
     set(setup_py_env ${CMAKE_COMMAND} -E env
         # for cross-compilation
@@ -250,10 +244,8 @@ macro(ov_define_setup_py_packaging_vars)
         OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
         # to create proper directories for BA, OVC tools
         CPACK_GENERATOR=${CPACK_GENERATOR}
-        # propogate build type
-        BUILD_TYPE=${build_type}
         # variables to reflect cpack locations
-        OV_RUNTIME_LIBS_DIR=${OV_CPACK_RUNTIMEDIR}
+        OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
         TBB_LIBS_DIR=${TBB_LIBS_DIR}
         PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
         PY_PACKAGES_DIR=${PY_PACKAGES_DIR})
