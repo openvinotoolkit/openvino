@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about If-8 - an element-wise, condition operation, which 
+                can be performed on multiple tensors in OpenVINO.
+
 **Versioned name**: *If-8*
 
 **Category**: *Condition*
@@ -88,7 +92,8 @@ Also the number of outputs from *If* always must be greater than zero and equal 
 *Example 1: a typical If structure*
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer id="6" name="if/cond" type="If" version="opset8">
        <input>

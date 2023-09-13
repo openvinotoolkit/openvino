@@ -23,6 +23,10 @@ inline kernel_selector::sample_type convert_to_sample_type(resample::Interpolate
             return kernel_selector::sample_type::CUBIC;
         case resample::InterpolateOp::InterpolateMode::LINEAR_ONNX:
             return kernel_selector::sample_type::LINEAR_ONNX;
+        case resample::InterpolateOp::InterpolateMode::BILINEAR_PILLOW:
+            return kernel_selector::sample_type::BILINEAR_PILLOW;
+        case resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW:
+            return kernel_selector::sample_type::BICUBIC_PILLOW;
         default:
             return kernel_selector::sample_type::NEAREST_NEIGHBOR;
     }
@@ -130,7 +134,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
     using kernel_selector_t = kernel_selector::resample_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::resample_params, kernel_selector::resample_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::resample_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<resample_impl>(*this);
@@ -156,12 +160,15 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
         if (scales_calc_mod && impl_param.input_layouts.size() > 1 && scales.empty()) {
             auto mem = impl_param.memory_deps.at(2);
-            scales = read_vector<float>(mem, impl_param.get_stream());
+            scales = read_vector<float>(std::move(mem), impl_param.get_stream());
         }
 
-        for (size_t i = 0; i < scales.size(); ++i) {
-            params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = scales[i];
-        }
+        params.scales = scales;
+        std::vector<kernel_selector::InterpolateAxis> axes;
+        std::transform(primitive->axes.begin(), primitive->axes.end(),
+                       std::back_inserter(axes),
+                       [dimsNum](std::int64_t axis){ return convert_axis(axis, dimsNum); });
+        params.axes = std::move(axes);
 
         return {params, optional_params};
     }

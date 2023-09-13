@@ -17,7 +17,7 @@
 #include "ie_icore.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
-#include "threading/ie_cpu_streams_info.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
@@ -274,11 +274,9 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 
 void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
     const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
-    // save hints parameters to model rt_info
-    ov::AnyMap hints_props;
-    std::string hint_name;
-    const int latency_streams = get_num_numa_nodes();
+    const int latency_streams = get_default_latency_streams(config.latencyThreadingMode);
     int streams;
+
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
     } else if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
@@ -289,20 +287,54 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
         streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
     }
 
-    const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
-    const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
-
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: This WA for CI checks will be removed after export/import refactor for MT 2.0 which will be track in CVS-112149
-    streams = 1;
-#endif
-
     get_num_streams(streams, ngraphFunc, config);
 
-    hints_props.insert({latency_name, std::to_string(latency_streams)});
-    hints_props.insert({tput_name, std::to_string(config.streamExecutorConfig._streams)});
-    ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
+}
+
+void Engine::CalculateStreams(Config& conf, const std::shared_ptr<ngraph::Function>& function, bool imported) {
+    // import config props from caching model
+    if (imported && !is_cpu_map_available()) {
+        if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
+            const auto mode_name = conf.perfHintsConfig.ovPerfHint;
+            if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
+                const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
+                const auto hints_param_name = mode_name + "_" + std::string(ov::num_streams.name());
+                const auto it = hints_config.find(hints_param_name);
+                if (it != hints_config.end()) {
+                    conf.readProperties({{std::string(ov::num_streams.name()), it->second.as<std::string>()}});
+                } else {
+                    IE_THROW() << "Cache file doesn't contain precalculated number of streams for mode " << mode_name;
+                }
+            }
+        }
+    }
+
+    if (is_cpu_map_available()) {
+        const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
+        if (imported && function->has_rt_info("intel_cpu_hints_config")) {
+            // load model_prefer_threads from cache
+            int cache_model_prefer;
+            const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
+            const auto it_model_prefer = hints_config.find(model_prefer_name);
+            if (it_model_prefer != hints_config.end()) {
+                try {
+                    cache_model_prefer = it_model_prefer->second.as<int>();
+                } catch (const std::exception&) {
+                    OPENVINO_THROW("Cache file doesn't have valid value for " + model_prefer_name);
+                }
+
+                conf.modelPreferThreads = cache_model_prefer;
+            }
+        }
+        GetPerformanceStreams(conf, function);
+        // save model_prefer_threads to model rt_info when loading network
+        if (!imported) {
+            ov::AnyMap hints_props;
+            hints_props.insert({model_prefer_name, std::to_string(conf.modelPreferThreads)});
+            function->set_rt_info(hints_props, "intel_cpu_hints_config");
+        }
+    }
 }
 
 StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
@@ -401,10 +433,18 @@ static bool shouldEnableLPT(const std::map<std::string, std::string>& modelConfi
         IE_THROW() << "Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO";
 }
 
-static ov::element::Type getInferencePrecision(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
+static ov::element::Type getInferencePrecision(const std::map<std::string, std::string>& modelConfig,
+                                               const Config& engineConfig,
+                                               Config::ModelType modelType) {
     Config tempConf = engineConfig;
-    tempConf.readProperties(modelConfig);
+    tempConf.readProperties(modelConfig, modelType);
     return tempConf.inferencePrecision;
+}
+
+static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
+           op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
+           Config::ModelType::CNN : Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
@@ -452,15 +492,29 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
     const bool enableLPT = shouldEnableLPT(config, engConfig);
-    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig);
-    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
-
     auto nGraphFunc = clonedNetwork.getFunction();
+    Config::ModelType modelType = getModelType(nGraphFunc);
+    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, modelType);
+    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig); 
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
     Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
-    transformations.UpToCpuSpecificOpSet();
+    transformations.UpToLpt();
+
+    if (!is_cpu_map_available()) {
+        ApplyPerformanceHints(config, nGraphFunc);
+    }
+
+    // update the props after the perf mode translated to configs
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+
+    conf.readProperties(config, modelType);
+    CalculateStreams(conf, nGraphFunc);
+
+    transformations.PostLpt();
+    transformations.Snippets();
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
@@ -472,21 +526,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    if (!is_cpu_map_available()) {
-        ApplyPerformanceHints(config, nGraphFunc);
-    }
     transformations.CpuSpecificOpSet();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
-
-    // update the props after the perf mode translated to configs
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
-
-    conf.readProperties(config);
-    if (is_cpu_map_available()) {
-        GetPerformanceStreams(conf, nGraphFunc);
-    }
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
@@ -592,7 +634,6 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
             METRIC_KEY(RANGE_FOR_STREAMS),
             METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-            ov::caching_properties.name(),
         };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
@@ -624,9 +665,13 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else if (name == ov::caching_properties) {
+    } else if (ov::internal::supported_properties == name) {
+        return decltype(ov::internal::supported_properties)::value_type{
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+    } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { METRIC_KEY(FULL_DEVICE_NAME) };
-        return decltype(ov::caching_properties)::value_type(cachingProperties);
+        return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
     }
 
     IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
@@ -650,7 +695,6 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::range_for_streams.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
-                                                    RO_property(ov::caching_properties.name()),
         };
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
@@ -675,6 +719,10 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
         return decltype(ov::supported_properties)::value_type(supportedProperties);
+    } else if (ov::internal::supported_properties == name) {
+        return decltype(ov::internal::supported_properties)::value_type{
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
@@ -698,9 +746,9 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::range_for_streams) {
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
-    } else if (name == ov::caching_properties) {
+    } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
-        return decltype(ov::caching_properties)::value_type(cachingProperties);
+        return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
     } else if (name == ov::intel_cpu::denormals_optimization) {
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
@@ -718,18 +766,19 @@ void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
     Config conf = engConfig;
-    conf.readProperties(config);
+    Config::ModelType modelType = getModelType(model);
+    conf.readProperties(config, modelType);
 
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
-
-    auto model = network.getFunction();
-    if (model == nullptr) {
-        IE_THROW() << "Only ngraph-based models are supported!";
-    }
 
     auto context =
         std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, false);
@@ -737,7 +786,9 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
                                            Transformations transformation(model, enableLPT, conf.inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
-                                           transformation.UpToCpuSpecificOpSet();
+                                           transformation.UpToLpt();
+                                           transformation.PostLpt();
+                                           transformation.Snippets();
                                            transformation.CpuSpecificOpSet();
                                        },
                                        [&](const std::shared_ptr<ngraph::Node>& op) {
@@ -770,28 +821,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     CNNNetwork cnnnetwork;
     deserializer >> cnnnetwork;
 
-    Config conf = engConfig;
-    conf.readProperties(config);
-
-    // import config props from caching model
     auto function = cnnnetwork.getFunction();
-    if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
-        const auto mode_name = conf.perfHintsConfig.ovPerfHint;
-        if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
-            const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
-            const auto hints_param_name = mode_name + "_" + std::string(ov::num_streams.name());
-            const auto it = hints_config.find(hints_param_name);
-            if (it != hints_config.end()) {
-                conf.readProperties({{std::string(ov::num_streams.name()), it->second.as<std::string>()}});
-            } else {
-                IE_THROW() << "Cache file doesn't contain precalculated number of streams for mode " << mode_name;
-            }
-        }
-    }
+    Config::ModelType modelType = getModelType(function);
+    Config conf = engConfig;
+    conf.readProperties(config, modelType);
 
-    if (is_cpu_map_available()) {
-        get_num_streams(conf.streamExecutorConfig._streams, function, conf);
-    }
+    CalculateStreams(conf, function, true);
 
     auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
 

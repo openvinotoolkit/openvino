@@ -8,6 +8,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/reference/scatter_elements_update.hpp"
 
 using namespace std;
 
@@ -86,11 +87,247 @@ shared_ptr<Node> op::v12::ScatterElementsUpdate::clone_with_new_inputs(const Out
 }
 
 bool op::v12::ScatterElementsUpdate::has_evaluate() const {
-    if (m_reduction != Reduction::NONE) {
-        return false;
-    } else {
-        return ScatterElementsUpdateBase::has_evaluate();
+    return ScatterElementsUpdateBase::has_evaluate() ||
+           (get_output_element_type(0) == element::boolean && is_supported_index_input_element_type());
+}
+
+OPENVINO_SUPPRESS_DEPRECATED_START
+namespace scatter_elements_update {
+namespace {
+template <element::Type_t DT, element::Type_t IT, element::Type_t AT>
+bool evaluate(const HostTensorPtr& data,
+              const HostTensorPtr& indices,
+              const HostTensorPtr& updates,
+              const HostTensorPtr& axis,
+              const HostTensorPtr& out,
+              const int64_t normalized_axis,
+              const op::v12::ScatterElementsUpdate::Reduction reduction_type,
+              const bool use_init_value) {
+    using DataType = typename element_type_traits<DT>::value_type;
+    using IndicesType = typename element_type_traits<IT>::value_type;
+
+    out->set_shape(data->get_shape());
+
+    ov::reference::scatter_elem_update<DataType, IndicesType>(data->get_data_ptr<DT>(),
+                                                              indices->get_data_ptr<IT>(),
+                                                              updates->get_data_ptr<DT>(),
+                                                              normalized_axis,
+                                                              out->get_data_ptr<DT>(),
+                                                              data->get_shape(),
+                                                              indices->get_shape(),
+                                                              reduction_type,
+                                                              use_init_value);
+
+    return true;
+}
+
+#define TYPE_AXS_CASE(a, ...)                                      \
+    case element::Type_t::a: {                                     \
+        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_axs, _, a)); \
+        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);    \
+    } break;
+
+template <element::Type_t DT, element::Type_t IT>
+bool evaluate(const HostTensorPtr& arg0,
+              const HostTensorPtr& arg1,
+              const HostTensorPtr& arg2,
+              const HostTensorPtr& arg3,
+              const HostTensorPtr& out,
+              const int64_t normalized_axis,
+              const op::v12::ScatterElementsUpdate::Reduction reduction_type,
+              const bool use_init_value) {
+    auto axis_type = arg3->get_element_type();
+
+    // Dispatch specialization based on axis data type.
+    bool rc = true;
+
+    switch (axis_type) {
+        TYPE_AXS_CASE(i8, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_AXS_CASE(i16, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_AXS_CASE(i32, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_AXS_CASE(i64, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_AXS_CASE(u8, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_AXS_CASE(u16, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_AXS_CASE(u32, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_AXS_CASE(u64, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+    default:
+        rc = false;
+        break;
     }
+    return rc;
+}
+
+#define TYPE_IND_CASE(a, ...)                                      \
+    case element::Type_t::a: {                                     \
+        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_ind, _, a)); \
+        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);        \
+    } break;
+
+template <element::Type_t DT>
+bool evaluate(const HostTensorPtr& arg0,
+              const HostTensorPtr& arg1,
+              const HostTensorPtr& arg2,
+              const HostTensorPtr& arg3,
+              const HostTensorPtr& out,
+              const int64_t normalized_axis,
+              const op::v12::ScatterElementsUpdate::Reduction reduction_type,
+              const bool use_init_value) {
+    auto indices_type = arg1->get_element_type();
+
+    // Dispatch specialization based on indicies data type.
+    bool rc = true;
+
+    switch (indices_type) {
+        TYPE_IND_CASE(i8, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_IND_CASE(i16, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_IND_CASE(i32, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_IND_CASE(i64, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_IND_CASE(u8, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_IND_CASE(u16, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_IND_CASE(u32, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+        TYPE_IND_CASE(u64, arg0, arg1, arg2, arg3, out, normalized_axis, reduction_type, use_init_value);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+
+bool evaluate_scatter_elements_update(
+    const HostTensorPtr& arg0,
+    const HostTensorPtr& arg1,
+    const HostTensorPtr& arg2,
+    const HostTensorPtr& arg3,
+    const HostTensorPtr& out,
+    const int64_t normalized_axis,
+    const op::v12::ScatterElementsUpdate::Reduction reduction_type = op::v12::ScatterElementsUpdate::Reduction::NONE,
+    const bool use_init_value = false) {
+    bool rc = true;
+
+    switch (out->get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
+                         i16,
+                         arg0,
+                         arg1,
+                         arg2,
+                         arg3,
+                         out,
+                         normalized_axis,
+                         reduction_type,
+                         use_init_value);
+        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
+                         i32,
+                         arg0,
+                         arg1,
+                         arg2,
+                         arg3,
+                         out,
+                         normalized_axis,
+                         reduction_type,
+                         use_init_value);
+        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
+                         i64,
+                         arg0,
+                         arg1,
+                         arg2,
+                         arg3,
+                         out,
+                         normalized_axis,
+                         reduction_type,
+                         use_init_value);
+        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
+                         u32,
+                         arg0,
+                         arg1,
+                         arg2,
+                         arg3,
+                         out,
+                         normalized_axis,
+                         reduction_type,
+                         use_init_value);
+        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
+                         u64,
+                         arg0,
+                         arg1,
+                         arg2,
+                         arg3,
+                         out,
+                         normalized_axis,
+                         reduction_type,
+                         use_init_value);
+        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
+                         f16,
+                         arg0,
+                         arg1,
+                         arg2,
+                         arg3,
+                         out,
+                         normalized_axis,
+                         reduction_type,
+                         use_init_value);
+        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
+                         f32,
+                         arg0,
+                         arg1,
+                         arg2,
+                         arg3,
+                         out,
+                         normalized_axis,
+                         reduction_type,
+                         use_init_value);
+        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
+                         boolean,
+                         arg0,
+                         arg1,
+                         arg2,
+                         arg3,
+                         out,
+                         normalized_axis,
+                         reduction_type,
+                         use_init_value);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+}  // namespace
+}  // namespace scatter_elements_update
+
+bool op::v3::ScatterElementsUpdate::evaluate_scatter_elements_update(const HostTensorVector& outputs,
+                                                                     const HostTensorVector& inputs) const {
+    const auto normalized_axis = get_normalized_axis(inputs);
+
+    return scatter_elements_update::evaluate_scatter_elements_update(inputs[0],
+                                                                     inputs[1],
+                                                                     inputs[2],
+                                                                     inputs[3],
+                                                                     outputs[0],
+                                                                     normalized_axis);
+}
+
+bool op::v12::ScatterElementsUpdate::evaluate_scatter_elements_update(const HostTensorVector& outputs,
+                                                                      const HostTensorVector& inputs) const {
+    const auto normalized_axis = get_normalized_axis(inputs);
+
+    return scatter_elements_update::evaluate_scatter_elements_update(inputs[0],
+                                                                     inputs[1],
+                                                                     inputs[2],
+                                                                     inputs[3],
+                                                                     outputs[0],
+                                                                     normalized_axis,
+                                                                     m_reduction,
+                                                                     m_use_init_val);
+}
+
+bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
+    return evaluate_scatter_elements_update(outputs, inputs);
+}
+
+bool op::v12::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    OV_OP_SCOPE(v12_ScatterElementsUpdate_evaluate);
+    return evaluate_scatter_elements_update(outputs, inputs);
 }
 
 template <>

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="template/style.css" />
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+        crossorigin="anonymous"></script>
+    <script src="template/filters_api.js"></script>
+    <script src="template/chosen.jquery.min.js" type="text/javascript"></script>
+    <title>Report</title>
+</head>
+
+<body>
+    <div class="main">
+        <h2>API coverage summary.</h2>
+            <h3>
+                {% if report_tag != "" %}
+                    Tag: {{report_tag}}
+                {% endif %}
+                {% if report_version != "" %}
+                    Version: {{report_version}}
+                {% endif %}
+                Time: {{ timestamp }}
+            </h3>
+        <div class="legend">
+            <div>
+                <span class="table-primary border"></span><span>Collected statistic info</span>
+                <span class="green border">100%</span><span>General or relative passrate more 95%</span>
+                <span class="red border">50%</span><span>General or relative passrate less 80%</span>
+            </div>
+            <div>
+                <span style="margin-right: 5px;"><b>Scope:</b></span>
+                <span id="scope_legend" class="scope_stable">Mandatory - includes information about tests from mandatory scope. For mandatory scope only passed and failed statuses are applicable.</span>
+            </div>
+            <div>
+                <span><b>Status:</b></span>
+                <span class="green">P:85</span><span>Passed</span>
+                <span class="red">F:0</span><span>Failed</span>
+                <span class="grey">S:2</span><span>Skipped</span>
+                <span class="dark">C:0</span><span>Crashed</span>
+                <span class="grey-red">H:0</span><span>Hanged</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters block -->
+    <div class="filters">
+        <form id="filters">
+            <div class="form-group">
+                <label for="testTypeName"><b>Feature types</b></label>
+                <input id="testTypeName" type="text" class="form-control" oninput="filter_by_test_type()" />
+            </div>
+            <div class="form-group col-5" style="padding-left:0">
+                <label for="devices"><b>Devices</b></label>
+                <select style="width: 100% !important;" id="devices" multiple onchange="change_device(this)">
+                    {% for device in devices %}
+                        <option id="{{device}}">{{ device }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <div style="margin-bottom: 0.5rem; font-weight: bold;">Scope</div>
+                <label for="scopeType" class="switch ">
+                    <span class="mandatory">Mandatory</span>
+                    <span class="toggle_arrow">&#8596;</span>
+                    <span class="optional">Optional</span>
+                    <input type="checkbox" id="scopeType" onchange="update_data()">
+                    <span class="slider" id="scope_toggle" style="font-weight: bold; text-align: center;">Mandatory</span>
+                </label>
+            </div>
+        </form>
+    </div>
+    <!-- Results -->
+    <div style="padding: 10px;">
+        <table class="table table-hover table-bordered" id="report">
+            <thead>
+                <tr>
+                    <th class="table-dark entity">Entity</th>
+                    <th class="diagonal"><span class="th-devices">Devices</span><span class="th-sw-plugin">Plugins</span></th>
+                    {% for device in devices %}
+                        <td class="table-dark device" style="text-align: center;" data-device="{{device}}">{{ device }}</td>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="statistic">
+                <td class="table-primary" style="font-weight: bold; vertical-align: middle !important;" rowspan="{{ sw_plugins|length + 1 }}">Passrate</td>
+                {% for sw_plugin in sw_plugins %}
+                    <tr>
+                        <td>{{sw_plugin}}</td>
+                        {% for device in devices %}
+                            <td
+                                style="text-align: center;"
+                                data-device="{{device}}"
+                                data-sw_plugin="{{sw_plugin}}"
+                                id="{{device}}_{{sw_plugin}}_statistic"
+                                >
+                                &#8634;
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+            <tbody id="data">
+                {% for test_type in api_info %}
+                    <td data-test-type="{{test_type}}" class="table-primary" rowspan="{{ api_info[test_type].keys()|length + 1 }}" style="vertical-align: middle !important;">{{ test_type }}</td>
+                    {% for sw_plugin in sw_plugins %}
+                        <tr>
+                            <td data-test-type="{{test_type}}">{{sw_plugin}}</td>
+                            {% for device in devices %}
+                                {% if device in api_info[test_type][sw_plugin] %}
+                                    <td data-test-type="{{test_type}}"
+                                        data-device="{{device}}"
+                                        data-sw_plugin="{{sw_plugin}}"
+                                        style="text-align: center;"
+                                        data-passed_tests="{{api_info[test_type][sw_plugin][device]['passed']}}"
+                                        data-all_tests="{{api_info[test_type][sw_plugin][device]['test_amout']}}"
+                                        data-rel_passed_tests="{{api_info[test_type][sw_plugin][device]['relative_passed']}}"
+                                        data-rel_all_tests="{{api_info[test_type][sw_plugin][device]['relative_all']}}"
+                                        data-relative_passrate="{{api_info[test_type][sw_plugin][device]['relative_passrate']}}"
+
+                                        data-passrate="{{api_info[test_type][sw_plugin][device]['passrate']}}"
+                                        data-failed="{{api_info[test_type][sw_plugin][device]['failed']}}"
+                                        data-skipped="{{api_info[test_type][sw_plugin][device]['skipped']}}"
+                                        data-crashed="{{api_info[test_type][sw_plugin][device]['crashed']}}"
+                                        data-hanged="{{api_info[test_type][sw_plugin][device]['hanged']}}"
+
+                                        >
+                                        <span>{{api_info[test_type][sw_plugin][device]['relative_passrate']}} %</span>
+                                        <div style="width: 150px; margin: auto;">
+                                            <span class="green" title="Passed">P:{{ api_info[test_type][sw_plugin][device]['relative_passed'] }}</span>
+                                            <span class="red" title="Failed">F:{{ api_info[test_type][sw_plugin][device]['relative_all'] - api_info[test_type][sw_plugin][device]['relative_passed'] }}</span>
+                                            <span class="grey" title="Skipped" style="display: none;">---</span>
+                                            <span class="dark" title="Crashed" style="display: none;">---</span>
+                                            <span class="grey-red" title="Hanged" style="display: none;">---</span>
+                                        </div>
+                                    </td>
+                                {% else %}
+                                    <td data-test-type="{{test_type}}" data-device="{{device}}" data-sw_plugin="{{sw_plugin}}" style="text-align: center;">
+                                        <span>NOT RUN</span></td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}    
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div id="message" style="display:none">
+        There is no data related to selected filters. Please set new filters.
+    </div>
+</body>
+
+</html>

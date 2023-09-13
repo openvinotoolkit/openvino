@@ -38,7 +38,7 @@ public:
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
             for (const auto &shape : inputShapes) {
-                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+                result << ov::test::utils::partialShape2str({shape.first}) << "_";
             }
             result.seekp(-1, result.cur);
             result << ")_";
@@ -46,12 +46,12 @@ public:
         result << "TS=";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "blockShape=" << CommonTestUtils::vec2str(blockShape) << "_";
-        result << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
-        result << "padsEnd=" << CommonTestUtils::vec2str(padsEnd) << "_";
+        result << "blockShape=" << ov::test::utils::vec2str(blockShape) << "_";
+        result << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
+        result << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
@@ -90,7 +90,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> inputShapes;
         Precision netPrecision;
         CPUSpecificParams cpuParams;
@@ -106,7 +106,7 @@ protected:
         else
             selectedType = std::string("ref_any_") + netPrecision.name();
 
-        auto params = ngraph::builder::makeDynamicParams(ngPrec, {inputDynamicShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrec, inputDynamicShapes.front())};
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         paramShape = {paramOuts[0].get_partial_shape().size()};
 

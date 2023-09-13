@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Mod-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Mod-1*
 
 **Category**: *Arithmetic binary*
@@ -50,7 +54,8 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 *Example 1 - no broadcasting*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Mod">
        <data auto_broadcast="none"/>
@@ -75,7 +80,8 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 *Example 2: numpy broadcasting*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Mod">
        <data auto_broadcast="numpy"/>

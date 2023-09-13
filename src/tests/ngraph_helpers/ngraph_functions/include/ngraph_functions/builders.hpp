@@ -25,15 +25,6 @@
 namespace ngraph {
 namespace builder {
 
-ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<std::vector<size_t>> &shapes);
-
-ngraph::ParameterVector makeDynamicParams(const element::Type &type, const std::vector<ov::PartialShape> &shapes);
-
-ngraph::ParameterVector makeDynamicParams(const std::vector<element::Type>& types, const std::vector<ov::PartialShape>& shapes);
-
-ngraph::ParameterVector
-makeParams(const element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs);
-
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                    const std::vector<T> &data, bool random = false,
@@ -95,6 +86,19 @@ std::shared_ptr<ngraph::Node> makeConvolution(const ngraph::Output<Node> &in,
                                               bool addBiases = false,
                                               const std::vector<float> &filterWeights = {},
                                               const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeConvolution(const ngraph::Output<Node>& in_data,
+                                              const ngraph::Output<Node>& in_weights,
+                                              const element::Type& type,
+                                              const std::vector<size_t>& filterSize,
+                                              const std::vector<size_t>& strides,
+                                              const std::vector<ptrdiff_t>& padsBegin,
+                                              const std::vector<ptrdiff_t>& padsEnd,
+                                              const std::vector<size_t>& dilations,
+                                              const op::PadType& autoPad,
+                                              size_t numOutChannels,
+                                              bool addBiases = false,
+                                              const std::vector<float>& biasesWeights = {});
 
 std::shared_ptr<ngraph::Node> makeGroupConvolution(const ngraph::Output<Node> &in,
                                                    const element::Type &type,
@@ -517,13 +521,15 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
                                       const std::vector<int64_t>& padsBegin,
                                       const std::vector<int64_t>& padsEnd,
                                       float argPadValue,
-                                      ngraph::helpers::PadMode padMode);
+                                      ngraph::helpers::PadMode padMode,
+                                      const bool allow_negative_pad = false);
 
 std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& in,
                                   const ov::Output<Node>& beginNode,
                                   const ov::Output<Node>& endNode,
                                   const ov::Output<Node>& valueNode,
-                                  ngraph::helpers::PadMode padMode);
+                                  ngraph::helpers::PadMode padMode,
+                                  const bool allow_negative_pad = false);
 
 std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>& data,
                                                      double epsilon);

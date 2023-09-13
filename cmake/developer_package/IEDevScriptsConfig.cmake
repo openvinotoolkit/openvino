@@ -170,8 +170,6 @@ endif()
 
 include(packaging/packaging)
 
-set(CMAKE_SKIP_INSTALL_RPATH ON)
-
 if(APPLE)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
@@ -257,7 +255,7 @@ get_linux_name(LINUX_OS_NAME)
 
 # macro to mark target as conditionally compiled
 
-function(ie_mark_target_as_cc TARGET_NAME)
+function(ov_mark_target_as_cc TARGET_NAME)
     set(cc_library openvino::conditional_compilation)
     if(TARGET IE::conditional_compilation)
         set(cc_library IE::conditional_compilation)
@@ -277,8 +275,9 @@ function(ie_mark_target_as_cc TARGET_NAME)
     add_dependencies(${TARGET_NAME} conditional_compilation_gen)
 endfunction()
 
-function(ov_mark_target_as_cc)
-    ie_mark_target_as_cc(${ARGN})
+function(ie_mark_target_as_cc TARGET_NAME)
+    message(WARNING "This function is deprecated. Please use ov_mark_target_as_cc(TARGET_NAME) instead.")
+    ov_mark_target_as_cc(${TARGET_NAME})
 endfunction()
 
 include(python_requirements)

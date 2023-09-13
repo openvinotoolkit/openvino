@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ShapeOf-3 - a shape manipulation operation, which 
+                can be performed on an arbitrary input tensor.
+
 **Versioned name**: *ShapeOf-3*
 
 **Category**: *Shape manipulation*
@@ -24,7 +28,7 @@
 
 **Outputs**:
 
-*   **1**: 1D tensor that is equal to input tensor shape of type *T_IND*. Number of elements is equal to input tensor rank. Can be empty 1D tensor if input tensor is a scalar, that mean 0-dimensional tensor.
+*   **1**: 1D tensor that is equal to input tensor shape of type *T_IND*. Number of elements is equal to input tensor rank. Can be empty 1D tensor if input tensor is a scalar, that means 0-dimensional tensor.
 
 **Types**
 
@@ -34,7 +38,8 @@
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="ShapeOf">
         <data output_type="i64"/>

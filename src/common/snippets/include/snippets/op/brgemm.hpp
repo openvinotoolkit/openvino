@@ -6,6 +6,7 @@
 
 #include "openvino/op/op.hpp"
 #include "memory_access.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace snippets {
@@ -22,6 +23,9 @@ public:
     Brgemm(const Output<Node>& A, const Output<Node>& B,
            const size_t offset_a = 0lu, const size_t offset_b = 0lu, const size_t offset_c = 0lu,
            std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
+    Brgemm(const Output<Node>& A, const Output<Node>& B,
+           const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
+           std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     Brgemm() = default;
 
     size_t get_offset_a() const { return get_input_offset(0); }
@@ -34,6 +38,14 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool has_evaluate() const override { return false; }
+
+    class ShapeInfer : public IShapeInferSnippets {
+    protected:
+        std::vector<std::vector<size_t>> m_io_layouts;
+    public:
+        explicit ShapeInfer(const std::shared_ptr<Node>& n);
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+    };
 
 protected:
     ov::element::Type get_output_type() const;

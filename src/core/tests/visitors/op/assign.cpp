@@ -1,26 +1,20 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset6.hpp"
-#include "util/visitor.hpp"
+#include <gtest/gtest.h>
 
-using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "visitors/visitors.hpp"
 
 TEST(attributes, assign_v3_op) {
-    NodeBuilder::get_ops().register_factory<opset3::Assign>();
-    const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
-    const string variable_id = "v0";
-    const auto read_value = make_shared<opset3::ReadValue>(in, variable_id);
-    const auto assign = make_shared<opset3::Assign>(read_value, variable_id);
-    NodeBuilder builder(assign, {read_value});
+    ov::test::NodeBuilder::get_ops().register_factory<ov::op::v3::Assign>();
+    const auto in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    const std::string variable_id = "v0";
+    const auto read_value = std::make_shared<ov::op::v3::ReadValue>(in, variable_id);
+    const auto assign = std::make_shared<ov::op::v3::Assign>(read_value, variable_id);
+    ov::test::NodeBuilder builder(assign, {read_value});
 
     // attribute count
     const auto expected_attr_count = 1;
@@ -28,12 +22,13 @@ TEST(attributes, assign_v3_op) {
 }
 
 TEST(attributes, assign_v6_op) {
-    NodeBuilder::get_ops().register_factory<opset6::Assign>();
-    const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
-    const auto read_value = make_shared<opset6::ReadValue>(in, variable);
-    const auto assign = make_shared<opset6::Assign>(read_value, variable);
-    NodeBuilder builder(assign, {read_value});
+    ov::test::NodeBuilder::get_ops().register_factory<ov::op::v6::Assign>();
+    const auto in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    const auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, "v0"});
+    const auto read_value = std::make_shared<ov::op::v6::ReadValue>(in, variable);
+    const auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+    ov::test::NodeBuilder builder(assign, {read_value});
 
     // attribute count
     const auto expected_attr_count = 1;

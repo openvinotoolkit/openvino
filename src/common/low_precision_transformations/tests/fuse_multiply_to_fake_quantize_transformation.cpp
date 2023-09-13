@@ -13,15 +13,15 @@
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/fuse_multiply_to_fake_quantize_function.hpp"
 
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class FuseMultiplyToFakeQuantizeTransformationTestValues {
 public:
@@ -68,7 +68,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, ngraph::opset1::Multiply>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, ov::op::v1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(

@@ -23,7 +23,7 @@ TEST_F(GridSampleStaticShapeInferenceTest, GridSample) {
     output_shapes = {StaticShape{}};
     exp_shape = StaticShape{2, 3, 6, 7};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], exp_shape);
 }
 
@@ -34,6 +34,6 @@ TEST_F(GridSampleStaticShapeInferenceTest, GridSample_default_constructor) {
     output_shapes = {StaticShape{}};
     exp_shape = StaticShape{2, 3, 6, 7};
 
-    shape_infer(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], exp_shape);
 }

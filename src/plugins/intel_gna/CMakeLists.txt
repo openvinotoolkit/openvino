@@ -14,33 +14,20 @@ if (ENABLE_INTEL_GNA_DEBUG)
     add_compile_definitions(GNA_DEBUG)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCC)
-    ie_add_compiler_flags(-Wno-sign-compare)
-    ie_add_compiler_flags(-Wno-parentheses)
-    ie_add_compiler_flags(-Wno-comment)
-    ie_add_compiler_flags(-Wno-int-in-bool-context)
-elseif(OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-int-in-bool-context)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4244)
-    # '<': signed/unsigned mismatch
-    ie_add_compiler_flags(/wd4018)
-    ie_add_compiler_flags(/wd4099)
-    ie_add_compiler_flags(/wd4200)
-    # C4661: no suitable definition provided for explicit template instantiation request
-    ie_add_compiler_flags(/wd4661)
-    # C4297: function assumed not to throw an exception but does
-    ie_add_compiler_flags(/wd4297)
-endif()
-
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 file(GLOB_RECURSE HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+
+# build avx2.cpp with AVX2 support, only for Windows
+if(ENABLE_AVX2 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_avx2_optimization_flags(avx2_flags)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/pre_post_process/hw_accelerated_converter_avx2.cpp PROPERTIES COMPILE_OPTIONS "${avx2_flags}")
+    add_compile_definitions(HAVE_AVX2=1)
+endif()
+
 
 find_package(libGNA REQUIRED
              CONFIG
@@ -59,7 +46,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy
         Threads::Threads libGNA)

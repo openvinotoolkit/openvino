@@ -18,6 +18,7 @@
 #include "transformations/transpose_sinking/ts_interpolate.hpp"
 #include "transformations/transpose_sinking/ts_reduction.hpp"
 #include "transformations/transpose_sinking/ts_reset_no_sinking_attribute.hpp"
+#include "transformations/transpose_sinking/ts_shape_of.hpp"
 #include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/transpose_sinking/ts_split.hpp"
 #include "transformations/transpose_sinking/ts_squeeze.hpp"
@@ -40,6 +41,7 @@ TSGeneralForward::TSGeneralForward() {
     add_matcher<TSInterpolateForward>();
     add_matcher<TSSliceForward>();
     add_matcher<TSGatherForward>();
+    add_matcher<TSShapeOfForward>();
     add_matcher<TSFuse>();
 }
 

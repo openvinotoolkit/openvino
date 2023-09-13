@@ -77,7 +77,6 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::string temp_device;
     std::tie(temp_device, properties) = this->GetParam();
-    APIBaseTest::SetUp();
 
     std::string::size_type pos = temp_device.find(":", 0);
     std::string hw_device;
@@ -89,15 +88,17 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
         hw_device = temp_device.substr(++pos, std::string::npos);
     }
 
-    if (target_device == std::string(CommonTestUtils::DEVICE_MULTI) ||
-        target_device == std::string(CommonTestUtils::DEVICE_AUTO) ||
-        target_device == std::string(CommonTestUtils::DEVICE_HETERO)) {
+    if (target_device == std::string(ov::test::utils::DEVICE_MULTI) ||
+        target_device == std::string(ov::test::utils::DEVICE_AUTO) ||
+        target_device == std::string(ov::test::utils::DEVICE_HETERO)) {
         compileModelProperties = { ov::device::priorities(hw_device) };
-    } else if (target_device == std::string(CommonTestUtils::DEVICE_BATCH)) {
+    } else if (target_device == std::string(ov::test::utils::DEVICE_BATCH)) {
         compileModelProperties = {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , hw_device}};
     }
 
     model = ngraph::builder::subgraph::makeSplitConcat();
+
+    APIBaseTest::SetUp();
 }
 
 void OVPropertiesTestsWithCompileModelProps::TearDown() {
@@ -221,6 +222,7 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROOptionalPro
     std::vector<ov::AnyMap> res;
     res.push_back({{ov::PropertyName(ov::loaded_from_cache.name(), ov::loaded_from_cache.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::uuid.name(), ov::device::uuid.mutability), nullptr}});
+    res.push_back({{ov::PropertyName(ov::device::luid.name(), ov::device::luid.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::gops.name(), ov::device::gops.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::thermal.name(), ov::device::thermal.mutability), nullptr}});
 
@@ -447,6 +449,43 @@ TEST_P(OVClassSetDefaultDeviceIDPropTest, SetDefaultDeviceIDNoThrow) {
     ASSERT_TRUE(ie.get_property(target_device, ov::enable_profiling));
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::enable_profiling.name()).as<std::string>());
     ASSERT_EQ(value, "YES");
+}
+
+TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::Any p;
+
+    std::string deviceID, clear_target_device;
+    auto pos = target_device.find('.');
+    if (pos != std::string::npos) {
+        clear_target_device = target_device.substr(0, pos);
+        deviceID =  target_device.substr(pos + 1,  target_device.size());
+    }
+    auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
+    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+        GTEST_FAIL() << "No DeviceID" << std::endl;
+    }
+    auto device_name = [&clear_target_device] (const std::string& id) {
+        return clear_target_device + "." + id;
+    };
+    // Set default device id to target device
+    OV_ASSERT_NO_THROW(ie.set_property(clear_target_device, ov::device::id(deviceID)));
+    // Set num_streams to AUTO for clear device name
+    OV_ASSERT_NO_THROW(ie.set_property(clear_target_device, ov::num_streams(ov::streams::AUTO)));
+    ASSERT_EQ(ie.get_property(clear_target_device, ov::num_streams), ov::streams::AUTO);
+    // Check if it is applied for all devices
+    for (auto& id : deviceIDs) {
+        ASSERT_EQ(ie.get_property(device_name(id), ov::num_streams),  ov::streams::AUTO);
+    }
+    for (auto& id : deviceIDs) {
+        // Set different properties for different devices
+        OV_ASSERT_NO_THROW(ie.set_property(device_name(id), ov::num_streams(std::stoi(id))));
+        ASSERT_EQ(ie.get_property(device_name(id), ov::num_streams), std::stoi(id));
+    }
+    // Check if default device id is still the same
+    ASSERT_EQ(ie.get_property(clear_target_device, ov::device::id), deviceID);
+    // Check if default property is still equal property to default device
+    ASSERT_EQ(ie.get_property(clear_target_device, ov::num_streams), std::stoi(deviceID));
 }
 
 TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {

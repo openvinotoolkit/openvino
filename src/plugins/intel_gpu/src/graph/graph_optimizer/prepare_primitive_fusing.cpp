@@ -466,6 +466,11 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->output_paddings[0],
                                                                        desc->input_size);
 
+            if (desc->compressed_weights) {
+                fc_with_bias_prim->compressed_weights = true;
+                fc_with_bias_prim->decompression_scale = desc->decompression_scale;
+                fc_with_bias_prim->decompression_zero_point = desc->decompression_zero_point;
+            }
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);
         }
@@ -494,7 +499,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (_lo.get_optimization_attributes().use_onednn_impls == 1)
                 return true;
 
-            if (node.get_output_layout().is_dynamic()) {
+            if (node.get_output_layout().is_dynamic() || node.get_input_layout().is_dynamic()) {
                 return true;
             }
 
@@ -826,11 +831,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (input_data.in_shape_of_subgraph || node->in_shape_of_subgraph)
                 return;
 
-            auto& input_lo = quantize_node.get_dependency(1);
-            auto& input_hi = quantize_node.get_dependency(2);
-
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
+            if (in_layout.is_dynamic() || out_layout.is_dynamic())
+                return;
+
             auto out_dt = out_layout.data_type;
             auto in_dt = input_data.get_input_layout(0).data_type;
             auto out_dt_is_i8_u8 = data_type_traits::is_i8_u8(out_dt);
@@ -844,6 +849,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                      quantize_node.get_per_tensor_output_shift() &&
                                      quantize_node.get_per_tensor_output_range();
 
+            auto& input_lo = quantize_node.get_dependency(1);
+            auto& input_hi = quantize_node.get_dependency(2);
             bool should_fuse = input_data.is_type<binary_convolution>() &&
                                ((out_dt == data_types::bin &&
                                quantize_node.get_dependencies().size() == 5 &&

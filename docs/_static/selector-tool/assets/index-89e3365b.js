@@ -1,1 +1,0 @@
-const e=document.getElementById("selector");if(!e)throw new Error("cannot find selector document");window.addEventListener("message",i=>{e.style.height=i.data.height+"px"});var o,n;const t=(n=(o=e.contentDocument)==null?void 0:o.body)==null?void 0:n.offsetHeight;t&&(e.style.height=`${t}px`);

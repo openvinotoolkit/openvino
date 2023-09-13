@@ -17,54 +17,54 @@ namespace {
 using Configs = std::vector<std::pair<std::string, ov::AnyMap>>;
 
 auto configs = []() {
-    return std::vector<Configs>{{{CommonTestUtils::DEVICE_GPU, {}}, {CommonTestUtils::DEVICE_GPU, {}}}};
+    return std::vector<Configs>{{{ov::test::utils::DEVICE_GPU, {}}, {ov::test::utils::DEVICE_GPU, {}}}};
 };
 
 auto AutoConfigs = []() {
-    return std::vector<Configs>{{{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_GPU,
+    return std::vector<Configs>{{{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_GPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}},
-                                 {CommonTestUtils::DEVICE_GPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_GPU,
+                                 {ov::test::utils::DEVICE_GPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_GPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_GPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_GPU,
+                                 {ov::test::utils::DEVICE_GPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_GPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_GPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_GPU + "," +
-                                      CommonTestUtils::DEVICE_CPU,
+                                 {ov::test::utils::DEVICE_GPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_GPU + "," +
+                                      ov::test::utils::DEVICE_CPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}},
-                                 {CommonTestUtils::DEVICE_GPU, {}},
-                                 {CommonTestUtils::DEVICE_CPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_GPU + "," +
-                                      CommonTestUtils::DEVICE_CPU,
+                                 {ov::test::utils::DEVICE_GPU, {}},
+                                 {ov::test::utils::DEVICE_CPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_GPU + "," +
+                                      ov::test::utils::DEVICE_CPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_GPU, {}},
-                                 {CommonTestUtils::DEVICE_CPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_GPU + "," +
-                                      CommonTestUtils::DEVICE_CPU,
+                                 {ov::test::utils::DEVICE_GPU, {}},
+                                 {ov::test::utils::DEVICE_CPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_GPU + "," +
+                                      ov::test::utils::DEVICE_CPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_GPU, {}},
-                                 {CommonTestUtils::DEVICE_CPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU + "," +
-                                      CommonTestUtils::DEVICE_GPU,
+                                 {ov::test::utils::DEVICE_GPU, {}},
+                                 {ov::test::utils::DEVICE_CPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_CPU + "," +
+                                      ov::test::utils::DEVICE_GPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_CPU, {}},
-                                 {CommonTestUtils::DEVICE_GPU, {}}}};
+                                 {ov::test::utils::DEVICE_CPU, {}},
+                                 {ov::test::utils::DEVICE_GPU, {}}}};
 };
 
 auto AutoBindConfigs = []() {
-    return std::vector<Configs>{{{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_GPU + "," +
-                                      CommonTestUtils::DEVICE_CPU,
+    return std::vector<Configs>{{{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_GPU + "," +
+                                      ov::test::utils::DEVICE_CPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
                                    ov::intel_auto::device_bind_buffer(true)}},
-                                 {CommonTestUtils::DEVICE_GPU, {}},
-                                 {CommonTestUtils::DEVICE_CPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU + "," +
-                                      CommonTestUtils::DEVICE_GPU,
+                                 {ov::test::utils::DEVICE_GPU, {}},
+                                 {ov::test::utils::DEVICE_CPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_CPU + "," +
+                                      ov::test::utils::DEVICE_GPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
                                    ov::intel_auto::device_bind_buffer(true)}},
-                                 {CommonTestUtils::DEVICE_CPU, {}},
-                                 {CommonTestUtils::DEVICE_GPU, {}}}};
+                                 {ov::test::utils::DEVICE_CPU, {}},
+                                 {ov::test::utils::DEVICE_GPU, {}}}};
 };
 
 INSTANTIATE_TEST_SUITE_P(BehaviorTests, OVInferConsistencyTest,

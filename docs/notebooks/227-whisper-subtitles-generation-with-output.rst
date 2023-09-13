@@ -1,6 +1,8 @@
 Video Subtitle Generation using Whisper and OpenVINO™
 =====================================================
 
+
+
 `Whisper <https://openai.com/blog/whisper/>`__ is an automatic speech
 recognition (ASR) system trained on 680,000 hours of multilingual and
 multitask supervised data collected from the web. It is a multi-task
@@ -21,30 +23,50 @@ GitHub `repository <https://github.com/openai/whisper>`__.
 In this notebook, we will use Whisper with OpenVINO to generate
 subtitles in a sample video. Notebook contains the following steps: 1.
 Download the model. 2. Instantiate the PyTorch model pipeline. 3. Export
-the ONNX model and convert it to OpenVINO IR, using the Model Optimizer
-tool. 4. Run the Whisper pipeline with OpenVINO models.
+the ONNX model and convert it to OpenVINO IR, using model conversion
+API. 4. Run the Whisper pipeline with OpenVINO models.
 
-Prerequisites
--------------
+.. _top:
+
+**Table of contents**:
+
+- `Prerequisites <#prerequisites>`__
+- `Instantiate model <#instantiate-model>`__
+
+  - `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+  - `Convert Whisper Encoder to OpenVINO IR <#convert-whisper-encoder-to-openvino-ir>`__
+  - `Convert Whisper decoder to OpenVINO IR <#5convert-whisper-decoder-to-openvino-ir>`__
+
+- `Prepare inference pipeline <#prepare-inference-pipeline>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+    - `Define audio preprocessing <#define-audio-preprocessing>`__
+
+- `Run video transcription pipeline <#run-video-transcription-pipeline>`__
+
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 Clone and install the model repository.
 
 .. code:: ipython3
 
-    !pip install -q "python-ffmpeg<=1.0.16" moviepy
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q "python-ffmpeg<=1.0.16" moviepy transformers onnx
+    !pip install -q -I "git+https://github.com/garywu007/pytube.git"
 
 
 .. parsed-literal::
 
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    paddlepaddle 2.5.0rc0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
-    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.7.0.72 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.76 which is incompatible.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
-
-.. code:: ipython3
-
-    !pip install -q -I "git+https://github.com/garywu007/pytube.git"
 
 .. code:: ipython3
 
@@ -53,19 +75,18 @@ Clone and install the model repository.
     REPO_DIR = Path("whisper")
     if not REPO_DIR.exists():
         !git clone https://github.com/openai/whisper.git -b v20230124
-    %cd whisper
-    !python setup.py develop
+    !cd whisper && pip install .
 
 
 .. parsed-literal::
 
     Cloning into 'whisper'...
-    remote: Enumerating objects: 576, done.[K
-    remote: Counting objects: 100% (282/282), done.[K
-    remote: Compressing objects: 100% (48/48), done.[K
-    remote: Total 576 (delta 256), reused 234 (delta 234), pack-reused 294[K
-    Receiving objects: 100% (576/576), 8.23 MiB | 4.31 MiB/s, done.
-    Resolving deltas: 100% (343/343), done.
+    remote: Enumerating objects: 589, done.[K
+    remote: Counting objects: 100% (367/367), done.[K
+    remote: Compressing objects: 100% (82/82), done.[K
+    remote: Total 589 (delta 320), reused 288 (delta 285), pack-reused 222[K
+    Receiving objects: 100% (589/589), 8.14 MiB | 4.18 MiB/s, done.
+    Resolving deltas: 100% (357/357), done.
     Note: switching to '55f690af7914c672c69733b7e04ef5a41b2b2774'.
     
     You are in 'detached HEAD' state. You can look around, make experimental
@@ -83,192 +104,53 @@ Clone and install the model repository.
     
     Turn off this advice by setting config variable advice.detachedHead to false
     
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/227-whisper-subtitles-generation/whisper
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/setuptools/_distutils/dist.py:265: UserWarning: Unknown distribution option: 'readme'
-      warnings.warn(msg)
-    running develop
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/setuptools/command/develop.py:40: EasyInstallDeprecationWarning: easy_install command is deprecated.
-    !!
-    
-            ********************************************************************************
-            Please avoid running ``setup.py`` and ``easy_install``.
-            Instead, use pypa/build, pypa/installer, pypa/build or
-            other standards-based tools.
-    
-            See https://github.com/pypa/setuptools/issues/917 for details.
-            ********************************************************************************
-    
-    !!
-      easy_install.initialize_options(self)
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/setuptools/_distutils/cmd.py:66: SetuptoolsDeprecationWarning: setup.py install is deprecated.
-    !!
-    
-            ********************************************************************************
-            Please avoid running ``setup.py`` directly.
-            Instead, use pypa/build, pypa/installer, pypa/build or
-            other standards-based tools.
-    
-            See https://blog.ganssle.io/articles/2021/10/setup-py-deprecated.html for details.
-            ********************************************************************************
-    
-    !!
-      self.initialize_options()
-    running egg_info
-    creating openai_whisper.egg-info
-    writing openai_whisper.egg-info/PKG-INFO
-    writing dependency_links to openai_whisper.egg-info/dependency_links.txt
-    writing entry points to openai_whisper.egg-info/entry_points.txt
-    writing requirements to openai_whisper.egg-info/requires.txt
-    writing top-level names to openai_whisper.egg-info/top_level.txt
-    writing manifest file 'openai_whisper.egg-info/SOURCES.txt'
-    file whisper.py (for module whisper) not found
-    reading manifest file 'openai_whisper.egg-info/SOURCES.txt'
-    reading manifest template 'MANIFEST.in'
-    adding license file 'LICENSE'
-    writing manifest file 'openai_whisper.egg-info/SOURCES.txt'
-    running build_ext
-    Creating /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openai-whisper.egg-link (link to .)
-    Adding openai-whisper 20230124 to easy-install.pth file
-    Installing whisper script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Installed /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/227-whisper-subtitles-generation/whisper
-    Processing dependencies for openai-whisper==20230124
-    Searching for ffmpeg-python==0.2.0
-    Reading https://pypi.org/simple/ffmpeg-python/
-    Downloading https://files.pythonhosted.org/packages/d7/0c/56be52741f75bad4dc6555991fabd2e07b432d333da82c11ad701123888a/ffmpeg_python-0.2.0-py3-none-any.whl#sha256=ac441a0404e053f8b6a1113a77c0f452f1cfc62f6344a769475ffdc0f56c23c5
-    Best match: ffmpeg-python 0.2.0
-    Processing ffmpeg_python-0.2.0-py3-none-any.whl
-    Installing ffmpeg_python-0.2.0-py3-none-any.whl to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Adding ffmpeg-python 0.2.0 to easy-install.pth file
-    
-    Installed /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/ffmpeg_python-0.2.0-py3.8.egg
-    Searching for more-itertools
-    Reading https://pypi.org/simple/more-itertools/
-    Downloading https://files.pythonhosted.org/packages/85/01/e2678ee4e0d7eed4fd6be9e5b043fff9d22d245d06c8c91def8ced664189/more_itertools-9.1.0-py3-none-any.whl#sha256=d2bc7f02446e86a68911e58ded76d6561eea00cddfb2a91e7019bbb586c799f3
-    Best match: more-itertools 9.1.0
-    Processing more_itertools-9.1.0-py3-none-any.whl
-    Installing more_itertools-9.1.0-py3-none-any.whl to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Adding more-itertools 9.1.0 to easy-install.pth file
-    detected new path './ffmpeg_python-0.2.0-py3.8.egg'
-    
-    Installed /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/more_itertools-9.1.0-py3.8.egg
-    Searching for transformers==4.29.2
-    Best match: transformers 4.29.2
-    Adding transformers 4.29.2 to easy-install.pth file
-    detected new path './more_itertools-9.1.0-py3.8.egg'
-    Installing transformers-cli script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for tqdm==4.65.0
-    Best match: tqdm 4.65.0
-    Adding tqdm 4.65.0 to easy-install.pth file
-    Installing tqdm script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for torch==1.13.1+cpu
-    Best match: torch 1.13.1+cpu
-    Adding torch 1.13.1+cpu to easy-install.pth file
-    Installing convert-caffe2-to-onnx script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing convert-onnx-to-caffe2 script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing torchrun script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for numpy==1.23.4
-    Best match: numpy 1.23.4
-    Adding numpy 1.23.4 to easy-install.pth file
-    Installing f2py script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing f2py3 script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing f2py3.8 script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for future==0.18.3
-    Best match: future 0.18.3
-    Adding future 0.18.3 to easy-install.pth file
-    Installing futurize script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing pasteurize script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for tokenizers==0.13.3
-    Best match: tokenizers 0.13.3
-    Adding tokenizers 0.13.3 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for requests==2.31.0
-    Best match: requests 2.31.0
-    Adding requests 2.31.0 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for regex==2023.5.5
-    Best match: regex 2023.5.5
-    Adding regex 2023.5.5 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for PyYAML==6.0
-    Best match: PyYAML 6.0
-    Adding PyYAML 6.0 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for packaging==23.1
-    Best match: packaging 23.1
-    Adding packaging 23.1 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for huggingface-hub==0.14.1
-    Best match: huggingface-hub 0.14.1
-    Adding huggingface-hub 0.14.1 to easy-install.pth file
-    Installing huggingface-cli script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for filelock==3.12.0
-    Best match: filelock 3.12.0
-    Adding filelock 3.12.0 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for typing-extensions==4.6.2
-    Best match: typing-extensions 4.6.2
-    Adding typing-extensions 4.6.2 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for certifi==2023.5.7
-    Best match: certifi 2023.5.7
-    Adding certifi 2023.5.7 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for urllib3==1.26.16
-    Best match: urllib3 1.26.16
-    Adding urllib3 1.26.16 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for idna==3.4
-    Best match: idna 3.4
-    Adding idna 3.4 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for charset-normalizer==3.1.0
-    Best match: charset-normalizer 3.1.0
-    Adding charset-normalizer 3.1.0 to easy-install.pth file
-    Installing normalizer script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for fsspec==2023.5.0
-    Best match: fsspec 2023.5.0
-    Adding fsspec 2023.5.0 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Finished processing dependencies for openai-whisper==20230124
+    Processing /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/227-whisper-subtitles-generation/whisper
+      Preparing metadata (setup.py) ... - done
+    Requirement already satisfied: numpy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (1.23.5)
+    Requirement already satisfied: torch in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (1.13.1+cpu)
+    Requirement already satisfied: tqdm in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (4.66.1)
+    Collecting more-itertools (from openai-whisper==20230124)
+      Obtaining dependency information for more-itertools from https://files.pythonhosted.org/packages/5a/cb/6dce742ea14e47d6f565589e859ad225f2a5de576d7696e0623b784e226b/more_itertools-10.1.0-py3-none-any.whl.metadata
+      Using cached more_itertools-10.1.0-py3-none-any.whl.metadata (33 kB)
+    Requirement already satisfied: transformers>=4.19.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (4.31.0)
+    Collecting ffmpeg-python==0.2.0 (from openai-whisper==20230124)
+      Using cached ffmpeg_python-0.2.0-py3-none-any.whl (25 kB)
+    Requirement already satisfied: future in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ffmpeg-python==0.2.0->openai-whisper==20230124) (0.18.3)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (3.12.2)
+    Requirement already satisfied: huggingface-hub<1.0,>=0.14.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (0.16.4)
+    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (23.1)
+    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (6.0.1)
+    Requirement already satisfied: regex!=2019.12.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (2023.8.8)
+    Requirement already satisfied: requests in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (2.31.0)
+    Requirement already satisfied: tokenizers!=0.11.3,<0.14,>=0.11.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (0.13.3)
+    Requirement already satisfied: safetensors>=0.3.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (0.3.2)
+    Requirement already satisfied: typing-extensions in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch->openai-whisper==20230124) (4.7.1)
+    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.19.0->openai-whisper==20230124) (2023.6.0)
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (3.2.0)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (3.4)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (1.26.16)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (2023.7.22)
+    Using cached more_itertools-10.1.0-py3-none-any.whl (55 kB)
+    Building wheels for collected packages: openai-whisper
+      Building wheel for openai-whisper (setup.py) ... - \ | done
+      Created wheel for openai-whisper: filename=openai_whisper-20230124-py3-none-any.whl size=1179305 sha256=4fcfbe9ab46c8d5e7a7fa0c52e896e59bdbc043a743c686acc001c6ed8dc5e65
+      Stored in directory: /tmp/pip-ephem-wheel-cache-5a4nqoja/wheels/0c/9d/b6/d90fb003a36a5e4026f7e998e937791cc6a6c6e9abea61d48d
+    Successfully built openai-whisper
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Installing collected packages: more-itertools, ffmpeg-python, openai-whisper
+    Successfully installed ffmpeg-python-0.2.0 more-itertools-10.1.0 openai-whisper-20230124
 
 
-Instantiate model
------------------
+Instantiate model `⇑ <#top>`__
+###############################################################################################################################
 
-Whisper is a Transformer based encoder-decoder model, also referred to
-as a sequence-to-sequence model. It maps a sequence of audio spectrogram
-features to a sequence of text tokens. First, the raw audio inputs are
-converted to a log-Mel spectrogram by action of the feature extractor.
-Then, the Transformer encoder encodes the spectrogram to form a sequence
-of encoder hidden states. Finally, the decoder autoregressively predicts
-text tokens, conditional on both the previous tokens and the encoder
-hidden states.
+Whisper is a Transformer based encoder-decoder model, also referred to as a sequence-to-sequence model.
+It maps a sequence of audio spectrogram features to a sequence of text
+tokens. First, the raw audio inputs are converted to a log-Mel
+spectrogram by action of the feature extractor. Then, the Transformer
+encoder encodes the spectrogram to form a sequence of encoder hidden
+states. Finally, the decoder autoregressively predicts text tokens,
+conditional on both the previous tokens and the encoder hidden states.
 
 You can see the model architecture in the diagram below:
 
@@ -291,8 +173,8 @@ Whisper family.
     model.eval()
     pass
 
-Convert model to OpenVINO Intermediate Representation (IR) format.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert model to OpenVINO Intermediate Representation (IR) format. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
@@ -304,8 +186,9 @@ Python function returns an OpenVINO model ready to load on device and
 start making predictions. We can save it on disk for next usage with
 ``openvino.runtime.serialize``.
 
-Convert Whisper Encoder to OpenVINO IR
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert Whisper Encoder to OpenVINO IR `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -328,12 +211,13 @@ Convert Whisper Encoder to OpenVINO IR
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/227-whisper-subtitles-generation/whisper/whisper/model.py:153: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/whisper/model.py:153: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[1:] == self.positional_embedding.shape, "incorrect audio shape"
 
 
-Convert Whisper decoder to OpenVINO IR
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert Whisper decoder to OpenVINO IR `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 To reduce computational complexity, the decoder uses cached key/value
 projections in attention modules from the previous steps. We need to
@@ -507,7 +391,7 @@ modify this process for correct tracing to ONNX.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_2580215/1737529362.py:18: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /tmp/ipykernel_2070841/1737529362.py:18: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if module not in cache or output.shape[1] > positional_embeddings_size:
 
 
@@ -520,24 +404,19 @@ input shapes.
 
 .. code:: ipython3
 
-    input_shapes = "tokens[1..5 1..224],audio_features[1..5 1500 512]"
+    input_shapes = "tokens[1..5 -1],audio_features[1..5 1500 512]"
     for k, v in kv_cache.items():
         if k.endswith('a'):
-            input_shapes += f",in_{k}[1..5 0..224 512]"
+            input_shapes += f",in_{k}[1..5 -1 512]"
     decoder_model = mo.convert_model(
         input_model="whisper_decoder.onnx",
         compress_to_fp16=True,
         input=input_shapes)
     serialize(decoder_model, "whisper_decoder.xml")
 
+Prepare inference pipeline `⇑ <#top>`__
+###############################################################################################################################
 
-.. parsed-literal::
-
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
-
-
-Prepare inference pipeline
---------------------------
 
 The image below illustrates the pipeline of video transcribing using the
 Whisper model.
@@ -770,14 +649,44 @@ original models with OpenVINO IR versions.
 
 .. code:: ipython3
 
+    core = Core()
+
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     from collections import namedtuple
     
     Parameter = namedtuple('Parameter', ['device'])
     
-    core = Core()
-    
-    model.encoder = OpenVINOAudioEncoder(core, 'whisper_encoder.xml')
-    model.decoder = OpenVINOTextDecoder(core, 'whisper_decoder.xml')
+    model.encoder = OpenVINOAudioEncoder(core, 'whisper_encoder.xml', device=device.value)
+    model.decoder = OpenVINOTextDecoder(core, 'whisper_decoder.xml', device=device.value)
     model.decode = partial(decode, model)
     
     
@@ -802,8 +711,9 @@ original models with OpenVINO IR versions.
     
     model.logits = partial(logits, model)
 
-Define audio preprocessing
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Define audio preprocessing `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 The model expects mono-channel audio with a 16000 Hz sample rate,
 represented in floating point range. When the audio from the input video
@@ -869,8 +779,9 @@ does not meet these requirements, we will need to apply preprocessing.
         resampled_audio = resample(audio, sample_rate, 16000)
         return resampled_audio
 
-Run video transcription pipeline
---------------------------------
+Run video transcription pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 Now, we are ready to start transcription. We select a video from YouTube
 that we want to transcribe. Be patient, as downloading the video may
@@ -918,10 +829,12 @@ take some time.
 
     audio = get_audio(output_file)
 
-Select the task for the model: \* **transcribe** - generate audio
-transcription in the source language (automatically detected). \*
-**translate** - generate audio transcription with translation to English
-language.
+Select the task for the model:
+
+-  **transcribe** - generate audio transcription in the source language
+   (automatically detected).
+-  **translate** - generate audio transcription with translation to
+   English language.
 
 .. code:: ipython3
 

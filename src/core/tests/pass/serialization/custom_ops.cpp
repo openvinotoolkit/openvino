@@ -3,12 +3,13 @@
 //
 
 #include <gtest/gtest.h>
-#include <ie_iextension.h>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph/pass/serialize.hpp"
+#include "common_test_utils/graph_comparator.hpp"
+#include "ie_iextension.h"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 
 class CustomOpsSerializationTest : public ::testing::Test {
@@ -17,7 +18,7 @@ protected:
     std::string m_out_bin_path;
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }
@@ -29,30 +30,28 @@ protected:
     }
 };
 
-class FrameworkNodeExtension : public InferenceEngine::IExtension {
+class TemplateOpExtension : public ov::op::Op {
 public:
-    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
-        static InferenceEngine::Version ExtensionDescription = {{1, 0}, "1.0", "framework_node_ext"};
+    OPENVINO_OP("Template", "custom_opset");
+    TemplateOpExtension() = default;
 
-        versionInfo = &ExtensionDescription;
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        return true;
     }
 
-    std::map<std::string, ngraph::OpSet> getOpSets() override {
-        static std::map<std::string, ngraph::OpSet> opsets;
-        if (opsets.empty()) {
-            ngraph::OpSet opset;
-            opset.insert<ov::op::util::FrameworkNode>();
-            opsets["util"] = opset;
-        }
-        return opsets;
+    void validate_and_infer_types() override {
+        set_output_size(1);
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
     }
 
-    void Unload() noexcept override {}
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return nullptr;
+    }
 };
 
 TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     const std::string model = R"V0G0N(
-<net name="Network" version="10">
+<net name="Network" version="11">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data element_type="f32" shape="2,2,2,1"/>
@@ -66,9 +65,8 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
             </output>
         </layer>
         <layer name="operation" id="1" type="Template" version="custom_opset">
-            <data num_bodies="0" add="11"/>
             <input>
-                <port id="1" precision="FP32">
+                <port id="0" precision="FP32">
                     <dim>2</dim>
                     <dim>2</dim>
                     <dim>2</dim>
@@ -76,7 +74,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
                 </port>
             </input>
             <output>
-                <port id="2" precision="FP32">
+                <port id="1" precision="FP32">
                     <dim>2</dim>
                     <dim>2</dim>
                     <dim>2</dim>
@@ -96,21 +94,18 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
         </layer>
     </layers>
     <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
     </edges>
 </net>
 )V0G0N";
 
     ov::Core core;
-    auto extension = std::make_shared<FrameworkNodeExtension>();
+    auto extension = std::make_shared<ov::OpExtension<TemplateOpExtension>>();
     core.add_extension(extension);
     auto expected = core.read_model(model, ov::Tensor());
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(m_out_xml_path,
-                                               m_out_bin_path,
-                                               extension->getOpSets(),
-                                               ov::pass::Serialize::Version::IR_V10);
+    manager.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path, ov::pass::Serialize::Version::IR_V11);
     manager.run_passes(expected);
     auto result = core.read_model(m_out_xml_path, m_out_bin_path);
 

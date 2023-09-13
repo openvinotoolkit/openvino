@@ -5,8 +5,8 @@
 set(TARGET_NAME snippetsNgraphFunctions)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(SNIPPETS_INCLUDES "$<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include")
-set(COMMON_TEST_UTILS_INCLUDES "$<TARGET_PROPERTY:commonTestUtils,INTERFACE_INCLUDE_DIRECTORIES>")
+set(SNIPPETS_INCLUDES "$<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include")
+set(COMMON_TEST_UTILS_INCLUDES "$<TARGET_PROPERTY:common_test_utils,INTERFACE_INCLUDE_DIRECTORIES>")
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -23,8 +23,8 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 openvino::runtime::dev
-                commonTestUtils
-                inference_engine_snippets
+                common_test_utils
+                openvino::snippets
                 lptNgraphFunctions
         ADD_CPPLINT
         DEVELOPER_PACKAGE

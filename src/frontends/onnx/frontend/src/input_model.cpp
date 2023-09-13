@@ -16,23 +16,30 @@ using namespace ov::frontend::onnx;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-InputModel::InputModel(const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+InputModel::InputModel(const std::wstring& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 #endif
 
-InputModel::InputModel(std::istream& model_stream, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", std::move(extensions))} {}
+InputModel::InputModel(std::istream& model_stream, const bool enable_mmap, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
 
-InputModel::InputModel(std::istream& model_stream, const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, std::move(extensions))} {}
+InputModel::InputModel(std::istream& model_stream,
+                       const std::string& path,
+                       const bool enable_mmap,
+                       frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {
+}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModel::InputModel(std::istream& model_stream, const std::wstring& path, frontend::ExtensionHolder extensions)
-    : InputModel(model_stream, ov::util::wstring_to_string(path), std::move(extensions)) {}
+InputModel::InputModel(std::istream& model_stream,
+                       const std::wstring& path,
+                       const bool enable_mmap,
+                       frontend::ExtensionHolder extensions)
+    : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
 #endif
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {

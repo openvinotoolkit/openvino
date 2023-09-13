@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to integrate a deep learning inference in a G-API 
+                 graph that can be run on a video stream to obtain data.
+
+
 Overview
 ########
 
@@ -19,9 +24,9 @@ This sample requires:
 * OpenCV 4.2 or higher built with `Intel® Distribution of OpenVINO™ Toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__ (building with `Intel® TBB <https://www.threadingbuildingblocks.org/intel-tbb-tutorial>`__ is a plus)
 * The following pre-trained models from the :doc:`Open Model Zoo <omz_models_group_intel>`
 
-  * `face-detection-adas-0001 <https://docs.openvino.ai/2023.0/omz_models_model_face_detection_adas_0001.html#doxid-omz-models-model-face-detection-adas-0001>`__
-  * `age-gender-recognition-retail-0013 <https://docs.openvino.ai/2023.0/omz_models_model_age_gender_recognition_retail_0013.html#doxid-omz-models-model-age-gender-recognition-retail-0013>`__
-  * `emotions-recognition-retail-0003 <https://docs.openvino.ai/2023.0/omz_models_model_emotions_recognition_retail_0003.html#doxid-omz-models-model-emotions-recognition-retail-0003>`__
+  * `face-detection-adas-0001 <https://docs.openvino.ai/2023.1/omz_models_model_face_detection_adas_0001.html#doxid-omz-models-model-face-detection-adas-0001>`__
+  * `age-gender-recognition-retail-0013 <https://docs.openvino.ai/2023.1/omz_models_model_age_gender_recognition_retail_0013.html#doxid-omz-models-model-age-gender-recognition-retail-0013>`__
+  * `emotions-recognition-retail-0003 <https://docs.openvino.ai/2023.1/omz_models_model_emotions_recognition_retail_0003.html#doxid-omz-models-model-emotions-recognition-retail-0003>`__
 
 To download the models from the Open Model Zoo, use the :doc:`Model Downloader <omz_tools_downloader>` tool.
 
@@ -37,7 +42,7 @@ Starting with version 4.2, OpenCV offers a solution to this problem. OpenCV G-AP
 Pipeline Overview
 #################
 
-Our sample application is based on `Interactive Face Detection <https://docs.openvino.ai/2023.0/omz_demos_interactive_face_detection_demo_cpp.html#doxid-omz-demos-interactive-face-detection-demo-cpp>`__ demo from Open Model Zoo. A simplified pipeline consists of the following steps:
+Our sample application is based on `Interactive Face Detection <https://docs.openvino.ai/2023.1/omz_demos_interactive_face_detection_demo_cpp.html#doxid-omz-demos-interactive-face-detection-demo-cpp>`__ demo from Open Model Zoo. A simplified pipeline consists of the following steps:
 
 1. Image acquisition and decode
 2. Detection with preprocessing

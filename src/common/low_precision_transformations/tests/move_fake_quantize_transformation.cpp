@@ -15,7 +15,7 @@
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/move_fake_quantize.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
@@ -25,8 +25,8 @@
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 namespace {
 
@@ -58,7 +58,7 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
     ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
-    ngraph::element::Type precisionAfterOperation;
+    ov::element::Type precisionAfterOperation;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransformationResultValues& values) {
@@ -97,14 +97,14 @@ inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransfo
 }
 
 typedef std::
-    tuple<ngraph::element::Type, std::vector<ngraph::PartialShape>, MoveFakeQuantizeTransformationTestValues, bool>
+    tuple<ov::element::Type, std::vector<ngraph::PartialShape>, MoveFakeQuantizeTransformationTestValues, bool>
         MoveFakeQuantizeTransformationParams;
 
 class MoveFakeQuantizeTransformation : public LayerTransformation,
                                        public testing::WithParamInterface<MoveFakeQuantizeTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
         std::vector<ngraph::PartialShape> inputShapes = std::get<1>(GetParam());
         // const auto shape = std::get<1>(GetParam());
         MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
@@ -115,7 +115,7 @@ public:
             testValues.actual.dequantizationBefore.multiply.outPrecision = precision;
         }
 
-        IntervalsAlignmentSharedValue::Interval interval{-1.28f, 2.55f};
+        ngraph::IntervalsAlignmentSharedValue::Interval interval{-1.28f, 2.55f};
 
         actualFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(precision,
                                                                           inputShapes,
@@ -127,22 +127,22 @@ public:
                                                                           testValues.actual.fakeQuantizeAfter,
                                                                           testValues.actual.convertAfter,
                                                                           testValues.actual.dequantizationAfter,
-                                                                          {PrecisionPreservedAttribute(true),
-                                                                           IntervalsAlignmentAttribute(interval, 256),
-                                                                           QuantizationAlignmentAttribute(false)},
-                                                                          ngraph::element::undefined,
+                                                                          {ngraph::PrecisionPreservedAttribute(true),
+                                                                           ngraph::IntervalsAlignmentAttribute(interval, 256),
+                                                                           ngraph::QuantizationAlignmentAttribute(false)},
+                                                                          ov::element::undefined,
                                                                           testValues.axis,
                                                                           oneInputWithSplit);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
-            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>(
+            {ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, testValues.params.precisionsOnActivations}})});
 
         auto quantizationRestrictions =
-            testValues.multiChannels ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
-                                     : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
-                                           {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<
-                                               ngraph::opset1::AvgPool>()});
+            testValues.multiChannels
+                ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
+                : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
+                      {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::AvgPool>()});
 
         const auto params = TestTransformationParams::toParams(testValues.params);
         ov::pass::Manager manager;
@@ -155,7 +155,7 @@ public:
             testValues.result.dequantizationAfter.multiply.outPrecision = precision;
         }
 
-        if (!testValues.params.updatePrecisions && (precision == ngraph::element::f32) &&
+        if (!testValues.params.updatePrecisions && (precision == ov::element::f32) &&
             !testValues.result.dequantizationAfter.convert.empty()) {
             testValues.result.dequantizationAfter.convert = {};
         }
@@ -171,15 +171,15 @@ public:
                                                              testValues.result.fakeQuantizeAfter,
                                                              testValues.result.convertAfter,
                                                              testValues.result.dequantizationAfter,
-                                                             {PrecisionPreservedAttribute(true),
-                                                              IntervalsAlignmentAttribute(interval, 256),
-                                                              QuantizationAlignmentAttribute(false)},
+                                                             {ngraph::PrecisionPreservedAttribute(true),
+                                                              ngraph::IntervalsAlignmentAttribute(interval, 256),
+                                                              ngraph::QuantizationAlignmentAttribute(false)},
                                                              testValues.result.precisionAfterOperation,
                                                              testValues.axis,
                                                              oneInputWithSplit);
     }
     static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
+        const ov::element::Type precision = std::get<0>(obj.param);
         const std::vector<ngraph::PartialShape> shape = std::get<1>(obj.param);
         const MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(obj.param);
         const bool oneInputWithSplit = std::get<3>(obj.param);
@@ -199,12 +199,12 @@ TEST_P(MoveFakeQuantizeTransformation, CompareFunctions) {
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 
-    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes))
-        << "PrecisionsAttribute are not the same";
+    const auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ngraph::PrecisionsAttribute>(actualFakeQuantizes))
+        << "ngraph::PrecisionsAttribute are not the same";
 }
 
-const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32, ngraph::element::f16};
+const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
 namespace perTensorValues {
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {{{1, 1, 9, 9}, {1, 1, 9, 9}},
@@ -259,13 +259,13 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
          {},
          "",
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
      },
      {
          2,
          {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
          "",
          {},
@@ -283,13 +283,13 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
          {},
          "relu",
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
      },
      {
          2,
          {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
          "relu",
          {},
@@ -307,13 +307,13 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
          {},
          "",
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {0.01f}, {0.01f}},
      },
      {
          2,
          {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {0.01f}, {0.01f}},
          "",
          {},
@@ -332,7 +332,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace perTensorValues
 
 namespace perChannelValues {
-const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32, ngraph::element::f16};
+const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {
     {{1, 1, 224, 224}, {1, 2, 224, 224}},
@@ -442,7 +442,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace perChannelValues
 
 namespace testValues3 {
-const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32, ngraph::element::f16};
+const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {{{1, 1}, {1, 2}}, {{4, 1}, {4, 2}}};
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
@@ -487,7 +487,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues3
 
 namespace NegativeTestValues {
-const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32};
+const std::vector<ov::element::Type> precisions = {ov::element::f32};
 
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {
     {{-1, -1, -1, -1}, {-1, -1, -1, -1}},

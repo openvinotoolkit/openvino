@@ -14,8 +14,6 @@ struct gather_elements : public primitive_base<gather_elements> {
 
     gather_elements() : primitive_base("", {}), output_format({}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs gather_elements primitive.
     /// @param id This primitive id.
     /// @param data Input data primitive id.
@@ -45,7 +43,7 @@ struct gather_elements : public primitive_base<gather_elements> {
     tensor output_shape;
 
     /// @brief Which axis to gather on.
-    int64_t axis;
+    int64_t axis = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -73,7 +71,7 @@ struct gather_elements : public primitive_base<gather_elements> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<gather_elements>::load(ib);
-        format::type tmp_type;
+        format::type tmp_type = format::type::any;
         ib >> make_data(&tmp_type, sizeof(format::type));
         output_format = format(tmp_type);
         ib >> output_shape;

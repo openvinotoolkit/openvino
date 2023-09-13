@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to provide additional configuration for Intel® 
+                 Gaussian & Neural Accelerator (GNA) to work with Intel® 
+                 Distribution of OpenVINO™ toolkit on your system.
+
+
 .. note::
 
    On platforms where Intel® GNA is not enabled in the BIOS, the driver cannot be installed, so the GNA plugin uses the software emulation mode only.
@@ -66,7 +72,7 @@ Intel® GNA driver for Windows is available through Windows Update.
 What’s Next?
 ####################
 
-Now you are ready to try out OpenVINO™. You can use the following tutorials to write your applications using Python and C++.
+Now you are ready to try out OpenVINO™. You can use the following tutorials to write your applications using Python and C/C++.
 
 * Developing in Python:
 
@@ -74,7 +80,7 @@ Now you are ready to try out OpenVINO™. You can use the following tutorials to
   * `Start with ONNX and PyTorch models with OpenVINO™ <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
   * `Start with PaddlePaddle models with OpenVINO™ <notebooks/103-paddle-to-openvino-classification-with-output.html>`__
 
-* Developing in C++:
+* Developing in C/C++:
 
   * :doc:`Image Classification Async C++ Sample <openvino_inference_engine_samples_classification_sample_async_README>`
   * :doc:`Hello Classification C++ Sample <openvino_inference_engine_samples_hello_classification_README>`

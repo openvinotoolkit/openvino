@@ -16,16 +16,16 @@
 #include "lpt_ngraph_functions/convolution_function.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class IsAsymmetricOnWeightsFakeQuantizeTestValues {
 public:
     TestTransformationParams params;
-    ngraph::element::Type precisionBeforeDequantization;
+    ov::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-    std::shared_ptr<ngraph::opset1::Constant> weights;
-    builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    std::shared_ptr<ov::op::v0::Constant> weights;
+    ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 typedef std::tuple<
@@ -110,9 +110,9 @@ const std::vector<ngraph::PartialShape> suitablePartialShapes = {
 const std::vector<IsAsymmetricOnWeightsFakeQuantizeTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        ngraph::element::u8,
-        {{ngraph::element::f32}, { 128.f }, { 0.02f }},
-        op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+        ov::element::u8,
+        {{ov::element::f32}, { 128.f }, { 0.02f }},
+        op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ 2.f }),
         { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.f }, { 1.27f } },
     }
 };

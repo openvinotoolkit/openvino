@@ -19,6 +19,8 @@
 #include "caseless.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
+#include "gna_convolution.hpp"
+#include "gna_max_pool.hpp"
 #include "ie_legacy_itt.hpp"
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
@@ -592,7 +594,7 @@ CNNLayerCreator::CNNLayerCreator() {
                                Builder::asString(axis < 0 ? axis + node->get_input_shape(0).size() : axis);
                            return res;
                        });
-    addSpecificCreator({"AvgPool", "MaxPool"},
+    addSpecificCreator({"AvgPool", "MaxPool", "GNAMaxPool"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
                            LayerParams attrs = {node->get_friendly_name(),
@@ -609,7 +611,7 @@ CNNLayerCreator::CNNLayerCreator() {
                                res->params.erase("exclude_pad");
                            }
 
-                           if (node->description() == "MaxPool") {
+                           if (node->description() == "MaxPool" || node->description() == "GNAMaxPool") {
                                res->params["pool-method"] = "max";
                            } else if (node->description() == "AvgPool") {
                                res->params["pool-method"] = "avg";
@@ -1677,7 +1679,7 @@ CNNLayerCreator::CNNLayerCreator() {
                            return res;
                        });
 
-    addSpecificCreator({"ConvolutionIE"},
+    addSpecificCreator({"ConvolutionIE", "GNAConvolution"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
                            LayerParams attrs = {node->get_friendly_name(),
@@ -1691,10 +1693,19 @@ CNNLayerCreator::CNNLayerCreator() {
 
                            // Restore output and kernel size
                            auto shape = node->get_input_shape(1);
-                           shape.erase(shape.begin(), shape.begin() + 2);
+                           // extract HW
+                           if (node->description() == "GNAConvolution") {
+                               // NHWC
+                               shape.erase(shape.begin());
+                               shape.erase(shape.end() - 1);
+                               res->params["output"] = Builder::asString(*(node->get_shape().rbegin()));
+                           } else {
+                               // NCHW
+                               shape.erase(shape.begin(), shape.begin() + 2);
+                               res->params["output"] = Builder::asString(node->get_shape()[1]);
+                           }
 
                            res->params["kernel"] = Builder::asString(static_cast<std::vector<size_t>&>(shape));
-                           res->params["output"] = Builder::asString(node->get_shape()[1]);
 
                            // forward auto_pad only when its value is different than explicit
                            if (params.at("auto_pad") == "explicit") {
@@ -2027,7 +2038,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                                          const std::shared_ptr<::ngraph::Node>& consumerLayer,
                                          bool keep_constants) -> bool {
         if (((::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
-              ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer)) &&
+              ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer) ||
+              ::ngraph::as_type_ptr<ov::intel_gna::op::GNAConvolution>(consumerLayer) ||
+              ::ngraph::as_type_ptr<ov::intel_gna::op::GNAMaxPool>(consumerLayer)) &&
              !keep_constants) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||

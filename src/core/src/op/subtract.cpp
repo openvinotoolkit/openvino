@@ -7,11 +7,13 @@
 #include "itt.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/subtract.hpp"
+#include "ngraph/validation_util.hpp"
+#include "openvino/reference/subtract.hpp"
 
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace subtract {
 namespace {
 template <element::Type_t ET>
@@ -19,12 +21,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::subtract(arg0->get_data_ptr<ET>(),
-                                 arg1->get_data_ptr<ET>(),
-                                 out->get_data_ptr<ET>(),
-                                 arg0->get_shape(),
-                                 arg1->get_shape(),
-                                 broadcast_spec);
+    ov::reference::subtract(arg0->get_data_ptr<ET>(),
+                            arg1->get_data_ptr<ET>(),
+                            out->get_data_ptr<ET>(),
+                            arg0->get_shape(),
+                            arg1->get_shape(),
+                            broadcast_spec);
     return true;
 }
 

@@ -3,6 +3,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about the differences in absolute accuracy drop for INT8, 
+                 FP32 and FP16 representations of models inferred with OpenVINO 
+                 on three different platforms.
+
 The following two tables present the absolute accuracy drop calculated as the accuracy difference 
 between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8 and FP16 
 representations of a model on three platform architectures. Please also refer to notes below table 

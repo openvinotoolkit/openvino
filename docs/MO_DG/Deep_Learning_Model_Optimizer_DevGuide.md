@@ -1,4 +1,4 @@
-# Convert a Model {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+# Legacy Conversion API {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
 @sphinxdirective
 
@@ -14,22 +14,31 @@
    openvino_docs_MO_DG_FP16_Compression
    openvino_docs_MO_DG_Python_API
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
+   Supported_Model_Formats_MO_DG
 
+.. meta::
+   :description: Model conversion (MO) furthers the transition between training and
+                 deployment environments, it adjusts deep learning models for
+                 optimal execution on target devices.
+
+.. note::
+   This part of the documentation describes a legacy approach to model conversion. Starting with OpenVINO 2023.1, a simpler alternative API for model conversion is available: ``openvino.convert_model`` and OpenVINO Model Converter ``ovc`` CLI tool. Refer to `Model preparation <openvino_docs_model_processing_introduction>` for more details. If you are still using `openvino.tools.mo.convert_model` or `mo` CLI tool, you can still refer to this documentation. However, consider checking the `transition guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>` to learn how to migrate from the legacy conversion API to the new one. Depending on the model topology, the new API can be a better option for you.
 
 To convert a model to OpenVINO model format (``ov.Model``), you can use the following command:
 
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
-       .. code-block:: python
+       .. code-block:: py
+          :force:
 
           from openvino.tools.mo import convert_model
           ov_model = convert_model(INPUT_MODEL)
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 
@@ -38,33 +47,37 @@ To convert a model to OpenVINO model format (``ov.Model``), you can use the foll
 
 If the out-of-the-box conversion (only the ``input_model`` parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
 
-- model conversion API provides two parameters to override original input shapes for model conversion: ``input`` and ``input_shape``.
-For more information about these parameters, refer to the :doc:`Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+- ``input`` and ``input_shape`` - the model conversion API parameters used to override original input shapes for model conversion,
 
-- To cut off unwanted parts of a model (such as unsupported operations and training sub-graphs),
-use the ``input`` and ``output`` parameters to define new inputs and outputs of the converted model.
-For a more detailed description, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>` guide.
+  For more information about the parameters, refer to the :doc:`Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
-You can also insert additional input pre-processing sub-graphs into the converted model by using
-the ``mean_values``, ``scales_values``, ``layout``, and other parameters described
-in the :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>` article.
+- ``input`` and ``output`` - the model conversion API parameters used to define new inputs and outputs of the converted model to cut off unwanted parts (such as unsupported operations and training sub-graphs),
 
-The ``compress_to_fp16`` compression parameter in ``mo`` command-line tool allows generating IR with constants (for example, weights for convolutions and matrix multiplications) compressed to ``FP16`` data type. For more details, refer to the :doc:`Compression of a Model to FP16 <openvino_docs_MO_DG_FP16_Compression>` guide.
+  For a more detailed description, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>` guide.
+
+- ``mean_values``, ``scales_values``, ``layout`` - the parameters used to insert additional input pre-processing sub-graphs into the converted model,
+
+  For more details, see the :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>` article.
+
+- ``compress_to_fp16`` - a compression parameter in ``mo`` command-line tool, which allows generating IR with constants (for example, weights for convolutions and matrix multiplications) compressed to ``FP16`` data type.
+
+  For more details, refer to the :doc:`Compression of a Model to FP16 <openvino_docs_MO_DG_FP16_Compression>` guide.
 
 To get the full list of conversion parameters, run the following command:
 
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
-       .. code-block:: python
+       .. code-block:: py
+          :force:
 
           from openvino.tools.mo import convert_model
           ov_model = convert_model(help=True)
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 
@@ -81,15 +94,16 @@ Below is a list of separate examples for different frameworks and model conversi
    .. tab-set::
 
        .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
-          .. code-block:: python
+          .. code-block:: py
+             :force:
 
              from openvino.tools.mo import convert_model
              ov_model = convert_model("MobileNet.pb")
 
        .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 
@@ -101,15 +115,16 @@ Below is a list of separate examples for different frameworks and model conversi
    .. tab-set::
 
        .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
-          .. code-block:: python
+          .. code-block:: py
+             :force:
 
              from openvino.tools.mo import convert_model
              ov_model = convert_model("BERT", input_shape=[[2,30],[2,30],[2,30]])
 
        .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 
@@ -123,15 +138,16 @@ Below is a list of separate examples for different frameworks and model conversi
    .. tab-set::
 
        .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
-          .. code-block:: python
+          .. code-block:: py
+             :force:
 
              from openvino.tools.mo import convert_model
              ov_model = convert_model("ocr.onnx", output="probabilities")
 
        .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 
@@ -149,15 +165,16 @@ Below is a list of separate examples for different frameworks and model conversi
    .. tab-set::
 
        .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
-          .. code-block:: python
+          .. code-block:: py
+             :force:
 
              from openvino.tools.mo import convert_model
              ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
 
        .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 

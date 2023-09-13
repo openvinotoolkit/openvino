@@ -2,30 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/space_to_depth.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, space_to_depth_op) {
-    NodeBuilder::get_ops().register_factory<opset1::SpaceToDepth>();
-    auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 50, 50});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::SpaceToDepth>();
+    auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 50, 50});
 
     auto block_size = 2;
-    auto mode = opset1::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+    auto mode = ov::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
 
-    auto space_to_depth = make_shared<opset1::SpaceToDepth>(data, mode, block_size);
+    auto space_to_depth = make_shared<ov::op::v0::SpaceToDepth>(data, mode, block_size);
     NodeBuilder builder(space_to_depth, {data});
-    auto g_space_to_depth = ov::as_type_ptr<opset1::SpaceToDepth>(builder.create());
+    auto g_space_to_depth = ov::as_type_ptr<ov::op::v0::SpaceToDepth>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 2;

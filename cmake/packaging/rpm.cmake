@@ -31,13 +31,17 @@ macro(ov_cpack_settings)
     unset(CPACK_COMPONENTS_ALL)
     foreach(item IN LISTS cpack_components_all)
         string(TOUPPER ${item} UPPER_COMP)
-        # filter out some components, which are not needed to be wrapped to .deb package
+        # filter out some components, which are not needed to be wrapped to .rpm package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-           # skip OpenVINO Python API (pattern in form of "<pyie | pyopenvino | pyngraph>_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
-           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
+           # skip OpenVINO Python API (pattern in form of "pyopenvino_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
+           # because in case of .rpm package, pyopenvino_package_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} is installed
+           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
-           # don't install Intel OpenMP during rpm
+           # temporary block nvidia
+           NOT item STREQUAL "nvidia" AND
+           # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
@@ -47,6 +51,7 @@ macro(ov_cpack_settings)
            list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
+    unset(cpack_components_all)
     list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
 
     # version with 3 components
@@ -71,7 +76,7 @@ macro(ov_cpack_settings)
         # - 2022.1.1, 2022.2 do not have rpm packages enabled, distributed only as archives
         # - 2022.3 is the first release where RPM updated packages are introduced, others 2022.3.X are LTS
         2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
-        2023.0.0
+        2023.0.0 2023.0.1 2023.0.2 2023.0.3
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
@@ -266,14 +271,14 @@ macro(ov_cpack_settings)
 
     if(ENABLE_PYTHON_PACKAGING)
         ov_get_pyversion(pyversion)
-        set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}")
+        set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}")
         string(TOUPPER "${pyversion}" pyversion_upper)
 
-        set(CPACK_COMPONENT_PYOPENVINO_${pyversion_upper}_DESCRIPTION "OpenVINO Python API")
-        set(CPACK_RPM_PYOPENVINO_${pyversion_upper}_PACKAGE_REQUIRES
+        set(CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion_upper}_DESCRIPTION "OpenVINO Python API")
+        set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_REQUIRES
             "${core_package}, ${frontend_packages}, ${plugin_packages}, python3, python3-numpy")
-        set(CPACK_RPM_PYOPENVINO_${pyversion_upper}_PACKAGE_NAME "python3-openvino")
-        set(python_package "${CPACK_RPM_PYOPENVINO_${pyversion_upper}_PACKAGE_NAME} = ${cpack_full_ver}")
+        set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME "python3-openvino")
+        set(python_package "${CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME} = ${cpack_full_ver}")
         set(${python_component}_copyright "generic")
 
         # we can have a single python installed, so we need to generate conflicts for all other versions

@@ -38,13 +38,13 @@ public:
        std::tie(inputShapes, netPrecision, axes, normalizeVariance, eps) = basicParamsSet;
 
        std::ostringstream result;
-       result << "IS=" << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+       result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
        result << "TS=";
        for (const auto& shape : inputShapes.second) {
-           result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+           result << "(" << ov::test::utils::vec2str(shape) << ")_";
        }
        result << "Precision=" << netPrecision << "_";
-       result << "ReductionAxes=" << CommonTestUtils::vec2str(axes) << "_";
+       result << "ReductionAxes=" << ov::test::utils::vec2str(axes) << "_";
        result << "NormalizeVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
        result << "Epsilon=" << eps;
        result << "_" << "CNNInpPrc=" << inputPrecision;
@@ -53,7 +53,7 @@ public:
    }
 protected:
    void SetUp() override {
-       targetDevice = CommonTestUtils::DEVICE_GPU;
+       targetDevice = ov::test::utils::DEVICE_GPU;
 
        basicGPUMvnParams basicParamsSet;
        ElementType inPrc;
@@ -71,8 +71,11 @@ protected:
        auto axesType = ov::element::i64;
        std::string eps_mode = "inside_sqrt";
 
-       auto param = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
-       auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
+       auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
        auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
        auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, eps_mode);
 
@@ -82,7 +85,7 @@ protected:
        for (size_t i = 0; i < mvn->get_output_size(); ++i) {
            results.push_back(std::make_shared<ngraph::opset1::Result>(mvn->output(i)));
        }
-       function = std::make_shared<ngraph::Function>(results, param, "MVN");
+       function = std::make_shared<ngraph::Function>(results, params, "MVN");
    }
 };
 

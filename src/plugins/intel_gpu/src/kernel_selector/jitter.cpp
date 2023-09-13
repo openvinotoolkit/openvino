@@ -358,7 +358,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     };
     if (_tensor.is_dynamic()) {
         if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
-            _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx) {
+            _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
+            _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x()});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x(), dims_padded.y()})});
@@ -1540,11 +1541,11 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
         std::string nl_n = toCodeString(params[i].n);
         if (params[i].function == ActivationFunction::CLAMP) {
             if (out_dt == Datatype::INT8) {
-                nl_m = toCodeString(std::max(params[i].m, static_cast<float>(SCHAR_MIN)));
-                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(SCHAR_MAX)));
+                nl_m = toCodeString(std::max<float>(params[i].m, std::numeric_limits<signed char>::min()));
+                nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<signed char>::max()));
             } else if (out_dt == Datatype::UINT8) {
                 nl_m = toCodeString(std::max(params[i].m, 0.0f));
-                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(UCHAR_MAX)));
+                nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<unsigned char>::max()));
             }
         }
         auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, nl_m),
@@ -1741,8 +1742,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     if (desc.GetType() == KernelType::ELTWISE) {
         auto p = desc.GetOpParams<eltwise_fuse_params>();
-        if (!p)
-            IE_THROW() << "[clDNN] Eltwise fuse params can't be nullptr";
+        OPENVINO_ASSERT(p != nullptr, "[GPU] Eltwise fuse params can't be nullptr");
 
         if (p->mode == kernel_selector::EltwiseMode::DIV) {
             if (p->m_pythondiv)
@@ -1950,11 +1950,11 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
                 if (activation_p.function == ActivationFunction::CLAMP) {
                     if (out_type == Datatype::INT8) {
-                        nl_m = toCodeString(std::max(activation_p.m, static_cast<float>(SCHAR_MIN)));
-                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(SCHAR_MAX)));
+                        nl_m = toCodeString(std::max<float>(activation_p.m, std::numeric_limits<signed char>::min()));
+                        nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<signed char>::max()));
                     } else if (out_type == Datatype::UINT8) {
                         nl_m = toCodeString(std::max(activation_p.m, 0.0f));
-                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(UCHAR_MAX)));
+                        nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<unsigned char>::max()));
                     }
                 }
 

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Reverse-1 - a data movement operation, 
+                which can be performed on one required and one optional input tensor.
+
 **Versioned name**: *Reverse-1*
 
 **Category**: *Data movement*
@@ -43,7 +47,8 @@ If no axis specified, that means either the second input is empty if ``index`` m
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Reverse">
         <data mode="index"/>

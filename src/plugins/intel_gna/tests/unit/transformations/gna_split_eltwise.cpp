@@ -14,7 +14,7 @@
 #include "backend/gna_limitations.hpp"
 #include "common/gna_target.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/split_eltwise.hpp"
 
 using namespace ov::intel_gna::limitations;
@@ -110,7 +110,7 @@ static std::string getTestCaseName(testing::TestParamInfo<EltwiseSplitParams> ob
 
     std::ostringstream result;
     result << DeviceToString(device_ver) << "_";
-    result << "IS=" << CommonTestUtils::vec2str(shape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(shape) << "_";
     result << "wConst=" << with_const << "_";
     result << "wFQ=" << with_fq << "_";
     result << "type=";
@@ -130,7 +130,7 @@ static std::string getTestCaseName(testing::TestParamInfo<EltwiseSplitParams> ob
     return result.str();
 }
 
-class SplitEltwiseTestSuiteFixture : public CommonTestUtils::TestsCommon,
+class SplitEltwiseTestSuiteFixture : public ov::test::TestsCommon,
                                      public ::testing::WithParamInterface<EltwiseSplitParams> {
 public:
     void SetUp() override;

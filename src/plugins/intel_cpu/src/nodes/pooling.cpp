@@ -401,8 +401,8 @@ void Pooling::prepareParams() {
         }
     }
     if (useACL) {
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate.";
         if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -423,8 +423,8 @@ void Pooling::prepareParams() {
                                                                                             *attr);
         selected_pd->setImplementationType(execPtr->getImplType());
     } else {
-        auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<DnnlMemoryDesc>();
+        auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
+        auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
 
         if (isDynamicNode()) {
             initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
@@ -477,9 +477,9 @@ void Pooling::prepareParams() {
         }
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
-        primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-        primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+        primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+        primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
 
         Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
@@ -660,7 +660,6 @@ void Pooling::initSupportedPrimitiveDescriptors() {
 
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
-
         const bool first_match = customImplPriorities.empty();
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,

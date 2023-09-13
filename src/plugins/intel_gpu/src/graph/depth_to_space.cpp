@@ -3,6 +3,7 @@
 //
 
 #include "depth_to_space_inst.h"
+#include "depth_to_space_shape_inference.hpp"
 
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -19,11 +20,6 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
     auto input_format = input_layout.format;
 
     const size_t block_size = desc->block_size;
-
-    if (block_size < 2)
-        CLDNN_ERROR_MESSAGE(desc->id,
-                            "Invalid depthToSpace block_size value (should equal at least two). Actual block size is" +
-                                std::to_string(block_size));
 
     if (input_layout.feature() % (block_size * block_size) != 0)
         CLDNN_ERROR_MESSAGE(
@@ -51,6 +47,26 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
 
     return layout{input_layout.data_type, input_format, out_size};
 }
+
+template<typename ShapeType>
+std::vector<layout> depth_to_space_inst::calc_output_layouts(depth_to_space_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<depth_to_space>();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
+    auto output_format = input_layout.format;
+
+    ov::op::v0::DepthToSpace op;
+    op.set_block_size(desc->block_size);
+
+    std::vector<ShapeType> input_shapes = {
+        input_layout.get<ShapeType>()
+    };
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+
+    return { layout{output_shapes[0], output_type, output_format} };
+}
+
+template std::vector<layout> depth_to_space_inst::calc_output_layouts<ov::PartialShape>(depth_to_space_node const& node, const kernel_impl_params& impl_param);
 
 std::string depth_to_space_inst::to_string(depth_to_space_node const& node) {
     auto desc = node.get_primitive();

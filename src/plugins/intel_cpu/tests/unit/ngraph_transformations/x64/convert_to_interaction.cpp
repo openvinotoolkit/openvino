@@ -19,7 +19,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include <ie_core.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
@@ -140,12 +140,12 @@ TEST(TransformationTests, ConvertToInteractionTest1) {
         }
         //construct ref interaction
         {
-            auto dense_feature = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
+            auto dense_feature = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
             NodeVector features{dense_feature};
             ParameterVector inputsParams{dense_feature};
             const size_t sparse_feature_num = 26;
             for (size_t i = 0; i < sparse_feature_num; i++) {
-                auto sparse_feat = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
+                auto sparse_feat = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
                 features.push_back(sparse_feat);
                 inputsParams.push_back(sparse_feat);
             }
@@ -175,12 +175,12 @@ TEST(TransformationTests, FuseFQtoInteractionTest1) {
         }
         //construct ref interaction
         {
-            auto dense_feature = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
+            auto dense_feature = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
             NodeVector features{dense_feature};
             ParameterVector inputsParams{dense_feature};
             const size_t sparse_feature_num = 26;
             for (size_t i = 0; i < sparse_feature_num; i++) {
-                auto sparse_feat = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
+                auto sparse_feat = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
                 features.push_back(sparse_feat);
                 inputsParams.push_back(sparse_feat);
             }
@@ -210,13 +210,13 @@ TEST(TransformationTests, FuseFQtoInteractionTest2) {
         }
         //construct ref interaction
         {
-            auto dense_input = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
+            auto dense_input = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
             auto dense_feature = createFQ(dense_input);
             NodeVector features{dense_feature};
             ParameterVector inputsParams{dense_input};
             const size_t sparse_feature_num = 26;
             for (size_t i = 0; i < sparse_feature_num; i++) {
-                auto sparse_input = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
+                auto sparse_input = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
                 auto sparse_feat = createFQ(sparse_input);
                 features.push_back(sparse_feat);
                 inputsParams.push_back(sparse_input);

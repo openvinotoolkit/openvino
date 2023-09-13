@@ -4,31 +4,31 @@
 
 #include "openvino/op/util/framework_node.hpp"
 
+#include <gtest/gtest.h>
+
 #include "common_test_utils/graph_comparator.hpp"
-#include "gtest/gtest.h"
-#include "openvino/op/util/attr_types.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset10;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using ov::test::NodeBuilder;
 
 TEST(attributes, framework_node_op) {
     NodeBuilder::get_ops().register_factory<op::util::FrameworkNode>();
-    auto X = make_shared<Parameter>(element::f32, Shape{1, 2, 2});
-    auto Y = make_shared<Parameter>(element::f32, Shape{1, 2, 2});
-    auto cond = make_shared<Constant>(element::boolean, Shape{1}, true);
-    auto cond2 = make_shared<Constant>(element::boolean, Shape{1}, false);
-    auto Xt = make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    auto Yt = make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    auto Xe = make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    auto Ye = make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    auto then_op = make_shared<Multiply>(Xt, Yt);
-    auto res0 = make_shared<Result>(then_op);
-    auto res1 = make_shared<Result>(Xe);
+    auto X = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+    auto Y = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+    auto cond = make_shared<op::v0::Constant>(element::boolean, Shape{1}, true);
+    auto cond2 = make_shared<op::v0::Constant>(element::boolean, Shape{1}, false);
+    auto Xt = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yt = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto Xe = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto Ye = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto then_op = make_shared<op::v1::Multiply>(Xt, Yt);
+    auto res0 = make_shared<op::v0::Result>(then_op);
+    auto res1 = make_shared<op::v0::Result>(Xe);
     auto body1 = make_shared<Model>(OutputVector{res0}, ParameterVector{Xt, Yt});
     auto body2 = make_shared<Model>(OutputVector{res1}, ParameterVector{Xe});
     auto fn_op = make_shared<op::util::FrameworkNode>(OutputVector{cond}, 0, 2);

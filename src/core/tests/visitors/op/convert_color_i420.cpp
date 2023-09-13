@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/op/util/attr_types.hpp"
+#include <gtest/gtest.h>
+
 #include "openvino/op/i420_to_bgr.hpp"
 #include "openvino/op/i420_to_rgb.hpp"
-#include "util/visitor.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
 using namespace ov;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using ov::test::NodeBuilder;
 
 TEST(attributes, convert_color_i420_rgb) {
     NodeBuilder::get_ops().register_factory<op::v8::I420toRGB>();

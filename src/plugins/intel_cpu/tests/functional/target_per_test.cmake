@@ -39,7 +39,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
       CPU
     )
 
-    set_ie_threading_interface_for(${TEST_TARGET_NAME})
+    ov_set_threading_interface_for(${TEST_TARGET_NAME})
     # avoid building binaries for every test in case target 'all' is used
     set_target_properties(${TEST_TARGET_NAME} PROPERTIES
       EXCLUDE_FROM_ALL ON)
@@ -78,7 +78,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
       CPU
     )
 
-    set_ie_threading_interface_for(${TEST_TARGET_NAME})
+    ov_set_threading_interface_for(${TEST_TARGET_NAME})
     # avoid building binaries for every test in case target 'all' is used
     set_target_properties(${TEST_TARGET_NAME} PROPERTIES
       EXCLUDE_FROM_ALL ON)
@@ -87,7 +87,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
 endfunction()
 
 if(ENABLE_CPU_SPECIFIC_TARGET_PER_TEST)
-  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/arm ov_cpu_func_subgraph)
+  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src ov_cpu_func_subgraph)
   create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests ov_cpu_func_slt)
 endif()
 

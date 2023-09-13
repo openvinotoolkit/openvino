@@ -102,7 +102,7 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
         worker_request.m_inferrequest->set_callback(
             [worker_request_ptr, this, device, idle_workerrequests_ptr](std::exception_ptr exception_ptr) mutable {
                 IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{worker_request_ptr, *idle_workerrequests_ptr};
-                worker_request_ptr->m_exception_ptr = exception_ptr;
+                worker_request_ptr->m_exception_ptr = std::move(exception_ptr);
                 {
                     auto stop_retry_and_continue = [worker_request_ptr]() {
                         auto captured_task = std::move(worker_request_ptr->m_task);
@@ -154,7 +154,7 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                 : m_inferrequest(infer_request),
                   m_worker(worker) {
                 m_inferrequest->set_callback([this](std::exception_ptr exceptionPtr) mutable {
-                    m_exceptionptr = exceptionPtr;
+                    m_exceptionptr = std::move(exceptionPtr);
                     auto capturedTask = std::move(m_task);
                     capturedTask();
                     INFO_RUN([&]() {
@@ -206,8 +206,8 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     // if any input is remote (e.g. was set with set_tensor), let' use the corresponding device
                     for (const auto& it : compiled_model->inputs()) {
                         auto tensor = infer_request->get_tensor(it);
-                        if (tensor.is<ov::RemoteTensor>()) {
-                            const auto name = tensor.as<ov::RemoteTensor>().get_device_name();
+                        if (auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
+                            const auto name = remote_tensor->get_device_name();
                             const auto res = std::find_if(
                                 m_context->m_device_priorities_initial.cbegin(),
                                 m_context->m_device_priorities_initial.cend(),

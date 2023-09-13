@@ -2,19 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/constant.hpp"
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
+#include "openvino/op/rdft.hpp"
+#include "openvino/op/irdft.hpp"
+#include "openvino/core/validation_util.hpp"
+
 #include <intel_gpu/plugin/common_utils.hpp>
-#include <intel_gpu/plugin/program.hpp>
+#include "intel_gpu/plugin/program_builder.hpp"
 #include <intel_gpu/primitives/dft.hpp>
-#include <ngraph/op/constant.hpp>
-#include <ngraph/op/dft.hpp>
 
 namespace ov {
 namespace intel_gpu {
 
 namespace {
 
-void createDft(Program& p,
-               const std::shared_ptr<ngraph::Node>& op,
+void createDft(ProgramBuilder& p,
+               const std::shared_ptr<ov::Node>& op,
                cldnn::dft_direction direction,
                cldnn::dft_mode mode) {
     validate_inputs_count(op, {2, 3});
@@ -24,10 +29,8 @@ void createDft(Program& p,
     const auto& friendly_name = op->get_friendly_name();
     const auto& out_shape = op->get_output_shape(0);
 
-    auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-    if (!axes_constant) {
-        IE_THROW() << "Unsupported parameter nodes type in " << friendly_name << " (" << op->get_type_name() << ")";
-    }
+    auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", friendly_name, " (", op->get_type_name(), ")");
     auto axes = axes_constant->cast_vector<int64_t>();
     uint8_t axis_correction = static_cast<uint8_t>(op->get_input_shape(0).size());
     if (direction != cldnn::dft_direction::forward || mode != cldnn::dft_mode::real) {
@@ -39,10 +42,8 @@ void createDft(Program& p,
 
     std::vector<int64_t> signal_size;
     if (op->get_input_size() == 3) {
-        auto signal_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(2));
-        if (!signal_size_constant) {
-            IE_THROW() << "Unsupported parameter nodes type in " << friendly_name << " (" << op->get_type_name() << ")";
-        }
+        auto signal_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        OPENVINO_ASSERT(signal_size_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", friendly_name, " (", op->get_type_name(), ")");
         signal_size = signal_size_constant->cast_vector<int64_t>();
     }
 
@@ -51,19 +52,19 @@ void createDft(Program& p,
     p.add_primitive(*op, prim);
 }
 
-void CreateDFTOp(Program& p, const std::shared_ptr<ngraph::op::v7::DFT>& op) {
+void CreateDFTOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v7::DFT>& op) {
     createDft(p, op, cldnn::dft_direction::forward, cldnn::dft_mode::complex);
 }
 
-void CreateIDFTOp(Program& p, const std::shared_ptr<ngraph::op::v7::IDFT>& op) {
+void CreateIDFTOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v7::IDFT>& op) {
     createDft(p, op, cldnn::dft_direction::inverse, cldnn::dft_mode::complex);
 }
 
-void CreateRDFTOp(Program& p, const std::shared_ptr<ngraph::op::v9::RDFT>& op) {
+void CreateRDFTOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::RDFT>& op) {
     createDft(p, op, cldnn::dft_direction::forward, cldnn::dft_mode::real);
 }
 
-void CreateIRDFTOp(Program& p, const std::shared_ptr<ngraph::op::v9::IRDFT>& op) {
+void CreateIRDFTOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::IRDFT>& op) {
     createDft(p, op, cldnn::dft_direction::inverse, cldnn::dft_mode::real);
 }
 

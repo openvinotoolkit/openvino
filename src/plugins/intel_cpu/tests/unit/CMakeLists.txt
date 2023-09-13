@@ -24,6 +24,13 @@ else()
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
 endif()
 
+if (NOT ENABLE_MLAS_FOR_CPU)
+    set(MLAS_LIBRARY "")
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
+else()
+    set(MLAS_LIBRARY "mlas")
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -35,7 +42,7 @@ addIeTargetTest(
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
             PRIVATE
-                $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
+                $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
             ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
         OBJECT_FILES
@@ -47,12 +54,13 @@ addIeTargetTest(
             dnnl
             inference_engine_transformations
             inference_engine_lp_transformations
-            ov_shape_inference
+            openvino::shape_inference
             inference_engine_s
-            unitTestUtils
+            unit_test_utils
             ngraphFunctions
             snippetsNgraphFunctions
             snippets_test_utils
+            ${MLAS_LIBRARY}
         ADD_CPPLINT
         LABELS
             CPU
@@ -72,6 +80,21 @@ endif()
 ie_faster_build(${TARGET_NAME}
     UNITY
 )
+
+function(group_source_file GROUP_NAME GROUP_DIR)
+    file(GLOB GROUP_FILES  ${GROUP_DIR}/*.cpp)
+    foreach(file ${GROUP_FILES})
+        set_source_files_properties(${file} PROPERTIES UNITY_GROUP ${GROUP_NAME})
+    endforeach()
+endfunction()
+
+if(ENABLE_FASTER_BUILD) 
+    set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON UNITY_BUILD_MODE GROUP)
+    group_source_file(unit_src_nodes ${CMAKE_CURRENT_SOURCE_DIR}/nodes)
+    group_source_file(unit_src_snippets_transformations ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations)
+    group_source_file(unit_src_ngrah_transformation ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations)
+    group_source_file(unit_src_custom_shape_infer ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer)
+endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common

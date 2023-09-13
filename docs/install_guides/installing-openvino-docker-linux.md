@@ -1,31 +1,48 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image {#openvino_docs_install_guides_installing_openvino_docker_linux}
+# Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image {#openvino_docs_install_guides_installing_openvino_docker}
 
 @sphinxdirective
 
-Supported operating systems for the Docker Base image:
+.. meta::
+   :description: Learn how to use a prebuilt Docker image or create an image 
+                 manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
 
-- Ubuntu 22.04 LTS
-- Ubuntu 20.04 LTS
-- RedHat UBI 8
+This guide presents infromation on how to use a pre-built Docker image/create an image manually to install OpenVINO™ Runtime.
 
-The `Docker CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. You can get started easily with pre-built and published docker images. Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
+Supported host operating systems for the Docker Base image: 
 
-To start using them, the following conditions must be met:
+- Linux
+- Windows (WSL2)
+- macOS (CPU exectuion only)
 
-- Linux OS or Windows Subsystem for Linux (WSL2)
+You can get started easily with pre-built and published docker images, which are available at:
+
+* `Docker Hub <https://hub.docker.com/u/openvino>`__
+* `Red Hat Quay.io <https://quay.io/organization/openvino>`__
+* `Red Hat Ecosystem Catalog (runtime image) <https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3>`__
+* `Red Hat Ecosystem Catalog (development image) <https://catalog.redhat.com/software/containers/intel/openvino-dev/613a450dc9bc35f21dc4a1f7>`__
+* `Azure Marketplace <https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino>`__
+
+You can use the `available Dockerfiles on GitHub <https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles>`__ or generate a Dockerfile with your settings via `DockerHub CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ , which can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. Docker CI repository includes guides on how to how to `get started with docker images <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__ and how to use `OpenVINO™ Toolkit containers with GPU accelerators. <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
+
+To start using Dockerfiles the following conditions must be met:
+
+- Linux OS or Windows (under :ref:`Windows Subsystem for Linux (WSL2) <wsl-install>`)
 - Installed docker engine or compatible container engine
 - Permissions to run containers (sudo or docker group membership)
 
-OpenVINO's `Docker <https://docs.docker.com/>`__ and `Bare Metal <https://docs.openvino.ai/2023.0/ovms_docs_deploying_server.html#doxid-ovms-docs-deploying-server>` distributions are identical, so the documentation applies to both.
+.. note::
+
+   OpenVINO's `Docker <https://docs.docker.com/>`__ and :doc:`Bare Metal <openvino_docs_install_guides_overview>` distributions are identical, so the documentation applies to both. 
 
 .. note:: 
 
-   The OpenVINO development environment in a docker container is also available in the `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__ . It can be implemented in `OpenShift RedHat OpenData Science (RHODS) <https://github.com/openvinotoolkit/operator/blob/main/docs/notebook_in_rhods.md>`__.
+   OpenVINO development environment in a docker container is also available in the `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__ . It can be implemented in `OpenShift RedHat OpenData Science (RHODS) <https://github.com/openvinotoolkit/operator/blob/main/docs/notebook_in_rhods.md>`__.
 
-ore information about Docker CI for Intel® Distribution of OpenVINO™ toolset can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
+More information about Docker CI for Intel® Distribution of OpenVINO™ toolset can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
+* `Using OpenVINO™ Toolkit containers with GPU accelerators <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
 * `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__
 
 @endsphinxdirective

@@ -87,6 +87,19 @@ Initial Implementation with Transformers and Pytorch
 
 .. code:: ipython3
 
+    # Install requirements
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q onnx transformers torch
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. code:: ipython3
+
     from pathlib import Path
     from typing import Tuple, Union
     
@@ -101,7 +114,7 @@ Initial Implementation with Transformers and Pytorch
 
 To get the CLIP model, you will use the ``transformers`` library and the
 official ``openai/clip-vit-base-patch16`` from OpenAI. You can use any
-CLIP model from the Huggingface Hub by simply replacing a model
+CLIP model from the HuggingFace Hub by simply replacing a model
 checkpoint in the cell below.
 
 There are several preprocessing steps required to get text and image
@@ -120,10 +133,10 @@ steps.
 
 .. parsed-literal::
 
-    2023-05-29 23:41:45.456717: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-05-29 23:41:45.488607: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-18 23:28:44.655634: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-18 23:28:44.687925: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-05-29 23:41:46.065090: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-18 23:28:45.260957: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Let us write helper functions first. You will generate crop coordinates
@@ -256,7 +269,7 @@ To visualize the resulting saliency map, you can use ``matplotlib``:
 
 
 
-.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_14_0.png
+.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_15_0.png
 
 
 The result map is not as smooth as in the example picture because of the
@@ -285,7 +298,7 @@ Let us overlay the saliency map on the image:
 
 
 
-.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_16_0.png
+.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_17_0.png
 
 
 Separate Text and Visual Processing
@@ -330,7 +343,7 @@ obtain embeddings for the cropped images.
 
 
 
-.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_18_1.png
+.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_19_1.png
 
 
 The result might be slightly different because you use random crops to
@@ -378,15 +391,15 @@ information on ONNX conversion.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:284: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:286: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:324: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:326: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:292: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:294: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:301: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:303: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:5408: UserWarning: Exporting aten::index operator of advanced indexing in opset 14 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-453/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:5408: UserWarning: Exporting aten::index operator of advanced indexing in opset 14 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
       warnings.warn(
 
 
@@ -397,7 +410,7 @@ text encoder. You can split the CLIP into two models and call them
 separately.
 
 To convert the model to IR, you can use `Model Optimizer
-(MO) <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+(MO) <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 When you convert a model to the OpenVINO format, Model Optimizer enables
 specifying the inputs and outputs you want to use. During the
 conversion, it will trim the remaining parts of the model. Therefore,
@@ -452,20 +465,6 @@ variation in the input size after preprocessing.
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
 
 
-.. parsed-literal::
-
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
 Now, you have two separate models for text and images, stored on disk
 and ready to be loaded and inferred with OpenVINO™.
 
@@ -483,14 +482,42 @@ Inference with OpenVINO™
 
     from openvino.runtime import Core
     
-    
     core = Core()
     
     text_model = core.read_model(text_model_path)
     image_model = core.read_model(image_model_path)
+
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
     
-    text_model = core.compile_model(model=text_model, device_name="CPU")
-    image_model = core.compile_model(model=image_model, device_name="CPU")
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    text_model = core.compile_model(model=text_model, device_name=device.value)
+    image_model = core.compile_model(model=image_model, device_name=device.value)
 
 OpenVINO supports ``numpy.ndarray`` as an input type, so you change the
 ``return_tensors`` to ``np``. You also convert a transformers’
@@ -535,11 +562,11 @@ the inference process is mostly similar.
 
 
 
-.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_27_1.png
+.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_31_1.png
 
 
-Accelerate Inference with AsyncInferQueue
------------------------------------------
+Accelerate Inference with ``AsyncInferQueue``
+---------------------------------------------
 
 Up until now, the pipeline was synchronous, which means that the data
 preparation, model input population, model inference, and output
@@ -577,7 +604,7 @@ performance hint.
     
     image_model = core.compile_model(
         model=image_model, 
-        device_name="CPU", 
+        device_name=device.value, 
         config={"PERFORMANCE_HINT":"THROUGHPUT"},
     )
 
@@ -662,7 +689,7 @@ should pass a progress bar object and call ``update`` method after
 
 
 
-.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_33_1.png
+.. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_37_1.png
 
 
 Pack the Pipeline into a Function
@@ -801,11 +828,11 @@ can explore the CLIP capabilities further. For example: - Can CLIP read?
 Can it detect text regions in general and specific words on the image? -
 Which famous people and places does CLIP know? - Can CLIP identify
 places on a map? Or planets, stars, and constellations? - Explore
-different CLIP models from Huggingface Hub: just change the
+different CLIP models from HuggingFace Hub: just change the
 ``model_checkpoint`` at the beginning of the notebook. - Add batch
 processing to the pipeline: modify ``get_random_crop_params``,
 ``get_cropped_image`` and ``update_saliency_map`` functions to process
 multiple crop images at once and accelerate the pipeline even more. -
 Optimize models with
-`NNCF <https://docs.openvino.ai/latest/nncf_ptq_introduction.html>`__ to
-get further acceleration.
+`NNCF <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__
+to get further acceleration.

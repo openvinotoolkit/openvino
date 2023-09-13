@@ -9,9 +9,9 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/one_hot.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -51,10 +51,9 @@ void op::v1::OneHot::validate_and_infer_types() {
     const auto& on_value_shape = get_input_partial_shape(2);
     const auto& off_value_shape = get_input_partial_shape(3);
 
-    std::vector<PartialShape> input_shapes = {indices_shape, depth_shape, on_value_shape, off_value_shape},
-                              output_shapes = {PartialShape{}};
+    std::vector<PartialShape> input_shapes = {indices_shape, depth_shape, on_value_shape, off_value_shape};
     resolve_axis(this);
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, on_value_et, output_shapes[0]);
 }
@@ -71,6 +70,7 @@ shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace one_hot {
 namespace {
 template <element::Type_t T>
@@ -80,14 +80,14 @@ bool evaluate(const HostTensorVector& output_values, const HostTensorVector& inp
     const auto& on_value = input_values[2];
     const auto& off_value = input_values[3];
     const auto& out = output_values[0];
-    runtime::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
-                                            indices->get_shape(),
-                                            out->get_data_ptr<char>(),
-                                            out->get_element_type().size(),
-                                            out->get_shape()[axis],
-                                            axis,
-                                            on_value->get_data_ptr<char>(),
-                                            off_value->get_data_ptr<char>());
+    ov::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
+                                       indices->get_shape(),
+                                       out->get_data_ptr<char>(),
+                                       out->get_element_type().size(),
+                                       out->get_shape()[axis],
+                                       axis,
+                                       on_value->get_data_ptr<char>(),
+                                       off_value->get_data_ptr<char>());
     return true;
 }
 bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVector& input_values, const int64_t axis) {

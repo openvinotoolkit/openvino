@@ -17,12 +17,12 @@ struct gather_impl : public typed_primitive_impl<gather> {
     using parent = typed_primitive_impl<gather>;
     using parent::parent;
 
-    int64_t axis;
-    int64_t batch_dims;
+    int64_t axis = 0;
+    int64_t batch_dims = 0;
 
     std::shared_ptr<ov::op::v8::Gather> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::gather_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_impl>(*this);
@@ -60,6 +60,7 @@ struct gather_impl : public typed_primitive_impl<gather> {
         }
 
         auto ev = stream.create_user_event(false);
+        auto params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
@@ -78,11 +79,11 @@ struct gather_impl : public typed_primitive_impl<gather> {
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(input_mem_ptrs[i]->get_layout(), input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         auto axis_tensor = ov::Tensor(ov::element::i64, ov::Shape{1}, static_cast<void*>(&axis));
 
-        output_host_tensors.push_back(make_tensor(output_mem_ptr->get_layout(), output_lock.data()));
+        output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
         input_host_tensors.push_back(axis_tensor);
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),

@@ -4,11 +4,10 @@
 
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/deformable_convolution.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
     MATCHER_SCOPE(ConvertDeformableConv8To1);
@@ -39,8 +38,8 @@ ov::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
                                                                 deformable_conv_v8_node->get_group(),
                                                                 deformable_conv_v8_node->get_deformable_group());
         deformable_conv_v1->set_friendly_name(deformable_conv_v8_node->get_friendly_name());
-        ngraph::copy_runtime_info(deformable_conv_v8_node, deformable_conv_v1);
-        ngraph::replace_node(deformable_conv_v8_node, deformable_conv_v1);
+        ov::copy_runtime_info(deformable_conv_v8_node, deformable_conv_v1);
+        ov::replace_node(deformable_conv_v8_node, deformable_conv_v1);
         return true;
     };
 

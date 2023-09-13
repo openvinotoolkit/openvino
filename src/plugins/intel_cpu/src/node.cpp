@@ -5,6 +5,7 @@
 #include "node.h"
 #include "edge.h"
 #include "extension_mngr.h"
+#include "partitioned_mem_mgr.h"
 #include "itt.h"
 
 #include "caseless.hpp"
@@ -151,7 +152,6 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
                 str != "cpu:unknown")
                 IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
         }
-        // add default primitive priorities as a fallback for the custom ones
         const auto& defaultImplPriorities = getDefaultImplPriority();
         customImplPriorities.insert(customImplPriorities.end(), defaultImplPriorities.begin(), defaultImplPriorities.end());
     }
@@ -368,33 +368,49 @@ bool Node::canBeInPlace() const {
     return true;
 }
 
-void Node::resolveInPlaceEdges() {
+void Node::resolveInPlaceEdges(Edge::LOOK look) {
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
-    for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
-        auto parentEdge = getParentEdgeAt(i);
+    if (look & Edge::LOOK_DOWN) {
+        for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
+            auto inplaceOutIndx = selected_pd->getConfig().inConfs[i].inPlace();
 
-        if (parentEdge->getStatus() != Edge::Status::NotAllocated || selected_pd->getConfig().inConfs[i].inPlace() < 0)
-            continue;
+            if (inplaceOutIndx < 0)
+                continue;
 
-        auto memMgr = parentEdge->getMemory().getDnnlMemoryMngr();
-        parentEdge->getMemoryPtr().reset(new Memory(getEngine()));
-        parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMgr);
+            auto parentEdge = getParentEdgeAt(i);
+            IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected inplace resolve call to an allocated edge: " << parentEdge->name();
 
-        parentEdge->changeStatus(Edge::Status::Allocated);
+            //search for already allocated edge
+            const auto& childEdges = getChildEdgesAtPort(inplaceOutIndx);
+            auto itr = std::find_if(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) { return edge->getStatus() == Edge::Status::Allocated; });
+            IE_ASSERT(itr != childEdges.end()) << " Could not find an allocated edge to resolve in-place for node: " << getName();
+
+            auto baseMemMngr = (*itr)->getMemory().getMemoryMngr();
+            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+            auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+            parentEdge->reuse(newMem);
+        }
     }
-    for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
-        auto childEdge = getChildEdgeAt(i);
+    if (look & Edge::LOOK_UP) {
+        for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
+            auto inplaceInpIndx = selected_pd->getConfig().outConfs[i].inPlace();
 
-        if (childEdge->getStatus() != Edge::Status::NotAllocated || selected_pd->getConfig().outConfs[i].inPlace() < 0)
-            continue;
+            if (inplaceInpIndx < 0)
+                continue;
 
-        auto memMgr = childEdge->getMemory().getDnnlMemoryMngr();
-        childEdge->getMemoryPtr().reset(new Memory(getEngine()));
-        childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMgr);
+            auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
+            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+            const auto& childEdges = getChildEdgesAtPort(i);
 
-        childEdge->changeStatus(Edge::Status::Allocated);
+            for (auto& childEdge : childEdges) {
+                IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) <<
+                    " Unexpected inplace resolve call to an allocated edge: " << childEdge->name();
+                auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                childEdge->reuse(newMem);
+            }
+        }
     }
 }
 
@@ -454,6 +470,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(avx);
     SEARCH_TYPE(sse42);
     SEARCH_TYPE(blas);
+    SEARCH_TYPE(mlas);
     SEARCH_TYPE(any);
     SEARCH_TYPE(uni);
 
@@ -648,11 +665,11 @@ void Node::initSupportedPrimitiveDescriptors() {
     };
 
     /* When custom implementation priorities are NOT defined it is enough to
-     * just use the first implementation from the priority list.
-     * When custom implementation priorities are defined, all the implementations should be considered,
-     * since custom implementations can be not available at all, so a fallback to the default ones must happen
-     * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
-     * since oneDNN primitive is mutating while iterating */
+    * just use the first implementation from the priority list.
+    * When custom implementation priorities are defined, all the implementations should be considered,
+    * since custom implementations can be not available at all, so a fallback to the default ones must happen
+    * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
+    * since oneDNN primitive is mutating while iterating */
 
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
@@ -801,11 +818,9 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
         // TODO [DS]: internal blobs should be removed or rewritten using Memory object
         auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
 
-        Memory memory{ engine };
-        memory.Create(newDesc, internalBlob->buffer());
+        Memory memory{engine, newDesc, internalBlob->buffer()};
 
-        MemoryPtr _ptr = std::make_shared<Memory>(engine);
-        _ptr->Create(intDesc);
+        MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
         node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
         return _ptr;
     };
@@ -850,31 +865,30 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     Node::prepareMemory(intDescs);
 }
 
-MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
+MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc) {
     if (!getParentEdgeAt(1)->getParent()->isConstant())
         IE_THROW() << "Weight input is not const for node " << getName() << ".";
     auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
     if (!edgeMem)
         IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
 
-    auto constDnnlMemOutDesc = edgeMem->GetDescWithType<DnnlMemoryDesc>();
-    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
-    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
+    if (!srcWeightDesc) {
+        auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
+        auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+        weightSrcDesc = weightSrcDesc.reshape(dstWeightDesc->getDnnlDesc().get_dims());
+        srcWeightDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+    }
+
     auto create = [&] () {
-        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
-
-        Memory srcMemory{ getEngine() };
-        srcMemory.Create(newSrcDesc, edgeMem->GetData());
-
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
-        _ptr->Create(weightDesc);
+        Memory srcMemory{ getEngine(), srcWeightDesc, edgeMem->getData() };
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
         node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
         return _ptr;
     };
 
     MemoryPtr ptr;
-    const auto& format = weightDesc->serializeFormat();
+    const auto& format = dstWeightDesc->serializeFormat();
     auto itr = privateWeightCache.find(format);
     if (privateWeightCache.end() != itr) {
         ptr = itr->second;
@@ -882,8 +896,8 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
         auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             const std::string string_hash = getName() + "_" + format
-                                            + "_" + std::to_string(edgeMem->GetSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->GetData()));
+                                            + "_" + std::to_string(edgeMem->getSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->getData()));
 
             ptr = *weightCache->findOrCreate(string_hash, create);
         } else {
@@ -895,7 +909,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     return ptr;
 }
 
-bool Node::isInPlace() {
+bool Node::isInPlace() const {
     if (inplace == InPlaceType::Unknown) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
@@ -1181,7 +1195,7 @@ void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
                             std::unordered_map<int, dnnl::memory>& primArgs,
                             const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
     for (auto & entry : postOpsArgs) {
-        primArgs[entry.first] = entry.second->GetPrimitive();
+        primArgs[entry.first] = entry.second->getPrimitive();
     }
 }
 
@@ -1228,7 +1242,7 @@ std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
     return inputPrecisions;
@@ -1239,7 +1253,7 @@ std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         if (childEdge && childEdge->getStatus() == Edge::Status::Validated) {
-            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->GetDataType())));
+            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->getDataType())));
         }
     }
     return outputPrecisions;
@@ -1400,11 +1414,11 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
             IE_THROW() << "Cannot cast " << constInput->getName() << " to Input";
         }
         auto constBlob = constInputNode->getMemoryPtr();
-        const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
-        cpu_convert(constBlob->GetPtr(),
+        cpu_convert(constBlob->getData(),
                     &buffer[0],
-                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
                     Precision::FP32,
                     elementsCount);
     };
@@ -1458,14 +1472,32 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
     if (inputShapes.size() <= port) {
         IE_THROW() << "Incorrect input port number for node " << getName();
     }
-    return getParentEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
+
+    if (inputShapes[port].hasZeroDims()) {
+        return true;
+    }
+    auto edge = getParentEdgesAtPort(port)[0];
+    if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
+        auto&& mem = edge->getMemory();
+        if (mem.isAllocated()) {
+            return mem.getShape().hasZeroDims();
+        }
+    }
+    return false;
 }
 
 bool Node::isOutputTensorAtPortEmpty(size_t port) const {
     if (outputShapes.size() <= port) {
         IE_THROW() << "Incorrect output port number for node " << getName();
     }
-    return getChildEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
+    if (outputShapes[port].isStatic()) {
+        return outputShapes[port].hasZeroDims();
+    }
+    auto&& mem = getChildEdgesAtPort(port)[0]->getMemory();
+    if (mem.isAllocated()) {
+        return mem.getShape().hasZeroDims();
+    }
+    return false;
 }
 
 bool Node::hasEmptyInputTensors() const {
@@ -1650,20 +1682,49 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     supportedPrimitiveDescriptors.emplace_back(config, implType);
 }
 
-void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
-    if (!DQScales.empty() || !scaleSize)
-        IE_THROW() << "DQ scales is preset or scale size is 0, ##" << getName();
-    DQScales.reserve(scaleSize);
-
-    bool scalePerTensor = true;
-    for (size_t i = 0; i < scaleSize; i++) {
-        DQScales.push_back(scaleData[i]);
-        if (scaleData[i] != scaleData[0])
-            scalePerTensor = false;
-    }
-    if (scalePerTensor)
+void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
+    if (DQScales.empty())
+        DQScales.resize(scaleSize, 1.0);
+   IE_ASSERT(scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize)
+        << "set invalid scales size , DQScales vector size: " << DQScales.size()
+        << ", scale data size: " << scaleSize
+        << "Node: ##" << getName();
+    if (scaleSize > DQScales.size())
+        DQScales.resize(scaleSize, DQScales[0]);
+    if (1 == scaleSize) {
+        std::transform(DQScales.begin(), DQScales.end(),  DQScales.begin(), [=](float val){ return (scaleData[0] * val); });
+     } else {
+         for (size_t i = 0; i < DQScales.size(); i++) {
+             DQScales[i] *= scaleData[i];
+         }
+     }
+     if (std::all_of(DQScales.begin(), DQScales.end(), [=](float val){ return (val == DQScales[0]);}))
         DQScales.resize(1);
 }
 
+int Node::inPlaceInputPort(int portIdx) const {
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (!selected_pd)
+        IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
+
+    const auto& conf = selected_pd->getConfig();
+
+    IE_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.inConfs.size())) <<
+        "Wrong portIndx: " << portIdx << " acceptable interval: [0, " << conf.inConfs.size() << ")";
+
+    return conf.inConfs[portIdx].inPlace();
+}
+int Node::inPlaceOutPort(int portIdx) const {
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (!selected_pd)
+        IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
+
+    const auto& conf = selected_pd->getConfig();
+
+    IE_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.outConfs.size())) <<
+        "Wrong portIndx: " << portIdx << " acceptable interval: [0, " << conf.outConfs.size() << ")";
+
+    return conf.outConfs[portIdx].inPlace();
+}
 }   // namespace intel_cpu
 }   // namespace ov

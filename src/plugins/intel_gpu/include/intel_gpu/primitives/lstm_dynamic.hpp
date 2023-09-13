@@ -22,8 +22,6 @@ struct lstm_dynamic : public primitive_base<lstm_dynamic> {
 
     lstm_dynamic() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs lstm_dynamic layer.
     /// @param id This primitive id.
     /// @param input Primitive id of input layer.
@@ -48,7 +46,7 @@ struct lstm_dynamic : public primitive_base<lstm_dynamic> {
                  const primitive_id& initial_hidden = "",
                  const primitive_id& initial_cell = "",
                  const float clip = 0.0f,
-                 const bool input_forget = 0,
+                 const bool input_forget = false,
                  const padding& output_padding = padding())
         : primitive_base(id, {input}, {output_padding}),
           dyn_length(dyn_length),
@@ -79,9 +77,9 @@ struct lstm_dynamic : public primitive_base<lstm_dynamic> {
     /// @brief Primitive id containing the initial value of the cell state data.
     primitive_id initial_cell;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
-    float clip;
+    float clip = 0.0f;
     /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
-    bool input_forget;
+    bool input_forget = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

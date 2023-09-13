@@ -28,8 +28,8 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 
 int get_shapes_squeeze_shift(const Shape& shape1, const Shape& shape2) {
-    const int index_1 = get_first_valuable_dim_id(shape1);
-    const int index_2 = get_first_valuable_dim_id(shape2);
+    const int index_1 = static_cast<int>(get_first_valuable_dim_id(shape1));
+    const int index_2 = static_cast<int>(get_first_valuable_dim_id(shape2));
 
     if (index_1 < 0 || index_2 < 0)
         return 0;

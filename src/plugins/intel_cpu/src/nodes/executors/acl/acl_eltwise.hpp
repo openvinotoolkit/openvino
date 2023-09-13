@@ -16,6 +16,7 @@ using namespace InferenceEngine;
 class AclEltwiseExecutor : public EltwiseExecutor {
 public:
     explicit AclEltwiseExecutor(const ExecutorContext::CPtr context);
+    static bool isEltwiseAlgorithmSupported(Algorithm algorithm);
 
     bool init(const EltwiseAttrs& eltwiseAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
@@ -33,7 +34,7 @@ private:
     EltwiseAttrs aclEltwiseAttrs{};
     impl_desc_type implType = impl_desc_type::acl;
     std::vector<arm_compute::Tensor> srcTensors, dstTensors;
-    std::function<void()> exec_func;
+    std::unique_ptr<arm_compute::IFunction> ifunc;
 };
 
 class AclEltwiseExecutorBuilder : public EltwiseExecutorBuilder {

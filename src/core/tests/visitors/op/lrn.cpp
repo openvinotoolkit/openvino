@@ -2,33 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/lrn.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, lrn_op) {
-    NodeBuilder::get_ops().register_factory<opset1::LRN>();
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    const auto axes = make_shared<op::Parameter>(element::i32, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::LRN>();
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    const auto axes = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
     const double alpha = 1.1;
     const double beta = 2.2;
     const double bias = 3.3;
     const size_t size = 4;
 
-    const auto lrn = make_shared<opset1::LRN>(arg, axes, alpha, beta, bias, size);
+    const auto lrn = make_shared<ov::op::v0::LRN>(arg, axes, alpha, beta, bias, size);
     NodeBuilder builder(lrn, {arg, axes});
-    auto g_lrn = ov::as_type_ptr<opset1::LRN>(builder.create());
+    auto g_lrn = ov::as_type_ptr<ov::op::v0::LRN>(builder.create());
 
     EXPECT_EQ(g_lrn->get_alpha(), lrn->get_alpha());
     EXPECT_EQ(g_lrn->get_beta(), lrn->get_beta());

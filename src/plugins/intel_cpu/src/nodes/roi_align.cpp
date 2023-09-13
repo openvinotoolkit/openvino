@@ -811,8 +811,8 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 }
 
 void ROIAlign::createPrimitive() {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -847,8 +847,8 @@ struct ROIAlign::ROIAlignExecute {
     }
 };
 void ROIAlign::execute(dnnl::stream strm) {
-    auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
-    auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
+    auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
+    auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
           (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
         IE_THROW() <<"ROIAlign doesn't support demanded precisions";
@@ -868,15 +868,15 @@ void ROIAlign::executeSpecified() {
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    auto srcBlockDesc = srcMemory0.GetDescWithType<BlockedMemoryDesc>();
-    auto dstBlockDesc = dstMemory.GetDescWithType<BlockedMemoryDesc>();
+    auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
+    auto dstBlockDesc = dstMemory.getDescWithType<BlockedMemoryDesc>();
 
     auto isPlainFmt = srcBlockDesc->hasLayoutType(LayoutType::ncsp);
 
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
+    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;

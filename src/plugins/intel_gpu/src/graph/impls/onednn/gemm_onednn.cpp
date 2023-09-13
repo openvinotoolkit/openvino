@@ -19,7 +19,7 @@ struct gemm_onednn : typed_primitive_onednn_impl<gemm> {
     using parent = typed_primitive_onednn_impl<gemm>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::gemm_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -33,12 +33,14 @@ protected:
 
         {
             auto& weights = instance.input_memory(1);
-            args.insert({DNNL_ARG_WEIGHTS, weights.get_onednn_memory(_pd.weights_desc(0))});
+            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            args.insert({DNNL_ARG_WEIGHTS, weights.get_onednn_memory(_pd.weights_desc(0), offset)});
         }
 
         if (instance.inputs_memory_count() == 3) {
             auto& weights = instance.input_memory(2);
-            args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(_pd.weights_desc(1))});
+            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
+            args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(_pd.weights_desc(1), offset)});
         }
 
         return args;
@@ -295,6 +297,8 @@ public:
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
+
+        _scratchpad_md = _pd.scratchpad_desc();
 
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif

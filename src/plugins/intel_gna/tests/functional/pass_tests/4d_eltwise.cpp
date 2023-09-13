@@ -53,7 +53,7 @@ protected:
 
         outPrc = InferenceEngine::Precision::FP32;
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 72}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 72})};
 
         std::vector<size_t> outFormShapes1 = {1, 1, 6, 12};
         auto pattern1 =
@@ -102,8 +102,8 @@ protected:
 
         outPrc = InferenceEngine::Precision::FP32;
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 72}, {1, 72}});
-
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 72}),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 72})};
         std::vector<size_t> outFormShapes1 = {1, 1, 6, 12};
         auto pattern1 =
             std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, outFormShapes1);
@@ -147,7 +147,7 @@ const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {ngraph::helpe
 INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d,
                          Eltwise4dBroadcast,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(eltwiseOpTypes)),
                          Eltwise4dBroadcast::getTestCaseName);
@@ -155,7 +155,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d,
 INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d,
                          Eltwise4dMultipleInput,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configsMultiple),
                                             ::testing::ValuesIn(eltwiseOpTypes)),
                          Eltwise4dMultipleInput::getTestCaseName);

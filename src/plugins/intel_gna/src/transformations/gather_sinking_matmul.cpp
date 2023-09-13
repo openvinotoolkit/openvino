@@ -86,11 +86,11 @@ GatherSinkingMatmulBackward::GatherSinkingMatmulBackward() {
         auto indices_const = as_type_ptr<Constant>(pattern_to_output.at(indices_const_label).get_node_shared_ptr());
         auto gather = as_type_ptr<Gather>(pattern_to_output.at(gather_label).get_node_shared_ptr());
 
-        int gather_negative_axis =
+        int64_t gather_negative_axis =
             get_normalized_negative_gather_axis(axis_const, gather->get_input_partial_shape(0).rank().get_length());
-        const int matmul_insert_input_idx =
-            convert_axis_to_positive(gather_negative_axis, gather->get_input_partial_shape(0).rank().get_length());
-        if (is_matmul_input_transposed(matmul, gather_negative_axis))
+        const int matmul_insert_input_idx = static_cast<int>(
+            convert_axis_to_positive(gather_negative_axis, gather->get_input_partial_shape(0).rank().get_length()));
+        if (is_matmul_input_transposed(matmul, static_cast<size_t>(gather_negative_axis)))
             gather_negative_axis = get_another_input_negative_axis(gather_negative_axis);
         auto new_axis_const = std::make_shared<Constant>(axis_const->get_element_type(), Shape{}, gather_negative_axis);
         for (auto& new_node : sink_backward::insert_gather_before_node(matmul,

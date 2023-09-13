@@ -1,9 +1,12 @@
 # CPU Device {#openvino_docs_OV_UG_supported_plugins_CPU}
 
 
-
-
 @sphinxdirective
+
+.. meta::
+   :description: The CPU plugin in the Intel® Distribution of OpenVINO™ toolkit 
+                 is developed to achieve high performance inference of neural 
+                 networks on Intel® x86-64 and Arm® CPUs.
 
 
 The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 and Arm® CPUs. The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
@@ -26,18 +29,18 @@ In order to use CPU for inference, the device name should be passed to the ``ov:
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.cpp
-         :language: cpp
-         :fragment: [compile_model_default]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/cpu/compile_model.py
          :language: py
+         :fragment: [compile_model_default]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/cpu/compile_model.cpp
+         :language: cpp
          :fragment: [compile_model_default]
 
 
@@ -46,15 +49,18 @@ Supported Inference Data Types
 
 CPU plugin supports the following data types as inference precision of internal primitives:
 
-| - Floating-point data types:
-|   - f32 (Intel® x86-64, Arm®)
-|   - bf16 (Intel® x86-64)
-| - Integer data types:
-|   - i32 (Intel® x86-64, Arm®)
-| - Quantized data types:
-|   - u8 (Intel® x86-64)
-|   - i8 (Intel® x86-64)
-|   - u1 (Intel® x86-64)
+- Floating-point data types:
+
+  - ``f32`` (Intel® x86-64, Arm®)
+  - ``bf16``(Intel® x86-64)
+- Integer data types:
+
+  - ``i32`` (Intel® x86-64, Arm®)
+- Quantized data types:
+
+  - ``u8`` (Intel® x86-64)
+  - ``i8`` (Intel® x86-64)
+  - ``u1`` (Intel® x86-64)
 
 :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
 
@@ -82,8 +88,8 @@ Floating Point Data Types Specifics
 
 CPU plugin supports the following floating-point data types as inference precision of internal primitives:
 
-- f32 (Intel® x86-64, Arm®)
-- bf16 (Intel® x86-64)
+- ``f32`` (Intel® x86-64, Arm®)
+- ``bf16`` (Intel® x86-64)
 
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
@@ -103,18 +109,18 @@ to query ``ov::device::capabilities`` property, which should contain ``BF16`` in
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference0.cpp
-         :language: cpp
-         :fragment: [part0]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
          :language: py
+         :fragment: [part0]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference0.cpp
+         :language: cpp
          :fragment: [part0]
 
 
@@ -126,18 +132,18 @@ the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference1.cpp
-         :language: cpp
-         :fragment: [part1]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
          :language: py
+         :fragment: [part1]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference1.cpp
+         :language: cpp
          :fragment: [part1]
          
 To infer the model in ``f32`` precision instead of ``bf16`` on targets with native ``bf16`` support, set the ``ov::hint::inference_precision`` to ``ov::element::f32``.
@@ -145,18 +151,18 @@ To infer the model in ``f32`` precision instead of ``bf16`` on targets with nati
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference2.cpp
-         :language: cpp
-         :fragment: [part2]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
          :language: py
+         :fragment: [part2]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference2.cpp
+         :language: cpp
          :fragment: [part2]
 
 
@@ -196,18 +202,18 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.cpp
-         :language: cpp
-         :fragment: [compile_model_multi]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/cpu/compile_model.py
          :language: py
+         :fragment: [compile_model_multi]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/cpu/compile_model.cpp
+         :language: cpp
          :fragment: [compile_model_multi]
 
 
@@ -250,18 +256,18 @@ with the static input shape to get the best performance.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/cpu/dynamic_shape.cpp
-         :language: cpp
-         :fragment: [static_shape]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/cpu/dynamic_shape.py
          :language: py
+         :fragment: [static_shape]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/cpu/dynamic_shape.cpp
+         :language: cpp
          :fragment: [static_shape]
 
 
@@ -276,19 +282,19 @@ For more details, see :doc:`preprocessing API guide <openvino_docs_OV_UG_Preproc
 
 .. dropdown:: The CPU plugin support for handling tensor precision conversion is limited to the following ov::element types:
 
-   * bf16
-   * f16
-   * f32
-   * f64
-   * i8
-   * i16
-   * i32
-   * i64
-   * u8
-   * u16
-   * u32
-   * u64
-   * boolean
+   * ``bf16``
+   * ``f16``
+   * ``f32``
+   * ``f64``
+   * ``i8``
+   * ``i16``
+   * ``i32``
+   * ``i64``
+   * ``u8``
+   * ``u16``
+   * ``u32``
+   * ``u64``
+   * ``boolean``
 
 
 Model Caching
@@ -356,7 +362,9 @@ Read-only properties
 
 External Dependencies
 ###########################################################
+
 For some performance-critical DL operations, the CPU plugin uses third-party libraries:
+
 - `oneDNN <https://github.com/oneapi-src/oneDNN>`__ (Intel® x86-64, Arm®)
 - `Compute Library <https://github.com/ARM-software/ComputeLibrary>`__ (Arm®)
 
@@ -378,17 +386,22 @@ User can use the following properties to limit available CPU resource for model 
 - ``ov::hint::enable_hyper_threading`` limits the use of one or two logical processors per CPU core when platform has CPU hyperthreading enabled.
   If there is only one logical processor per CPU core, such as Efficient-cores, this property has no effect, and CPU inference uses all logical processors.
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
-      :language: cpp
-      :fragment: [ov:intel_cpu:multi_threading:part0]
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+         :language: python
+         :fragment: [ov:intel_cpu:multi_threading:part0]
 
-.. tab:: Python
-
-   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
-      :language: python
-      :fragment: [ov:intel_cpu:multi_threading:part0]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:multi_threading:part0]
+   
 
 .. note:: 
    
@@ -396,17 +409,22 @@ User can use the following properties to limit available CPU resource for model 
    
 By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel.
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
-      :language: cpp
-      :fragment: [ov:intel_cpu:multi_threading:part1]
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+         :language: python
+         :fragment: [ov:intel_cpu:multi_threading:part1]
 
-.. tab:: Python
-
-   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
-      :language: python
-      :fragment: [ov:intel_cpu:multi_threading:part1]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:multi_threading:part1]
+   
 
 user can check the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_tput_advanced>` for details on multi-stream execution
 
@@ -442,18 +460,21 @@ effectiveness and safety of the settings.
 
 To enable denormals optimization in the application, the ``denormals_optimization`` property must be set to ``True``:
 
+.. tab-set::
 
-.. tab:: C++
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/ov_denormals.py
+         :language: python
+         :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
-   .. doxygensnippet:: docs/snippets/ov_denormals.cpp
-      :language: cpp
-      :fragment: [ov:intel_cpu:denormals_optimization:part0]
-
-.. tab:: Python
-
-   .. doxygensnippet:: docs/snippets/ov_denormals.py
-      :language: python
-      :fragment: [ov:intel_cpu:denormals_optimization:part0]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/ov_denormals.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
 
 Sparse weights decompression (Intel® x86-64)
@@ -483,17 +504,21 @@ which means the option is disabled.
 
 Code examples of how to use ``sparse_weights_decompression_rate``:
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
-      :language: cpp
-      :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
+         :language: python
+         :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
-.. tab:: Python
-
-   .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
-      :language: python
-      :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
 
 .. note:: 

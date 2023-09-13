@@ -3,7 +3,7 @@ atomicwrites==1.4.0
 attrs==22.1.0
 Babel==2.11.0
 beautifulsoup4==4.9.3
-certifi==2022.12.7
+certifi==2023.7.22
 colorama==0.4.6
 Cython==0.29.33
 docutils==0.16
@@ -45,3 +45,4 @@ sphinxcontrib-serializinghtml==1.1.5
 toml==0.10.2
 urllib3==1.26.5
 zipp==3.4.1
+docs/openvino_custom_sphinx_sitemap

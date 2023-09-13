@@ -1,7 +1,6 @@
-.. OpenVINO Toolkit documentation master file, created by
-   sphinx-quickstart on Wed Jul  7 10:46:56 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+============================
+OpenVINO 2023.0
+============================
 
 .. meta::
    :google-site-verification: _YqumYQ98cmXUTwtzM_0WIIadtDc6r_TMYGbmGgNvrk
@@ -15,10 +14,28 @@
 .. container::
    :name: ov-homepage-banner
 
-   OpenVINO 2023.0
+   OpenVINO 2023.1
 
-   | An open-source toolkit for optimizing and deploying deep learning models.
-   | Boost your AI deep-learning inference performance!
+   .. raw:: html
+
+      <div class="line-block">
+         <section class="splide" aria-label="Splide Banner Carousel">
+           <div class="splide__track">
+         		<ul class="splide__list">
+         			<li class="splide__slide">An open-source toolkit for optimizing and deploying deep learning models.<br>Boost your AI deep-learning inference performance!</li>
+                  
+                  <li class="splide__slide"Better OpenVINO integration with PyTorch!<br>Use PyTorch models directly, without converting them first.
+                     <a href="https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html">Learn more...</a>
+                  </li>
+                  <li class="splide__slide">OpenVINO via PyTorch 2.0 torch.compile()<br>Use OpenVINO directly in PyTorch-native applications! 
+                     <a href="https://docs.openvino.ai/2023.1/pytorch_2_0_torch_compile.html">Learn more...</a>
+                  </li>
+                  <li class="splide__slide">Do you like Generative AI? You will love how it performs with OpenVINO!<br>
+                     <a href="https://docs.openvino.ai/2023.1/tutorials.html">Check out our new notebooks...</a>
+         		</ul>
+           </div>
+         </section>
+      </div>
    
    .. button-ref::  get_started
       :ref-type: doc
@@ -32,8 +49,6 @@
 
    .. image:: _static/images/ov_homepage_diagram.png
       :align: center
-
-
 
 
 .. grid:: 2 2 3 3
@@ -74,12 +89,16 @@
 
       Reach for performance with post-training and training-time compression with NNCF
 
+   .. grid-item-card:: PyTorch 2.0 - torch.compile() backend
+      :link: pytorch_2_0_torch_compile
+      :link-alt: torch.compile 
+      :link-type: doc
 
-
+      Optimize generation of the graph model with PyTorch 2.0 torch.compile() backend
 
 
 Feature Overview
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##############################
 
 .. grid:: 1 2 2 2
    :class-container: ov-homepage-feature-grid
@@ -109,9 +128,6 @@ Feature Overview
 
 
 
-
-
-
 .. toctree::
    :maxdepth: 2
    :hidden:
@@ -120,6 +136,6 @@ Feature Overview
    LEARN OPENVINO <learn_openvino>
    OPENVINO WORKFLOW <openvino_workflow>
    DOCUMENTATION <documentation>
-   MODEL ZOO <model_zoo>
    RESOURCES <resources>
-   RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
+   RELEASE NOTES <release_notes>
+

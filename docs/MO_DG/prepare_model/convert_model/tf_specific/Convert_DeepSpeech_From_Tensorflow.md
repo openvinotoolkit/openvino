@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a DeepSpeech model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 `DeepSpeech project <https://github.com/mozilla/DeepSpeech>`__ provides an engine to train speech-to-text models.
 
 Downloading the Pretrained DeepSpeech Model

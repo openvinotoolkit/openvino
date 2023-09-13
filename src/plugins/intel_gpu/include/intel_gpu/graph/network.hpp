@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -13,6 +15,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
+#include "intel_gpu/runtime/shape_predictor.hpp"
 
 #include <map>
 #include <vector>
@@ -30,13 +33,15 @@ struct network_output {
     event::ptr get_event() const { return _event; }
 
     /// @brief Returns @ref memory object of the output. Blocked until associated @ref event is not complete.
-    memory::ptr get_memory() const {
+    memory::ptr get_memory(bool do_sync = true) const {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
-        if (_stream->get_queue_type() == QueueTypes::in_order) {
-            _stream->finish();
-        } else {
-            _event->wait();
+        if (do_sync) {
+            if (_stream->get_queue_type() == QueueTypes::in_order) {
+                _stream->finish();
+            } else {
+                _event->wait();
+            }
         }
         return _result;
     }
@@ -65,7 +70,7 @@ public:
         using Ptr = std::shared_ptr<VariableState>;
 
         VariableState(cldnn::memory_ptr mem = nullptr) :
-            memory { mem }, is_set { false } {
+            memory { std::move(mem) }, is_set { false } {
         }
         void set_memory(cldnn::memory_ptr new_mem) {
             memory = new_mem;
@@ -79,19 +84,21 @@ public:
     network(engine& engine,
             const topology& topo,
             const ExecutionConfig& config = {},
-            bool is_internal = false);
+            bool is_internal = false,
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr);
+
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
             const ExecutionConfig& config,
-            std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal);
 
     network(program::ptr program, uint16_t stream_id = 0);
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
-    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, bool is_primary_stream = true);
-    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream = true);
+    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id);
+    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id);
 
     ~network();
 
@@ -100,11 +107,13 @@ public:
     static ptr build_network(engine& engine,
                              const topology& topology,
                              const ExecutionConfig& config = {},
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
                              bool is_internal = false);
+
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
-                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                              bool is_internal);
 
     static ptr allocate_network(stream::ptr stream,
@@ -121,8 +130,8 @@ public:
     engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
-    void set_input_data(const primitive_id& id, memory::ptr data);
-    void set_output_memory(const primitive_id& id, memory::ptr mem);
+    event::ptr set_input_data(const primitive_id& id, memory::ptr data);
+    std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem);
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
 
@@ -211,6 +220,7 @@ public:
     void configure_primitives_second_output();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
+    uint32_t get_local_id() const { return _local_net_id; }
     stream& get_stream() const { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
     bool is_internal() const { return _internal; }
@@ -234,8 +244,14 @@ public:
 
     using variables_state_info_map = std::map<std::string, cldnn::layout>;
     void set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout);
-
+    const variables_state_info_map& get_variables_state_info() const;
     const ExecutionConfig& get_config() const { return _config; }
+
+    ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
+
+#ifdef GPU_DEBUG_CONFIG
+    int64_t get_current_iteration_num() { return iteration; }
+#endif
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
@@ -250,6 +266,8 @@ private:
     bool _is_dynamic = false;
     bool _enable_profiling = false;
     bool _reset_arguments;
+    uint32_t _local_net_id = 0;     // This is for thread-safe deserialization. 'net_id' is globally unique,
+                                    // but '_local_net_id' is unique only in each intel_gpu::Graph.
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<shared_mem_type> _in_out_shared_mem_types;
@@ -266,6 +284,8 @@ private:
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
+
+    std::unique_ptr<ShapePredictor> _shape_predictor;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);

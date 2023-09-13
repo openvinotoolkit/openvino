@@ -23,7 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -874,8 +874,8 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDim
 }
 
 void NormalizeL2::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "can't get destination memory";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -937,8 +937,8 @@ void NormalizeL2::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "doesn't have a compiled executor.";
 
-    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->GetPtr());
-    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->GetPtr());
+    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->getData());
+    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->getData());
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 

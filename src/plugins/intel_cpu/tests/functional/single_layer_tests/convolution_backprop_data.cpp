@@ -56,27 +56,27 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : inputShape.second) {
             result << "(";
-            result << CommonTestUtils::vec2str(shape);
+            result << ov::test::utils::vec2str(shape);
             result << ")_";
         }
         result << "PRC=" << prec << "_";
-        result << "K=" << CommonTestUtils::vec2str(kernel) << "_";
-        result << "S=" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
-        result << "OP=" << CommonTestUtils::vec2str(outPadding) << "_";
+        result << "K=" << ov::test::utils::vec2str(kernel) << "_";
+        result << "S=" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB=" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
+        result << "OP=" << ov::test::utils::vec2str(outPadding) << "_";
         result << "O=" << convOutChannels << "_";
         result << "AP=" << padType << "_";
         result << "OUT_SH=" << outShapeType << "_";
         result << "OUT_D=";
         for (const auto& data : outShapeData) {
             result << "(";
-            result << CommonTestUtils::vec2str(data);
+            result << ov::test::utils::vec2str(data);
             result << ")_";
         }
 
@@ -168,7 +168,7 @@ public:
     }
 
     std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes, ngraph::helpers::InputLayerType outShapeType) {
-        auto params = ngraph::builder::makeDynamicParams(prec, {inShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(prec, inShapes.front())};
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
             if (outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
@@ -204,7 +204,7 @@ protected:
     void SetUp() override {
         rel_threshold = 1e-4f;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         DeconvSpecParams basicParamsSet;
         DeconvInputData inputData;
@@ -867,6 +867,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_AutoPadding_FP32, DeconvolutionLayerCPU
         ::testing::Values(emptyFusingSpec),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D, conv_avx512_3D})),
         ::testing::Values(cpuEmptyPluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
+const auto deconvParams_AutoPadding_2D_AMX = ::testing::Combine(
+    ::testing::ValuesIn(deconvAmxKernels2d),
+    ::testing::ValuesIn(deconvAmxStrides2d),
+    ::testing::ValuesIn(padBegins2d),
+    ::testing::ValuesIn(padEnds2d),
+    ::testing::ValuesIn(dilations2d),
+    ::testing::Values(256),
+    ::testing::Values(ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER),
+    ::testing::ValuesIn(emptyOutputPadding)
+);
+
+const DeconvInputData inputs_2D_AutoPadding_AMX = {
+    InputShape{{-1, 512, -1, -1}, {{ 1, 512, 32, 51}, { 1, 512, 68, 101}}},
+    ngraph::helpers::InputLayerType::PARAMETER,
+    {{64, 101}, {135, 202}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_AutoPadding_AMX_BF16, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        deconvParams_AutoPadding_2D_AMX,
+        ::testing::Values(inputs_2D_AutoPadding_AMX),
+        ::testing::Values(ElementType::f32),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_brgconv_amx})),
+        ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 } // namespace

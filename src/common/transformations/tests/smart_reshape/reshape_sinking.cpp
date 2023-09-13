@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset9.hpp"
 
@@ -19,7 +19,7 @@ struct ReshapeSinkingAttributes {
 };
 
 class ReshapeSinkingTest : public testing::WithParamInterface<ReshapeSinkingAttributes>,
-                           public CommonTestUtils::TestsCommon {};
+                           public ov::test::TestsCommon {};
 
 TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
     auto p = GetParam();
@@ -40,7 +40,7 @@ TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
 }
 
 class ReshapeSinkingTestWithAdd : public testing::WithParamInterface<ReshapeSinkingAttributes>,
-                                  public CommonTestUtils::TestsCommon {};
+                                  public ov::test::TestsCommon {};
 
 TEST_P(ReshapeSinkingTestWithAdd, ReshapeSinkingMatMulAdd) {
     auto p = GetParam();

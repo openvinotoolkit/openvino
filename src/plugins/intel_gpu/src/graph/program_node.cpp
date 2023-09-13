@@ -42,18 +42,19 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
+        add_memory_dependency(id());
     }
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
-    if (dependencies[idx].first == &new_dep)
+    if (dependencies[idx].first == new_dep.first)
         return;
 
     if (is_type<loop>()) {
         loop_node& loop = *this;
-        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.id(), true);
+        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.first->id(), true);
     }
 
     auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
@@ -64,14 +65,23 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
     if (remove_if_dangling)
         myprog.remove_if_dangling(*dependencies[idx].first);
 
-    dependencies[idx].first = &new_dep;
-    new_dep.users.push_back(this);
+    dependencies[idx].first = new_dep.first;
+    dependencies[idx].second = new_dep.second;
+    new_dep.first->users.push_back(this);
 }
 
-void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
+    return replace_dependency(idx, std::make_pair(&new_dep, 0), remove_if_dangling);
+}
+
+void program_node::replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &old_dep)
             return replace_dependency(i, new_dep, remove_if_dangling);
+}
+
+void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
+    return replace_dependency(old_dep, std::make_pair(&new_dep, 0), remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
@@ -107,7 +117,11 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     s << get_preferred_impl_type();
     node_info->add("preferred impl", s.str());
 
-    node_info->add("output layout", output_layouts[0].to_short_string());
+    json_composite output_layouts_desc;
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        output_layouts_desc.add(std::to_string(i), output_layouts[i].to_short_string());
+    }
+    node_info->add("output layouts", output_layouts_desc);
 
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
@@ -158,7 +172,9 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             if (empty) {
                 empty = false;
             }
-            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(itr->first)));
+            auto ptr = std::to_string(reinterpret_cast<uintptr_t>(itr->first));
+            auto port = std::to_string(itr->second);
+            deps_ptrs.push_back(ptr + "(" + port + ")");
             itr++;
         }
         if (deps_ptrs.empty()) {
@@ -278,8 +294,8 @@ layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t 
     if (valid_output_layouts[idx])
         return output_layouts[idx];
 
-    auto new_layout = calc_output_layout();
-    set_output_layout(new_layout, invalidate_users_if_changed, idx);
+    auto new_layouts = calc_output_layouts();
+    set_output_layouts(new_layouts, invalidate_users_if_changed);
     return output_layouts[idx];
 }
 
@@ -471,7 +487,14 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     return true;
 }
 
- void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
+bool program_node::is_padded_spatial(size_t idx) const {
+    auto lower_size = get_output_layout(idx).data_padding.lower_size();
+    auto upper_size = get_output_layout(idx).data_padding.upper_size();
+    return std::any_of(lower_size.spatial.begin(), lower_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; }) ||
+        std::any_of(upper_size.spatial.begin(), upper_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; });
+}
+
+void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
     selected_impl = std::move(impl);
 }
 
@@ -935,6 +958,10 @@ void program_node::init_onednn_primitive_attributes() {
     // Added this for debug purposes only
     size_t empty_mem = 0xff;
 
+    // Change scratchpad mode to user
+    if (attrs->get_scratchpad_mode() == dnnl::scratchpad_mode::library)
+        attrs->set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
     // Add information about post-operation into the list, update indices
     auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep,
                                           dnnl::memory::format_tag tag = dnnl::memory::format_tag::undef,
@@ -962,10 +989,15 @@ void program_node::init_onednn_primitive_attributes() {
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
+            bool allow_new_shape_infer = get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
-                int oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
+                int oc_dim = 1;
+                if (allow_new_shape_infer)
+                    oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
+                else
+                    oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
@@ -982,8 +1014,8 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
                 if (alg == dnnl::algorithm::undef)
-                    IE_THROW() << "Activations that are undef algorithms must be converted to other activations before "
-                                  "pushing to post-op.";
+                    OPENVINO_THROW("Activations that are undef algorithms must be converted to other activations before "
+                                   "pushing to post-op.");
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);

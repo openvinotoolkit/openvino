@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ReduceL1-4 - a reduction operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *ReduceL1-4*
 
 **Category**: *Reduction*
@@ -49,7 +53,8 @@ Particular cases:
 **Examples**
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceL1" ...>
         <data keep_dims="true" />
@@ -76,7 +81,8 @@ Particular cases:
 
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceL1" ...>
         <data keep_dims="false" />
@@ -101,7 +107,8 @@ Particular cases:
 
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceL1" ...>
         <data keep_dims="false" />
@@ -127,7 +134,8 @@ Particular cases:
 
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceL1" ...>
         <data keep_dims="false" />

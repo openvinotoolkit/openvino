@@ -36,7 +36,7 @@ namespace intel_cpu {
  *               - input "0" indicates that the function generates the optimal number of threads per stream based on
  * processors type information.
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
- * @param[in]  scopeOflatencyCandidate is the scope of candidate processors per stream for latency hint
+ * @param[in]  latencyThreadingMode is the scope of candidate processors per stream for latency hint
  *               - user can select all processors per numa node, per socket, or per platform.
  * @param[in]  proc_type_table is currently available candidate processors.
  *               - candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type
@@ -49,8 +49,8 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_infer_requests,
                                                      const int model_prefer_threads,
                                                      const std::string input_perf_hint,
-                                                     const Config::LatencyThreadingMode scopeOflatencyCandidate,
-                                                     const std::vector<std::vector<int>> proc_type_table);
+                                                     const Config::LatencyThreadingMode latencyThreadingMode,
+                                                     const std::vector<std::vector<int>>& proc_type_table);
 /**
  * @brief      Get model_prefer_threads
  * @param[in]  num_streams is target streams set by user via NUM_STREAMS or hints.
@@ -59,24 +59,29 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
  * @param[in]  proc_type_table candidate processors available at this time
  *               - candidate processors have benn updated based on properties like "Ecore only" in previous function
  * @param[in]  ngraphFunc ngraph function
+ * @param[in]  config intel cpu configuration
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                             const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig);
+                             Config& config);
 
 /**
  * @brief      Generate streams information according to processors type table
  * @param[in]  streams number of streams
  * @param[in]  ngraphFunc graph handle
  * @param[in]  config intel cpu configuration
+ * @param[in]  proc_type_table candidate processors available at current platform
  * @param[in]  preferred_nthreads_per_stream is initial preferred number of threads per stream
+ * @return     candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type and
+ * ov::hint::enable_hyper_threading
  */
-void generate_stream_info(const int streams,
-                          const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                          Config& config,
-                          int preferred_nthreads_per_stream = -1);
+std::vector<std::vector<int>> generate_stream_info(const int streams,
+                                                   const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                                                   Config& config,
+                                                   std::vector<std::vector<int>>& proc_type_table,
+                                                   int preferred_nthreads_per_stream = -1);
 
 struct StreamCfg {
     int num_streams;               // Number of streams
@@ -97,6 +102,13 @@ struct StreamCfg {
 void get_num_streams(const int streams,
                      const std::shared_ptr<ngraph::Function>& ngraphFunc,
                      Config& config);
+
+/**
+ * @brief      Get default number of streams in certain latency threading mode
+ * @param[in]  latency_threading_mode is the scope of candidate processors per stream for latency hint
+ * @return     number of streams
+ */
+int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode);
 
 }  // namespace intel_cpu
 }  // namespace ov

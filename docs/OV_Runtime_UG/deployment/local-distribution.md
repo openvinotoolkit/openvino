@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: A local distribution will have its own copies of OpenVINO 
+                 Runtime binaries along with a set of required libraries 
+                 needed to deploy the application.
+
+
 With local distribution, each C or C++ application/installer has its own copies of OpenVINO Runtime binaries. However, OpenVINO has a scalable plugin-based architecture, which means that some components can be loaded in runtime only when they are really needed. This guide helps you understand what minimal set of libraries is required to deploy the application.
 
 Local distribution is also suitable for OpenVINO binaries built from source using `Build instructions <https://github.com/openvinotoolkit/openvino/wiki#how-to-build>`__, 
@@ -34,10 +40,10 @@ Libraries for Compute Devices
 
 For each inference device, OpenVINO Runtime has its own plugin library:
 
-- ``openvino_intel_cpu_plugin`` for :doc:`Intel® CPU devices <openvino_docs_OV_UG_supported_plugins_CPU>`.
-- ``openvino_intel_gpu_plugin`` for :doc:`Intel® GPU devices <openvino_docs_OV_UG_supported_plugins_GPU>`.
-- ``openvino_intel_gna_plugin`` for :doc:`Intel® GNA devices <openvino_docs_OV_UG_supported_plugins_GNA>`.
-- ``openvino_arm_cpu_plugin`` for :doc:`ARM CPU devices <openvino_docs_OV_UG_supported_plugins_CPU>`.
+- ``openvino_intel_cpu_plugin`` for :doc:`Intel® CPU devices <openvino_docs_OV_UG_supported_plugins_CPU>`
+- ``openvino_intel_gpu_plugin`` for :doc:`Intel® GPU devices <openvino_docs_OV_UG_supported_plugins_GPU>`
+- ``openvino_intel_gna_plugin`` for :doc:`Intel® GNA devices <openvino_docs_OV_UG_supported_plugins_GNA>`
+- ``openvino_arm_cpu_plugin`` for :doc:`ARM CPU devices <openvino_docs_OV_UG_supported_plugins_CPU>`
 
 Depending on which devices are used in the app, the corresponding libraries should be included in the distribution package.
 
@@ -45,49 +51,65 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
 
 .. tab-set::
 
-   .. tab-item:: Windows OS
+   .. tab-item:: Windows
+      :sync: windows
 
-      .. list-table::
-         :header-rows: 1
+      +--------------+-------------------------+-------------------------------------------------------+
+      |    Device    |       Dependency        |                      Location                         |
+      +==============+=========================+=======================================================+
+      |     CPU      |            —            |                          —                            |
+      +--------------+-------------------------+-------------------------------------------------------+
+      |     GPU      | | OpenCL.dll            | | ``C:\Windows\System32\opencl.dll``                  |
+      |              | | cache.json            | | ``.\runtime\bin\intel64\Release\cache.json``   or   |
+      |              |                         | | ``.\runtime\bin\intel64\Debug\cache.json``          |
+      +--------------+-------------------------+-------------------------------------------------------+
+      |     GNA      |         gna.dll         | | ``.\runtime\bin\intel64\Release\gna.dll``    or     |
+      |              |                         | | ``.\runtime\bin\intel64\Debug\gna.dll``             |
+      +--------------+-------------------------+-------------------------------------------------------+
+      |  Arm® CPU    |            —            |                          —                            |
+      +--------------+-------------------------+-------------------------------------------------------+
 
-         * - Device
-           - Dependency
-         * - CPU
-           - ``-``
-         * - GPU
-           - ``OpenCL.dll``, ``cache.json``
-         * - GNA
-           - ``gna.dll``
-         * - Arm® CPU
-           - ``-``
+   .. tab-item:: Linux arm64
+      :sync: linux-arm-64
 
-   .. tab-item:: Linux OS
+      +--------------+-------------------------+-------------------------------------------------------+
+      |    Device    |       Dependency        |                      Location                         |
+      +==============+=========================+=======================================================+
+      |  Arm® CPU    |            —            |                          —                            |
+      +--------------+-------------------------+-------------------------------------------------------+
 
-      .. list-table::
-         :header-rows: 1
+   .. tab-item:: Linux x86_64
+      :sync: linux-x86-64
 
-         * - Device
-           - Dependency
-         * - CPU
-           - ``-``
-         * - GPU
-           - ``libOpenCL.so``, ``cache.json``
-         * - GNA
-           - ``gna.dll``
-         * - Arm® CPU
-           - ``-``
+      +--------------+-------------------------+-------------------------------------------------------+
+      |    Device    |       Dependency        |                      Location                         |
+      +==============+=========================+=======================================================+
+      |     CPU      |            —            |                          —                            |
+      +--------------+-------------------------+-------------------------------------------------------+
+      |     GPU      | | libOpenCL.so          | | ``/usr/lib/x86_64-linux-gnu/libOpenCL.so.1``        |
+      |              | | cache.json            | | ``./runtime/lib/intel64/cache.json``                |
+      +--------------+-------------------------+-------------------------------------------------------+
+      |     GNA      |      libgna.so          | ``./runtime/lib/intel64/libgna.so.3``                 |
+      +--------------+-------------------------+-------------------------------------------------------+
 
-   .. tab-item:: MacOS
+   .. tab-item:: macOS arm64
+      :sync: macos-arm-64
 
-      .. list-table::
-         :header-rows: 1
+      +--------------+-------------------------+-------------------------------------------------------+
+      |    Device    |       Dependency        |                      Location                         |
+      +==============+=========================+=======================================================+
+      |  Arm® CPU    |           —             |                          —                            |
+      +--------------+-------------------------+-------------------------------------------------------+
 
-         * - Device
-           - Dependency
-         * - CPU
-           - ``-``
-         * - Arm® CPU
-           - ``-``
+   .. tab-item:: macOS x86_64
+      :sync: macos-x86-64
+
+      +--------------+-------------------------+-------------------------------------------------------+
+      |    Device    |       Dependency        |                      Location                         |
+      +==============+=========================+=======================================================+
+      |     CPU      |           —             |                          —                            |
+      +--------------+-------------------------+-------------------------------------------------------+
+
 
 
 Libraries for Execution Modes

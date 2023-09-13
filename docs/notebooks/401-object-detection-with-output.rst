@@ -1,6 +1,8 @@
 Live Object Detection with OpenVINO™
 ====================================
 
+
+
 This notebook demonstrates live object detection with OpenVINO, using
 the `SSDLite
 MobileNetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssdlite_mobilenet_v2>`__
@@ -9,18 +11,83 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
 of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
 
-   **NOTE**: To use this notebook with a webcam, you need to run the
-   notebook on a computer with a webcam. If you run the notebook on a
-   server, the webcam will not work. However, you can still do inference
-   on a video.
+.. note::
 
-Imports
--------
+   To use this notebook with a webcam, you need to run the notebook on a computer 
+   with a webcam. If you run the notebook on a server, the webcam will not work. 
+   However, you can still do inference on a video.
+
+.. _top:
+
+**Table of contents**:
+
+- `Preparation <#preparation>`__
+
+  - `Install requirements <#install-requirements>`__
+  - `Imports <#imports>`__
+
+- `The Model <#the-model>`__
+
+  - `Download the Model <#download-the-model>`__
+  - `Convert the Model <#convert-the-model>`__
+  - `Load the Model <#load-the-model>`__
+
+- `Processing <#processing>`__
+
+  - `Process Results <#process-results>`__
+  - `Main Processing Function <#main-processing-function>`__
+
+- `Run <#run>`__
+
+  - `Run Live Object Detection <#run-live-object-detection>`__
+  - `Run Object Detection on a Video File <#run-object-detection-on-a-video-file>`__
+
+- `References <#references>`__
+
+Preparation `⇑ <#top>`__
+###############################################################################################################################
+
+
+Install requirements `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+.. code:: ipython3
+
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q tensorflow
+    !pip install -q opencv-python requests tqdm
+    
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+
+
+.. parsed-literal::
+
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7f2e81ba2ee0>)
+
+
+
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
     import collections
-    import sys
     import tarfile
     import time
     from pathlib import Path
@@ -30,15 +97,17 @@ Imports
     from IPython import display
     from openvino import runtime as ov
     from openvino.tools.mo.front import tf as ov_tf_front
+    from openvino.tools import mo
     
-    sys.path.append("../utils")
     import notebook_utils as utils
 
-The Model
----------
+The Model `⇑ <#top>`__
+###############################################################################################################################
 
-Download the Model
-~~~~~~~~~~~~~~~~~~
+
+Download the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use the ``download_file``, a function from the ``notebook_utils`` file.
 It automatically creates a directory structure and downloads the
@@ -47,9 +116,10 @@ downloaded and unpacked. The chosen model comes from the public
 directory, which means it must be converted into OpenVINO Intermediate
 Representation (OpenVINO IR).
 
-   **NOTE**: Using a model other than ``ssdlite_mobilenet_v2`` may
-   require different conversion parameters as well as pre- and
-   post-processing.
+.. note::
+
+   Using a model other than ``ssdlite_mobilenet_v2`` may require different 
+   conversion parameters as well as pre- and post-processing.
 
 .. code:: ipython3
 
@@ -80,14 +150,15 @@ Representation (OpenVINO IR).
     model/ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz:   0%|          | 0.00/48.7M [00:00<?, ?B/s]
 
 
-Convert the Model
-~~~~~~~~~~~~~~~~~
+Convert the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
-convert it to OpenVINO IR format. Use Model Optimizer (``mo``), a
-command-line tool from the ``openvino-dev`` package. You can achieve the
-same if you use Python API for Model Optimizer. If the model has been
-already converted, this step is skipped.
+convert it to OpenVINO IR format, using `model conversion Python
+API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
+(``mo.convert_model`` function). If the model has been already
+converted, this step is skipped.
 
 .. code:: ipython3
 
@@ -98,30 +169,25 @@ already converted, this step is skipped.
     # Convert it to IR if not previously converted
     trans_config_path = Path(ov_tf_front.__file__).parent / "ssd_v2_support.json"
     if not converted_model_path.exists():
-        convert_command = f"mo " \
-                          f"--input_model {tf_model_path} " \
-                          f"--output_dir {base_model_dir} " \
-                          f"--model_name {model_name}_{precision.lower()} " \
-                          f"--compress_to_fp16 {True if precision == 'FP16' else False} " \
-                          f"--transformations_config={trans_config_path} " \
-                          f"--tensorflow_object_detection_api_pipeline_config {tf_model_path.parent}/pipeline.config " \
-                          f"--reverse_input_channels"
-        ! $convert_command
+        ov_model = mo.convert_model(
+            tf_model_path, 
+            compress_to_fp16=(precision == 'FP16'), 
+            transformations_config=trans_config_path,
+            tensorflow_object_detection_api_pipeline_config=tf_model_path.parent / "pipeline.config", 
+            reverse_input_channels=True
+        )
+        ov.serialize(ov_model, converted_model_path)
+        del ov_model
 
 
 .. parsed-literal::
 
     [ WARNING ]  The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if applicable) are kept.
-    Check for a new version of Intel(R) Distribution of OpenVINO(TM) toolkit here https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html?cid=other&source=prod&campid=ww_2023_bu_IOTG_OpenVINO-2022-3&content=upg_all&medium=organic or on https://github.com/openvinotoolkit/openvino
-    [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
-    [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/401-object-detection-webcam/model/ssdlite_mobilenet_v2_fp16.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/401-object-detection-webcam/model/ssdlite_mobilenet_v2_fp16.bin
 
 
-Load the Model
-~~~~~~~~~~~~~~
+Load the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Only a few lines of code are required to run the model. First,
 initialize OpenVINO Runtime. Then, read the network architecture and
@@ -130,19 +196,41 @@ desired device. If you choose ``GPU`` you need to wait for a while, as
 the startup time is much longer than in the case of ``CPU``.
 
 There is a possibility to let OpenVINO decide which hardware offers the
-best performance. For that purpose, just use ``AUTO``. Remember that for
-most cases the best hardware is ``GPU`` (better performance, but longer
-startup time).
+best performance. For that purpose, just use ``AUTO``.
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = ov.Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime.
-    ie_core = ov.Core()
+    core = ov.Core()
     # Read the network and corresponding weights from a file.
-    model = ie_core.read_model(model=converted_model_path)
-    # Compile the model for CPU (you can choose manually CPU, GPU, MYRIAD etc.)
+    model = core.read_model(model=converted_model_path)
+    # Compile the model for CPU (you can choose manually CPU, GPU etc.)
     # or let the engine choose the best available device (AUTO).
-    compiled_model = ie_core.compile_model(model=model, device_name="CPU")
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     # Get the input and output nodes.
     input_layer = compiled_model.input(0)
@@ -168,11 +256,13 @@ output.
 
 
 
-Processing
-----------
+Processing `⇑ <#top>`__
+###############################################################################################################################
 
-Process Results
-~~~~~~~~~~~~~~~
+
+Process Results `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 First, list all available classes and create colors for them. Then, in
 the post-process stage, transform boxes with normalized coordinates
@@ -261,8 +351,9 @@ threshold (0.5). Finally, draw boxes and labels inside them.
     
         return frame
 
-Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Run object detection on the specified source. Either a webcam or a video
 file.
@@ -372,11 +463,13 @@ file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run
----
+Run `⇑ <#top>`__
+###############################################################################################################################
 
-Run Live Object Detection
-~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Run Live Object Detection `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -385,10 +478,12 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-   **NOTE**: To use this notebook with a webcam, you need to run the
-   notebook on a computer with a webcam. If you run the notebook on a
-   server (for example, Binder), the webcam will not work. Popup mode
-   may not work if you run this notebook on a remote computer (for
+.. note::
+
+   To use this notebook with a webcam, you need to run the 
+   notebook on a computer with a webcam. If you run the notebook on a 
+   server (for example, Binder), the webcam will not work. Popup mode 
+   may not work if you run this notebook on a remote computer (for 
    example, Binder).
 
 Run the object detection:
@@ -405,12 +500,13 @@ Run the object detection:
 
 .. parsed-literal::
 
-    [ WARN:0@45.663] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@45.663] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@44.255] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@44.255] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-Run Object Detection on a Video File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Object Detection on a Video File `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
@@ -419,13 +515,13 @@ will work.
 
 .. code:: ipython3
 
-    video_file = "../data/video/Coco Walking in Berkeley.mp4"
+    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     
     run_object_detection(source=video_file, flip=False, use_popup=False)
 
 
 
-.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_18_0.png
+.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_21_0.png
 
 
 .. parsed-literal::
@@ -433,8 +529,9 @@ will work.
     Source ended
 
 
-References
-----------
+References `⇑ <#top>`__
+###############################################################################################################################
+
 
 1. `SSDLite
    MobileNetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssdlite_mobilenet_v2>`__

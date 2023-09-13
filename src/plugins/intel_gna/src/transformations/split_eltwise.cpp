@@ -26,7 +26,8 @@ inline bool is_eltwise_has_to_be_splitted(const ngraph::Output<ngraph::Node>& no
     if (!eltwise)
         return false;
     auto o_dims = eltwise->get_output_shape(0);
-    auto total_elem_size = std::accumulate(std::begin(o_dims), std::end(o_dims), 1, std::multiplies<size_t>());
+    auto total_elem_size =
+        std::accumulate(std::begin(o_dims), std::end(o_dims), std::size_t{1}, std::multiplies<size_t>());
     return (total_elem_size > Limitations::kBufferMaxSize);
 }
 

@@ -101,7 +101,7 @@ target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE
 
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::pugixml openvino::itt openvino::util)
 
-set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
+ov_set_threading_interface_for(${TARGET_NAME}_plugin_api)
 
 file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
                                  "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.h")
@@ -132,6 +132,7 @@ ie_faster_build(${TARGET_NAME}_obj
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     IMPLEMENT_INFERENCE_ENGINE_API
+    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>
     $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
@@ -140,6 +141,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
+    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_PROPERTY:openvino_proxy_plugin_obj,INTERFACE_INCLUDE_DIRECTORIES>>
     $<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
@@ -153,12 +155,12 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
-ie_mark_target_as_cc(${TARGET_NAME}_obj)
+ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
 # IE is public API => need to mark this library as important for ABI free
 ov_abi_free_target(${TARGET_NAME}_obj)
 
-set_ie_threading_interface_for(${TARGET_NAME}_obj)
+ov_set_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
@@ -179,9 +181,10 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
+            $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-set_ie_threading_interface_for(${TARGET_NAME}_s)
+ov_set_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()

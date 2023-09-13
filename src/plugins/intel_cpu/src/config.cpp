@@ -69,7 +69,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const std::map<std::string, std::string> &prop) {
+void Config::readProperties(const std::map<std::string, std::string> &prop, ModelType modelType) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {
@@ -179,10 +179,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                     inferencePrecisionSetExplicitly = true;
                 }
             } else if (val == "f16") {
+#if defined(OPENVINO_ARCH_X86_64)
                 if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
                     inferencePrecision = ov::element::f16;
                     inferencePrecisionSetExplicitly = true;
                 }
+#elif defined(OV_CPU_ARM_ENABLE_FP16)
+// TODO: add runtime FP16 feature support check for ARM
+                inferencePrecision = ov::element::f16;
+                inferencePrecisionSetExplicitly = true;
+#endif
             } else if (val == "f32") {
                 inferencePrecision = ov::element::f32;
                 inferencePrecisionSetExplicitly = true;

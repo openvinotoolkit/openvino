@@ -62,14 +62,14 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
 
     auto axis_index = desc->axis;
     std::vector<ShapeType> input_shapes;
-    std::vector<ShapeType> output_shapes = {ShapeType{}};
+
     for (size_t i = 0; i < desc->input.size(); ++i) {
         auto input_shape = impl_param.get_input_layout(i).get<ShapeType>();
         input_shapes.push_back(input_shape);
     }
     ov::op::v0::Concat op;
     op.set_concatenation_axis(axis_index);
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
     return { layout {output_shapes[0], output_dt, output_format} };
 }
 
@@ -154,7 +154,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
             auto nodes_list = stack.front();
             stack.pop_front();
 
-            for (auto processed_nodes : *nodes_list) {
+            for (const auto& processed_nodes : *nodes_list) {
                 auto processed_node = processed_nodes.first;
                 processed_node->_outputs = _outputs;
                 if (processed_node->type() == concatenation::type_id() && processed_node->can_be_optimized()) {

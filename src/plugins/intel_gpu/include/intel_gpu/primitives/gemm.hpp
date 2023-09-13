@@ -27,8 +27,6 @@ struct gemm : public primitive_base<gemm> {
 
     gemm() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs gemm layer.
     /// @brief Primitive id containing first matrix
     /// @brief Primitive id containing second matrix
@@ -60,17 +58,17 @@ struct gemm : public primitive_base<gemm> {
     }
 
     /// @brief Flag for transposing first input matrix
-    bool transpose_input0;
+    bool transpose_input0 = false;
     /// @brief Flag for transposing second input matrix
-    bool transpose_input1;
+    bool transpose_input1 = false;
     /// @brief Variable containing ALPHA parameter
-    float alpha;
+    float alpha = 1.0f;
     /// @brief Variable containing BETA parameter
-    float beta;
+    float beta = 1.0f;
     /// @brief First matrix rank
-    size_t input_rank;
+    size_t input_rank = 4;
      /// @brief Second matrix rank
-    size_t weight_rank;
+    size_t weight_rank = 4;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

@@ -8,6 +8,11 @@
 
    openvino_docs_OV_UG_NoDynamicShapes
 
+.. meta::
+   :description: The Reshape method in OpenVINO Runtime API can handle dynamic 
+                 shapes of models that support changing input shapes before 
+                 model compilation.
+
 
 As it was demonstrated in the :doc:`Changing Input Shapes <openvino_docs_OV_UG_ShapeInference>` article, there are models that support changing input shapes before model compilation in ``Core::compile_model``.
 Reshaping models provides an ability to customize the model input shape for the exact size required in the end application.
@@ -57,16 +62,9 @@ Model input dimensions can be specified as dynamic using the model.reshape metho
    
    Some models may already have dynamic shapes out of the box and do not require additional configuration. This can either be because it was generated with dynamic shapes from the source framework, or because it was converted with Model Conversion API to use dynamic shapes. For more information, see the Dynamic Dimensions “Out of the Box” section.
 
-The examples below show how to set dynamic dimensions with a model that has a static ``[1, 3, 224, 224]`` input shape (such as `mobilenet-v2 <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v2.html>`__). The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
+The examples below show how to set dynamic dimensions with a model that has a static ``[1, 3, 224, 224]`` input shape (such as `mobilenet-v2 <https://docs.openvino.ai/2023.1/omz_models_model_mobilenet_v2.html>`__). The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
 
 .. tab-set::
-
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-          :language: cpp
-          :fragment: [ov_dynamic_shapes:reshape_undefined]
 
     .. tab-item:: Python
        :sync: py
@@ -76,6 +74,13 @@ The examples below show how to set dynamic dimensions with a model that has a st
           :fragment: [reshape_undefined]
        
        With Python, you may also pass all dimensions as a string and use ``?`` for the dynamic dimensions (e.g. ``model.reshape(“1, 3, ?, ?”)``).
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+          :language: cpp
+          :fragment: [ov_dynamic_shapes:reshape_undefined]
 
     .. tab-item:: C
        :sync: c
@@ -91,19 +96,19 @@ The examples above assume that the model has a single input layer. To change mod
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-            :language: cpp
-            :fragment: ov_dynamic_shapes:reshape_multiple_inputs
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
            :language: python
            :fragment: reshape_multiple_inputs
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+            :language: cpp
+            :fragment: ov_dynamic_shapes:reshape_multiple_inputs
 
 
 For more examples of how to change multiple input layers, see :doc:`Changing Input Shapes <openvino_docs_OV_UG_ShapeInference>`.
@@ -117,19 +122,19 @@ To check if a model already has dynamic dimensions, first load it with the ``rea
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-            :language: cpp
-            :fragment: ov_dynamic_shapes:check_inputs
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
            :language: python
            :fragment: check_inputs
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+            :language: cpp
+            :fragment: ov_dynamic_shapes:check_inputs
 
 
 If the input model already has dynamic dimensions, that will not change during inference. If the inputs will not be used dynamically, it is recommended to set them to static values using the ``reshape`` method to save application memory and potentially improve inference speed. The OpenVINO API supports any combination of static and dynamic dimensions.
@@ -142,16 +147,7 @@ Dimension Bounds
 The lower and/or upper bounds of a dynamic dimension can also be specified. They define a range of allowed values for the dimension. Dimension bounds can be set by passing the lower and upper bounds into the ``reshape`` method using the options shown below. 
 
 .. tab-set::
-    
-    .. tab-item:: C++
-        :sync: cpp
-        
-        The dimension bounds can be coded as arguments for ``ov::Dimension``, as shown in these examples:
-        
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-            :language: cpp
-            :fragment: ov_dynamic_shapes:reshape_bounds
-    
+
     .. tab-item:: Python
         :sync: py
         
@@ -167,10 +163,19 @@ The lower and/or upper bounds of a dynamic dimension can also be specified. They
            :language: python
            :fragment: reshape_bounds
     
+    .. tab-item:: C++
+        :sync: cpp
+        
+        The dimension bounds can be coded as arguments for ``ov::Dimension``, as shown in these examples:
+        
+        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+            :language: cpp
+            :fragment: ov_dynamic_shapes:reshape_bounds
+    
     .. tab-item:: C
         :sync: c
         
-        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2023.0/structov_dimension.html#doxid-structov-dimension>`__, as shown in these examples:
+        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2023.1/structov_dimension.html#doxid-structov-dimension>`__, as shown in these examples:
 
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
            :language: cpp
@@ -198,19 +203,19 @@ The sample below shows how a model can accept different input shapes. In the fir
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-            :language: cpp
-            :fragment: ov_dynamic_shapes:set_input_tensor
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
            :language: python
            :fragment: set_input_tensor
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+            :language: cpp
+            :fragment: ov_dynamic_shapes:set_input_tensor
     
     .. tab-item:: C
         :sync: c
@@ -233,19 +238,19 @@ To determine if the output has dynamic dimensions, the ``partial_shape`` propert
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-            :language: cpp
-            :fragment: ov_dynamic_shapes:print_dynamic
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
            :language: python
            :fragment: print_dynamic
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+            :language: cpp
+            :fragment: ov_dynamic_shapes:print_dynamic
 
     .. tab-item:: C
         :sync: c
@@ -255,19 +260,12 @@ To determine if the output has dynamic dimensions, the ``partial_shape`` propert
            :fragment: ov_dynamic_shapes:print_dynamic
 
 
-If the output has any dynamic dimensions, they will be reported as ``?`` or as a range (e.g.``1..10``).
+If the output has any dynamic dimensions, they will be reported as ``?`` or as a range (e.g. ``1..10``).
 
 Output layers can also be checked for dynamic dimensions using the ``partial_shape.is_dynamic()`` property. This can be used on an entire output layer, or on an individual dimension, as shown in these examples:
 
 
 .. tab-set::
-
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-            :language: cpp
-            :fragment: ov_dynamic_shapes:detect_dynamic
 
     .. tab-item:: Python
         :sync: py
@@ -275,6 +273,13 @@ Output layers can also be checked for dynamic dimensions using the ``partial_sha
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
            :language: python
            :fragment: detect_dynamic
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+            :language: cpp
+            :fragment: ov_dynamic_shapes:detect_dynamic
 
     .. tab-item:: C
         :sync: c

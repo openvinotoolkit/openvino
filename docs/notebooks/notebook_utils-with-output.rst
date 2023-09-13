@@ -17,6 +17,19 @@ There are five categories:
 Each category contains a test cell that also shows how to use the
 functions in the section.
 
+.. code:: ipython3
+
+    # Install requirements
+    !pip install -q "openvino>=2023.0.0" opencv-python
+    !pip install -q pillow tqdm requests matplotlib
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
 Files
 -----
 
@@ -47,7 +60,7 @@ Test File Functions
 
 .. code:: ipython3
 
-    model_url = "https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/002-openvino-api/model/segmentation.xml"
+    model_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/segmentation.xml"
     download_ir_model(model_url, "model")
     
     assert os.path.exists("model/segmentation.xml")
@@ -78,7 +91,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
 
 
 .. code:: ipython3
@@ -95,12 +108,12 @@ Test File Functions
 
 .. parsed-literal::
 
-    openvino_notebooks_readme.md:   0%|          | 0.00/9.18k [00:00<?, ?B/s]
+    openvino_notebooks_readme.md:   0%|          | 0.00/10.9k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -118,19 +131,19 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
 
-    url = "../data/image/coco.jpg"
+    url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg"
     image = load_image(url)
     Image.fromarray(image[:, :, ::-1])
 
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_11_0.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_12_0.png
 
 
 
@@ -206,7 +219,7 @@ Test Video Player
 
 .. code:: ipython3
 
-    video = "../data/video/Coco Walking in Berkeley.mp4"
+    video = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     
     player = VideoPlayer(video, fps=15, skip_first_frames=10)
     player.start()
@@ -222,7 +235,7 @@ Test Video Player
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_25_0.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_26_0.png
 
 
 .. parsed-literal::
@@ -394,19 +407,19 @@ Test Visualization Functions
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_40_0.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_41_0.png
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_40_1.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_41_1.png
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_40_2.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_41_2.png
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_40_3.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_41_3.png
 
 
 Checks and Alerts
@@ -481,5 +494,5 @@ Test Alerts
 
 .. raw:: html
 
-    <div class="alert alert-danger">This notebook requires OpenVINO 2022.1. The version on your system is: <i>2022.3.0-9052-9752fafe8eb-releases/2022/3</i>.<br>Please run <span style='font-family:monospace'>pip install --upgrade -r requirements.txt</span> in the openvino_env environment to install this version. See the <a href='https://github.com/openvinotoolkit/openvino_notebooks'>OpenVINO Notebooks README</a> for detailed instructions
+    <div class="alert alert-danger">This notebook requires OpenVINO 2022.1. The version on your system is: <i>2023.0.1-11005-fa1c41994f3-releases/2023/0</i>.<br>Please run <span style='font-family:monospace'>pip install --upgrade -r requirements.txt</span> in the openvino_env environment to install this version. See the <a href='https://github.com/openvinotoolkit/openvino_notebooks'>OpenVINO Notebooks README</a> for detailed instructions
 

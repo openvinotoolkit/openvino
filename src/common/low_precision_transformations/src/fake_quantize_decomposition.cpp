@@ -134,6 +134,9 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
             precisionsForLevels = {element::u8, element::i8};
     }
     const auto resultPrecisions = NetworkHelper::precisionIntersection(precisions, precisionsForLevels);
+    if (resultPrecisions.empty()) {
+        return DataPrecision();
+    }
 
     ngraph::element::Type precision;
     bool hasZeroPoint;
@@ -315,11 +318,16 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         return rewritten;
     }
 
+    // check if level is supported in LPT
     if (!QuantizationDetails::isSupportedLevel(layer->get_levels())) {
         return rewritten;
     }
 
+    // check if level is supported in plugin
     DataPrecision dataPrecision = fq_decomposition::getDataPrecisionByOutputPort(layer);
+    if (dataPrecision.empty()) {
+        return rewritten;
+    }
 
     PrecisionsAttribute precisionsAttribute(defaultPrecisions);
     {

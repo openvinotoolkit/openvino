@@ -17,11 +17,11 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
     using parent = typed_primitive_impl<scatter_update>;
     using parent::parent;
 
-    int64_t axis;
+    int64_t axis = 0;
 
     std::shared_ptr<ov::op::v3::ScatterUpdate> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::scatter_update_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scatter_update_impl>(*this);
@@ -56,6 +56,7 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
         }
 
         auto ev = stream.create_user_event(false);
+        auto params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
@@ -71,11 +72,11 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(input_mem_ptrs[i]->get_layout(), input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         input_host_tensors.push_back(axis_tensor);
 
-        output_host_tensors.push_back(make_tensor(output_mem_ptr->get_layout(), output_lock.data()));
+        output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         if (!op) {
             op = std::make_shared<ov::op::v3::ScatterUpdate>();

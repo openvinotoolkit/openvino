@@ -126,6 +126,7 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
 
+    std::function<std::unique_ptr<IFunction>(void)> exec_func;
     if (srcDims.size() == 5u) {
         if (dstDescs.size() == 1u) {
             Pooling3dLayerInfo pool_info;
@@ -139,10 +140,10 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                              nullptr,
                              &pool_info))
                 return false;
-            exec_func = [this, pool_info]{
+            exec_func = [this, pool_info]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEPooling3dLayer>();
                 acl_op->configure(&srcTensor, &dstTensor, pool_info);
-                acl_op->run();
+                return acl_op;
             };
         }
     } else {
@@ -162,10 +163,10 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
             TensorInfo indTensorInfo = TensorInfo(shapeCast(indDims), 1, precisionToAclDataType(dstDescs[1]->getPrecision()),
                                                   getAclDataLayoutByMemoryDesc(dstDescs[1]));
             indTensor.allocator()->init(indTensorInfo);
-            exec_func = [this, pool_info]{
+            exec_func = [this, pool_info]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEPoolingLayer>();
                 acl_op->configure(&srcTensor, &dstTensor, pool_info, &indTensor);
-                acl_op->run();
+                return acl_op;
             };
         } else {
             if (!isSupported(srcTensorInfo,
@@ -178,22 +179,23 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                              &pool_info,
                              nullptr))
                 return false;
-            exec_func = [this, pool_info]{
+            exec_func = [this, pool_info]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEPoolingLayer>();
                 acl_op->configure(&srcTensor, &dstTensor, pool_info);
-                acl_op->run();
+                return acl_op;
             };
         }
     }
+    ifunc = exec_func();
     return true;
 }
 
 void AclPoolingExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, std::unordered_map<int, MemoryPtr> postOpsArgs) {
-    srcTensor.allocator()->import_memory(src[0]->GetPtr());
-    dstTensor.allocator()->import_memory(dst[0]->GetPtr());
-    if (dst.size() > 1u) indTensor.allocator()->import_memory(dst[1]->GetPtr());
+    srcTensor.allocator()->import_memory(src[0]->getData());
+    dstTensor.allocator()->import_memory(dst[0]->getData());
+    if (dst.size() > 1u) indTensor.allocator()->import_memory(dst[1]->getData());
 
-    exec_func();
+    ifunc->run();
 
     srcTensor.allocator()->free();
     dstTensor.allocator()->free();

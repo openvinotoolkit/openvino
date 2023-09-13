@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <fstream>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
-#include "ie_blob.h"
-#include "ie_core.hpp"
+#include "common_test_utils/graph_comparator.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 class SerializationTensorIteratorTest : public ::testing::Test {
 protected:
@@ -20,7 +22,7 @@ protected:
     std::string tmpBinFileName;
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
         tmpXmlFileName = filePrefix + "TestModel.xml";
@@ -53,22 +55,21 @@ protected:
         }
     }
 
-    void serialize_and_compare(const std::string& model_path, InferenceEngine::Blob::Ptr weights) {
+    void serialize_and_compare(const std::string& model_path, ov::Tensor weights) {
         std::stringstream buffer;
-        InferenceEngine::Core ie;
+        ov::Core core;
 
         std::ifstream model(model_path);
         ASSERT_TRUE(model);
         buffer << model.rdbuf();
 
-        auto expected = ie.ReadNetwork(buffer.str(), weights);
-        expected.serialize(m_out_xml_path, m_out_bin_path);
-        auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+        auto expected = core.read_model(buffer.str(), weights);
+        ov::serialize(expected, m_out_xml_path, m_out_bin_path);
+        auto result = core.read_model(m_out_xml_path, m_out_bin_path);
 
         bool success;
         std::string message;
-        std::tie(success, message) =
-            compare_functions(result.getFunction(), expected.getFunction(), true, false, false, true, true);
+        std::tie(success, message) = compare_functions(result, expected, true, false, false, true, true);
         ASSERT_TRUE(success) << message;
     }
 };
@@ -393,12 +394,10 @@ TEST_F(SerializationTensorIteratorTest, TiResnet) {
 
     size_t weights_size = 8396840;
 
-    auto weights = InferenceEngine::make_shared_blob<uint8_t>(
-        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
-    weights->allocate();
-    CommonTestUtils::fill_data(weights->buffer().as<float*>(), weights->size() / sizeof(float));
+    auto weights = ov::Tensor(ov::element::f32, {weights_size / sizeof(float)});
+    ov::test::utils::fill_data(weights.data<float>(), weights.get_size());
 
-    auto* data = weights->buffer().as<int64_t*>();
+    auto* data = static_cast<int64_t*>(weights.data());
     data[0] = 1;
     data[1] = 512;
     data[1049602] = 1;

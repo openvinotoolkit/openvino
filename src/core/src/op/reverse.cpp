@@ -13,7 +13,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/reverse.hpp"
+#include "openvino/reference/reverse.hpp"
 #include "reverse_shape_inference.hpp"
 
 using namespace std;
@@ -70,6 +70,7 @@ op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode)
     return allowed_values.at(mode);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reverseop {
 template <element::Type_t ET>
 void get_axes(AxisSet& axes, const HostTensorPtr& in) {
@@ -109,12 +110,12 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const Ho
             }
         }
     }
-    ngraph::runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
-                                        outputs[0]->get_data_ptr<char>(),
-                                        inputs[0]->get_shape(),
-                                        outputs[0]->get_shape(),
-                                        axes,
-                                        inputs[0]->get_element_type().size());
+    ov::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                           outputs[0]->get_data_ptr<char>(),
+                           inputs[0]->get_shape(),
+                           outputs[0]->get_shape(),
+                           axes,
+                           inputs[0]->get_element_type().size());
     return true;
 }
 

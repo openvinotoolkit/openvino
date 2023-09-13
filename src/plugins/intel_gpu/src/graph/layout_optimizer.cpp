@@ -13,6 +13,8 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
+#include "condition_inst.h"
+#include "strided_slice_inst.h"
 #include <sstream>
 
 #include "gemm_inst.h"
@@ -158,22 +160,18 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
-    if (reorder_params == nullptr)
-        return {};
+    OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    layout expected_layout = reorder_params->get_output_layout();
-
-    cache_key ckey{ input_id, expected_layout, false };
-    auto itr = _cached_generic_reorders.find(ckey);
-    if (itr != _cached_generic_reorders.end()) {
+    cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
+    auto itr = _cached_reorders.find(ckey);
+    if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
     } else {
-        auto count = _cached_generic_reorders.size();
-        std::stringstream ss;
-        ss << input_id << "_generic_layer_" << count;
+        auto count = _cached_reorders.size();
+        std::string reorder_id = input_id + "_weights_reorder_" + std::to_string(count);
 
-        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, reorder_params);
-        _cached_generic_reorders[ckey] = reorder;
+        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, reorder_params);
+        _cached_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }
 }
@@ -237,8 +235,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         }
     }
 
-    // Ref kernels are the main for depth_to_space and region_yolo. It can do anything.
-    if (next.is_type<depth_to_space>() || next.is_type<region_yolo>())
+    // Ref kernels are the main for depth_to_space and region_yolo and strided_slice. It can do anything.
+    if (next.is_type<depth_to_space>() || next.is_type<region_yolo>() ||
+        (next.is_type<strided_slice>() && next.get_preferred_impl_type() != cldnn::impl_types::cpu))
         return true;
 
     if (next.is_type<reorder>())
@@ -417,8 +416,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
-        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
-        node.is_type_conversion_only())
+        !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
+        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)))
         return true;
 
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
@@ -499,11 +498,20 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
 }
 
 namespace {
-bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
+bool should_use_winograd_2x3_s1(const convolution_node& node,
                                 layout const& input_layout,
                                 layout const& weights_layout,
                                 bool output_size_handling_enabled) {
+    bool disable_winograd_conv = node.get_program().get_config().get_property(ov::intel_gpu::disable_winograd_convolution);
+    if (disable_winograd_conv)
+        return false;
+
     // cases when NOT to use winograd
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_winograd_conv == 1)
+        return false;
+
+    auto prim = node.get_primitive();
     if (input_layout.data_type != data_types::f16
         || input_layout.feature() % 64 != 0  // current algorithm is effective for ifm to be multiply of 64
         || weights_layout.spatial(0) != 3     // weights have to be 3x3 by definiton
@@ -592,7 +600,7 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
          all_zeroes(conv->padding_begin) &&
          all_zeroes(conv->padding_end)) ||
         // Winograd
-        should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
+        should_use_winograd_2x3_s1(node, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
 
     return false;
@@ -864,6 +872,10 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
     auto fc_prim = node.get_primitive();
+    // onednn impl doesn't support compressed weights for now
+    if (fc_prim->compressed_weights)
+        return false;
+
     auto output_layout = node.get_output_layout();
     auto ps = output_layout.get_partial_shape();
     size_t non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
@@ -941,8 +953,8 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
         return true;
 
     for (auto& dep : node.get_dependencies()) {
-        // skip data and generic_layers
-        if (dep.first->is_type<data>() || dep.first->is_type<generic_layer>())
+        // skip data layers
+        if (dep.first->is_type<data>())
             continue;
 
         if (dep.first->is_type<convolution>()) {
@@ -1038,10 +1050,15 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     auto output_layout = node.get_output_layout(0);
     auto weights_layout = node.weights().get_output_layout().convert_to_weights_layout(prim->grouped_weights_shape);
     auto expected_format = output_layout.format;
+    bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (prim->deformable_mode) {
         return format::adjust_to_rank(format::bfyx, output_layout.get_partial_shape().size());
     }
+
+    // Use planar bfyx format for dynamic convolutions with explicit padding
+    if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input)
+        return format::bfyx;
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         if (input_layout.get_partial_shape().size() <= 4)
@@ -1055,9 +1072,8 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
 
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
-    bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
-    if (use_onednn_impls && onednn_valid_post_ops) {
+    if (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any) {
         expected_format = node.get_preferred_output_fmt();
     } else {
         /* *************************** Native impls format selection part ************************** */
@@ -1195,7 +1211,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
 
     if (use_onednn_impls) {
         auto& user = node.get_users().front();
-        if (user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
+        if (user != nullptr && user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
             expected = user->get_preferred_input_fmt(user->get_dependency_index(node));
         } else {
             expected = format::any;
@@ -1207,22 +1223,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     } else if (layout.is_static() && layout.format.spatial_num() == 2 &&
                 (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
                 layout.batch() % 16 == 0) {
-        if (use_onednn_impls && layout.batch() % 32 == 0) {
-            if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>()) {
-                auto& conv = node.get_users().front()->as<convolution>();
-                auto ws = conv.get_input_layout(1).get_tensor();
-                if (ws.spatial[0] != 7 || conv.get_primitive()->groups > 1 || layout.feature() == 1)
-                    expected = format::bfyx;
-                else
-                    expected = format::bs_fs_yx_bsv16_fsv4;
-
-                auto conv_output_layout = conv.get_output_layout();
-                auto weights_layout = conv.weights().get_output_layout().convert_to_weights_layout(conv.get_primitive()->grouped_weights_shape);
-                format expected_conv_fmt = get_expected_format(conv);
-                if (expected == format::bfyx && expected_conv_fmt == format::bs_fs_yx_bsv32_fsv32 && layout.feature() % 32 == 0)
-                    expected = expected_conv_fmt;
-            }
-        } else if (layout.feature() > 8) {
+        if (layout.feature() > 8) {
             expected = format::b_fs_yx_fsv16;
         } else {
             expected = format::b_fs_yx_fsv4;
@@ -1263,7 +1264,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         return onednn_check_data_types_for_deconvolution(in_dt, wei_dt, out_dt);
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
-        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout().data_type :
+        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout(false).data_type :
                               node.as<gemm>().get_input_layout(1).data_type;
         return onednn_check_data_types_for_fc_gemm(in_dt, wei_dt, out_dt);
     } else if (node.is_type<reorder>()) {
@@ -1284,10 +1285,12 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 }
 
 bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
-    auto in_padding = node.get_dependencies().front().first->get_output_layout().data_padding;
+    auto input_layout = node.get_dependencies().front().first->get_output_layout();
+    auto in_padding = input_layout.data_padding;
     auto out_padding = node.get_output_layout().data_padding;
     // Check if padding exists
     if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
+        // Check spatial padding
         bool no_spatial_padding = true;
         for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
             no_spatial_padding &= (in_padding.lower_size().spatial[i] == 0);
@@ -1301,18 +1304,24 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         for (size_t i = 0; i < out_padding.upper_size().spatial.size(); ++i) {
             no_spatial_padding &= (out_padding.upper_size().spatial[i] == 0);
         }
+
+        // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
         bool no_batch_padding = true;
-        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
-            no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
-            no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
-            no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
-            no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+        auto out_fmt = node.get_output_layout().format;
+        if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
+            format::traits(input_layout.format)._order[0] != 0 || format::traits(out_fmt)._order[0] != 0) {
+            for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
+                no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
+                no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
+                no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
+                no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+            }
         }
         return (no_spatial_padding && no_batch_padding);
     }
@@ -1410,6 +1419,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
+    } else if (node.is_type<condition>()) {
+        preferred_impl = impl_types::common;
     } else if (node.is_type<detection_output>()) {
         const auto& program = node.get_program();
         const auto& device_info = program.get_engine().get_device_info();
@@ -1417,13 +1428,17 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         auto& detection_output_node = node.as<detection_output>();
         auto confidence_layout = detection_output_node.confidence().get_output_layout();
         auto prim = detection_output_node.get_primitive();
-        auto batch_size_limitations = (device_info.supports_immad && device_info.execution_units_count >= 256) ? true : confidence_layout.batch() >= 4;
-        if (confidence_layout.batch() <= lws_max && batch_size_limitations &&
-            prim->confidence_threshold >= 0.1 &&
-            prim->top_k <= 400 && prim->num_classes >= 16 && confidence_layout.feature() > 10000)
-            preferred_impl = impl_types::ocl;
-        else
+        if (confidence_layout.is_dynamic()) {
             preferred_impl = impl_types::cpu;
+        } else {
+            auto batch_size_limitations = (device_info.supports_immad && device_info.execution_units_count >= 256) ? true : confidence_layout.batch() >= 4;
+            auto can_use_ocl_impl = confidence_layout.batch() <= lws_max &&
+                                    batch_size_limitations &&
+                                    prim->confidence_threshold >= 0.1 &&
+                                    prim->top_k <= 400 && prim->num_classes >= 16 &&
+                                    confidence_layout.feature() > 10000;
+            preferred_impl = can_use_ocl_impl ? impl_types::ocl : impl_types::cpu;
+        }
     } else if (node.is_type<non_max_suppression>()) {
         const std::set<format> blocked_formats = {
             format::b_fs_yx_fsv16,
@@ -1585,7 +1600,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
-        if (node.get_output_layout().data_type == data_types::i32)
+        if (node.get_output_layout().data_type == data_types::i32 ||
+            node.get_output_layout().data_type == data_types::f32)
             return impl_types::ocl;
 
         for (auto& dep : node.get_dependencies()) {
@@ -1614,9 +1630,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         preferred_impl = impl_candidate;
     } else if (node.is_type<prior_box>()) {
-        if (node.as<prior_box>().get_primitive()->support_opset8) {
-            preferred_impl = impl_types::ocl;
-        }
+        preferred_impl = impl_types::ocl;
     }
 
     return preferred_impl;
@@ -1630,11 +1644,25 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
 
     if (allow_new_shape_infer) {
+        // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
+        auto out_lay_rank = node.get_output_layout(false).get_rank();
+        auto has_reshape_user = [&](const program_node& node) -> bool {
+            for (auto& user_node : node.get_users()) {
+                if (user_node->is_type<reshape>())
+                    return true;
+            }
+            return false;
+        };
+
+        // Return default format for output layout rank when user node is reshape
+        // to add reorder in front of reshape in reorder_input stage instead of handle_reshpae stage.
+        // It is only applied for the dynamic shape with static input shape
+        if (!node.is_dynamic() &&  has_reshape_user(node))
+            return format::get_default_format(out_lay_rank);
+
         if (node.is_type<shape_of>())
             return format::get_default_format(node.get_input_layout(0).get_rank());
 
-        // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
-        auto out_lay_rank = node.get_output_layout(false).get_rank();
         auto dep_size = node.get_dependencies().size();
         for (size_t i = 0; i < dep_size; i++) {
             auto in_lay_rank = node.get_input_layout(i).get_rank();
@@ -1644,12 +1672,17 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
-                // Check if selected format can be adjusted to the required output rank
+                // Check if selected format can be adjusted to the required input rank
                 // If no, use default fotmat instead
                 try {
-                    format::adjust_to_rank(fmt, out_lay_rank);
+                    // 7-dimention and 8-dimention only support plain format
+                    if (in_lay_rank >= 7 || out_lay_rank >= 7) {
+                        fmt = format::get_default_format(in_lay_rank);
+                    } else {
+                        format::adjust_to_rank(fmt, in_lay_rank);
+                    }
                 } catch (ov::Exception&) {
-                    fmt = format::get_default_format(out_lay_rank);
+                    fmt = format::get_default_format(in_lay_rank);
                 }
                 node.set_preferred_input_fmt(i, fmt);
             }
@@ -1708,11 +1741,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         }
     } else if (node.is_type<reduce>()) {
         auto& reduce_node = node.as<reduce>();
-        auto input_layout = reduce_node.input().get_output_layout();
-        if (!use_onednn_impls && input_layout.is_dynamic()) {
-            if (input_layout.format.dimension() > 4) {
-                expected = format::get_default_format(input_layout.format.dimension());
-            } else if (input_layout.format.dimension() == 4) {
+        auto output_layout = reduce_node.get_output_layout();
+        if (!use_onednn_impls && output_layout.is_dynamic()) {
+            if (output_layout.format.dimension() > 4) {
+                expected = format::get_default_format(output_layout.format.dimension());
+            } else if (output_layout.format.dimension() == 4) {
                 expected = format::any;
             }
         }
@@ -1723,6 +1756,15 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
+        }
+
+        if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
+            auto& fc_node = node.as<fully_connected>();
+            auto input_layout = fc_node.input().get_output_layout();
+            if (input_layout.format.dimension() > 4) {
+                expected = format::bfyx;
+                node.set_preferred_input_fmt(0, format::bfyx);
+            }
         }
     }
 
@@ -1983,7 +2025,7 @@ bool layout_optimizer::is_format_optimized(const convolution_node& node, const f
         case format::b_fs_yx_fsv16:
             return convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim, use_weak_restrictions) &&
                    // Work-around for inability to use b_fs_yx_fsv16 and winograd together
-                   !should_use_winograd_2x3_s1(prim, input_layout, weights_layout, _output_size_handling_enabled);
+                   !should_use_winograd_2x3_s1(node, input_layout, weights_layout, _output_size_handling_enabled);
         case format::b_fs_zyx_fsv16:
         case format::bs_fs_zyx_bsv16_fsv16:
             return convolution_b_fs_zyx_fsv16_opt(input_layout, output_layout, weights_layout, prim);

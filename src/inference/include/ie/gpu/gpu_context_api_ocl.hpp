@@ -298,7 +298,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const T
 INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
                                                                          RemoteContext::Ptr ctx,
                                                                          cl::Buffer& buffer) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -318,7 +318,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const T
 INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
                                                                          RemoteContext::Ptr ctx,
                                                                          cl_mem buffer) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -338,7 +338,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const T
 INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
                                                                          RemoteContext::Ptr ctx,
                                                                          cl::Image2D& image) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }

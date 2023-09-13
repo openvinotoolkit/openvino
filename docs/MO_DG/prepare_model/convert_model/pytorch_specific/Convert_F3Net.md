@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a F3Net model
+                 from Pytorch to the OpenVINO Intermediate Representation.
+
+
 `F3Net <https://github.com/weijun88/F3Net>`__ : Fusion, Feedback and Focus for Salient Object Detection
 
 Cloning the F3Net Repository
@@ -20,7 +25,8 @@ Downloading and Converting the Model to ONNX
 To download the pretrained model or train the model yourself, refer to the
 `instructions <https://github.com/weijun88/F3Net/blob/master/README.md>`__ in the F3Net model repository. First, convert the model to ONNX format. Create and run the following Python script in the ``src`` directory of the model repository:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import torch
    from dataset import Config

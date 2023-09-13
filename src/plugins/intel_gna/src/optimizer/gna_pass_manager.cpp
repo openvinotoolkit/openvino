@@ -110,17 +110,6 @@ static void SumBlobs(Blob::Ptr& src_blob, Blob::Ptr& dst_blob) {
     }
 }
 
-static Blob::Ptr convertToRWBlob(const Blob::Ptr& readOnlyBlob, const std::string& name = {}) {
-    auto blob = Blob::CreateFromData(std::make_shared<Data>(name, readOnlyBlob->getTensorDesc()));
-    blob->allocate();
-    const auto ret = ie_memcpy(blob->buffer().as<uint8_t*>(),
-                               blob->size() * blob->getTensorDesc().getPrecision().size(),
-                               readOnlyBlob->buffer().as<uint8_t*>(),
-                               readOnlyBlob->size() * readOnlyBlob->getTensorDesc().getPrecision().size());
-    IE_ASSERT(ret == 0);
-    return blob;
-}
-
 // indexes stored in pass manager
 static const char identityLayersCounterName[] = "identityLayerCounter";
 static const char diagonalLayersCounterName[] = "diagonalLayerCounter";
@@ -486,19 +475,20 @@ void ReorderMaxPoolPass::run() {
 
 void SubstituteSoftSignPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "SubstituteSoftSignPass");
-    // detecting following pattern
-    // irv7 model:          irv10 model:
-    // a layer                  a layer
-    // |  \                     |  \
-    // abs  \                   abs  \
-    // |     |                  |     |
-    // |     |                  add   |
-    // |     |                  |     |
-    // power |                  power |
-    //  \   /                    \   /
-    //    mul                      mul
+    /* detecting following pattern
+     * irv7 model:          irv10 model:
+     * a layer                  a layer
+     * |  \                     |  \
+     * abs  \                   abs  \
+     * |     |                  |     |
+     * |     |                  add   |
+     * |     |                  |     |
+     * power |                  power |
+     *  \   /                    \   /
+     *    mul                      mul
+     */
 
-    auto hasNChildren = [](CNNLayerPtr l, int N) {
+    auto hasNChildren = [](CNNLayerPtr l, size_t N) {
         if (l->outData.size() != 1)
             return false;
         if (getInputTo(l->outData.front()).size() != N)
@@ -775,7 +765,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                              ? permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)
                              : std::vector<int32_t>{0, 2, 1};
             InferenceEngine::SizeVector new_dims;
-            for (int i = 0; i < dims.size(); ++i) {
+            for (size_t i = 0; i < dims.size(); ++i) {
                 new_dims.push_back(dims[order[i]]);
             }
             data->setDims(new_dims);
@@ -979,9 +969,10 @@ void InsertCopyLayerPass::run() {
             }
             std::vector<FuncChildrenInfo> results;
             for (size_t i = 0; i < getInputTo(currentLayer->outData[0]).size(); ++i) {
-                auto next_layer = CNNNetGetNextLayerSkipCertain(currentLayer, 0, i, [](CNNLayerPtr origin) {
-                                      return false;
-                                  }).first;
+                auto next_layer =
+                    CNNNetGetNextLayerSkipCertain(currentLayer, 0, static_cast<int>(i), [](CNNLayerPtr origin) {
+                        return false;
+                    }).first;
                 auto result = find_func_layers(next_layer,
                                                currentLayer,
                                                CNNLayerFindInsDataIdxes(currentLayer->outData[0], next_layer)[0]);
@@ -1010,7 +1001,7 @@ void InsertCopyLayerPass::run() {
             if (parents.find(inputData) != std::end(parents)) {
                 auto parent = getCreatorLayer(inputData);
                 IE_ASSERT(parent.lock() != nullptr);
-                InsertCopyLayer(parent.lock(), l, input_idx, this->getPassManager(), CopyLayerName);
+                InsertCopyLayer(parent.lock(), l, static_cast<int>(input_idx), this->getPassManager(), CopyLayerName);
             } else {
                 parents.insert(inputData);
             }
@@ -1105,12 +1096,16 @@ void InsertCopyLayerPass::run() {
                     size_t memoryIdx = currentCopyIdx;
                     auto memoryLayer = MemoryLayers[memoryIdx].first;
                     auto inputIdx = MemoryLayers[memoryIdx].second;
-                    InsertCopyLayer(l, memoryLayer, inputIdx, this->getPassManager(), DelayedCopyLayerName);
+                    InsertCopyLayer(l,
+                                    memoryLayer,
+                                    static_cast<int>(inputIdx),
+                                    this->getPassManager(),
+                                    DelayedCopyLayerName);
                 } else {
                     size_t concatIdx = currentCopyIdx - MemoryLayers.size();
                     auto concatLayer = ConcatLayers[concatIdx].first;
                     auto inputIdx = ConcatLayers[concatIdx].second;
-                    InsertCopyLayer(l, concatLayer, inputIdx, this->getPassManager(), CopyLayerName);
+                    InsertCopyLayer(l, concatLayer, static_cast<int>(inputIdx), this->getPassManager(), CopyLayerName);
                 }
                 currentCopyIdx++;
             }
@@ -1142,7 +1137,11 @@ void InsertCopyLayerPass::run() {
                 auto inputData = l->insData[inputIdx].lock();
                 auto parentLayer = getCreatorLayer(inputData);
                 IE_ASSERT(parentLayer.lock() != nullptr);
-                InsertCopyLayer(parentLayer.lock(), l, inputIdx, this->getPassManager(), CopyLayerName);
+                InsertCopyLayer(parentLayer.lock(),
+                                l,
+                                static_cast<int>(inputIdx),
+                                this->getPassManager(),
+                                CopyLayerName);
             }
         }
     }
@@ -1202,7 +1201,7 @@ void FlattenTrivialConcatPass::run() {
 
         // Reshape concat inputs
         for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
-            auto concatInput = getLayerByIndex(input_idx, concatLayer);
+            auto concatInput = getLayerByIndex(static_cast<int>(input_idx), concatLayer);
 
             auto tensor = InferenceEngine::TensorDesc(concatInput->getTensorDesc());
             tensor.reshape(SizeVector({1, total_sizes[input_idx]}), InferenceEngine::Layout::NC);
@@ -1215,7 +1214,7 @@ void FlattenTrivialConcatPass::run() {
         }
 
         // Reshape concat outputs back to the original size
-        for (auto output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
+        for (size_t output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
             auto output = concatLayer->outData[output_idx];
             auto output_tensor_copy = TensorDesc(output->getTensorDesc());
 
@@ -1258,7 +1257,7 @@ void InsertConcatAligningFilterPass::run() {
         auto concatLayer = info.as<ConcatLayer*>();
         IE_ASSERT(concatLayer != nullptr);
 
-        for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+        for (auto input_idx = 0; input_idx != static_cast<int>(concatLayer->insData.size()); input_idx++) {
             auto getLayerByIndex = [&concatLayer](int idx) {
                 auto input = concatLayer->insData[idx];
                 auto lockedInput = input.lock();
@@ -1273,7 +1272,7 @@ void InsertConcatAligningFilterPass::run() {
             auto outputSize = details::product(++dims.begin(), dims.end()) * Limitations::kBytesPerConcatElement;
 
             auto useAlignFilterIf = [&concatLayer, &getLayerByIndex](int concat_input_idx) {
-                if (concatLayer->insData.size() <= concat_input_idx)
+                if (static_cast<int>(concatLayer->insData.size()) <= concat_input_idx)
                     return false;
 
                 auto nextInput = getCreatorLayer(getLayerByIndex(concat_input_idx)).lock();
@@ -1330,7 +1329,7 @@ void InsertConcatAligningFilterPass::run() {
                 std::vector<float> filterWeights(num_rows_out * num_rows_in, 0.f);
 
                 auto identityIdx = num_rows_padded * num_rows_in;
-                for (int i = 0; i != num_rows_in; i++) {
+                for (size_t i = 0; i != num_rows_in; i++) {
                     filterWeights[identityIdx] = 1.0f;
                     identityIdx += num_rows_in + 1;
                 }
@@ -1402,7 +1401,7 @@ void ReorderConcatInputsPass::run() {
             return lockedInput;
         };
 
-        for (auto input_idx = 1; input_idx != concatLayer->insData.size(); input_idx++) {
+        for (auto input_idx = 1; input_idx != static_cast<int>(concatLayer->insData.size()); input_idx++) {
             auto concatInput = getLayerByIndex(input_idx);
             auto currConcatLayer = getCreatorLayer(concatInput).lock();
 
@@ -1570,7 +1569,7 @@ void InsertSplitAligningFilterPass::run() {
                     filterLayer->_out_depth = numberOfFilters;
                     filterLayer->_stride_x = numberOfFilters;
                     filterLayer->_stride_y = 1;
-                    filterLayer->_kernel_x = filterSize;
+                    filterLayer->_kernel_x = static_cast<uint32_t>(filterSize);
                     filterLayer->_kernel_y = 1;
                     filterLayer->_padding_x = 0;
                     filterLayer->_padding_y = 0;
@@ -1620,7 +1619,7 @@ static InferenceEngine::Blob::Ptr tileBlob(Blob::Ptr& blob, size_t TileTo) {
     auto tiledBlob = make_plain_blob(blob->getTensorDesc().getPrecision(), {TileTo});
     tiledBlob->allocate();
 
-    for (int i = 0; i < (TileTo / weightsElements); ++i) {
+    for (size_t i = 0; i < (TileTo / weightsElements); ++i) {
         ie_memcpy(tiledBlob->buffer().as<uint8_t*>() + i * weightsBytes, weightsBytes, blob->cbuffer(), weightsBytes);
     }
     return tiledBlob;
@@ -1676,7 +1675,7 @@ void EltwiseSplitOverChannelsPass::run() {
                 split->outData.push_back(data);
             }
             // replacing connection X->eltwise to X->split
-            auto oData = CNNLayerFindOutData(l, kThEltwiseInput);
+            auto oData = CNNLayerFindOutData(l, static_cast<int>(kThEltwiseInput));
             oData.second->second = split;
 
             if (sameInputs) {
@@ -1864,7 +1863,7 @@ void BreakFusingOfOutputLayersPass::run() {
          */
         if (LayerInfo(layer).isPooling())
             continue;
-        for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
+        for (size_t output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
             auto& output = layer->outData[output_idx];
             auto& input_to = getInputTo(output);
 
@@ -1952,7 +1951,7 @@ void RemoveSingleInputConcatPass::run() {
                 auto out = concat->outData[0];
 
                 for (auto& out_layer : getInputTo(out)) {
-                    for (int i = 0; i < out_layer.second->insData.size(); i++) {
+                    for (size_t i = 0; i < out_layer.second->insData.size(); i++) {
                         if (out_layer.second->insData[i].lock() == out) {
                             out_layer.second->insData[i] = in;
                             getInputTo(in.lock())[out_layer.second->name] = out_layer.second;
@@ -2089,7 +2088,7 @@ void FuseFQIntoWeightsPass::run() {
             inputTo = getInputTo(layerBeforeWeightable->outData[0]);
             layers_connected_to_fq_count = inputTo.size();
         }
-        for (int index = 0; index < layers_connected_to_fq_count; index++) {
+        for (int index = 0; index < static_cast<int>(layers_connected_to_fq_count); index++) {
             auto weightableLayer =
                 CNNNetCheckNextLayerSkipCertain(layerBeforeWeightable, 0, index, true, isNonFunctional).first;
             if (!weightableLayer || !LayerInfo(weightableLayer).isWeightable()) {
@@ -2187,8 +2186,8 @@ void FuseFQIntoWeightsPass::run() {
 
             size_t depth = 1;
             intel_dnn_component_t component;
-            component.num_columns_in = weightDims[1];
-            component.num_rows_in = weightDims[0];
+            component.num_columns_in = static_cast<uint32_t>(weightDims[1]);
+            component.num_rows_in = static_cast<uint32_t>(weightDims[0]);
 
             if (LayerInfo(weightableLayer).isConvolution()) {
                 depth = (weightDims.size() == 4) ? weightDims[2] * weightDims[3] : 1;
@@ -2409,225 +2408,6 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass ::run() {
     }
 }
 
-void TransposeWeightsFromNCHWToNHWCPass::run() {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "TransposeWeightsFromNCHWToNHWCPass");
-    if (!MustBeConvertedFromNCHWToNHWC(*pLayers))
-        return;
-
-    auto printTranspositionInfo = [](const std::vector<TranspositionInfo>& transpositionInfo) {
-        for (const auto& transpositionInfoPart : transpositionInfo) {
-            log::debug() << "transpose=" << transpositionInfoPart.transpose
-                         << " rows_num=" << transpositionInfoPart.num_transpose_rows
-                         << " columns_num=" << transpositionInfoPart.num_transpose_columns << "\n";
-        }
-    };
-
-    auto transpInfoMatchWeightsSize =
-        [](const std::vector<TranspositionInfo>& transpositionInfo, size_t weightsSize, const std::string& layerName) {
-            size_t totalElements = 0;
-            for (auto&& transpositionInfoPart : transpositionInfo) {
-                totalElements += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
-            }
-            if (totalElements != weightsSize) {
-                THROW_GNA_EXCEPTION << layerName << " weights elements from transposition info (" << totalElements
-                                    << ") don't match input dimensions (" << weightsSize << ")";
-            }
-        };
-
-    for (auto&& l : *pLayers) {
-        if (LayerInfo(l).isScaleShift()) {
-            std::vector<TranspositionInfo> transpositionInfo;
-            // Try to find a convolution in previous layers
-            if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
-                transpositionInfo = FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNNetPrevLayer(l));
-                // If no convolutions are found try to find them in next layers
-                if (!FoundPartToTranspose(transpositionInfo) && !l->outData.empty() &&
-                    !getInputTo(l->outData[0]).empty()) {
-                    transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
-                }
-            }
-            if (FoundPartToTranspose(transpositionInfo)) {
-                if (l->input()->getDims().front() > 1) {
-                    THROW_GNA_EXCEPTION << l->name
-                                        << " Weights transposition is not supported for a layer with batch size > 1";
-                }
-                auto weightable = dynamic_cast<WeightableLayer*>(l.get());
-                IE_ASSERT(weightable != nullptr);
-
-                size_t totalWeights = weightable->_weights->size();
-                transpInfoMatchWeightsSize(transpositionInfo, totalWeights, l->name);
-
-                ConvertTensorFromNCHWToNHWC(weightable->precision.size(),
-                                            1,
-                                            weightable->_weights->size(),
-                                            weightable->_weights->cbuffer().as<uint8_t*>(),
-                                            true,
-                                            transpositionInfo);
-                if (weightable->_biases) {
-                    ConvertTensorFromNCHWToNHWC(weightable->precision.size(),
-                                                1,
-                                                weightable->_biases->size(),
-                                                weightable->_biases->cbuffer().as<uint8_t*>(),
-                                                true,
-                                                transpositionInfo);
-                }
-                log::debug() << l->name << " weights and biases rows transposition info:\n";
-                printTranspositionInfo(transpositionInfo);
-            }
-        }
-
-        if (LayerInfo(l).isFullyConnected()) {
-            auto weightable = dynamic_cast<WeightableLayer*>(l.get());
-            IE_ASSERT(weightable != nullptr);
-            IE_ASSERT(weightable->_weights != nullptr);
-            auto precision = weightable->precision.size();
-            auto out_dims = l->outData[0]->getDims();
-            auto in_dims = l->input()->getDims();
-            auto weightsRows = InferenceEngine::details::product(std::begin(out_dims) + 1, std::end(out_dims));
-            auto weightsColumns = InferenceEngine::details::product(std::begin(in_dims) + 1, std::end(in_dims));
-            // Find a convolution in previous layers to rotate weights rows
-            if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
-                std::vector<TranspositionInfo> transpositionInfo;
-                auto prevLayer = InferenceEngine::CNNNetPrevLayer(l);
-                transpositionInfo = FindTranspositionInfoFromPrevLayers(prevLayer);
-                if (FoundPartToTranspose(transpositionInfo)) {
-                    if (l->input()->getDims().front() > 1) {
-                        THROW_GNA_EXCEPTION
-                            << l->name << " Weights transposition is not supported for a layer with batch size > 1";
-                    }
-                    if (LayerInfo(prevLayer).isSplit()) {
-                        // If we found a split it's not possible to rotate data
-                        THROW_GNA_EXCEPTION << l->name << " won't be transposed due to a split before it";
-                    }
-
-                    transpInfoMatchWeightsSize(transpositionInfo, weightsColumns, l->name);
-
-                    weightable->_weights = convertToRWBlob(weightable->_weights);
-
-                    ConvertTensorFromNCHWToNHWC(precision,
-                                                weightsRows,
-                                                weightsColumns,
-                                                weightable->_weights->buffer().as<uint8_t*>(),
-                                                true,
-                                                transpositionInfo);
-                    log::debug() << l->name << " weights rows transposition info:\n";
-                    printTranspositionInfo(transpositionInfo);
-                }
-            }
-            // Find a convolution in next layers to rotate weights columns
-            if (!l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
-                std::vector<TranspositionInfo> transpositionInfo;
-                auto nextLayer = getInputTo(l->outData[0]).begin()->second;
-                transpositionInfo = FindTranspositionInfoFromNextLayers(nextLayer);
-                if (FoundPartToTranspose(transpositionInfo)) {
-                    if (l->outData[0]->getDims().front() > 1) {
-                        THROW_GNA_EXCEPTION
-                            << l->name << " Weights transposition is not supported for a layer with batch size > 1";
-                    }
-                    if (LayerInfo(nextLayer).isConcat()) {
-                        // If we found a concat it's not possible to rotate data
-                        THROW_GNA_EXCEPTION << l->name << " won't be transposed due to a concat after it";
-                    }
-
-                    transpInfoMatchWeightsSize(transpositionInfo, weightsRows, l->name);
-
-                    weightable->_weights = convertToRWBlob(weightable->_weights);
-
-                    ConvertTensorFromNCHWToNHWC(precision,
-                                                weightsRows,
-                                                weightsColumns,
-                                                weightable->_weights->cbuffer().as<uint8_t*>(),
-                                                false,
-                                                transpositionInfo);
-                    log::debug() << l->name << " weights columns transposition info:\n";
-                    printTranspositionInfo(transpositionInfo);
-                }
-            }
-        }
-
-        if (LayerInfo(l).isEltwise()) {
-            // We need to transpose a constant which is an eltwise input
-            auto firstInput = InferenceEngine::CNNNetPrevLayer(l, 0);
-            auto secondInput = InferenceEngine::CNNNetPrevLayer(l, 1);
-            if (!LayerInfo(firstInput).isConst() && !LayerInfo(secondInput).isConst()) {
-                continue;
-            }
-            // Let a constant to be the second input
-            if (LayerInfo(firstInput).isConst()) {
-                std::swap(firstInput, secondInput);
-            }
-            // Find a convolution in previous or next layers
-            auto transpositionInfo = FindTranspositionInfoFromPrevLayers(firstInput);
-            if (!FoundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
-                transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
-            }
-            if (FoundPartToTranspose(transpositionInfo)) {
-                auto blob = secondInput->blobs["custom"];
-                ConvertTensorFromNCHWToNHWC(blob->getTensorDesc().getPrecision().size(),
-                                            1,
-                                            blob->size(),
-                                            blob->buffer().as<uint8_t*>(),
-                                            true,
-                                            transpositionInfo);
-                log::debug() << secondInput->name << " data transposition info:\n";
-                printTranspositionInfo(transpositionInfo);
-            }
-        }
-
-        if (LayerInfo(l).isConcat()) {
-            auto concatLayer = LayerInfo(l).as<InferenceEngine::ConcatLayer*>();
-            IE_ASSERT(concatLayer != nullptr);
-            // If concatenation is along channel axis constant input transposition isn't required
-            if (concatLayer->_axis <= 1)
-                continue;
-
-            std::vector<InferenceEngine::CNNLayerPtr> constInputs;
-            bool transpose = false;
-            int nonConstInputIx = 0;
-            // Check if non-const inputs are transposed
-            for (int i = 0; InferenceEngine::CNNNetHasPrevLayer(l.get(), i); ++i) {
-                auto input = InferenceEngine::CNNNetPrevLayer(l, i);
-                if (LayerInfo(input).isConst()) {
-                    constInputs.push_back(input);
-                    continue;
-                }
-                auto transpositionInfo = FindTranspositionInfoFromPrevLayers(input);
-                bool transposeInput = FoundPartToTranspose(transpositionInfo);
-                if (nonConstInputIx == 0) {
-                    transpose = transposeInput;
-                } else if (transposeInput != transpose) {
-                    THROW_GNA_EXCEPTION << "Concat layer " << l->name << " inputs have different layouts";
-                }
-                ++nonConstInputIx;
-            }
-            if (!transpose)
-                continue;
-
-            // Transpose all constant inputs
-            for (auto&& input : constInputs) {
-                auto rows = GetDataDimByName(input->outData[0], DataDimName::C);
-                auto columns = GetDataDimByName(input->outData[0], DataDimName::H) *
-                               GetDataDimByName(input->outData[0], DataDimName::W);
-
-                auto blob = convertToRWBlob(input->blobs["custom"]);
-                input->blobs["custom"] = blob;
-
-                // A constant should have the same number of channels since concatenation will be in height/weight
-                // dimension
-                TranspositionInfo concatTranspositionInfo{true, rows, columns};
-                ConvertTensorFromNCHWToNHWC(blob->getTensorDesc().getPrecision().size(),
-                                            1,
-                                            blob->size(),
-                                            blob->buffer().as<uint8_t*>(),
-                                            true,
-                                            {concatTranspositionInfo});
-                log::debug() << input->name << " data transposition info:\n";
-                printTranspositionInfo({concatTranspositionInfo});
-            }
-        }
-    }
-}
-
 void FuseFullyConnectedWithEltwisePass::run() {
     // This legacy pass removes the Eltwise (only if it performs SUM op) from between FC and Any.
     // The blob data of Const layer attached to Eltwise is added to biases blob data of FC layer.
@@ -2687,8 +2467,9 @@ void FuseFullyConnectedWithEltwisePass::run() {
         CNNLayerPtr eltwise_input = nullptr;
         for (size_t i = 0; i < eltwise->insData.size(); i++) {
             // Get Eltwise's prev layer and check its kind
-            auto before_eltwise =
-                CNNNetHasPrevLayer(eltwise.get(), 0) ? CNNNetPrevLayerSkipCertain(eltwise, i, DoNotSkip) : nullptr;
+            auto before_eltwise = CNNNetHasPrevLayer(eltwise.get(), 0)
+                                      ? CNNNetPrevLayerSkipCertain(eltwise, static_cast<int>(i), DoNotSkip)
+                                      : nullptr;
             if (LayerInfo(before_eltwise).isConst()) {
                 eltwise_const = before_eltwise;
             } else {

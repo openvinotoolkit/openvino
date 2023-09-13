@@ -112,17 +112,6 @@ macro(ov_add_frontend)
     endif()
 
     file(GLOB_RECURSE LIBRARY_SRC ${frontend_root_dir}/src/*.cpp)
-    if (WIN32)
-        # Remove linux specific files
-        file(GLOB_RECURSE LIN_FILES ${frontend_root_dir}/src/os/lin/*.cpp
-                                    ${frontend_root_dir}/src/os/lin/*.hpp)
-        list(REMOVE_ITEM LIBRARY_SRC "${LIN_FILES}")
-    else()
-        # Remove windows specific files
-        file(GLOB_RECURSE WIN_FILES ${frontend_root_dir}/src/os/win/*.cpp
-                                    ${frontend_root_dir}/src/os/win/*.hpp)
-        list(REMOVE_ITEM LIBRARY_SRC "${WIN_FILES}")
-    endif()
     file(GLOB_RECURSE LIBRARY_HEADERS ${frontend_root_dir}/src/*.hpp)
     file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${frontend_root_dir}/include/*.hpp)
 
@@ -184,7 +173,7 @@ macro(ov_add_frontend)
 
     # Shutdown protobuf when unloading the frontend dynamic library
     if(proto_files AND BUILD_SHARED_LIBS)
-        target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino::protobuf_shutdown)
     endif()
 
     if(NOT BUILD_SHARED_LIBS)
@@ -210,6 +199,10 @@ macro(ov_add_frontend)
     # WA for TF frontends which always require protobuf (not protobuf-lite)
     # if TF FE is built in static mode, use protobuf for all other FEs
     if(FORCE_FRONTENDS_USE_PROTOBUF)
+        set(OV_FRONTEND_PROTOBUF_LITE OFF)
+    endif()
+    # if protobuf::libprotobuf-lite is not available, use protobuf::libprotobuf
+    if(NOT TARGET protobuf::libprotobuf-lite)
         set(OV_FRONTEND_PROTOBUF_LITE OFF)
     endif()
 
@@ -291,8 +284,7 @@ macro(ov_add_frontend)
 
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 set(export_set EXPORT OpenVINOTargets)
-                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                                 COMPONENT ${lib_component})
+                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${lib_component})
                 set(namelink NAMELINK_COMPONENT ${dev_component})
             else()
                 set(namelink NAMELINK_SKIP)
@@ -302,6 +294,12 @@ macro(ov_add_frontend)
                     ${archive_dest}
                     LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${lib_component}
                     ${namelink})
+
+            # export to build tree
+            if(OV_FRONTEND_LINKABLE_FRONTEND)
+                export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+                       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+            endif()
         else()
             ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
         endif()
@@ -313,9 +311,8 @@ macro(ov_add_frontend)
                     COMPONENT ${dev_component}
                     FILES_MATCHING PATTERN "*.hpp")
 
+            # public target name
             set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
-            export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-                   APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
         endif()
     else()
         # skipped frontend has to be installed in static libraries case

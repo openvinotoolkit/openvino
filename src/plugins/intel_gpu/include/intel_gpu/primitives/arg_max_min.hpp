@@ -24,9 +24,8 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                     top_k(0),
                     axis(0),
                     sort(ov::op::TopKSortType::NONE),
-                    values_first(false) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+                    values_first(false),
+                    stable(false) {}
 
     /// @brief Constructs arg_max_min primitive.
     /// @param id This primitive id.
@@ -35,6 +34,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
     /// @param top_k Number of indices to output.
     /// @param axis Axis to maximize/minimize along.
     /// @param sort Type of sorting - by values or indices.
+    /// @param stable Controls whether sorting is stable.
     arg_max_min(const primitive_id& id,
                 const std::vector<input_info>& inputs,
                 ov::op::TopKMode mode,
@@ -42,6 +42,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                 int64_t axis,
                 ov::op::TopKSortType sort = ov::op::TopKSortType::SORT_VALUES,
                 bool values_first = false,
+                bool stable = false,
                 const padding& output_padding = padding(),
                 data_types output_data_type = data_types::f32,
                 const size_t num_outputs = 1)
@@ -50,7 +51,8 @@ struct arg_max_min : public primitive_base<arg_max_min> {
           top_k(top_k),
           axis(axis),
           sort(sort),
-          values_first(values_first) {}
+          values_first(values_first),
+          stable(stable) {}
 
     /// @brief Constructs arg_max_min for top_k parameter
     arg_max_min(const primitive_id& id,
@@ -61,6 +63,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                 int64_t axis,
                 ov::op::TopKSortType sort = ov::op::TopKSortType::SORT_VALUES,
                 bool values_first = false,
+                bool stable = false,
                 const padding& output_padding = padding(),
                 data_types output_data_type = data_types::f32,
                 const size_t num_outputs = 1)
@@ -69,7 +72,8 @@ struct arg_max_min : public primitive_base<arg_max_min> {
           top_k(top_k),
           axis(axis),
           sort(sort),
-          values_first(values_first) {}
+          values_first(values_first),
+          stable(stable) {}
 
     /// @brief Type of output - max or min.
     ov::op::TopKMode mode;
@@ -81,6 +85,8 @@ struct arg_max_min : public primitive_base<arg_max_min> {
     ov::op::TopKSortType sort;
     /// @brief Sets output order: if True than first output contains values and second (optional) - indices.
     bool values_first;
+    /// @brief Specifies whether the equivalent elements should maintain their relative order from the input tensor during sorting.
+    bool stable;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -89,6 +95,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
         seed = hash_combine(seed, axis);
         seed = hash_combine(seed, sort);
         seed = hash_combine(seed, values_first);
+        seed = hash_combine(seed, stable);
         return seed;
     }
 
@@ -102,7 +109,8 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                top_k == rhs_casted.top_k &&
                axis == rhs_casted.axis &&
                sort == rhs_casted.sort &&
-               values_first == rhs_casted.values_first;
+               values_first == rhs_casted.values_first &&
+               stable == rhs_casted.stable;
     }
 
     size_t get_output_nums() const {
@@ -120,6 +128,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
         ob << axis;
         ob << make_data(&sort, sizeof(ov::op::TopKSortType));
         ob << values_first;
+        ob << stable;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -131,6 +140,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
         ib >> axis;
         ib >> make_data(&sort, sizeof(ov::op::TopKSortType));
         ib >> values_first;
+        ib >> stable;
     }
 };
 }  // namespace cldnn

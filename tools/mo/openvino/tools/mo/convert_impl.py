@@ -10,25 +10,27 @@ import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
-from distutils.version import LooseVersion
 from pathlib import Path
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
-    tensorflow_custom_operations_config_update_used, new_extensions_used
-from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
-from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
+    tensorflow_custom_operations_config_update_used, new_extensions_used  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.moc_frontend.moc_emit_ir import moc_emit_ir  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
+
+# pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
@@ -39,18 +41,19 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
 
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
-    get_tf_fe_message, get_try_legacy_fe_message, get_compression_message
+    get_tf_fe_message, get_compression_message  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
-from openvino.tools.mo.utils.logger import init_logger, progress_printer
+from openvino.tools.mo.utils.logger import init_logger, progress_printer  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
-    get_tid
-from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
-from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
-from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes
+    init_mo_telemetry
+from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes  # pylint: disable=no-name-in-module,import-error
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
@@ -312,8 +315,6 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
         "LoopCond", "Enter", "NextIteration", "Exit",
-        # corresponds to TF1 If and TF1 While operations
-        "Switch", "Merge",
         # corresponds to operations with complex tensors
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
@@ -395,7 +396,8 @@ def prepare_ir(argv: argparse.Namespace):
                 argv.input_model = create_tf_graph_iterator(argv.input_model,
                                                             argv.placeholder_shapes,
                                                             argv.placeholder_data_types,
-                                                            getattr(argv, "example_input", None))
+                                                            getattr(argv, "example_input", None),
+                                                            argv.share_weights)
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -442,7 +444,9 @@ def read_model(fem: FrontEndManager, path_to_xml: str):
     # avoid segfault during object destruction. So fe must
     # be destructed before fem object explicitly.
     fe = fem.load_by_framework(framework="ir")
-    function = fe.convert(fe.load(path_to_xml))
+    # *.xml/.*bin files are temporary created in the legacy scenario, so we cannot map the memory
+    share_weights = False
+    function = fe.convert(fe.load(path_to_xml, share_weights))
     return function
 
 
@@ -491,7 +495,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         try:
-            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
+            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations  # pylint: disable=no-name-in-module,import-error
             func = apply_offline_transformations(func, argv)
             if "compress_to_fp16" in argv and argv.compress_to_fp16:
                 # restore data_type cmd parameter
@@ -526,8 +530,8 @@ def check_model_object(argv):
         if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
             return "pytorch"
         try:
-            from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
-            
+            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
             if isinstance(model, TorchScriptPythonDecoder):
                 return "pytorch"
         except Exception as e:
@@ -798,7 +802,7 @@ def update_args_for_saved_model_dir(args: dict):
             'input_model' in args and args['input_model'] is not None:
         raise Error("Both --input_model and --saved_model_dir are defined. "
                     "Please specify either input_model or saved_model_dir directory.")
-    
+
     if 'input_model' in args and isinstance(args['input_model'], (str, Path)) and os.path.isdir(args['input_model']):
         args['saved_model_dir'] = args['input_model']
         args['input_model'] = None
@@ -822,7 +826,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         show_mo_convert_help()
         return None, None
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version)
+    telemetry = init_mo_telemetry()
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
@@ -841,7 +845,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 elif 'example_inputs' in args:
                     raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
-                decoder =  get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args)
+                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args)
             if model_framework == "paddle":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
@@ -951,6 +955,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e#.with_traceback(None)
+            raise e.with_traceback(None)
         else:
             return None, argv

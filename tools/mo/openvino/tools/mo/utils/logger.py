@@ -99,7 +99,7 @@ def progress_bar(function: callable):
 
     def wrapper(*args, **kwargs):
         for arg in ['graph', 'curr_transform_num', 'num_transforms']:
-            msg = 'Progress bar decorator is enabled for Model Optimizer transformation applying cycle only. ' \
+            msg = 'Progress bar decorator is enabled for Model Conversion API transformation applying cycle only. ' \
                   'Argument `{}` {}'
 
             assert arg in kwargs, msg.format(arg, 'is missing')

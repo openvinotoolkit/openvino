@@ -26,8 +26,8 @@ class FrontEnd(FrontEndBase):
     def decode(self, model: InputModel) -> Model:
         return Model(super().decode(model))
 
-    def normalize(self, model: Model) -> Model:
-        return Model(super().normalize(model))
+    def normalize(self, model: Model) -> None:
+        super().normalize(model)
 
 
 class FrontEndManager(FrontEndManagerBase):
@@ -37,8 +37,8 @@ class FrontEndManager(FrontEndManagerBase):
             return FrontEnd(fe)
         return fe
 
-    def load_by_model(self, model_path: str) -> Union[FrontEnd, None]:
-        fe = super().load_by_model(model_path)
+    def load_by_model(self, model: str) -> Union[FrontEnd, None]:
+        fe = super().load_by_model(model)
         if fe is not None:
             return FrontEnd(fe)
         return fe

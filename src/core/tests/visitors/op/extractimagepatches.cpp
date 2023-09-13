@@ -2,32 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/extractimagepatches.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, extractimagepatches_op) {
-    NodeBuilder::get_ops().register_factory<opset3::ExtractImagePatches>();
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 10, 10});
+    NodeBuilder::get_ops().register_factory<ov::op::v3::ExtractImagePatches>();
+    auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{64, 3, 10, 10});
 
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
-    auto padtype_padding = ngraph::op::PadType::VALID;
+    auto padtype_padding = ov::op::PadType::VALID;
 
-    auto extractimagepatches = make_shared<opset3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
+    auto extractimagepatches =
+        make_shared<ov::op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
     NodeBuilder builder(extractimagepatches, {data});
-    auto g_extractimagepatches = ov::as_type_ptr<opset3::ExtractImagePatches>(builder.create());
+    auto g_extractimagepatches = ov::as_type_ptr<ov::op::v3::ExtractImagePatches>(builder.create());
 
     const auto expected_attr_count = 4;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

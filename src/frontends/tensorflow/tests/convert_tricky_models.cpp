@@ -8,9 +8,9 @@
 #include <openvino/opsets/opset10.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 
+#include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
-#include "test_common.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
 
@@ -550,6 +550,11 @@ TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutIdentity) {
     }
 }
 
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphMMAPCompare) {
+    { model = convert_model("metagraph_variables/graph.meta"); }
+    { model_ref = convert_model("metagraph_variables/graph.meta", nullptr, {}, {}, {}, {}, {}, true); }
+}
+
 TEST_F(FrontEndConversionWithReferenceTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
@@ -714,5 +719,59 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ControlDependencyNumberOutputs) {
         auto sub = make_shared<Subtract>(input1, input2);
 
         model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{input1, input2});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
+    // This test aims to check conversion of a model with TF1 If operation that
+    // contains unsupported operation in one branch
+    // the conversion must avoid such branch in case proper condition freezing
+    {
+        bool cond_value = false;
+        model = convert_model("tf1_if_with_nonexistent_op/tf1_if_with_nonexistent_op.pb",
+                              nullptr,
+                              {},
+                              {},
+                              {},
+                              {"cond"},
+                              {&cond_value});
+    }
+    {
+        auto y = make_shared<Parameter>(f32, Shape{2, 3});
+        auto ind = make_shared<Parameter>(i32, Shape{3});
+
+        auto const_two = make_shared<Constant>(i32, Shape{}, 2);
+        auto sub = make_shared<Subtract>(ind, const_two);
+
+        auto convert = make_shared<Convert>(sub, f32);
+        auto mul = make_shared<Multiply>(convert, y);
+
+        model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{y, ind});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel) {
+    // This test aims to check conversion of a model with convolution of dynamic input channel
+    // Namely, the resulted model must contain the regular convolution, not grouped convolution
+    { model = convert_model("conv_with_dynamic_input_channel"); }
+    {
+        auto input = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, Dimension::dynamic()});
+
+        auto transpose_order = make_shared<Constant>(i64, Shape{4}, vector<int32_t>{0, 3, 1, 2});
+        auto transpose = make_shared<Transpose>(input, transpose_order);
+
+        auto filter = make_shared<Constant>(element::f32, Shape{6, 6, 3, 3}, vector<float>(6 * 6 * 3 * 3, 0.0f));
+        auto conv = make_shared<Convolution>(transpose,
+                                             filter,
+                                             Strides{1, 1},
+                                             CoordinateDiff{0, 0},
+                                             CoordinateDiff{0, 0},
+                                             Strides{1, 1},
+                                             op::PadType::SAME_UPPER);
+
+        auto transpose_order_back = make_shared<Constant>(i64, Shape{4}, vector<int32_t>{0, 2, 3, 1});
+        auto transpose_back = make_shared<Transpose>(conv, transpose_order_back);
+
+        model_ref = make_shared<Model>(OutputVector{transpose_back}, ParameterVector{input});
     }
 }

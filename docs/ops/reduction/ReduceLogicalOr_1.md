@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ReduceLogicalOr-1 - a reduction operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *ReduceLogicalOr-1*
 
 **Category**: *Reduction*
@@ -51,7 +55,8 @@ Particular cases:
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceLogicalOr" ...>
         <data keep_dims="true" />
@@ -77,7 +82,8 @@ Particular cases:
     </layer>
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceLogicalOr" ...>
         <data keep_dims="false" />
@@ -100,7 +106,8 @@ Particular cases:
         </output>
     </layer>
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceLogicalOr" ...>
         <data keep_dims="false" />
@@ -125,7 +132,8 @@ Particular cases:
     </layer>
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceLogicalOr" ...>
         <data keep_dims="false" />

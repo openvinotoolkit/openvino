@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/test_assertions.hpp"
-#include "dimension_tracker.hpp"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "openvino/op/gather.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 // ------------------------------ V1 ------------------------------
@@ -19,9 +23,9 @@ TEST(type_prop, gather_v1_axis_0) {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto P = make_shared<ov::op::v0::Parameter>(element::f32, params_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v1::Gather>(P, I, A);
     EXPECT_EQ(G->get_element_type(), element::f32);
     EXPECT_EQ(G->get_shape(), out_shape);
@@ -34,9 +38,9 @@ TEST(type_prop, gather_v1_uint8) {
     PartialShape indices_shape{2, 2};
     PartialShape out_shape{2, 2, 2};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::u8, indices_shape);
-    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::u8, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v1::Gather>(D, I, A);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -50,9 +54,9 @@ TEST(type_prop, gather_v1_float32) {
     PartialShape indices_shape{2, 2};
     PartialShape out_shape{2, 2, 2};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::f32, indices_shape);
-    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::f32, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v1::Gather>(D, I, A);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -64,9 +68,9 @@ TEST(type_prop, gather_axis_1) {
     Shape params_shape{3, 3};
     Shape indices_shape{1, 2};
     Shape out_shape{3, 1, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto A = op::Constant::create(element::i64, Shape{}, {1});
+    auto P = make_shared<ov::op::v0::Parameter>(element::f32, params_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
     auto G = make_shared<op::v1::Gather>(P, I, A);
     EXPECT_EQ(G->get_element_type(), element::f32);
     EXPECT_EQ(G->get_shape(), out_shape);
@@ -74,9 +78,9 @@ TEST(type_prop, gather_axis_1) {
 }
 
 TEST(type_prop, gather_v1_incorrect_axis_shape) {
-    auto params = make_shared<op::Parameter>(element::f32, Shape{5, 6});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto axis = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto params = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto axis = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
     OV_EXPECT_THROW(auto g = make_shared<op::v1::Gather>(params, indices, axis),
                     NodeValidationFailure,
@@ -84,9 +88,9 @@ TEST(type_prop, gather_v1_incorrect_axis_shape) {
 }
 
 TEST(type_prop, gather_v1_axis_out_of_input_rank) {
-    auto params = make_shared<op::Parameter>(element::f32, Shape{5, 6});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto axis = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
+    auto params = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto axis = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
 
     OV_EXPECT_THROW(auto g = make_shared<op::v1::Gather>(params, indices, axis),
                     ov::AssertFailure,
@@ -94,10 +98,10 @@ TEST(type_prop, gather_v1_axis_out_of_input_rank) {
 }
 
 TEST(type_prop, gather_v1_negative_axis) {
-    auto params = make_shared<op::Parameter>(element::f32, Shape{5, 6, 7});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto params = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6, 7});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
     int64_t axis = -2;
-    auto axis_node = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto axis_node = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto gather_v1 = make_shared<op::v1::Gather>(params, indices, axis_node);
     EXPECT_EQ(gather_v1->get_axis(), 1);
 }
@@ -107,9 +111,9 @@ TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::v0::ShapeOf>(param_0);
 
     const auto& et = element::i64;
     std::vector<int64_t> zero{0};
@@ -125,21 +129,21 @@ TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
 }
 
 TEST(type_prop, dynamic_value_propagation) {
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape{-1, 3, -1, -1});
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 3, -1, -1});
     auto shape_of = std::make_shared<op::v3::ShapeOf>(param, element::i32);
 
-    auto indices = op::Constant::create(element::i32, {}, {1});
-    auto axis = op::Constant::create(element::i32, {}, {0});
+    auto indices = ov::op::v0::Constant::create(element::i32, {}, {1});
+    auto axis = ov::op::v0::Constant::create(element::i32, {}, {0});
     auto gather = std::make_shared<op::v1::Gather>(shape_of, indices, axis);
 
-    auto add = std::make_shared<op::v1::Add>(gather, op::Constant::create(element::i32, {}, {0}));
+    auto add = std::make_shared<op::v1::Add>(gather, ov::op::v0::Constant::create(element::i32, {}, {0}));
 
-    auto range = std::make_shared<op::v4::Range>(op::Constant::create(element::i32, {}, {0}),
+    auto range = std::make_shared<op::v4::Range>(ov::op::v0::Constant::create(element::i32, {}, {0}),
                                                  add,
-                                                 op::Constant::create(element::i32, {}, {1}),
+                                                 ov::op::v0::Constant::create(element::i32, {}, {1}),
                                                  element::i64);
 
-    auto RIC = std::make_shared<op::v1::Gather>(param, range, op::Constant::create(element::i32, {}, {1}));
+    auto RIC = std::make_shared<op::v1::Gather>(param, range, ov::op::v0::Constant::create(element::i32, {}, {1}));
 
     EXPECT_EQ(RIC->get_element_type(), element::f32);
     EXPECT_EQ(RIC->get_output_partial_shape(0), (PartialShape{-1, 3, -1, -1}));
@@ -153,9 +157,9 @@ TEST(type_prop, gather_7_axis_0) {
     PartialShape out_shape{2, 2, 2};
     int64_t batch_dims = 0;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -169,9 +173,9 @@ TEST(type_prop, gather_7_axis_1) {
     PartialShape out_shape{3, 1, 2};
     int64_t axis = 1;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto A = op::Constant::create(element::i64, Shape{}, {axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {axis});
     auto G = make_shared<op::v7::Gather>(D, I, A);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -185,9 +189,9 @@ TEST(type_prop, gather_7_negative_axis) {
     PartialShape out_shape{5, 4, 7};
     int64_t axis = -2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A);
 
     EXPECT_EQ(G->get_axis(), 1);
@@ -201,9 +205,9 @@ TEST(type_prop, gather_7_dynamic_pshape_batch_dims_1_axis_1) {
     int64_t axis = 1;
     int64_t batch_dims = 1;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -217,9 +221,9 @@ TEST(type_prop, gather_7_dynamic_pshape_batch_dims_1_axis_3) {
     int64_t axis = 3;
     int64_t batch_dims = 1;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -233,9 +237,9 @@ TEST(type_prop, gather_7_dynamic_2d_pshape_batch_dim) {
     int64_t axis = 2;
     int64_t batch_dims = 2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -249,9 +253,9 @@ TEST(type_prop, gather_7_dynamic_2d_pshape_batch_dim_axis_3) {
     int64_t axis = 3;
     int64_t batch_dims = 2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -265,9 +269,9 @@ TEST(type_prop, gather_7_dynamic_rank) {
     int64_t axis = 3;
     int64_t batch_dims = 2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -281,9 +285,9 @@ TEST(type_prop, gather_7_axis_boundcheck_for_dynamic_data_rank) {
     int64_t axis = 3;
     int64_t batch_dims = 2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -297,9 +301,9 @@ TEST(type_prop, gather_7_dynamic_rank_negative_batch_dims) {
     int64_t axis = 3;
     int64_t batch_dims = -2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -312,9 +316,9 @@ TEST(type_prop, gather_7_axis_not_set) {
     // default batch_dims = 0
     PartialShape out_shape = PartialShape::dynamic(5);  // out_rank = data_rank + indices_rank - 1 - batch_dims
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v7::Gather>(D, I, A);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -327,9 +331,9 @@ TEST(type_prop, gather_7_axis_not_set_positive_batch_dims) {
     int64_t batch_dims = 1;
     PartialShape out_shape = PartialShape({2, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -341,9 +345,9 @@ TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::v0::ShapeOf>(param_0);
 
     const auto& et = element::i64;
     std::vector<int64_t> zero{0};
@@ -361,9 +365,9 @@ TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
 // --------------------- V7 Negative tests ------------------------------
 
 TEST(type_prop, gather_7_incorrect_axis_shape) {
-    auto D = make_shared<op::Parameter>(element::f32, Shape{5, 6});
-    auto I = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto A = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6});
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto A = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A),
                     NodeValidationFailure,
@@ -371,9 +375,9 @@ TEST(type_prop, gather_7_incorrect_axis_shape) {
 }
 
 TEST(type_prop, gather_7_axis_out_of_input_rank) {
-    auto D = make_shared<op::Parameter>(element::f32, Shape{5, 6});
-    auto I = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6});
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
     int64_t batch_dims = 0;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -385,10 +389,10 @@ TEST(type_prop, gather_7_dynamic_batch_dims_inconsistent) {
     PartialShape data_shape{Dimension(1, 7), 20, 20};
     PartialShape indices_shape{Dimension(8, 10), 3, 8};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
     int64_t axis = 1;
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 1;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -400,10 +404,10 @@ TEST(type_prop, gather_7_batch_dims_less_check) {
     PartialShape data_shape{1, 3, 20};
     PartialShape indices_shape{1, 3, 8};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
     int64_t axis = 1;
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 2;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -415,10 +419,10 @@ TEST(type_prop, gather_7_batch_dims_less_indices_rank_check) {
     PartialShape data_shape{1, 20, 20, 22, 22};
     PartialShape indices_shape{1, 3};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
     int64_t axis = 4;
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 3;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -430,10 +434,10 @@ TEST(type_prop, gather_7_indices_type_check) {
     PartialShape data_shape{1, 20, 20, 22, 22};
     PartialShape indices_shape{1, 3};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::f32, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::f32, indices_shape);
     int64_t axis = 4;
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -445,10 +449,10 @@ TEST(type_prop, gather_7_axis_type_check) {
     PartialShape data_shape{1, 20, 20, 22, 22};
     PartialShape indices_shape{1, 3};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
     int64_t axis = 4;
-    auto A = make_shared<op::Constant>(element::f32, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -464,9 +468,9 @@ TEST(type_prop, gather_v8_axis_0) {
     PartialShape out_shape{2, 2, 2};
     int64_t batch_dims = 0;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -480,9 +484,9 @@ TEST(type_prop, gather_v8_axis_1) {
     PartialShape out_shape{3, 1, 2};
     int64_t axis = 1;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto A = op::Constant::create(element::i64, Shape{}, {axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {axis});
     auto G = make_shared<op::v8::Gather>(D, I, A);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -496,9 +500,9 @@ TEST(type_prop, gather_v8_negative_axis) {
     PartialShape out_shape{5, 4, 7};
     int64_t axis = -2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A);
 
     EXPECT_EQ(G->get_axis(), 1);
@@ -512,9 +516,9 @@ TEST(type_prop, gather_v8_dynamic_pshape_batch_dims_1_axis_1) {
     int64_t axis = 1;
     int64_t batch_dims = 1;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -528,9 +532,9 @@ TEST(type_prop, gather_v8_dynamic_pshape_batch_dims_1_axis_3) {
     int64_t axis = 3;
     int64_t batch_dims = 1;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -544,9 +548,9 @@ TEST(type_prop, gather_v8_dim_no_bound_pshape_batch_dims_1_axis_3) {
     int64_t axis = 3;
     int64_t batch_dims = 1;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -560,9 +564,9 @@ TEST(type_prop, gather_v8_dynamic_2d_pshape_batch_dim) {
     int64_t axis = 2;
     int64_t batch_dims = 2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -576,9 +580,9 @@ TEST(type_prop, gather_v8_dynamic_2d_pshape_batch_dim_axis_3) {
     int64_t axis = 3;
     int64_t batch_dims = 2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -592,9 +596,9 @@ TEST(type_prop, gather_v8_dynamic_rank) {
     int64_t axis = 3;
     int64_t batch_dims = 2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -608,9 +612,9 @@ TEST(type_prop, gather_v8_axis_boundcheck_for_dynamic_data_rank) {
     int64_t axis = 3;
     int64_t batch_dims = 2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -624,9 +628,9 @@ TEST(type_prop, gather_v8_dynamic_rank_negative_batch_dims) {
     int64_t axis = 3;
     int64_t batch_dims = -2;
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -639,9 +643,9 @@ TEST(type_prop, gather_v8_axis_not_set) {
     // default batch_dims = 0
     PartialShape out_shape = PartialShape::dynamic(5);  // out_rank = data_rank + indices_rank - 1 - batch_dims
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v8::Gather>(D, I, A);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -654,9 +658,9 @@ TEST(type_prop, gather_v8_axis_not_set_positive_batch_dims) {
     int64_t batch_dims = 1;
     PartialShape out_shape = PartialShape({2, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
     EXPECT_EQ(G->get_element_type(), element::f32);
@@ -669,9 +673,9 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation) {
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::v0::ShapeOf>(param_0);
 
     const auto& et = element::i64;
     std::vector<int64_t> zero{0};
@@ -692,9 +696,9 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation_interval_dim) {
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::v0::ShapeOf>(param_0);
 
     const auto& et = element::i64;
     std::vector<int64_t> zero{0};
@@ -710,9 +714,9 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation_interval_dim) {
 }
 
 TEST(type_prop, gather_v8_use_default_ctor) {
-    auto D = make_shared<op::Parameter>(element::f32, PartialShape{2, 1, 200, 400});
-    auto I = make_shared<op::Parameter>(element::i64, PartialShape{2, 2});
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{-1});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{2, 1, 200, 400});
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{2, 2});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1});
     constexpr int64_t batch_dims = 1;
 
     auto G = make_shared<op::v8::Gather>();
@@ -729,9 +733,9 @@ TEST(type_prop, gather_v8_use_default_ctor) {
 // --------------------- V8 Negative tests ------------------------------
 
 TEST(type_prop, gather_v8_incorrect_axis_shape) {
-    auto D = make_shared<op::Parameter>(element::f32, Shape{5, 6});
-    auto I = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto A = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6});
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto A = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A),
                     NodeValidationFailure,
@@ -739,9 +743,9 @@ TEST(type_prop, gather_v8_incorrect_axis_shape) {
 }
 
 TEST(type_prop, gather_v8_axis_out_of_input_rank) {
-    auto D = make_shared<op::Parameter>(element::f32, Shape{5, 6});
-    auto I = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6});
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
     int64_t batch_dims = 0;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v8::Gather>(D, I, A, batch_dims),
@@ -753,10 +757,10 @@ TEST(type_prop, gather_v8_dynamic_batch_dims_inconsistent) {
     PartialShape data_shape{Dimension(1, 7), 20, 20};
     PartialShape indices_shape{Dimension(8, 10), 3, 8};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
     int64_t axis = 1;
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 1;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -768,10 +772,10 @@ TEST(type_prop, gather_v8_batch_dims_less_check) {
     PartialShape data_shape{1, 3, 20};
     PartialShape indices_shape{1, 3, 8};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
     int64_t axis = 1;
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 2;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -783,10 +787,10 @@ TEST(type_prop, gather_v8_batch_dims_less_indices_rank_check) {
     PartialShape data_shape{1, 20, 20, 22, 22};
     PartialShape indices_shape{1, 3};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
     int64_t axis = 4;
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 3;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -798,10 +802,10 @@ TEST(type_prop, gather_v8_indices_type_check) {
     PartialShape data_shape{1, 20, 20, 22, 22};
     PartialShape indices_shape{1, 3};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::f32, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::f32, indices_shape);
     int64_t axis = 4;
-    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
@@ -813,10 +817,10 @@ TEST(type_prop, gather_v8_axis_type_check) {
     PartialShape data_shape{1, 20, 20, 22, 22};
     PartialShape indices_shape{1, 3};
 
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
     int64_t axis = 4;
-    auto A = make_shared<op::Constant>(element::f32, Shape{1}, vector<int64_t>{axis});
+    auto A = make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
     OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),

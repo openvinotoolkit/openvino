@@ -13,7 +13,7 @@ std::string SplitConvConcat::getTestCaseName(const testing::TestParamInfo<LayerT
     std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
@@ -25,15 +25,15 @@ void SplitConvConcat::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
     std::vector<float> filterWeights1;
     std::vector<float> filterWeights2;
-    if (targetDevice == CommonTestUtils::DEVICE_GNA) {
-        filterWeights1 = CommonTestUtils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
-        filterWeights2 = CommonTestUtils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
+    if (targetDevice == ov::test::utils::DEVICE_GNA) {
+        filterWeights1 = ov::test::utils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
+        filterWeights2 = ov::test::utils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
     }
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::VALID, 8, false, filterWeights1);

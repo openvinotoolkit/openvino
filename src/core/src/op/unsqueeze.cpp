@@ -9,8 +9,10 @@
 #include <set>
 
 #include "bound_evaluate.hpp"
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/copy.hpp"
+#include "ngraph/validation_util.hpp"
+#include "openvino/reference/copy.hpp"
 #include "unsqueeze_shape_inference.hpp"
 
 using namespace std;
@@ -26,9 +28,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
@@ -46,17 +46,24 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+namespace ov {
+namespace op {
 namespace unsqueeze {
-namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
-    runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
-    return true;
-}
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET>
+    static result_type visit(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
+        ov::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        return true;
+    }
+};
 
 // The evaluate cannot use shape_infer for output shape calculation as shape inference accepts
 // repeated axis and evaluate not. When shape inference will changed to be compatible with `numpy` then
 // evaluate and inference can use same function to calculate output shape. TODO for next version for this operator.
+namespace {
 bool evaluate_unsqueeze(const Node* node,
                         const HostTensorPtr& arg0,
                         const HostTensorPtr& arg1,
@@ -86,24 +93,16 @@ bool evaluate_unsqueeze(const Node* node,
     }
     out->set_shape(out_shape);
 
-    bool rc = true;
-    switch (element_type) {
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, i32, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, i64, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, u32, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, u64, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, f16, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, f32, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, f64, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, bf16, arg0, out);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
+    using namespace ov::element;
+    return IfTypeOf<i32, i64, u32, u64, f16, f32, f64, bf16>::apply<Evaluate>(element_type,
+                                                                              arg0,
+                                                                              out,
+                                                                              shape_size(out_shape));
 }
 }  // namespace
 }  // namespace unsqueeze
+}  // namespace op
+}  // namespace ov
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Unsqueeze_evaluate);
@@ -127,9 +126,8 @@ bool op::v0::Unsqueeze::has_evaluate() const {
     case ngraph::element::bf16:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
 
 bool op::v0::Unsqueeze::evaluate_lower(ov::TensorVector& output_values) const {

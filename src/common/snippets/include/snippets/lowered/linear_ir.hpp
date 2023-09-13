@@ -7,6 +7,8 @@
 #include <list>
 
 #include "expression.hpp"
+#include "snippets/target_machine.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace snippets {
@@ -31,9 +33,11 @@ public:
     using io_container = std::list<std::shared_ptr<IOExpression>>;
     using exprIt = container::iterator;
     using constExprIt = container::const_iterator;
+    using exprReverseIt = container::reverse_iterator;
+    using constExprReverseIt = container::const_reverse_iterator;
 
     LinearIR() = default;
-    explicit LinearIR(const std::shared_ptr<ov::Model>& m, Config config = {});
+    LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs);
 
@@ -69,10 +73,10 @@ public:
     constExprIt end() const noexcept {return cend();}
     constExprIt cbegin() const noexcept {return m_expressions.cbegin();}
     constExprIt cend() const noexcept {return m_expressions.cend();}
-    container::reverse_iterator rbegin() noexcept {return m_expressions.rbegin();}
-    container::reverse_iterator rend() noexcept {return m_expressions.rend();}
-    container::const_reverse_iterator crbegin() const noexcept {return m_expressions.crbegin();}
-    container::const_reverse_iterator crend() const noexcept {return m_expressions.crend();}
+    exprReverseIt rbegin() noexcept {return m_expressions.rbegin();}
+    exprReverseIt rend() noexcept {return m_expressions.rend();}
+    constExprReverseIt crbegin() const noexcept {return m_expressions.crbegin();}
+    constExprReverseIt crend() const noexcept {return m_expressions.crend();}
 
     exprIt insert(constExprIt pos, const ov::NodeVector& nodes);
     exprIt insert(constExprIt pos, const std::shared_ptr<Node>& n);
@@ -84,13 +88,22 @@ public:
     exprIt erase(exprIt pos);
     exprIt erase(constExprIt pos);
 
+    constExprIt find(const ExpressionPtr& target) const;
+    template<typename iterator>
+    iterator find(iterator begin, iterator end, const ExpressionPtr& target) const;
+    template<typename iterator>
+    iterator find_before(iterator it, const ExpressionPtr& target) const;
+    template<typename iterator>
+    iterator find_after(iterator it, const ExpressionPtr& target) const;
+
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
-    void serialize(const std::string& xml, const std::string& bin);
+    void serialize(const std::string& xml, const std::string& bin) const;
 
     class LoopManager;
     using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
     const LoopManagerPtr& get_loop_manager() const { return m_loop_manager; }
+    const std::shared_ptr<IShapeInferSnippetsFactory>& get_shape_infer_factory() { return m_shape_infer_factory; }
 
 private:
     static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
@@ -105,8 +118,15 @@ private:
     io_container m_io_expressions;
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;
+    std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
 };
 
+template<typename iterator>
+iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& target) const {
+    auto found = std::find(begin, end, target);
+    OPENVINO_ASSERT(found != end, "Expression has not been found");
+    return found;
+}
 } // namespace lowered
 } // namespace snippets
 } // namespace ov
