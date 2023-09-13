@@ -54,7 +54,7 @@ Import `⇑ <#top>`__
     import cv2
     import tarfile
     import matplotlib.pyplot as plt
-    import openvino.runtime as ov
+    import openvino as ov
     
     sys.path.append("../utils")
     from notebook_utils import download_file, segmentation_map_to_image

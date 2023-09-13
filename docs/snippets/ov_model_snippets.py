@@ -3,9 +3,12 @@
 
 import numpy as np
 #! [import]
-import openvino.runtime as ov
+import openvino as ov
+#! [import]
+import openvino.runtime.opset12 as ops
 #! [import]
 import openvino.runtime.passes as passes
+
 
 # ! [ov:create_simple_model]
 def create_simple_model():
@@ -14,12 +17,12 @@ def create_simple_model():
     # Parameter--->Multiply--->Add--->Result
     #    Constant---'          /
     #              Constant---'
-    data = ov.opset8.parameter([3, 1, 2], ov.Type.f32)
-    mul_constant = ov.opset8.constant([1.5], ov.Type.f32)
-    mul = ov.opset8.multiply(data, mul_constant)
-    add_constant = ov.opset8.constant([0.5], ov.Type.f32)
-    add = ov.opset8.add(mul, add_constant)
-    res = ov.opset8.result(add)
+    data = ops.parameter([3, 1, 2], ov.Type.f32)
+    mul_constant = ops.constant([1.5], ov.Type.f32)
+    mul = ops.multiply(data, mul_constant)
+    add_constant = ops.constant([0.5], ov.Type.f32)
+    add = ops.add(mul, add_constant)
+    res = ops.result(add)
     return ov.Model([res], [data], "model")
 # ! [ov:create_simple_model]
 
@@ -30,24 +33,24 @@ def create_advanced_model():
     # Parameter->Split---0-->Result
     #               | `--1-->Relu-->Result
     #               `----2-->Result
-    data = ov.opset8.parameter(ov.Shape([1, 3, 64, 64]), ov.Type.f32)
+    data = ops.parameter(ov.Shape([1, 3, 64, 64]), ov.Type.f32)
     # Create Constant for axis value
-    axis_const = ov.opset8.constant(ov.Type.i64, ov.Shape({}), [1])
+    axis_const = ops.constant(1, dtype=ov.Type.i64)
 
-    # Create opset8::Split operation that splits input to three slices across 1st dimension
-    split = ov.opset8.split(data, axis_const, 3)
+    # Create opset12::Split operation that splits input to three slices across 1st dimension
+    split = ops.split(data, axis_const, 3)
 
-    # Create opset8::Relu operation that takes 1st Split output as input
-    relu = ov.opset8.relu(split.output(1))
+    # Create opset12::Relu operation that takes 1st Split output as input
+    relu = ops.relu(split.output(1))
 
     # Results operations will be created automatically based on provided OutputVector
-    return ov.Model([split.output(0), relu, split.output[2]], [data], "model")
+    return ov.Model([split.output(0), relu.output(0), split.output(2)], [data], "model")
 # ! [ov:create_advanced_model]
 
 def ov_api_examples():
     # Doesn't work
     # node = ov.opset8.parameter(ov.PartialShape([ov.Dimension.dynamic(), 3, 64, 64]), np.float32)
-    node = ov.opset8.parameter(ov.PartialShape([ov.Dimension.dynamic(), ov.Dimension(3), ov.Dimension(64), ov.Dimension(64)]), np.float32)
+    node = ops.parameter(ov.PartialShape([ov.Dimension.dynamic(), ov.Dimension(3), ov.Dimension(64), ov.Dimension(64)]), np.float32)
 
     # it doesn't work:
     # static_shape = ov.Shape()
@@ -59,8 +62,7 @@ def ov_api_examples():
 
 # ! [ov:serialize]
 def serialize_example(m : ov.Model):
-    from openvino.runtime import serialize
-    serialize(m, xml_path='model.xml', bin_path='model.bin')
+    ov.serialize(m, xml_path='model.xml', bin_path='model.bin')
 # ! [ov:serialize]
 
 # ! [ov:visualize]
@@ -68,7 +70,7 @@ def visualize_example(m : ov.Model):
     # Need import:
     # * import openvino.runtime.passes as passes
     pass_manager = passes.Manager()
-    pass_manager.register_pass(pass_name="VisualTree", file_name='image.svg')
+    pass_manager.register_pass(passes.VisualizeTree(file_name='image.svg'))
     pass_manager.run_passes(m)
 # ! [ov:visualize]
 
@@ -79,7 +81,10 @@ def model_inputs_outputs(model : ov.Model):
     #! [all_inputs_ouputs]
 
 
-if __name__ == '__main__':
+def main():
     ov_api_examples()
     create_simple_model()
-    create_advanced_model()
+    model = create_advanced_model()
+    serialize_example(model)
+    visualize_example(model)
+    model_inputs_outputs(model)

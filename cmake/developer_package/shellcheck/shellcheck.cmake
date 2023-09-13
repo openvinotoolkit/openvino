@@ -39,7 +39,6 @@ function(ie_shellcheck_process)
             continue()
         endif()
 
-        get_filename_component(dir_name "${script}" DIRECTORY)
         string(REPLACE "${IE_SHELLCHECK_DIRECTORY}" "${CMAKE_BINARY_DIR}/shellcheck" output_file ${script})
         set(output_file "${output_file}.txt")
         get_filename_component(script_name "${script}" NAME)

@@ -9,7 +9,8 @@ import statistics
 from time import perf_counter
 
 import numpy as np
-from openvino.runtime import Core, get_version, AsyncInferQueue
+import openvino as ov
+from openvino.runtime import get_version
 from openvino.runtime.utils.types import get_dtype
 
 
@@ -39,10 +40,10 @@ def main():
     # Create Core and use it to compile a model.
     # Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
     # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device
-    core = Core()
+    core = ov.Core()
     compiled_model = core.compile_model(sys.argv[1], 'CPU', tput)
     # AsyncInferQueue creates optimal number of InferRequest instances
-    ireqs = AsyncInferQueue(compiled_model)
+    ireqs = ov.AsyncInferQueue(compiled_model)
     # Fill input data for ireqs
     for ireq in ireqs:
         for model_input in compiled_model.inputs:
