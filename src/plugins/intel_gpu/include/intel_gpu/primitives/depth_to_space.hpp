@@ -22,8 +22,6 @@ struct depth_to_space : public primitive_base<depth_to_space> {
 
     depth_to_space() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs depth_to_space primitive.
     /// @param id This primitive id.
     /// @param input Input dictionary primitive id.

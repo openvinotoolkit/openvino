@@ -53,6 +53,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         `# OpenCL for GPU` \
         ocl-icd-opencl-dev \
         opencl-headers \
+        rapidjson-dev \
         `# GPU plugin extensions` \
         libva-dev \
         `# For TF FE saved models` \

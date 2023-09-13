@@ -14,8 +14,6 @@ struct scatter_nd_update : public primitive_base<scatter_nd_update> {
 
     scatter_nd_update() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs scatter_nd_update primitive.
     /// @param id This primitive id.
     /// @param dict Input data primitive id.

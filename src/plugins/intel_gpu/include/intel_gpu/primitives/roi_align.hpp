@@ -15,8 +15,6 @@ struct roi_align : public primitive_base<roi_align> {
 
     roi_align() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Pooling mode for the @ref roi_align
     enum PoolingMode { max, avg };
 

@@ -20,7 +20,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     std::string variable_id;
     bool calculated = false;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::shape_of_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<shape_of_impl>(*this);

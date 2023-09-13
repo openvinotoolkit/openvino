@@ -23,7 +23,7 @@ TEST_F(GatherElementsStaticShapeInferenceTest, GatherElements_basic) {
     input_shapes = {StaticShape{300, 3, 10, 2}, StaticShape{300, 3, 10, 33333}};
     output_shapes = {StaticShape{}};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{300, 3, 10, 33333}));
 }
 
@@ -35,7 +35,7 @@ TEST_F(GatherElementsStaticShapeInferenceTest, GatherElements_incompatible_rank)
     op = make_op(data, indices, axis);
     input_shapes = {StaticShape{1, 2, 3, 4, 5}, StaticShape{1, 2, 3, 4}};
     output_shapes = {StaticShape{}};
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     ov::NodeValidationFailure,
                     HasSubstr("rank must be equal"));
 }
@@ -48,7 +48,7 @@ TEST_F(GatherElementsStaticShapeInferenceTest, GatherElements_incompatible_dims)
     op = make_op(data, indices, axis);
     input_shapes = {StaticShape{300, 4, 10, 2}, StaticShape{300, 5, 10, 33333}};
     output_shapes = {StaticShape{}};
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     ov::NodeValidationFailure,
                     HasSubstr("are not consistent"));
 }
@@ -60,6 +60,6 @@ TEST_F(GatherElementsStaticShapeInferenceTest, GatherElements_default_constructo
     input_shapes = {StaticShape{300, 3, 10, 2}, StaticShape{300, 3, 10, 33333}};
     output_shapes = {StaticShape{}};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{300, 3, 10, 33333}));
 }
