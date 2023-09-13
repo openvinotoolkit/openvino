@@ -23,7 +23,7 @@ public:
 
     wait_for_events_impl() : primitive_impl() {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::wait_for_events_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<wait_for_events_impl>(*this);

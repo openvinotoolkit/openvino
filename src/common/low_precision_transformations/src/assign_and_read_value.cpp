@@ -3,28 +3,27 @@
 //
 
 #include "low_precision/assign_and_read_value.hpp"
-#include <ngraph/ngraph.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <openvino/op/util/assign_base.hpp>
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/op/util/assign_base.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ngraph::Function> function, const Params& params) :
-    LayerTransformation(params), function(function) {
+AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ov::Model> model, const Params& params) :
+    LayerTransformation(params), model(model) {
     MATCHER_SCOPE(AssignAndReadValueTransformation);
     auto assign3 = pattern::wrap_type<opset3::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
     auto assign6 = pattern::wrap_type<opset6::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
 
-    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
         const auto& opsMap = m.get_pattern_value_map();
         auto op = m.get_match_root();
         auto assignIt = opsMap.find(assign3);
@@ -43,13 +42,13 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        std::make_shared<pattern::op::Or>(OutputVector{ assign3, assign6 }),
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(
+        std::make_shared<pass::pattern::op::Or>(OutputVector{ assign3, assign6 }),
         matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool AssignAndReadValueTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool AssignAndReadValueTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -61,7 +60,7 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     const auto assign = NetworkHelper::separateInStandaloneBranch(oldAssign, defaultPrecisions);
     const auto dequantization = NetworkHelper::getDequantization(assign, defaultPrecisions);
 
-    auto oldVar = ov::as_type_ptr<op::ReadValueBase>(readValue)->get_variable();
+    auto oldVar = ov::as_type_ptr<op::util::ReadValueBase>(readValue)->get_variable();
     auto variableInfo = oldVar->get_info();
     // set new precision for oldVar to update precision in newReadValue
     oldVar->update({variableInfo.data_shape, dequantization.data.get_element_type(), variableInfo.variable_id});
@@ -74,8 +73,8 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     // transform Assign part
 
     const auto newAssign = assign->copy_with_new_inputs({dequantization.data});
-    function->remove_sink(as_type_ptr<op::Sink>(oldAssign));
-    function->add_sinks({as_type_ptr<op::Sink>(newAssign)});
+    model->remove_sink(as_type_ptr<op::Sink>(oldAssign));
+    model->add_sinks({as_type_ptr<op::Sink>(newAssign)});
 
     NetworkHelper::copyInfo(assign, newAssign);
     replace_node(assign, newAssign);
@@ -110,7 +109,7 @@ bool AssignAndReadValueTransformation::canBeTransformed(const TransformationCont
         return false;
     }
 
-    const auto readValue = std::dynamic_pointer_cast<op::ReadValueBase>(op->get_control_dependencies()[0]);
+    const auto readValue = std::dynamic_pointer_cast<op::util::ReadValueBase>(op->get_control_dependencies()[0]);
     if (!readValue) {
         return false;
     }
@@ -130,4 +129,4 @@ bool AssignAndReadValueTransformation::isPrecisionPreserved(std::shared_ptr<Node
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

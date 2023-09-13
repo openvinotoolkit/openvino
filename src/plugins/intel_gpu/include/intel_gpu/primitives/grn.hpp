@@ -13,8 +13,6 @@ struct grn : public primitive_base<grn> {
 
     grn() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs grn primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

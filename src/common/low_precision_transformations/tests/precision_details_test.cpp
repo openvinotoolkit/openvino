@@ -11,7 +11,7 @@
 
 using namespace ::testing;
 using namespace std;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 class PrecisionDetailsTests : public ::testing::Test {
 protected:

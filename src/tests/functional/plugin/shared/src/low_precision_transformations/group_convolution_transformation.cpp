@@ -22,7 +22,7 @@ namespace LayerTestsDefinitions {
 std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
@@ -47,7 +47,7 @@ void GroupConvolutionTransformation::SetUp() {
     threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
