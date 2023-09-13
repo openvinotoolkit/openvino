@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('node:fs/promises');
 const decompress = require('decompress');
 const { createWriteStream } = require('node:fs');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const packageJson = require('../package.json');
 
@@ -41,7 +42,7 @@ async function main() {
     + packageName;
 
   try {
-    await downloadRuntime(binaryUrl, { isForce });
+    await fetchRuntime(binaryUrl);
   } catch (err) {
     console.log(`Runtime fetch failed. Reason ${err}`);
 
@@ -119,95 +120,72 @@ async function checkDirExistence(pathToDir) {
   }
 }
 
-async function downloadRuntime(uri, opts = {}) {
-  const fetch = (await import('node-fetch')).default;
-
-  console.log('GET', uri);
-
-  // Try getting version info from the currently running npm.
-  const envVersionInfo = process.env['npm_config_user_agent']
-    || `node ${process.version}`;
-
-  const sanitized = uri.replace('+', '%2B');
-  const requestOpts = {
-    uri: sanitized,
-    headers: { 'User-Agent': `openvinojs-node (${envVersionInfo})` },
-    'follow_max': 10,
-  };
-
-  if (opts.cafile) {
-    try {
-      requestOpts.ca = fs.readFileSync(opts.cafile);
-    } catch (e) {
-      return callback(e);
-    }
-  } else if (opts.ca) {
-    requestOpts.ca = opts.ca;
-  }
-
-  const proxyUrl = opts.proxy || process.env.http_proxy ||
-    process.env.HTTP_PROXY || process.env.npm_config_proxy;
-  let agent;
-  if (proxyUrl) {
-    const ProxyAgent = require('https-proxy-agent');
-
-    agent = new ProxyAgent(proxyUrl);
-    console.log(`Proxy agent configured using: '${proxyUrl}'`);
-  }
-
-  const res = await fetch(sanitized, { agent });
-
-  if (!res.ok)
-    throw new Error(`Response status ${res.status} ${res.statusText} `
-      + `on ${sanitized}`);
-
+async function fetchRuntime(uri) {
   const filename = path.basename(uri);
   const tmpPath = path.resolve(__dirname, '..', 'temp');
   const fullPath = path.resolve(tmpPath, filename);
+  const runtimeDir = path.resolve(__dirname, '..', 'ov_runtime');
 
   try {
-    await fs.rm(fullPath);
-    await fs.rmdir(tmpPath);
+    await fs.rm(tmpPath, { recursive: true, force: true });
   } catch(err) {
     if (err.code !== codeENOENT) throw err;
   }
 
-  await fs.mkdir(tmpPath, {  });
+  await fs.mkdir(tmpPath);
+  console.log('Downloading openvino runtime archive...');
+  await downloadFile(uri, filename, tmpPath);
+  console.log('Downloaded');
 
-  const fileStream = createWriteStream(fullPath, { flags: 'wx' });
+  console.log('Uncompressing...');
+  await decompress(fullPath, runtimeDir, { strip: 1 });
+  await fs.rm(tmpPath, { recursive: true, force: true });
+  console.log('The archive was successfully uncompressed');
+}
+
+function downloadFile(url, filename, destination) {
+  const { env } = process;
+  const timeout = 5000;
+  const fullPath = path.resolve(destination, filename);
+  const file = createWriteStream(fullPath);
+  const protocolString = new URL(url).protocol === 'https:' ? 'https' : 'http';
+  const module = require(`node:${protocolString}`);
+  const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
+
+  let agent;
+
+  if (proxyUrl) {
+    agent = new HttpsProxyAgent(proxyUrl);
+    console.log(`Proxy agent configured using: '${proxyUrl}'`);
+  }
 
   return new Promise((resolve, reject) => {
-    let error = null;
-    const dataStream = res.body
+    file.on('error', e => {
+      reject(`Error oppening file stream: ${e}`);
+    });
 
-    console.log('Downloading openvino runtime archive');
+    const getRequest = module.get(url, { agent }, res => {
+      const { statusCode } = res;
 
-    dataStream.pipe(fileStream).on('error', err => error = err);
-    dataStream.on('end', async () => {
-      if (error || (res.status !== 200))
-        return reject(error || `Status: ${res.status}, ${res.statusText}`);
+      if (statusCode !== 200)
+        return reject(`Server returns status code: ${statusCode}`);
 
-      console.log('Downloaded');
+      res.pipe(file);
 
-      const runtimeDir = path.resolve(__dirname, '..', 'ov_runtime');
+      file.on('finish', () => {
+        file.close();
+        console.log(`File successfully stored at '${fullPath}'`);
+        resolve();
+      });
+    });
 
-      if (opts.isForce) {
-        try {
-          console.log('Try to remove \'ov_runtime\'...');
-          await fs.rm(runtimeDir, { force: true, recursive: true });
-          console.log('Directory \'ov_runtime\' removed');
-        } catch(err) {
-          if (err.code !== codeENOENT) throw err;
-          console.log('Directory \'ov_runtime\' doesn\'t exist');
-        }
-      }
-      console.log('Uncompressing...');
-      await decompress(fullPath, runtimeDir, { strip: 1 });
-      await fs.rm(fullPath);
-      await fs.rmdir(tmpPath);
-      console.log('The archive was successfully uncompressed');
+    getRequest.on('error', e => {
+      reject(`Error sending request: ${e}`);
+    });
 
-      resolve();
+    getRequest.setTimeout(timeout, () => {
+      getRequest.destroy();
+      reject(`Request timed out after ${timeout}`);
     });
   });
 }

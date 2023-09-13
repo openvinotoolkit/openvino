@@ -1,7 +1,8 @@
-const fs = require('fs');
-const http = require('http');
-const https = require('https');
 const cv2 = require('opencv.js');
+const fs = require('node:fs/promises');
+const { createWriteStream } = require('node:fs');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+
 const {
   Image,
   ImageData,
@@ -116,17 +117,27 @@ function transform(arr, { width, height }, order) {
 }
 
 function downloadFile(url, filename, destination) {
+  const { env } = process;
   const timeout = 5000;
-  const fullPath = destination + '/' + filename;
-  const file = fs.createWriteStream(fullPath);
-  const module = new URL(url).protocol === 'https:' ? https : http;
+  const fullPath = path.resolve(destination, filename);
+  const file = createWriteStream(fullPath);
+  const protocolString = new URL(url).protocol === 'https:' ? 'https' : 'http';
+  const module = require(`node:${protocolString}`);
+  const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
+
+  let agent;
+
+  if (proxyUrl) {
+    agent = new HttpsProxyAgent(proxyUrl);
+    console.log(`Proxy agent configured using: '${proxyUrl}'`);
+  }
 
   return new Promise((resolve, reject) => {
     file.on('error', e => {
       reject(`Error oppening file stream: ${e}`);
     });
 
-    const getRequest = module.get(url, res => {
+    const getRequest = module.get(url, { agent }, res => {
       const { statusCode } = res;
 
       if (statusCode !== 200)
