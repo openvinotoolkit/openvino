@@ -2,20 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_op/topk.hpp"
-#include <random>
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "shared_test_classes/single_op/tile.hpp"
 
 namespace ov {
 namespace test {
-std::string TopKLayerTest::getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
+std::string TileLayerTest::getTestCaseName(const testing::TestParamInfo<TileLayerTestParamsSet>& obj) {
+    TileSpecificParams tile_params;
     ov::element::Type model_type;
     std::vector<InputShape> input_shapes;
     std::string target_device;
-    int64_t keepK, axis;
-    ov::op::v1::TopK::Mode mode;
-    ov::op::v1::TopK::SortType sort;
-    std::tie(keepK, axis, mode, sort, model_type, input_shapes, target_device) = obj.param;
+    std::tie(tile_params, model_type, input_shapes, target_device) = obj.param;
+
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < input_shapes.size(); i++) {
@@ -30,28 +27,23 @@ std::string TopKLayerTest::getTestCaseName(const testing::TestParamInfo<TopKPara
         }
         result << "}_";
     }
-    result << "k=" << keepK << "_";
-    result << "axis=" << axis << "_";
-    result << "mode=" << mode << "_";
-    result << "sort=" << sort << "_";
+    result << "Repeats=" << ov::test::utils::vec2str(tile_params) << "_";
     result << "modelType=" << model_type.to_string() << "_";
     result << "trgDev=" << target_device;
     return result.str();
 }
 
-void TopKLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
+void TileLayerTest::SetUp() {
+    TileSpecificParams tile_params;
     ov::element::Type model_type;
-    int64_t keepK, axis;
-    ov::op::v1::TopK::Mode mode;
-    ov::op::v1::TopK::SortType sort;
-    std::tie(keepK, axis, mode, sort, model_type, input_shapes, targetDevice) = this->GetParam();
-    init_input_shapes(input_shapes);
+    std::vector<InputShape> input_shapes;
+    std::tie(tile_params, model_type, input_shapes, targetDevice) = this->GetParam();
+    init_input_shapes({input_shapes});
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
-    auto k = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, &keepK);
-    auto topk = std::make_shared<ov::op::v1::TopK>(param, k, axis, mode, sort);
-    function = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{param}, "TopK");
+    auto repeats = std::make_shared<ov::op::v0::Constant>(ov::element::i64, std::vector<size_t>{tile_params.size()}, tile_params);
+    auto tile = std::make_shared<ov::op::v0::Tile>(param, repeats);
+    function = std::make_shared<ov::Model>(tile->outputs(), ov::ParameterVector{param}, "tile");
 }
 }  // namespace test
 }  // namespace ov
