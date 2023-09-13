@@ -7,6 +7,7 @@ model <https://github.com/shepnerd/inpainting_gmcnn>`__ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. This model,
 given a tampered image, is able to create something very similar to the
 original image. The Following pipeline will be used in this notebook.
+
 |pipeline|
 
 **Table of contents:**

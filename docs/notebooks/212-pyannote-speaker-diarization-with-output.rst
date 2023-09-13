@@ -113,7 +113,9 @@ method by providing a path to the directory with pipeline configuration
 or identification from `HuggingFace
 hub <https://huggingface.co/pyannote/speaker-diarization>`__.
 
-   **Note**: This tutorial uses a non-official version of model
+.. note::
+
+   This tutorial uses a non-official version of model
    ``philschmid/pyannote-speaker-diarization-endpoint``, provided only
    for demo purposes. The original model
    (``pyannote/speaker-diarization``) requires you to accept the model

@@ -1,5 +1,5 @@
 Image Colorization with OpenVINO
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+================================
 
 This notebook demonstrates how to colorize images with OpenVINO using
 the Colorization model
@@ -21,7 +21,7 @@ Given a grayscale image as input, the model generates colorized version
 of the image as the output.
 
 About Colorization-v2
--------------------------------------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 -  The colorization-v2 model is one of the colorization group of models
    designed to perform image colorization.
@@ -30,7 +30,7 @@ About Colorization-v2
    A- and B-channels of LAB-image as output.
 
 About Colorization-siggraph
--------------------------------------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 -  The colorization-siggraph model is one of the colorization group of
    models designed to real-time user-guided image colorization.
@@ -95,7 +95,7 @@ Configurations
 Select inference device
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -227,6 +227,7 @@ for the specified device with ``ie.compile_model``.
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
     N, C, H, W = list(input_layer.shape)
+
 
 Utility Functions
 ###############################################################################################################################
@@ -370,6 +371,7 @@ Load the Image
 
     color_img_0 = colorize(test_img_0)
     color_img_1 = colorize(test_img_1)
+
 
 Display Colorized Image
 ###############################################################################################################################
