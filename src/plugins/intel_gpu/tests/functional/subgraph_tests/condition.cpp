@@ -348,7 +348,7 @@ public:
                                 auto shapeof1 = std::make_shared<ngraph::opset9::ShapeOf>(addition);
                                 auto convert = std::make_shared<ngraph::opset9::Convert>(shapeof1, prc);
                                 auto mul = std::make_shared<ngraph::opset9::Multiply>(convert, constant);
-                                auto shapePatternsNode = create_condition_input(params, ov::element::Type_t::i64, ngraph::Shape{1}, {0}, true);
+                                auto shapePatternsNode = create_condition_input(params, ov::element::Type_t::i64, ngraph::Shape{1}, 0, true);
                                 auto reshapeOp = std::make_shared<ngraph::opset1::Reshape>(mul, shapePatternsNode, true);
                                 auto result = std::make_shared<ngraph::opset1::Result>(reshapeOp);
                                 result->set_friendly_name("outer_result");
