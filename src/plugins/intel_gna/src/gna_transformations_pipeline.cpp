@@ -314,8 +314,6 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<FuseFQIntoWeightsPass>();
     passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
-    passes->registerPass<SubstitutePReluPass>();
-
     if (!is_ngraph_passes_used) {
         passes->registerPass<ReorderMaxPoolPass>();
         passes->registerPass<EltwiseSplitOverChannelsPass>();

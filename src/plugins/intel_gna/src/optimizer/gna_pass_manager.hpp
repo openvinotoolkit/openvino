@@ -95,11 +95,6 @@ DECL_PASS(SubstituteScaleShiftBroadCast);
 DECL_PASS(RemovePermutationsNHWCToNCHW);
 
 /**
- * brief @search for specific patter in the graph (6 layers are replaced by single one)
- */
-DECL_PASS(SubstitutePRelu);
-
-/**
  * brief @search for specific patter in the graph (5 layers are replaced by single one)
  */
 DECL_PASS(SubstituteSoftSign);
