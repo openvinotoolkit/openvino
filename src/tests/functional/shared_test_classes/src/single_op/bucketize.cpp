@@ -41,23 +41,6 @@ std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<buc
     return result.str();
 }
 
-void BucketizeLayerTest::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
-    inputs.clear();
-    auto params = function->get_parameters();
-    OPENVINO_ASSERT(target_input_static_shapes.size() >= params.size());
-    for (int i = 0; i < params.size(); i++) {
-        auto name = params[i]->get_friendly_name();
-        ov::Tensor tensor;
-        if (name == "a_data") {
-            auto shape_size = ov::shape_size(target_input_static_shapes[i]);
-            tensor = ov::test::utils::create_and_fill_tensor(params[i]->get_element_type(), target_input_static_shapes[i], shape_size * 5, 0, 10, 7235346);
-        } else if (name == "b_buckets") {
-            tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(params[i]->get_element_type(), target_input_static_shapes[i], 0, 10, 8234231);
-        }
-        inputs.insert({params[i], tensor});
-    }
-}
-
 void BucketizeLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     bool with_right_bound;
@@ -72,7 +55,7 @@ void BucketizeLayerTest::SetUp() {
     buckets->set_friendly_name("b_buckets");
     auto bucketize = std::make_shared<ov::op::v3::Bucketize>(data, buckets, model_type, with_right_bound);
     auto result = std::make_shared<ov::op::v0::Result>(bucketize);
-    function = std::make_shared<ov::Model>(result, ngraph::ParameterVector{data, buckets}, "Bucketize");
+    function = std::make_shared<ov::Model>(result, ov::ParameterVector{data, buckets}, "Bucketize");
 }
 } // namespace test
 } // namespace ov

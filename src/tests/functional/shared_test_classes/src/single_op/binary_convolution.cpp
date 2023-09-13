@@ -50,16 +50,6 @@ std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParam
     return result.str();
 }
 
-void BinaryConvolutionLayerTest::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
-    inputs.clear();
-    auto params = function->get_parameters();
-    OPENVINO_ASSERT(target_input_static_shapes.size() >= params.size());
-    for (int i = 0; i < params.size(); i++) {
-        auto tensor = ov::test::utils::create_and_fill_tensor(params[i]->get_element_type(), target_input_static_shapes[i], 1, 0, 1, 7235346);
-        inputs.insert({params[i], tensor});
-    }
-}
-
 void BinaryConvolutionLayerTest::SetUp() {
     binConvSpecificParams bin_conv_params;
     ov::element::Type model_type;

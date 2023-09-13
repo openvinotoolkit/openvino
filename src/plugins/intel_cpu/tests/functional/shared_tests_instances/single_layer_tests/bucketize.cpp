@@ -20,14 +20,14 @@ const std::vector<std::vector<ov::Shape>> input_shapes_static = {
         {{ 2, 3, 50, 50 }, {100}}
 };
 
-const std::vector<ov::element::Type> inPrc = {
+const std::vector<ov::element::Type> in_types = {
     ov::element::f32,
     ov::element::f16,
     ov::element::i64,
     ov::element::i32
 };
 
-const std::vector<ov::element::Type> netPrc = {
+const std::vector<ov::element::Type> model_types = {
     ov::element::i64,
     ov::element::i32
 };
@@ -35,18 +35,18 @@ const std::vector<ov::element::Type> netPrc = {
 const auto test_Bucketize_right_edge = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
     ::testing::Values(true),
-    ::testing::ValuesIn(inPrc),
-    ::testing::ValuesIn(inPrc),
-    ::testing::ValuesIn(netPrc),
+    ::testing::ValuesIn(in_types),
+    ::testing::ValuesIn(in_types),
+    ::testing::ValuesIn(model_types),
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto test_Bucketize_left_edge = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
     ::testing::Values(false),
-    ::testing::ValuesIn(inPrc),
-    ::testing::ValuesIn(inPrc),
-    ::testing::ValuesIn(netPrc),
+    ::testing::ValuesIn(in_types),
+    ::testing::ValuesIn(in_types),
+    ::testing::ValuesIn(model_types),
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 

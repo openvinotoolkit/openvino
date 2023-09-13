@@ -24,7 +24,6 @@ class BucketizeLayerTest : public testing::WithParamInterface<bucketizeParamsTup
                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj);
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 protected:
     void SetUp() override;
 };

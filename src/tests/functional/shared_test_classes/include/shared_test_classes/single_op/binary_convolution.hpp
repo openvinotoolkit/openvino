@@ -26,7 +26,7 @@ using binConvSpecificParams = std::tuple<
 
 using binaryConvolutionTestParamsSet = std::tuple<
     binConvSpecificParams,          //
-    ov::element::Type,              // Network precision
+    ov::element::Type,              // Model Type
     std::vector<InputShape>,        // Input shape
     std::string>;                   // Device name
 
@@ -34,8 +34,6 @@ class BinaryConvolutionLayerTest : public testing::WithParamInterface<binaryConv
                                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<binaryConvolutionTestParamsSet>& obj);
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-
 protected:
     void SetUp() override;
 };

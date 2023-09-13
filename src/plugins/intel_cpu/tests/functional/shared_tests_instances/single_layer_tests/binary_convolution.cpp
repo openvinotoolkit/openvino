@@ -11,7 +11,7 @@ using ov::test::BinaryConvolutionLayerTest;
 
 namespace {
 
-const std::vector<ov::element::Type> netPrecisions = {
+const std::vector<ov::element::Type> model_types = {
     ov::element::f32,
     ov::element::f16,
     ov::element::i32};
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_BinaryConvolution2D_ExplicitPadding, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_ExplicitPadding,
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
@@ -62,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_BinaryConvolution2D_AutoPadValid, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_ValidPadding,
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
