@@ -35,7 +35,7 @@ To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` a
 
          ovc your_model_file.pdmodel
 
-**For example**, this command converts a yolo v3 PaddlePaddle model to OpenVINO IR model:
+**For example**, this command converts a YOLOv3 PaddlePaddle model to OpenVINO IR model:
 
 .. tab-set::
 
@@ -44,15 +44,15 @@ To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` a
 
       .. code-block:: py
 
-      import openvino as ov
-      ov.convert_model('yolov3.pdmodel')
+         import openvino as ov
+         ov.convert_model('yolov3.pdmodel')
 
    .. tab-item:: CLI
       :sync: cli
 
       .. code-block:: sh
 
-      ovc yolov3.pdmodel
+         ovc yolov3.pdmodel
 
 Converting PaddlePaddle Python Model
 ####################################
