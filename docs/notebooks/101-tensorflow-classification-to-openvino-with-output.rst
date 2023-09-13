@@ -8,30 +8,26 @@ image classification model to OpenVINO `Intermediate Representation <https://doc
 After creating the OpenVINO IR, load the model in `OpenVINO Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Download model <#Download-model>`__
--  `Convert a Model to OpenVINO IR
-   Format <#Convert-a-Model-to-OpenVINO-IR-Format>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Download model <#download-model>`__
+- `Convert a Model to OpenVINO IR Format <#convert-a-model-to-openvino-ir-format>`__
 
-   -  `Convert a TensorFlow Model to OpenVINO IR
-      Format <#Convert-a-TensorFlow-Model-to-OpenVINO-IR-Format>`__
+  - `Convert a TensorFlow Model to OpenVINO IR Format <#convert-a-tensorflow-model-to-openvino-ir-format>`__
 
--  `Test Inference on the Converted
-   Model <#Test-Inference-on-the-Converted-Model>`__
+- `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
 
-   -  `Load the Model <#Load-the-Model>`__
+  - `Load the Model <#load-the-model>`__
 
--  `Select inference device <#Select-inference-device>`__
+- `Select inference device <#select-inference-device>`__
 
-   -  `Get Model Information <#Get-Model-Information>`__
-   -  `Load an Image <#Load-an-Image>`__
-   -  `Do Inference <#Do-Inference>`__
+  - `Get Model Information <#get-model-information>`__
+  - `Load an Image <#load-an-image>`__
+  - `Do Inference <#do-inference>`__
 
--  `Timing <#Timing>`__
+-  `Timing <#timing>`__
 
 .. code:: ipython3
 

@@ -30,44 +30,35 @@ first inference.
 
    auto
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
--  `Import modules and create
+- `Import modules and create
    Core <#Import-modules-and-create-Core>`__
--  `Convert the model to OpenVINO IR
+- `Convert the model to OpenVINO IR
    format <#Convert-the-model-to-OpenVINO-IR-format>`__
--  `(1) Simplify selection
+- `(1) Simplify selection
    logic <#(1)-Simplify-selection-logic>`__
 
-   -  `Default behavior of Core::compile_model API without
+   - `Default behavior of Core::compile_model API without
       device_name <#Default-behavior-of-Core::compile_model-API-without-device_name>`__
-   -  `Explicitly pass AUTO as device_name to Core::compile_model
+   - `Explicitly pass AUTO as device_name to Core::compile_model
       API <#Explicitly-pass-AUTO-as-device_name-to-Core::compile_model-API>`__
 
--  `(2) Improve the first inference
-   latency <#(2)-Improve-the-first-inference-latency>`__
+- `(2) Improve the first inference latency <#(2)-Improve-the-first-inference-latency>`__
 
-   -  `Load an Image <#Load-an-Image>`__
-   -  `Load the model to GPU device and perform
-      inference <#Load-the-model-to-GPU-device-and-perform-inference>`__
-   -  `Load the model using AUTO device and do
-      inference <#Load-the-model-using-AUTO-device-and-do-inference>`__
+   - `Load an Image <#Load-an-Image>`__
+   - `Load the model to GPU device and perform inference <#Load-the-model-to-GPU-device-and-perform-inference>`__
+   - `Load the model using AUTO device and do inference <#Load-the-model-using-AUTO-device-and-do-inference>`__
 
--  `(3) Achieve different performance for different
-   targets <#(3)-Achieve-different-performance-for-different-targets>`__
+- `(3) Achieve different performance for different targets <#(3)-Achieve-different-performance-for-different-targets>`__
 
-   -  `Class and callback
-      definition <#Class-and-callback-definition>`__
-   -  `Inference with THROUGHPUT
-      hint <#Inference-with-THROUGHPUT-hint>`__
-   -  `Inference with LATENCY
-      hint <#Inference-with-LATENCY-hint>`__
-   -  `Difference in FPS and
-      latency <#Difference-in-FPS-and-latency>`__
+   - `Class and callback definition <#Class-and-callback-definition>`__
+   - `Inference with THROUGHPUT hint <#Inference-with-THROUGHPUT-hint>`__
+   - `Inference with LATENCY hint <#Inference-with-LATENCY-hint>`__
+   - `Difference in FPS and latency <#Difference-in-FPS-and-latency>`__
 
 Import modules and create Core
-------------------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -97,7 +88,7 @@ Import modules and create Core
 
 
 Convert the model to OpenVINO IR format
----------------------------------------------------------------------------------
+###############################################################################################################################
 
 This tutorial uses
 `resnet50 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#resnet50>`__
@@ -161,10 +152,10 @@ For more information about model conversion API, see this
 
 
 (1) Simplify selection logic
-----------------------------------------------------------------------
+###############################################################################################################################
 
 Default behavior of Core::compile_model API without device_name
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 By default, ``compile_model`` API will select **AUTO** as
 ``device_name`` if no device is specified.
@@ -208,7 +199,7 @@ By default, ``compile_model`` API will select **AUTO** as
 
 
 Explicitly pass AUTO as device_name to Core::compile_model API
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 It is optional, but passing AUTO explicitly as ``device_name`` may
 improve readability of your code.
@@ -242,7 +233,7 @@ improve readability of your code.
 
 
 (2) Improve the first inference latency
----------------------------------------------------------------------------------
+###############################################################################################################################
 
 One of the benefits of using AUTO device selection is reducing FIL
 (first inference latency). FIL is the model compilation time combined
@@ -256,7 +247,7 @@ avoid this delay, the AUTO uses CPU transparently as the first inference
 device until GPU is ready.
 
 Load an Image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 torchvision library provides model specific input transformation
 function, we will reuse it for preparing input data.
@@ -280,7 +271,7 @@ function, we will reuse it for preparing input data.
 
 
 Load the model to GPU device and perform inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -307,7 +298,7 @@ Load the model to GPU device and perform inference
 
 
 Load the model using AUTO device and do inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 When GPU is the best available device, the first few inferences will be
 executed on CPU until GPU is ready.
@@ -339,7 +330,7 @@ executed on CPU until GPU is ready.
     del compiled_model
 
 (3) Achieve different performance for different targets
--------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 It is an advantage to define **performance hints** when using Automatic
 Device Selection. By specifying a **THROUGHPUT** or **LATENCY** hint,
@@ -357,7 +348,7 @@ Selection <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins
 article.
 
 Class and callback definition
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -456,7 +447,7 @@ Class and callback definition
     metrics_update_num = 6
 
 Inference with THROUGHPUT hint
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Loop for inference and update the FPS/Latency every
 @metrics_update_interval seconds.
@@ -504,7 +495,7 @@ Loop for inference and update the FPS/Latency every
 
 
 Inference with LATENCY hint
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Loop for inference and update the FPS/Latency for each
 @metrics_update_interval seconds
@@ -553,7 +544,7 @@ Loop for inference and update the FPS/Latency for each
 
 
 Difference in FPS and latency
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 

@@ -2,7 +2,7 @@ Quantize a Segmentation Model and Show Live Inference
 =====================================================
 
 Kidney Segmentation with PyTorch Lightning and OpenVINO™ - Part 3
------------------------------------------------------------------
+###############################################################################################################################
 
 This tutorial is a part of a series on how to train, optimize, quantize
 and show live inference on a medical segmentation model. The goal is to
@@ -33,7 +33,7 @@ All notebooks in this series:
    data <110-ct-scan-live-inference.ipynb>`__
 
 Instructions
-------------
+###############################################################################################################################
 
 This notebook needs a trained UNet model. We provide a pre-trained
 model, trained for 20 epochs with the full
@@ -53,8 +53,7 @@ demonstration purposes, this tutorial will download one converted CT
 scan and use that scan for quantization and inference. For production
 purposes, use a representative dataset for quantizing the model.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Imports <#Imports>`__
 -  `Settings <#Settings>`__
@@ -91,7 +90,7 @@ Table of content:
     !pip install -q "openvino==2023.1.0.dev20230811" "monai>=0.9.1,<1.0.0" "torchmetrics>=0.11.0"
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -187,7 +186,7 @@ Imports
 
 
 Settings
---------------------------------------------------
+###############################################################################################################################
 
 By default, this notebook will download one CT scan from the KITS19
 dataset that will be used for quantization. To use the full dataset, set
@@ -203,7 +202,7 @@ dataset that will be used for quantization. To use the full dataset, set
     MODEL_DIR.mkdir(exist_ok=True)
 
 Load PyTorch Model
-------------------------------------------------------------
+###############################################################################################################################
 
 Download the pre-trained model weights, load the PyTorch model and the
 ``state_dict`` that was saved after training. The model used in this
@@ -249,7 +248,7 @@ notebook <pytorch-monai-training.ipynb>`__.
 
 
 Download CT-scan Data
----------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -275,10 +274,10 @@ Download CT-scan Data
 
 
 Configuration
--------------------------------------------------------
+###############################################################################################################################
 
 Dataset
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The ``KitsDataset`` class in the next cell expects images and masks in
 the *``basedir``* directory, in a folder per patient. It is a simplified
@@ -376,7 +375,7 @@ kidney pixels to verify that the annotations look correct:
 
 
 Metric
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Define a metric to determine the performance of the model.
 
@@ -411,7 +410,7 @@ library.
         return metric.compute()
 
 Quantization
-------------------------------------------------------
+###############################################################################################################################
 
 Before quantizing the model, we compute the F1 score on the ``FP32``
 model, for comparison:
@@ -524,10 +523,10 @@ documentation <https://github.com/openvinotoolkit/nncf/>`__ in the NNCF
 repository for more information.
 
 Compare FP32 and INT8 Model
----------------------------------------------------------------------
+###############################################################################################################################
 
 Compare File Size
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -545,7 +544,7 @@ Compare File Size
 
 
 Compare Metrics for the original model and the quantized model to be sure that there no degradation.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -565,7 +564,7 @@ Compare Metrics for the original model and the quantized model to be sure that t
 
 
 Compare Performance of the FP32 IR Model and Quantized Models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use `Benchmark
@@ -733,7 +732,7 @@ be run in the notebook with ``! benchmark_app`` or
 
 
 Visually Compare Inference Results
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Visualize the results of the model on four slices of the validation set.
 Compare the results of the ``FP32`` IR model with the results of the
@@ -822,7 +821,7 @@ seed is displayed to enable reproducing specific runs of this cell.
 
 
 Show Live Inference
--------------------------------------------------------------
+###############################################################################################################################
 
 To show live inference on the model in the notebook, we will use the
 asynchronous processing feature of OpenVINO.
@@ -842,7 +841,7 @@ printed.
    Chrome or Edge to run this notebook.
 
 Load Model and List of Image Files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 We load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the `Open Model
@@ -869,7 +868,7 @@ overlay of the segmentation mask on the original image/frame.
 
 
 Show Inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In the next cell, we run the ``show_live_inference`` function, which
 loads the ``segmentation_model`` to the specified ``device`` (using
@@ -898,7 +897,7 @@ performs inference, and displays the results on the frames loaded in
 
 
 References
-----------------------------------------------------
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 **OpenVINO** - `NNCF
 Repository <https://github.com/openvinotoolkit/nncf/>`__ - `Neural

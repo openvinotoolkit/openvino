@@ -14,8 +14,7 @@ The PyTorch U\ :math:`^2`-Net model is converted to OpenVINO IR format.
 The model source is available
 `here <https://github.com/xuebinqin/U-2-Net>`__.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Preparation <#Preparation>`__
 
@@ -44,10 +43,10 @@ Table of content:
 -  `References <#References>`__
 
 Preparation
------------------------------------------------------
+###############################################################################################################################
 
 Install requirements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -56,7 +55,7 @@ Install requirements
     !pip install -q gdown
 
 Import the PyTorch Library and U\ :math:`^2`-Net
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -92,7 +91,7 @@ Import the PyTorch Library and U\ :math:`^2`-Net
     from model.u2net import U2NET, U2NETP
 
 Settings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 This tutorial supports using the original U\ :math:`^2`-Net salient
 object detection model, as well as the smaller U2NETP version. Two sets
@@ -132,7 +131,7 @@ detection and human segmentation.
     model_path = Path(MODEL_DIR) / u2net_model.name / Path(u2net_model.name).with_suffix(".pth")
 
 Load the U\ :math:`^2`-Net Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The U\ :math:`^2`-Net human segmentation model weights are stored on
 Google Drive. They will be downloaded if they are not present yet. The
@@ -200,7 +199,7 @@ next cell loads the model and the pre-trained weights.
 
 
 Convert PyTorch U\ :math:`^2`-Net model to OpenVINO IR
-------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Convert Pytorch model to OpenVINO IR Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -213,7 +212,7 @@ OpenVINO IR format. Executing the following command may take a while.
     model_ir = ov.convert_model("u2net.onnx")
 
 Load and Pre-Process Input Image
---------------------------------------------------------------------------
+###############################################################################################################################
 
 While OpenCV reads images in ``BGR`` format, the OpenVINO IR model
 expects images in ``RGB``. Therefore, convert the images to ``RGB``,
@@ -249,7 +248,7 @@ repository <https://github.com/xuebinqin/U-2-Net/>`__ and multiplied by
     input_image = (input_image - input_mean) / input_scale
 
 Select inference device
------------------------------------------------------------------
+###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -277,7 +276,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Do Inference on OpenVINO IR Model
----------------------------------------------------------------------------
+###############################################################################################################################
 
 Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
@@ -306,7 +305,7 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 
 Visualize Results
------------------------------------------------------------
+###############################################################################################################################
 
 Show the original image, the segmentation result, and the original image
 with the background removed.
@@ -402,7 +401,7 @@ background pixels a value of 0. Replace the background image as follows:
 
 
 References
-----------------------------------------------------
+###############################################################################################################################
 
 -  `PIP install
    openvino-dev <https://github.com/openvinotoolkit/openvino/blob/releases/2021/3/docs/install_guides/pypi-openvino-dev.md>`__

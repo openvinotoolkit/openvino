@@ -20,22 +20,17 @@ steps:
    models.
 -  Compare performance of the original and quantized models.
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Prepare the Model <#Prepare-the-Model>`__
--  `Prepare LibriSpeech
-   Dataset <#Prepare-LibriSpeech-Dataset>`__
--  `Define DataLoader <#Define-DataLoader>`__
--  `Run Quantization <#Run-Quantization>`__
--  `Model Usage Example with Inference
-   Pipeline <#Model-Usage-Example-with-Inference-Pipeline>`__
--  `Validate model accuracy on
-   dataset <#Validate-model-accuracy-on-dataset>`__
--  `Compare Performance of the Original and Quantized
-   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
+- `Imports <#Imports>`__
+- `Settings <#Settings>`__
+- `Prepare the Model <#Prepare-the-Model>`__
+- `Prepare LibriSpeech Dataset <#Prepare-LibriSpeech-Dataset>`__
+- `Define DataLoader <#Define-DataLoader>`__
+- `Run Quantization <#Run-Quantization>`__
+- `Model Usage Example with Inference Pipeline <#Model-Usage-Example-with-Inference-Pipeline>`__
+- `Validate model accuracy on dataset <#Validate-model-accuracy-on-dataset>`__
+- `Compare Performance of the Original and Quantized Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
 
 .. code:: ipython3
 
@@ -43,7 +38,7 @@ Table of content:
     !pip install -q soundfile librosa transformers onnx
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -73,7 +68,7 @@ Imports
 
 
 Settings
---------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -86,7 +81,7 @@ Settings
     DATA_DIR.mkdir(exist_ok=True)
 
 Prepare the Model
------------------------------------------------------------
+###############################################################################################################################
 
 Perform the following: - Download and unpack a pre-trained Wav2Vec2
 model. - Convert the model to ONNX. - Run model conversion API to
@@ -173,7 +168,7 @@ it to the ONNX representation.
     ov.save_model(ov_model, str(ir_model_path))
 
 Prepare LibriSpeech Dataset
----------------------------------------------------------------------
+###############################################################################################################################
 
 Use the code below to download and unpack the archives with ‘dev-clean’
 and ‘test-clean’ subsets of LibriSpeech Dataset.
@@ -204,7 +199,7 @@ and ‘test-clean’ subsets of LibriSpeech Dataset.
 
 
 Define DataLoader
------------------------------------------------------------
+###############################################################################################################################
 
 Wav2Vec2 model accepts a raw waveform of the speech signal as input and
 produces vocabulary class estimations as output. Since the dataset
@@ -276,7 +271,7 @@ convert them to waveform.
                         return
 
 Run Quantization
-----------------------------------------------------------
+###############################################################################################################################
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -510,7 +505,7 @@ function.
     ov.save_model(quantized_model, str(quantized_model_path))
 
 Model Usage Example with Inference Pipeline
--------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Both initial (``FP16``) and quantized (``INT8``) models are exactly the
 same in use.
@@ -556,7 +551,7 @@ Next, make a prediction.
     predictions = compiled_model([input_data])[output_layer]
 
 Validate model accuracy on dataset
-----------------------------------------------------------------------------
+###############################################################################################################################
 
 The code below is used for running model inference on a single sample
 from the dataset. It contains the following steps:
@@ -761,7 +756,7 @@ quantized model.
 
 
 Compare Performance of the Original and Quantized Models
---------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Finally, use `Benchmark
 Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__

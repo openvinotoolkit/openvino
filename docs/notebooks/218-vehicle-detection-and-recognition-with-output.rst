@@ -17,8 +17,7 @@ As a result, you can get:
 
    result
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Imports <#Imports>`__
 -  `Download Models <#Download-Models>`__
@@ -43,7 +42,7 @@ Table of content:
 .. |flowchart| image:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 Import the required modules.
 
@@ -63,7 +62,7 @@ Import the required modules.
     import notebook_utils as utils
 
 Download Models
----------------------------------------------------------
+###############################################################################################################################
 
 Use ``omz_downloader`` - a command-line tool from the ``openvino-dev``
 package. The ``omz_downloader`` tool automatically creates a directory
@@ -138,7 +137,7 @@ Representation (OpenVINO IR).
 
 
 Load Models
------------------------------------------------------
+###############################################################################################################################
 
 This tutorial requires a detection model and a recognition model. After
 downloading the models, initialize OpenVINO Runtime, and use
@@ -198,7 +197,7 @@ specified device.
         return input_keys, output_keys, compiled_model
 
 Get attributes from model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Use ``input_keys.shape`` to get data shapes.
 
@@ -217,7 +216,7 @@ Use ``input_keys.shape`` to get data shapes.
     height_re, width_re = list(input_key_re.shape)[2:]
 
 Helper function
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The ``plt_show()`` function is used to show image.
 
@@ -235,7 +234,7 @@ The ``plt_show()`` function is used to show image.
         plt.imshow(raw_image)
 
 Read and display a test image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The input shape of detection model is ``[1, 3, 256, 256]``. Therefore,
 you need to resize the image to ``256 x 256``, and expand the batch
@@ -267,7 +266,7 @@ channel with ``expand_dims`` function.
 
 
 Use the Detection Model to Detect Vehicles
-------------------------------------------------------------------------------------
+###############################################################################################################################
 
 .. figure:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
    :alt: pipline
@@ -299,7 +298,7 @@ Delete unused dims and filter out results that are not used.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
 Detection Processing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 With the function below, you change the ratio to the real position in
 the image and filter out low-confidence results.
@@ -348,7 +347,7 @@ the image and filter out low-confidence results.
     car_position = crop_images(image_de, resized_image_de, boxes)
 
 Recognize vehicle attributes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Select one of the detected boxes. Then, crop to an area containing a
 vehicle to test with the recognition model. Again, you need to resize
@@ -420,7 +419,7 @@ determine the maximum probability as the result.
 
 
 Combine two models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Congratulations! You successfully used a detection model to crop an
 image with a vehicle and recognize the attributes of a vehicle.

@@ -2,7 +2,7 @@ Live Inference and Benchmark CT-scan Data with OpenVINO™
 ========================================================
 
 Kidney Segmentation with PyTorch Lightning and OpenVINO™ - Part 4
------------------------------------------------------------------
+###############################################################################################################################
 
 This tutorial is a part of a series on how to train, optimize, quantize
 and show live inference on a medical segmentation model. The goal is to
@@ -29,8 +29,7 @@ notebook.
 For demonstration purposes, this tutorial will download one converted CT
 scan to use for inference.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Imports <#Imports>`__
 -  `Settings <#Settings>`__
@@ -52,7 +51,7 @@ Table of content:
     !pip install -q "openvino==2023.1.0.dev20230811" "monai>=0.9.1,<1.0.0"
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -80,7 +79,7 @@ Imports
 
 
 Settings
---------------------------------------------------
+###############################################################################################################################
 
 To use the pre-trained models, set ``IR_PATH`` to
 ``"pretrained_model/unet44.xml"`` and ``COMPRESSED_MODEL_PATH`` to
@@ -118,7 +117,7 @@ trained or optimized yourself, adjust the model paths.
 
 
 Benchmark Model Performance
----------------------------------------------------------------------
+###############################################################################################################################
 
 To measure the inference performance of the IR model, use `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
@@ -246,7 +245,7 @@ is a command-line application that can be run in the notebook with
 
 
 Download and Prepare Data
--------------------------------------------------------------------
+###############################################################################################################################
 
 Download one validation video for live inference.
 
@@ -293,7 +292,7 @@ downloaded and extracted in the next cell.
 
 
 Show Live Inference
--------------------------------------------------------------
+###############################################################################################################################
 
 To show live inference on the model in the notebook, use the
 asynchronous processing feature of OpenVINO Runtime.
@@ -324,7 +323,7 @@ inference queue, there are two jobs to do:
 Everything else will be handled by the ``AsyncInferQueue`` instance.
 
 Load Model and List of Image Files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the Model API from `Open Model
@@ -351,7 +350,7 @@ to see the implementation.
 
 
 Prepare images
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Use the ``reader = LoadImage()`` function to read the images in the same
 way as in the
@@ -372,7 +371,7 @@ tutorial.
         next_frame_id += 1
 
 Specify device
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -388,7 +387,7 @@ Specify device
 
 
 Setting callback function
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 When ``callback`` is set, any job that ends the inference, calls the
 Python function. The ``callback`` function must have two arguments: one
@@ -422,7 +421,7 @@ The ``callback`` function will show the results of inference.
         display.display(i)
 
 Create asynchronous inference queue and perform it
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 

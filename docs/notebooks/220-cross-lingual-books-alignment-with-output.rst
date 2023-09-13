@@ -18,7 +18,7 @@ part of the pipeline - getting vectors from sentences - using the
 OpenVINO™ framework.
 
 Pipeline
---------
+###############################################################################################################################
 
 The notebook guides you through the entire process of creating a
 parallel book: from obtaining raw texts to building a visualization of
@@ -30,7 +30,7 @@ Visualizing the result allows you to identify areas for improvement in
 the pipeline steps, as indicated in the diagram.
 
 Prerequisites
--------------
+###############################################################################################################################
 
 -  ``requests`` - for getting books
 -  ``pysbd`` - for splitting sentences

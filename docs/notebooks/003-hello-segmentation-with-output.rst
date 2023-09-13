@@ -9,18 +9,16 @@ model from the `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zo
 ADAS stands for Advanced Driver Assistance Services. The model
 recognizes four classes: background, road, curb and mark.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
--  `Imports <#Imports>`__
--  `Download model weights <#Download-model-weights>`__
--  `Select inference device <#Select-inference-device>`__
--  `Load the Model <#Load-the-Model>`__
--  `Load an Image <#Load-an-Image>`__
--  `Do Inference <#Do-Inference>`__
--  `Prepare Data for
-   Visualization <#Prepare-Data-for-Visualization>`__
--  `Visualize data <#Visualize-data>`__
+- `Imports <#imports>`__
+- `Download model weights <#download-model-weights>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Load an Image <#load-an-image>`__
+- `Do Inference <#do-inference>`__
+- `Prepare Data for Visualization <#prepare-data-for-visualization>`__
+- `Visualize data <#visualize-data>`__
 
 .. code:: ipython3
 

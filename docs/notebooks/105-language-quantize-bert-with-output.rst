@@ -14,16 +14,14 @@ Research Paraphrase Corpus
 will be used. The tutorial is designed to be extendable to custom models
 and datasets. It consists of the following steps:
 
--  Download and prepare the BERT model and MRPC dataset.
--  Define data loading and accuracy validation functionality.
--  Prepare the model for quantization.
--  Run optimization pipeline.
--  Load and test quantized model.
--  Compare the performance of the original, converted and quantized
-   models.
+- Download and prepare the BERT model and MRPC dataset.
+- Define data loading and accuracy validation functionality.
+- Prepare the model for quantization.
+- Run optimization pipeline.
+- Load and test quantized model.
+- Compare the performance of the original, converted and quantized models.
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
 -  `Imports <#Imports>`__
 -  `Settings <#Settings>`__
@@ -48,7 +46,7 @@ Table of content:
     !pip install -q "openvino==2023.1.0.dev20230811"
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -87,7 +85,7 @@ Imports
 
 
 Settings
---------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -102,7 +100,7 @@ Settings
     os.makedirs(MODEL_DIR, exist_ok=True)
 
 Prepare the Model
------------------------------------------------------------
+###############################################################################################################################
 
 Perform the following:
 
@@ -174,7 +172,7 @@ PyTorch model formats are supported:
 
 
 Prepare the Dataset
--------------------------------------------------------------
+###############################################################################################################################
 
 We download the `General Language Understanding Evaluation
 (GLUE) <https://gluebenchmark.com/>`__ dataset for the MRPC task from
@@ -199,7 +197,7 @@ tokenizer from HuggingFace.
     data_source = create_data_source()
 
 Optimize model using NNCF Post-training Quantization API
---------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -416,7 +414,7 @@ The optimization process contains the following steps:
     ov.save_model(quantized_model, compressed_model_xml)
 
 Load and Test OpenVINO Model
-----------------------------------------------------------------------
+###############################################################################################################################
 
 To load and test converted model, perform the following:
 
@@ -426,7 +424,7 @@ To load and test converted model, perform the following:
 -  Get the answer from the model output.
 
 Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -485,7 +483,7 @@ changing ``sample_idx`` to another value (from 0 to 407).
 
 
 Compare F1-score of FP32 and INT8 models
-----------------------------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -529,7 +527,7 @@ Compare F1-score of FP32 and INT8 models
 
 
 Compare Performance of the Original, Converted and Quantized Models
--------------------------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Compare the original PyTorch model with OpenVINO converted and quantized
 models (``FP32``, ``INT8``) to see the difference in performance. It is

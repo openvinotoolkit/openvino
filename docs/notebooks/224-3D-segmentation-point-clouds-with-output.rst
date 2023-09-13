@@ -8,7 +8,7 @@ Part Segmentation with OpenVINO. We use the
 detect each part of a chair and return its category.
 
 PointNet
---------
+###############################################################################################################################
 
 PointNet was proposed by Charles Ruizhongtai Qi, a researcher at
 Stanford University in 2016: `PointNet: Deep Learning on Point Sets for
@@ -22,9 +22,9 @@ segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
 
-Table of content:- `Imports <#Imports>`__
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+**Table of content:**
 
+-  `Imports <#Imports>`__
 -  `Prepare the Model <#Prepare-the-Model>`__
 -  `Data Processing Module <#Data-Processing-Module>`__
 -  `Visualize the original 3D
@@ -34,7 +34,7 @@ Table of content:- `Imports <#Imports>`__
    -  `Select inference device <#Select-inference-device>`__
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -51,7 +51,7 @@ Imports
     from notebook_utils import download_file
 
 Prepare the Model
------------------------------------------------------------
+###############################################################################################################################
 
 Download the pre-trained PointNet ONNX model. This pre-trained model is
 provided by ```axinc-ai`` <https://github.com/axinc-ai>`__, and you can
@@ -94,7 +94,7 @@ conversion Python API, see this
         
 
 Data Processing Module
-----------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -149,7 +149,7 @@ Data Processing Module
         return ax
 
 Visualize the original 3D data
-------------------------------------------------------------------------
+###############################################################################################################################
 
 The point cloud data can be downloaded from
 `ShapeNet <https://shapenet.cs.stanford.edu/ericyi/shapenetcore_partanno_segmentation_benchmark_v0.zip>`__,
@@ -175,7 +175,7 @@ chair for example.
 
 
 Run inference
--------------------------------------------------------
+###############################################################################################################################
 
 Run inference and visualize the results of 3D segmentation. - The input
 data is a point cloud with ``1 batch size``\ ，\ ``3 axis value`` (x, y,
@@ -204,7 +204,7 @@ each input point.
 
 
 Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 select device from dropdown list for running inference using OpenVINO
 

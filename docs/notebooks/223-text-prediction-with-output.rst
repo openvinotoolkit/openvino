@@ -70,8 +70,7 @@ above. The Generated response is added to the history with the
 ``eos_token`` at the end. Additional user input is added to the history,
 and the sequence is passed back into the model.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `Model Selection <#Model-Selection>`__
 -  `Load Model <#Load-Model>`__
@@ -101,7 +100,7 @@ Table of content:
    PersonaGPT <#Conversation-with-PersonaGPT>`__
 
 Model Selection
----------------------------------------------------------
+###############################################################################################################################
 
 Select the Model to be used for text generation, GPT-2 and GPT-Neo are
 used for text generation whereas PersonaGPT is used for Conversation.
@@ -150,7 +149,7 @@ used for text generation whereas PersonaGPT is used for Conversation.
 
 
 Load Model
-----------------------------------------------------
+###############################################################################################################################
 
 Download the Selected Model and Tokenizer from HuggingFace
 
@@ -178,7 +177,7 @@ Download the Selected Model and Tokenizer from HuggingFace
 
 
 Convert Pytorch Model to OpenVINO IR
-------------------------------------------------------------------------------
+###############################################################################################################################
 
 .. figure:: https://user-images.githubusercontent.com/29454499/211261803-784d4791-15cb-4aea-8795-0969dfbb8291.png
    :alt: conversion_pipeline
@@ -250,14 +249,14 @@ consumption.
 
 
 Load the model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 We start by building an OpenVINO Core object. Then we read the network
 architecture and model weights from the ``.xml`` and ``.bin`` files,
 respectively. Finally, we compile the model for the desired device.
 
 Select inference device
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------------------------------------------------------------------------------------------------
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -305,7 +304,7 @@ have ``batch size`` and ``sequence length`` as inputs and
 ``batch size``, ``sequence length`` and ``vocab size`` as outputs.
 
 Pre-Processing
---------------------------------------------------------
+###############################################################################################################################
 
 NLP models often take a list of tokens as a standard input. A token is a
 word or a part of a word mapped to an integer. To provide the proper
@@ -313,7 +312,7 @@ input, we use a vocabulary file to handle the mapping. So first let’s
 load the vocabulary file.
 
 Define tokenization
--------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -345,7 +344,7 @@ at later stage.
     eos_token = tokenizer.decode(eos_token_id)
 
 Define Softmax layer
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 A softmax function is used to convert top-k logits into a probability
 distribution.
@@ -361,7 +360,7 @@ distribution.
         return e_x / summation
 
 Set the minimum sequence length
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 If the minimum sequence length is not reached, the following code will
 reduce the probability of the ``eos`` token occurring. This continues
@@ -387,7 +386,7 @@ the process of generating the next words.
         return scores
 
 Top-K sampling
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In Top-K sampling, we filter the K most likely next words and
 redistribute the probability mass among only those K next words.
@@ -416,7 +415,7 @@ redistribute the probability mass among only those K next words.
         return filtred_scores
 
 Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Generating the predicted sequence.
 
@@ -466,7 +465,7 @@ Generating the predicted sequence.
         return input_ids
 
 Inference with GPT-Neo/GPT-2
-----------------------------------------------------------------------
+###############################################################################################################################
 
 The ``text`` variable below is the input used to generate a predicted
 sequence.
@@ -515,7 +514,7 @@ the end. Further User Input is added to it and again passed into the
 model.
 
 Converse Function
------------------------------------------------------------
+###############################################################################################################################
 
 Wrapper on generate sequence function to support conversation
 
@@ -560,7 +559,7 @@ Wrapper on generate sequence function to support conversation
         return response, history
 
 Conversation Class
-------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -584,7 +583,7 @@ Conversation Class
             return response
 
 Conversation with PersonaGPT
-----------------------------------------------------------------------
+###############################################################################################################################
 
 This notebook provides two styles of inference, Plain and Interactive.
 The style of inference can be selected in the next cell.

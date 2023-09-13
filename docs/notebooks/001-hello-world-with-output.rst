@@ -13,16 +13,14 @@ created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
 tutorial. 
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
--  `Imports <#Imports>`__
--  `Download the Model and data
-   samples <#Download-the-Model-and-data-samples>`__
--  `Select inference device <#Select-inference-device>`__
--  `Load the Model <#Load-the-Model>`__
--  `Load an Image <#Load-an-Image>`__
--  `Do Inference <#Do-Inference>`__
+- `Imports <#imports>`__
+- `Download the Model and data samples <#download-the-model-and-data-samples>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Load an Image <#load-an-image>`__
+- `Do Inference <#do-inference>`__
 
 .. code:: ipython3
 

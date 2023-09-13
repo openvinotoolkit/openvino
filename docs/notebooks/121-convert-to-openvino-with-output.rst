@@ -49,7 +49,7 @@ format to OpenVINO Intermediate Representation (IR). Contents:
     
 
 OpenVINO IR format
-------------------
+###############################################################################################################################
 
 OpenVINO `Intermediate Representation
 (IR) <https://docs.openvino.ai/2023.0/openvino_ir.html>`__ is the
@@ -62,7 +62,7 @@ an ``.xml`` file, containing information about network topology, and a
 ``.bin`` file, containing the weights and biases binary data.
 
 IR preparation with Python conversion API and Model Optimizer command-line tool
--------------------------------------------------------------------------------
+###############################################################################################################################
 
 There are two ways to convert a model from the original framework format
 to OpenVINO IR: Python conversion API and Model Optimizer command-line
@@ -682,7 +682,7 @@ documentation.
 
 
 Fetching example models
------------------------
+###############################################################################################################################
 
 This notebook uses two models for conversion examples:
 
@@ -1045,7 +1045,7 @@ specified) is not successful, it may be required to use the parameters
 mentioned above to override input shapes and cut the model.
 
 Setting Input Shapes
-~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Model conversion is supported for models with dynamic input shapes that
 contain undefined dimensions. However, if the shape of data is not going
@@ -1182,7 +1182,7 @@ dimension:
     ov_model = mo.convert_model(ONNX_NLP_MODEL_PATH, input=["input_ids", "attention_mask"], input_shape=[[1, "10..128"],[1, "10..128"]])
 
 Cutting Off Parts of a Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The following examples show when model cutting is useful or even
 required:
@@ -1255,7 +1255,7 @@ guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert
     ov_model = mo.convert_model(ONNX_NLP_MODEL_PATH, input=["/distilbert/embeddings/LayerNorm/Add_1", "attention_mask"])
 
 Embedding Preprocessing Computation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Input data for inference can be different from the training dataset and
 requires additional preprocessing before inference. To accelerate the
@@ -1271,7 +1271,7 @@ Preprocessing Computation
 article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html>`__.
 
 Specifying Layout
-^^^^^^^^^^^^^^^^^
+-------------------------------------------------------------------------------------------------------------------------------
 
 Layout defines the meaning of dimensions in a shape and can be specified
 for both inputs and outputs. Some preprocessing requires to set input
@@ -1316,7 +1316,7 @@ Resnet50 model that was exported to the ONNX format:
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw")
 
 Changing Model Layout
-^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------------------------------------------------------------------------------------------------
 
 Changing the model layout may be necessary if it differs from the one
 presented by input data. Use either ``layout`` or ``source_layout`` with
@@ -1370,7 +1370,7 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, source_layout="nchw", target_layout="nhwc")
 
 Specifying Mean and Scale Values
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------------------------------------------------------------------------------------------------
 
 Model conversion API has the following parameters to specify the values:
 ``mean_values``, ``scale_values``, ``scale``. Using these parameters,
@@ -1424,7 +1424,7 @@ that the preprocessing takes negligible time for inference.
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, mean_values=[123,117,104], scale_values=[255,255,255])
 
 Reversing Input Channels
-^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------------------------------------------------------------------------------------------------
 
 Sometimes, input images for your application can be of the ``RGB`` (or
 ``BGR``) format, and the model is trained on images of the ``BGR`` (or
@@ -1463,7 +1463,7 @@ the color channels before inference.
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
 
 Compressing a Model to FP16
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Optionally all relevant floating-point weights can be compressed to FP16
 data type during the model conversion, creating a compressed FP16 model.
@@ -1502,7 +1502,7 @@ models, this decrease is negligible.
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, compress_to_fp16=True)
 
 Convert Models Represented as Python Objects
---------------------------------------------
+###############################################################################################################################
 
 Python conversion API can pass Python model objects, such as a Pytorch
 model or TensorFlow Keras model directly, without saving them into files

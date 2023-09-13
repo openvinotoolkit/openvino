@@ -6,8 +6,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__, convert it
 to OpenVINO™ IR format, show information about the model, and benchmark
 the model.
 
-Table of content:
-^^^^^^^^^^^^^^^^^
+**Table of content:**
 
 -  `OpenVINO and Open Model Zoo Tools <#OpenVINO-and-Open-Model-Zoo-Tools>`__
 -  `Preparation <#Preparation>`__

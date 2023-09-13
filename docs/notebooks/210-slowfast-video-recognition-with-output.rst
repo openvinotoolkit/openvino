@@ -38,8 +38,7 @@ This tutorial consists of the following steps
 
 .. |image0| image:: https://user-images.githubusercontent.com/34324155/143044111-94676f64-7ba8-4081-9011-f8054bed7030.png
 
-Table of content:
-~~~~~~~~~~~~~~~~~
+**Table of content:**
 
 -  `Prepare PyTorch Model <#Prepare-PyTorch-Model>`__
 
@@ -54,10 +53,10 @@ Table of content:
 -  `Verify Model Inference <#Verify-Model-Inference>`__
 
 Prepare PyTorch Model
----------------------------------------------------------------
+###############################################################################################################################
 
 Install necessary packages
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -65,7 +64,7 @@ Install necessary packages
     !pip install -q fvcore
 
 Imports and Settings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -918,7 +917,7 @@ inference using the same. The top 5 predictions can be seen below.
 
 
 Export to ONNX
---------------------------------------------------------
+###############################################################################################################################
 
 Now that we have obtained our trained model and checked inference with
 it, we export the PyTorch model to Open Neural Network Exchange(ONNX)
@@ -942,7 +941,7 @@ quantization.
     )
 
 Convert ONNX to OpenVINO Intermediate Representation
-----------------------------------------------------------------------------------------------
+###############################################################################################################################
 
 Now that our ONNX model is ready, we can convert it to IR format. In
 this format, the network is represented using two files: an ``xml`` file
@@ -974,7 +973,7 @@ using the ``weights`` parameter.
     conv_model = core.read_model(str(IR_PATH))
 
 Select inference device
------------------------------------------------------------------
+###############################################################################################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -1006,7 +1005,7 @@ select device from dropdown list for running inference using OpenVINO
     compiled_model = core.compile_model(model=conv_model, device_name=device.value)
 
 Verify Model Inference
-----------------------------------------------------------------
+###############################################################################################################################
 
 Using the compiled model, we run inference on the same sample video and
 print the top 5 predictions again.

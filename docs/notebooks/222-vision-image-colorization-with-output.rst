@@ -1,5 +1,5 @@
 Image Colorization with OpenVINO
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 This notebook demonstrates how to colorize images with OpenVINO using
 the Colorization model
@@ -21,7 +21,7 @@ Given a grayscale image as input, the model generates colorized version
 of the image as the output.
 
 About Colorization-v2
-^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------------------------------------------------------------------------------------------------
 
 -  The colorization-v2 model is one of the colorization group of models
    designed to perform image colorization.
@@ -30,7 +30,7 @@ About Colorization-v2
    A- and B-channels of LAB-image as output.
 
 About Colorization-siggraph
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------------------------------------------------------------------------------------------------
 
 -  The colorization-siggraph model is one of the colorization group of
    models designed to real-time user-guided image colorization.
@@ -40,19 +40,23 @@ About Colorization-siggraph
    A- and B-channels of LAB-image as output.
 
 See the `colorization <https://github.com/richzhang/colorization>`__
-repository for more details. #### Table of content:-
-`Imports <#Imports>`__ -
-`Configurations <#Configurations>`__ - `Select inference
-device <#Select-inference-device>`__ - `Download the
-model <#Download-the-model>`__ - `Convert the model to OpenVINO
-IR <#Convert-the-model-to-OpenVINO-IR>`__ - `Loading the
-Model <#Loading-the-Model>`__ - `Utility
-Functions <#Utility-Functions>`__ - `Load the
-Image <#Load-the-Image>`__ - `Display Colorized
-Image <#Display-Colorized-Image>`__
+repository for more details. 
+
+**Table of content:**
+
+- `Imports <#Imports>`__ 
+- `Configurations <#Configurations>`__ 
+  - `Select inference device <#Select-inference-device>`__ 
+
+- `Download the model <#Download-the-model>`__ 
+- `Convert the model to OpenVINO IR <#Convert-the-model-to-OpenVINO-IR>`__ 
+- `Loading the Model <#Loading-the-Model>`__ 
+- `Utility Functions <#Utility-Functions>`__ 
+- `Load the Image <#Load-the-Image>`__ 
+- `Display Colorized Image <#Display-Colorized-Image>`__
 
 Imports
--------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -69,7 +73,7 @@ Imports
     import notebook_utils as utils
 
 Configurations
---------------------------------------------------------
+###############################################################################################################################
 
 -  ``PRECISION`` - {FP16, FP32}, default: FP16.
 -  ``MODEL_DIR`` - directory where the model is to be stored, default:
@@ -88,7 +92,7 @@ Configurations
     DATA_DIR = "data"
 
 Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -117,7 +121,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Download the model
-------------------------------------------------------------
+###############################################################################################################################
 
 ``omz_downloader`` downloads model files from online sources and, if
 necessary, patches them to make them more usable with Model Converter.
@@ -166,7 +170,7 @@ above.
 
 
 Convert the model to OpenVINO IR
---------------------------------------------------------------------------
+###############################################################################################################################
 
 ``omz_converter`` converts the models that are not in the OpenVINO™ IR
 format into that format using model conversion API.
@@ -209,7 +213,7 @@ respectively
 
 
 Loading the Model
------------------------------------------------------------
+###############################################################################################################################
 
 Load the model in OpenVINO Runtime with ``ie.read_model`` and compile it
 for the specified device with ``ie.compile_model``.
@@ -224,7 +228,7 @@ for the specified device with ``ie.compile_model``.
     N, C, H, W = list(input_layer.shape)
 
 Utility Functions
------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -301,7 +305,7 @@ Utility Functions
         plt.show()
 
 Load the Image
---------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -367,7 +371,7 @@ Load the Image
     color_img_1 = colorize(test_img_1)
 
 Display Colorized Image
------------------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 

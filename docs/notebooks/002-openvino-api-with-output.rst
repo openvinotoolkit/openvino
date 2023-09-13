@@ -4,27 +4,27 @@ OpenVINO™ Runtime API Tutorial
 This notebook explains the basics of the OpenVINO Runtime API. It
 covers:
 
--  `Loading OpenVINO Runtime and Showing Info <#Loading-OpenVINO-Runtime-and-Showing-Info>`__
--  `Loading a Model <#Loading-a-Model>`__
+- `Loading OpenVINO Runtime and Showing Info <#loading-openvino-runtime-and-showing-info>`__
+- `Loading a Model <#loading-a-model>`__
 
-   -  `OpenVINO IR Model <#OpenVINO-IR-Model>`__
-   -  `ONNX Model <#ONNX-Model>`__
-   -  `PaddlePaddle Model <#PaddlePaddle-Model>`__
-   -  `TensorFlow Model <#TensorFlow-Model>`__
-   -  `TensorFlow Lite Model <#TensorFlow-Lite-Model>`__
+  - `OpenVINO IR Model <#openvino-ir-model>`__
+  - `ONNX Model <#onnx-model>`__
+  - `PaddlePaddle Model <#paddlepaddle-model>`__
+  - `TensorFlow Model <#tensorflow-model>`__
+  - `TensorFlow Lite Model <#tensorflow-lite-model>`__
 
--  `Getting Information about a Model <#Getting-Information-about-a-Model>`__
+- `Getting Information about a Model <#getting-information-about-a-model>`__
 
-   -  `Model Inputs <#Model-Inputs>`__
-   -  `Model Outputs <#Model-Outputs>`__
+  - `Model Inputs <#model-inputs>`__
+  - `Model Outputs <#model-outputs>`__
 
--  `Doing Inference on a Model <#Doing-Inference-on-a-Model>`__
--  `Reshaping and Resizing <#Reshaping-and-Resizing>`__
+- `Doing Inference on a Model <#doing-inference-on-a-model>`__
+- `Reshaping and Resizing <#reshaping-and-resizing>`__
 
-   -  `Change Image Size <#Change-Image-Size>`__
-   -  `Change Batch Size <#Change-Batch-Size>`__
+  - `Change Image Size <#change-iiage-size>`__
+  - `Change Batch Size <#change-batch-size>`__
 
--  `Caching a Model <#Caching-a-Model>`__
+- `Caching a Model <#caching-a-model>`__
 
 The notebook is divided into sections with headers. The next cell
 contains global requirements installation and imports. Each section is
@@ -61,7 +61,7 @@ same.
 
 
 Loading OpenVINO Runtime and Showing Info
------------------------------------------
+#############################################################################################################################
 
 Initialize OpenVINO Runtime with Core()
 
@@ -97,7 +97,7 @@ be faster.
 
 
 Loading a Model
----------------
+#############################################################################################################################
 
 After initializing OpenVINO Runtime, first read the model file with
 ``read_model()``, then compile it to the specified device with the
@@ -108,7 +108,7 @@ and enables developers to convert them to its own OpenVINO IR format
 using a tool dedicated to this task.
 
 OpenVINO IR Model
-~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 An OpenVINO IR (Intermediate Representation) model consists of an
 ``.xml`` file, containing information about network topology, and a
@@ -176,7 +176,7 @@ notebooks.
     compiled_model = core.compile_model(model=model, device_name="CPU")
 
 ONNX Model
-~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 `ONNX <https://onnx.ai/>`__ is an open format built to represent machine
 learning models. ONNX defines a common set of operators - the building
@@ -229,7 +229,7 @@ The ONNX model can be exported to OpenVINO IR with ``save_model()``:
     ov.save_model(model_onnx, output_model="model/exported_onnx_model.xml")
 
 PaddlePaddle Model
-~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 `PaddlePaddle <https://www.paddlepaddle.org.cn/documentation/docs/en/guides/index_en.html>`__
 models saved for inference can also be passed to OpenVINO Runtime
@@ -281,7 +281,7 @@ without any conversion step. Pass the filename with extension to
     ov.save_model(model_paddle, output_model="model/exported_paddle_model.xml")
 
 TensorFlow Model
-~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 TensorFlow models saved in frozen graph format can also be passed to
 ``read_model`` starting in OpenVINO 2022.3.
@@ -332,7 +332,7 @@ TensorFlow models saved in frozen graph format can also be passed to
     ov.save_model(model_tf, output_model="model/exported_tf_model.xml")
 
 TensorFlow Lite Model
-~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 `TFLite <https://www.tensorflow.org/lite>`__ models saved for inference
 can also be passed to OpenVINO Runtime. Pass the filename with extension
@@ -376,7 +376,7 @@ It is pre-trained model optimized to work with TensorFlow Lite.
     ov.save_model(model_tflite, output_model="model/exported_tflite_model.xml")
 
 Getting Information about a Model
----------------------------------
+#############################################################################################################################
 
 The OpenVINO Model instance stores information about the model.
 Information about the inputs and outputs of the model are in
@@ -410,7 +410,7 @@ Information about the inputs and outputs of the model are in
 
 
 Model Inputs
-~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Information about all input layers is stored in the ``inputs``
 dictionary.
@@ -483,7 +483,7 @@ equal to 224. The input data is expected to be of ``FP32`` (floating
 point) precision.
 
 Model Outputs
-~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -547,7 +547,7 @@ This cell shows that the model returns outputs with a shape of [1,
 classes (``C``). The output is returned as 32-bit floating point.
 
 Doing Inference on a Model
---------------------------
+#############################################################################################################################
 
 .. note::
 
@@ -746,10 +746,10 @@ To learn more about this notion, refer to the `hello world
 notebook <001-hello-world-with-output.html>`__.
 
 Reshaping and Resizing
-----------------------
+#############################################################################################################################
 
 Change Image Size
-~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Instead of reshaping the image to fit the model, it is also possible to
 reshape the model to fit the image. Be aware that not all models support
@@ -837,7 +837,7 @@ setting the input dimensions to 544x544 also modifies the output
 dimensions. After reshaping, compile the network once again.
 
 Change Batch Size
-~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Use the ``.reshape()`` method to set the batch size, by increasing the
 first element of ``new_shape``. For example, to set a batch size of two,
@@ -897,7 +897,7 @@ input image through the network to see the result:
 
 
 Caching a Model
----------------
+#############################################################################################################################
 
 For some devices, like GPU, loading a model can take some time. Model
 Caching solves this issue by caching the model in a cache directory. If
