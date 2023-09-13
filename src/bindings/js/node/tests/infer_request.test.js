@@ -33,8 +33,7 @@ const tensorLike = [[tensor],
 describe('InferRequest', () => {
 
   tensorLike.forEach(([tl]) => {
-    inferRequest.infer({ data: tl });
-    const result = inferRequest.getOutputTensors();
+    const result = inferRequest.infer({ data: tl });
     const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
     it(`Test infer(inputData: { [inputName: string]: ${label} })`, () => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
@@ -43,8 +42,7 @@ describe('InferRequest', () => {
   });
 
   tensorLike.forEach(([tl]) => {
-    inferRequest.infer([tl]);
-    const result = inferRequest.getOutputTensors();
+    const result = inferRequest.infer([tl]);
     const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
     it(`Test infer(inputData: [ [inputName: string]: ${label} ])`, () => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
