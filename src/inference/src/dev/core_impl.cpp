@@ -1091,7 +1091,9 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
 
         // check whether the Auto-Batching is disabled explicitly
         const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
-        if (batch_mode != config.end()) {
+        if (batch_mode == config.end()) {
+            return model;
+        } else {
             const auto disabled = batch_mode->second.as<std::string>() == CONFIG_VALUE(NO);
             // virtual plugins like AUTO/MULTI will need the config
             // e.g. to deduce the #requests correctly
