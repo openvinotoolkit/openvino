@@ -70,7 +70,7 @@ public:
             test_values.actual.dequantization_after);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::SpaceToBatchTransformation>(test_values.params);
+        transform.add<ov::pass::low_precision::SpaceToBatchTransformation>(test_values.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::SpaceToBatchFunction::get(

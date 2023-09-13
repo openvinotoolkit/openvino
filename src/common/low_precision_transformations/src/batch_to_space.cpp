@@ -12,7 +12,7 @@
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -61,4 +61,4 @@ bool BatchToSpaceTransformation::isPrecisionPreserved(std::shared_ptr<Node> laye
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov
