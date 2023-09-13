@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/fold_fake_quantize.hpp>
-#include <openvino/pass/constant_folding.hpp>
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/fold_fake_quantize.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
@@ -60,14 +60,14 @@ public:
             testValues.isCorrect);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::opset1::Convolution>(
             testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
         transform.transform(actualFunction);
 
         ov::pass::Manager cleanupManager;
-        cleanupManager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>();
+        cleanupManager.register_pass<ov::pass::low_precision::FoldFakeQuantizeTransformation>();
         cleanupManager.register_pass<ov::pass::ConstantFolding>();
         cleanupManager.run_passes(actualFunction);
 

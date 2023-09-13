@@ -24,7 +24,7 @@ std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(cons
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::Shape elementwiseConstantShapes;
     PullReshapeThroughDequantizationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = obj.param;
@@ -46,7 +46,7 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::Shape elementwiseConstantShapes;
     PullReshapeThroughDequantizationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = this->GetParam();

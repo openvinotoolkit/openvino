@@ -38,7 +38,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     ngraph::Shape,
     PullReshapeThroughDequantizationTestValues> PullReshapeThroughDequantizationParams;
 

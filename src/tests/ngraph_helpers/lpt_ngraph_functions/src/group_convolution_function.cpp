@@ -15,7 +15,7 @@
 #include "lpt_ngraph_functions/common/builders.hpp"
 
 using namespace ngraph::opset1;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -345,7 +345,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
         convolutionOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution, precisionAfterOperation);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution, precisionAfterOperation);
 
     const auto deqAfter = makeDequantization(convolution, dequantizationAfter);
     deqAfter->set_friendly_name("output");

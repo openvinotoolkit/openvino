@@ -16,7 +16,7 @@
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -302,7 +302,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
         std::vector<element::Type>{ netPrecision });
 
     if (!dequantizationAfter.empty()) {
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution,
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution,
                                                                                       precisionAfterOperation);
     }
     auto& rtInfo = convolution->get_rt_info();
@@ -323,7 +323,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
     const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<float>& weightsValues,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-    const std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>& restrictions) {
+    const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& restrictions) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
@@ -376,7 +376,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
     for (const auto& r : restrictions) {
         for (const auto& restrictedPort : r.restrictions) {
             auto& rt = convolution->input(restrictedPort.port).get_rt_info();
-            rt[QuantizationGranularityAttribute::get_type_info_static()] = QuantizationGranularityAttribute(restrictedPort.granularity);
+            rt[ov::QuantizationGranularityAttribute::get_type_info_static()] = ov::QuantizationGranularityAttribute(restrictedPort.granularity);
         }
     }
 

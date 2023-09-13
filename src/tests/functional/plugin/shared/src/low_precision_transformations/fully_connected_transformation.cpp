@@ -25,7 +25,7 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
     ngraph::element::Type precision;
     MatMulShapes shapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, shapes, targetDevice, params) = obj.param;
 
     std::ostringstream result;
@@ -41,7 +41,7 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
 void FullyConnectedTransformation::SetUp() {
     ngraph::element::Type precision;
     MatMulShapes shapes;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, shapes, targetDevice, params) = this->GetParam();
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(

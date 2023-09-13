@@ -19,7 +19,7 @@ typedef std::tuple <
     ngraph::PartialShape,          // input shape
     size_t,                        // opset version
     std::string,                   // device
-    ngraph::pass::low_precision::LayerTransformation::Params, // transformation params
+    ov::pass::low_precision::LayerTransformation::Params, // transformation params
     AssignAndReadValueTransformationParam       // test params
 > AssignAndReadValueTransformationParams;
 

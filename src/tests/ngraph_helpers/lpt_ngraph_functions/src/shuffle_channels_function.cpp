@@ -65,7 +65,7 @@ std::shared_ptr<ngraph::Function> ShuffleChannelsFunction::getReference(
     const auto dequantizationBefore = makeDequantization(input, deqBefore);
 
     const auto shuffleChannels = std::make_shared<opset1::ShuffleChannels>(dequantizationBefore, axis, group);
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(shuffleChannels, precisionAfterOperation);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(shuffleChannels, precisionAfterOperation);
 
     const auto dequantizationAfter = makeDequantization(shuffleChannels, deqAfter);
     dequantizationAfter->set_friendly_name("output");

@@ -73,7 +73,7 @@ public:
         const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
         const std::vector<float>& weightsValues,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-        const std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>& restrictions = {});
+        const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& restrictions = {});
 };
 }  // namespace subgraph
 }  // namespace builder

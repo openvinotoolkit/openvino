@@ -16,6 +16,7 @@ no uniquely matching class member found for
 example was already documented\. ignoring documentation found here\.
 documentation for unknown define
 detected potential recursive class relation between class
+no matching class member found for
 no matching file member found for
 documented empty return type of
 documented symbol

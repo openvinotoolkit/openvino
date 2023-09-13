@@ -7,9 +7,9 @@
 #include <string>
 #include <sstream>
 #include <gtest/gtest.h>
-#include <ngraph/ngraph.hpp>
 
-#include <low_precision/pad.hpp>
+
+#include "low_precision/pad.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
@@ -44,7 +44,7 @@ public:
 };
 
 typedef std::tuple <
-    ngraph::PartialShape, // input Shape
+    ov::PartialShape, // input Shape
     std::pair<std::vector<uint64_t>, std::vector<uint64_t>>, // pads begin, pads end
     ngraph::op::PadMode, // pads mode
     float, // pads value (used if mode == CONSTANT)
@@ -53,7 +53,7 @@ typedef std::tuple <
 class PadTransformation : public LayerTransformation, public testing::WithParamInterface<PadTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const auto pads = std::get<1>(GetParam());
         const ngraph::op::PadMode padsMode = std::get<2>(GetParam());
         const float padsValue = std::get<3>(GetParam());
@@ -74,7 +74,7 @@ public:
             { {}, {}, {} });
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::PadTransformation, ov::op::v1::Pad>(testValues.params);
+        transformer.add<ov::pass::low_precision::PadTransformation, ov::op::v1::Pad>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::PadFunction::get(
@@ -90,7 +90,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<PadTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const auto pads = std::get<1>(obj.param);
         const ngraph::op::PadMode padsMode = std::get<2>(obj.param);
         const float padsValue = std::get<3>(obj.param);
@@ -121,7 +121,7 @@ TEST_P(PadTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 3, 6, 6},
     {4, 3, 6, 6},
     {-1, 3, 6, -1}
@@ -136,7 +136,7 @@ const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsBySpatialDimen
 // (per-tensor & per-channel quantizations without subtracts, pads by spatial dimensions)
 // and test-case without dequantization
 namespace commonTestCases {
-const std::vector<ngraph::PartialShape> commonInputShapes = {
+const std::vector<ov::PartialShape> commonInputShapes = {
     {4, 3, 6, 6},
     {-1, -1, -1, -1}
 };
@@ -715,8 +715,8 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testCasesForSymetricMode
 
 namespace testCasesWithDynamicRank {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
-    ngraph::PartialShape::dynamic()
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
+    ov::PartialShape::dynamic()
 };
 
 std::vector<ngraph::op::PadMode> allModes = {

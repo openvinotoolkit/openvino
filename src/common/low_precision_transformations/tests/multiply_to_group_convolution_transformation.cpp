@@ -10,8 +10,8 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -40,7 +40,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     TestTransformationParams params;
     bool transformed;
     bool haveMultiplyWithNoConstBeforeDequantization;
@@ -61,15 +61,15 @@ public:
             testValues.actual.dequantization,
             testValues.haveMultiplyWithNoConstBeforeDequantization);
 
-        auto precisionRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Multiply>({
+        auto precisionRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Multiply>({
                 {{0}, {ov::element::u8}},
                 {{1}, {ov::element::i8}}
             })
         });
 
         SimpleLowPrecisionTransformer transformer(precisionRestrictions);
-        transformer.add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ov::op::v1::Multiply>(testValues.params);
+        transformer.add<ov::pass::low_precision::MultiplyToGroupConvolutionTransformation, ov::op::v1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
 
         if (testValues.transformed) {

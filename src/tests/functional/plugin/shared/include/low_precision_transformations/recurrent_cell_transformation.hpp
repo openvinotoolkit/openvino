@@ -41,7 +41,7 @@ typedef std::tuple<
     std::vector<ngraph::PartialShape>,
     std::vector<ngraph::Shape>,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     RecurrentCellTransformationParam
 >RecurrentCellTransformationParams;
 

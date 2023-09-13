@@ -8,7 +8,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace ngraph {
 namespace builder {

@@ -24,7 +24,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionWIthIncorrectWeightsParam
 > ConvolutionWIthIncorrectWeightsParams;
 

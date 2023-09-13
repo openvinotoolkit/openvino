@@ -11,8 +11,8 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <low_precision/network_helper.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/compose_fake_quantize_function.hpp"
@@ -58,8 +58,8 @@ public:
         const auto input = actualFunction->get_parameters()[0];
         const auto fakeQuantizes = input->output(0).get_target_inputs();
         const auto it = fakeQuantizes.begin();
-        const auto fakeQuantize = ngraph::as_type_ptr<ov::op::v0::FakeQuantize>(it->get_node()->shared_from_this());
-        ngraph::pass::low_precision::NetworkHelper::composeFakeQuantize(fakeQuantize);
+        const auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(it->get_node()->shared_from_this());
+        ov::pass::low_precision::NetworkHelper::composeFakeQuantize(fakeQuantize);
 
         referenceFunction = ngraph::builder::subgraph::ComposeFakeQuantizeFunction::get(
             testValues.originalPrecision,

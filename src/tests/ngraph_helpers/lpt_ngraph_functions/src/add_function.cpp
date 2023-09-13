@@ -12,7 +12,7 @@
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -45,7 +45,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::PartialShape& inputShape1,
     const ngraph::PartialShape& inputShape2,
     const bool broadcast,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::element::Type& precision1,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
     const ngraph::element::Type& precision2,
@@ -211,7 +211,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const ngraph::PartialShape& inputShape1,
     const ngraph::PartialShape& inputShape2,
     const bool broadcast,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::element::Type& precision1,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
     const ngraph::element::Type& precision2,

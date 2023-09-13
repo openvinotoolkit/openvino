@@ -4,13 +4,13 @@
 
 #include "low_precision/reduce_sum.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -18,7 +18,7 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
     MATCHER_SCOPE(ReduceSumTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::ReduceSum>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -26,7 +26,7 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -86,4 +86,4 @@ bool ReduceSumTransformation::getUpdatePrecision(const std::shared_ptr<Node>& re
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

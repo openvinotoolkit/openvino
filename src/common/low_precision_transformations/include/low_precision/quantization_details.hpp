@@ -8,10 +8,10 @@
 #include <ostream>
 #include <vector>
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -72,4 +72,4 @@ inline std::ostream &operator << (std::ostream &os, const QuantizationDetails& v
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

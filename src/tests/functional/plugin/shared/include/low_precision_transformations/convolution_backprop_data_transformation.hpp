@@ -46,7 +46,7 @@ typedef std::tuple<
     std::pair<ngraph::PartialShape, bool>, // input shape and shape support flag
     ngraph::Shape,         // outputShape
     std::string,           // targetDevice
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionBackpropDataTransformationParam
 > ConvolutionBackpropDataTransformationParams;
 

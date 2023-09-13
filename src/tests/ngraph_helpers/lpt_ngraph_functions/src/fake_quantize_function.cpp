@@ -11,7 +11,7 @@
 #include "lpt_ngraph_functions/common/builders.hpp"
 
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -45,7 +45,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginalWithMaxPool(
 }
 
 std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginal(
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
@@ -76,7 +76,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape,
     const bool updatePrecisions,
@@ -117,13 +117,13 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     std::shared_ptr<Node> deq;
     if (updatePrecisions) {
         deq = makeDequantization(lastOperation, updateDequantization);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize, fakeQuantizeOutputPrecision);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize, fakeQuantizeOutputPrecision);
     } else {
         if (precision == element::f32) {
             updateDequantization.convert = {};
         }
         deq = makeDequantization(lastOperation, updateDequantization);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize, precision);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize, precision);
     }
 
     deq->set_friendly_name("lastOperation");

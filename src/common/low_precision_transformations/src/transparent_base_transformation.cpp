@@ -9,11 +9,11 @@
 
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
-bool TransparentBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool TransparentBaseTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> op = m.get_match_root();
     if (!canBeTransformed(context, op)) {
         return false;

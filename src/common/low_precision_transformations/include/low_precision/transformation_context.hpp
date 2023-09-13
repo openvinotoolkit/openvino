@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include "low_precision/quantization_details.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -19,8 +19,8 @@ namespace low_precision {
 class LP_TRANSFORMATIONS_API TransformationContext {
 public:
     TransformationContext();
-    explicit TransformationContext(std::shared_ptr<Function> function);
-    std::shared_ptr<Function> function;
+    explicit TransformationContext(std::shared_ptr<Model> model);
+    std::shared_ptr<Model> model;
 
     // Used to store handled FakeQuantize operations.
     // ConcatTransformation and FakeQuantizeTransformation handle FakeQuantize operations. ConcatTransformation handles FakeQuantize operation first.
@@ -36,4 +36,4 @@ public:
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

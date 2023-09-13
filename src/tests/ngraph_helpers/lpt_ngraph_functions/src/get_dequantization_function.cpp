@@ -48,7 +48,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
     const ngraph::element::Type& precision,
     const Shape& shape,
     const FakeQuantizeOnData& fakeQuantize,
-    const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization) {
+    const ov::pass::low_precision::FakeQuantizeDequantization& dequantization) {
     const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::opset1::Parameter>(
         ngraph::element::f32,
         shape);
@@ -67,7 +67,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
         const auto parent2 = dequantization.subtractConvert == nullptr ?
             std::dynamic_pointer_cast<ngraph::Node>(dequantization.subtractConstant) :
             dequantization.subtractConvert;
-        const auto index = ngraph::pass::low_precision::NetworkHelper::getChildInputIndex(parent2, dequantization.subtract);
+        const auto index = ov::pass::low_precision::NetworkHelper::getChildInputIndex(parent2, dequantization.subtract);
         parent = dequantization.subtract->clone_with_new_inputs(index == 1ul ?
             OutputVector{ parent, parent2 } :
             OutputVector{ parent2, parent });
@@ -75,7 +75,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
     }
 
     if (dequantization.multiply != nullptr) {
-        const auto index = ngraph::pass::low_precision::NetworkHelper::getChildInputIndex(dequantization.multiplyConstant, dequantization.multiply);
+        const auto index = ov::pass::low_precision::NetworkHelper::getChildInputIndex(dequantization.multiplyConstant, dequantization.multiply);
         parent = dequantization.multiply->clone_with_new_inputs(index == 1ul ?
             OutputVector{ parent, dequantization.multiplyConstant } :
             OutputVector{ dequantization.multiplyConstant, parent });
@@ -118,7 +118,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> GetDequantizationFunction::getReference(
-    ngraph::pass::low_precision::FakeQuantizeDequantization dequantization) {
+    ov::pass::low_precision::FakeQuantizeDequantization dequantization) {
     return std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(dequantization.multiply) },
         ngraph::ParameterVector{ ov::as_type_ptr<op::v0::Parameter>(dequantization.data.get_node_shared_ptr()) },

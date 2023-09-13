@@ -15,7 +15,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     // ngraph::element::f16 // TODO: enable f16 test inference (change ngraph function + fp32 to fp16 replacements)
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };

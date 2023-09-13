@@ -19,7 +19,7 @@ std::string VariadicSplitTransformation::getTestCaseName(const testing::TestPara
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     VariadicSplitTransformationParam param;
     std::tie(netPrecision, inputShapes, targetDevice, params, param) = obj.param;
 
@@ -40,7 +40,7 @@ InferenceEngine::Blob::Ptr VariadicSplitTransformation::GenerateInput(const Infe
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     VariadicSplitTransformationParam param;
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
     const auto& fqOnData = param.fakeQuantize;
@@ -55,7 +55,7 @@ InferenceEngine::Blob::Ptr VariadicSplitTransformation::GenerateInput(const Infe
 void VariadicSplitTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     VariadicSplitTransformationParam param;
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
 

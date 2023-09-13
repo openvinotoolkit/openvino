@@ -19,7 +19,7 @@ public:
     std::vector<int> gatherIndicesValues;
     std::vector<int> axis;
     int64_t batch_dims;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::element::Type precisionBeforeFq;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
 };

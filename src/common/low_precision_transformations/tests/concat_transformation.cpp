@@ -9,7 +9,7 @@
 #include <vector>
 #include <gtest/gtest.h>
 
-#include <low_precision/concat.hpp>
+#include "low_precision/concat.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
@@ -65,7 +65,7 @@ public:
             testValues.concatAxis);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transformer.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ConcatFunction::get(

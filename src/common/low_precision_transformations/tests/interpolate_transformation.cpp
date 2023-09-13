@@ -10,9 +10,9 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/opsets/opset4.hpp>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "openvino/opsets/opset4.hpp"
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/interpolate.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -79,7 +79,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     ov::Shape outputShape;
     ov::Shape scalesShape;
     TestTransformationParams params;
@@ -112,7 +112,7 @@ public:
                 testValues.actual.dequantization);
 
             SimpleLowPrecisionTransformer transformer;
-            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ov::op::v0::Interpolate>(testValues.params);
+            transformer.add<ov::pass::low_precision::InterpolateTransformation, ov::op::v0::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
             referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
@@ -139,7 +139,7 @@ public:
                 testValues.actual.dequantization);
 
             SimpleLowPrecisionTransformer transformer;
-            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset4::Interpolate>(testValues.params);
+            transformer.add<ov::pass::low_precision::InterpolateTransformation, ov::opset4::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
             referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(

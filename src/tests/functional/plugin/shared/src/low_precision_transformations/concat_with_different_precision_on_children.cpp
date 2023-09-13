@@ -24,7 +24,7 @@ std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(const tes
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithDifferentChildrenTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = obj.param;
 
     std::ostringstream result;
@@ -40,7 +40,7 @@ InferenceEngine::Blob::Ptr ConcatWithDifferentChildrenTransformation::GenerateIn
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithDifferentChildrenTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
 
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
@@ -51,7 +51,7 @@ void ConcatWithDifferentChildrenTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     ConcatWithDifferentChildrenTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(

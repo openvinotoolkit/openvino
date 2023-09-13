@@ -8,7 +8,7 @@
 #include <sstream>
 #include <memory>
 
-#include <low_precision/low_precision.hpp>
+#include "low_precision/low_precision.hpp"
 
 #include <gtest/gtest.h>
 #include "lpt_ngraph_functions/common/builders.hpp"
@@ -68,7 +68,7 @@ protected:
 };
 
 TEST_P(IsFunctionQuantizedTransformation, Run) {
-    const bool isQuantized = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(model);
+    const bool isQuantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(model);
 
     const auto testValues = GetParam();
     ASSERT_EQ(testValues.isQuantized, isQuantized);

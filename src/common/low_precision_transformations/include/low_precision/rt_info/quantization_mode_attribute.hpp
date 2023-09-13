@@ -6,9 +6,9 @@
 
 #include <string>
 #include "openvino/core/runtime_attribute.hpp"
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 
 class LP_TRANSFORMATIONS_API QuantizationModeAttribute : public ov::RuntimeAttribute {
 public:
@@ -30,4 +30,4 @@ public:
 
     Mode mode;
 };
-} // namespace ngraph
+} // namespace ov

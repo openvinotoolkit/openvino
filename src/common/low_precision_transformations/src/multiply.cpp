@@ -12,13 +12,13 @@
 #include <vector>
 #include <cassert>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -26,7 +26,7 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBa
     MATCHER_SCOPE(MultiplyTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -34,11 +34,11 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBa
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool MultiplyTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -83,8 +83,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second == 0 ? 1 : 0);
 
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-            std::vector<ngraph::element::Type>{ element::f32, element::f32 },
-            std::vector<ngraph::element::Type>{ multiply->get_output_element_type(0) },
+            std::vector<ov::element::Type>{ element::f32, element::f32 },
+            std::vector<ov::element::Type>{ multiply->get_output_element_type(0) },
             ov::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(
                 fold<ov::opset1::Multiply>(
@@ -171,4 +171,4 @@ bool MultiplyTransformation::canBeTransformed(const TransformationContext& conte
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

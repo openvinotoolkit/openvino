@@ -5,13 +5,12 @@
 #include "low_precision/clamp.hpp"
 #include <algorithm>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -19,7 +18,7 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
     MATCHER_SCOPE(ClampTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Clamp>({ pattern::wrap_type<ov::opset1::Multiply>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -27,11 +26,11 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ClampTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool ClampTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -75,7 +74,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
     element::Type outputClampType = dequantization.multiply ?
         dequantization.multiply->get_output_element_type(0) :
         dequantization.subtract->get_output_element_type(0);
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(replacement, outputClampType);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(replacement, outputClampType);
     return true;
 }
 
@@ -98,4 +97,4 @@ bool ClampTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov
