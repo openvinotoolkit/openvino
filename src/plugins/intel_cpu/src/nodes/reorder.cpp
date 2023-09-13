@@ -232,7 +232,10 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
 
     auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
     if (!result) {
-        IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
+        OPENVINO_THROW("Cannot create reorder primitive: unsupported reorder case ",
+                       src_blocked->getDesc().getPrecision(),
+                       " to ",
+                       dst_blocked->getDesc().getPrecision());
     }
     prim = result;
 
