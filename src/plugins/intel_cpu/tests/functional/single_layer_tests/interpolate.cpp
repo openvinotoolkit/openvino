@@ -205,9 +205,15 @@ protected:
             inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
         }
 
+        auto simple_post_ops = std::find_if(fusedOps.begin(), fusedOps.end(),
+            [](const std::string& ops){
+                return ops.compare("Multiply") == 0 || ops.compare("Add") == 0;
+            });
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
             inType = outType = ngPrc = ElementType::bf16;
             rel_threshold = 1e-2f;
+        } else if (simple_post_ops != std::end(fusedOps)) {
+            rel_threshold = 3e-2f;
         } else {
             inType = outType = ngPrc;
         }
@@ -331,6 +337,8 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         emptyFusingSpec,
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         fusingSwish,
+        fusingAddPerTensor,
+        fusingMultiplyPerTensor,
         fusingFakeQuantizePerTensorRelu,
 #endif
 };
