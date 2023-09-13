@@ -8,11 +8,11 @@
 #include <mutex>
 #include <map>
 #include <string>
-#include "kernel_selector_common.h"
-#include "kernel_selector_params.h"
-#include "document.h"
 #include <memory>
 #include <tuple>
+
+#include "kernel_selector_common.h"
+#include "kernel_selector_params.h"
 
 namespace kernel_selector {
 
@@ -42,7 +42,8 @@ private:
     Entry LoadKernel_v1(const Params& params, uint32_t computeUnitsCount);
     Entry LoadKernel_v2(const Params& params, uint32_t computeUnitsCount);
 
-    rapidjson::Document cache;
+    class Impl;
+    std::shared_ptr<Impl> impl;
 
     static constexpr const char* version1Marker = "version_1";
     static constexpr const char* version2Marker = "version_2";

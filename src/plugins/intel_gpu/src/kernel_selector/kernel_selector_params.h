@@ -10,7 +10,6 @@
 #include <limits>
 #include "common_types.h"
 #include "tensor_type.h"
-#include "document.h"
 #include <vector>
 #include <utility>
 #include <bitset>
