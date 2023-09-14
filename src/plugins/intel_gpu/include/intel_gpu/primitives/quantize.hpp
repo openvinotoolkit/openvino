@@ -38,8 +38,6 @@ struct quantize : public primitive_base<quantize> {
 
     quantize() : primitive_base("", {}), levels(0) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief levels The number of quantization levels.
     int levels;
 

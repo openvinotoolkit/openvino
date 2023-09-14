@@ -107,7 +107,7 @@ Let's add a test case for new class. Start with imports and simple test of the c
 ```python
 import pytest
 import numpy as np 
-import openvino.runtime as ov
+import openvino as ov
 
 def test_mytensor_creation():
     tensor = ov.MyTensor([1, 2, 3])
