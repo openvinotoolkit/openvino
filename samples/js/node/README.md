@@ -13,6 +13,12 @@ Note: Perform these steps also before running notebooks.
   - classification_sample_async
 
 ## Notebooks
+
+Use [Node.js Notebooks (REPL)](https://marketplace.visualstudio.com/items?itemName=donjayamanne.typescript-notebook)
+VSCode extension to run these notebook samples
+
+Make sure that `LD_LIBRARY_PATH` variable contains path to OpenVINO runtime folder
+
 - ./notebooks
   -   001-hello-world.nnb
   -   003-hello-segmentation.nnb

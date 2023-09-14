@@ -5,13 +5,11 @@
 const ov = require('../build/Release/ov_node_addon.node');
 const assert = require('assert');
 const { describe, it } = require('node:test');
-const path = require('path');
 const { getModelPath } = require('./utils.js');
 
-
-var testXml = getModelPath();
+let testXml = getModelPath();
 const core = new ov.Core();
-const model = core.readModel(testXml);
+const model = core.readModelSync(testXml);
 const compiledModel = core.compileModel(model, 'CPU');
 
 describe('Output class', () => {

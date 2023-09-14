@@ -21,7 +21,7 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 2. Read a model -------------------------------------
   console.log(`Reading the model: ${modelPath}`);
-  const model = core.readModel(modelPath);
+  const model = await core.readModel(modelPath);
 
   if (model.inputs.length !== 1)
     throw new Error('Sample supports only single input topologies');

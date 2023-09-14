@@ -38,7 +38,7 @@ public:
      * @param info[1] path to a data file. (e.g. bin_path)
      * @return A Javascript Model object.
      */
-    Napi::Value read_model(const Napi::CallbackInfo& info);
+    Napi::Value read_model_sync(const Napi::CallbackInfo& info);
 
     /**
      * @brief Asynchronously reads a model.
@@ -60,5 +60,4 @@ public:
 private:
     ov::Core _core;
     Napi::Env env;
-    ReaderWorker* _readerWorker = new ReaderWorker(env);
 };

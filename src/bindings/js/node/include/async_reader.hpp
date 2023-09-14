@@ -15,9 +15,15 @@ public:
      * @brief Constructs ReaderWorker from the Napi::Env.
      * @param info contains passed arguments. Can be empty.
      */
-    ReaderWorker(Napi::Env);
-    virtual ~ReaderWorker() = default;
+    ReaderWorker(const Napi::Env& env, std::string model_path, std::string bin_path)
+        : Napi::AsyncWorker{env, "ReaderWorker"},
+          _deferred{env},
+          _model_path{model_path},
+          _bin_path{bin_path} {}
 
+    Napi::Promise GetPromise();
+
+protected:
     /**
      * @brief Executes code inside the worker-thread.
      * It is not safe to access JS engine data structure
@@ -26,21 +32,19 @@ public:
      * Avoid calling any methods from node-addon-api
      * or running any code that might invoke JavaScript.
      */
-    void Execute() override;
+    void Execute();
 
     /**
      * @brief Executed when the async work is complete
      * this function will be run inside the main event loop
      * so it is safe to use JS engine data again.
      */
-    void OnOK() override;
-    void OnError(Napi::Error const&);
-    Napi::Promise GetPromise();
-    void set_model_path(std::string);
+    void OnOK();
+    void OnError(const Napi::Error& err);
 
 private:
+    Napi::Promise::Deferred _deferred;
     std::string _model_path;
-    std::shared_ptr<ov::Model> model;
-    Napi::Env env;
-    Napi::Promise::Deferred deferred;
+    std::string _bin_path;
+    std::shared_ptr<ov::Model> _model;
 };

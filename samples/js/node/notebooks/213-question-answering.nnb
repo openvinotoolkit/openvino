@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('../helpers.js');\nconst tokens = require('./tokens_bert.js');\nconst { addon: ov } = require('openvinojs-node'); "
+                "const {\r\n  exp,\r\n  sum,\r\n  tril,\r\n  triu,\r\n  argMax,\r\n  reshape,\r\n  getShape,\r\n  downloadFile,\r\n  extractValues,\r\n  matrixMultiplication,\r\n} = require('../helpers.js');\r\nconst tokens = require('./tokens_bert.js');\r\nconst { addon: ov } = require('openvinojs-node'); "
             ],
             "outputs": []
         },
@@ -31,7 +31,7 @@
         {
             "language": "typescript",
             "source": [
-                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'bert-small-uncased-whole-word-masking-squad-int8-0002';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/bert-small-uncased-whole-word-masking-squad-int8-0002/FP16-INT8/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
+                "const baseArtifactsDir = '../../assets/models';\r\n\r\nconst modelName = 'bert-small-uncased-whole-word-masking-squad-int8-0002';\r\nconst modelXMLName = `${modelName}.xml`;\r\nconst modelBINName = `${modelName}.bin`;\r\n\r\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\r\n\r\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/bert-small-uncased-whole-word-masking-squad-int8-0002/FP16-INT8/';\r\n\r\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\r\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
             ],
             "outputs": [
                 {
@@ -39,8 +39,9 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "File successfully stored at '../../assets/models/bert-small-uncased-whole-word-masking-squad-int8-0002.xml'",
-                                "File successfully stored at '../../assets/models/bert-small-uncased-whole-word-masking-squad-int8-0002.bin'",
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/models/bert-small-uncased-whole-word-masking-squad-int8-0002.bin'",
                                 ""
                             ]
                         }
@@ -58,7 +59,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = core.readModel(modelXMLPath);\n\nnew ov.PrePostProcessor(model)\n  .setInputElementType(0, ov.element.f32)\n  .setInputElementType(1, ov.element.f32)\n  .setInputElementType(2, ov.element.f32)\n  .setInputElementType(3, ov.element.f32)\n  .build();\n\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputs = compiledModel.inputs;\nconst outputs = compiledModel.outputs;\n\nconst inputSize = compiledModel.input(0).shape[1];"
+                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\n\nnew ov.PrePostProcessor(model)\n  .setInputElementType(0, ov.element.f32)\n  .setInputElementType(1, ov.element.f32)\n  .setInputElementType(2, ov.element.f32)\n  .setInputElementType(3, ov.element.f32)\n  .build();\n\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputs = compiledModel.inputs;\nconst outputs = compiledModel.outputs;\n\nconst inputSize = compiledModel.input(0).shape[1];"
             ],
             "outputs": []
         },
@@ -74,6 +75,7 @@
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
                                 "=== Model Inputs:",
+                                "output_s",
                                 "output_e",
                                 ""
                             ]
@@ -178,10 +180,7 @@
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
                                 "Context: Computational complexity theory is a branch of the theory of computation in theoretical computer science that focuses on classifying computational problems according to their inherent difficulty, and relating those classes to each other. A computational problem is understood to be a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm.",
-                                "Question: What is the term for a task that generally lends itself to being solved by a computer?",
-                                "Answer: A computational problem",
-                                "Score: 0.5520997552420539",
-                                "Time: 0.057562715s",
+                                "Time: 0.04754352s",
                                 ""
                             ]
                         }
