@@ -29,6 +29,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "ngraph/file_util.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"

@@ -28,7 +28,7 @@ public:
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const ov::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
         const ngraph::element::Type precisionBeforeOp,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,

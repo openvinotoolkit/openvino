@@ -32,8 +32,7 @@ class Convnet(torch.nn.Module):
 
 def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
     torch_model = Convnet(input_channels)
-    example_input = Tensor(np.expand_dims(test_input, axis=0).astype(np.float32))
-    ov_model = convert_model(torch_model, example_input=example_input)
+    ov_model = convert_model(torch_model)
     core = Core()
 
     ov_model = PreprocessConverter.from_torchvision(

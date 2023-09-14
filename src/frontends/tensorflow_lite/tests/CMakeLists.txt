@@ -24,7 +24,7 @@ ov_add_test_target(
 
 ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt"
                       MESSAGE_MODE WARNING
-                      WARNING_MESSAGE "TensorFlow Lite frontend unit tests will be skipped"
+                      WARNING_MESSAGE "TensorFlow Lite testing models weren't generated, some tests will fail due models not found"
                       RESULT_VAR tensorflow_FOUND)
 
 set(TEST_TENSORFLOW_LITE_MODELS_DIRNAME test_model_zoo/tensorflow_lite_test_models)
