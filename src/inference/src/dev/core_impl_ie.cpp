@@ -277,9 +277,6 @@ std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const 
             if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
                 OPENVINO_THROW(ex.what());
             }
-            InferenceEngine::Version version;
-            version.description = NULL;
-            versions[deviceNameLocal] = version;
         }
     }
 

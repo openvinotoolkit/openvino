@@ -11,12 +11,6 @@ const char* NGRAPH_VERSION_NUMBER = CI_BUILD_NUMBER;
 using namespace std;
 
 std::ostream& ov::operator<<(std::ostream& s, const Version& version) {
-    if (!version.description) {
-        s << std::endl;
-        s << "    Version : not registered in OpenVINO Runtime" << std::endl;
-        s << "    Build   : not registered in OpenVINO Runtime" << std::endl;
-        return s;
-    }
     s << version.description << std::endl;
     s << "    Version : ";
     s << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
@@ -28,10 +22,7 @@ std::ostream& ov::operator<<(std::ostream& s, const Version& version) {
 
 std::ostream& ov::operator<<(std::ostream& s, const std::map<std::string, Version>& versions) {
     for (auto&& version : versions) {
-        if (version.second.description)
-            s << version.second << std::endl;
-        else
-            s << version.first << version.second << std::endl;
+        s << version.second << std::endl;
     }
     return s;
 }
