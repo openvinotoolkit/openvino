@@ -48,8 +48,11 @@ jobs:
               echo "Deleting caches..."
               for cacheKey in ${cacheKeysForPRSliced[@]}
               do
+                if [[ ! -z "$cacheKey" ]]
+                then
                   # gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
                   echo "${cacheKey}"
+                fi
               done
             fi
           done
