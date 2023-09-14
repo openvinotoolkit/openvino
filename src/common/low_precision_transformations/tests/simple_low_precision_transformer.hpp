@@ -29,6 +29,10 @@ public:
     void add(const std::shared_ptr<ov::Model> model, const TestTransformationParams& params) {
         commonGraphRewrite->add_matcher<T>(model, TestTransformationParams::toParams(params));
     }
+    template <class T>
+    void add(const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
+    }
 
     void transform(std::shared_ptr<ov::Model>& model);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
