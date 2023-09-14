@@ -107,7 +107,7 @@ Plugins which do not support dynamic output tensors produce ``selected_indices``
    :force:
 
   <layer ... type="NMSRotated" ... >
-      <data box_encoding="corner" sort_result_descending="true" output_type="i64"/>
+      <data box_encoding="center" sort_result_descending="true" output_type="i64" clockwise="true"/>
       <input>
           <port id="0">
               <dim>3</dim>
