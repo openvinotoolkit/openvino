@@ -3,7 +3,7 @@
 #
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
-    ie_add_compiler_flags(-Wno-suggest-override)
+    ov_add_compiler_flags(-Wno-suggest-override)
 endif()
 
 set(TARGET_NAME ov_inference_functional_tests)

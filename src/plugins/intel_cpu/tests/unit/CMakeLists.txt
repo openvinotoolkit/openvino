@@ -9,7 +9,7 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd5051)
+    ov_add_compiler_flags(/wd5051)
 endif()
 
 if (X86_64)
@@ -77,7 +77,7 @@ if (WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
 endif()
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     UNITY
 )
 

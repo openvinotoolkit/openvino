@@ -50,7 +50,8 @@ public:
     }
 };
 
-::testing::AssertionResult test_ordered_ops(const std::shared_ptr<ov::Model>& m, const ov::NodeVector& required_ops) {
+static ::testing::AssertionResult test_ordered_ops(const std::shared_ptr<ov::Model>& m,
+                                                   const ov::NodeVector& required_ops) {
     std::unordered_set<ov::Node*> seen;
     for (auto& node_ptr : m->get_ordered_ops()) {
         ov::Node* node = node_ptr.get();

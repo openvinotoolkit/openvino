@@ -32,7 +32,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC
     $<$<BOOL:${ENABLE_OV_PADDLE_FRONTEND}>:openvino::frontend::paddle>)
 
 ov_add_library_version(${TARGET_NAME})
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
     RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL

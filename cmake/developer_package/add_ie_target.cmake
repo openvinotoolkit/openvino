@@ -120,7 +120,7 @@ function(addIeTarget)
     endif()
     if (ARG_ADD_CLANG_FORMAT)
         # code style
-        add_clang_format_target(${ARG_NAME}_clang FOR_TARGETS ${ARG_NAME})
+        ov_add_clang_format_target(${ARG_NAME}_clang FOR_TARGETS ${ARG_NAME})
     endif()
     if (ARG_DEVELOPER_PACKAGE)
         # developer package

@@ -9,13 +9,13 @@
 set(BUILD_SHARED_LIBS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-all)
+    ov_add_compiler_flags(-Wno-all)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-stringop-overflow)
+        ov_add_compiler_flags(-Wno-stringop-overflow)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
-    ie_add_compiler_flags(/wd4703)
+    ov_add_compiler_flags(/wd4703)
 endif()
 
 set(protobuf_VERBOSE ON)

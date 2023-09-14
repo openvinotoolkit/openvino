@@ -175,6 +175,9 @@ ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node,
 }  // namespace
 
 namespace sink_forward {
+
+namespace {
+
 AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputsInfo& transpose_input_info) {
     if (transpose_input_info.isEmpty()) {
         return {};
@@ -196,6 +199,8 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     }
     return new_transpose_order;
 }
+
+}  // namespace
 
 bool UpdateInputTransposes(const NodePtr& main_node,
                            const TransposeInputsInfo& transpose_input_info,

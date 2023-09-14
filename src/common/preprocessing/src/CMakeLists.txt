@@ -96,7 +96,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_library(${TARGET_NAME}_obj OBJECT
                 ${LIBRARY_SRC}
                 ${LIBRARY_HEADERS})
-    ie_faster_build(${TARGET_NAME}_obj UNITY)
+    ov_build_target_faster(${TARGET_NAME}_obj UNITY)
 
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE
         IMPLEMENT_INFERENCE_ENGINE_PLUGIN
@@ -166,7 +166,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     endif()
 
     # must be called after all target_link_libraries
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+    ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
     ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION "OpenVINO Preprocessing plugin")

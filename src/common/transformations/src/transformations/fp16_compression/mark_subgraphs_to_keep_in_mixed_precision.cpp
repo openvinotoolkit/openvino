@@ -52,6 +52,8 @@ using namespace std;
 namespace ov {
 namespace pass {
 
+namespace {
+
 void mark_reduceop_path(const std::shared_ptr<Node>& node) {
     node->get_rt_info().emplace("reduceop_path", true);
 }
@@ -77,7 +79,7 @@ void erase_fq_path(const std::shared_ptr<Node>& node) {
 }
 
 // Marking continues to propagate through these ops.
-std::shared_ptr<Node> propagate_through_ops =
+const std::shared_ptr<Node> propagate_through_ops =
     pattern::wrap_type<ov::op::v0::Squeeze,
                        ov::op::v0::Unsqueeze,
                        ov::op::v1::Reshape,
@@ -99,6 +101,8 @@ std::shared_ptr<Node> propagate_through_ops =
                        ov::op::v0::Convert,  // through Convert can go only to Constants
                        ov::op::v0::Constant,
                        ov::op::v0::Tile>();
+
+}  // namespace
 
 /* After PropagateDownMark we need to go also once up to include side branches of ops with several args:
  * Elementwise, Concat and so. E.g. if one of the argument of Concat was marked
@@ -367,30 +371,30 @@ public:
         MATCHER_SCOPE(PropagateDownDisableSensitivityForQuantized);
 
         // through this nodes
-        std::shared_ptr<Node> quantization_propagating_nodes = pattern::wrap_type<ov::op::v0::Squeeze,
-                                                                                  ov::op::v0::Unsqueeze,
-                                                                                  ov::op::v0::FakeQuantize,
-                                                                                  ov::op::v1::Reshape,
-                                                                                  op::util::BroadcastBase,
-                                                                                  ov::op::v0::DepthToSpace,
-                                                                                  ov::op::v0::Interpolate,
-                                                                                  ov::op::v4::Interpolate,
-                                                                                  ov::op::v11::Interpolate,
-                                                                                  ov::op::v1::MaxPool,
-                                                                                  ov::op::v8::MaxPool,
-                                                                                  op::util::PadBase,
-                                                                                  ov::op::v1::ReduceMax,
-                                                                                  ov::op::v1::ReduceMin,
-                                                                                  ov::op::v0::Relu,
-                                                                                  ov::op::v1::Transpose,
-                                                                                  ov::op::v0::ShuffleChannels,
-                                                                                  ov::op::v1::StridedSlice,
-                                                                                  ov::op::v8::Slice,
-                                                                                  ov::op::v1::VariadicSplit,
-                                                                                  ov::op::v1::Split,
-                                                                                  op::util::GatherBase,
-                                                                                  ov::op::v0::Concat,
-                                                                                  ov::op::v0::Tile>();
+        const std::shared_ptr<Node> quantization_propagating_nodes = pattern::wrap_type<ov::op::v0::Squeeze,
+                                                                                        ov::op::v0::Unsqueeze,
+                                                                                        ov::op::v0::FakeQuantize,
+                                                                                        ov::op::v1::Reshape,
+                                                                                        op::util::BroadcastBase,
+                                                                                        ov::op::v0::DepthToSpace,
+                                                                                        ov::op::v0::Interpolate,
+                                                                                        ov::op::v4::Interpolate,
+                                                                                        ov::op::v11::Interpolate,
+                                                                                        ov::op::v1::MaxPool,
+                                                                                        ov::op::v8::MaxPool,
+                                                                                        op::util::PadBase,
+                                                                                        ov::op::v1::ReduceMax,
+                                                                                        ov::op::v1::ReduceMin,
+                                                                                        ov::op::v0::Relu,
+                                                                                        ov::op::v1::Transpose,
+                                                                                        ov::op::v0::ShuffleChannels,
+                                                                                        ov::op::v1::StridedSlice,
+                                                                                        ov::op::v8::Slice,
+                                                                                        ov::op::v1::VariadicSplit,
+                                                                                        ov::op::v1::Split,
+                                                                                        op::util::GatherBase,
+                                                                                        ov::op::v0::Concat,
+                                                                                        ov::op::v0::Tile>();
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();

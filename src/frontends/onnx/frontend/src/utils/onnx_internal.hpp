@@ -7,9 +7,9 @@
 #include <memory>
 #include <string>
 
-#include "legacy_conversion_extension.hpp"
 #include "ngraph/function.hpp"
 #include "openvino/frontend/extension/holder.hpp"
+#include "utils/legacy_conversion_extension.hpp"
 #include "utils/tensor_external_data.hpp"
 
 namespace ONNX_NAMESPACE {

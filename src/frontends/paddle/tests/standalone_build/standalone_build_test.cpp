@@ -4,7 +4,7 @@
 
 #include <openvino/frontend/paddle/frontend.hpp>
 
-void test_load() {
+inline void test_load() {
     ov::frontend::paddle::FrontEnd fe;
     fe.get_name();
 }

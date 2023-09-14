@@ -31,7 +31,7 @@ addIeTarget(
             tests
 )
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )

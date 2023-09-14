@@ -6,7 +6,7 @@ set (TARGET_NAME "inference_engine")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # TODO: Add IMPLEMENT_OPENVINO_API to inference_engine_obj
-    ie_add_compiler_flags(/wd4273)
+    ov_add_compiler_flags(/wd4273)
 endif()
 
 file (GLOB LIBRARY_SRC
@@ -106,7 +106,7 @@ ov_set_threading_interface_for(${TARGET_NAME}_plugin_api)
 file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
                                  "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.h")
 
-add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
+ov_add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
@@ -126,7 +126,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-ie_faster_build(${TARGET_NAME}_obj
+ov_build_target_faster(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
 )
 
@@ -172,7 +172,7 @@ target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                                     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"

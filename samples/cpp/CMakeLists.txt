@@ -233,8 +233,8 @@ macro(ie_add_sample)
     endif()
     add_dependencies(ie_samples ${IE_SAMPLE_NAME})
 
-    if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
-        add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
+    if(COMMAND ov_add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
+        ov_add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
     endif()
     if(COMMAND ov_ncc_naming_style AND NOT c_sample)
         ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"

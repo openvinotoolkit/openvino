@@ -22,6 +22,6 @@ addIeTarget(
                 ngraphFunctions
 )
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
         PCH PRIVATE "src/precomp.hpp"
         )

@@ -58,7 +58,7 @@ target_compile_definitions(${TARGET_NAME}
     )
 
 # must be called after all target_link_libraries
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #
 # Static version for tests

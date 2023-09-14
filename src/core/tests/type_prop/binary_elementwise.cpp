@@ -31,8 +31,8 @@ using namespace testing;
 //
 // Tests for binary elementwise ops.
 //
-void test_binary(std::string /* node_type */,
-                 shared_ptr<ov::Node>(f)(const shared_ptr<ov::Node>& x, const shared_ptr<ov::Node>& y)) {
+static void test_binary(std::string /* node_type */,
+                        shared_ptr<ov::Node>(f)(const shared_ptr<ov::Node>& x, const shared_ptr<ov::Node>& y)) {
     // Check for bad arguments
     auto tv0_2_4_param_0 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});
     auto tv0_2_4_param_1 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});

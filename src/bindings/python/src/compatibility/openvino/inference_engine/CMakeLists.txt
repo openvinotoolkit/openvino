@@ -19,18 +19,18 @@ set_source_files_properties(${PYX_SOURCES} PROPERTIES CYTHON_IS_CXX ON)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 'argument': conversion from 'size_t' to 'int', possible loss of data
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4244)
-    ie_add_compiler_flags(/wd4551)
+    ov_add_compiler_flags(/wd4267)
+    ov_add_compiler_flags(/wd4244)
+    ov_add_compiler_flags(/wd4551)
 endif()
 if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-undef)
+    ov_add_compiler_flags(-Wno-undef)
     if(OV_COMPILER_IS_CLANG)
-        ie_add_compiler_flags(-Wno-parentheses-equality)
+        ov_add_compiler_flags(-Wno-parentheses-equality)
     endif()
 endif()
 if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
-    ie_add_compiler_flags(-Wno-unused-but-set-variable)
+    ov_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
 # create target
@@ -50,7 +50,7 @@ foreach(PYX_FILE IN LISTS PYX_SOURCES)
     target_include_directories(${PYX_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(${PYX_NAME} PRIVATE openvino::runtime)
     list(APPEND INSTALLED_TARGETS ${PYX_NAME})
-    ie_python_minimal_api(${PYX_NAME})
+    ov_python_minimal_api(${PYX_NAME})
     set_target_properties(${PYX_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endforeach()
 
@@ -68,7 +68,7 @@ function(python_ov_disable_deprecated_warnings)
 endfunction()
 
 python_ov_disable_deprecated_warnings()
-ie_python_minimal_api(${TARGET_NAME})
+ov_python_minimal_api(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
@@ -97,5 +97,5 @@ install(PROGRAMS __init__.py
         COMPONENT ${PYTHON_COMPONENT}
         ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-                        EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
+                           EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")

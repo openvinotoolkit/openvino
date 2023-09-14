@@ -20,4 +20,4 @@ addIeTargetTest(
             API_CONFORMANCE
 )
 
-ie_faster_build(${TARGET_NAME} UNITY)
+ov_build_target_faster(${TARGET_NAME} UNITY)

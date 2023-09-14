@@ -45,6 +45,8 @@
 #    define TF_LITE_EXT
 #endif
 
+namespace {
+
 ov::OutputVector CustomTranslatorCommon_1(const ov::frontend::NodeContext& node) {
     return ov::OutputVector();
 }
@@ -79,6 +81,8 @@ std::map<std::string, ov::OutputVector> Relu6ToReluTranslatorPaddle(const ov::fr
     ret["Out"] = {relu};
     return ret;
 }
+
+}  // namespace
 
 class CustomElu : public ov::op::Op {
 public:

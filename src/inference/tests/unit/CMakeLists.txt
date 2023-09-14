@@ -17,6 +17,6 @@ ov_add_test_target(
 )
 
 check_cxx_compiler_flag(-Wno-suggest-override SUPPORT_WNO_SUGGEST_OVERRIDE)
-if (SUPPORT_WNO_SUGGEST_OVERRIDE)
-    ie_add_compiler_flags(-Wno-suggest-override)
+if(SUPPORT_WNO_SUGGEST_OVERRIDE)
+    ov_add_compiler_flags(-Wno-suggest-override)
 endif()

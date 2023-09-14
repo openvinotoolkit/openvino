@@ -71,8 +71,8 @@ endif()
 # Install
 
 if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
-    ie_python_minimal_api(_${PROJECT_NAME})
-    add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
+    ov_python_minimal_api(_${PROJECT_NAME})
+    ov_add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion} HIDDEN)
 

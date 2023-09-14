@@ -100,7 +100,7 @@ foreach(src IN LISTS SRC MULTI_TEST_SRC)
         list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
     endif()
 endforeach()
-add_clang_format_target(ov_onnx_frontend_tests_clang FOR_SOURCES ${full_src_names})
+ov_add_clang_format_target(ov_onnx_frontend_tests_clang FOR_SOURCES ${full_src_names})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)

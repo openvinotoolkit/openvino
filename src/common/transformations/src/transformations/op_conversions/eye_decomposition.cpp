@@ -27,6 +27,8 @@
 namespace ov {
 namespace pass {
 
+namespace {
+
 /** \brief Check if output is rank one and data type can be i32 or i64. */
 const auto is_rank_one_int_shape = [](const Output<Node>& output) -> bool {
     return pattern::type_matches_any({element::i32, element::i64})(output) && pattern::has_static_shape()(output) &&
@@ -108,6 +110,8 @@ std::shared_ptr<Node> make_eye_batches(NodeRegistry& reg, const Output<Node>& ey
 
     return reg.make<ov::op::v0::Tile>(eye, batch_repeats);
 }
+
+}  // namespace
 
 EyeDecomposition::EyeDecomposition() {
     MATCHER_SCOPE(EyeDecomposition);

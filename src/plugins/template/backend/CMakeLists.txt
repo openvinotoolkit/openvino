@@ -20,19 +20,18 @@ set (SRC
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-    ie_add_compiler_flags(/wd4018)
+    ov_add_compiler_flags(/wd4244)
+    ov_add_compiler_flags(/wd4018)
 endif()
-
 
 add_library(interpreter_backend STATIC EXCLUDE_FROM_ALL ${OPS_SRC} ${SRC})
 add_library(openvino::interpreter_backend ALIAS interpreter_backend)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-missing-declarations)
+    ov_add_compiler_flags(-Wno-missing-declarations)
 endif()
 
-ie_faster_build(interpreter_backend UNITY)
+ov_build_target_faster(interpreter_backend UNITY)
 
 target_compile_definitions(interpreter_backend
     PRIVATE
@@ -44,7 +43,7 @@ target_link_libraries(interpreter_backend PRIVATE openvino::builders openvino::r
 target_include_directories(interpreter_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ops/>)
 
 file(GLOB_RECURSE all_backends_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
-add_clang_format_target(interpreter_backend_clang FOR_SOURCES ${all_backends_src})
+ov_add_clang_format_target(interpreter_backend_clang FOR_SOURCES ${all_backends_src})
 
 # developer package
 
