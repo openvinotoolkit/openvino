@@ -18,7 +18,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
     using kernel_selector_t = kernel_selector::border_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::border_params, kernel_selector::border_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::border_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<border_impl>(*this);
@@ -108,6 +108,31 @@ struct border_impl : typed_primitive_impl_ocl<border> {
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
+
+protected:
+    kernel_arguments_data get_arguments(const typed_primitive_inst<border>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
+
+        // In case of zero input shape and non-zero output (kernel execution is not skipped), we need to add fake input buffer
+        // So as not to get an error during the argument setting stage
+        if (instance.get_input_layout().count() == 0) {
+            args.inputs[0] = instance.get_intermediates_memories().front();
+        }
+
+        return args;
+    }
+
+    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+        const auto& prim_params = static_cast<const kernel_selector::border_params&>(*_kernel_data.params);
+        std::vector<layout> layouts;
+
+        if (prim_params.inputs[0].LogicalSize() == 0) {
+            layout any_layout = {data_types::u8, format::bfyx, {1, 1, 1, 1}};
+            layouts.push_back(any_layout);
+        }
+
+        return layouts;
     }
 };
 

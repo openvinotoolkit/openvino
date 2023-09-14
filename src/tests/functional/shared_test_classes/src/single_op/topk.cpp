@@ -51,7 +51,7 @@ void TopKLayerTest::SetUp() {
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
     auto k = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, &keepK);
     auto topk = std::make_shared<ov::op::v1::TopK>(param, k, axis, mode, sort);
-    function = std::make_shared<ngraph::Function>(topk->outputs(), ov::ParameterVector{param}, "TopK");
+    function = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{param}, "TopK");
 }
 }  // namespace test
 }  // namespace ov

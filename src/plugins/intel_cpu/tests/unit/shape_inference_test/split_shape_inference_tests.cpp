@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/split.hpp"
@@ -58,7 +59,7 @@ TEST_P(SplitStaticShapeInferenceTest, shape_inference_empty_const_map) {
     const auto axis_node = std::make_shared<op::v0::Constant>(element::i64, Shape{}, axis);
     op = make_op(arg, axis_node, num_of_splits);
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), num_of_splits);
     EXPECT_THAT(output_shapes, Each(exp_shape));
@@ -68,11 +69,10 @@ TEST_P(SplitStaticShapeInferenceTest, shape_inference_with_const_map) {
     const auto axis_node = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
     op = make_op(arg, axis_node, num_of_splits);
 
-    const auto axis_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{}, axis);
-    const auto axis_tensor = std::make_shared<ngraph::runtime::HostTensor>(axis_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axis_tensor}};
+    const auto axis_tensor = ov::Tensor(element::i64, ov::Shape{}, &axis);
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{1, axis_tensor}};
 
-    shape_inference(op.get(), input_shapes, output_shapes, constant_data);
+    output_shapes = shape_inference(op.get(), input_shapes, constant_data);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
 }
