@@ -618,4 +618,4 @@ def compile_model(
 
     """
     core = Core()
-    return core.compile_model(model, device_name, config)
+    return core.compile_model(model, device_name, {} if config is None else config)

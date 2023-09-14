@@ -40,15 +40,6 @@ def test_compact_api_xml():
     assert np.argmax(results[list(results)[0]]) == 531
 
 
-# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compact_api_xml_posix_path(request, tmp_path):
-    xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
-    model = get_relu_model()
-    serialize(model, xml_path)
-    compiled_model = compile_model(Path(xml_path))
-    assert isinstance(compiled_model, CompiledModel)
-
-
 def test_compact_api_wrong_path():
     # as inner method takes py::object as an input and turns it into string
     # it is necessary to assure that provided argument is either
@@ -76,47 +67,55 @@ def test_core_class(device):
     assert np.allclose(results[list(results)[0]], expected_output)
 
 
-# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compile_model(request, tmp_path, device):
+@pytest.mark.parametrize("device_name", [
+    None,
+    "CPU"
+])
+def test_compile_model(request, tmp_path, device_name):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = core.compile_model(model, device)
+    compile_model = None
+    if device_name is None:
+        compiled_model = core.compile_model(model)
+    else:
+        compiled_model = core.compile_model(model, device_name)
+
     assert isinstance(compiled_model, CompiledModel)
 
 
-# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compile_model_without_device(request, tmp_path):
-    core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+@pytest.mark.parametrize(("loading_type"), [
+    None,
+    "posixpath",
+    "auto"
+])
+@pytest.mark.parametrize("device_name", [
+    None,
+    "CPU"
+])
+@pytest.mark.parametrize("config", [
+    None,
+    {"PERFORMANCE_HINT": "THROUGHPUT"},  # here I would replace them with actual properties later CC Ana
+    {"PERFORMANCE_HINT":"LATENCY"},
+    {"PERFORMANCE_HINT":"CUMULATIVE_THROUGHPUT"}
+])
+def test_compact_api(request, tmp_path, loading_type, device_name, config):
     relu_model = get_relu_model()
-    serialize(relu_model, xml_path, bin_path)
-    model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = core.compile_model(model)
-    assert isinstance(compiled_model, CompiledModel)
+    compiled_model = None
 
+    if loading_type is not None:
+        if loading_type == "posixpath":
+            xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
+            serialize(relu_model, xml_path)
+            compiled_model = compile_model(Path(xml_path))
+        elif loading_type == "auto":
+            if device_name is not None:
+                compiled_model = compile_model(model=relu_model, device_name=device_name, config=config)
+            else:
+                compiled_model = compile_model(model=relu_model, config=config)
 
-# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compile_model_with_auto_plugin(request, tmp_path):
-    core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
-    relu_model = get_relu_model()
-    serialize(relu_model, xml_path, bin_path)
-    model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = compile_model(model)
-    assert isinstance(compiled_model, CompiledModel)
-
-
-# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compile_model_with_auto_plugin_no_default(request, tmp_path):
-    core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
-    relu_model = get_relu_model()
-    serialize(relu_model, xml_path, bin_path)
-    model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = compile_model(model=model, device_name="CPU", config={"PERFORMANCE_HINT": "THROUGHPUT"})
     assert isinstance(compiled_model, CompiledModel)
 
 
