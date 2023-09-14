@@ -21,7 +21,7 @@ std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
@@ -30,7 +30,7 @@ std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo
 void SubtractTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     function = ngraph::builder::subgraph::SubtractFunction::getOriginal(netPrecision, inputShape);
