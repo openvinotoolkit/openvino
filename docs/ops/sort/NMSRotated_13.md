@@ -103,7 +103,8 @@ Plugins which do not support dynamic output tensors produce ``selected_indices``
 
 **Example**
 
-.. code-block::  cpp
+.. code-block:: xml
+   :force:
 
   <layer ... type="NMSRotated" ... >
       <data box_encoding="corner" sort_result_descending="true" output_type="i64"/>
