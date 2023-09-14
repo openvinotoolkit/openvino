@@ -94,12 +94,12 @@ TEST_F(GetSupportedNodesTest, UnsupportedCompressedConstantCF) {
 
 TEST_F(GetSupportedNodesTest, ConstantSubgraphCF) {
     {
-        auto constant_compressed1 = ov::op::v0::Constant::create(ov::element::f16, m_shape, {1});
+        auto constant_compressed1 = ov::op::v0::Constant::create(ov::element::i16, m_shape, {1});
         constant_compressed1->set_friendly_name("constant_compressed1");
         auto convert1 = std::make_shared<ov::op::v0::Convert>(constant_compressed1, ov::element::f32);
         convert1->set_friendly_name("constant1");
         ov::mark_as_decompression(convert1);
-        auto constant_compressed2 = ov::op::v0::Constant::create(ov::element::f16, m_shape, {2});
+        auto constant_compressed2 = ov::op::v0::Constant::create(ov::element::i16, m_shape, {2});
         constant_compressed2->set_friendly_name("constant_compressed2");
         auto convert2 = std::make_shared<ov::op::v0::Convert>(constant_compressed2, ov::element::f32);
         convert2->set_friendly_name("constant2");
@@ -210,7 +210,7 @@ TEST_F(GetSupportedNodesTest, PartiallySupportedCompressedConstant) {
         param1->set_friendly_name("input1");
         auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, m_shape);
         param2->set_friendly_name("input2");
-        auto constant_compressed = ov::op::v0::Constant::create(ov::element::f16, m_shape, {1});
+        auto constant_compressed = ov::op::v0::Constant::create(ov::element::i16, m_shape, {1});
         constant_compressed->set_friendly_name("constant_compressed");
         auto convert = std::make_shared<ov::op::v0::Convert>(constant_compressed, ov::element::f32);
         convert->set_friendly_name("constant");
@@ -387,7 +387,7 @@ TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
     {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, m_shape);
         param->set_friendly_name("input");
-        auto slope_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {-2.f});
+        auto slope_compressed = ov::op::v0::Constant::create(ov::element::i16, ov::Shape{}, {-2.f});
         slope_compressed->set_friendly_name("slope_compressed");
         auto convert_slope = std::make_shared<ov::op::v0::Convert>(slope_compressed, ov::element::f32);
         convert_slope->set_friendly_name("slope");
