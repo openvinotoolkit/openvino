@@ -188,6 +188,7 @@ Transformations:
 * :doc:`AddTransformation <openvino_docs_OV_UG_lpt_AddTransformation>`
 * :doc:`AvgPoolTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>`
 * :doc:`ClampTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>`
+* :doc:`BatchToSpaceTransformation <openvino_docs_OV_UG_lpt_BatchToSpaceTransformation>`
 * :doc:`ConcatTransformation <openvino_docs_OV_UG_lpt_ConcatTransformation>`
 * :doc:`ConvolutionTransformation <openvino_docs_OV_UG_lpt_ConvolutionTransformation>`
 * :doc:`ConvolutionBackpropDataTransformation <openvino_docs_OV_UG_lpt_ConvolutionBackpropDataTransformation>`
@@ -211,6 +212,7 @@ Transformations:
 * :doc:`ReshapeTransformation <openvino_docs_OV_UG_lpt_ReshapeTransformation>`
 * :doc:`SqueezeTransformation <openvino_docs_OV_UG_lpt_SqueezeTransformation>`
 * :doc:`ShuffleChannelsTransformation <openvino_docs_OV_UG_lpt_ShuffleChannelsTransformation>`
+* :doc:`SpaceToBatchTransformation <openvino_docs_OV_UG_lpt_SpaceToBatchTransformation>`
 * :doc:`SplitTransformation <openvino_docs_OV_UG_lpt_SplitTransformation>`
 * :doc:`StridedSliceTransformation <openvino_docs_OV_UG_lpt_StridedSliceTransformation>`
 * :doc:`TransposeTransformation <openvino_docs_OV_UG_lpt_TransposeTransformation>`

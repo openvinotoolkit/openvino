@@ -89,6 +89,26 @@ bool FakeQuantizeDequantization::isLowPrecision() const {
     return DataPrecision::isSupported(data.get_element_type());
 }
 
+bool FakeQuantizeDequantization::isPerTensor() const {
+    if (multiplyConstant == nullptr) {
+        THROW_IE_LPT_EXCEPTION_BASE << "multiply constant can not be empty";
+    }
+
+    const std::vector<float>& scales = multiplyConstant->cast_vector<float>();
+    if (scales.size() != 1ull) {
+        return false;
+    }
+
+    if (subtractConstant != nullptr) {
+        const std::vector<float>& scales = subtractConstant->cast_vector<float>();
+        if (scales.size() != 1ull) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ov::Node>& elementwise) {
     std::shared_ptr<ov::opset1::Convert> convert;
     std::shared_ptr<ov::opset1::Constant> constant;

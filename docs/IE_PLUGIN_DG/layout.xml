@@ -37,6 +37,7 @@
                         <tab type="user" title="Step 3. Main transformations" url="@ref openvino_docs_OV_UG_lpt_step3_main">
                             <tab type="user" title="AddTransformation" url="@ref openvino_docs_OV_UG_lpt_AddTransformation"/>
                             <tab type="user" title="AvgPoolTransformation" url="@ref openvino_docs_OV_UG_lpt_AvgPoolTransformation"/>
+                            <tab type="user" title="BatchToSpaceTransformation" url="@ref openvino_docs_OV_UG_lpt_BatchToSpaceTransformation"/>
                             <tab type="user" title="ClampTransformation" url="@ref openvino_docs_OV_UG_lpt_ClampTransformation"/>
                             <tab type="user" title="ConcatTransformation" url="@ref openvino_docs_OV_UG_lpt_ConcatTransformation"/>
                             <tab type="user" title="ConvolutionTransformation" url="@ref openvino_docs_OV_UG_lpt_ConvolutionTransformation"/>
@@ -62,6 +63,7 @@
                             <tab type="user" title="ReshapeTransformation" url="@ref openvino_docs_OV_UG_lpt_ReshapeTransformation"/>
                             <tab type="user" title="SqueezeTransformation" url="@ref openvino_docs_OV_UG_lpt_SqueezeTransformation"/>
                             <tab type="user" title="ShuffleChannelsTransformation" url="@ref openvino_docs_OV_UG_lpt_ShuffleChannelsTransformation"/>
+                            <tab type="user" title="SpaceToBatchTransformation" url="@ref openvino_docs_OV_UG_lpt_SpaceToBatchTransformation"/>
                             <tab type="user" title="SplitTransformation" url="@ref openvino_docs_OV_UG_lpt_SplitTransformation"/>
                             <tab type="user" title="StridedSliceTransformation" url="@ref openvino_docs_OV_UG_lpt_StridedSliceTransformation"/>
                             <tab type="user" title="TransposeTransformation" url="@ref openvino_docs_OV_UG_lpt_TransposeTransformation"/>
