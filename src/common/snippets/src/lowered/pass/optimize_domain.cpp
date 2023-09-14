@@ -27,8 +27,8 @@ bool OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
 
     auto CollapseLastDim = [](VectorDims& dims) {
         OPENVINO_ASSERT(dims.size() >= 2, "CollapseLastDim can't process shape with less than two dims");
-        dims[dims.size() - 1] *= dims[dims.size() - 2];
-        for (auto i = dims.size() - 2; i > 0; i--)
+        dims[dims.size() - 2] *= dims.back();
+        for (auto i = dims.size() - 1; i > 0; i--)
             dims[i] = dims[i - 1];
         dims[0] = 1;
     };
@@ -44,16 +44,19 @@ bool OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
     };
 
     size_t jit_work_amount = master_shape.back();
+    size_t next_jit_work_amount = jit_work_amount * master_shape[master_shape.size() - 2];
     bool some_dims_collapsed {false};
     while (jit_work_amount < min_jit_work_amount &&
-           can_increase_jit_work_amount(master_shape, min_parallel_work_amount, total_work_amount) &&
+           next_jit_work_amount * min_parallel_work_amount < total_work_amount &&
+           master_shape.size() > 2 &&
            LastDimsNotBroadcasted(input_shapes, master_shape)) {
         for (auto &s : input_shapes)
             CollapseLastDim(s);
 
         CollapseLastDim(master_shape);
 
-        jit_work_amount = master_shape.back();
+        jit_work_amount = next_jit_work_amount;
+        next_jit_work_amount *= master_shape[master_shape.size() - 2];
         some_dims_collapsed = true;
     }
     return some_dims_collapsed;
@@ -96,11 +99,11 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
                                                    master_shape.end(),
                                                    (size_t)1,
                                                    std::multiplies<size_t>());
-    const bool some_dims_collapsed = false;//optimize(input_shapes,
-                                           //   master_shape,
-                                           //   total_work_amount,
-                                           //   config.m_min_parallel_work_amount,
-                                           //   config.m_min_jit_work_amount);
+    const bool some_dims_collapsed = optimize(input_shapes,
+                                              master_shape,
+                                              total_work_amount,
+                                              config.m_min_parallel_work_amount,
+                                              config.m_min_jit_work_amount);
     if (some_dims_collapsed) {
         std::vector<VectorDimsRef> infer_shapes;
         infer_shapes.reserve(input_shapes.size());
