@@ -44,19 +44,16 @@ bool OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
     };
 
     size_t jit_work_amount = master_shape.back();
-    size_t next_jit_work_amount = jit_work_amount * master_shape[master_shape.size() - 2];
     bool some_dims_collapsed {false};
     while (jit_work_amount < min_jit_work_amount &&
-           next_jit_work_amount * min_parallel_work_amount < total_work_amount &&
-           master_shape.size() > 2 &&
+           can_increase_jit_work_amount(master_shape, min_parallel_work_amount, total_work_amount) &&
            LastDimsNotBroadcasted(input_shapes, master_shape)) {
         for (auto &s : input_shapes)
             CollapseLastDim(s);
 
         CollapseLastDim(master_shape);
 
-        jit_work_amount = next_jit_work_amount;
-        next_jit_work_amount *= master_shape[master_shape.size() - 2];
+        jit_work_amount = master_shape.back();
         some_dims_collapsed = true;
     }
     return some_dims_collapsed;
