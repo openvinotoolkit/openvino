@@ -27,7 +27,7 @@ public:
     };
 
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
 };
 

@@ -5,13 +5,13 @@
 #include "low_precision/markup_bias.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "itt.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 MarkupBias::MarkupBias() {
     MATCHER_SCOPE(MarkupBias);

@@ -163,9 +163,21 @@ Example of Creating Model OpenVINO API
 
 In the following example, the ``SinkVector`` is used to create the ``ov::Model``. For a model with states, except inputs and outputs, the ``Assign`` nodes should also point to the ``Model`` to avoid deleting it during graph transformations. Use the constructor to do it, as shown in the example, or with the special ``add_sinks(const SinkVector& sinks)`` method. After deleting the node from the graph with the ``delete_sink()`` method, a sink can be deleted from ``ov::Model``.
 
-.. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
-   :language: cpp
-   :fragment: [model_create]
+.. tab-set::
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
+         :language: cpp
+         :fragment: [model_create]
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.py
+         :language: python
+         :fragment: ov:model_create
 
 .. _openvino-state-api:
 
@@ -189,10 +201,22 @@ Based on the IR from the previous section, the example below demonstrates infere
 
 One infer request and one thread will be used in this example. Using several threads is possible if there are several independent sequences. Then, each sequence can be processed in its own infer request. Inference of one sequence in several infer requests is not recommended. In one infer request, a state will be saved automatically between inferences, but if the first step is done in one infer request and the second in another, a state should be set in a new infer request manually (using the ``ov::IVariableState::set_state`` method).
 
+.. tab-set::
 
-.. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
-   :language: cpp
-   :fragment: [part1]
+   .. tab-item:: C++
+      :sync: cpp
+      
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
+         :language: cpp
+         :fragment: [part1]
+    
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.py
+         :language: python
+         :fragment: ov:part1
+
 
 
 For more elaborate examples demonstrating how to work with models with states, 

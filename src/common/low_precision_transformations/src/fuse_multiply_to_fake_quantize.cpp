@@ -4,15 +4,14 @@
 
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 #include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -20,7 +19,7 @@ FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformati
     MATCHER_SCOPE(FuseMultiplyToFakeQuantizeTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -28,11 +27,11 @@ FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformati
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     const auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -128,4 +127,4 @@ bool FuseMultiplyToFakeQuantizeTransformation::isPrecisionPreserved(std::shared_
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

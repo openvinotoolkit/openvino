@@ -15,7 +15,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string, // target device: CPU, GPU
-    ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
+    ov::pass::low_precision::LayerTransformation::Params, // transformation parameters
     bool, // transparent intermediate
     // multichannel
     bool> ConcatWithIntermediateTransformationParams;
