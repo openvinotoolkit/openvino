@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('node:fs/promises');
 
 exports.cleanWord = cleanWord;
 exports.encodeByVoc = encodeByVoc;
@@ -7,9 +7,9 @@ exports.splitToWords = splitToWords;
 exports.loadVocabFile = loadVocabFile;
 
 // load vocabulary file for encoding
-function loadVocabFile(vocabFileName) {
+async function loadVocabFile(vocabFileName) {
   const vocab = {};
-  const lines = fs.readFileSync(vocabFileName, 'utf-8').split('\n');
+  const lines = await fs.readFileSync(vocabFileName, 'utf-8').split('\n');
 
   lines.forEach((line, index) => {
     const token = line.trim();
