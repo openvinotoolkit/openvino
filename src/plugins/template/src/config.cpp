@@ -36,6 +36,18 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         } else if (ov::hint::performance_mode == key) {
             std::stringstream strm{value.as<std::string>()};
             strm >> performance_mode;
+        } else if (ov::hint::inference_precision == key) {
+            inference_precision = value.as<ov::element::Type>();
+        } else if (ov::hint::execution_mode == key) {
+            execution_mode = value.as<ov::hint::ExecutionMode>();
+            if ((execution_mode != ov::hint::ExecutionMode::ACCURACY) &&
+                (execution_mode != ov::hint::ExecutionMode::PERFORMANCE)) {
+                OPENVINO_THROW("Unsupported execution mode, should be ACCURACY or PERFORMANCE, but was: ", value.as<std::string>());
+            }
+        } else if (ov::num_streams == key) {
+            streams_executor_config.set_property(key, value);
+        } else if (ov::hint::num_requests == key) {
+            num_requests = value.as<uint32_t>();
         } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }
@@ -66,6 +78,12 @@ ov::Any Configuration::Get(const std::string& name) const {
         return {std::to_string(streams_executor_config._threadsPerStream)};
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;
+    } else if (name == ov::hint::inference_precision) {
+        return inference_precision;
+    } else if (name == ov::hint::execution_mode) {
+        return execution_mode;
+    } else if (name == ov::hint::num_requests) {
+        return num_requests;
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
