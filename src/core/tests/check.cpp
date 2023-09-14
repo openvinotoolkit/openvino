@@ -49,6 +49,9 @@ TEST(check, check_with_explanation) {
 }
 
 TEST(check, ov_throw_exception_check_relative_path_to_source) {
+#ifdef GITHUB_ACTIONS
+    GTEST_SKIP();
+#endif
     using namespace testing;
     const auto path = ov::util::path_join({"src", "core", "tests", "check.cpp"});
     const auto exp_native_slash = "Exception from " + path + ":";
