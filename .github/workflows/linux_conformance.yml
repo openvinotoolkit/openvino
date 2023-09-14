@@ -164,7 +164,7 @@ jobs:
         run: ccache --zero-stats --show-config
 
       - name: Build Conformance Targets
-        working-directory: ${{ env.OPENVINO_REPO }}
+        working-directory: ${{ env.BUILD_DIR }}
         run:
           make --jobs=$(nproc --all) subgraphsDumper
           make --jobs=$(nproc --all) conformanceTests
