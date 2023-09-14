@@ -27,8 +27,8 @@ bool OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
 
     auto CollapseLastDim = [](VectorDims& dims) {
         OPENVINO_ASSERT(dims.size() >= 2, "CollapseLastDim can't process shape with less than two dims");
-        dims[dims.size() - 2] *= dims.back();
-        for (auto i = dims.size() - 1; i > 0; i--)
+        dims[dims.size() - 1] *= dims[dims.size() - 2];
+        for (auto i = dims.size() - 2; i > 0; i--)
             dims[i] = dims[i - 1];
         dims[0] = 1;
     };
@@ -44,19 +44,19 @@ bool OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
     };
 
     size_t jit_work_amount = master_shape.back();
-    bool some_dims_collapsed {false};
+    size_t num_dims_collapsed = 0;
     while (jit_work_amount < min_jit_work_amount &&
            can_increase_jit_work_amount(master_shape, min_parallel_work_amount, total_work_amount) &&
-           LastDimsNotBroadcasted(input_shapes, master_shape)) {
+           LastDimsNotBroadcasted(input_shapes, master_shape) &&
+           ++num_dims_collapsed < master_shape.size()) {
         for (auto &s : input_shapes)
             CollapseLastDim(s);
 
         CollapseLastDim(master_shape);
 
         jit_work_amount = master_shape.back();
-        some_dims_collapsed = true;
     }
-    return some_dims_collapsed;
+    return num_dims_collapsed > 0;
 }
 
 inline bool OptimizeDomain::can_increase_jit_work_amount(const VectorDims& master_shape,
@@ -69,9 +69,9 @@ inline bool OptimizeDomain::can_increase_jit_work_amount(const VectorDims& maste
 bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::OptimizeDomain")
     const auto& config = linear_ir.get_config();
+    m_tile_rank = 1;
     if (linear_ir.empty())
         return false;
-    m_tile_rank = 1;
     if (!config.m_enable_domain_optimization) {
         // Note: this is a special case: if optimization is not allowed, always assume 2D tile
         m_tile_rank = 2;
