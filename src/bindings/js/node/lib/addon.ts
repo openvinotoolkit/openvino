@@ -13,8 +13,8 @@ type SupportedTypedArray =
 
 interface Core {
   compileModel(model: Model, device: string): CompiledModel;
-  readModelAsync(): Promise<Model>;
-  readModel(modelPath: string, binPath?: string): Model;
+  readModel(modelPath: string, binPath?: string): Promise<Model>;
+  readModelSync(modelPath: string, binPath?: string): Model;
 }
 interface CoreConstructor {
   new(): Core;

@@ -16,10 +16,8 @@ module.exports = {
   sum,
   triu,
   tril,
-  arange,
   argMax,
   reshape,
-  sumRows,
   getShape,
   setShape,
   transform,
@@ -60,7 +58,7 @@ function displayImage(imageOrImageData, display) {
 
 function displayArrayAsImage(arr, width, height, display) {
   const alpha = 255;
-  const componentsPerPixel = arr.length/(width*height);
+  const componentsPerPixel = arr.length / (width*height);
 
   try {
     switch (componentsPerPixel) {
@@ -226,10 +224,6 @@ function exp(arr) {
   return eachInner(arr, Math.exp);
 }
 
-function sumRows(arr) {
-  return arr.map(row => sum(row));
-}
-
 function reshape(arr, newShape) {
   const flat = extractValues(arr);
 
@@ -259,11 +253,13 @@ function matrixMultiplication(matrix1, matrix2) {
 
   for (let i = 0; i < rows1; i++) {
     result[i] = [];
+
     for (let j = 0; j < cols2; j++) {
       let sum = 0;
-      for (let k = 0; k < cols1; k++) {
+
+      for (let k = 0; k < cols1; k++)
         sum += matrix1[i][k] * matrix2[k][j];
-      }
+
       result[i][j] = sum;
     }
   }
@@ -292,18 +288,13 @@ function argMax(arr) {
 function triu(matrix, k = 0) {
   const numRows = matrix.length;
   const numCols = matrix[0].length;
-
   const result = [];
 
   for (let i = 0; i < numRows; i++) {
     result[i] = [];
-    for (let j = 0; j < numCols; j++) {
-      if (i <= j - k) {
-        result[i][j] = matrix[i][j];
-      } else {
-        result[i][j] = 0;
-      }
-    }
+
+    for (let j = 0; j < numCols; j++)
+      result[i][j] = i <= j - k ? matrix[i][j] : 0;
   }
 
   return result;
@@ -312,27 +303,14 @@ function triu(matrix, k = 0) {
 function tril(matrix, k = 0) {
   const numRows = matrix.length;
   const numCols = matrix[0].length;
-
   const result = [];
 
   for (let i = 0; i < numRows; i++) {
     result[i] = [];
-    for (let j = 0; j < numCols; j++) {
-      if (i >= j - k) {
-        result[i][j] = matrix[i][j];
-      } else {
-        result[i][j] = 0;
-      }
-    }
+
+    for (let j = 0; j < numCols; j++)
+      result[i][j] = i >= j - k ? matrix[i][j] : 0;
   }
 
   return result;
-}
-
-function arange(count) {
-  const arr = new Array(count);
-
-  for (let i = 0; i < count; i++) arr[i] = i;
-
-  return arr;
 }

@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('node:fs/promises');
 
 exports.cleanWord = cleanWord;
 exports.encodeByVoc = encodeByVoc;
@@ -6,10 +6,10 @@ exports.textToTokens = textToTokens;
 exports.splitToWords = splitToWords;
 exports.loadVocabFile = loadVocabFile;
 
-// load vocabulary file for encoding
-function loadVocabFile(vocabFileName) {
+// Load vocabulary file for encoding
+async function loadVocabFile(vocabFileName) {
   const vocab = {};
-  const lines = fs.readFileSync(vocabFileName, 'utf-8').split('\n');
+  const lines = await fs.readFileSync(vocabFileName, 'utf-8').split('\n');
 
   lines.forEach((line, index) => {
     const token = line.trim();
@@ -20,13 +20,13 @@ function loadVocabFile(vocabFileName) {
   return vocab;
 }
 
-// remove mark and control chars
+// Remove mark and control chars
 function cleanWord(w) {
-  let wo = ''; // accumulator for output word
+  let wo = ''; // Accumulator for output word
 
   for (const c of w.normalize('NFD')) {
     const charCode = c.charCodeAt(0);
-    // remove mark nonspacing code and controls
+    // Remove mark nonspacing code and controls
     if (charCode < 32 || charCode == 127) continue;
 
     wo += c;
@@ -35,8 +35,7 @@ function cleanWord(w) {
   return wo;
 }
 
-// split word by vocab items and get tok codes
-// iteratively return codes
+// Split word by vocab items and get tok codes iteratively return codes
 function encodeByVoc(w, vocab) {
   w = cleanWord(w);
   const res = [];
@@ -57,9 +56,7 @@ function encodeByVoc(w, vocab) {
         s = e;
         e = e0;
       }
-      else {
-        e -= 1;
-      }
+      else e -= 1;
     }
 
     if (s < e0) tokens.push(vocab['[UNK]']);
@@ -70,11 +67,11 @@ function encodeByVoc(w, vocab) {
   return res;
 }
 
-// split big text into words by spaces
-// return start and end indexes of words
+// Split big text into words by spaces
+// Return start and end indexes of words
 function splitToWords(text) {
   let start;
-  let prevIsSep = true; // mark initial prev as space to start word from 0 char
+  let prevIsSep = true; // Mark initial prev as space to start word from 0 char
   const result = [];
 
   for (let i = 0; i < text.length + 1; i++) {
@@ -98,7 +95,7 @@ function splitToWords(text) {
   return result;
 }
 
-// get big text and return list of token id and start-end positions
+// Get big text and return list of token id and start-end positions
 // for each id in original texts
 function textToTokens(text, vocab) {
   const tokensId = [];

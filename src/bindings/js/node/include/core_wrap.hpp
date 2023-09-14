@@ -29,7 +29,7 @@ public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     /**
-     * @brief Reads a model.
+     * @brief Reads a model synchronously.
      * @param info contains passed arguments.
      * One argument is passed:
      * @param info[0] path to a model. (model_path)
@@ -43,7 +43,11 @@ public:
     /**
      * @brief Asynchronously reads a model.
      * @param info contains passed arguments.
+     * One argument is passed:
      * @param info[0] path to a model. (model_path)
+     * Two arguments are passed:
+     * @param info[0] path to a model. (model_path)
+     * @param info[1] path to a data file. (e.g. bin_path)
      * @return A Javascript Promise.
      */
     Napi::Value read_model_async(const Napi::CallbackInfo& info);

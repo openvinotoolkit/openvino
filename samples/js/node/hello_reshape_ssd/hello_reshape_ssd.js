@@ -1,6 +1,6 @@
 const { addon: ov } = require('openvinojs-node');
 
-const fs = require('fs');
+const fs = require('node:fs/promises');
 const { cv } = require('opencv-wasm');
 const {
   setShape,
@@ -23,7 +23,6 @@ main(modelPath, imagePath, deviceName);
 async function main(modelPath, imagePath, deviceName) {
   //----------------- Step 1. Initialize OpenVINO Runtime Core -----------------
   console.log('Creating OpenVINO Runtime Core');
-
   const core = new ov.Core();
 
   //----------------- Step 2. Read a model -------------------------------------
@@ -47,19 +46,15 @@ async function main(modelPath, imagePath, deviceName) {
   // The MobileNet model expects images in RGB format.
   cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
 
-  const tensorData = new Float32Array(image.data);
+  const tensorData = new Uint8Array(image.data);
   const shape = [1, image.rows, image.cols, 3];
-
-  const inputTensor = new ov.Tensor(ov.element.f32, shape, tensorData);
+  const inputTensor = new ov.Tensor(ov.element.u8, shape, tensorData);
 
   //----------------- Step 4. Apply preprocessing ------------------------------
-
   new ov.PrePostProcessor(model)
     .setInputTensorShape(shape)
     .preprocessResizeAlgorithm(ov.resizeAlgorithm.RESIZE_LINEAR)
-
-    // FIXME: Uncomment after support tensor in not f32 precision
-    // .set_input_element_type(ov.element.u8)
+    .setInputElementType(0, ov.element.u8)
     .setInputTensorLayout('NHWC')
     .setInputModelLayout('NCHW')
     // TODO: add output tensor element type setup
@@ -71,7 +66,6 @@ async function main(modelPath, imagePath, deviceName) {
 
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');
-
   const inferRequest = compiledModel.createInferRequest();
   inferRequest.setInputTensor(inputTensor);
   inferRequest.infer();
@@ -108,12 +102,14 @@ async function main(modelPath, imagePath, deviceName) {
   const resultImgData = arrayToImageData(originalImage.data, width, height);
   const filename = 'out.jpg';
 
-  fs.writeFileSync(`./${filename}`, getImageBuffer(resultImgData));
+  await fs.writeFile(`./${filename}`, getImageBuffer(resultImgData));
 
-  if (fs.existsSync(filename))
+  try {
+    await fs.readFile(filename);
     console.log('Image out.jpg was created!');
-  else
+  } catch(err) {
     console.log(`Image ${filename} was not created. Check your permissions.`);
+  }
 
   console.log('\nThis sample is an API example, for any performance '
     + 'measurements please use the dedicated benchmark_app tool');

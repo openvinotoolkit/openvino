@@ -1,4 +1,5 @@
 const { addon: ov } = require('openvinojs-node');
+
 const { cv } = require('opencv-wasm');
 const { getImageData } = require('../helpers.js');
 
@@ -16,7 +17,6 @@ main(modelPath, imagePath, deviceName);
 async function main(modelPath, imagePath, deviceName) {
   //----------------- Step 1. Initialize OpenVINO Runtime Core -----------------
   console.log('Creating OpenVINO Runtime Core');
-
   const core = new ov.Core();
 
   //----------------- Step 2. Read a model -------------------------------------
@@ -41,11 +41,9 @@ async function main(modelPath, imagePath, deviceName) {
 
   const tensorData = new Float32Array(image.data);
   const shape = [1, image.rows, image.cols, 3];
-
   const inputTensor = new ov.Tensor(ov.element.f32, shape, tensorData);
 
   //----------------- Step 4. Apply preprocessing ------------------------------
-
   new ov.PrePostProcessor(model)
     .setInputTensorShape(shape)
     .preprocessResizeAlgorithm(ov.resizeAlgorithm.RESIZE_LINEAR)
@@ -59,7 +57,6 @@ async function main(modelPath, imagePath, deviceName) {
 
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');
-
   const inferRequest = compiledModel.createInferRequest();
   inferRequest.setInputTensor(inputTensor);
   inferRequest.infer();

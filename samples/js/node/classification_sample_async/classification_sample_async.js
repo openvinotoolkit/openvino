@@ -72,7 +72,6 @@ async function main(modelPath, images, deviceName) {
   });
 
   //----------- Step 4. Apply preprocessing ------------------------------------
-
   new ov.PrePostProcessor(model)
     .setInputElementType(0, ov.element.u8)
     .setInputTensorLayout('NHWC')
@@ -85,7 +84,7 @@ async function main(modelPath, images, deviceName) {
   const compiledModel = core.compileModel(model, deviceName);
   const outputName = compiledModel.output(0).toString();
 
-  //----------- Step 6. Creating promises that returns data from async inference
+  //----------- Step 6. Collecting promises to react when they resolve ---------
   console.log('Starting inference in asynchronous mode');
 
   // Create infer request
@@ -109,7 +108,6 @@ async function main(modelPath, images, deviceName) {
   });
 
   //----------- Step 7. Do inference -------------------------------------------
-
   await Promise.all(promises);
   console.log('All inferences executed');
 
