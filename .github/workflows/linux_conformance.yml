@@ -163,18 +163,14 @@ jobs:
       - name: Clean ccache stats
         run: ccache --zero-stats --show-config
 
-      - name: Build Conformance Targets
-        working-directory: ${{ env.BUILD_DIR }}
-        run:
-          make --jobs=$(nproc --all) subgraphsDumper
-          make --jobs=$(nproc --all) conformanceTests
-          make --jobs=$(nproc --all) apiConformanceTests
-
       - name: Build
         run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ steps.cpu-cores.outputs.count }} --config Release
 
       - name: Show ccache stats
         run: ccache --show-stats
+
+      - name: Build Conformance Tests
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel --config Release --target subgraphsDumper conformanceTests apiConformanceTests
 
       - name: Cmake Layer Tests
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
