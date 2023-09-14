@@ -14,6 +14,7 @@
 * @brief A macro used to throw the exception with a notable description for low precision transformations
 */
 #define THROW_IE_LPT_EXCEPTION(node) throw ::ov::pass::low_precision::InferenceEngineLptException(__FILE__, __LINE__, node)
+#define THROW_IE_LPT_EXCEPTION_BASE throw ::ov::pass::low_precision::InferenceEngineLptException(__FILE__, __LINE__)
 
 namespace ov {
 namespace pass {
@@ -48,6 +49,10 @@ public:
         *this
             << filename << ":" << line << " Exception during low precision transformation for "
             << node << " node with type '" << node.get_type_name() << "', name '" << node.get_friendly_name() << "'. ";
+    }
+
+    InferenceEngineLptException(const std::string& filename, const size_t line) {
+        *this << filename << ":" << line << " Exception during low precision transformation. ";
     }
 };
 

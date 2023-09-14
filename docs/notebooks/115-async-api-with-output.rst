@@ -47,6 +47,7 @@ Imports
     import cv2
     import time
     import numpy as np
+    from openvino.runtime import Core, AsyncInferQueue
     import openvino as ov
     from IPython import display
     import matplotlib.pyplot as plt
