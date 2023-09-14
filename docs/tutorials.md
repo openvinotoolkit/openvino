@@ -46,6 +46,7 @@ The Jupyter notebooks are categorized into following classes:
 -  `Model Demos <#model-demos>`__
 -  `Model Training <#model-training>`__
 -  `Live Demos <#live-demos>`__
+-  `Recommended Tutorials <#recommended-tutorials>`__
 
 First steps with OpenVINO
 ##########################
