@@ -89,7 +89,7 @@ public:
                                                                    testValues.actual.dequantizationOnWeights);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ov::pass::low_precision::MatMulTransformation, ov::opset1::MatMul>(testValues.params);
+        transformer.add<ov::pass::low_precision::MatMulTransformation, ov::op::v0::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =

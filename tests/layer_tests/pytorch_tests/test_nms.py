@@ -15,7 +15,8 @@ class TestNms(PytorchLayerTest):
         # PyTorch requires that boxes are in (x1, y1, x2, y2) format, where 0<=x1<x2 and 0<=y1<y2
         boxes = np.array([[np.random.uniform(1, 3), np.random.uniform(2, 6),
                            np.random.uniform(4, 6), np.random.uniform(7, 9)] for _ in range(self.boxes_num)]).astype(np.float32)
-        scores = np.abs(np.random.randn(self.boxes_num).astype(np.float32))
+        # scores can be negative
+        scores = np.random.randn(self.boxes_num).astype(np.float32)
         return (boxes, scores)
 
     def create_model(self):
