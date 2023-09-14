@@ -36,10 +36,10 @@ jobs:
           done
 
           BRANCH="master"
-          KEYS=( "ccache-linux-ubuntu", "ccache-Build-linux-debian", "ccache-Build-linux-android")
+          KEYS=( "ccache-linux-ubuntu" "ccache-Build-linux-debian" "ccache-Build-linux-android")
           for cache_key in ${KEYS[@]}
           do
-            echo "Fetching list of cache key for ${BRANCH}"
+            echo "Fetching list of cache key ${cache_key} for ${BRANCH}"
             cacheKeysForPR=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $cache_key --sort created-at --order desc | cut -f 1) )
             echo "${cacheKeysForPR[@]}"
             cacheKeysForPRSliced=("${cacheKeysForPR[@]:1}")
