@@ -161,6 +161,9 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
                                               input_layout.format.value;
 
+    if (node.get_preferred_output_fmt() != format::any)
+        output_format = node.get_preferred_output_fmt();
+
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
@@ -214,6 +217,11 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     json_composite fc_info;
     fc_info.add("weights id", weights_id);
     fc_info.add("bias id", bias_id);
+    fc_info.add("compressed weights", desc->compressed_weights ? "true" : "false");
+    if (desc->compressed_weights) {
+        fc_info.add("decompression scale id", desc->decompression_scale);
+        fc_info.add("decompression zp id", desc->decompression_zero_point);
+    }
 
     node_info->add("fully connected info", fc_info);
     node_info->dump(primitive_description);

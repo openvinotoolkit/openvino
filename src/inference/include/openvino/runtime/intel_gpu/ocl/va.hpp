@@ -104,7 +104,7 @@ public:
      * @param target_tile_id Desired tile id within given context for multi-tile system. Default value (-1) means
      * that root device should be used
      */
-    VAContext(Core& core, VADisplay device, int target_tile_id = -1) : ClContext(core, (cl_context) nullptr) {
+    VAContext(Core& core, VADisplay device, int target_tile_id = -1) : ClContext() {
         AnyMap context_params = {{ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::VA_SHARED},
                                  {ov::intel_gpu::va_device.name(), static_cast<gpu_handle_param>(device)},
                                  {ov::intel_gpu::tile_id.name(), target_tile_id}};
