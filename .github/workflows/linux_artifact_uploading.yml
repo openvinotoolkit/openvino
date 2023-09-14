@@ -170,9 +170,11 @@ jobs:
           # Should be something like: "/mount/caches/build_artifacts/branch_name/commit_hash/"
           artifact_directory="$BUILD_ARTIFACTS_DIR/${{ steps.extract_branch.outputs.branch }}/${{ github.sha }}"
           
+          echo "ARTIFACT DIRECTORY: $artifact_directory"
+          
           mkdir -p $artifact_directory
           
-          echo "test text" >> $artifact_directory/sample_file.txt
+          echo "test text" >> "$artifact_directory"/sample_file.txt
           
           ls -laR $BUILD_ARTIFACTS_DIR
 
