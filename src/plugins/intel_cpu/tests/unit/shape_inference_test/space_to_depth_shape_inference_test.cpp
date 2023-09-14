@@ -24,7 +24,7 @@ TEST_F(SpaceToDepthV0StaticShapeInferenceTest, default_ctor) {
     op->set_block_size(2);
 
     input_shapes = {StaticShape{1, 12, 4, 1080, 1616}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{1, 12 * 8, 4 / 2, 1080 / 2, 1616 / 2}));
@@ -35,7 +35,7 @@ TEST_F(SpaceToDepthV0StaticShapeInferenceTest, depth_first_block_2) {
     const auto op = make_op(data, op_type::SpaceToDepthMode::DEPTH_FIRST, 2);
 
     input_shapes = {StaticShape{1, 12, 4, 1080, 1616}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{1, 12 * 8, 4 / 2, 1080 / 2, 1616 / 2}));

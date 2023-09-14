@@ -107,6 +107,7 @@ std::string border_inst::to_string(border_node const& node) {
     border_info.add("pads_end", desc->pads_end);
     border_info.add("pad mode", desc->pad_mode);
     border_info.add("pad value", std::to_string(desc->pad_value));
+    border_info.add("negative_pad", std::to_string(desc->allow_negative_pad));
 
     node_info->add("border info", border_info);
 
@@ -122,23 +123,24 @@ border_inst::typed_primitive_inst(network& network, border_node const& node) : p
     }
 
     const auto& input_sizes = input_layout.get_dims();
-    auto pad_mode = argument->pad_mode;
+    const auto pad_mode = argument->pad_mode;
+    const bool allow_negative_pad = argument->allow_negative_pad;
 
-    // Check if sizes of border are in proper range.
-    CLDNN_ERROR_BOOL(node.id(),
-                     "pads_begin border sizes",
-                     std::any_of(argument->pads_begin.begin(), argument->pads_begin.end(),
-                                 [](std::ptrdiff_t pad) {
-                                    return pad < 0;
-                                }),
-                     "Invalid border size: negative value");
-    CLDNN_ERROR_BOOL(node.id(),
-                     "pads_end border sizes",
-                     std::any_of(argument->pads_end.begin(), argument->pads_end.end(),
-                                 [](std::ptrdiff_t pad) {
-                                    return pad < 0;
-                                }),
-                     "Invalid border size: negative value");
+    const auto check_negative_pad = [](std::ptrdiff_t pad) {
+                                        return pad < 0;
+                                    };
+
+    if (!allow_negative_pad) {
+        // Check if sizes of border are in proper range.
+        CLDNN_ERROR_BOOL(node.id(),
+                         "pads_begin border sizes",
+                         std::any_of(argument->pads_begin.begin(), argument->pads_begin.end(), check_negative_pad),
+                         "Invalid border size: negative value");
+        CLDNN_ERROR_BOOL(node.id(),
+                         "pads_end border sizes",
+                         std::any_of(argument->pads_end.begin(), argument->pads_end.end(), check_negative_pad),
+                         "Invalid border size: negative value");
+    }
 
     if (pad_mode == ov::op::PadMode::SYMMETRIC) {
         bool valid_pads = true;

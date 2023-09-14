@@ -15,7 +15,7 @@ std::string get_node_version(const std::shared_ptr<ov::Node>& node, const std::s
     std::string opset_name = "opset";
     auto pos = opset_version.find(opset_name);
     if (pos != std::string::npos) {
-        op_name +=  "-" + opset_version.substr(pos + opset_name.size());
+        op_name += "-" + opset_version.substr(pos + opset_name.size());
     }
     if (!postfix.empty()) {
         op_name += "_" + postfix;
@@ -33,9 +33,10 @@ ModelInfo::ModelInfo(size_t _op_cnt, const std::map<std::string, size_t>& _model
     : unique_op_cnt(_op_cnt),
       model_paths(_model_paths) {}
 
-
-PortInfo::PortInfo(double min, double max, bool convert_to_const) : min(min), max(max),
-    convert_to_const(convert_to_const) {}
+PortInfo::PortInfo(double min, double max, bool convert_to_const)
+    : min(min),
+      max(max),
+      convert_to_const(convert_to_const) {}
 
 PortInfo::PortInfo() {
     min = std::numeric_limits<double>::min();
@@ -48,4 +49,4 @@ OPInfo::OPInfo(const std::string& source_model, const std::string& model_path, s
     ports_info = {};
 }
 
-} // namespace LayerTestsUtils
+}  // namespace LayerTestsUtils
