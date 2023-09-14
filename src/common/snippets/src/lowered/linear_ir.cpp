@@ -310,6 +310,8 @@ VectorDims LinearIR::get_master_shape() const {
         if (ioe->get_type() == IOExpression::io_type::OUTPUT)
             out_exprs.push_back(ioe);
     }
+    // Note: Snippets would benefit from a more generic master_shape calculation approach.
+    //  It will be implemented in the scope of ROI propagation activity (ticket 120505)
     const auto& result_parent = out_exprs[0]->get_input_port_connector(0)->get_source().get_expr();
     if (!m_config.m_enable_domain_optimization && out_exprs.size() == 1 &&
         ov::is_type<snippets::op::Brgemm>(result_parent->get_node())) {

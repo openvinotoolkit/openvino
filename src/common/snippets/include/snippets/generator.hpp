@@ -27,8 +27,7 @@ public:
     Schedule() = default;
     /**
      * @brief Default to create schedule out of specific parameters
-     * @param ws work size for kernel execution
-     * @param f can this kernel be linearided to 1D range
+     * @param wd work domain for kernel execution
      * @param p pointer to generated code
      */
     Schedule(const VectorDims& wd, code p) : parallel_exec_domain(wd), ptr(p) {}

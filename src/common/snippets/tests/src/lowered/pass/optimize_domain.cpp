@@ -57,12 +57,10 @@ TEST_P(OptimizeDomainTest, DomainOptimization) {
 namespace OptimizeDomainTestsInstantiation {
 
 std::vector<OptimizeDomainParams> dopt_params = {
-        // todo: Discuss on review: we collapse 3 dims here and we've never done it before. concerns?
         // No broadcasting => dimensions collapsed
         {256, 4, {{14, 15, 1, 17}, {14, 15, 1, 17}}, {1, 1, 14, 255}, 1},
         {256, 4, {{14, 15, 16, 1}, {14, 15, 16, 1}}, {1, 1, 14, 240}, 1},
         // Same dimensions, but larger num threads => collapsing omitted
-        // todo: Discuss on review: we eliminate 1 dims here and we've never done it before. concerns?
         {256, 18, {{14, 15, 1, 17}, {14, 15, 1, 17}}, {1, 14, 15, 17}, 1},
         {256, 18, {{14, 15, 16, 1}, {14, 15, 16, 1}}, {1, 14, 15, 16}, 1},
 

@@ -14,9 +14,9 @@ namespace snippets {
 struct OptimizeDomainParams {
     OptimizeDomainParams() = default;
     OptimizeDomainParams(size_t, size_t, std::vector<ov::PartialShape>, ov::snippets::VectorDims, size_t);
-    size_t min_jit_work_amount = 0;                   // Min jit work amount
-    size_t min_parallel_work_amount = 0;              // Min parallel work amount
-    std::vector<ov::PartialShape> input_shapes;       // Input shapes
+    size_t min_jit_work_amount = 0;
+    size_t min_parallel_work_amount = 0;
+    std::vector<ov::PartialShape> input_shapes;
     ov::snippets::VectorDims exp_master_shape;        // Expected master_shape
     size_t exp_loop_depth = 0;                        // Expected loop depth (aka tile rank)
 };

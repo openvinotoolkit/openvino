@@ -111,7 +111,7 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
     }
     // We can still try to increment tile rank after dimension collapsing
     if (can_increase_jit_work_amount(master_shape, config.m_min_parallel_work_amount, total_work_amount))
-            m_tile_rank++;
+        m_tile_rank++;
     return some_dims_collapsed;
 }
 

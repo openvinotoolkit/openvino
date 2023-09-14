@@ -480,7 +480,7 @@ bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noex
 }
 
 IShapeInferSnippets::Result Subgraph::shape_infer(const std::vector<VectorDimsRef>& input_shapes) {
-    OPENVINO_ASSERT(m_shape_infer && body_ptr(), "Attempt to call shape_infer when it's not initialized or on empty body");
+    OPENVINO_ASSERT(m_shape_infer, "Attempt to call shape_infer when it's not initialized");
     return m_shape_infer->infer(input_shapes);
 }
 
@@ -631,8 +631,6 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
     size_t loop_depth = 1;
     lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
-    // todo: for discussion on review: we can move control_flow_transformations to LinearIR
-    //  then we won't have to introduce this method
     linear_ir.set_loop_depth(loop_depth);
 
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();

@@ -19,10 +19,6 @@ namespace pass {
  */
 
 class OptimizeDomain : public snippets::lowered::pass::Pass {
-    size_t& m_tile_rank;
-    inline static bool can_increase_jit_work_amount(const VectorDims& master_shape,
-                                                    size_t min_parallel_work_amount,
-                                                    size_t total_work_amount);
 public:
     OPENVINO_RTTI("OptimizeDomain", "Pass")
     explicit OptimizeDomain(size_t& tile_rank);
@@ -32,6 +28,12 @@ public:
                          size_t total_work_amount,
                          size_t min_parallel_work_amount,
                          size_t min_jit_work_amount);
+
+private:
+    size_t& m_tile_rank;
+    inline static bool can_increase_jit_work_amount(const VectorDims& master_shape,
+                                                    size_t min_parallel_work_amount,
+                                                    size_t total_work_amount);
 };
 
 } // namespace pass
