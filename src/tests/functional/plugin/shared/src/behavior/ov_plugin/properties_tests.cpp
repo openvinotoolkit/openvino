@@ -208,9 +208,7 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyAndComplieModelWithPropsWor
 
 std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROMandatoryProperties() {
     std::vector<ov::AnyMap> res;
-    res.push_back({{ov::PropertyName(ov::model_name.name(), ov::model_name.mutability), nullptr}});
-    res.push_back({{ov::PropertyName(ov::device::full_name.name(), ov::model_name.mutability), nullptr}});
-    res.push_back({{ov::PropertyName(ov::optimal_number_of_infer_requests.name(), ov::optimal_number_of_infer_requests.mutability), nullptr}});
+    res.push_back({{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
@@ -293,11 +291,6 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWMandatoryPr
         }
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::enable_mmap.name()) != props.end()) {
-        res.push_back({ov::enable_mmap(true)});
-        res.push_back({ov::enable_mmap(false)});
-    }
-
     if (props.empty() || std::find(props.begin(), props.end(), ov::streams::num.name()) != props.end()) {
         res.push_back({ov::streams::num(3)});
     }
@@ -337,6 +330,11 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWOptionalPro
         for (auto &schedulingCoreType : schedulingCoreTypes) {
             res.push_back({ov::hint::scheduling_core_type(schedulingCoreType)});
         }
+    }
+
+    if (props.empty() || std::find(props.begin(), props.end(), ov::enable_mmap.name()) != props.end()) {
+        res.push_back({ov::enable_mmap(true)});
+        res.push_back({ov::enable_mmap(false)});
     }
 
     return res;

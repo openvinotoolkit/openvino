@@ -226,7 +226,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::full_name,
                                                     ov::device::architecture,
                                                     ov::device::capabilities,
-                                                    ov::range_for_async_infer_requests};
+                                                    ov::device::type,
+                                                    ov::range_for_async_infer_requests,
+                                                    ov::execution_devices};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -265,8 +267,10 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         return decltype(ov::device::full_name)::value_type(device_name);
     } else if (ov::device::architecture == name) {
         // TODO: return device architecture for device specified by DEVICE_ID config
-        std::string arch = "TEMPLATE";
+        std::string arch = get_device_name();
         return decltype(ov::device::architecture)::value_type(arch);
+    } else if (ov::device::type == name) {
+        return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
     } else if (ov::internal::caching_properties == name) {
         std::vector<ov::PropertyName> caching_properties = {ov::device::architecture};
         return decltype(ov::internal::caching_properties)::value_type(caching_properties);
@@ -274,6 +278,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
         std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};
         return decltype(ov::device::capabilities)::value_type(capabilities);
+    } else if (ov::execution_devices == name) {
+        std::string dev = get_device_name();
+        return decltype(ov::execution_devices)::value_type{dev};
     } else if (ov::range_for_async_infer_requests == name) {
         // TODO: fill with actual values
         using uint = unsigned int;
