@@ -280,13 +280,7 @@ std::string ov::pass::VisualizeTree::add_attributes(std::shared_ptr<Node> node) 
 
 static std::string pretty_partial_shape(const ov::PartialShape& shape) {
     std::stringstream ss;
-
-    if (shape.rank().is_dynamic()) {
-        ss << "?";
-    } else {
-        ss << shape;
-    }
-
+    ss << shape;
     return ss.str();
 }
 
@@ -327,21 +321,11 @@ static std::string pretty_min_max_denormal_value(const std::vector<T>& values) {
 }
 
 template <typename T>
-static std::string pretty_value(const std::vector<T>& values, size_t max_elements, bool allow_obfuscate = false) {
+static std::string pretty_value(const std::vector<T>& values, bool allow_obfuscate = false) {
     std::stringstream ss;
     for (size_t i = 0; i < values.size(); ++i) {
-        if (i < max_elements) {
-            if (i != 0 && i % 8 == 0) {
-                ss << std::endl;
-            }
-        } else {
-            bool all_same = std::all_of(values.begin(), values.end(), [&](const T& el) {
-                return el == values[0];
-            });
-            ss << "..." << (all_same ? " same" : "");
-            break;
-        }
-
+        if (i != 0 && i % 8 == 0)
+            ss << std::endl;
         const auto& value = values[i];
         if (i > 0)
             ss << ", ";
@@ -365,42 +349,43 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
                              size_t max_elements,
                              bool allow_obfuscate = false) {
     std::stringstream ss;
+    ss << "[ ";
     switch (constant->get_output_element_type(0)) {
     case ov::element::Type_t::undefined:
-        ss << "[ undefined value ]";
-        break;
     case ov::element::Type_t::dynamic:
-        ss << "[ dynamic value ]";
-        break;
     case ov::element::Type_t::u1:
-        ss << "[ u1 value ]";
-        break;
     case ov::element::Type_t::u4:
-        ss << "[ u4 value ]";
-        break;
     case ov::element::Type_t::i4:
-        ss << "[ i4 value ]";
+        ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
     case ov::element::Type_t::bf16:
     case ov::element::Type_t::f16:
     case ov::element::Type_t::f32:
     case ov::element::Type_t::f64:
-        ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements, allow_obfuscate) << "]";
+        ss << pretty_value(constant->cast_vector<double>(max_elements), allow_obfuscate);
         break;
     case ov::element::Type_t::i8:
     case ov::element::Type_t::i16:
     case ov::element::Type_t::i32:
     case ov::element::Type_t::i64:
-        ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements, allow_obfuscate) << "]";
+        ss << pretty_value(constant->cast_vector<int64_t>(max_elements), allow_obfuscate);
         break;
     case ov::element::Type_t::boolean:
     case ov::element::Type_t::u8:
     case ov::element::Type_t::u16:
     case ov::element::Type_t::u32:
     case ov::element::Type_t::u64:
-        ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements, allow_obfuscate) << "]";
+        ss << pretty_value(constant->cast_vector<uint64_t>(max_elements), allow_obfuscate);
         break;
     }
+    const auto num_elements_in_constant = shape_size(constant->get_shape());
+    if (num_elements_in_constant == 0)
+        ss << "empty";
+    else if (max_elements == 0)
+        ss << "suppressed";
+    else if (num_elements_in_constant > max_elements)
+        ss << ", ...";
+    ss << " ]";
     return ss.str();
 }
 
