@@ -50,6 +50,7 @@ ngraph::PartialShape infer_selected_indices_shape(const std::vector<std::shared_
     return result;
 }
 
+// Normalize to single interpretation
 void normalize_corner(float* boxes, const ngraph::Shape& boxes_shape) {
     size_t total_num_of_boxes = ngraph::shape_size(boxes_shape) / 4;
     for (size_t i = 0; i < total_num_of_boxes; ++i) {
@@ -72,6 +73,7 @@ void normalize_corner(float* boxes, const ngraph::Shape& boxes_shape) {
     }
 }
 
+//
 void normalize_center(float* boxes, const ngraph::Shape& boxes_shape) {
     size_t total_num_of_boxes = ngraph::shape_size(boxes_shape) / 4;
     for (size_t i = 0; i < total_num_of_boxes; ++i) {
@@ -94,6 +96,7 @@ void normalize_center(float* boxes, const ngraph::Shape& boxes_shape) {
     }
 }
 
+//
 void normalize_box_encoding(float* boxes, const ngraph::Shape& boxes_shape, const V9BoxEncoding box_encoding) {
     if (box_encoding == V9BoxEncoding::CORNER) {
         normalize_corner(boxes, boxes_shape);
