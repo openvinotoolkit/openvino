@@ -81,7 +81,7 @@
             "dependencies": [
                 {
                     "name": "onnx",
-                    "version>=": "1.13.1"
+                    "version>=": "1.14.0"
                 },
                 {
                     "name": "protobuf",
@@ -140,10 +140,5 @@
                 }
             ]
         }
-    },
-    "overrides": [
-        {
-            "name": "onnx", "version": "1.13.1", "port-version": 0
-        }
-    ]
+    }
 }

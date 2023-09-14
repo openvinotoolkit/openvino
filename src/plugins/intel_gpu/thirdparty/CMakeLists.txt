@@ -31,13 +31,13 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endif()
 
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-            ie_add_compiler_flags(-Wno-undef)
-            ie_add_compiler_flags(-Wno-missing-declarations)
+            ov_add_compiler_flags(-Wno-undef)
+            ov_add_compiler_flags(-Wno-missing-declarations)
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
-                ie_add_compiler_flags(-Wno-array-bounds)
-                ie_add_compiler_flags(-Wno-stringop-overflow)
+                ov_add_compiler_flags(-Wno-array-bounds)
+                ov_add_compiler_flags(-Wno-stringop-overflow)
                 if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
-                    ie_add_compiler_flags(-Wno-restrict)
+                    ov_add_compiler_flags(-Wno-restrict)
                 endif()
             endif()
         endif()
@@ -79,6 +79,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
         if(OpenCL_INCLUDE_DIR)
             list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}")
         endif()
+
+        set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
 
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
@@ -125,15 +128,13 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 # Thus we pass it via CMAKE_CACHE_ARGS
                 "-DDNNL_ENABLE_PRIMITIVE:STRING=${ONEDNN_ENABLED_PRIMITIVES}"
                 "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=${ONEDNN_ENABLED_ISA}"
+            # Build Step Options:
+            BUILD_BYPRODUCTS ${ONEDNN_GPU_LIB_PATH}
             # Target Options:
             EXCLUDE_FROM_ALL ON
         )
 
         add_library(onednn_gpu_tgt INTERFACE)
-
-        set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-        set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
-
         set_target_properties(onednn_gpu_tgt PROPERTIES
             INTERFACE_LINK_LIBRARIES $<BUILD_INTERFACE:${ONEDNN_GPU_LIB_PATH}>
             INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${ONEDNN_INSTALL_DIR}/include>

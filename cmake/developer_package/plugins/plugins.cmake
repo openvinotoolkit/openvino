@@ -103,7 +103,7 @@ function(ov_add_plugin)
         endforeach()
 
         if (OV_PLUGIN_ADD_CLANG_FORMAT)
-            add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})
+            ov_add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})
         else()
             add_cpplint_target(${OV_PLUGIN_NAME}_cpplint FOR_TARGETS ${OV_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
