@@ -1,4 +1,4 @@
-name: cleanup caches
+name: Cleanup cache
 on:
   pull_request:
     types:
@@ -44,10 +44,8 @@ jobs:
           do
             echo "Fetching list of cache with key ${KEY} for ${BRANCH}"
             CACHE_KEYS=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $KEY --sort created-at --order desc | cut -f 1) )
-            echo "${CACHE_KEYS[@]}"
             CACHE_KEYS_OLD=("${CACHE_KEYS[@]:1}")
-            ## echo "${CACHE_KEYS_OLD[@]}"
-            ## Setting this to not fail the workflow while deleting cache keys.
+            echo "${CACHE_KEYS_OLD[@]}"
             set +e
             if [[ ${#CACHE_KEYS_OLD[@]} -gt 0 ]]
             then
@@ -56,11 +54,9 @@ jobs:
               do
                 if [[ ! -z "$CACHE_KEY" ]]
                 then
-                  # gh actions-cache delete $CACHE_KEY -R $REPO -B $BRANCH --confirm
-                  echo "${CACHE_KEY}"
+                  gh actions-cache delete $CACHE_KEY -R $REPO -B $BRANCH --confirm
                 fi
               done
             fi
           done
-
           echo "Done"
