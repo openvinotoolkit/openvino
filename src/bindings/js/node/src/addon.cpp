@@ -3,7 +3,6 @@
 
 #include <napi.h>
 
-#include "async_infer.hpp"
 #include "compiled_model.hpp"
 #include "core_wrap.hpp"
 #include "element_type.hpp"
@@ -29,8 +28,6 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     exports.DefineProperty(element);
     Napi::PropertyDescriptor preprocess = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithm");
     exports.DefineProperty(preprocess);
-
-    exports.Set(Napi::String::New(env, "asyncInfer"), Napi::Function::New(env, asyncInfer));
 
     return exports;
 }
