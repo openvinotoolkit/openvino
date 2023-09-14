@@ -48,7 +48,7 @@ public:
      * Two arguments are passed:
      * @param info[0] path to a model. (model_path)
      * @param info[1] path to a data file. (e.g. bin_path)
-     * @return A Javascript Model object.
+     * @return A Javascript Promise.
      */
     Napi::Value read_model_async(const Napi::CallbackInfo& info);
 
