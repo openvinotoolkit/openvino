@@ -454,18 +454,22 @@ Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
                     "ReorderExecutor input precision is unspecified!");
     OPENVINO_ASSERT(dst_prc != InferenceEngine::Precision::UNSPECIFIED,
                     "ReorderExecutor output precision is unspecified!");
-
     prim = dnnl::reorder();
-    // if (src_prc != dst_prc) {
-    //    if (src->getDescWithType<BlockedMemoryDesc>()->getOrder() ==
-    //        dst->getDescWithType<BlockedMemoryDesc>()->getOrder()) {
-    //        need_reorder = false;
-    //        src_blocked = std::make_shared<Memory>(engine, src->getDescPtr(), src->getData(), false);
-    //        dst_blocked = std::make_shared<Memory>(engine, dst->getDescPtr(), dst->getData(), false);
-    //        pre_converter = std::make_shared<IntermConverter>(src_blocked, src_prc, dst_blocked, dst_prc);
-    //        return;
-    //    }
-    // }
+
+    if (src_prc != dst_prc) {
+        auto src_bmd = src->getDescWithType<BlockedMemoryDesc>();
+        auto dst_bmd = dst->getDescWithType<BlockedMemoryDesc>();
+        // dnnl::reorder data conversion is number rounding
+        // cpu_convert() data conversion is number truncated
+        // For float -> integer, still create dnnl::reorder to avoid truncation difference
+        if (src_bmd->getOrder() == dst_bmd->getOrder() && !(src_prc.is_float() && !dst_prc.is_float())) {
+            need_reorder = false;
+            src_blocked = std::make_shared<Memory>(engine, src->getDescPtr(), src->getData(), false);
+            dst_blocked = std::make_shared<Memory>(engine, dst->getDescPtr(), dst->getData(), false);
+            pre_converter = std::make_shared<IntermConverter>(src_blocked, src_prc, dst_blocked, dst_prc);
+            return;
+        }
+    }
 
     need_reorder = true;
     const auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src_prc);
