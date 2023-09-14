@@ -3,11 +3,13 @@
 //
 
 #include <vector>
+
+#include "common_test_utils/test_enums.hpp"
 #include "single_layer_tests/activation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::helpers;
+using namespace ov::test::utils;
 namespace {
 // Common params
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
@@ -26,7 +28,7 @@ const std::vector<InferenceEngine::Precision> intPrecisions = {
         InferenceEngine::Precision::I32,
 };
 
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+const std::map<ov::test::utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
         {Sigmoid,               {}},
         {Tan,                   {}},
         {Tanh,                  {}},

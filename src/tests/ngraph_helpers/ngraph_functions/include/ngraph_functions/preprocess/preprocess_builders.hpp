@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace builder {
@@ -15,9 +20,11 @@ struct preprocess_func {
     preprocess_func(const std::function<std::shared_ptr<Model>()>& f,
                     const std::string& name,
                     float acc,
-                    const std::vector<Shape>& shapes = {}):
-                    m_function(f), m_name(name), m_accuracy(acc), m_shapes(shapes) {
-    }
+                    const std::vector<Shape>& shapes = {})
+        : m_function(f),
+          m_name(name),
+          m_accuracy(acc),
+          m_shapes(shapes) {}
     std::function<std::shared_ptr<Model>()> m_function = nullptr;
     std::string m_name = {};
     float m_accuracy = 0.01f;
@@ -26,11 +33,9 @@ struct preprocess_func {
 
 inline std::vector<preprocess_func> generic_preprocess_functions();
 
-
 /// -------- Functions ---------------
 
-inline std::shared_ptr<Model> create_preprocess_1input(element::Type type,
-                                                          const PartialShape& shape) {
+inline std::shared_ptr<Model> create_preprocess_1input(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->output(0).get_tensor().set_names({"input1"});
@@ -47,8 +52,7 @@ inline std::shared_ptr<Model> create_preprocess_1input(element::Type type,
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-inline std::shared_ptr<Model> create_preprocess_2inputs(element::Type type,
-                                                           const PartialShape& shape) {
+inline std::shared_ptr<Model> create_preprocess_2inputs(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->output(0).get_tensor().set_names({"input1"});
@@ -185,15 +189,17 @@ inline std::shared_ptr<Model> multiple_ops() {
     auto p1 = std::move(p);
     p = std::move(p1);
     p.input().tensor().set_element_type(element::f32).set_layout("?CHW");
-    p.input().preprocess().mean(1.f)
-            .scale(2.f)
-            .mean({1.1f, 2.2f, 3.3f})
-            .scale({2.f, 3.f, 4.f})
-            .custom([](const Output<Node>& node) {
-                auto abs = std::make_shared<op::v0::Abs>(node);
-                abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
-                return abs;
-            });
+    p.input()
+        .preprocess()
+        .mean(1.f)
+        .scale(2.f)
+        .mean({1.1f, 2.2f, 3.3f})
+        .scale({2.f, 3.f, 4.f})
+        .custom([](const Output<Node>& node) {
+            auto abs = std::make_shared<op::v0::Abs>(node);
+            abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
+            return abs;
+        });
     p.input().preprocess().convert_element_type(element::u8);
     function = p.build();
     return function;
@@ -347,15 +353,17 @@ inline std::shared_ptr<Model> cvt_color_nv12_cvt_layout_resize() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 10, 10});
     auto p = PrePostProcessor(function);
-    p.input().tensor()
-            .set_color_format(ColorFormat::NV12_TWO_PLANES)
-            .set_element_type(element::u8)
-            .set_spatial_static_shape(20, 20);
-    p.input().preprocess()
-            .convert_color(ColorFormat::RGB)
-            .convert_layout()
-            .convert_element_type(element::f32)
-            .resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input()
+        .tensor()
+        .set_color_format(ColorFormat::NV12_TWO_PLANES)
+        .set_element_type(element::u8)
+        .set_spatial_static_shape(20, 20);
+    p.input()
+        .preprocess()
+        .convert_color(ColorFormat::RGB)
+        .convert_layout()
+        .convert_element_type(element::f32)
+        .resize(ResizeAlgorithm::RESIZE_LINEAR);
     p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
@@ -432,39 +440,39 @@ inline std::shared_ptr<Model> crop_dynamic() {
 }
 
 inline std::vector<preprocess_func> generic_preprocess_functions() {
-    return std::vector<preprocess_func> {
-            preprocess_func(mean_only, "mean_only", 0.01f),
-            preprocess_func(scale_only, "scale_only", 0.01f),
-            preprocess_func(mean_scale, "mean_scale", 0.01f),
-            preprocess_func(scale_mean, "scale_mean", 0.01f),
-            preprocess_func(mean_vector, "mean_vector", 0.01f),
-            preprocess_func(scale_vector, "scale_vector", 0.01f),
-            preprocess_func(convert_element_type_and_mean, "convert_element_type_and_mean", 0.01f),
-            preprocess_func(tensor_element_type_and_mean, "tensor_element_type_and_mean", 0.01f),
-            preprocess_func(custom_preprocessing, "custom_preprocessing", 0.01f),
-            preprocess_func(multiple_ops, "multiple_ops", 0.01f),
-            preprocess_func(two_inputs_basic, "two_inputs_basic", 0.01f),
-            preprocess_func(two_inputs_trivial, "two_inputs_trivial", 0.01f),
-            preprocess_func(reuse_network_layout, "reuse_network_layout", 0.01f),
-            preprocess_func(tensor_layout, "tensor_layout", 0.01f),
-            preprocess_func(resize_linear, "resize_linear", 0.01f),
-            preprocess_func(resize_nearest, "resize_nearest", 0.01f),
-            preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
-            preprocess_func(resize_cubic, "resize_cubic", 0.01f),
-            preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, { Shape {1, 3, 223, 323} }),
-            preprocess_func(crop_basic, "crop_basic", 0.000001f),
-            preprocess_func(crop_negative, "crop_negative", 0.000001f),
-            preprocess_func(crop_dynamic, "crop_dynamic", 0.000001f, { Shape {1, 3, 123, 123} }),
-            preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
-            preprocess_func(convert_layout_hwc_to_nchw, "convert_layout_hwc_to_nchw", 0.01f),
-            preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
-            preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f),
-            preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 1.f),
-            preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 1.f),
-            preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 1.f),
-            preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f),
-            preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f),
-            preprocess_func(cvt_color_bgrx_to_bgr, "cvt_color_bgrx_to_bgr", 0.01f),
+    return std::vector<preprocess_func>{
+        preprocess_func(mean_only, "mean_only", 0.01f),
+        preprocess_func(scale_only, "scale_only", 0.01f),
+        preprocess_func(mean_scale, "mean_scale", 0.01f),
+        preprocess_func(scale_mean, "scale_mean", 0.01f),
+        preprocess_func(mean_vector, "mean_vector", 0.01f),
+        preprocess_func(scale_vector, "scale_vector", 0.01f),
+        preprocess_func(convert_element_type_and_mean, "convert_element_type_and_mean", 0.01f),
+        preprocess_func(tensor_element_type_and_mean, "tensor_element_type_and_mean", 0.01f),
+        preprocess_func(custom_preprocessing, "custom_preprocessing", 0.01f),
+        preprocess_func(multiple_ops, "multiple_ops", 0.01f),
+        preprocess_func(two_inputs_basic, "two_inputs_basic", 0.01f),
+        preprocess_func(two_inputs_trivial, "two_inputs_trivial", 0.01f),
+        preprocess_func(reuse_network_layout, "reuse_network_layout", 0.01f),
+        preprocess_func(tensor_layout, "tensor_layout", 0.01f),
+        preprocess_func(resize_linear, "resize_linear", 0.01f),
+        preprocess_func(resize_nearest, "resize_nearest", 0.01f),
+        preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
+        preprocess_func(resize_cubic, "resize_cubic", 0.01f),
+        preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, {Shape{1, 3, 223, 323}}),
+        preprocess_func(crop_basic, "crop_basic", 0.000001f),
+        preprocess_func(crop_negative, "crop_negative", 0.000001f),
+        preprocess_func(crop_dynamic, "crop_dynamic", 0.000001f, {Shape{1, 3, 123, 123}}),
+        preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
+        preprocess_func(convert_layout_hwc_to_nchw, "convert_layout_hwc_to_nchw", 0.01f),
+        preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
+        preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f),
+        preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 1.f),
+        preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 1.f),
+        preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 1.f),
+        preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f),
+        preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f),
+        preprocess_func(cvt_color_bgrx_to_bgr, "cvt_color_bgrx_to_bgr", 0.01f),
     };
 }
 

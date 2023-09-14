@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
+#include "openvino/op/ctc_greedy_decoder.hpp"
+
 #include <memory>
+#include <vector>
 
 #include "ngraph_functions/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
-        const ngraph::Output<Node>& inputData,
-        const bool mergeRepeated) {
+std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<Node>& inputData, const bool mergeRepeated) {
     auto inputDataShape = inputData.get_shape();
     size_t T = inputDataShape[0];
     size_t B = inputDataShape[1];
@@ -30,7 +30,8 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
 
     auto sequenceMaskNode = makeConstant(inputData.get_element_type(), {T, B}, sequenceMaskData);
 
-    auto CTCGreedyDecoderNode = std::make_shared<opset1::CTCGreedyDecoder>(inputData, sequenceMaskNode, mergeRepeated);
+    auto CTCGreedyDecoderNode =
+        std::make_shared<ov::op::v0::CTCGreedyDecoder>(inputData, sequenceMaskNode, mergeRepeated);
 
     return CTCGreedyDecoderNode;
 }

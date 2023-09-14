@@ -9,6 +9,7 @@
 
 #include "ie_common.h"
 #include "ngraph_functions/builders.hpp"
+#include "openvino/op/matmul.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 using namespace ov;
