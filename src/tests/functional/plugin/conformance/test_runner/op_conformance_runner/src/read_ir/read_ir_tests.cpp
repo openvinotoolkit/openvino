@@ -45,8 +45,8 @@ TEST_P(ReadIRTest, ImportExport) {
 INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
                         ReadIRTest,
                         ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths)),
-                                        ::testing::Values(targetDevice),
-                                        ::testing::Values(pluginConfig)),
+                                           ::testing::Values(targetDevice),
+                                           ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);
 
 }  // namespace

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from hashlib import sha256
 from utils.conformance_utils import get_logger, set_env_variable
-from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME, REL_WEIGHTS_FILENAME, REL_WEIGHTS_REPLACE_STR, CONVERT_OP_NAME
+from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME, REL_WEIGHTS_FILENAME, REL_WEIGHTS_REPLACE_STR
 from utils.file_utils import get_ov_path, find_latest_dir
 import defusedxml.ElementTree as ET
 
@@ -91,7 +91,7 @@ def update_rel_weight(meta_info_file:Path, additional_value: float):
         logger.error(f"Meta info {meta_info_file} is incorrect!")
 
 def is_report_op(op_name:str):
-    if "Parameter-1" == op_name or "Result-1" == op_name or "Constant-1" == op_name or CONVERT_OP_NAME == op_name:
+    if "Parameter-1" == op_name or "Result-1" == op_name or "Constant-1" == op_name:
         return False
     return True
 
