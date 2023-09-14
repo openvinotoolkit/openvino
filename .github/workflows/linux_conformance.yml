@@ -103,6 +103,9 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+          
+          # For conformance tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_test_summary/requirements.txt
 
       - name: Install MO dependencies
         run: |
@@ -221,14 +224,29 @@ jobs:
             tar -czvf ${{ env.BUILD_DIR }}/openvino_tests.tar.gz tests/
           popd
 
-      - name: Check Dir 1
-        run: ls -laR ${{ env.BUILD_DIR }}
-
-      - name: Check Dir 2
+      - name: Check Install Directory
         run: ls -laR ${{ env.INSTALL_DIR }}
 
-      - name: Check Dir 3
-        run: ls -laR
+      - name: Run Conformance Tests
+        run: |
+          
+          artifact_dir=${{ env.INSTALL_DIR }}/conformance_artifacts_dir
+          mkdir -p $artifact_dir
+          
+          python3 ${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary/run_conformance.py -ov=${{ env.INSTALL_DIR }}/tests \
+            -d=CPU \
+            -t=OP \
+            -w=$artifact_dir
+          
+          ls -la $artifact_dir
+
+      - name: Upload Conformance Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: conformance_artifacts
+          path: ${{ env.INSTALL_DIR }}/conformance_artifacts_dir
+          if-no-files-found: 'error'
+
 
 #      - name: Build cpp samples
 #        run: ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
