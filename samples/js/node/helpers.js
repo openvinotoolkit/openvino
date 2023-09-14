@@ -1,5 +1,5 @@
-const cv2 = require('opencv.js');
 const path = require('node:path');
+const { cv } = require('opencv-wasm');
 const { createWriteStream } = require('node:fs');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
@@ -104,12 +104,12 @@ async function getImageData(path) {
 }
 
 function transform(arr, { width, height }, order) {
-  const img = new cv2.Mat(height, width, cv2.CV_8UC3);
+  const img = new cv.Mat(height, width, cv.CV_8UC3);
 
   img.data.set(arr, 0, arr.length);
 
-  const channels = new cv2.MatVector();
-  cv2.split(img, channels);
+  const channels = new cv.MatVector();
+  cv.split(img, channels);
 
   const val = order.map(num => [...channels.get(num).data]);
 
