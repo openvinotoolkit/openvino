@@ -1,7 +1,7 @@
 const { addon: ov } = require('openvinojs-node');
 
 const args = require('args');
-const cv2 = require('opencv.js');
+const { cv } = require('opencv-wasm');
 const { getImageData } = require('../helpers.js');
 
 args.options([{
@@ -58,12 +58,12 @@ async function main(modelPath, images, deviceName) {
     imagesData.push(await getImageData(imagePath));
 
   const tensors = imagesData.map((imgData) => {
-    // Use OpenCV.js to preprocess image.
-    const originalImage = cv2.matFromImageData(imgData);
-    const image = new cv2.Mat();
+    // Use opencv-wasm to preprocess image.
+    const originalImage = cv.matFromImageData(imgData);
+    const image = new cv.Mat();
     // The MobileNet model expects images in RGB format.
-    cv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);
-    cv2.resize(image, image, new cv2.Size(w, h));
+    cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
+    cv.resize(image, image, new cv.Size(w, h));
 
     const tensorData = new Uint8Array(image.data);
     const shape = [1, h, w, 3];
