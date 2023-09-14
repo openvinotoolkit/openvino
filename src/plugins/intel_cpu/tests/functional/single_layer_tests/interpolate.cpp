@@ -205,18 +205,19 @@ protected:
             inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
         }
 
+        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+            inType = outType = ngPrc = ElementType::bf16;
+            rel_threshold = 1e-2f;
+        } else {
+            inType = outType = ngPrc;
+        }
+
         auto simple_post_ops = std::find_if(fusedOps.begin(), fusedOps.end(),
             [](const std::string& ops){
                 return ops.compare("Multiply") == 0 || ops.compare("Add") == 0;
             });
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType = outType = ngPrc = ElementType::bf16;
-            rel_threshold = 1e-2f;
-        } else if (simple_post_ops != std::end(fusedOps)) {
+        if (simple_post_ops != std::end(fusedOps))
             rel_threshold = 3e-2f;
-        } else {
-            inType = outType = ngPrc;
-        }
 
         init_input_shapes(inputShapes);
 
@@ -470,13 +471,19 @@ const std::vector<ShapeParams> shapeParams4D_fixed_C = {
 };
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+const std::vector<fusingSpecificParams> interpolateFusingParamsSet_fixed_C{
+        fusingFakeQuantizePerChannelRelu,
+        fusingAddPerChannel,
+        fusingMultiplyPerChannel,
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             interpolateCasesNN_Smoke,
             ::testing::ValuesIn(shapeParams4D_fixed_C),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::Values(fusingFakeQuantizePerChannelRelu),
+            ::testing::ValuesIn(interpolateFusingParamsSet_fixed_C),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
@@ -486,7 +493,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLa
             ::testing::ValuesIn(shapeParams4D_fixed_C),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::Values(fusingFakeQuantizePerChannelRelu),
+            ::testing::ValuesIn(interpolateFusingParamsSet_fixed_C),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 #endif
@@ -1023,5 +1030,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, Interp
     InterpolateLayerCPUTest::getTestCaseName);
 
 } // namespace
-
 } // namespace CPULayerTestsDefinitions
