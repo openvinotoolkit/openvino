@@ -874,8 +874,8 @@ jobs:
       - name: Test Prerequisites
         run: |
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-          mkdir -p ${TMPDIR}/not_writable_dir && chattr +i ${TMPDIR}/not_writable_dir
-          mkdir -p ${TMPDIR}/another_not_writable_dir && chattr +i ${TMPDIR}/another_not_writable_dir
+          mkdir -p ${TMPDIR}/not_writable_dir && sudo chattr +i ${TMPDIR}/not_writable_dir
+          mkdir -p ${TMPDIR}/another_not_writable_dir && sudo chattr +i ${TMPDIR}/another_not_writable_dir
 
       - uses: actions/setup-python@v4
         with:
