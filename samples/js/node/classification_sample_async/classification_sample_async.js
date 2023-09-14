@@ -72,7 +72,6 @@ async function main(modelPath, images, deviceName) {
   });
 
   //----------- Step 4. Apply preprocessing ------------------------------------
-
   new ov.PrePostProcessor(model)
     .setInputElementType(0, ov.element.u8)
     .setInputTensorLayout('NHWC')
@@ -109,7 +108,6 @@ async function main(modelPath, images, deviceName) {
   });
 
   //----------- Step 7. Do inference -------------------------------------------
-
   await Promise.all(promises);
   console.log('All inferences executed');
 
