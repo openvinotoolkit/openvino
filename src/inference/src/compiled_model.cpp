@@ -8,14 +8,15 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
 
-#define OV_COMPILED_MODEL_CALL_STATEMENT(...)                                \
-    OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized."); \
-    try {                                                                    \
-        __VA_ARGS__;                                                         \
-    } catch (const std::exception& ex) {                                     \
-        OPENVINO_THROW(ex.what());                                           \
-    } catch (...) {                                                          \
-        OPENVINO_THROW("Unexpected exception");                              \
+#define OV_COMPILED_MODEL_CALL_STATEMENT(...)                 \
+    if (_impl == nullptr)                                     \
+        OPENVINO_THROW("CompiledModel was not initialized."); \
+    try {                                                     \
+        __VA_ARGS__;                                          \
+    } catch (const std::exception& ex) {                      \
+        OPENVINO_THROW(ex.what());                            \
+    } catch (...) {                                           \
+        OPENVINO_THROW("Unexpected exception");               \
     }
 
 namespace ov {
@@ -115,7 +116,12 @@ void CompiledModel::set_property(const AnyMap& config) {
 }
 
 Any CompiledModel::get_property(const std::string& name) const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return {_impl->get_property(name), {_so}});
+    OV_COMPILED_MODEL_CALL_STATEMENT({
+        auto property = _impl->get_property(name);
+        if (!property._so)
+            property._so = _so;
+        return property;
+    });
 }
 
 RemoteContext CompiledModel::get_context() const {
