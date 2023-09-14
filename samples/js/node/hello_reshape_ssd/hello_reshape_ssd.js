@@ -1,7 +1,7 @@
 const { addon: ov } = require('openvinojs-node');
 
 const fs = require('fs');
-const cv2 = require('opencv.js');
+const { cv } = require('opencv-wasm');
 const {
   setShape,
   getImageData,
@@ -42,10 +42,10 @@ async function main(modelPath, imagePath, deviceName) {
   const imgData = await getImageData(imagePath);
 
   // Use OpenCV.js to preprocess image.
-  const originalImage = cv2.matFromImageData(imgData);
-  const image = new cv2.Mat();
+  const originalImage = cv.matFromImageData(imgData);
+  const image = new cv.Mat();
   // The MobileNet model expects images in RGB format.
-  cv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);
+  cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
 
   const tensorData = new Float32Array(image.data);
   const shape = [1, image.rows, image.cols, 3];
@@ -81,7 +81,8 @@ async function main(modelPath, imagePath, deviceName) {
   const resultInfer = inferRequest.getTensor(outputLayer);
   const predictions = Array.from(resultInfer.data);
   const [height, width] = [originalImage.rows, originalImage.cols];
-  const detections = setShape(predictions, [200, 7]);
+
+  const detections = setShape(predictions, [100, 7]);
   const color = [255, 0, 0, 255];
   const THROUGHPUT = 0.9;
 
@@ -96,9 +97,9 @@ async function main(modelPath, imagePath, deviceName) {
     );
 
     // Draw a bounding box on a output image
-    cv2.rectangle(originalImage,
-      new cv2.Point(xmin*width, ymin*height),
-      new cv2.Point(xmax*width, ymax*height),
+    cv.rectangle(originalImage,
+      new cv.Point(xmin*width, ymin*height),
+      new cv.Point(xmax*width, ymax*height),
       color,
       2,
     );
