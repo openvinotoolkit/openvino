@@ -1479,8 +1479,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestSingle
 TEST(ReferenceTopKTestInvalid, topk_v1_invalid_strings) {
     const auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 3});
     const auto k = opset1::Constant::create(element::i64, Shape{}, {1});
-    EXPECT_THROW(opset1::TopK(data, k, 0, "max", "invalid_mode"), ov::AssertFailure);
-    EXPECT_THROW(opset1::TopK(data, k, 0, "invalid_sort", "index"), ov::AssertFailure);
+    EXPECT_THROW(opset1::TopK(data, k, 0, "max", "invalid_mode"), ov::Exception);
+    EXPECT_THROW(opset1::TopK(data, k, 0, "invalid_sort", "index"), ov::Exception);
 }
 
 TEST(ReferenceTopKTestInvalid, topk_v1_invalid_k) {
@@ -1641,8 +1641,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestSingle
 TEST(ReferenceTopKTestInvalidV3, topk_v3_invalid_strings) {
     const auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 3});
     const auto k = opset1::Constant::create(element::i64, Shape{}, {1});
-    EXPECT_THROW(opset3::TopK(data, k, 0, "max", "invalid_mode"), ov::AssertFailure);
-    EXPECT_THROW(opset3::TopK(data, k, 0, "invalid_sort", "index"), ov::AssertFailure);
+    EXPECT_THROW(opset3::TopK(data, k, 0, "max", "invalid_mode"), ov::Exception);
+    EXPECT_THROW(opset3::TopK(data, k, 0, "invalid_sort", "index"), ov::Exception);
 }
 
 TEST(ReferenceTopKTestInvalidV3, topk_v3_invalid_k) {
