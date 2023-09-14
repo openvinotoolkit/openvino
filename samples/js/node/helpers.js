@@ -16,10 +16,8 @@ module.exports = {
   sum,
   triu,
   tril,
-  arange,
   argMax,
   reshape,
-  sumRows,
   getShape,
   setShape,
   transform,
@@ -226,10 +224,6 @@ function exp(arr) {
   return eachInner(arr, Math.exp);
 }
 
-function sumRows(arr) {
-  return arr.map(row => sum(row));
-}
-
 function reshape(arr, newShape) {
   const flat = extractValues(arr);
 
@@ -327,12 +321,4 @@ function tril(matrix, k = 0) {
   }
 
   return result;
-}
-
-function arange(count) {
-  const arr = new Array(count);
-
-  for (let i = 0; i < count; i++) arr[i] = i;
-
-  return arr;
 }
