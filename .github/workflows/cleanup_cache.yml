@@ -46,7 +46,8 @@ jobs:
             echo "${cacheKeysForPRSliced[@]}"
             ## Setting this to not fail the workflow while deleting cache keys.
             set +e
-            if "${#ArrayName[@]}" -gt "0"; then
+            if [[ ${#ArrayName[@]} -gt 0 ]]
+            then
               echo "Deleting caches..."
               for cacheKey in ${cacheKeysForPRSliced[@]}
               do
