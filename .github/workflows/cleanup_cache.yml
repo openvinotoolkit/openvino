@@ -46,12 +46,14 @@ jobs:
             echo "${cacheKeysForPRSliced[@]}"
             ## Setting this to not fail the workflow while deleting cache keys.
             set +e
-            echo "Deleting caches..."
-            for cacheKey in ${cacheKeysForPRSliced[@]}
-            do
-                # gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
-                echo "${cacheKey}"
-            done
+            if "${#ArrayName[@]}" -gt "0"; then
+              echo "Deleting caches..."
+              for cacheKey in ${cacheKeysForPRSliced[@]}
+              do
+                  # gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
+                  echo "${cacheKey}"
+              done
+            fi
           done
 
           echo "Done"
