@@ -36,20 +36,24 @@ jobs:
           done
 
           BRANCH="master"
-          KEY="ccache-linux-ubuntu"
-          echo "Fetching list of cache key for ${BRANCH}"
-          cacheKeysForPR=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $KEY --sort created-at --order desc | cut -f 1) )
-          echo "${cacheKeysForPR[@]}"
-          cacheKeysForPRSliced=("${cacheKeysForPR[@]:1}")
-          echo "${cacheKeysForPRSliced[@]}"
-          ## Setting this to not fail the workflow while deleting cache keys.
-          set +e
-          echo "Deleting caches..."
-          for cacheKey in ${cacheKeysForPRSliced[@]}
+          KEYS=( "ccache-linux-ubuntu", "ccache-Build-linux-debian", "ccache-Build-linux-android")
+          for cache_key in ${KEYS[@]}
           do
-              # gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
-              echo "${cacheKey}"
+            echo "Fetching list of cache key for ${BRANCH}"
+            cacheKeysForPR=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $cache_key --sort created-at --order desc | cut -f 1) )
+            echo "${cacheKeysForPR[@]}"
+            cacheKeysForPRSliced=("${cacheKeysForPR[@]:1}")
+            echo "${cacheKeysForPRSliced[@]}"
+            ## Setting this to not fail the workflow while deleting cache keys.
+            set +e
+            echo "Deleting caches..."
+            for cacheKey in ${cacheKeysForPRSliced[@]}
+            do
+                # gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
+                echo "${cacheKey}"
+            done
           done
+
           echo "Done"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
