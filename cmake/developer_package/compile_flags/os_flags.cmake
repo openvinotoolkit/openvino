@@ -33,6 +33,7 @@ macro(ov_disable_deprecated_warnings)
 endmacro()
 
 macro(disable_deprecated_warnings)
+    message(WARNING "disable_deprecated_warnings is deprecated, use ov_disable_deprecated_warnings instead")
     ov_disable_deprecated_warnings()
 endmacro()
 
