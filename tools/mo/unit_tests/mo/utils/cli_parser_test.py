@@ -1202,10 +1202,10 @@ class PathCheckerFunctions(unittest.TestCase):
 
         if not os.path.exists(__class__.NOT_WRITABLE_DIR):
             os.makedirs(__class__.NOT_WRITABLE_DIR)
-        mode = stat.S_IMODE(os.lstat(__class__.NOT_WRITABLE_DIR).st_mode)
-        os.chmod(__class__.NOT_WRITABLE_DIR, mode & ~stat.S_IWRITE & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
-        os.chflags(__class__.NOT_WRITABLE_DIR, stat.SF_IMMUTABLE)
-        # os.chmod(__class__.NOT_WRITABLE_DIR, 0)
+        # mode = stat.S_IMODE(os.lstat(__class__.NOT_WRITABLE_DIR).st_mode)
+        # os.chmod(__class__.NOT_WRITABLE_DIR, mode & ~stat.S_IWRITE & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
+        # os.chflags(__class__.NOT_WRITABLE_DIR, stat.SF_IMMUTABLE)
+        os.chmod(__class__.NOT_WRITABLE_DIR, 0)
 
         if not os.path.exists(os.path.dirname(__class__.NOT_WRITABLE_SUB_DIR)):
             os.makedirs(os.path.dirname(__class__.NOT_WRITABLE_SUB_DIR))
