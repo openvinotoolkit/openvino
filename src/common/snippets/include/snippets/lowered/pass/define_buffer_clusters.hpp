@@ -7,7 +7,6 @@
 #include "pass.hpp"
 
 #include "allocate_buffer_memory.hpp"
-#include "snippets/op/buffer.hpp"
 
 namespace ov {
 namespace snippets {
@@ -18,7 +17,7 @@ namespace pass {
  * @interface DefineBufferClusters
  * @brief The pass defines buffer clusters. The buffers from one cluster share the
  *        same memory (has the same offset relative to the data pointer of buffer scratchpad).
- *         - If MemoryAcccess op or Loop can read and write to the same (inplace behaviour), the Buffers should in be in the one cluster.
+ *         - If MemoryAccess op or Loop can read and write to the same (inplace behavior), the Buffers should in be in the one cluster.
  *         - If Buffer is in the Loop which read or write from/to the other Buffers, this Buffer can emulate `window` slidings.
  *           It means that Buffer inside can reuse memory of Buffers outside in bounds of full Loop work.
  *           Demonstration:
@@ -29,23 +28,21 @@ namespace pass {
  *                               |-----------------------------------------------------|
  *           Buffer1 can reuse memory [128] of Buffer0 or Buffer2 in each iteration of OuterLoop
  *           Note: The pass requires expression enumeration and buffer identification (for nested Buffers inplace).
- *                 These passes should be executed seperately before this pass!
+ *                 These passes should be executed separately before this pass!
  * @ingroup snippets
  */
 class DefineBufferClusters : public Pass {
 public:
     OPENVINO_RTTI("DefineBufferClusters", "Pass")
+
+    DefineBufferClusters(AllocateBufferMemory::BufferClusters& clusters) : m_clusters(clusters) {}
+
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */
     bool run(lowered::LinearIR& linear_ir) override;
-    /**
-     * @brief Get clusters of Buffers
-     * @return vector of Buffer expression sets
-     */
-    AllocateBufferMemory::BufferClusters get_clusters() const { return m_clusters; }
 
 private:
     using BufferPorts = std::unordered_map<ExpressionPtr, std::set<size_t>>;
@@ -81,7 +78,7 @@ private:
      */
     void parse_loop(const LinearIR::constExprIt& expr_it);
     /**
-     * @brief Analyzes full MemoryAcccess op: if the op has Buffer ops on I/O, can the op read and write from/to the same memory.
+     * @brief Analyzes full MemoryAccess op: if the op has Buffer ops on I/O, can the op read and write from/to the same memory.
      * @param expr expression with full MemoryAccess op
      */
     void parse_memory_access_op(const ExpressionPtr& expr);
@@ -125,7 +122,7 @@ private:
     bool unite_nested_clusters(const AllocateBufferMemory::BufferClusters::iterator& inner_cluster_it, AllocateBufferMemory::BufferCluster& outer_cluster,
                                const ExpressionPtr& outer_buffer, bool is_outer_up);
 
-    AllocateBufferMemory::BufferClusters m_clusters;
+    AllocateBufferMemory::BufferClusters& m_clusters;
 };
 
 } // namespace pass

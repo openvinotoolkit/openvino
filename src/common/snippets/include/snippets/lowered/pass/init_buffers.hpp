@@ -13,13 +13,17 @@ namespace pass {
 
 /**
  * @interface InitBuffers
- * @brief The pass inits Buffer scratchpad default: Buffers have different IDs (registers) and offsets.
+ * @brief The pass inits Buffer expressions in LinearIR : sets unique offsets and ID to Buffers.
  * @ingroup snippets
  */
 
 class InitBuffers : public Pass {
 public:
     OPENVINO_RTTI("InitBuffers", "Pass")
+
+    InitBuffers(size_t& buffer_scratchpad_size) : m_buffer_scratchpad_size(buffer_scratchpad_size) {
+        m_buffer_scratchpad_size = 0;
+    }
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
@@ -27,14 +31,8 @@ public:
      */
     bool run(lowered::LinearIR& linear_ir) override;
 
-    /**
-     * @brief Get buffer scratchpad size in bytes
-     * @return the size of buffer sratchpad in bytes
-     */
-    size_t get_scratchpad_size() const { return m_buffer_scratchpad_size; }
-
 private:
-    size_t m_buffer_scratchpad_size = 0;
+    size_t& m_buffer_scratchpad_size;
 };
 
 } // namespace pass

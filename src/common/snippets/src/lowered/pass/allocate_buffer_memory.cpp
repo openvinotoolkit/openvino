@@ -9,6 +9,7 @@
 #include "snippets/lowered/pass/init_buffers.hpp"
 #include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/lowered/pass/define_buffer_clusters.hpp"
+#include "snippets/lowered/pass/normalize_buffer_ids.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/itt.hpp"
 
@@ -71,23 +72,19 @@ bool AllocateBufferMemory::EnumerateExprs::run(lowered::LinearIR& linear_ir) {
 
 bool AllocateBufferMemory::run(lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBufferMemory");
-    if (!is_optimized) {
-        auto default_init_pass = InitBuffers();
-        default_init_pass.run(linear_ir);
-        m_buffer_scratchpad_size = default_init_pass.get_scratchpad_size();
-        return  m_buffer_scratchpad_size > 0;
+    if (!m_is_optimized) {
+        InitBuffers(m_buffer_scratchpad_size).run(linear_ir);
+        return m_buffer_scratchpad_size > 0;
     }
 
+    AllocateBufferMemory::BufferClusters buffer_clusters;
     PassPipeline pipeline;
     pipeline.register_pass<EnumerateExprs>();
     pipeline.register_pass<IdentifyBuffers>();
-    pipeline.register_pass<DefineBufferClusters>();
+    pipeline.register_pass<DefineBufferClusters>(buffer_clusters);
+    pipeline.register_pass<SolveBufferMemory>(m_buffer_scratchpad_size, buffer_clusters);
+    pipeline.register_pass<NormalizeBufferIDs>();
     pipeline.run(linear_ir);
-
-    auto memory_solver_pass = SolveBufferMemory(pipeline.get_pass<DefineBufferClusters>()->get_clusters());
-    memory_solver_pass.run(linear_ir);
-
-    m_buffer_scratchpad_size = memory_solver_pass.get_scratchpad_size();
 
     return m_buffer_scratchpad_size > 0;
 }

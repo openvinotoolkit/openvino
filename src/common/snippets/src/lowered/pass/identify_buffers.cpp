@@ -20,10 +20,19 @@ inline size_t index(size_t col_num, size_t row, size_t col) {
 }
 } // namespace
 
-size_t IdentifyBuffers::get_buffer_idx(const ExpressionPtr& buffer, const BufferSet& buffers) {
-    const auto iter = std::find(buffers.cbegin(), buffers.cend(), buffer);
-    NGRAPH_CHECK(iter != buffers.cend(), "Buffer wasn't find in Buffer system of Subgraph");
-    return std::distance(buffers.cbegin(), iter);
+bool operator==(const IdentifyBuffers::ShiftPtrParams& lhs, const IdentifyBuffers::ShiftPtrParams& rhs) {
+    if (&lhs == &rhs)
+        return true;
+    return lhs.ptr_increment == rhs.ptr_increment && lhs.finalization_offset == rhs.finalization_offset && lhs.data_size == rhs.data_size;
+}
+bool operator!=(const IdentifyBuffers::ShiftPtrParams& lhs, const IdentifyBuffers::ShiftPtrParams& rhs) {
+    return !(rhs == lhs);
+}
+
+size_t IdentifyBuffers::get_buffer_idx(const ExpressionPtr& target, const BufferPool& pool) {
+    const auto iter = std::find(pool.cbegin(), pool.cend(), target);
+    NGRAPH_CHECK(iter != pool.cend(), "Buffer wasn't find in Buffer system of Subgraph");
+    return std::distance(pool.cbegin(), iter);
 }
 
 bool IdentifyBuffers::can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs) {
@@ -32,33 +41,44 @@ bool IdentifyBuffers::can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrPara
     return equal_ptr_params_shifting && (equal_element_type_sizes || (lhs.ptr_increment == 0 && lhs.finalization_offset == 0));
 }
 
-void IdentifyBuffers::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
-                                        const std::pair<ExpressionPtr, ShiftPtrParams>& rhs,
-                                        const BufferSet& buffers,
-                                        std::vector<bool>& adj) {
-    const auto size = buffers.size();
+bool IdentifyBuffers::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
+                                   const std::pair<ExpressionPtr, ShiftPtrParams>& rhs) {
     const auto lhs_ids = lhs.first->get_loop_ids();
     const auto rhs_ids = rhs.first->get_loop_ids();
     const auto equal_loop_ids = lhs_ids == rhs_ids;
-    // If one of Buffer inside Loop but another Buffer is connected to this Loop and outside this Loop and
-    // if this second Buffer has not zero data shift params, these Buffers are adjacent
-    const auto is_valid_not_equal_loop_ids = lhs_ids.size() != rhs_ids.size() &&
-        std::equal(rhs_ids.cbegin(), rhs_ids.cbegin() + std::min(lhs_ids.size(), rhs_ids.size()), lhs_ids.cbegin()) &&
-        lhs_ids.size() < rhs_ids.size() ? (lhs.second.ptr_increment == 0 && lhs.second.finalization_offset == 0)
-                                        : (rhs.second.ptr_increment == 0 && rhs.second.finalization_offset == 0);
-    if ((!equal_loop_ids && !is_valid_not_equal_loop_ids) || (equal_loop_ids && !can_reuse_id(lhs.second, rhs.second))) {
+    if (equal_loop_ids) {  // Buffers are connected to the same Loop and have the same outer Loops
+        return !can_reuse_id(lhs.second, rhs.second);
+    } else {  // Buffers are connected to the same Loop, but one of Buffers - inside this Loop, another - outside
+        // Buffers are adjacent if outer Buffer has not zero data shift params
+        if (lhs_ids.size() == rhs_ids.size()) // If the count of outer Loops are equal, it means that outer loops are already different
+            return true;
+        const auto& outer_buffer = lhs_ids.size() < rhs_ids.size() ? lhs : rhs;
+        const auto count_outer_loops = std::min(lhs_ids.size(), rhs_ids.size());
+        const auto are_outer_loops_the_same = lhs_ids.size() != rhs_ids.size() &&
+            std::equal(rhs_ids.cbegin(), rhs_ids.cbegin() + count_outer_loops, lhs_ids.cbegin());
+        const auto outer_buffer_has_zero_shifts = outer_buffer.second.ptr_increment == 0 && outer_buffer.second.finalization_offset == 0;
+        return !are_outer_loops_the_same || !outer_buffer_has_zero_shifts;
+    }
+}
+
+void IdentifyBuffers::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
+                                        const std::pair<ExpressionPtr, ShiftPtrParams>& rhs,
+                                        const BufferPool& buffers,
+                                        std::vector<bool>& adj) {
+    if (are_adjacent(lhs, rhs)) {
+        const auto size = buffers.size();
         const auto lhs_idx = get_buffer_idx(lhs.first, buffers);
         const auto rhs_idx = get_buffer_idx(rhs.first, buffers);
         adj[index(size, rhs_idx, lhs_idx)] = adj[index(size, lhs_idx, rhs_idx)] = true;
     }
 }
 
-std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linear_ir, const BufferSet& buffers) {
+std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linear_ir, const BufferPool& pool) {
     // There are several sync points for adjacency check:
     // 1. Loop because only in Loop we increment pointers. So if some Buffers in the one Loop have conflict
     //    (cannot be inplace: the different ptr increment and data sizes) they are called as adjacent
     // 2. Brgemm because its blocking implementation requires Buffers with unique memory on all inputs and outputs
-    const auto size = buffers.size();
+    const auto size = pool.size();
     std::vector<bool> adj(size * size, false);
     for (size_t i = 0; i < size; ++i)
         adj[index(size, i, i)] = true;
@@ -77,7 +97,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
                 continue;
             OPENVINO_ASSERT(std::count_if(consumers.begin(), consumers.end(), is_buffer) == 1, "Brgemm mustn't have more than 1 consumer buffer");
 
-            BufferSet adjacency_buffers;
+            BufferPool adjacency_buffers;
             adjacency_buffers.push_back(buffer_it->get_expr());
 
             for (const auto& input_connector : expr->get_input_port_connectors()) {
@@ -88,8 +108,8 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
             }
             for (auto buffer_it = adjacency_buffers.begin(); buffer_it != adjacency_buffers.end(); ++buffer_it) {
                 for (auto neighbour_it = std::next(buffer_it); neighbour_it != adjacency_buffers.end(); ++neighbour_it) {
-                    const auto buffer_idx = get_buffer_idx(*buffer_it, buffers);
-                    const auto neighbour_idx = get_buffer_idx(*neighbour_it, buffers);
+                    const auto buffer_idx = get_buffer_idx(*buffer_it, pool);
+                    const auto neighbour_idx = get_buffer_idx(*neighbour_it, pool);
                     adj[index(size, neighbour_idx, buffer_idx)] = adj[index(size, buffer_idx, neighbour_idx)] = true;
                 }
             }
@@ -103,9 +123,9 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
         const auto input_count = loop_end->get_input_num();
         const auto output_count = loop_end->get_output_num();
 
-        const auto ptr_increments = loop_end->get_ptr_increments();
-        const auto finalization_offsets = loop_end->get_finalization_offsets();
-        const auto data_sizes = loop_end->get_element_type_sizes();
+        const auto& ptr_increments = loop_end->get_ptr_increments();
+        const auto& finalization_offsets = loop_end->get_finalization_offsets();
+        const auto& data_sizes = loop_end->get_element_type_sizes();
 
         // Buffer -> <ptr increment, finalization_offsets>
         std::map<ExpressionPtr, ShiftPtrParams> buffer_neighbours;
@@ -131,6 +151,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
                 const auto& child_expr = consumer_input.get_expr();
                 if (ov::is_type<op::Buffer>(child_expr->get_node())) {
                     buffer_neighbours[child_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
+                    buffer_count++;
                 } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
                     loop_count++;
                 }
@@ -141,13 +162,16 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
             }
         }
 
-        // Buffers which are connected to the current Loop but without ptr shifts and Buffers which are inside this Loop - should be adjacent because
+        // Buffers which are connected to the current Loop but without ptr shifts and Buffers which are inside this Loop - must be adjacent because
         // after each Loop iteration GPR will be shifted using ptr increment of Buffer outside. But Buffers inside have the same GPR - it means that
         // Buffers inside will work with shifted memory.
         const auto loop_begin = loop_end->get_loop_begin();
         for (auto it = std::reverse_iterator<LinearIR::constExprIt>(expr_it); (*it)->get_node() != loop_begin; ++it) {
             const auto& inner_expr = *it;
             if (ov::is_type<op::Buffer>(inner_expr->get_node())) {
+                // To make Buffers adjacent, we set value "INT64_MAX" for data ptr shifts params for inner Buffers,
+                // since outer Buffers (and other any Buffers) cannot have this value in shifting because of semantic of Loop op.
+                // Thus, inner and outer Buffers have always different data shift ptr params -> they're adjacent
                 if (buffer_neighbours.count(inner_expr) == 0)
                     buffer_neighbours[inner_expr] = { INT64_MAX, INT64_MAX, INT64_MAX };
             }
@@ -155,7 +179,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
 
         for (auto buffer_it = buffer_neighbours.begin(); buffer_it != buffer_neighbours.end(); ++buffer_it) {
             for (auto neighbour_it = std::next(buffer_it); neighbour_it != buffer_neighbours.end(); ++neighbour_it) {
-                update_adj_matrix(*buffer_it, *neighbour_it, buffers, adj);
+                update_adj_matrix(*buffer_it, *neighbour_it, pool, adj);
             }
         }
     }
@@ -163,9 +187,9 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
     return adj;
 }
 
-auto IdentifyBuffers::coloring(BufferSet& buffers, std::vector<bool>& adj) -> std::map<size_t, BufferSet> {
+auto IdentifyBuffers::coloring(BufferPool& buffers, std::vector<bool>& adj) -> std::map<size_t, BufferPool> {
     size_t color = 0;
-    std::map<size_t, BufferSet> color_groups;
+    std::map<size_t, BufferPool> color_groups;
     const auto size = buffers.size();
     for (size_t i = 0; i < size; i++) {
         // The Buffer is already colored (visited) - skip
@@ -213,19 +237,19 @@ bool IdentifyBuffers::run(LinearIR& linear_ir) {
     // Unite Buffers using Graph coloring algorithm.
     // Notes: We identify only Buffer with Intermediate memory because Buffers with new memory are used only in Brgemm case
     //        so these Buffers are always IntermediateBuffer nonadjacent
-    BufferSet buffer_exprs;
+    BufferPool buffer_pool;
 
     for (const auto& expr : linear_ir) {
         if (ov::is_type<op::Buffer>(expr->get_node())) {
-            buffer_exprs.push_back(expr);
+            buffer_pool.push_back(expr);
         }
     }
 
     // Creation of Adj matrix
-    auto adj = create_adjacency_matrix(linear_ir, buffer_exprs);
+    auto adj = create_adjacency_matrix(linear_ir, buffer_pool);
 
     // Graph coloring algorithm
-    const auto color_groups = coloring(buffer_exprs, adj);
+    const auto color_groups = coloring(buffer_pool, adj);
 
     for (const auto& pair : color_groups) {
         const auto color = pair.first;

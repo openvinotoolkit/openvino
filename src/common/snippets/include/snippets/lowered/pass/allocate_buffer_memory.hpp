@@ -14,29 +14,27 @@ namespace pass {
 
 /**
  * @interface AllocateBufferMemory
- * @brief Helps to solve issue of optimal memory allocation only for Buffers in graph using the following optimizations:
+ * @brief Allocates memory for Buffer ops using the following optimizations:
  *         - MemorySolver: helps to solve issue of optimal memory allocation;
  *         - InPlace: Loop or MemoryAccess ops read from the memory and store data to the same memory if possible
  *         - Reusing Buffer IDs: Buffers have the same IDs (gpr) in cases when Buffers aren't connected or has the same data ptr shifts
  *        Note: All buffers are related to each other and represent common buffer scratchpad of Subgraph.
- *              The buffer sratchpad has one general data pointer. Each buffer has offset relative to the data pointer of buffer scratchpad.
+ *              The buffer scratchpad has one general data pointer. Each buffer has offset relative to the data pointer of buffer scratchpad.
  * @ingroup snippets
  */
 class AllocateBufferMemory : public Pass {
 public:
     OPENVINO_RTTI("AllocateBufferMemory", "Pass")
+    AllocateBufferMemory(size_t& buffer_scratchpad_size, bool is_optimized = true)
+        : m_buffer_scratchpad_size(buffer_scratchpad_size), m_is_optimized(is_optimized) {
+        m_buffer_scratchpad_size = 0;
+    }
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */
     bool run(lowered::LinearIR& linear_ir) override;
-
-    /**
-     * @brief Get buffer scratchpad size in bytes
-     * @return the size of buffer sratchpad in bytes
-     */
-    size_t get_scratchpad_size() const { return m_buffer_scratchpad_size; }
 
     /**
      * @brief Set offset to Buffer op and propagates its to the connected memory access ops
@@ -56,8 +54,11 @@ private:
         bool run(lowered::LinearIR& linear_ir) override;
     };
 
-    constexpr static bool is_optimized = true;
-    size_t m_buffer_scratchpad_size = 0;
+    size_t& m_buffer_scratchpad_size;
+    // Debug parameter
+    //  - If True (default value), the pass activates all possible optimizations described above
+    //  - If False, the pass sets uniqie ID, offsets to each Buffer in Linear IR
+    bool m_is_optimized = true;
 };
 
 } // namespace pass

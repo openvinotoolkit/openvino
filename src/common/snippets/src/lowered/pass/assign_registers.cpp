@@ -43,8 +43,6 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     std::map<tensor, Reg> manually_assigned_gprs, manually_assigned_vecs;
     const auto IS_MANUALLY_ALLOCATED_REG = SIZE_MAX;
     auto accumulator_reg = 0lu;
-    // [ original Buffer ID -> normalized ]
-    std::map<size_t, size_t> buffer_regs;
     for (const auto& expr : expressions) {
         auto op = expr->get_node();
         if (const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr)) {
@@ -56,16 +54,13 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
                 OPENVINO_THROW("Unsupported io_type detected");
         } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
             const auto buffer_id = buffer->get_id();
-            if (buffer_regs.count(buffer_id) == 0)
-                buffer_regs[buffer_id] = buffer_regs.size();
-            const auto normalized_buffer_id = buffer_regs[buffer_id];
             // All buffers have one common data pointer
             if (buffer->is_intermediate_memory()) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + normalized_buffer_id);
+                        static_cast<Reg>(num_results + num_parameters + buffer_id);
             }
             manually_assigned_gprs[expr->get_output_port_connector(0)] =
-                    static_cast<Reg>(num_results + num_parameters + normalized_buffer_id);
+                    static_cast<Reg>(num_results + num_parameters + buffer_id);
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
             // Only in SoftmaxDecomposition ReduceMax and ReduceSum use HorizonMax/HorizonSum and VectorBuffer.
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator

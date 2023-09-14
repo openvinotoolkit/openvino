@@ -39,6 +39,11 @@ public:
         return get_type_info().name;
     }
 
+    /**
+     * @brief Apply the pass to the Linear IR
+     * @param linear_ir the target Linear IR
+     * @return status of the pass
+     */
     virtual bool run(lowered::LinearIR& linear_ir) = 0;
 };
 
@@ -53,17 +58,6 @@ public:
         static_assert(std::is_base_of<Pass, T>::value, "Pass not derived from lowered::Pass");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
         register_pass(pass);
-    }
-
-    template<typename T>
-    std::shared_ptr<T> get_pass() {
-        static_assert(std::is_base_of<Pass, T>::value, "Pass not derived from lowered::Pass");
-        for (const auto& pass : m_passes) {
-            if (const auto ptr = std::dynamic_pointer_cast<T>(pass)) {
-                return ptr;
-            }
-        }
-        OPENVINO_THROW("The lowered pass has not been found in pipeline!");
     }
 
     void run(lowered::LinearIR& linear_ir) const;

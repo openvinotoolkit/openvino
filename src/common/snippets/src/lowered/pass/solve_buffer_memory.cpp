@@ -24,7 +24,6 @@ std::vector<MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateBuffe
             int e_start = 0, e_finish = 0;
             const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(buffer_expr->get_node());
             OPENVINO_ASSERT(buffer != nullptr, "BufferSolver expects Buffer ops in clusters");
-            const auto buffer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(buffer));
 
             // life finish time - order of LoopEnd / MemoryAccess ops
             const auto buffer_outs = buffer_expr->get_output_port_connectors();
@@ -44,18 +43,13 @@ std::vector<MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateBuffe
 
                 const auto buffer_siblings = buffer_in->get_consumers();
                 for (const auto& sibling : buffer_siblings) {
-                    const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(sibling.get_expr()->get_node());
-                    if (!loop_end)
-                        continue;
-                    const auto loop_end_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end));
-                    if (loop_end_order < buffer_order) {
+                    if (const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(sibling.get_expr()->get_node())) {
                         e_start = std::min(e_start, static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end->get_loop_begin())));
                     }
                 }
             }
             OPENVINO_ASSERT(e_start <= e_finish, "Incorrect life time of buffer!");
 
-            // TODO: Added support of Dynamic Buffers
             auto buffer_size = static_cast<int64_t>(buffer->get_byte_size());
             box_size = std::max(buffer_size, box_size);
 
