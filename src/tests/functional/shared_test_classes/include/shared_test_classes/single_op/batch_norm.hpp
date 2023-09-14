@@ -19,8 +19,6 @@ class BatchNormLayerTest : public testing::WithParamInterface<BatchNormLayerTest
                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BatchNormLayerTestParams>& obj);
-
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 protected:
     void SetUp() override;
 };

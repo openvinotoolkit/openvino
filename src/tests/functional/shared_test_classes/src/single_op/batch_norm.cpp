@@ -32,16 +32,6 @@ std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<Bat
     return result.str();
 }
 
-void BatchNormLayerTest::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
-    inputs.clear();
-    auto params = function->get_parameters();
-    OPENVINO_ASSERT(target_input_static_shapes.size() >= params.size());
-    for (int i = 0; i < params.size(); i++) {
-        auto tensor = ov::test::utils::create_and_fill_tensor_consistently(params[i]->get_element_type(), target_input_static_shapes[i], 3, 0, 1);
-        inputs.insert({params[i], tensor});
-    }
-}
-
 void BatchNormLayerTest::SetUp() {
     ov::element::Type model_type;
     std::vector<InputShape> shapes;

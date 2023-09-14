@@ -45,11 +45,11 @@ void AdaPoolLayerTest::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
-    ngraph::Shape pooled_shape = {pooled_spatial_shape.size()};
-    auto pooled_param = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, pooled_shape, pooled_spatial_shape);
+    ov::Shape pooled_shape = {pooled_spatial_shape.size()};
+    auto pooled_param = std::make_shared<ov::op::v0::Constant>(ov::element::i32, pooled_shape, pooled_spatial_shape);
 
     // we cannot create abstract Op to use polymorphism
-    auto adapoolMax = std::make_shared<ov::op::v8::AdaptiveMaxPool>(params[0], pooled_param, ngraph::element::i32);
+    auto adapoolMax = std::make_shared<ov::op::v8::AdaptiveMaxPool>(params[0], pooled_param, ov::element::i32);
     auto adapoolAvg = std::make_shared<ov::op::v8::AdaptiveAvgPool>(params[0], pooled_param);
 
     function = (pooling_mode == "max" ?
