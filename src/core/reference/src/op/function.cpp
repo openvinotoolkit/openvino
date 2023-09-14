@@ -14,15 +14,13 @@
 
 namespace ov {
 namespace reference {
-OPENVINO_SUPPRESS_DEPRECATED_START
-void function(const std::shared_ptr<Model>& function, const HostTensorVector& inputs, HostTensorVector& outputs) {
+void function(const std::shared_ptr<Model>& function, const ov::TensorVector& inputs, ov::TensorVector& outputs) {
     const auto& results = function->get_results();
     outputs.reserve(results.size());
     for (size_t i = 0; i < results.size(); ++i) {
-        outputs.push_back(std::make_shared<HostTensor>());
+        outputs.push_back(ov::Tensor());
     }
     function->evaluate(outputs, inputs);
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
 }  // namespace ov
