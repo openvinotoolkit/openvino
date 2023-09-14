@@ -36,6 +36,7 @@ jobs:
           echo "Done"
 
       - name: Cleanup master's caches
+        if: github.event.pull_request.merged == true
         env:
           BRANCH: master
           KEYS: "ccache-linux-ubuntu ccache-Build-linux-debian ccache-Build-linux-android ccache-Build-linux-arm64"
