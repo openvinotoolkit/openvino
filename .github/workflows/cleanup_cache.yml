@@ -45,7 +45,7 @@ jobs:
           for cacheKey in ${cacheKeysForPR[@]::${#cacheKeysForPR[@]}-1}
           do
               # gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
-              echo ";{cacheKey}"
+              echo "${cacheKey}"
           done
           echo "Done"
         env:
