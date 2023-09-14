@@ -55,8 +55,6 @@ struct loop : public primitive_base<loop> {
     loop() : primitive_base("", {}),
              max_iteration(0) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     struct io_primitive_map {
         /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
         ///

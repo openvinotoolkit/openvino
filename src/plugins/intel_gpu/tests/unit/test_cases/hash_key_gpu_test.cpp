@@ -71,8 +71,8 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
 
-        ASSERT_EQ(primitive_hash, 2197080758510296176UL);
-        ASSERT_EQ(params_hash, 4714860879383010855UL);
+        ASSERT_EQ(primitive_hash, 6924775129729406941UL);
+        ASSERT_EQ(params_hash, 8552673460001178483UL);
     }
 
     void test_gather_basic(bool is_caching_test) {

@@ -22,7 +22,7 @@ function(add_common_utils ADD_TARGET_NAME)
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
             EXCLUDED_SOURCE_PATHS
                 ${TARGET_EXCLUDED_SOURCE_PATHS}
-            ADD_CPPLINT
+            ADD_CLANG_FORMAT
             DEVELOPER_PACKAGE
                 tests
             LINK_LIBRARIES

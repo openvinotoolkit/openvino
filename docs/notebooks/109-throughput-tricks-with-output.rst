@@ -193,7 +193,7 @@ benchmarking process.
 
 .. code:: ipython3
 
-    import openvino.runtime as ov
+    import openvino as ov
     
     # initialize OpenVINO
     core = ov.Core()

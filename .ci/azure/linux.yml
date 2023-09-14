@@ -368,6 +368,9 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVProxyTests.xml
     displayName: 'OV Proxy Plugin Tests'
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroUnitTests.xml
+    displayName: 'OV Hetero Unit Tests'
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
     displayName: 'OV Hetero Func Tests'
 
@@ -452,7 +455,7 @@ jobs:
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py
     displayName: 'Python API 2.0 Tests'
-  
+
   # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       python3 -m pytest -sv $(REPO_DIR)/src/frontends/onnx/tests $(PYTHON_STATIC_ARGS) \
