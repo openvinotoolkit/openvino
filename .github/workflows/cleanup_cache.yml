@@ -1,0 +1,62 @@
+name: Cleanup cache
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: write
+      contents: read
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      BRANCH: refs/pull/${{ github.event.pull_request.number }}/merge
+
+    steps:
+      - name: Preconditions (Install gh-actions-cache)
+        run: |
+          gh extension install actions/gh-actions-cache
+
+      - name: Cleanup PR's caches
+        run: |
+          echo "Fetching list of cache keys for ${BRANCH}"
+          CACHE_KEYS_FOR_PR=$(gh actions-cache list -R $REPO -B $BRANCH -L 100 | cut -f 1 )
+
+          set +e
+          echo "Deleting caches..."
+          for CACHE_KEY in $CACHE_KEYS_FOR_PR
+          do
+            gh actions-cache delete $CACHE_KEY -R $REPO -B $BRANCH --confirm
+          done
+          echo "Done"
+
+      - name: Cleanup master's caches
+        env:
+          BRANCH: master
+          KEYS: "ccache-linux-ubuntu ccache-Build-linux-debian ccache-Build-linux-android ccache-Build-linux-arm64"
+        run: |
+          for KEY in ${KEYS[@]}
+          do
+            echo "Fetching list of cache with key ${KEY} for ${BRANCH}"
+            CACHE_KEYS=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $KEY --sort created-at --order desc | cut -f 1) )
+            CACHE_KEYS_OLD=("${CACHE_KEYS[@]:1}")
+            echo "${CACHE_KEYS_OLD[@]}"
+            set +e
+            if [[ ${#CACHE_KEYS_OLD[@]} -gt 0 ]]
+            then
+              echo "Deleting caches..."
+              for CACHE_KEY in ${CACHE_KEYS_OLD[@]}
+              do
+                if [[ ! -z "$CACHE_KEY" ]]
+                then
+                  gh actions-cache delete $CACHE_KEY -R $REPO -B $BRANCH --confirm
+                fi
+              done
+            fi
+          done
+          echo "Done"
