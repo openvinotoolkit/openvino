@@ -20,19 +20,19 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
 **Table of contents:**
 
-- `Imports <#imports-uparrow>`__
-- `Settings <#settings-uparrow>`__
-- `Select a Language <#select-a-language-uparrow>`__
-- `Download the Model <#download-the-model-uparrow>`__
-- `Load the Model and Execute <#load-the-model-and-execute-uparrow>`__
-- `Select inference device <#select-inference-device-uparrow>`__
-- `Fetch Information About Input and Output Layers <#fetch-information-about-input-and-output-layers-uparrow>`__
-- `Load an Image <#load-an-image-uparrow>`__
-- `Visualize Input Image <#visualize-input-image-uparrow>`__
-- `Prepare Charlist <#prepare-charlist-uparrow>`__
-- `Run Inference <#run-inference-uparrow>`__
-- `Process the Output Data <#process-the-output-data-uparrow>`__
-- `Print the Output <#print-the-output-uparrow>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Select a Language <#select-a-language>`__
+- `Download the Model <#download-the-model>`__
+- `Load the Model and Execute <#load-the-model-and-execute>`__
+- `Select inference device <#select-inference-device>`__
+- `Fetch Information About Input and Output Layers <#fetch-information-about-input-and-output-layers>`__
+- `Load an Image <#load-an-image>`__
+- `Visualize Input Image <#visualize-input-image>`__
+- `Prepare Charlist <#prepare-charlist>`__
+- `Run Inference <#run-inference>`__
+- `Process the Output Data <#process-the-output-data>`__
+- `Print the Output <#print-the-output>`__
 
 .. code:: ipython3
 

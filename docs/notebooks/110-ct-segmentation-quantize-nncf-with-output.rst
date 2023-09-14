@@ -21,10 +21,10 @@ This third tutorial in the series shows how to:
 
 All notebooks in this series:
 
--  `Data Preparation for 2D Segmentation of 3D Medical Data <data-preparation-ct-scan.ipynb>`__
--  `Train a 2D-UNet Medical Imaging Model with PyTorch Lightning <pytorch-monai-training.ipynb>`__
--  Convert and Quantize a Segmentation Model and Show Live Inference (this notebook)
--  `Live Inference and Benchmark CT-scan data <110-ct-scan-live-inference.ipynb>`__
+-  `Data Preparation for 2D Segmentation of 3D Medical Data <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/110-ct-segmentation-quantize/data-preparation-ct-scan.ipynb>`__
+-  `Train a 2D-UNet Medical Imaging Model with PyTorch Lightning <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/110-ct-segmentation-quantize/pytorch-monai-training.ipynb>`__
+-  Convert and Quantize a Segmentation Model and Show Live Inference (**this notebook**)
+-  `Live Inference and Benchmark CT-scan data <110-ct-scan-live-inference-with-output.html>`__
 
 Instructions
 ###############################################################################################################################

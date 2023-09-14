@@ -123,7 +123,7 @@ You can choose ``CPU`` or ``GPU`` for this model.
 Select inference device
 -------------------------------------------------------------------------------------------------------------------------------
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

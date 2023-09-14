@@ -1146,11 +1146,11 @@ Load and Preprocess Video Frames
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <video src="../data/video/Coco Walking in Berkeley.mp4" controls  >
-          Your browser does not support the <code>video</code> element.
-        </video>
+..     <video src="../data/video/Coco Walking in Berkeley.mp4" controls  >
+..           Your browser does not support the <code>video</code> element.
+..         </video>
 
 
 
@@ -1297,12 +1297,12 @@ Process Results
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <video controls  width="800" >
-     <source src="data:None;base64,output/output.mp4" type="None">
-     Your browser does not support the video tag.
-     </video>
+..     <video controls  width="800" >
+..      <source src="data:None;base64,output/output.mp4" type="None">
+..      Your browser does not support the video tag.
+..      </video>
 
 
 
