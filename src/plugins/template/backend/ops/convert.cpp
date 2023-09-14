@@ -5,6 +5,7 @@
 #include "openvino/reference/convert.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace convert_like_v1 {
 template <ngraph::element::Type_t ti, ngraph::element::Type_t to>
@@ -164,4 +165,98 @@ bool evaluate_node<ngraph::op::v1::ConvertLike>(std::shared_ptr<ngraph::Node> no
         OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
+}
+
+namespace convert {
+namespace {
+template <ov::element::Type_t INPUT_ET, ov::element::Type_t OUTPUT_ET>
+bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& out) {
+    out->set_shape(arg->get_shape());
+    size_t element_count = shape_size(out->get_shape());
+
+    if ((INPUT_ET != arg->get_element_type()) || OUTPUT_ET != out->get_element_type()) {
+        return false;
+    }
+    if (((INPUT_ET == ov::element::u1) || (OUTPUT_ET == ov::element::u1)) ||
+        ((INPUT_ET == ov::element::u4) || (OUTPUT_ET == ov::element::u4)) ||
+        ((INPUT_ET == ov::element::i4) || (OUTPUT_ET == ov::element::i4))) {
+        ov::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
+                                          out->get_data_ptr<OUTPUT_ET>(),
+                                          element_count,
+                                          INPUT_ET,
+                                          OUTPUT_ET);
+    } else {
+        ov::reference::convert(arg->get_data_ptr<INPUT_ET>(), out->get_data_ptr<OUTPUT_ET>(), element_count);
+    }
+    return true;
+}
+
+#define TYPE_OUT_CASE(a, ...)                                         \
+    case ov::element::Type_t::a: {                                    \
+        rc = evaluate<INPUT_ET, ov::element::Type_t::a>(__VA_ARGS__); \
+    } break
+
+template <ov::element::Type_t INPUT_ET>
+bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& out) {
+    bool rc = true;
+
+    switch (out->get_element_type()) {
+        TYPE_OUT_CASE(i4, arg, out);
+        TYPE_OUT_CASE(i8, arg, out);
+        TYPE_OUT_CASE(i16, arg, out);
+        TYPE_OUT_CASE(i32, arg, out);
+        TYPE_OUT_CASE(i64, arg, out);
+        TYPE_OUT_CASE(u1, arg, out);
+        TYPE_OUT_CASE(u4, arg, out);
+        TYPE_OUT_CASE(u8, arg, out);
+        TYPE_OUT_CASE(u16, arg, out);
+        TYPE_OUT_CASE(u32, arg, out);
+        TYPE_OUT_CASE(u64, arg, out);
+        TYPE_OUT_CASE(f32, arg, out);
+        TYPE_OUT_CASE(boolean, arg, out);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+
+#define NGRAPH_TYPE_CASE(a, ...)                            \
+    case ov::element::Type_t::a: {                          \
+        rc = evaluate<ov::element::Type_t::a>(__VA_ARGS__); \
+    } break
+
+bool evaluate_convert(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& out) {
+    bool rc = true;
+    switch (arg->get_element_type()) {
+        NGRAPH_TYPE_CASE(u1, arg, out);
+        NGRAPH_TYPE_CASE(u4, arg, out);
+        NGRAPH_TYPE_CASE(u8, arg, out);
+        NGRAPH_TYPE_CASE(u16, arg, out);
+        NGRAPH_TYPE_CASE(u32, arg, out);
+        NGRAPH_TYPE_CASE(u64, arg, out);
+        NGRAPH_TYPE_CASE(i4, arg, out);
+        NGRAPH_TYPE_CASE(i8, arg, out);
+        NGRAPH_TYPE_CASE(i16, arg, out);
+        NGRAPH_TYPE_CASE(i32, arg, out);
+        NGRAPH_TYPE_CASE(i64, arg, out);
+        NGRAPH_TYPE_CASE(bf16, arg, out);
+        NGRAPH_TYPE_CASE(f16, arg, out);
+        NGRAPH_TYPE_CASE(f32, arg, out);
+        NGRAPH_TYPE_CASE(f64, arg, out);
+        NGRAPH_TYPE_CASE(boolean, arg, out);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+}  // namespace
+}  // namespace convert
+
+template <>
+bool evaluate_node<ngraph::op::v0::Convert>(std::shared_ptr<ngraph::Node> node,
+                                            const ngraph::HostTensorVector& outputs,
+                                            const ngraph::HostTensorVector& inputs) {
+    return convert::evaluate_convert(inputs[0], outputs[0]);
 }
