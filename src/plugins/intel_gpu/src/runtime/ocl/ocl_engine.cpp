@@ -112,7 +112,7 @@ const cl::Context& ocl_engine::get_cl_context() const {
 
 const cl::Device& ocl_engine::get_cl_device() const {
     auto cl_device = std::dynamic_pointer_cast<ocl_device>(_device);
-    OPENVINO_ASSERT("cl_device, [GPU] Invalid device type for ocl_engine");
+    OPENVINO_ASSERT(cl_device, "[GPU] Invalid device type for ocl_engine");
     return cl_device->get_device();
 }
 
