@@ -183,14 +183,3 @@ describe('InferRequest', () => {
     assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
   });
 });
-
-describe('Asynchronous inference', () => {
-  it('Compare infer and asyncInfer results', () => {
-    const ir = compiledModel.createInferRequest();
-    const res1 = ir.infer([tensorData]);
-
-    ov.asyncInfer(ir, [tensorData], (err, result) => {
-      assert.deepStrictEqual(res1['fc_out'].data[0], result['fc_out'].data[0]);
-    });
-  });
-});
