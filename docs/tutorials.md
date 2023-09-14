@@ -25,7 +25,7 @@ libraries.
 
 Notebooks with |binder logo| and |colab logo| buttons can be run without installing anything.
 Once you have found the tutorial of your interest, just click the button next to
-the name of it and the Jupyter notebook will start it in a new tab of a browser.
+its name and the Jupyter notebook will start it in a new tab of a browser.
 
 .. note::
 
@@ -36,28 +36,20 @@ the name of it and the Jupyter notebook will start it in a new tab of a browser.
    on how to run and manage the notebooks on your machine.
 
 
-**Contents:**
+More examples along with additonal details regarding OpenVINO Notebooks are available in 
+OpenVINO™ Notebooks `Github Repository. <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`__
 
--  `Getting Started <#getting-started>`__
+The Jupyter notebooks are categorized into following classes:
 
-   -  `First steps with OpenVINO <#first-steps-with-openvino>`__
-   -  `Convert & Optimize <#convert-optimize>`__
-   -  `Model Demos <#model-demos>`__
-   -  `Model Training <#model-training>`__
-   -  `Live Demos <#live-demos>`__
-   -  `Recommended Tutorials <#recommended-tutorials>`__
-   -  `Additional Resources <#additional-resources>`__
-   -  `Contributors <#contributors>`__
-
-
-Getting Started
-==================
-
-The Jupyter notebooks are categorized into four classes, select one
-related to your needs or give them all a try. Good Luck!
+-  `First steps with OpenVINO <#first-steps-with-openvino>`__
+-  `Convert & Optimize <#convert-optimize>`__
+-  `Model Demos <#model-demos>`__
+-  `Model Training <#model-training>`__
+-  `Live Demos <#live-demos>`__
+-  `Recommended Tutorials <#recommended-tutorials>`__
 
 First steps with OpenVINO
--------------------------
+##########################
 
 Brief tutorials that demonstrate how to use Python API for inference in OpenVINO.
 
@@ -74,7 +66,7 @@ Brief tutorials that demonstrate how to use Python API for inference in OpenVINO
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 Convert & Optimize
---------------------
+###################
 
 Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 
@@ -141,13 +133,8 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    +----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
 
 
-
-
-
-
-
 Model Demos
---------------------
+###################
 
 Demos that demonstrate inference on a particular model.
 
@@ -281,7 +268,7 @@ Demos that demonstrate inference on a particular model.
 
 
 Model Training
---------------------
+##################
 
 Tutorials that include code to train neural networks.
 
@@ -297,7 +284,7 @@ Tutorials that include code to train neural networks.
 +--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 Live Demos
---------------------
+################
 
 Live inference demos that run on a webcam or video files.
 
@@ -322,7 +309,7 @@ Live inference demos that run on a webcam or video files.
 
 
 Recommended Tutorials
----------------------
+######################
 
 The following tutorials are guaranteed to provide a great experience with inference in OpenVINO:
 
@@ -365,19 +352,11 @@ The following tutorials are guaranteed to provide a great experience with infere
 
 
 Additional Resources
---------------------
+######################
 
 * `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
 * `Binder documentation <https://mybinder.readthedocs.io/en/latest/>`_
 * `Google Colab <https://colab.research.google.com/>`__
-
-
-Contributors
---------------------
-
-|contributors|
-
-Made with `contributors-img <https://contrib.rocks>`__.
 
 
 .. |br| raw:: html
@@ -388,8 +367,6 @@ Made with `contributors-img <https://contrib.rocks>`__.
 
    <span style="font-size:10px">的人不一了是他有为在责新中任自之我们</span>
 
-.. |contributors| image:: https://contrib.rocks/image?repo=openvinotoolkit/openvino_notebooks
-   :target: https://github.com/openvinotoolkit/openvino_notebooks/graphs/contributors
 .. |n001-img1| image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
    :target: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
 .. |n002-img1| image:: https://user-images.githubusercontent.com/15709723/127787560-d8ec4d92-b4a0-411f-84aa-007e90faba98.png
