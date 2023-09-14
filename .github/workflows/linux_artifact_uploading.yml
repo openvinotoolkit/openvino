@@ -156,7 +156,10 @@ jobs:
           ls -la $CCACHE_DIR
 
       - name: Extract branch name
-        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        run: |
+          branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+          branch=$(echo "$branch" | tr / _)
+          echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
         id: extract_branch
 
       - name: Upload Build Artifacts
@@ -164,16 +167,12 @@ jobs:
           mkdir -p $BUILD_ARTIFACTS_DIR
           ls -la $BUILD_ARTIFACTS_DIR
           
+          # Should be something like: "/mount/caches/build_artifacts/branch_name/commit_hash/"
+          artifact_directory="$BUILD_ARTIFACTS_DIR/${{ steps.extract_branch.outputs.branch }}/${{ github.sha }}"
           
-          # Preprocess variable(s)
-          workflow_name=$(echo "${{ github.workflow }}" | tr / _)
-          workflow_name=$(echo "$workflow_name" | tr " " _)
-          branch_name=$(echo "${{ steps.extract_branch.outputs.branch }}" | tr / _)
+          mkdir -p $artifact_directory
           
-          # Should be something like: "/mount/caches/build_artifacts/branch_name/commit_hash/workflow_name"
-          mkdir -p $BUILD_ARTIFACTS_DIR/$branch_name/${{ github.sha }}/$workflow_name
-          
-          echo "test text" >> $BUILD_ARTIFACTS_DIR/$branch_name/${{ github.sha }}/$workflow_name/sample_file.txt
+          echo "test text" >> $artifact_directory/sample_file.txt
           
           ls -laR $BUILD_ARTIFACTS_DIR
 
