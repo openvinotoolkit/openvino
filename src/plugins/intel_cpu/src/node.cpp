@@ -1034,6 +1034,7 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
         impl_desc_type::gemm_avx2,
         impl_desc_type::gemm_avx,
         impl_desc_type::gemm_sse42,
+        impl_desc_type::gemm_acl,
         impl_desc_type::acl,
         impl_desc_type::jit_gemm,
         impl_desc_type::ref_any,

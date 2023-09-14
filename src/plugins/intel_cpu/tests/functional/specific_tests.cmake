@@ -40,6 +40,14 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
     ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/fusing_test_utils.cpp
     ${CPU_SUBSET_TEST_ABS_PATH})
 
+if(X86_64)
+    list(APPEND REQUIRED_OBJECT_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64/filter_cpu_info.cpp)
+elseif(ARM OR AARCH64)
+    list(APPEND REQUIRED_OBJECT_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/arm/filter_cpu_info.cpp)
+endif()
+
   addIeTargetTest(
     NAME ${SUBSET_TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
