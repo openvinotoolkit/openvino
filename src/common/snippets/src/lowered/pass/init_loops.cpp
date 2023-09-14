@@ -62,7 +62,8 @@ void InitLoops::init_ptr_increments(std::vector<LoopPort>& loop_inputs, std::vec
             const auto loop_ids = port->get_expr()->get_loop_ids();
             const auto& layout = port->get_descriptor_ptr()->get_layout();
             const auto& shape = port->get_descriptor_ptr()->get_shape();
-            const auto& dim = *(layout.rbegin() + dim_idx);
+            const auto original_dim = layout.size() - 1 - dim_idx;
+            const auto& dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), original_dim));
             // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
             if (!(shape[dim] == 1 && work_amount != 1)) {
                 loop_output.ptr_increment = get_output_stride(dim, shape);
