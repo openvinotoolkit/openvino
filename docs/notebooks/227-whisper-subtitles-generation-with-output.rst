@@ -40,7 +40,7 @@ subtitles in a sample video. Notebook contains the following steps:
   - `Select inference device <#select-inference-device>`__
 
 - `Run video transcription pipeline <#run-video-transcription-pipeline>`__
-- `Interactive demo <#interactive-demo>`__
+.. - `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 ###############################################################################################################################
@@ -619,51 +619,51 @@ Now let us see the results.
     
 
 
-Interactive demo
-###############################################################################################################################
+.. Interactive demo
+.. ###############################################################################################################################
 
-.. code:: ipython3
+.. .. code:: ipython3
 
-    import gradio as gr
+..     import gradio as gr
     
     
-    def transcribe(url, task):
-        output_file = Path("downloaded_video.mp4")
-        yt = YouTube(url)
-        yt.streams.get_highest_resolution().download(filename=output_file)
-        audio = get_audio(output_file)
-        transcription = model.transcribe(audio, task=task.lower())
-        srt_lines = prepare_srt(transcription)
-        with output_file.with_suffix(".srt").open("w") as f:
-            f.writelines(srt_lines)
-        return [str(output_file), str(output_file.with_suffix(".srt"))]
+..     def transcribe(url, task):
+..         output_file = Path("downloaded_video.mp4")
+..         yt = YouTube(url)
+..         yt.streams.get_highest_resolution().download(filename=output_file)
+..         audio = get_audio(output_file)
+..         transcription = model.transcribe(audio, task=task.lower())
+..         srt_lines = prepare_srt(transcription)
+..         with output_file.with_suffix(".srt").open("w") as f:
+..             f.writelines(srt_lines)
+..         return [str(output_file), str(output_file.with_suffix(".srt"))]
     
     
-    demo = gr.Interface(
-        transcribe,
-        [gr.Textbox(label="YouTube URL"), gr.Radio(["Transcribe", "Translate"], value="Transcribe")],
-        "video",
-        examples=[["https://youtu.be/kgL5LBM-hFI", "Transcribe"]],
-        allow_flagging="never"
-    )
-    try:
-        demo.launch(debug=False)
-    except Exception:
-        demo.launch(share=True, debug=False)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+..     demo = gr.Interface(
+..         transcribe,
+..         [gr.Textbox(label="YouTube URL"), gr.Radio(["Transcribe", "Translate"], value="Transcribe")],
+..         "video",
+..         examples=[["https://youtu.be/kgL5LBM-hFI", "Transcribe"]],
+..         allow_flagging="never"
+..     )
+..     try:
+..         demo.launch(debug=False)
+..     except Exception:
+..         demo.launch(share=True, debug=False)
+..     # if you are launching remotely, specify server_name and server_port
+..     # demo.launch(server_name='your server name', server_port='server port in int')
+..     # Read more in the docs: https://gradio.app/docs/
 
 
-.. parsed-literal::
+.. .. parsed-literal::
 
-    Running on local URL:  http://127.0.0.1:7860
+..     Running on local URL:  http://127.0.0.1:7860
     
-    To create a public link, set `share=True` in `launch()`.
+..     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
