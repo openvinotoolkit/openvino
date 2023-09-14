@@ -9,54 +9,58 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      # `actions:write` permission is required to delete caches
       actions: write
       contents: read
 
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      BRANCH: refs/pull/${{ github.event.pull_request.number }}/merge
+
     steps:
-      - name: Cleanup
+      - name: Preconditions (Install gh-actions-cache)
         run: |
           gh extension install actions/gh-actions-cache
 
-          REPO=${{ github.repository }}
-          BRANCH="refs/pull/${{ github.event.pull_request.number }}/merge"
+      - name: Cleanup PR's caches
+        run: |
+          echo "Fetching list of cache keys for ${BRANCH}"
+          CACHE_KEYS_FOR_PR=$(gh actions-cache list -R $REPO -B $BRANCH -L 100 | cut -f 1 )
 
-          echo "Fetching list of cache key for ${BRANCH}"
-          cacheKeysForPR=$(gh actions-cache list -R $REPO -B $BRANCH -L 100 | cut -f 1 )
-
-          ## Setting this to not fail the workflow while deleting cache keys.
           set +e
           echo "Deleting caches..."
-          for cacheKey in $cacheKeysForPR
+          for CACHE_KEY in $CACHE_KEYS_FOR_PR
           do
-              gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
+            gh actions-cache delete $CACHE_KEY -R $REPO -B $BRANCH --confirm
           done
+          echo "Done"
 
-          BRANCH="master"
-          KEYS=( "ccache-linux-ubuntu" "ccache-Build-linux-debian" "ccache-Build-linux-android" "ccache-Build-linux-arm64")
-          for cache_key in ${KEYS[@]}
+      - name: Cleanup master's caches
+        env:
+          BRANCH: master
+          KEYS: ( "ccache-linux-ubuntu" "ccache-Build-linux-debian" "ccache-Build-linux-android" "ccache-Build-linux-arm64")
+        run: |
+          for KEY in ${KEYS[@]}
           do
-            echo "Fetching list of cache key ${cache_key} for ${BRANCH}"
-            cacheKeysForPR=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $cache_key --sort created-at --order desc | cut -f 1) )
-            echo "${cacheKeysForPR[@]}"
-            cacheKeysForPRSliced=("${cacheKeysForPR[@]:1}")
-            ## echo "${cacheKeysForPRSliced[@]}"
+            echo "Fetching list of cache with key ${KEY} for ${BRANCH}"
+            CACHE_KEYS=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $KEY --sort created-at --order desc | cut -f 1) )
+            echo "${CACHE_KEYS[@]}"
+            CACHE_KEYS_OLD=("${CACHE_KEYS[@]:1}")
+            ## echo "${CACHE_KEYS_OLD[@]}"
             ## Setting this to not fail the workflow while deleting cache keys.
             set +e
-            if [[ ${#cacheKeysForPRSliced[@]} -gt 0 ]]
+            if [[ ${#CACHE_KEYS_OLD[@]} -gt 0 ]]
             then
               echo "Deleting caches..."
-              for cacheKey in ${cacheKeysForPRSliced[@]}
+              for CACHE_KEY in ${CACHE_KEYS_OLD[@]}
               do
-                if [[ ! -z "$cacheKey" ]]
+                if [[ ! -z "$CACHE_KEY" ]]
                 then
-                  # gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
-                  echo "${cacheKey}"
+                  # gh actions-cache delete $CACHE_KEY -R $REPO -B $BRANCH --confirm
+                  echo "${CACHE_KEY}"
                 fi
               done
             fi
           done
 
           echo "Done"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
