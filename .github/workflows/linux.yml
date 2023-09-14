@@ -97,7 +97,7 @@ jobs:
 
           wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
           unzip ninja-linux.zip
-          cp -v ninja /usr/local/bin/
+          sudo cp -v ninja /usr/local/bin/
 
       - uses: actions/setup-python@v4
         with:
