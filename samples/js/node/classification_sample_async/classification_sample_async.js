@@ -85,7 +85,7 @@ async function main(modelPath, images, deviceName) {
   const compiledModel = core.compileModel(model, deviceName);
   const outputName = compiledModel.output(0).toString();
 
-  //----------- Step 6. Creating promises that returns data from async inference
+  //----------- Step 6. Collecting promises to react when they resolve ---------
   console.log('Starting inference in asynchronous mode');
 
   // Create infer request
