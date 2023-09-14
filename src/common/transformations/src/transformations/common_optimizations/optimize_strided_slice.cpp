@@ -264,6 +264,8 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
     return graph_rewritten;
 }
 
+namespace {
+
 struct SliceAttrs {
     int64_t start, stop, axis;
 };
@@ -317,6 +319,8 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>
 
     return true;
 }
+
+}  // namespace
 
 bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(GroupedSliceToVSplitOptimization);
