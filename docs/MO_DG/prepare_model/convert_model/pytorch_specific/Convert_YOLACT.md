@@ -4,7 +4,7 @@
 
 .. meta::
    :description: Learn how to convert a YOLACT model
-                 from Pytorch to the OpenVINO Intermediate Representation.
+                 from PyTorch to the OpenVINO Intermediate Representation.
 
 
 You Only Look At CoefficienTs (YOLACT) is a simple, fully convolutional model for real-time instance segmentation.

@@ -4,7 +4,7 @@
 
 Model conversion API is represented by ``convert_model()`` method in openvino.tools.mo namespace. ``convert_model()`` is compatible with types from openvino.runtime, like PartialShape, Layout, Type, etc.
 
-``convert_model()`` has the ability available from the command-line tool, plus the ability to pass Python model objects, such as a Pytorch model or TensorFlow Keras model directly, without saving them into files and without leaving the training environment (Jupyter Notebook or training scripts). In addition to input models consumed directly from Python, ``convert_model`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO.
+``convert_model()`` has the ability available from the command-line tool, plus the ability to pass Python model objects, such as a PyTorch model or TensorFlow Keras model directly, without saving them into files and without leaving the training environment (Jupyter Notebook or training scripts). In addition to input models consumed directly from Python, ``convert_model`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO.
 
 .. note::
 
