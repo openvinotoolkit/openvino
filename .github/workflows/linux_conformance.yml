@@ -172,11 +172,17 @@ jobs:
       - name: Cmake Layer Tests
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
 
+      - name: Cmake Conformance Tests
+        run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/src/tests -B ${{ env.BUILD_DIR }}/conformance_tests
+
       - name: Cmake Model Hub Tests
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/model_hub_tests -B ${{ env.BUILD_DIR }}/model_hub_tests
 
       - name: Build Layer Tests
         run: cmake --build ${{ env.BUILD_DIR }}/layer_tests --parallel --config Release
+
+      - name: Build Conformance Tests
+        run: cmake --build ${{ env.BUILD_DIR }}/conformance_tests --parallel --config Release
 
       - name: Build Model Hub Tests
         run: cmake --build ${{ env.BUILD_DIR }}/model_hub_tests --parallel --config Release
@@ -186,6 +192,9 @@ jobs:
 
       - name: Install Layer Tests
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/layer_tests/cmake_install.cmake
+
+      - name: Install Conformance Tests
+        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/conformance_tests/cmake_install.cmake
 
       - name: Install Model Hub Tests
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/model_hub_tests/cmake_install.cmake
