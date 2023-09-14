@@ -40,10 +40,10 @@ jobs:
             cacheKeysForPR=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $cache_key --sort created-at --order desc | cut -f 1) )
             echo "${cacheKeysForPR[@]}"
             cacheKeysForPRSliced=("${cacheKeysForPR[@]:1}")
-            echo "${cacheKeysForPRSliced[@]}"
+            ## echo "${cacheKeysForPRSliced[@]}"
             ## Setting this to not fail the workflow while deleting cache keys.
             set +e
-            if [[ ${#ArrayName[@]} -gt 0 ]]
+            if [[ ${#cacheKeysForPRSliced[@]} -gt 0 ]]
             then
               echo "Deleting caches..."
               for cacheKey in ${cacheKeysForPRSliced[@]}
