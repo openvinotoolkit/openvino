@@ -233,6 +233,8 @@ jobs:
           artifact_dir=${{ env.INSTALL_DIR }}/conformance_artifacts_dir
           mkdir -p $artifact_dir
           
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          
           python3 ${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary/run_conformance.py -ov=${{ env.INSTALL_DIR }}/tests \
             -d=CPU \
             -t=OP \
