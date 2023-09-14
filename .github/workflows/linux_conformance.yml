@@ -163,6 +163,13 @@ jobs:
       - name: Clean ccache stats
         run: ccache --zero-stats --show-config
 
+      - name: Build Conformance Targets
+        working-directory: ${{ env.OPENVINO_REPO }}
+        run:
+          make --jobs=$(nproc --all) subgraphsDumper
+          make --jobs=$(nproc --all) conformanceTests
+          make --jobs=$(nproc --all) apiConformanceTests
+
       - name: Build
         run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ steps.cpu-cores.outputs.count }} --config Release
 
@@ -172,17 +179,11 @@ jobs:
       - name: Cmake Layer Tests
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
 
-      - name: Cmake Conformance Tests
-        run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/src/tests -B ${{ env.BUILD_DIR }}/conformance_tests
-
       - name: Cmake Model Hub Tests
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/model_hub_tests -B ${{ env.BUILD_DIR }}/model_hub_tests
 
       - name: Build Layer Tests
         run: cmake --build ${{ env.BUILD_DIR }}/layer_tests --parallel --config Release
-
-      - name: Build Conformance Tests
-        run: cmake --build ${{ env.BUILD_DIR }}/conformance_tests --parallel --config Release
 
       - name: Build Model Hub Tests
         run: cmake --build ${{ env.BUILD_DIR }}/model_hub_tests --parallel --config Release
@@ -192,9 +193,6 @@ jobs:
 
       - name: Install Layer Tests
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/layer_tests/cmake_install.cmake
-
-      - name: Install Conformance Tests
-        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/conformance_tests/cmake_install.cmake
 
       - name: Install Model Hub Tests
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/model_hub_tests/cmake_install.cmake
@@ -232,6 +230,9 @@ jobs:
 
       - name: Check Dir 2
         run: ls -laR ${{ env.INSTALL_DIR }}
+
+      - name: Check Dir 3
+        run: ls -laR
 
 #      - name: Build cpp samples
 #        run: ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
