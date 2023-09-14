@@ -14,9 +14,6 @@ jobs:
       contents: read
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
       - name: Cleanup
         run: |
           gh extension install actions/gh-actions-cache
@@ -36,7 +33,7 @@ jobs:
           done
 
           BRANCH="master"
-          KEYS=( "ccache-linux-ubuntu" "ccache-Build-linux-debian" "ccache-Build-linux-android")
+          KEYS=( "ccache-linux-ubuntu" "ccache-Build-linux-debian" "ccache-Build-linux-android" "ccache-Build-linux-arm64")
           for cache_key in ${KEYS[@]}
           do
             echo "Fetching list of cache key ${cache_key} for ${BRANCH}"
