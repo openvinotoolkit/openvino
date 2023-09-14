@@ -21,8 +21,8 @@ namespace utils {
 /// \returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value, ::testing::AssertionResult>::type all_close(
-    const T * const a,
-    const T * const b,
+    const T* const a,
+    const T* const b,
     size_t size,
     T rtol = static_cast<T>(1e-5),
     T atol = static_cast<T>(1e-8)) {
@@ -52,8 +52,8 @@ typename std::enable_if<std::is_floating_point<T>::value, ::testing::AssertionRe
 /// \returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
 template <typename T>
 typename std::enable_if<std::is_integral<T>::value, ::testing::AssertionResult>::type all_close(
-    const T * const a,
-    const T * const b,
+    const T* const a,
+    const T* const b,
     size_t size,
     T rtol = static_cast<T>(1e-5),
     T atol = static_cast<T>(1e-8)) {
@@ -69,7 +69,6 @@ typename std::enable_if<std::is_integral<T>::value, ::testing::AssertionResult>:
     }
     return rc ? ::testing::AssertionSuccess() : ar_fail;
 }
-
 
 /// \brief Same as numpy.allclose
 /// \param a First tensor to compare
@@ -88,7 +87,6 @@ typename std::enable_if<std::is_floating_point<T>::value, ::testing::AssertionRe
     }
     return all_close(a.data(), b.data(), a.size(), rtol, atol);
 }
-
 
 /// \brief Same as numpy.allclose
 /// \param a First tensor to compare

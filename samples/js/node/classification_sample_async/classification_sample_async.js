@@ -1,7 +1,6 @@
 const { addon: ov } = require('openvinojs-node');
 
 const args = require('args');
-const util = require('node:util');
 const { cv } = require('opencv-wasm');
 const { getImageData } = require('../helpers.js');
 
@@ -93,8 +92,15 @@ async function main(modelPath, images, deviceName) {
   const inferRequest = compiledModel.createInferRequest();
 
   const promises = tensors.map((t, i) => {
-    const promisifiedAsyncInfer = util.promisify(ov.asyncInfer);
-    const inferPromise = promisifiedAsyncInfer(inferRequest, [t]);
+    const inferPromise = new Promise((resolve, reject) => {
+      try {
+        const output = inferRequest.infer([t]);
+
+        resolve(output);
+      } catch(err) {
+        reject(err);
+      }
+    });
 
     inferPromise.then(result =>
       completionCallback(result[outputName], images[i]));

@@ -10,19 +10,19 @@
 #include <iterator>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/layer_transformation.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace ov;
 
-PrecisionsAttribute::PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions) :
+PrecisionsAttribute::PrecisionsAttribute(const std::vector<ov::element::Type>& precisions) :
     SharedAttribute(precisions) {
 }
 
 ov::Any PrecisionsAttribute::create(
-    const std::shared_ptr<ngraph::Node>& node,
+    const std::shared_ptr<ov::Node>& node,
     const AttributeParameters& params) {
     auto& rt = ov::is_type<opset1::FakeQuantize>(node) ? node->output(0).get_rt_info() : node->get_rt_info();
     return (rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute(params.defaultPrecisions));

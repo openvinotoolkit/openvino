@@ -16,7 +16,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     using parent = typed_primitive_impl<loop>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::loop_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<loop_impl>(*this);
