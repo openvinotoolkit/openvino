@@ -213,8 +213,6 @@ ov::pass::VisualizeTree::VisualizeTree(const std::string& file_name, node_modifi
 void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                                                  std::unordered_map<Node*, HeightMap>& height_maps,
                                                  size_t& fake_node_ctr) {
-    static const int const_max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
-
     size_t arg_index = 0;
     for (auto input_value : node->input_values()) {
         auto arg = input_value.get_node_shared_ptr();
@@ -227,7 +225,7 @@ void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                                                 "style=\"dashed\"",
                                                 color,
                                                 std::string("label=\"") + get_node_name(arg) + std::string("\n") +
-                                                    get_constant_value(arg, const_max_elements) + std::string("\"")};
+                                                    get_constant_value(arg) + std::string("\"")};
 
             if (m_node_modifiers && !arg->output(0).get_rt_info().empty()) {
                 m_node_modifiers(*arg, attributes);
@@ -345,9 +343,8 @@ static std::string pretty_value(const std::vector<T>& values, bool allow_obfusca
     return ss.str();
 }
 
-static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& constant,
-                             size_t max_elements,
-                             bool allow_obfuscate = false) {
+static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& constant, bool allow_obfuscate = false) {
+    static const int max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
     std::stringstream ss;
     ss << "[ ";
     switch (constant->get_output_element_type(0)) {
@@ -403,12 +400,9 @@ static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) 
     if (size == 0) {
         label << "empty";
     } else {
-        static const int const_max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
-        label << " lower: "
-              << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), const_max_elements, true) : "NONE");
-        label << " upper: "
-              << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), const_max_elements, true) : "NONE");
-        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label, const_max_elements));
+        label << " lower: " << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), true) : "NONE");
+        label << " upper: " << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), true) : "NONE");
+        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label));
     }
     return label.str();
 }

@@ -295,10 +295,11 @@ public:
 
     /// \brief Return the Constant's value as a vector cast to type T
     ///
-    /// \tparam T  Type to which data vector's entries will be cast.
+    /// \tparam T             Type to which data vector's entries will be cast.
+    /// \param  num_elements  (Optional) Number of elements to cast. In default case returns all elements
     /// \return    Constant's data vector.
     template <typename T>
-    std::vector<T> cast_vector(size_t num_elements = 0) const {
+    std::vector<T> cast_vector(int64_t num_elements = -1) const {
         auto source_type = get_element_type();
         std::vector<T> rc;
         using Type_t = element::Type_t;
@@ -306,54 +307,58 @@ public:
 #    pragma warning(push)
 #    pragma warning(disable : 4244)
 #endif
+        size_t num_elements_in_constant = shape_size(m_shape);
+        size_t num_elements_to_cast =
+            (num_elements < 0 ? num_elements_in_constant
+                              : std::min(static_cast<size_t>(num_elements), num_elements_in_constant));
         switch (source_type) {
         case Type_t::boolean:
-            cast_vector<Type_t::boolean>(rc, num_elements);
+            cast_vector<Type_t::boolean>(rc, num_elements_to_cast);
             break;
         case Type_t::bf16:
-            cast_vector<Type_t::bf16>(rc, num_elements);
+            cast_vector<Type_t::bf16>(rc, num_elements_to_cast);
             break;
         case Type_t::f16:
-            cast_vector<Type_t::f16>(rc, num_elements);
+            cast_vector<Type_t::f16>(rc, num_elements_to_cast);
             break;
         case Type_t::f32:
-            cast_vector<Type_t::f32>(rc, num_elements);
+            cast_vector<Type_t::f32>(rc, num_elements_to_cast);
             break;
         case Type_t::f64:
-            cast_vector<Type_t::f64>(rc, num_elements);
+            cast_vector<Type_t::f64>(rc, num_elements_to_cast);
             break;
         case Type_t::i4:
-            cast_vector<Type_t::i4>(rc, num_elements);
+            cast_vector<Type_t::i4>(rc, num_elements_to_cast);
             break;
         case Type_t::i8:
-            cast_vector<Type_t::i8>(rc, num_elements);
+            cast_vector<Type_t::i8>(rc, num_elements_to_cast);
             break;
         case Type_t::i16:
-            cast_vector<Type_t::i16>(rc, num_elements);
+            cast_vector<Type_t::i16>(rc, num_elements_to_cast);
             break;
         case Type_t::i32:
-            cast_vector<Type_t::i32>(rc, num_elements);
+            cast_vector<Type_t::i32>(rc, num_elements_to_cast);
             break;
         case Type_t::i64:
-            cast_vector<Type_t::i64>(rc, num_elements);
+            cast_vector<Type_t::i64>(rc, num_elements_to_cast);
             break;
         case Type_t::u1:
-            cast_vector<Type_t::u1>(rc, num_elements);
+            cast_vector<Type_t::u1>(rc, num_elements_to_cast);
             break;
         case Type_t::u4:
-            cast_vector<Type_t::u4>(rc, num_elements);
+            cast_vector<Type_t::u4>(rc, num_elements_to_cast);
             break;
         case Type_t::u8:
-            cast_vector<Type_t::u8>(rc, num_elements);
+            cast_vector<Type_t::u8>(rc, num_elements_to_cast);
             break;
         case Type_t::u16:
-            cast_vector<Type_t::u16>(rc, num_elements);
+            cast_vector<Type_t::u16>(rc, num_elements_to_cast);
             break;
         case Type_t::u32:
-            cast_vector<Type_t::u32>(rc, num_elements);
+            cast_vector<Type_t::u32>(rc, num_elements_to_cast);
             break;
         case Type_t::u64:
-            cast_vector<Type_t::u64>(rc, num_elements);
+            cast_vector<Type_t::u64>(rc, num_elements_to_cast);
             break;
         default:
             OPENVINO_THROW("unsupported type");
@@ -438,7 +443,7 @@ private:
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
                                           Type != element::Type_t::i4,
                                       bool>::type = true>
-    void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements = 0) const {
+    void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
         // this function is workaround for waring during windows building
         // build complains for vector creation based on iterators
         // which point on different type than destination vector::value_type
@@ -490,10 +495,9 @@ private:
     template <element::Type_t Type,
               typename OUT_T,
               typename std::enable_if<Type == element::Type_t::u1, bool>::type = true>
-    void cast_vector(std::vector<OUT_T>& output, size_t num_elements = 0) const {
+    void cast_vector(std::vector<OUT_T>& output, size_t num_elements) const {
         using IN_T = fundamental_type_for<Type>;
-        const auto actual_number_of_elements_in_constant = shape_size(m_shape);
-        const auto element_number = std::min(actual_number_of_elements_in_constant, num_elements);
+        const auto element_number = std::min(num_elements, shape_size(m_shape));
         const auto source_begin = get_data_ptr<uint8_t>();
         const auto source_end = std::next(source_begin, (element_number + 7) / 8);
         const auto round_element_no = element_number % 8 ? element_number - element_number % 8 + 8 : element_number;
@@ -510,10 +514,9 @@ private:
     template <element::Type_t Type,
               typename OUT_T,
               typename std::enable_if<Type == element::Type_t::u4, bool>::type = true>
-    void cast_vector(std::vector<OUT_T>& output, size_t num_elements = 0) const {
+    void cast_vector(std::vector<OUT_T>& output, size_t num_elements) const {
         using IN_T = fundamental_type_for<Type>;
-        const auto actual_number_of_elements_in_constant = shape_size(m_shape);
-        const auto element_number = std::min(actual_number_of_elements_in_constant, num_elements);
+        const auto element_number = std::min(num_elements, shape_size(m_shape));
         const auto source_begin = get_data_ptr<uint8_t>();
         const auto source_end = std::next(source_begin, (element_number + 1) / 2);
         const auto round_element_no = element_number % 2 ? element_number + 1 : element_number;
@@ -529,10 +532,9 @@ private:
     template <element::Type_t Type,
               typename OUT_T,
               typename std::enable_if<Type == element::Type_t::i4, bool>::type = true>
-    void cast_vector(std::vector<OUT_T>& output, size_t num_elements = 0) const {
+    void cast_vector(std::vector<OUT_T>& output, size_t num_elements) const {
         using IN_T = fundamental_type_for<Type>;
-        const auto actual_number_of_elements_in_constant = shape_size(m_shape);
-        const auto element_number = std::min(actual_number_of_elements_in_constant, num_elements);
+        const auto element_number = std::min(num_elements, shape_size(m_shape));
         const auto source_begin = get_data_ptr<uint8_t>();
         const auto source_end = std::next(source_begin, (element_number + 1) / 2);
         const auto round_element_no = element_number % 2 ? element_number + 1 : element_number;
