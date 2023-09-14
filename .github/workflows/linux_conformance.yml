@@ -105,7 +105,7 @@ jobs:
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
           
           # For conformance tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_test_summary/requirements.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt
 
       - name: Install MO dependencies
         run: |
