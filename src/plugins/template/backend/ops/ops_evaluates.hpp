@@ -139,6 +139,10 @@ extern template bool evaluate_node<ngraph::op::v1::ConvertLike>(std::shared_ptr<
                                                                 const ngraph::HostTensorVector& outputs,
                                                                 const ngraph::HostTensorVector& inputs);
 
+extern template bool evaluate_node<ngraph::op::v0::Convert>(std::shared_ptr<ngraph::Node> node,
+                                                            const ngraph::HostTensorVector& outputs,
+                                                            const ngraph::HostTensorVector& inputs);
+
 extern template bool evaluate_node<ngraph::op::v1::Convolution>(std::shared_ptr<ngraph::Node> node,
                                                                 const ngraph::HostTensorVector& outputs,
                                                                 const ngraph::HostTensorVector& inputs);
