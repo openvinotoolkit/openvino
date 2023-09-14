@@ -217,6 +217,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
+    //ACL does not support FakeQuantize fusing for MatMul
+    retVector.emplace_back(R"(.*_(FC|MM)_.*Fused=.*FakeQuantize.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
