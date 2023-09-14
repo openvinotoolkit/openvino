@@ -59,7 +59,7 @@ async function main(modelPath, images, deviceName) {
     imagesData.push(await getImageData(imagePath));
 
   const tensors = imagesData.map((imgData) => {
-    // Use OpenCV.js to preprocess image.
+    // Use opencv-wasm to preprocess image.
     const originalImage = cv.matFromImageData(imgData);
     const image = new cv.Mat();
     // The MobileNet model expects images in RGB format.
