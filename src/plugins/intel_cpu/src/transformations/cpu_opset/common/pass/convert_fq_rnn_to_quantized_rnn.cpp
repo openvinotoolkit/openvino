@@ -203,15 +203,14 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             const auto& multiply = rnn->get_input_node_shared_ptr(1);
 
             auto new_convert  = convert->clone_with_new_inputs({rnn_quantized->output(1)});
-            std::shared_ptr<Node> multiply_in = new_convert;
+            std::shared_ptr<Node> multiply_input = new_convert;
             // dequantize with subtract
             if (subtract_it != pattern_map.end()) {
                 const auto subtract = std::dynamic_pointer_cast<ngraph::opset9::Subtract>(subtract_it->second.get_node_shared_ptr());
-                auto new_subtract = subtract->clone_with_new_inputs({rnn_quantized->output(1), subtract->input_value(1)});
-                multiply_in = new_subtract;
+                multiply_input = subtract->clone_with_new_inputs({multiply_input, subtract->input_value(1)});
             }
 
-            auto new_multiply = multiply->clone_with_new_inputs({multiply_in, multiply->input_value(1)});
+            auto new_multiply = multiply->clone_with_new_inputs({multiply_input, multiply->input_value(1)});
             new_multiply->set_friendly_name(rnn_quantized->get_friendly_name() + ".1");
 
             for (auto output : H_outputs) {
