@@ -170,7 +170,7 @@ jobs:
         run: ccache --show-stats
 
       - name: Build Conformance Tests
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel --config Release --target subgraphsDumper conformanceTests apiConformanceTests
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel --config Release --target conformanceTests apiConformanceTests func_test_utils
 
       - name: Cmake Layer Tests
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
