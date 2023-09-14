@@ -38,7 +38,7 @@ jobs:
           BRANCH="master"
           KEY="ccache-linux-ubuntu"
           echo "Fetching list of cache key for ${BRANCH}"
-          cacheKeysForPR=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $KEY--sort created-at --order desc | cut -f 1) )
+          cacheKeysForPR=( $(gh actions-cache list -R $REPO -B $BRANCH -L 100 --key $KEY --sort created-at --order desc | cut -f 1) )
           echo "${cacheKeysForPR[@]}"
           cacheKeysForPRSliced=("${cacheKeysForPR[@]:1}")
           echo "${cacheKeysForPRSliced[@]}"
