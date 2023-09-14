@@ -24,6 +24,13 @@ public:
     virtual void set_shape(ov::Shape shape) = 0;
 
     /**
+     * @brief Set new element type for tensor
+     * @note Memory allocation may happen
+     * @param shape A new shape
+     */
+    virtual void set_element_type(ov::element::Type element_type);
+
+    /**
      * @return A tensor element type
      */
     virtual const ov::element::Type& get_element_type() const = 0;

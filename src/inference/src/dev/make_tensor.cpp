@@ -62,6 +62,16 @@ public:
         update_strides();
     }
 
+    void set_element_type(ov::element::Type new_element_type) override {
+        OPENVINO_ASSERT(
+            shape_size(m_shape) * new_element_type.bitwidth() <= ov::shape_size(m_capacity) * m_element_type.bitwidth(),
+            "Could set new shape: ",
+            new_element_type);
+        m_element_type = std::move(new_element_type);
+        m_strides.clear();
+        update_strides();
+    }
+
     const Strides& get_strides() const override {
         OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
                         "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
@@ -147,6 +157,12 @@ public:
                             " is not compatible.");
         }
         m_shape = std::move(new_shape);
+    }
+
+    void set_element_type(ov::element::Type new_element_type) override {
+        OPENVINO_ASSERT(m_element_type.bitwidth() == new_element_type.bitwidth(),
+                        "Element type is incompatible for strided tensor.");
+        ViewTensor::set_element_type(std::move(new_element_type));
     }
 };
 
@@ -255,6 +271,10 @@ public:
         OPENVINO_THROW("Shapes cannot be changed for ROI Tensor");
     }
 
+    void set_element_type(ov::element::Type new_element_type) override {
+        OPENVINO_THROW("Element type cannot be changed for ROI Tensor");
+    }
+
     void* data(const element::Type& element_type) const override {
         auto owner_data = m_owner->data(element_type);
         return static_cast<uint8_t*>(owner_data) + m_offset;
@@ -324,6 +344,10 @@ public:
     void set_shape(ov::Shape shape) override {
         blob->setShape({shape.begin(), shape.end()});
         update_strides();
+    }
+
+    void set_element_type(ov::element::Type new_element_type) override {
+        OPENVINO_THROW("Element type cannot be changed for Blob Tensor");
     }
 
     const Shape& get_shape() const override {
