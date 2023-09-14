@@ -17,17 +17,17 @@
     "download_runtime": "node ./scripts/download_runtime.js"
   },
   "dependencies": {
-    "node-gyp": "^9.3.0",
-    "typescript": "^5.0.4",
     "decompress": "^4.2.1",
+    "https-proxy-agent": "^7.0.2",
     "node-addon-api": "^3.0.0",
-    "https-proxy-agent": "^7.0.2"
+    "node-gyp": "^9.3.0",
+    "typescript": "^5.0.4"
   },
   "devDependencies": {
     "@types/node": "^20.5.0",
-    "@typescript-eslint/eslint-plugin": "^5.59.1",
-    "@typescript-eslint/parser": "^5.59.1",
-    "eslint": "^8.39.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0",
+    "eslint": "^8.49.0",
     "random-bigint": "^0.0.1"
   },
   "engines": {
