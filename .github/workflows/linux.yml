@@ -854,7 +854,7 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
           if-no-files-found: 'error'
 
-  Python_Unit_Tests (Model Optimizer UT):
+  Python_Unit_Tests-Model_Optimizer_UT:
     needs: Build
     defaults:
       run:
