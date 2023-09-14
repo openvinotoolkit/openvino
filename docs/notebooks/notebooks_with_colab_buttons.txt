@@ -17,6 +17,9 @@
 221-machine-translation
 223-text-prediction
 227-whisper-subtitles-generation
+230-yolov8-instance-segmentation
+230-yolov8-keypoint-detection
+230-yolov8-object-detection
 230-yolov8-optimization
 232-clip-language-saliency-map
 243-tflite-selfie-segmentation

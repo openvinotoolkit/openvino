@@ -1,8 +1,6 @@
 Handwritten Chinese and Japanese OCR with OpenVINO™
 ===================================================
 
-
-
 In this tutorial, we perform optical character recognition (OCR) for
 handwritten Chinese (simplified) and Japanese. An OCR tutorial using the
 Latin alphabet is available in `notebook
@@ -10,18 +8,17 @@ Latin alphabet is available in `notebook
 This model is capable of processing only one line of symbols at a time.
 
 The models used in this notebook are
-`handwritten-japanese-recognition-0001 <https://docs.openvino.ai/2023.1/omz_models_model_handwritten_japanese_recognition_0001.html>`__
+`handwritten-japanese-recognition-0001 <https://docs.openvino.ai/2023.0/omz_models_model_handwritten_japanese_recognition_0001.html>`__
 and
-`handwritten-simplified-chinese-0001 <https://docs.openvino.ai/2023.1/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
+`handwritten-simplified-chinese-0001 <https://docs.openvino.ai/2023.0/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
 To decode model outputs as readable text
 `kondate_nakayosi <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/kondate_nakayosi.txt>`__
 and
 `scut_ept <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/scut_ept.txt>`__
-charlists are used. Both models are available on `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
+charlists are used. Both models are available on `Open Model
+Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__
@@ -37,9 +34,13 @@ charlists are used. Both models are available on `Open Model Zoo <https://github
 - `Process the Output Data <#process-the-output-data>`__
 - `Print the Output <#print-the-output>`__
 
-Imports `⇑ <#top>`__
-###############################################################################################################################
+.. code:: ipython3
 
+    # Install openvino-dev package
+    !pip install -q "openvino-dev==2023.1.0.dev20230811"
+
+Imports
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -50,13 +51,12 @@ Imports `⇑ <#top>`__
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-    from openvino.runtime import Core
+    import openvino as ov
 
-Settings `⇑ <#top>`__
+Settings 
 ###############################################################################################################################
 
-
-Set up all constants and folders used in this notebook
+Set up all constants and folders used in this notebook:
 
 .. code:: ipython3
 
@@ -87,9 +87,8 @@ To group files, you have to define the collection. In this case, use
         demo_image_name="handwritten_japanese_test.png",
     )
 
-Select a Language `⇑ <#top>`__
+Select a Language 
 ###############################################################################################################################
-
 
 Depending on your choice you will need to change a line of code in the
 cell below.
@@ -106,9 +105,8 @@ If you want to perform OCR on a text in Japanese, set
     
     selected_language = languages.get(language)
 
-Download the Model `⇑ <#top>`__
+Download the Model 
 ###############################################################################################################################
-
 
 In addition to images and charlists, you need to download the model
 file. In the sections below, there are cells for downloading either the
@@ -143,9 +141,8 @@ and downloads the selected model.
     
 
 
-Load the Model and Execute `⇑ <#top>`__
+Load the Model and Execute 
 ###############################################################################################################################
-
 
 When all files are downloaded and language is selected, read and compile
 the network to run inference. The path to the model is defined based on
@@ -153,21 +150,18 @@ the selected language.
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     path_to_model = path_to_model_weights.with_suffix(".xml")
     model = core.read_model(model=path_to_model)
 
-Select inference device `⇑ <#top>`__
+Select inference device 
 ###############################################################################################################################
-
 
 Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
-    core = Core()
     
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -191,9 +185,8 @@ Select device from dropdown list for running inference using OpenVINO:
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Fetch Information About Input and Output Layers `⇑ <#top>`__
+Fetch Information About Input and Output Layers
 ###############################################################################################################################
-
 
 Now that the model is loaded, fetch information about the input and
 output layers (shape).
@@ -203,9 +196,8 @@ output layers (shape).
     recognition_output_layer = compiled_model.output(0)
     recognition_input_layer = compiled_model.input(0)
 
-Load an Image `⇑ <#top>`__
+Load an Image 
 ###############################################################################################################################
-
 
 Next, load an image. The model expects a single-channel image as input,
 so the image is read in grayscale.
@@ -249,9 +241,8 @@ keep letters proportional and meet input shape.
     # Reshape to network input shape.
     input_image = resized_image[None, None, :, :]
 
-Visualize Input Image `⇑ <#top>`__
+Visualize Input Image 
 ###############################################################################################################################
-
 
 After preprocessing, you can display the image.
 
@@ -263,12 +254,11 @@ After preprocessing, you can display the image.
 
 
 
-.. image:: 209-handwritten-ocr-with-output_files/209-handwritten-ocr-with-output_21_0.png
+.. image:: 209-handwritten-ocr-with-output_files/209-handwritten-ocr-with-output_22_0.png
 
 
-Prepare Charlist `⇑ <#top>`__
+Prepare Charlist 
 ###############################################################################################################################
-
 
 The model is loaded and the image is ready. The only element left is the
 charlist, which is downloaded. You must add a blank symbol at the
@@ -286,9 +276,8 @@ Chinese and Japanese models.
     with open(f"{charlist_folder}/{used_charlist}", "r", encoding="utf-8") as charlist:
         letters = blank_char + "".join(line.strip() for line in charlist)
 
-Run Inference `⇑ <#top>`__
+Run Inference 
 ###############################################################################################################################
-
 
 Now, run inference. The ``compiled_model()`` function takes a list with
 input(s) in the same order as model input(s). Then, fetch the output
@@ -299,9 +288,8 @@ from output tensors.
     # Run inference on the model
     predictions = compiled_model([input_image])[recognition_output_layer]
 
-Process the Output Data `⇑ <#top>`__
+Process the Output Data
 ###############################################################################################################################
-
 
 The output of a model is in the ``W x B x L`` format, where:
 
@@ -340,9 +328,8 @@ Finally, get the symbols from corresponding indexes in the charlist.
     # Assign letters to indexes from the output array.
     output_text = [letters[letter_index] for letter_index in output_text_indexes]
 
-Print the Output `⇑ <#top>`__
+Print the Output 
 ###############################################################################################################################
-
 
 Now, having a list of letters predicted by the model, you can display
 the image with predicted text printed below.
@@ -362,5 +349,5 @@ the image with predicted text printed below.
 
 
 
-.. image:: 209-handwritten-ocr-with-output_files/209-handwritten-ocr-with-output_30_1.png
+.. image:: 209-handwritten-ocr-with-output_files/209-handwritten-ocr-with-output_31_1.png
 
