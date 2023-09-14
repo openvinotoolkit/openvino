@@ -63,7 +63,7 @@ def get_imported_module_version(imported_module):
     for attr in version_attrs:
         installed_version = getattr(imported_module, attr, None)
         if isinstance(installed_version, str):
-           return installed_version
+            return installed_version
         else:
             installed_version = None
 
@@ -98,7 +98,8 @@ def get_environment_setup(framework):
 
 def trace_tf_model_if_needed(input_model, placeholder_shapes, placeholder_data_types, example_input):
     import tensorflow as tf
-    if not isinstance(input_model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
+    if not isinstance(input_model,
+                      (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
         return input_model
     return trace_tf_model(input_model, placeholder_shapes, placeholder_data_types, example_input)
 
@@ -183,12 +184,30 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
     elif isinstance(model, tf.types.experimental.GenericFunction):
         tf_function = model
         input_needs_packing = False
+    elif (isinstance(model, tf.keras.Model) or isinstance(model, tf.keras.layers.Layer)) and \
+            hasattr(model, 'input') and getattr(model, 'input') is not None:
+        # it also covers TensorFlow Hub cases with hub.KerasLayer
+        keras_input_signature = getattr(model, 'input')
+        tf_input_signature = []
+        if isinstance(keras_input_signature, dict):
+            for tensor_name, tensor_spec in keras_input_signature.items():
+                tf_input_signature.append(tf.TensorSpec(shape=tensor_spec.shape,
+                                                        dtype=tensor_spec.dtype,
+                                                        name=tensor_name))
+        elif isinstance(keras_input_signature, list):
+            for tensor_spec in tf_input_signature:
+                tf_input_signature.append(tf.TensorSpec(shape=tensor_spec.shape,
+                                                        dtype=tensor_spec.dtype,
+                                                        name=tensor_spec.name))
+        tf_function = tf.function(model, input_signature=tf_input_signature)
+        input_needs_packing = False
     else:
         # Wrap model to tf.Function.
         # In this case we loose input/output tensor names.
         @tf.function
         def tf_function(args):
             return model(*args)
+
         input_needs_packing = True
 
     if example_input is not None:
@@ -216,7 +235,8 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
 def type_supported_by_tf_fe(input_model):
     import tensorflow as tf
     # Types that require tracing
-    if isinstance(input_model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
+    if isinstance(input_model,
+                  (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
         return True
     # Types that do not require tracing
     if isinstance(input_model, (tf.Graph, tf.types.experimental.ConcreteFunction)):
@@ -271,7 +291,7 @@ def extract_model_graph(argv):
     import tensorflow as tf
     trackable_is_imported = False
     try:
-        from tensorflow.python.training.tracking.base import Trackable # pylint: disable=no-name-in-module,import-error
+        from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
         trackable_is_imported = True
     except:
         log.warning("Could not import tensorflow.python.training.tracking.base.Trackable type.")
