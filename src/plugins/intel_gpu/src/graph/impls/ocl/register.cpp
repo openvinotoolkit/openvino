@@ -43,6 +43,7 @@ void register_implementations() {
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);
+    REGISTER_OCL(mha);
     REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(mutable_data);
     REGISTER_OCL(mvn);
