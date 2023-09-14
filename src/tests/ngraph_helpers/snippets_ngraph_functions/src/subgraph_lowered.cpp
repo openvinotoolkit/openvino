@@ -72,7 +72,7 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
     return std::make_shared<ov::Model>(NodeVector{store}, input_params);
 }
 
-std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() const {
+std::shared_ptr<ov::Model> TransposeMatMulLoweredFunction::initLowered() const {
     ParameterVector data{std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]),
                          std::make_shared<op::v0::Parameter>(precisions[1], input_shapes[1])};
     std::vector<size_t> layout{0, 2, 1, 3};

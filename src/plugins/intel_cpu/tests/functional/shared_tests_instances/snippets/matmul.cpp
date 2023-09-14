@@ -47,7 +47,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     return prc;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, MatMul,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMul, MatMul,
                          ::testing::Combine(
                              ::testing::ValuesIn(input_shapes),
                              ::testing::ValuesIn(precisions(false)),

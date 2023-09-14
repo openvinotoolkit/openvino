@@ -12,6 +12,7 @@ namespace snippets {
 
 typedef std::tuple<
         std::vector<ov::PartialShape>, // Input  Shapes
+        std::vector<int>,              // Transpose order
         size_t ,                       // Transpose position
         std::vector<ov::element::Type>,// Input Element types
         size_t,                        // Expected num nodes
@@ -33,12 +34,7 @@ protected:
     void SetUp() override;
 };
 
-class ExplicitTransposeMatMul : public TransposeMatMul {
-protected:
-    void SetUp() override;
-};
-
-class ExplicitTransposeMatMulBias : public TransposeMatMul {
+class TransposeMatMulBias : public TransposeMatMul {
 protected:
     void SetUp() override;
 };

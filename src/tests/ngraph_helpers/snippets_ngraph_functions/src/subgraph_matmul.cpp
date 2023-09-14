@@ -48,7 +48,7 @@ std::shared_ptr<ov::Model> MatMulFunction::initReference() const {
     return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
-    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 1, 3});
+    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape{order.size()}, order);
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto ih = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{34.7436294});
     auto il = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{-35.0172004});
@@ -126,10 +126,10 @@ std::shared_ptr<ov::Model> MatMulsQuantizedFunction::initOriginal() const {
      auto fq3 = ngraph::builder::makeFakeQuantize(matmul1, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     return std::make_shared<ov::Model>(NodeVector{fq3}, ParameterVector{data0, data1, data2});
 }
-std::shared_ptr<ov::Model> Transpose0213MatMulFunction::initOriginal() const {
+std::shared_ptr<ov::Model> TransposeMatMulFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precisions[1], input_shapes[1]);
-    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 1, 3});
+    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape{order.size()}, order);
     std::shared_ptr<Node> result;
     switch (transpose_position) {
         case 0: {
@@ -174,14 +174,6 @@ std::shared_ptr<ov::Model> Transpose0213MatMulFunction::initOriginal() const {
     return std::make_shared<ov::Model>(NodeVector{result}, ParameterVector{data0, data1});
 }
 
-std::shared_ptr<ov::Model> TransposeMatMulFunction::initOriginal() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 3, 1});
-    auto transpose = std::make_shared<op::v1::Transpose>(data1, const_order);
-    auto matmul = std::make_shared<op::v0::MatMul>(data0, transpose);
-    return std::make_shared<ov::Model>(NodeVector{matmul}, ParameterVector{data0, data1});
-}
 std::shared_ptr<ov::Model> TransposeMatMulBiasFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);

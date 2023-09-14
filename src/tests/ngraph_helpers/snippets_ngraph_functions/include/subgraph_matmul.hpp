@@ -44,15 +44,18 @@ protected:
 
 class FQMatMulFunction : public SnippetsFunctionBase {
 public:
-    explicit FQMatMulFunction(const std::vector<PartialShape>& inputShapes, int pos = -1) : SnippetsFunctionBase({inputShapes[0]}), pos(pos)  {
+    explicit FQMatMulFunction(const std::vector<PartialShape>& inputShapes, const std::vector<int>& order, int pos = -1)
+        : SnippetsFunctionBase({inputShapes[0]}), order(order), pos(pos)  {
         NGRAPH_CHECK(inputShapes.size() == 2, "Got invalid number of input shapes");
         NGRAPH_CHECK(pos >=-1 && pos <= 2, "Got invalid transpose position");
+        NGRAPH_CHECK(order.size() == input_shapes[0].size(), "Got invalid transpose order");
         const_shape = inputShapes[1];
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
     ov::PartialShape const_shape;
+    std::vector<int> order;
     int pos = -1;
 };
 
@@ -111,30 +114,22 @@ protected:
 //   Transpose  /
 //         Matmul
 //         Result
-class Transpose0213MatMulFunction : public SnippetsFunctionBase {
+class TransposeMatMulFunction : public SnippetsFunctionBase {
 public:
-    explicit Transpose0213MatMulFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                                         size_t position = 0)
-    : SnippetsFunctionBase(inputShapes), transpose_position(position), precisions(precisions)  {
+    explicit TransposeMatMulFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
+                                     const std::vector<int>& order, size_t position = 0)
+    : SnippetsFunctionBase(inputShapes), transpose_position(position), order(order), precisions(precisions)  {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
-        NGRAPH_CHECK(input_shapes[0].rank().get_length() == 4 && input_shapes[1].rank().get_length() == 4,
-                     "Only rank 4 input shapes are supported by this test");
         NGRAPH_CHECK(transpose_position >=0 && transpose_position <= 2, "Got invalid transpose position");
+        NGRAPH_CHECK(order.size() == input_shapes[0].size(), "Got invalid transpose order");
         MatMulFunction::validate_precisions(precisions);
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
-    size_t transpose_position;
-    std::vector<ov::element::Type> precisions;
-};
 
-class TransposeMatMulFunction : public SnippetsFunctionBase {
-public:
-    explicit TransposeMatMulFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
-    }
-protected:
-    std::shared_ptr<ov::Model> initOriginal() const override;
+    size_t transpose_position;
+    std::vector<int> order;
+    std::vector<ov::element::Type> precisions;
 };
 
 class TransposeMatMulBiasFunction : public SnippetsFunctionBase {

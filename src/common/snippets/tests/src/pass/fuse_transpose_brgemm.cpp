@@ -31,7 +31,7 @@ void FuseTransposeBrgemmTests::SetUp() {
     size_t transpose_position;
     std::tie(input_shapes, master_shape, transpose_position) = this->GetParam();
 
-    snippets_model = std::make_shared<Transpose0213MatMulLoweredFunction>(input_shapes, transpose_position);
+    snippets_model = std::make_shared<TransposeMatMulLoweredFunction>(input_shapes, std::vector<int>{0, 2, 1, 3}, transpose_position);
 }
 
 TEST_P(FuseTransposeBrgemmTests, FuseTransposeMatmul) {

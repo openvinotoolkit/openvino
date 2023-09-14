@@ -53,10 +53,10 @@ private:
     std::vector<Shape> broadcast_shapes;
 };
 
-class Transpose0213MatMulLoweredFunction : public Transpose0213MatMulFunction {
+class TransposeMatMulLoweredFunction : public TransposeMatMulFunction {
 public:
-    explicit Transpose0213MatMulLoweredFunction(const std::vector<PartialShape>& inputShapes, size_t position = 0) :
-            Transpose0213MatMulFunction(inputShapes, std::vector<ov::element::Type>{ov::element::f32, ov::element::f32}, position) {
+    explicit TransposeMatMulLoweredFunction(const std::vector<PartialShape>& inputShapes, const std::vector<int>& order, size_t position = 0) :
+            TransposeMatMulFunction(inputShapes, std::vector<ov::element::Type>{ov::element::f32, ov::element::f32}, order, position) {
     }
 protected:
     std::shared_ptr<ov::Model> initLowered() const override;

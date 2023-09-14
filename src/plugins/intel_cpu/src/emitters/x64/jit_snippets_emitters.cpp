@@ -733,7 +733,7 @@ size_t BrgemmEmitter::get_out_leading_dim(const ov::Shape& shape, const std::vec
     //      Original transposed shape (shape) = [49, 2, 7, 39]
     //      Layout (transpose order) = [2, 0, 1, 3]
     //      Before leading dimension with index 3 there is dimension with index 2 in planar layout.
-    //      Since we have non-planar layout, we have to find this before LD dim (called as BLD) in transposed order.
+    //      Since we have non-planar layout, we have to find this before LD dim in transposed order.
     //      In layout 2nd idx is first element, it means, that the leading dimension is equal to stride of shape[0]
     OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
                     "BrgemmEmitter detected invalid layout values: check that this shape + layout combination is schedulable");

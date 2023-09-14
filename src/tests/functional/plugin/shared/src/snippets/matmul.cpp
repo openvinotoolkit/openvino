@@ -48,7 +48,7 @@ void MatMul::init_subgraph(const std::vector<PartialShape>& inputShapes, const s
 }
 
 void MatMulFQ::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::FQMatMulFunction(inputShapes);
+    auto f = ov::test::snippets::FQMatMulFunction(inputShapes, std::vector<int>{0, 2, 1, 3});
     function = f.getOriginal();
 }
 

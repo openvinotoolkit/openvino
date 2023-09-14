@@ -17,7 +17,7 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
-const std::set<std::vector<int>> FuseTransposeBrgemm::supported_cases = {{0, 2, 1, 3}};
+const std::set<std::vector<int>> FuseTransposeBrgemm::supported_cases = {{0, 3, 1, 2, 4}, {0, 2, 1, 3}, {2, 0, 1, 3}, {1, 0, 2}};
 
 bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_port) {
     const auto transpose_node = transpose_port.get_node_shared_ptr();
