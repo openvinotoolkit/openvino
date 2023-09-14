@@ -104,40 +104,39 @@ Plugins which do not support dynamic output tensors produce ``selected_indices``
 **Example**
 
 .. code-block:: xml
-   :force:
+    :force:
 
-  <layer ... type="NMSRotated" ... >
-      <data box_encoding="center" sort_result_descending="true" output_type="i64" clockwise="true"/>
-      <input>
-          <port id="0">
-              <dim>3</dim>
-              <dim>100</dim>
-              <dim>5</dim>
-          </port>
-          <port id="1">
-              <dim>3</dim>
-              <dim>5</dim>
-              <dim>100</dim>
-          </port>
-          <port id="2"/> <!-- 10 -->
-          <port id="3"/>
-          <port id="4"/>
-          <port id="5"/>
-      </input>
-      <output>
-          <port id="6" precision="I64">
-              <dim>150</dim> < !-- min(100, 10) * 3 * 5 -->
-              <dim>3</dim>
-          </port>
-          <port id="7" precision="FP32">
-              <dim>150</dim> < !-- min(100, 10) * 3 * 5 -->
-              <dim>3</dim>
-          </port>
-          <port id="8" precision="I64">
-              <dim>1</dim>
-          </port>
-      </output>
-  </layer>
-
+    <layer ... type="NMSRotated" ... >
+        <data box_encoding="center" sort_result_descending="true" output_type="i64" clockwise="true"/>
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>100</dim>
+                <dim>5</dim>
+            </port>
+            <port id="1">
+                <dim>3</dim>
+                <dim>5</dim>
+                <dim>100</dim>
+            </port>
+            <port id="2"/> <!-- 10 -->
+            <port id="3"/>
+            <port id="4"/>
+            <port id="5"/>
+        </input>
+        <output>
+            <port id="6" precision="I64">
+                <dim>150</dim> < !-- min(100, 10) * 3 * 5 -->
+                <dim>3</dim>
+            </port>
+            <port id="7" precision="FP32">
+                <dim>150</dim> < !-- min(100, 10) * 3 * 5 -->
+                <dim>3</dim>
+            </port>
+            <port id="8" precision="I64">
+                <dim>1</dim>
+            </port>
+        </output>
+    </layer>
 
 @endsphinxdirective
