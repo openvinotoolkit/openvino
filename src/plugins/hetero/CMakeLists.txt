@@ -18,14 +18,14 @@ ov_add_plugin(NAME ${TARGET_NAME}
               VERSION_DEFINES_FOR src/version.cpp
               ADD_CLANG_FORMAT)
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     UNITY
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 
 # must be called after all target_link_libraries
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -33,7 +33,7 @@ if(BUILD_SHARED_LIBS)
     set(OBJ_NAME ${TARGET_NAME}_obj)
 
     add_library(${OBJ_NAME} OBJECT ${SOURCES} ${HEADERS})
-    link_system_libraries(${OBJ_NAME} PUBLIC openvino::pugixml)
+    ov_link_system_libraries(${OBJ_NAME} PUBLIC openvino::pugixml)
 
     ov_add_version_defines(src/version.cpp ${OBJ_NAME})
 
@@ -45,7 +45,7 @@ if(BUILD_SHARED_LIBS)
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    set_ie_threading_interface_for(${OBJ_NAME})
+    ov_set_threading_interface_for(${OBJ_NAME})
 
     target_compile_definitions(${OBJ_NAME}
         PRIVATE

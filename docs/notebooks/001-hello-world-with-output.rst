@@ -1,13 +1,11 @@
 Hello Image Classification
 ==========================
 
-
-
 This basic introduction to OpenVINO™ shows how to do inference with an
 image classification model.
 
 A pre-trained `MobileNetV3
-model <https://docs.openvino.ai/2023.1/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
+model <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
 from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial. For more information about how OpenVINO IR models are
@@ -15,11 +13,7 @@ created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
 tutorial. 
 
-
-
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
 
 - `Imports <#imports>`__
 - `Download the Model and data samples <#download-the-model-and-data-samples>`__
@@ -28,7 +22,19 @@ tutorial.
 - `Load an Image <#load-an-image>`__
 - `Do Inference <#do-inference>`__
 
-Imports `⇑ <#top>`__
+.. code:: ipython3
+
+    # Install openvino package
+    !pip install -q "openvino==2023.1.0.dev20230811"
+
+
+.. parsed-literal::
+
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    openvino-dev 2023.0.0 requires openvino==2023.0.0, but you have openvino 2023.1.0.dev20230811 which is incompatible.
+    
+
+Imports
 ############################################
 
 .. code:: ipython3
@@ -39,12 +45,12 @@ Imports `⇑ <#top>`__
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-    from openvino.runtime import Core
+    import openvino as ov
     
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Download the Model and data samples `⇑ <#top>`__
+Download the Model and data samples
 ########################################################################
 
 .. code:: ipython3
@@ -78,7 +84,7 @@ Download the Model and data samples `⇑ <#top>`__
     artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
-Select inference device `⇑ <#top>`__
+Select inference device
 ############################################################
 
 Select device from dropdown list for running inference using OpenVINO:
@@ -87,7 +93,7 @@ Select device from dropdown list for running inference using OpenVINO:
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
@@ -106,18 +112,18 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Load the Model `⇑ <#top>`__
+Load the Model
 ###################################################
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     model = core.read_model(model=model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
     
     output_layer = compiled_model.output(0)
 
-Load an Image `⇑ <#top>`__
+Load an Image
 ##################################################
 
 .. code:: ipython3
@@ -134,10 +140,10 @@ Load an Image `⇑ <#top>`__
 
 
 
-.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_10_0.png
+.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_11_0.png
 
 
-Do Inference `⇑ <#top>`__
+Do Inference
 #################################################
 
 .. code:: ipython3
