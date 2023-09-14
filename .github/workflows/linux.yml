@@ -260,11 +260,11 @@ jobs:
           popd
 
       - name: Build cpp samples
-        if: ${{ env.SAMPLES_AFFECTED }} # runs anyways, if either build or tests are expected
+        if: env.SAMPLES_AFFECTED # runs anyways, if either build or tests are expected
         run: ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
 
       - name: Build c samples
-        if: ${{ env.SAMPLES_AFFECTED }}
+        if: env.SAMPLES_AFFECTED
         run: ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
 
       #
