@@ -168,7 +168,7 @@ void CheckpointV1Reader::init_block(const std::shared_ptr<std::ifstream>& shard,
                             "[TensorFlow Frontend] internal error: compression method for given block is not supported "
                             "for checkpoint file " +
                                 shard_name);
-    result_data = std::string(buf.get(), size);
+    block = std::string(buf.data(), size);
 #else
     FRONT_END_GENERAL_CHECK(buf[size] == 0 || buf[size] == 1,
                             "[TensorFlow Frontend] internal error: compression method for given block is not supported "

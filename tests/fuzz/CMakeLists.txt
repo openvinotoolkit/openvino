@@ -16,6 +16,9 @@ find_package(IEDevScripts REQUIRED
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
+# TODO: remove this when all the deprecated functions are removed
+ov_deprecated_no_errors()
+
 find_package(OpenVINO REQUIRED)
 
 if (NOT ENABLE_FUZZING)
