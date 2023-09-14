@@ -83,6 +83,9 @@ std::vector<OptimizeDomainParams> dopt_params = {
         // 2D and 1D shapes are too small, so no collapsing should be done in such cases
         {256, 32, {{4, 5}, {4, 5}}, {4, 5}, 1},
         {256, 32, {{5}, {5}}, {5}, 1},
+
+        // min_parallel_work_amount = 1 is a special case that would cause all dimensions to collapse (up to min_jit_work_amount of course)
+        {256, 1, {{4, 1, 6, 7}, {4, 1, 6, 7}}, {1, 1, 1, 168}, 1},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DomainOptimization, OptimizeDomainTest,

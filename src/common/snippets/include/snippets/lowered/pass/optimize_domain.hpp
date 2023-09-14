@@ -23,7 +23,7 @@ public:
     OPENVINO_RTTI("OptimizeDomain", "Pass")
     explicit OptimizeDomain(size_t& tile_rank);
     bool run(LinearIR& linear_ir) override;
-    static bool optimize(std::vector<VectorDims>& input_shapes,
+    static size_t optimize(std::vector<VectorDims>& input_shapes,
                          VectorDims& master_shape,
                          size_t total_work_amount,
                          size_t min_parallel_work_amount,
