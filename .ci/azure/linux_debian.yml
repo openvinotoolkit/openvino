@@ -285,6 +285,12 @@ jobs:
     displayName: 'OV Proxy Tests'
 
   - script: |
+      $(INSTALL_TEST_DIR)/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroUnitTests.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
+    displayName: 'OV Hetero Unit Tests'
+
+  - script: |
       $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
@@ -373,7 +379,7 @@ jobs:
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
       PYTHONPATH: $(INSTALL_TEST_DIR)
-    displayName: 'ONNX Frontend Python Tests' 
+    displayName: 'ONNX Frontend Python Tests'
 
   - script: |
       set -e

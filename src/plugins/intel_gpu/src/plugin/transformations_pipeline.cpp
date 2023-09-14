@@ -34,6 +34,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/validation_util.hpp"
 
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/einsum_decomposition.hpp"
@@ -102,6 +103,7 @@
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
+#include "transformations/op_conversions/convert_pad12_downgrade.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -146,7 +148,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-    const auto& defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support;
+    const auto& defaultPrecisions = ov::pass::low_precision::precision_set::int8_support;
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
@@ -154,7 +156,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
 
-        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         if (enableInt8) {
             manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
                 std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 });
@@ -228,9 +230,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->set_callback<ov::pass::KeepConstAndDecompression>(is_matmul_output);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
+        const bool convert_input_output_precision = false;
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
-                                                          keep_precision_sensitive_in_fp32_1);
+                                                          keep_precision_sensitive_in_fp32_1,
+                                                          convert_input_output_precision);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
@@ -269,6 +273,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
         manager.register_pass<ov::pass::TransposeMatMul>();
+        manager.register_pass<ov::pass::ConvertPad12ToPad1, false>();
 
         precisions_map int_convert_precision_map {
                 {ov::element::i64, ov::element::i32},
@@ -281,7 +286,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         manager.register_pass<ov::pass::Validate>();
-        manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map);
+        const bool keep_precision_sensitive_in_fp32_2 = true;
+        manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
+                                                          empty_fuse_map,
+                                                          keep_precision_sensitive_in_fp32_2,
+                                                          convert_input_output_precision);
 
         pass_config->disable<ov::pass::EyeDecomposition>();
 
@@ -481,7 +490,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         if (enableInt8) {
             pass_config->set_callback<ov::pass::ConvertQuantizeDequantize>([&](const_node_ptr &node) -> bool {
-                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
+                return ov::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
             });
         }
 
@@ -490,7 +499,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     if (enableInt8) {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::lpt");
-        using namespace ngraph::pass::low_precision;
+        using namespace ov::pass::low_precision;
 
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ov::op::v1::Convolution>({
@@ -518,8 +527,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto lptPassConfig = lptManager.get_pass_config();
         // quantized LSTMSequence / GPUSequence are not supported yet. Avoid extra transformation
-        lptPassConfig->disable<ngraph::pass::low_precision::RecurrentCellTransformation>();
-        lptPassConfig->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
+        lptPassConfig->disable<ov::pass::low_precision::RecurrentCellTransformation>();
+        lptPassConfig->set_callback<ov::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ov::op::v1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
             }
