@@ -21,7 +21,8 @@ addIeTarget(
                 openvino::reference
                 interpreter_backend
                 openvino::runtime::dev
-        ADD_CPPLINT
+                common_test_utils
+        ADD_CLANG_FORMAT
         DEVELOPER_PACKAGE
             tests
 )
