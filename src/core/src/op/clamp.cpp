@@ -59,11 +59,6 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
         TYPE_CASE(u64)
         (arg, out, double_to_int<uint64_t>(min, ceil_func), double_to_int<uint64_t>(max, floor_func), count);
         break;
-        TYPE_CASE(f16)(arg, out, static_cast<float16>(min), static_cast<float16>(max), count);
-        break;
-        TYPE_CASE(bf16)
-        (arg, out, static_cast<bfloat16>(min), static_cast<bfloat16>(max), count);
-        break;
         TYPE_CASE(f32)(arg, out, static_cast<float>(min), static_cast<float>(max), count);
         break;
     default:
@@ -95,8 +90,6 @@ bool op::v0::Clamp::has_evaluate() const {
     case ngraph::element::u16:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::bf16:
     case ngraph::element::f32:
         return true;
     default:

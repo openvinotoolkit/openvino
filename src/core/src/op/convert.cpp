@@ -86,10 +86,7 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
         TYPE_OUT_CASE(u16, arg, out);
         TYPE_OUT_CASE(u32, arg, out);
         TYPE_OUT_CASE(u64, arg, out);
-        TYPE_OUT_CASE(bf16, arg, out);
-        TYPE_OUT_CASE(f16, arg, out);
         TYPE_OUT_CASE(f32, arg, out);
-        TYPE_OUT_CASE(f64, arg, out);
         TYPE_OUT_CASE(boolean, arg, out);
     default:
         rc = false;
@@ -112,10 +109,7 @@ bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
         NGRAPH_TYPE_CASE(evaluate_convert, i16, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, i32, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, i64, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, bf16, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, f16, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, f32, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, f64, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, boolean, arg, out);
     default:
         rc = false;
@@ -196,10 +190,7 @@ bool op::v0::Convert::has_evaluate() const {
     case ngraph::element::i16:
     case ngraph::element::i32:
     case ngraph::element::i64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::f64:
     case ngraph::element::boolean:
         break;
     default:
@@ -217,10 +208,7 @@ bool op::v0::Convert::has_evaluate() const {
     case ngraph::element::u16:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::f64:
     case ngraph::element::boolean:
         break;
     default:

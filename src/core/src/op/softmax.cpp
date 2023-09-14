@@ -28,10 +28,7 @@ bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const 
     bool rc = true;
 
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_softmax, bf16, arg, out, shape, axes);
-        NGRAPH_TYPE_CASE(evaluate_softmax, f16, arg, out, shape, axes);
         NGRAPH_TYPE_CASE(evaluate_softmax, f32, arg, out, shape, axes);
-        NGRAPH_TYPE_CASE(evaluate_softmax, f64, arg, out, shape, axes);
     default:
         rc = false;
         break;
@@ -85,10 +82,7 @@ bool op::v1::Softmax::evaluate(const HostTensorVector& outputs, const HostTensor
 bool op::v1::Softmax::has_evaluate() const {
     OV_OP_SCOPE(v1_Softmax_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::f64:
         return true;
     default:
         break;
@@ -152,10 +146,7 @@ bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensor
 bool op::v8::Softmax::has_evaluate() const {
     OV_OP_SCOPE(v8_Softmax_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::f64:
         return true;
     default:
         break;

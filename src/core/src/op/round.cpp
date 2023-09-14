@@ -7,6 +7,7 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/reference/round.hpp"
 
@@ -59,7 +60,7 @@ bool Round::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     auto& out = outputs.front();
 
     using namespace ov::element;
-    return IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, bf16, f16, f32>::apply<round::Evaluate>(
+    return IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, f32>::apply<round::Evaluate>(
         arg0.get_element_type(),
         arg0,
         out,
@@ -71,7 +72,8 @@ bool Round::has_evaluate() const {
     OV_OP_SCOPE(v5_Round_has_evaluate);
     const auto& et = get_input_element_type(0);
 
-    return et.is_static() && (et != element::f64) && (et.is_real() || et.is_integral());
+    return et.is_static() && (et != element::f64 && (et != element::f16)) && (et != element::bf16) &&
+           (et.is_real() || et.is_integral());
 }
 }  // namespace v5
 }  // namespace op

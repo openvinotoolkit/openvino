@@ -98,7 +98,6 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
         NGRAPH_TYPE_CASE(evaluate_maxpool, i64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
         NGRAPH_TYPE_CASE(evaluate_maxpool, u32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
         NGRAPH_TYPE_CASE(evaluate_maxpool, u64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, f16, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
         NGRAPH_TYPE_CASE(evaluate_maxpool, f32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
     default:
         rc = false;
@@ -135,7 +134,6 @@ bool op::v1::MaxPool::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:
@@ -210,7 +208,6 @@ bool evaluate_maxpool(const HostTensorPtr& data,
             EVAL_MAX_POOL_8(u8, i32);
             EVAL_MAX_POOL_8(u32, i32);
             EVAL_MAX_POOL_8(u64, i32);
-            EVAL_MAX_POOL_8(f16, i32);
             EVAL_MAX_POOL_8(f32, i32);
         default:
             rc = false;
@@ -225,7 +222,6 @@ bool evaluate_maxpool(const HostTensorPtr& data,
             EVAL_MAX_POOL_8(u8, i64);
             EVAL_MAX_POOL_8(u32, i64);
             EVAL_MAX_POOL_8(u64, i64);
-            EVAL_MAX_POOL_8(f16, i64);
             EVAL_MAX_POOL_8(f32, i64);
         default:
             rc = false;
@@ -314,7 +310,6 @@ bool op::v8::MaxPool::has_evaluate() const {
     case ngraph::element::u8:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

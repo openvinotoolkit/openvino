@@ -35,7 +35,6 @@ bool evaluate_max(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
         NGRAPH_TYPE_CASE(evaluate_max, i64, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, u32, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, u64, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_max, f16, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, f32, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, u8, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, i8, arg, out, axes, keep_dims);
@@ -79,7 +78,6 @@ bool op::v1::ReduceMax::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
     case ngraph::element::f32:
     case ngraph::element::i8:
     case ngraph::element::u8:
