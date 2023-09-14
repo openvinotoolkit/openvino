@@ -2,22 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from openvino.runtime import Core
+import openvino as ov
+
+from snippets import get_model
+
+model = get_model()
 
 #! [part0]
-core = Core()
-cpu_optimization_capabilities = core.get_property("CPU", "OPTIMIZATION_CAPABILITIES")
+core = ov.Core()
+cpu_optimization_capabilities = core.get_property("CPU", ov.properties.device.capabilities())
 #! [part0]
 
-# TODO: enable part1 when property api will be supported in python
 #! [part1]
-core = Core()
-model = core.read_model("model.xml")
+core = ov.Core()
 compiled_model = core.compile_model(model, "CPU")
-inference_precision = core.get_property("CPU", "INFERENCE_PRECISION_HINT")
+inference_precision = core.get_property("CPU", ov.properties.hint.inference_precision())
 #! [part1]
 
 #! [part2]
-core = Core()
-core.set_property("CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+core = ov.Core()
+core.set_property("CPU", {ov.properties.hint.inference_precision(): ov.Type.f32})
 #! [part2]

@@ -13,7 +13,6 @@
    Supported_Model_Formats
    openvino_docs_OV_Converter_UG_Conversion_Options
    openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model
-   openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition
 
 
 Every deep learning workflow begins with obtaining a model. You can choose to prepare a custom one, use a ready-made solution and adjust it to your needs, or even download and run a pre-trained network from an online database, such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__, or `Torchvision models <https://pytorch.org/hub/>`__.
@@ -21,16 +20,19 @@ Every deep learning workflow begins with obtaining a model. You can choose to pr
 OpenVINO™ :doc:`supports several model formats <Supported_Model_Formats>` and can convert them into its own representation, `openvino.Model <api/ie_python_api/_autosummary/openvino.Model.html>`__ (`ov.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__), providing a conversion API. Converted models can be used for inference with one or multiple OpenVINO Hardware plugins. There are two ways to use the conversion API: using a Python program or calling the ``ovc`` command line tool.
 
 .. note::
+   
+   Prior to OpenVINO 2023.1, model conversion API was exposed as the ``openvino.tools.mo.convert_model`` 
+   function and the ``mo`` command line tool. Now, a new and simplified API is used: the
+   ``openvino.convert_model`` function and the ``ovc`` command line tool. 
 
-   Prior OpenVINO 2023.1 release, model conversion API was exposed as ``openvino.tools.mo.convert_model`` function and ``mo`` command line tool.
-   Starting from 2023.1 release, a new simplified API was introduced: ``openvino.convert_model`` function and ``ovc`` command line tool as a replacement for ``openvino.tools.mo.convert_model``
-   and ``mo`` correspondingly, which are considered to be legacy now. All new users are recommended to use these new methods instead of the old methods. Please note that the new API and old API do not
-   provide the same level of features, that means the new tools are not always backward compatible with the old ones. Please consult with :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
+   All new projects are recommended to use the new tools, keeping in mind that they are not fully
+   backwards compatible. For more details, consult the :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
 Convert a Model in Python: ``convert_model``
-############################################
+##############################################
 
-You can use Model conversion API in Python with the ``openvino.convert_model`` function. This function converts a model from its original framework representation, for example Pytorch or TensorFlow, to the object of type ``openvino.Model``. The resulting ``openvino.Model`` can be inferred in the same application (Python script or Jupyter Notebook) or saved into a file using``openvino.save_model`` for future use. Below, there are examples on how to use the ``openvino.convert_model`` with models from popular public repositories:
+You can use the Model conversion API in Python with the ``openvino.convert_model`` function. This function converts a model from its original framework representation, for example Pytorch or TensorFlow, to the object of type ``openvino.Model``. The resulting ``openvino.Model`` can be inferred in the same application (Python script or Jupyter Notebook) or saved into a file using``openvino.save_model`` for future use. Below, there are examples of how to use the ``openvino.convert_model`` with models from popular public repositories:
+
 
 .. tab-set::
 
@@ -188,7 +190,7 @@ Option 2, where ``openvino.compile_model`` is used, provides a convenient way to
 
 Option 1 separates model conversion and model inference into two different applications. This approach is useful for deployment scenarios requiring fewer extra dependencies and faster model loading in the end inference application. 
 
-For example, converting a PyTorch model to OpenVINO usually demands the ``torch`` Python module and Python. This process can take extra time and memory. But, after the converted model is saved as IR with ``openvino.save_model``, it can be loaded in a separate application without requiring the ``torch`` dependency and the time-consuming conversion. The inference application can be written in other languages supported by OpenVINO, for example, in C++, and Python installation is not necessary for it to run.
+For example, converting a PyTorch model to OpenVINO usually demands the ``torch`` Python module and Python. This process can take extra time and memory. But, after the converted model is saved as OpenVINO IR with ``openvino.save_model``, it can be loaded in a separate application without requiring the ``torch`` dependency and the time-consuming conversion. The inference application can be written in other languages supported by OpenVINO, for example, in C++, and Python installation is not necessary for it to run.
 
 Before saving the model to OpenVINO IR, consider applying :doc:`Post-training Optimization <ptq_introduction>` to enable more efficient inference and smaller model size.
 
@@ -231,5 +233,11 @@ If you are using legacy conversion API (``mo`` or ``openvino.tools.mo.convert_mo
 
 * :doc:`Transition from legacy mo and ov.tools.mo.convert_model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
 * :doc:`Legacy Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+
+
+
+
+.. api/ie_python_api/_autosummary/openvino.Model.html is a broken link for some reason - need to investigate python api article generation
+
 
 @endsphinxdirective

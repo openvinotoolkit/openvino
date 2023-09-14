@@ -121,8 +121,8 @@ jobs:
       - name: Install conan and dependencies
         run: |
           
-          # create build directories
-          mkdir -p ${{ env.BUILD_DIR }}/linux_arm64 ${{ env.BUILD_DIR }}/dependencies
+          # create build directory
+          mkdir -p ${{ env.BUILD_DIR }}
           
           python3 -m pip install conan
           # install build profile compilers
