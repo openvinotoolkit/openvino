@@ -183,6 +183,11 @@ macro(ov_add_frontend)
             "-Dget_api_version=get_api_version_${OV_FRONTEND_NAME}")
     endif()
 
+    # remove -Wmissing-declarations warning, because of frontends implementation specific
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-missing-declarations)
+    endif()
+
     target_include_directories(${TARGET_NAME}
             PUBLIC
                 $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>

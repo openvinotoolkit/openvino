@@ -15,6 +15,11 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
 
+# remove -Wmissing-declarations warning, because of frontends implementation specific
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-missing-declarations)
+endif()
+
 set_target_properties(${TARGET_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
