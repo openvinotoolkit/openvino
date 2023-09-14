@@ -77,7 +77,7 @@ def test_compile_model(request, tmp_path, device_name):
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     model = core.read_model(model=xml_path, weights=bin_path)
-    compile_model = None
+    compiled_model = None
     if device_name is None:
         compiled_model = core.compile_model(model)
     else:
