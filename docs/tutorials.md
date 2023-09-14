@@ -36,6 +36,9 @@ its name and the Jupyter notebook will start it in a new tab of a browser.
    on how to run and manage the notebooks on your machine.
 
 
+More examples along with additonal details regarding OpenVINO Notebooks are available in 
+OpenVINO™ Notebooks `Github Repository. <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`__
+
 The Jupyter notebooks are categorized into following classes:
 
 -  `First steps with OpenVINO <#first-steps-with-openvino>`__
@@ -44,13 +47,8 @@ The Jupyter notebooks are categorized into following classes:
 -  `Model Training <#model-training>`__
 -  `Live Demos <#live-demos>`__
 
-.. important::
-
-   More examples along with additonal details regarding OpenVINO Notebooks are available in 
-   OpenVINO™ Notebooks `Github Repository. <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`__
-
 First steps with OpenVINO
--------------------------
+##########################
 
 Brief tutorials that demonstrate how to use Python API for inference in OpenVINO.
 
@@ -67,7 +65,7 @@ Brief tutorials that demonstrate how to use Python API for inference in OpenVINO
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 Convert & Optimize
---------------------
+###################
 
 Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 
@@ -135,7 +133,7 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 
 
 Model Demos
---------------------
+###################
 
 Demos that demonstrate inference on a particular model.
 
@@ -269,7 +267,7 @@ Demos that demonstrate inference on a particular model.
 
 
 Model Training
---------------------
+##################
 
 Tutorials that include code to train neural networks.
 
@@ -285,7 +283,7 @@ Tutorials that include code to train neural networks.
 +--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 Live Demos
---------------------
+################
 
 Live inference demos that run on a webcam or video files.
 
@@ -310,7 +308,7 @@ Live inference demos that run on a webcam or video files.
 
 
 Recommended Tutorials
----------------------
+######################
 
 The following tutorials are guaranteed to provide a great experience with inference in OpenVINO:
 
@@ -353,7 +351,7 @@ The following tutorials are guaranteed to provide a great experience with infere
 
 
 Additional Resources
---------------------
+######################
 
 * `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
 * `Binder documentation <https://mybinder.readthedocs.io/en/latest/>`_
