@@ -398,7 +398,7 @@ Then, the model can be inferred on by using the
 Select inference device
 ###############################################################################################################################
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

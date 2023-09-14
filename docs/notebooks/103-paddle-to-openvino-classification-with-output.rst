@@ -418,7 +418,7 @@ Note that many optimizations are possible to improve the performance.
 Select inference device
 ###############################################################################################################################
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

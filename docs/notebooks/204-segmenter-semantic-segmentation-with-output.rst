@@ -374,11 +374,9 @@ file and create torch dummy input. Input dimensions are in our case
 -  ``H`` - model input image height
 -  ``W`` - model input image width
 
-..
-
-   Note that H and W are here fixed to 512, as this is required by the
-   model. Resizing is done inside the inference function from the
-   original repository.
+Note that H and W are here fixed to 512, as this is required by the
+model. Resizing is done inside the inference function from the
+original repository.
 
 After that, we use ``export`` function from PyTorch to convert the model
 to ONNX. The process can generate some warnings, but they are not a
@@ -522,7 +520,7 @@ inference function.
 Select inference device
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -587,18 +585,20 @@ Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the model.
 
-   NOTE: For more accurate performance, it is recommended to run
+.. note::
+
+   For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to
    benchmark on GPU. Run ``benchmark_app --help`` to see an overview of
    all command-line options.
 
-..
 
-   Keep in mind that the authors of original paper used V100 GPU, which
-   is significantly more powerful than the CPU used to obtain the
-   following throughput. Therefore, FPS can’t be compared directly.
+
+Keep in mind that the authors of original paper used V100 GPU, which
+is significantly more powerful than the CPU used to obtain the
+following throughput. Therefore, FPS can’t be compared directly.
 
 .. code:: ipython3
 

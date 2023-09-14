@@ -19,11 +19,11 @@ The model source is available
 - `Preparation <#preparation>`__
 
   - `Install requirements <#install-requirements>`__
-  - `Import the PyTorch Library and U2-Net <#import-the-pytorch-library-and-u2-net>`__
+  - `Import the PyTorch Library and U^2-Net <#import-the-pytorch-library-and-u2-net>`__
   - `Settings <#settings>`__
-  - `Load the U2-Net Model <#load-the-u2-net-model>`__
+  - `Load the U^2-Net Model <#load-the-u2-net-model>`__
 
-- `Convert PyTorch U2-Net model to OpenVINO IR <#convert-pytorch-u2-net-model-to-openvino-ir>`__
+- `Convert PyTorch U^2-Net model to OpenVINO IR <#convert-pytorch-u2-net-model-to-openvino-ir>`__
 
   - `Convert Pytorch model to OpenVINO IR Format <#convert-pytorch-model-to-openvino-ir-format>`__
 
@@ -47,6 +47,9 @@ Install requirements
     !pip install -q "openvino==2023.1.0.dev20230811"
     !pip install -q torch onnx opencv-python matplotlib
     !pip install -q gdown
+
+
+.. _import-the-pytorch-library-and-u2-net:
 
 Import the PyTorch Library and U\ :math:`^2`-Net
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -124,6 +127,9 @@ detection and human segmentation.
     MODEL_DIR = "model"
     model_path = Path(MODEL_DIR) / u2net_model.name / Path(u2net_model.name).with_suffix(".pth")
 
+
+.. _load-the-u2-net-model:
+
 Load the U\ :math:`^2`-Net Model
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -192,6 +198,8 @@ next cell loads the model and the pre-trained weights.
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
+.. _convert-pytorch-u2-net-model-to-openvino-ir:
+
 Convert PyTorch U\ :math:`^2`-Net model to OpenVINO IR
 ###############################################################################################################################
 
@@ -244,7 +252,7 @@ repository <https://github.com/xuebinqin/U-2-Net/>`__ and multiplied by
 Select inference device
 ###############################################################################################################################
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -330,7 +338,7 @@ with the background removed.
 
 
 Add a Background Image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In the segmentation result, all foreground pixels have a value of 1, all
 background pixels a value of 0. Replace the background image as follows:

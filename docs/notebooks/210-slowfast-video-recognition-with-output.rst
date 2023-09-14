@@ -973,7 +973,7 @@ using the ``weights`` parameter.
 Select inference device
 ###############################################################################################################################
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
