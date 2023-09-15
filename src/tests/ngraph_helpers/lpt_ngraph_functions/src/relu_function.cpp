@@ -58,7 +58,7 @@ std::shared_ptr<ngraph::Function> ReluFunction::getReference(
         relu = std::make_shared<ngraph::opset1::Relu>(quantizationOpBefore);
     } else {
         relu = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Relu>>(quantizationOpBefore);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(relu, precisionAfterOperation);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecision(relu, precisionAfterOperation);
     }
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(relu, dequantizationAfter);
     quantizationOpAfter->set_friendly_name("output");

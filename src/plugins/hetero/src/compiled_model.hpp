@@ -39,6 +39,8 @@ public:
 private:
     friend class InferRequest;
 
+    void compile_model(const std::shared_ptr<ov::Model>& model);
+
     std::shared_ptr<const Plugin> get_hetero_plugin() const;
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;

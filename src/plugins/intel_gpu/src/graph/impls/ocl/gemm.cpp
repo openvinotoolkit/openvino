@@ -17,7 +17,7 @@ struct gemm_impl : typed_primitive_impl_ocl<gemm> {
     using kernel_selector_t = kernel_selector::gemm_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::gemm_params, kernel_selector::gemm_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gemm_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gemm_impl>(*this);
