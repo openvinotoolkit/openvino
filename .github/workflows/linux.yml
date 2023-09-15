@@ -917,12 +917,12 @@ jobs:
 
       - name: Install MO dependencies
         run: |
-          pip install -r ${OPENVINO_REPO}/tools/mo/requirements_mxnet.txt
-          pip install -r ${OPENVINO_REPO}/tools/mo/requirements_caffe.txt
-          pip install -r ${OPENVINO_REPO}/tools/mo/requirements_kaldi.txt
-          pip install -r ${OPENVINO_REPO}/tools/mo/requirements_onnx.txt
-          pip install -r ${OPENVINO_REPO}/tools/mo/requirements_tf2.txt
-          pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_mxnet.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_caffe.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_kaldi.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_onnx.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_tf2.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
 
       - name: Model Optimizer UT
         run: |
