@@ -183,7 +183,6 @@ jobs:
   - script: |
       set -e
       source $(BUILD_OPENVINO)/dependencies/conanbuild.sh
-      # TODO: return tests building once GPU plugin migrates to Plugin API 2.0
       cmake \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=OFF \
@@ -197,6 +196,7 @@ jobs:
         -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libc-2.31.so \
         -DPYTHON_INCLUDE_DIR=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/include/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
         -DENABLE_DATA=OFF \
+        -DENABLE_TESTS=ON \
         -DENABLE_SYSTEM_TBB=ON \
         -DENABLE_SYSTEM_PROTOBUF=ON \
         -DENABLE_SYSTEM_SNAPPY=ON \
