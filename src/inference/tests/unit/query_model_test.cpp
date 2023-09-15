@@ -387,7 +387,7 @@ TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
     {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, m_shape);
         param->set_friendly_name("input");
-        auto slope_compressed = ov::op::v0::Constant::create(ov::element::i16, ov::Shape{}, {-2.f});
+        auto slope_compressed = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-2.f});
         slope_compressed->set_friendly_name("slope_compressed");
         auto convert_slope = std::make_shared<ov::op::v0::Convert>(slope_compressed, ov::element::f32);
         convert_slope->set_friendly_name("slope");
