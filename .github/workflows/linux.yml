@@ -887,8 +887,8 @@ jobs:
 
       - name: Install git
         run: |
-          sudo apt update
-          sudo apt --assume-yes install git git-lfs
+          apt update
+          apt --assume-yes install git git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
