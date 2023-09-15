@@ -238,15 +238,15 @@ jobs:
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: CMake Samples Tests
-        if: ${{ env.SAMPLES_AFFECTED }} == "all" # only if both build and tests are expected. Rename to "test"?
+        if: env.SAMPLES_AFFECTED == 'all' # only if both build and tests are expected. Rename to "test"?
         run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/samples_tests -B ${{ env.BUILD_DIR }}/samples_tests
 
       - name: Build Samples Tests
-        if: ${{ env.SAMPLES_AFFECTED }} == "all"
+        if: env.SAMPLES_AFFECTED == 'all'
         run: cmake --build ${{ env.BUILD_DIR }}/samples_tests --config Release
 
       - name: Install Samples Tests
-        if: ${{ env.SAMPLES_AFFECTED }} == "all"
+        if: env.SAMPLES_AFFECTED == 'all'
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/samples_tests/cmake_install.cmake
 
       - name: Pack Artifacts
@@ -272,7 +272,7 @@ jobs:
       #
 
       - name: Samples tests
-        if: ${{ env.SAMPLES_AFFECTED }} == "all"
+        if: env.SAMPLES_AFFECTED == 'all'
         run: |
           python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
           export LD_LIBRARY_PATH=${{ env.IE_APP_PATH }}:$LD_LIBRARY_PATH
@@ -783,7 +783,7 @@ jobs:
 
   CPU_Functional_Tests:
     needs: [Build, Smart_CI]
-    if: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).CPU }} == "all"
+    if: fromJSON(needs.Smart_CI.outputs.affected_components).CPU == 'all'
     defaults:
       run:
         shell: bash
