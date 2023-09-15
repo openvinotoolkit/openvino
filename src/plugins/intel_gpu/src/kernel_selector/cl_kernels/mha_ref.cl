@@ -35,7 +35,13 @@ KERNEL(mha_ref)(
     float s[10000];  // It will fail for large input
     // FIXME: kernel.cpp should limit input size
     const int N = INPUT0_SIZE_Y; // FIXME: to be defined from jitter
+    const int d = INPUT0_SIZE_X; // FIXME: to be defined from jitter
     // FIXME: need to use ACCUMULATOR_TYPE
+
+    // FUNC(print_matrix_half)("Q-matrix", inputq, N*INPUT0_FEATURE_NUM, d);
+    // FUNC(print_matrix_half)("K-matrix", inputk, d*INPUT0_FEATURE_NUM, N);
+    // FUNC(print_matrix_half)("V-matrix", inputv, N*INPUT0_FEATURE_NUM, d);
+
 
     for (int i = 0; i < INPUT0_FEATURE_NUM; i++) { // handle batch
         // Matmul
@@ -48,7 +54,7 @@ KERNEL(mha_ref)(
                 s[N * j + k] = acc;
             }
         }
-        FUNC(print_matrix_float)("score matrix", s, N, N);
+        // FUNC(print_matrix_float)("score matrix", s, N, N);
 
         // Softmax
         for (int j = 0; j < N; j++) {
@@ -68,7 +74,7 @@ KERNEL(mha_ref)(
             }
         }
 
-        FUNC(print_matrix_float)("softmax(score) matrix", s, N, N);
+        // FUNC(print_matrix_float)("softmax(score) matrix", s, N, N);
 
         // Matmul
         for (int j = 0; j < N; j++) {
@@ -80,6 +86,6 @@ KERNEL(mha_ref)(
                 output[OUTPUT_GET_INDEX(0, i, j, k)] = acc;
             }
         }
-        FUNC(print_matrix_half)("result matrix", output, N, INPUT2_SIZE_X);
+        // FUNC(print_matrix_half)("result matrix", output + OUTPUT_GET_INDEX(0, i, 0, 0), N, INPUT2_SIZE_X);
     }
 }

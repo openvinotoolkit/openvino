@@ -3,9 +3,13 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mha.hpp>
+#include <intel_gpu/primitives/gemm.hpp>
+#include <intel_gpu/primitives/softmax.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/graph/network.hpp>
@@ -88,6 +92,83 @@ void test_simple_input(bool is_caching_test) {
 
 TEST(mha_gpu_fp16, simple_input) {
     test_simple_input(false);
+}
+
+void test_mha_graph(int f, int N, int d, bool is_caching_test);
+
+void test_mha_graph(int f, int N, int d, bool is_caching_test) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    const tensor shape_q{1, f, d, N};
+    const tensor shape_k{1, f, N, d};
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, shape_q }); // query
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, shape_k }); // key
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, shape_q }); // value
+    // FIXME: we have issue with fp16 random generator. So reorder it separately.
+    set_values(input1, rg.generate_random_1d<float>(f * d * N, 0, 2));
+    set_values(input2, rg.generate_random_1d<float>(f * d * N, 0, 2));
+    set_values(input3, rg.generate_random_1d<float>(f * d * N, 0, 20));
+
+    // Original MHA graph
+    topology topo;
+    topo.add(input_layout("Query_f32", input1->get_layout()));
+    topo.add(input_layout("Key_f32", input2->get_layout()));
+    topo.add(input_layout("Value_f32", input3->get_layout()));
+    topo.add(reorder("Query", input_info("Query_f32"), layout(data_types::f16, format::bfyx, shape_q)));
+    topo.add(reorder("Key",   input_info("Key_f32"),   layout(data_types::f16, format::bfyx, shape_k)));
+    topo.add(reorder("Value", input_info("Value_f32"), layout(data_types::f16, format::bfyx, shape_q)));
+    topo.add(gemm("gemm_qk", {input_info("Query"), input_info("Key")}, data_types::f16));
+    topo.add(reshape("reshape_1", input_info("gemm_qk"), tensor{f * N, N, 1, 1}));
+    topo.add(softmax("softmax", input_info("reshape_1"), 1));
+    topo.add(reshape("reshape_2", input_info("softmax"), tensor{1, f, N, N}));
+    topo.add(gemm("gemm_v", {input_info("reshape_2"), input_info("Value")}, data_types::f16));
+
+    cldnn::network::ptr network = get_network(engine, topo, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+    network->set_input_data("Query_f32", input1);
+    network->set_input_data("Key_f32", input2);
+    network->set_input_data("Value_f32", input3);
+
+    auto outputs = network->execute();
+    auto output = outputs.at("gemm_v").get_memory();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+
+
+    // Fused MHA node
+    topology topo_mha;
+    topo_mha.add(input_layout("Query_f32", input1->get_layout()));
+    topo_mha.add(input_layout("Key_f32", input2->get_layout()));
+    topo_mha.add(input_layout("Value_f32", input3->get_layout()));
+    topo_mha.add(reorder("Query", input_info("Query_f32"), layout(data_types::f16, format::bfyx, shape_q)));
+    topo_mha.add(reorder("Key",   input_info("Key_f32"),   layout(data_types::f16, format::bfyx, shape_k)));
+    topo_mha.add(reorder("Value", input_info("Value_f32"), layout(data_types::f16, format::bfyx, shape_q)));
+    topo_mha.add(
+        mha("mha", input_info("Query"), input_info("Key"), input_info("Value"))
+    );
+    cldnn::network::ptr network_mha = get_network(engine, topo_mha, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    network_mha->set_input_data("Query_f32", input1);
+    network_mha->set_input_data("Key_f32", input2);
+    network_mha->set_input_data("Value_f32", input3);
+    auto outputs_mha = network_mha->execute();
+    auto output_mha = outputs_mha.at("mha").get_memory();
+    cldnn::mem_lock<uint16_t> output_ptr_mha(output_mha, get_test_stream());
+
+
+    // Compare results of two paths
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        // std::cout << "output at i : " << half_to_float(output_ptr_mha[i]) << "  --  " << half_to_float(output_ptr[i]) << std::endl;
+        ASSERT_NEAR(half_to_float(output_ptr_mha[i]), half_to_float(output_ptr[i]), 1e-1);
+    }
+}
+
+TEST(mha_gpu_fp16, mha_graph_test_f1_N2_d3) {
+    test_mha_graph(1, 2, 3, false);
+}
+
+TEST(mha_gpu_fp16, mha_graph_test_f2_N4_d4) {
+    test_mha_graph(2, 4, 4, false);
 }
 
 /* FIXME: add caching test*/
