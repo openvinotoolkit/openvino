@@ -352,7 +352,8 @@ macro(_ov_find_intel_cpu_dependencies)
             set_and_check(ARM_COMPUTE_LIB_DIR "@PACKAGE_OPENVINO_LIB_DIR@")
             set(ACL_DIR "${CMAKE_CURRENT_LIST_DIR}")
         else()
-            set_and_check(ARM_COMPUTE_LIB_DIR "@CMAKE_ARCHIVE_OUTPUT_DIRECTORY@")
+            # we are not using 'set_and_check' below, because the directory has not been created yet
+            set(ARM_COMPUTE_LIB_DIR "@CMAKE_ARCHIVE_OUTPUT_DIRECTORY@")
             set_and_check(ACL_DIR "@PACKAGE_FIND_ACL_PATH@")
         endif()
 
