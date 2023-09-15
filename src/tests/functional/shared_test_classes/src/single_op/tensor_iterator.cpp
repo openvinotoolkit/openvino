@@ -16,7 +16,7 @@ std::string TensorIteratorTest::getTestCaseName(const testing::TestParamInfo<Ten
     size_t hidden_size;
     size_t input_size = 10;
     size_t sequence_axis;
-    ngraph::helpers::TensorIteratorBody ti_body;
+    ov::test::utils::TensorIteratorBody ti_body;
     float clip;
     ov::op::RecurrentSequenceDirection direction;
     ov::element::Type model_type;
@@ -26,19 +26,19 @@ std::string TensorIteratorTest::getTestCaseName(const testing::TestParamInfo<Ten
     std::vector<ov::Shape> input_shapes = {};
 
     switch (ti_body) {
-        case ngraph::helpers::TensorIteratorBody::LSTM:
+        case ov::test::utils::TensorIteratorBody::LSTM:
             input_shapes = {
                     {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                             {4 * hidden_size, hidden_size}, {4 * hidden_size}},
             };
             break;
-        case ngraph::helpers::TensorIteratorBody::GRU:
+        case ov::test::utils::TensorIteratorBody::GRU:
             input_shapes = {
                     {{batch, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                             {3 * hidden_size, hidden_size}, {3 * hidden_size}},
             };
             break;
-        case ngraph::helpers::TensorIteratorBody::RNN:
+        case ov::test::utils::TensorIteratorBody::RNN:
             input_shapes = {{batch, input_size}, {batch, hidden_size},
                             {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
             break;
@@ -67,7 +67,7 @@ void TensorIteratorTest::SetUp() {
     size_t hidden_size;
     size_t input_size = 10;
     size_t sequence_axis;
-    ngraph::helpers::TensorIteratorBody ti_body;
+    ov::test::utils::TensorIteratorBody ti_body;
     float clip;
     ov::op::RecurrentSequenceDirection direction;
     ov::element::Type model_type;
@@ -83,7 +83,7 @@ void TensorIteratorTest::SetUp() {
     auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1},
                                                        std::vector<int64_t>{static_cast<int64_t>(sequence_axis)});
     switch (ti_body) {
-        case ngraph::helpers::TensorIteratorBody::LSTM: {
+        case ov::test::utils::TensorIteratorBody::LSTM: {
             input_shapes = {
                     {{batch, seq_lengths, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                             {4 * hidden_size, hidden_size}, {4 * hidden_size}},
@@ -134,7 +134,7 @@ void TensorIteratorTest::SetUp() {
             function = std::make_shared<ov::Model>(tensor_iterator->outputs(), outer_params);
             break;
         }
-        case ngraph::helpers::TensorIteratorBody::GRU: {
+        case ov::test::utils::TensorIteratorBody::GRU: {
             input_shapes = {
                     {{batch, seq_lengths, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                             {3 * hidden_size, hidden_size}, {3 * hidden_size}},
@@ -181,7 +181,7 @@ void TensorIteratorTest::SetUp() {
             function = std::make_shared<ov::Model>(ov::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
             break;
         }
-        case ngraph::helpers::TensorIteratorBody::RNN: {
+        case ov::test::utils::TensorIteratorBody::RNN: {
             input_shapes = {{batch, seq_lengths, input_size},
                             {batch,       hidden_size},
                             {hidden_size, input_size},

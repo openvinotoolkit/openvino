@@ -3,7 +3,6 @@
 //
 
 #include <vector>
-#include <ngraph/op/util/attr_types.hpp>
 #include "single_op_tests/tensor_iterator.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -18,12 +17,12 @@ std::vector<size_t> batch{1, 10};
 std::vector<size_t> hidden_size{1, 10};
 // std::vector<size_t> input_size{10};
 std::vector<size_t> sequence_axis{0, 1};
-std::vector<ngraph::helpers::TensorIteratorBody> body_type
-= {ngraph::helpers::TensorIteratorBody::LSTM, ngraph::helpers::TensorIteratorBody::RNN,
-        ngraph::helpers::TensorIteratorBody::GRU};
+std::vector<ov::test::utils::TensorIteratorBody> body_type
+= {ov::test::utils::TensorIteratorBody::LSTM, ov::test::utils::TensorIteratorBody::RNN,
+        ov::test::utils::TensorIteratorBody::GRU};
 std::vector<float> clip{0.f};
 std::vector<float> clip_non_zeros{0.7f};
-std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ov::op::RecurrentSequenceDirection::FORWARD,
+std::vector<ov::op::RecurrentSequenceDirection> direction = {ov::op::RecurrentSequenceDirection::FORWARD,
                                                                  ov::op::RecurrentSequenceDirection::REVERSE};
 std::vector<ov::element::Type> model_types = {ov::element::f32, ov::element::f16};
 

@@ -8,9 +8,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <ngraph/op/util/attr_types.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace ov {
 namespace test {
@@ -23,7 +22,7 @@ using TensorIteratorParams = typename std::tuple<
         //size_t,                                 // input size
         size_t,                                   // sequence axis
         float,                                    // clip
-        ngraph::helpers::TensorIteratorBody,      // body type
+        ov::test::utils::TensorIteratorBody,      // body type
         ov::op::RecurrentSequenceDirection,       // direction
         ov::element::Type,                        // Model type
         ov::test::TargetDevice>;                  // Device name
