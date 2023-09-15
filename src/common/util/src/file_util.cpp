@@ -18,8 +18,8 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <Shlwapi.h>
 #    include <direct.h>
+#    include <shlwapi.h>
 #    include <windows.h>
 /// @brief Max length of absolute file path
 #    define MAX_ABS_PATH _MAX_PATH
@@ -325,6 +325,12 @@ void ov::util::convert_path_win_style(std::string& path) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+#    ifdef __APPLE__
+#        pragma clang diagnostic push
+#        pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#    endif
+
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
 #    ifdef _WIN32
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
@@ -351,7 +357,12 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
     return result;
 #    endif
 }
-#endif
+
+#    ifdef __APPLE__
+#        pragma clang diagnostic pop
+#    endif
+
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::string ov::util::get_absolute_file_path(const std::string& path) {
     std::string absolutePath;
