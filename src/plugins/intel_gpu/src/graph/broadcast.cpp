@@ -22,7 +22,10 @@ layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_imp
     auto desc = impl_param.typed_desc<broadcast>();
 
     if (!desc->target_shape.empty()) {
-        std::vector<tensor::value_type> dims_converted(desc->target_shape.begin(), desc->target_shape.end());
+        std::vector<tensor::value_type> dims_converted(desc->target_shape.size());
+        std::transform(desc->target_shape.begin(), desc->target_shape.end(), dims_converted.begin(), [](size_t value) {
+            return static_cast<tensor::value_type>(value);
+        });
         for (size_t i = dims_converted.size(); i < 4; i++)
             dims_converted.push_back(1);  // extend shape to 4d
 
