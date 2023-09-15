@@ -41,6 +41,7 @@
 #*.jpg   binary
 #*.png   binary
 #*.gif   binary
+*.prototxt    binary
 ###############################################################################
 # diff behavior for common document formats
 # 

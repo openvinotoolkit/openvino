@@ -16,6 +16,9 @@
 namespace ov {
 namespace intel_cpu {
 
+class jit_emitter;
+extern jit_emitter* g_debug_err_handler;
+
 enum emitter_in_out_map {
     vec_to_vec,
     vec_to_gpr,
@@ -50,6 +53,10 @@ public:
      * Empty collection means the emitter supports any input precisions.
      */
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+
+    virtual void print_debug_info() const {
+        std::cerr << "Debug info was not set. This is default info from base jit_emitter." << std::endl;
+    }
 
 protected:
     virtual size_t aux_gprs_count() const;
@@ -132,6 +139,7 @@ protected:
         }
     }
 
+    void build_debug_info() const;
     void internal_call_preamble() const;
     void internal_call_postamble() const;
     // align stack on 16-byte as ABI reqiures

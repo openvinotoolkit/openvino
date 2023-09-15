@@ -81,6 +81,10 @@ std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(c
     return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
+void jit_add_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_add_emitter." << "\n";
+}
+
 /// MUL_ADD ///
 jit_mul_add_emitter::jit_mul_add_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
 : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
@@ -172,6 +176,10 @@ std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisio
     return {{element::f32, element::f32, element::f32}, {element::i32, element::i32, element::i32}};
 }
 
+void jit_mul_add_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_mul_add_emitter." << "\n";
+}
+
 /// SUB ///
 jit_subtract_emitter::jit_subtract_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
 : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
@@ -219,6 +227,10 @@ std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisi
     return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
+void jit_subtract_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_subtract_emitter." << "\n";
+}
+
 /// MULTIPLY ///
 jit_multiply_emitter::jit_multiply_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
 : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
@@ -264,6 +276,10 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
 
 std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}, {element::i32, element::i32}};
+}
+
+void jit_multiply_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_multiply_emitter." << "\n";
 }
 
 /// DIVIDE ///
@@ -331,6 +347,10 @@ size_t jit_divide_emitter::aux_vecs_count() const {
     return exec_prc_ == ov::element::i32 ? 1 : 0;
 }
 
+void jit_divide_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_divide_emitter." << "\n";
+}
+
 /// FLOOR ///
 jit_floor_emitter::jit_floor_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {}
@@ -361,6 +381,10 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
     h->uni_vroundps(vmm_dst, vmm_src, 1);
+}
+
+void jit_floor_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_floor_emitter." << "\n";
 }
 
 /// CEILING ///
@@ -394,6 +418,10 @@ void jit_ceiling_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
     h->uni_vroundps(vmm_dst, vmm_src, 2);
+}
+
+void jit_ceiling_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_ceiling_emitter." << "\n";
 }
 
 /// FLOOR_MOD ///
@@ -455,6 +483,10 @@ size_t jit_floor_mod_emitter::aux_vecs_count() const {
     return 1;
 }
 
+void jit_floor_mod_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_floor_mod_emitter." << "\n";
+}
+
 /// MOD ///
 jit_mod_emitter::jit_mod_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {}
@@ -509,6 +541,10 @@ size_t jit_mod_emitter::aux_vecs_count() const {
     return 1;
 }
 
+void jit_mod_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_mod_emitter." << "\n";
+}
+
 /// MAXIMUM ///
 jit_maximum_emitter::jit_maximum_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
 : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
@@ -557,6 +593,10 @@ std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisio
     return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
+void jit_maximum_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_maximum_emitter." << "\n";
+}
+
 /// MINIMUM ///
 jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
 : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
@@ -603,6 +643,10 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 
 std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}, {element::i32, element::i32}};
+}
+
+void jit_minimum_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_minimum_emitter." << "\n";
 }
 
 /// SQUARED_DIFFERENCE ///
@@ -658,6 +702,10 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_
 
 std::set<std::vector<element::Type>> jit_squared_difference_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}, {element::i32, element::i32}};
+}
+
+void jit_squared_difference_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_squared_difference_emitter." << "\n";
 }
 
 /// POWER_DYNAMIC ///
@@ -771,6 +819,10 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
     h->add(h->rsp, n_gprs_to_save * gpr_size);
 }
 
+void jit_power_dynamic_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_power_dynamic_emitter." << "\n";
+}
+
 
 /// EQUAL ///
 jit_equal_emitter::jit_equal_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
@@ -833,6 +885,10 @@ void jit_equal_emitter::register_table_entries() {
 
 size_t jit_equal_emitter::aux_vecs_count() const {
     return 2;
+}
+
+void jit_equal_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_equal_emitter." << "\n";
 }
 
 /// NOT_EQUAL ///
@@ -903,6 +959,10 @@ size_t jit_not_equal_emitter::aux_vecs_count() const {
     return 2;
 }
 
+void jit_not_equal_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_not_equal_emitter." << "\n";
+}
+
 /// GREATER ///
 jit_greater_emitter::jit_greater_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
@@ -964,6 +1024,10 @@ void jit_greater_emitter::register_table_entries() {
 
 size_t jit_greater_emitter::aux_vecs_count() const {
     return 2;
+}
+
+void jit_greater_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_greater_emitter." << "\n";
 }
 
 /// GREATER_EQUAL ///
@@ -1030,6 +1094,10 @@ size_t jit_greater_equal_emitter::aux_vecs_count() const {
     return 2;
 }
 
+void jit_greater_equal_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_greater_equal_emitter." << "\n";
+}
+
 /// LESS ///
 jit_less_emitter::jit_less_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
@@ -1091,6 +1159,10 @@ void jit_less_emitter::register_table_entries() {
 
 size_t jit_less_emitter::aux_vecs_count() const {
     return 2;
+}
+
+void jit_less_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_less_emitter." << "\n";
 }
 
 /// LESS_EQUAL ///
@@ -1160,6 +1232,10 @@ void jit_less_equal_emitter::register_table_entries() {
 
 size_t jit_less_equal_emitter::aux_vecs_count() const {
     return 2;
+}
+
+void jit_less_equal_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_less_equal_emitter." << "\n";
 }
 
 /// LOGICAL_AND ///
@@ -1250,6 +1326,9 @@ size_t jit_logical_and_emitter::aux_vecs_count() const {
     return 3;
 }
 
+void jit_logical_and_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_logical_and_emitter." << "\n";
+}
 /// LOGICAL_OR ///
 jit_logical_or_emitter::jit_logical_or_emitter(x64::jit_generator* host,
                                                x64::cpu_isa_t host_isa,
@@ -1336,6 +1415,10 @@ void jit_logical_or_emitter::register_table_entries() {
 
 size_t jit_logical_or_emitter::aux_vecs_count() const {
     return 3;
+}
+
+void jit_logical_or_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_logical_or_emitter." << "\n";
 }
 
 /// LOGICAL_XOR ///
@@ -1426,6 +1509,10 @@ size_t jit_logical_xor_emitter::aux_vecs_count() const {
     return 3;
 }
 
+void jit_logical_xor_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_logical_xor_emitter." << "\n";
+}
+
 /// LOGICAL_NOT ///
 jit_logical_not_emitter::jit_logical_not_emitter(x64::jit_generator* host,
                                                  x64::cpu_isa_t host_isa,
@@ -1491,6 +1578,10 @@ void jit_logical_not_emitter::register_table_entries() {
 
 size_t jit_logical_not_emitter::aux_vecs_count() const {
     return 2;
+}
+
+void jit_logical_not_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_logical_not_emitter." << "\n";
 }
 
 /// POWER_STATIC ///
@@ -1687,6 +1778,11 @@ size_t jit_power_static_emitter::aux_vecs_count() const {
     return 1;
 }
 
+void jit_power_static_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_power_static_emitter." << "\n";
+    std::cerr << "power:" << power << " scale:" << scale << " shift:" << shift << "\n";
+}
+
 /// PRELU ///
 jit_prelu_emitter::jit_prelu_emitter(x64::jit_generator* host,
                                      x64::cpu_isa_t host_isa,
@@ -1752,6 +1848,10 @@ size_t jit_prelu_emitter::aux_vecs_count() const {
     return 2;
 }
 
+void jit_prelu_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_prelu_emitter." << "\n";
+}
+
 /// SQRT ///
 jit_sqrt_emitter::jit_sqrt_emitter(x64::jit_generator* host,
                                    x64::cpu_isa_t host_isa,
@@ -1788,6 +1888,10 @@ void jit_sqrt_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
      h->uni_vsqrtps(vmm_dst, vmm_src0);
 }
 
+void jit_sqrt_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_sqrt_emitter." << "\n";
+}
+
 /// Negate ///
 jit_negative_emitter::jit_negative_emitter(x64::jit_generator* host,
                                            x64::cpu_isa_t host_isa,
@@ -1820,6 +1924,10 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     Vmm vmm_dst  = Vmm(out_vec_idxs[0]);
     h->uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
     h->uni_vsubps(vmm_dst, vmm_dst, vmm_src);
+}
+
+void jit_negative_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_negative_emitter." << "\n";
 }
 
 /// ERF ///
@@ -2010,6 +2118,10 @@ size_t jit_erf_emitter::aux_vecs_count() const {
     return 5ul;
 }
 
+void jit_erf_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_erf_emitter." << "\n";
+}
+
 /// SOFT SIGN ///
 jit_soft_sign_emitter::jit_soft_sign_emitter(x64::jit_generator* host,
                                              x64::cpu_isa_t host_isa,
@@ -2058,6 +2170,10 @@ void jit_soft_sign_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
 void jit_soft_sign_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F, true);
     push_arg_entry_of("positive_mask", 0x7fffffff, true);
+}
+
+void jit_soft_sign_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_soft_sign_emitter." << "\n";
 }
 
 /// IS_FINITE ///
@@ -2110,6 +2226,10 @@ void jit_is_finite_emitter::register_table_entries() {
         push_arg_entry_of("one", CONST_1_F, true);
         push_arg_entry_of("inf", INF_MASK, true);
     }
+}
+
+void jit_is_finite_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_is_finite_emitter." << "\n";
 }
 
 /// IS_INF ///
@@ -2186,6 +2306,11 @@ void jit_is_inf_emitter::register_table_entries() {
     }
 }
 
+void jit_is_inf_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_is_inf_emitter." << "\n";
+    std::cerr << "detect_negative:" << detect_negative << " detect_positive" << detect_positive << "\n";
+}
+
 /// IS_NAN ///
 template <>
 void jit_is_nan_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
@@ -2232,6 +2357,10 @@ void jit_is_nan_emitter::register_table_entries() {
     if (host_isa_ != x64::avx512_core) {
         push_arg_entry_of("one", CONST_1_F, true);
     }
+}
+
+void jit_is_nan_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_is_nan_emitter." << "\n";
 }
 
 /// SELECT ///
@@ -2299,6 +2428,10 @@ void jit_select_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
         h->vptestmd(k_mask, vmm_cond, vmm_cond);
         h->vblendmps(vmm_dst | k_mask, vmm_src1, vmm_src0);
     }
+}
+
+void jit_select_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_select_emitter." << "\n";
 }
 
 /// BITWISE_AND ///
