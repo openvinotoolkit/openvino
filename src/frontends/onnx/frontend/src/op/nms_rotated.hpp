@@ -12,6 +12,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 
 namespace ngraph {
@@ -20,43 +21,18 @@ namespace op {
 namespace set_1 {
 inline OutputVector nms_rotated(const Node& node) {
     auto iou_threshold = node.get_attribute_value<float>("iou_threshold");
-
     auto score_threshold = node.get_attribute_value<float>("score_threshold");
-
-    auto attrs = ov::op::util::MulticlassNmsBase::Attributes();
-    attrs.iou_threshold = iou_threshold;
-    attrs.score_threshold = score_threshold;
-
-    // iou_threshold = 0.9f;
-    // score_threshold = 0.2f;
-
-    //     auto nms =
-    //         std::make_shared<default_opset::MulticlassNms>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1),
-    //         attrs);
-    // return {nms->output(1)};
-
-    // auto max_output_boxes_per_class = default_opset::Constant::create(element::i64, Shape{}, {0});
     auto max_output_boxes_per_class =
         default_opset::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
     auto iou_threshold_const = default_opset::Constant::create(element::f32, Shape{}, {iou_threshold});
     auto score_threshold_const = default_opset::Constant::create(element::f32, Shape{}, {score_threshold});
 
-    // auto nms = std::make_shared<default_opset::NonMaxSuppression>(node.get_ng_inputs().at(0),
-    //                                                               node.get_ng_inputs().at(1),
-    //                                                               max_output_boxes_per_class,
-    //                                                               iou_threshold_const,
-    //                                                               score_threshold_const);
-
-    auto nms = std::make_shared<default_opset::NonMaxSuppression>(node.get_ng_inputs().at(0),
-                                                                  node.get_ng_inputs().at(1),
-                                                                  max_output_boxes_per_class,
-                                                                  iou_threshold_const,
-                                                                  score_threshold_const,
-                                                                  default_opset::NonMaxSuppression::BoxEncodingType::CENTER);
-
-    // auto model = std::make_shared<ov::Model>(OutputVector{nms->output(0)});
-
-    // ov::pass::VisualizeTree("nms_rotates_poc_1.svg").run_on_model(model);
+    auto nms = std::make_shared<ov::opset13::NMSRotated>(node.get_ng_inputs().at(0),
+                                                         node.get_ng_inputs().at(1),
+                                                         max_output_boxes_per_class,
+                                                         iou_threshold_const,
+                                                         score_threshold_const,
+                                                         ov::opset13::NMSRotated::BoxEncodingType::CENTER);
 
     return {nms->output(0)};
 }
