@@ -769,16 +769,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install MO dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -804,6 +794,16 @@ jobs:
       - name: Install Python wheels
         run: |
           python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
+
+      - name: Install MO dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
 
       - name: Model Optimizer UT
         run: |
