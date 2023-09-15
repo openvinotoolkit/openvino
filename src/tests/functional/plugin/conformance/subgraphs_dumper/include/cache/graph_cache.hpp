@@ -44,7 +44,7 @@ protected:
     ExtractorsManager m_manager = ExtractorsManager();
     static std::shared_ptr<GraphCache> m_cache_instance;
     // cache byte size
-    size_t m_graph_cache_bytesize = 0;
+    uint64_t m_graph_cache_bytesize = 0;
 
     GraphCache() {
         ExtractorsManager::ExtractorsMap matchers = {
