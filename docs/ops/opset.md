@@ -10,6 +10,7 @@
    :maxdepth: 1
    :hidden:
 
+   openvino_docs_ops_opset13
    openvino_docs_ops_opset12
    openvino_docs_ops_opset11
    openvino_docs_ops_opset10
