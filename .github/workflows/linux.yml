@@ -34,7 +34,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores
     container:
-      image: openvinogithubactions.azurecr.io/ci/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/ci/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -296,7 +296,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: openvinogithubactions.azurecr.io/ci/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/ci/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -501,7 +501,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: openvinogithubactions.azurecr.io/ci/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/ci/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -788,7 +788,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: openvinogithubactions.azurecr.io/ci/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/ci/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
