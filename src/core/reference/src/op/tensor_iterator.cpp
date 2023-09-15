@@ -63,9 +63,9 @@ void tensor_iterator(uint64_t num_iterations,
             std::vector<char*> pointers_to_data(num_iterations);
             for (size_t j = 0; j < pointers_to_data.size(); ++j) {
                 pointers_to_data[slice_desc->m_stride > 0 ? j : (pointers_to_data.size() - j - 1)] =
-                    sliced_values[slice_in_idx][j].data<char>();
+                    static_cast<char*>(sliced_values[slice_in_idx][j].data());
             }
-            reference::split(args[slice_desc->m_input_index].data<char>(),
+            reference::split(static_cast<char*>(args[slice_desc->m_input_index].data()),
                              args[slice_desc->m_input_index].get_shape(),
                              el_size,
                              slice_desc->m_axis,
@@ -128,10 +128,10 @@ void tensor_iterator(uint64_t num_iterations,
         for (size_t j = 0; j < values_to_concat[i].size(); ++j) {
             size_t idx = concat_desc->m_stride > 0 ? j : (values_to_concat[i].size() - j - 1);
             if (values_to_concat[i].size() > idx && values_to_concat[i][idx])
-                pointers_on_values.push_back(values_to_concat[i][idx].data<char>());
+                pointers_on_values.push_back(static_cast<char*>(values_to_concat[i][idx].data()));
         }
         reference::concat(pointers_on_values,
-                          out[concat_desc->m_output_index].data<char>(),
+                          static_cast<char*>(out[concat_desc->m_output_index].data()),
                           shapes_to_concat,
                           shape,
                           concat_desc->m_axis,
