@@ -91,26 +91,22 @@ NamedOutputs slice_op(const NodeContext& node, const bool& stride_input) {
     const auto decrease_axis = node.get_attribute<std::vector<int32_t>>("decrease_axis");
 
     if (decrease_axis.size() > 0) {
-        // according to paddle slice_op, when all axes are decreased, output shape is [1], instead of scalar.
-        // Ref: paddle/fluid/operators/slice_op.h
         PartialShape input_shape = data.get_partial_shape();
         PADDLE_OP_CHECK(node,
                         input_shape.rank().is_static(),
                         "input rank of slice must be static when decrease_axis is set.");
-
+        if (input_shape.size() == decrease_axis.size()) {
+            // according to paddle slice_op, when all axes are decreased, output shape is [1], instead of scalar.
+            // Ref: paddle/fluid/operators/slice_op.h
+            auto decreased_node = std::make_shared<default_opset::Reshape>(
+                stride_slice_node,
+                std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1),
+                false);
+            return node.default_single_output_mapping({decreased_node}, {"Out"});
+        }
         const auto squeeze_index_node =
             default_opset::Constant::create(element::i32, {decrease_axis.size()}, decrease_axis);
         const auto decreased_node = std::make_shared<default_opset::Squeeze>(stride_slice_node, squeeze_index_node);
-
-        const auto input_rank = input_shape.rank().get_length();
-        if ((size_t)input_rank == decrease_axis.size()) {
-            auto restore_node = std::make_shared<default_opset::Reshape>(
-                decreased_node,
-                std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1),
-                false);  // restore to shape (1,)
-            return node.default_single_output_mapping({restore_node}, {"Out"});
-        }
-
         return node.default_single_output_mapping({decreased_node}, {"Out"});
     }
 
