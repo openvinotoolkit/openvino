@@ -22,6 +22,8 @@
 using namespace ov;
 using namespace std;
 
+namespace {
+
 std::shared_ptr<ov::Model> make_test_graph() {
     auto arg_0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
     auto arg_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
@@ -72,6 +74,8 @@ bool validate_list(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
     }
     return rc;
 }
+
+}  // namespace
 
 TEST(pass_manager, add) {
     pass::Manager pass_manager;
