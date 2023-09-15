@@ -915,6 +915,12 @@ jobs:
         run: |
           python3 -m pip install openvino --find-links=$INSTALL_DIR/tools
 
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
       - name: Install MO dependencies
         run: |
           python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_mxnet.txt
