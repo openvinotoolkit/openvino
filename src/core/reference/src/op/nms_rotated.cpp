@@ -1,122 +1,35 @@
-// // Copyright (C) 2018-2023 Intel Corporation
-// // SPDX-License-Identifier: Apache-2.0
-// //
-
-// #include "ngraph/op/non_max_suppression.hpp"
-
-// #include <algorithm>
-// #include <cmath>
-// #include <queue>
-// #include <vector>
-
-// #include "ngraph/shape.hpp"
-// #include "openvino/reference/non_max_suppression.hpp"
-
-// namespace ov {
-// namespace reference {
-// namespace {
-
-// struct Point {
-//     Point(float p_x, float p_y)
-//         : y{p_x},
-//           x{p_y} {};
-
-//     Point() = default;
-
-//     float y = 0.f;
-//     float x = 0.f;
-// }
-
-// struct Rectangle {
-//     Rectangle(Point p_0, Point p_1, Point p_2, Point p_3)
-//         : p0{p_0},
-//           p1{p_1},
-//           p2{p_2},
-//           p3{p_3} {};
-
-//     Rectangle() = default;
-
-//     float p0 = 0.f;
-//     float p1 = 0.f;
-//     float p2 = 0.f;
-//     float p3 = 0.f;
-
-// };
-
-
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/non_max_suppression.hpp"
+#include "openvino/reference/nms_rotated.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <queue>
 #include <vector>
 
+#include "ngraph/op/non_max_suppression.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/reference/non_max_suppression.hpp"
-#include "openvino/reference/nms_rotated.hpp"
 
 namespace ov {
 namespace reference {
 namespace nms_rotated {
 
 namespace {
-struct Rectangle {
-    Rectangle(float y_left, float x_left, float y_right, float x_right, float r_angle = 0.0f)
-        : y1{y_left},
-          x1{x_left},
-          y2{y_right},
-          x2{x_right},
-          angle {r_angle} {};
 
-    Rectangle() = default;
-
-    float y1 = 0.0f;
-    float x1 = 0.0f;
-    float y2 = 0.f;
-    float x2 = 0.0f;
-    float angle = 0.0f;
-};
-
-static float intersectionOverUnion(const Rectangle& boxI, const Rectangle& boxJ) {
-    float areaI = (boxI.y2 - boxI.y1) * (boxI.x2 - boxI.x1);
-    float areaJ = (boxJ.y2 - boxJ.y1) * (boxJ.x2 - boxJ.x1);
+static float rotatedintersectionOverUnion(const RotatedBox& boxI, const RotatedBox& boxJ) {
+    const auto intersection = rotated_boxes_intersection(boxI, boxJ);
+    const auto areaI = boxI.w * boxI.h;
+    const auto areaJ = boxJ.w * boxJ.h;
 
     if (areaI <= 0.0f || areaJ <= 0.0f) {
         return 0.0f;
     }
 
-    float intersection_ymin = std::max(boxI.y1, boxJ.y1);
-    float intersection_xmin = std::max(boxI.x1, boxJ.x1);
-    float intersection_ymax = std::min(boxI.y2, boxJ.y2);
-    float intersection_xmax = std::min(boxI.x2, boxJ.x2);
-
-    float intersection_area =
-        std::max(intersection_ymax - intersection_ymin, 0.0f) * std::max(intersection_xmax - intersection_xmin, 0.0f);
-
-    return intersection_area / (areaI + areaJ - intersection_area);
-}
-
-static float rotatedintersectionOverUnion(const Rectangle& boxI, const Rectangle& boxJ) {
-    float areaI = (boxI.y2 - boxI.y1) * (boxI.x2 - boxI.x1);
-    float areaJ = (boxJ.y2 - boxJ.y1) * (boxJ.x2 - boxJ.x1);
-
-    if (areaI <= 0.0f || areaJ <= 0.0f) {
-        return 0.0f;
-    }
-
-    float intersection_ymin = std::max(boxI.y1, boxJ.y1);
-    float intersection_xmin = std::max(boxI.x1, boxJ.x1);
-    float intersection_ymax = std::min(boxI.y2, boxJ.y2);
-    float intersection_xmax = std::min(boxI.x2, boxJ.x2);
-
-    float intersection_area =
-        std::max(intersection_ymax - intersection_ymin, 0.0f) * std::max(intersection_xmax - intersection_xmin, 0.0f);
-
-    return intersection_area / (areaI + areaJ - intersection_area);
+    const auto union_area = areaI + areaI - intersection;
+    return intersection / union_area;
 }
 
 struct SelectedIndex {
@@ -146,7 +59,7 @@ struct SelectedScore {
 };
 
 struct BoxInfo {
-    BoxInfo(const Rectangle& r, int64_t idx, float sc, int64_t suppress_idx, int64_t batch_idx, int64_t class_idx)
+    BoxInfo(const RotatedBox& r, int64_t idx, float sc, int64_t suppress_idx, int64_t batch_idx, int64_t class_idx)
         : box{r},
           index{idx},
           suppress_begin_index{suppress_idx},
@@ -160,7 +73,7 @@ struct BoxInfo {
         return score < rhs.score || (score == rhs.score && index > rhs.index);
     }
 
-    Rectangle box;
+    RotatedBox box;
     int64_t index = 0;
     int64_t suppress_begin_index = 0;
     int64_t batch_index = 0;
@@ -195,7 +108,7 @@ void non_max_suppression(const float* boxes_data,
         return (soft_nms || iou <= iou_threshold) ? weight : 0.0f;
     };
 
-    // boxes shape: {num_batches, num_boxes, 4}
+    // boxes shape: {num_batches, num_boxes, 5}
     // scores shape: {num_batches, num_classes, num_boxes}
     int64_t num_batches = static_cast<int64_t>(scores_data_shape[0]);
     int64_t num_classes = static_cast<int64_t>(scores_data_shape[1]);
@@ -209,8 +122,8 @@ void non_max_suppression(const float* boxes_data,
     std::vector<BoxInfo> filteredBoxes;
 
     for (int64_t batch = 0; batch < num_batches; batch++) {
-        const float* boxesPtr = boxes_data + batch * num_boxes * 4;
-        Rectangle* r = reinterpret_cast<Rectangle*>(const_cast<float*>(boxesPtr));
+        const float* boxesPtr = boxes_data + batch * num_boxes * 5;
+        RotatedBox* r = reinterpret_cast<RotatedBox*>(const_cast<float*>(boxesPtr));
 
         for (int64_t class_idx = 0; class_idx < num_classes; class_idx++) {
             const float* scoresPtr = scores_data + batch * (num_classes * num_boxes) + class_idx * num_boxes;
@@ -240,7 +153,7 @@ void non_max_suppression(const float* boxes_data,
                 bool should_hard_suppress = false;
                 for (int64_t j = static_cast<int64_t>(selected.size()) - 1; j >= next_candidate.suppress_begin_index;
                      --j) {
-                    float iou = intersectionOverUnion(next_candidate.box, selected[j].box);
+                    float iou = rotatedintersectionOverUnion(next_candidate.box, selected[j].box);
                     next_candidate.score *= get_score_scale(iou);
 
                     if ((iou > iou_threshold) && !soft_nms) {
@@ -373,7 +286,7 @@ void nms_postprocessing(const HostTensorVector& outputs,
         *valid_outputs_ptr = static_cast<int32_t>(valid_outputs);
     }
 }
-}
+}  // namespace nms_rotated
 
 }  // namespace reference
 }  // namespace ov
