@@ -18,7 +18,9 @@ void function(const std::shared_ptr<Model>& function, const ov::TensorVector& in
     const auto& results = function->get_results();
     outputs.reserve(results.size());
     for (size_t i = 0; i < results.size(); ++i) {
-        outputs.push_back(ov::Tensor());
+        auto shape =
+            results[i]->get_output_partial_shape(0).is_static() ? results[i]->get_output_shape(0) : ov::Shape{0};
+        outputs.push_back(ov::Tensor(results[i]->get_element_type(), shape));
     }
     function->evaluate(outputs, inputs);
 }
