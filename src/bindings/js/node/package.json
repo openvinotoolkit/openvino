@@ -6,15 +6,14 @@
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "scripts": {
-    "build": "node-gyp build",
-    "preinstall": "npm run download_runtime -- --ignore-if-exists",
     "install": "node-gyp configure",
-    "postinstall": "npm run build & npm run tsc",
+    "build": "node-gyp build && npm run tsc",
+    "postinstall": "npm run install_runtime && npm run build",
     "lint": "eslint .",
-    "rebuild": "node-gyp rebuild",
     "test": "node --test",
     "tsc": "tsc",
-    "download_runtime": "node ./scripts/download_runtime.js"
+    "download_runtime": "node ./scripts/download_runtime.js",
+    "install_runtime": "npm run download_runtime -- --ignore-if-exists"
   },
   "dependencies": {
     "decompress": "^4.2.1",
