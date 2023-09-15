@@ -63,14 +63,14 @@ public:
     Anchor() : GraphRewrite() {}
 };
 
-std::shared_ptr<Model> get_model() {
+inline std::shared_ptr<Model> get_model() {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
     auto divide_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
     auto divide = std::make_shared<ov::op::v1::Divide>(data, divide_constant);
     return std::make_shared<ov::Model>(ov::NodeVector{divide}, ov::ParameterVector{data});
 }
 
-ov::pass::param_callback get_callback() {
+inline ov::pass::param_callback get_callback() {
     return [](const std::shared_ptr<const Node>& node) -> bool {
         if (std::dynamic_pointer_cast<const op::v1::Divide>(node)) {
             return true;
@@ -169,7 +169,7 @@ public:
     using ov::op::v1::Divide::Divide;
 };
 
-std::shared_ptr<Model> get_derived_model() {
+static std::shared_ptr<Model> get_derived_model() {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
     auto divide_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
     auto divide = std::make_shared<PrivateDivide>(data, divide_constant);
