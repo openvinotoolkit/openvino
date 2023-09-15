@@ -599,7 +599,7 @@ jobs:
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_zoo_models.py \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_backend.py
-      
+
       - name: Python API snippets
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
@@ -793,7 +793,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-cache
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.ref_name == 'master' && github.sha || github.ref_name }}
+          restore-keys: |
+            ${{ runner.os }}-tests-functional-cpu-stamp
 
       - name: Intel CPU plugin func tests (parallel)
         run: |
