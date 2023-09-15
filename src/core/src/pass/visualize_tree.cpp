@@ -376,6 +376,7 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
         ss << "[ u1 value ]";
         break;
     case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
         ss << "[ u4 value ]";
         break;
     case ov::element::Type_t::i4:

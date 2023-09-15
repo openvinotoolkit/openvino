@@ -406,6 +406,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         ET_CASE(u16);
         ET_CASE(u32);
         ET_CASE(u64);
+        ET_CASE(nf4);
 #undef ET_CASE
     case ov::element::Type_t::undefined:
         return 0;

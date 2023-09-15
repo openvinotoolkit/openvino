@@ -130,6 +130,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::u64:
             fill_data<Type_t::u64>(ngraph::parse_string<uint64_t>(values[0]));
             break;
+        case Type_t::nf4:
+            fill_data<Type_t::nf4>(ngraph::parse_string<uint64_t>(values[0]));
+            break;
         case Type_t::undefined:
             OPENVINO_THROW("deserialize unsupported type undefined");
         case Type_t::dynamic:
@@ -185,6 +188,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
             break;
         case Type_t::u64:
             write_buffer<Type_t::u64>(ngraph::parse_string<uint64_t>(values));
+            break;
+        case Type_t::nf4:
+            write_buffer<Type_t::nf4>(ngraph::parse_string<uint8_t>(values));
             break;
         case Type_t::undefined:
             OPENVINO_THROW("deserialize unsupported type undefined");
