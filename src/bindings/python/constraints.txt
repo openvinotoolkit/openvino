@@ -10,8 +10,9 @@ pytest-timeout==2.1.0
 # Python bindings
 py>=1.9.0
 pygments>=2.8.1
-setuptools>=53.0.0,<=68.1.2
+setuptools>=65.6.1
 wheel>=0.38.1
+patchelf<=0.17.2.1
 
 # Frontends
 docopt~=0.6.2
