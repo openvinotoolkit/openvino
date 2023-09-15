@@ -45,7 +45,7 @@ bool call(ov::TensorVector& func_outputs,
         std::vector<ov::Tensor> op_outputs;
         for (size_t i = 0; i < op->get_output_size(); ++i) {
             ov::descriptor::Tensor* tensor = &op->output(i).get_tensor();
-            std::shared_ptr<ov::Tensor> host_tensor;
+            ov::Tensor host_tensor;
             auto it = tensor_map.find(tensor);
             if (ov::op::util::is_output(op)) {
                 host_tensor = func_outputs[results_map[op]];

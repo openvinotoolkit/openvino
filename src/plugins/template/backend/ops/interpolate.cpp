@@ -213,8 +213,8 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
 
     const auto ta = make_tensor_accessor(inputs);
     auto input_shapes = std::vector<PartialShape>();
-    std::transform(inputs.cbegin(), inputs.cend(), std::back_inserter(input_shapes), [](const HostTensorPtr& ht) {
-        return ht->get_shape();
+    std::transform(inputs.cbegin(), inputs.cend(), std::back_inserter(input_shapes), [](const ov::Tensor& ht) {
+        return ht.get_shape();
     });
     const auto output_shape =
         ov::op::v11::shape_infer(op.get(), input_shapes, m_attrs.pads_begin, m_attrs.pads_end, ta).front();
@@ -229,7 +229,7 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
 
     Shape out_shape = output_shape.to_shape();
     outputs[0].set_shape(out_shape);
-    outputs[0].set_element_type(input_et);
+    // outputs[0].set_element_type(input_et);
 
     size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
     std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);

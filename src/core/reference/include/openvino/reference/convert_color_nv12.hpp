@@ -107,11 +107,12 @@ void color_convert_i420(const T* arg_y,
     }
 }
 
-template <ov::element::Type_t ET>
+template <ov::element::Type_t T>
 inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
                                ov::TensorVector& outputs,
                                const ov::TensorVector& inputs,
                                ov::op::util::ConvertColorNV12Base::ColorConversion type) {
+    using ET = typename ov::element_type_traits<T>::value_type;
     static const size_t N_DIM = 0;
     static const size_t H_DIM = 1;
     static const size_t W_DIM = 2;
@@ -153,11 +154,12 @@ inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
     return true;
 }
 
-template <ov::element::Type_t ET>
+template <ov::element::Type_t T>
 inline bool color_convert_i420(const std::shared_ptr<Node>& op,
                                ov::TensorVector& outputs,
                                const ov::TensorVector& inputs,
                                ov::op::util::ConvertColorI420Base::ColorConversion type) {
+    using ET = typename ov::element_type_traits<T>::value_type;
     static const size_t N_DIM = 0;
     static const size_t H_DIM = 1;
     static const size_t W_DIM = 2;

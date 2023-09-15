@@ -56,9 +56,9 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureE
 
     const auto output_type = op->get_input_element_type(0);
 
-    outputs[0].set_element_type(output_type);
+    // outputs[0].set_element_type(output_type);
     outputs[0].set_shape(output_rois_features_shape);
-    outputs[1].set_element_type(output_type);
+    // outputs[1].set_element_type(output_type);
     outputs[1].set_shape(output_rois_shape);
 
     std::vector<float> output_rois_features(ov::shape_size(output_rois_features_shape));
