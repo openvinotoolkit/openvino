@@ -154,13 +154,6 @@ public:
     void set_shape(const ov::Shape& shape);
 
     /**
-     * @brief Set new element type for tensor, deallocate/allocate if new total size is bigger than previous one.
-     * @note Memory allocation may happen
-     * @param element_type A new element type
-     */
-    void set_element_type(const ov::element::Type& element_type);
-
-    /**
      * @return A tensor element type
      */
     const element::Type& get_element_type() const;

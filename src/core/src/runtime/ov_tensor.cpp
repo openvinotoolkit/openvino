@@ -71,10 +71,6 @@ void Tensor::set_shape(const ov::Shape& shape) {
     OV_TENSOR_STATEMENT(_impl->set_shape(shape));
 }
 
-void Tensor::set_element_type(const ov::element::Type& element_type) {
-    OV_TENSOR_STATEMENT(_impl->set_element_type(element_type));
-}
-
 const Shape& Tensor::get_shape() const {
     OV_TENSOR_STATEMENT(return _impl->get_shape());
 }

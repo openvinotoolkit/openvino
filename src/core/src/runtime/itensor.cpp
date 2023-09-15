@@ -19,10 +19,6 @@ size_t ITensor::get_size() const {
     return shape_size(get_shape());
 }
 
-void ITensor::set_element_type(ov::element::Type element_type) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
 size_t ITensor::get_byte_size() const {
     return (get_size() * get_element_type().bitwidth() + 8 - 1) / 8;
 }
