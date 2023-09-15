@@ -28,6 +28,8 @@ struct mha_impl : typed_primitive_impl_ocl<mha> {
         auto params = get_default_params<kernel_selector::mha_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::mha_optional_params>(impl_param.get_program());
 
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
         return {params, optional_params};
     }
 };

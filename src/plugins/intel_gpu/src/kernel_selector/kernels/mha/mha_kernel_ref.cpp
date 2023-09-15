@@ -64,7 +64,7 @@ KernelsData MHAKernelRef::GetKernelsData(const Params& params, const optional_pa
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+                     EXE_MODE_DEFAULT, false, false, 3, GetFusedPrimitiveInputsCount(params));
 
     return { kd };}
 

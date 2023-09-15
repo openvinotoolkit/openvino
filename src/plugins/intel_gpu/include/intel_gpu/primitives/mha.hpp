@@ -22,9 +22,7 @@ struct mha : public primitive_base<mha> {
                    const input_info& inputk,
                    const input_info& inputv,
                    const padding& output_padding = padding())
-        : primitive_base(id, {inputq, inputk, inputv}, 
-        
-        
+        : primitive_base(id, {inputq, inputk, inputv},
         {output_padding})
         {}
 
