@@ -32,14 +32,20 @@ class TestTFHubConvertModel(TestConvertModel):
 
     def get_inputs_info(self, model_obj):
         inputs_info = []
-        for input_info in model_obj.inputs:
+        assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
+        for input_name, input_info in model_obj.structured_input_signature[1].items():
             input_shape = []
             try:
-                for dim in input_info.shape.as_list():
-                    if dim is None:
-                        input_shape.append(1)
-                    else:
-                        input_shape.append(dim)
+                if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
+                    # image classification case, let us imitate an image
+                    # that helps to avoid compute output size issue
+                    input_shape = [1, 200, 200, 3]
+                else:
+                    for dim in input_info.shape.as_list():
+                        if dim is None:
+                            input_shape.append(1)
+                        else:
+                            input_shape.append(dim)
             except ValueError:
                 # unknown rank case
                 pass
@@ -55,32 +61,25 @@ class TestTFHubConvertModel(TestConvertModel):
                 tf.string: str,
                 tf.bool: bool,
             }
-            if input_info.dtype not in type_map:
+            if input_info.dtype == tf.resource:
+                # skip inputs corresponding to variables
                 continue
             assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
-            inputs_info.append((input_shape, type_map[input_info.dtype]))
+            inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
 
         return inputs_info
 
     def infer_fw_model(self, model_obj, inputs):
-        # TODO 119141 - use the same dictionary for OV inference
+        # repack input dictionary to tensorflow constants
         tf_inputs = {}
-        for input_ind, input_name in enumerate(sorted(model_obj.structured_input_signature[1].keys())):
-            tf_inputs[input_name] = tf.constant(inputs[input_ind])
+        for input_name, input_value in inputs.items():
+            tf_inputs[input_name] = tf.constant(input_value)
 
         output_dict = {}
         for out_name, out_value in model_obj(**tf_inputs).items():
             output_dict[out_name] = out_value.numpy()
 
-        # TODO: 119141 - remove this workaround
-        # map external tensor names to internal names
-        assert len(model_obj.outputs) == len(model_obj.structured_outputs)
-        fw_outputs = {}
-        for output_ind, external_name in enumerate(sorted(model_obj.structured_outputs.keys())):
-            internal_name = model_obj.outputs[output_ind].name
-            out_value = output_dict[external_name]
-            fw_outputs[internal_name] = out_value
-        return fw_outputs
+        return output_dict
 
     def teardown_method(self):
         # remove all downloaded files for TF Hub models

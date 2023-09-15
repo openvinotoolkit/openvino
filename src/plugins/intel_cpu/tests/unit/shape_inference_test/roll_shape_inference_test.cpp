@@ -1,10 +1,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <gmock/gmock.h>
+
 #include <array>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "gmock/gmock.h"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
@@ -29,7 +30,7 @@ TEST_F(RollV7StaticShapeInferenceTest, axes_as_constant) {
 
     input_shapes = {StaticShape{3, 5}, StaticShape{2}, StaticShape{2}};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], input_shapes[0]);
 }
 
@@ -41,12 +42,12 @@ TEST_F(RollV7StaticShapeInferenceTest, axes_in_const_map) {
     const auto op = make_op(arg, shift, axes);
     auto axes_val = std::array<int32_t, 3>{0, 1, -1};
 
-    const auto constant_data = std::map<size_t, HostTensorPtr>{
-        {2, std::make_shared<HostTensor>(element::i32, Shape{axes_val.size()}, axes_val.data())}};
+    const auto constant_data =
+        std::unordered_map<size_t, ov::Tensor>{{2, {element::i32, Shape{axes_val.size()}, axes_val.data()}}};
 
     input_shapes = {StaticShape{3, 3, 3}, StaticShape{3}, StaticShape{3}};
 
-    shape_inference(op.get(), input_shapes, output_shapes, constant_data);
+    output_shapes = shape_inference(op.get(), input_shapes, constant_data);
     EXPECT_EQ(output_shapes[0], input_shapes[0]);
 }
 
@@ -58,12 +59,12 @@ TEST_F(RollV7StaticShapeInferenceTest, axes_over_arg_rank) {
     const auto op = make_op(arg, shift, axes);
     auto axes_val = std::array<int32_t, 3>{0, 3, -1};
 
-    const auto constant_data = std::map<size_t, HostTensorPtr>{
-        {2, std::make_shared<HostTensor>(element::i32, Shape{axes_val.size()}, axes_val.data())}};
+    const auto constant_data =
+        std::unordered_map<size_t, ov::Tensor>{{2, {element::i32, Shape{axes_val.size()}, axes_val.data()}}};
 
     input_shapes = {StaticShape{3, 3, 3}, StaticShape{3}, StaticShape{3}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, constant_data),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, constant_data),
                     NodeValidationFailure,
                     HasSubstr("Parameter axis 3 out of the tensor rank range"));
 }
@@ -76,12 +77,12 @@ TEST_F(RollV7StaticShapeInferenceTest, axes_has_negative_after_normalization) {
     const auto op = make_op(arg, shift, axes);
 
     auto axes_val = std::array<int64_t, 3>{-4, 2, -1};
-    const auto constant_data = std::map<size_t, HostTensorPtr>{
-        {2, std::make_shared<HostTensor>(element::i64, Shape{axes_val.size()}, axes_val.data())}};
+    const auto constant_data =
+        std::unordered_map<size_t, ov::Tensor>{{2, {element::i64, Shape{axes_val.size()}, axes_val.data()}}};
 
     input_shapes = {StaticShape{3, 3, 3}, StaticShape{3}, StaticShape{3}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, constant_data),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, constant_data),
                     NodeValidationFailure,
                     HasSubstr(" Parameter axis -4 out of the tensor rank range"));
 }
@@ -90,11 +91,11 @@ TEST_F(RollV7StaticShapeInferenceTest, default_ctor) {
     const auto op = make_op();
 
     auto axes_val = std::array<int64_t, 4>{-4, 2, -1, 1};
-    const auto constant_data = std::map<size_t, HostTensorPtr>{
-        {2, std::make_shared<HostTensor>(element::i64, Shape{axes_val.size()}, axes_val.data())}};
+    const auto constant_data =
+        std::unordered_map<size_t, ov::Tensor>{{2, {element::i64, Shape{axes_val.size()}, axes_val.data()}}};
 
     input_shapes = {StaticShape{3, 2, 5, 1}, StaticShape{}, StaticShape{4}};
 
-    shape_inference(op.get(), input_shapes, output_shapes, constant_data);
+    output_shapes = shape_inference(op.get(), input_shapes, constant_data);
     EXPECT_EQ(output_shapes[0], input_shapes[0]);
 }
