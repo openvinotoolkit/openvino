@@ -11,7 +11,7 @@ from openvino import convert_model
 from models_hub_common.utils import get_models_list, compare_two_tensors
 
 
-class TestTorchHubConvertModel(TestConvertModel):
+class TestDetectron2ConvertModel(TestConvertModel):
     def setup_class(self):
         from PIL import Image
         import requests
@@ -85,11 +85,11 @@ class TestTorchHubConvertModel(TestConvertModel):
     @pytest.mark.parametrize("name,type,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_precommit")))
     @pytest.mark.precommit
-    def test_convert_model_all_models(self, name, type, mark, reason, ie_device):
+    def test_detectron2_precommit(self, name, type, mark, reason, ie_device):
         self.run(name, None, ie_device)
 
     @pytest.mark.parametrize("name,type,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_models")))
     @pytest.mark.nightly
-    def test_convert_model_all_models(self, name, type, mark, reason, ie_device):
+    def test_detectron2_all_models(self, name, type, mark, reason, ie_device):
         self.run(name, None, ie_device)
