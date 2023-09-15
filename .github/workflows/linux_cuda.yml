@@ -1,0 +1,199 @@
+name: Linux CUDA Plugin (Ubuntu 20.04, Python 3.11)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}-linux-cuda
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-20.04-8-cores
+    container:
+      image: nvidia/cuda:11.8.0-runtime-ubuntu20.04
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_LINKER_LAUNCHER: ccache
+      CMAKE_C_LINKER_LAUNCHER: ccache
+      BUILD_TYPE: 'Release'
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_DIR: ${{ github.workspace }}/install_pkg
+      DATA_PATH: ${{ github.workspace }}/testdata
+      MODELS_PATH: ${{ github.workspace }}/testdata
+      DEBIAN_FRONTEND: 'noninteractive'
+    steps:
+
+      - name: Install Prerequisites
+        run: |
+          apt update
+          apt install -y git curl git git-lfs unzip wget
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v3
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@v3
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: 'openvino_contrib'
+          submodules: 'recursive'
+
+      - name: Clone testdata for C API tests
+        uses: actions/checkout@v3
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: 'testdata'
+          submodules: 'recursive'
+          lfs: 'true'
+
+      - name: Create Directories
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/build
+          mkdir -p $GITHUB_WORKSPACE/install_pkg
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      #
+      # Dependencies
+      #
+
+      - name: Install build dependencies
+        run: |
+          apt update
+          $GITHUB_WORKSPACE/openvino/install_build_dependencies.sh
+          
+          apt -y --no-install-recommends install unzip wget software-properties-common
+          wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
+          unzip ninja-linux.zip
+          cp -v ninja /usr/local/bin/
+          
+          python3 -m pip install -r $GITHUB_WORKSPACE/openvino/src/bindings/python/requirements.txt
+
+      - name: Install CUDA
+        run: |
+         wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin 
+         mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+         
+         apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+         add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
+         apt update
+         DEBIAN_FRONTEND=noninteractive apt install -y \
+            gnupg2 \
+            software-properties-common \
+            libcudnn8=8.9.4.*-1+cuda11.8 \
+            libcudnn8-dev=8.9.4.*-1+cuda11.8 \
+            libcudnn8-samples=8.9.4.*-1+cuda11.8 \
+            autoconf \
+            automake \
+            build-essential \
+            ca-certificates \
+            clang-format-9 \
+            cuda-runtime-11-8 \
+            cuda-11-8 \
+            g++-multilib \
+            gcc-multilib \
+            gstreamer1.0-plugins-base \
+            libavcodec-dev \
+            libavformat-dev \
+            libboost-regex-dev \
+            libcairo2-dev \
+            libcutensor1=1.6.1.5-1 \
+            libcutensor-dev=1.6.1.5-1 \
+            libglib2.0-dev \
+            libgstreamer1.0-0 \
+            libgtk2.0-dev \
+            libopenblas-dev \
+            libpango1.0-dev \
+            libpng-dev \
+            libssl-dev \
+            libswscale-dev \
+            libtool \
+            libusb-1.0-0-dev \
+            libzstd-dev \
+            pkg-config \
+            shellcheck \
+            unzip \
+            wget \
+            cuda-drivers=520.61.05-1
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: "2000M"
+          # Should save cache only if run in the master branch of the base repo
+          # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
+          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          verbose: 2
+          key: linux-cuda
+          restore-keys: |
+            linux-cuda
+
+      #
+      # Build
+      #
+
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v1
+        id: cpu-cores
+
+      - name: CMake configure
+        run: |
+          cmake \
+            -GNinja \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DENABLE_CPPLINT=OFF \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DOPENVINO_EXTRA_MODULES=$GITHUB_WORKSPACE/openvino_contrib/modules/nvidia_plugin \
+            -DENABLE_INTEL_CPU=OFF \
+            -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_INTEL_GNA=OFF \
+            -DENABLE_OV_TF_FRONTEND=OFF \
+            -DENABLE_OV_PADDLE_FRONTEND=OFF \
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF \
+            -DENABLE_OV_ONNX_FRONTEND=OFF \
+            -DENABLE_PYTHON=OFF \
+            -DENABLE_TESTS=ON \
+            -S $GITHUB_WORKSPACE/openvino \
+            -B $GITHUB_WORKSPACE/build
+
+      - name: Clean ccache stats
+        run: ccache --zero-stats --show-config
+
+      - name: Build
+        run: |
+          cmake --build $GITHUB_WORKSPACE/build --parallel ${{ steps.cpu-cores.outputs.count }} --config ${{ env.BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
+
+      - name: Show ccache stats
+        run: ccache --show-stats
