@@ -25,7 +25,8 @@ TEST_F(AutoFuncTests, compiled_with_cache_enabled) {
     core.set_property(ov::cache_dir(""));
 }
 
-TEST_F(AutoFuncTests, compiled_with_cache_enabled_batch_enabled) { 
+TEST_F(AutoFuncTests, compiled_with_cache_enabled_batch_enabled) {
+#ifdef ENABLE_AUTO_BATCH
     core.set_property(ov::cache_dir(cache_path));
     core.set_property("MOCK_1", ov::device::id("test")); // device id for cache property distinguish with MOCK_2
     auto compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
@@ -41,4 +42,5 @@ TEST_F(AutoFuncTests, compiled_with_cache_enabled_batch_enabled) {
     // new cache file expected
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 5);
     core.set_property(ov::cache_dir(""));
+#endif
 }
