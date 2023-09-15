@@ -28,5 +28,5 @@ body:
       label: Issue submission checklist
       description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
       options:
-        - label: I report a documentation issue. It's not a question.
+        - label: I'm reporting a documentation issue. It's not a question.
           required: true
