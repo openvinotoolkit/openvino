@@ -257,7 +257,7 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
         if hasattr(input_model, 'outputs') and hasattr(input_model, 'structured_outputs') and \
                 isinstance(input_model.structured_outputs, dict):
             external_names = sorted(list(input_model.structured_outputs.keys()))
-            internal_names = sorted([tensor.name for tensor in input_model.outputs])
+            internal_names = [tensor.name for tensor in input_model.outputs]
             if len(external_names) == len(internal_names):
                 for external_name, internal_name in zip(external_names, internal_names):
                     output_names_map = output_names_map or {}
