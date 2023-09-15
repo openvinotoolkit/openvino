@@ -968,12 +968,23 @@ ov::runtime::Tensor generate(const
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    if (1 == port) {
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 2, 0, 10);
-    } else if (2 == port) {
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 1, 0, 20);
+    InputGenerateData in_gen_data;
+    if (elemType.is_real()) {
+        set_real_number_generation_data(in_gen_data);
     }
-    return generate(std::static_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+
+    if (1 == port) {
+        in_gen_data.range = 2;
+        in_gen_data.start_from = 0;
+        in_gen_data.resolution = 10;
+    } else if (2 == port) {
+        in_gen_data.range = 1;
+        in_gen_data.start_from = 0;
+        in_gen_data.resolution = 20;
+    }
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_gen_data.range,
+                                                   in_gen_data.start_from, in_gen_data.resolution, in_gen_data.seed);
+
 }
 
 namespace comparison {
