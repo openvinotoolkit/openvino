@@ -611,6 +611,8 @@ void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_gpu(ov::Core& c
                 return decltype(ov::device::uuid)::value_type{uuid};
             } else if (name == ov::device::id) {
                 return decltype(ov::device::id)::value_type{m_id};
+            } else if (name == ov::loaded_from_cache.name()) {
+                return m_loaded_from_cache;
             }
             OPENVINO_NOT_IMPLEMENTED;
         }
@@ -712,6 +714,8 @@ void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_cpu(ov::Core& c
             } else if (name == ov::device::uuid) {
                 ov::device::UUID uuid = {};
                 return decltype(ov::device::uuid)::value_type{uuid};
+            } else if (name == ov::loaded_from_cache.name()) {
+                return m_loaded_from_cache;
             }
             OPENVINO_NOT_IMPLEMENTED;
     }
