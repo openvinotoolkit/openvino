@@ -7,7 +7,7 @@ torchvision
 av
 transformers
 timm
-natten
+#natten
 sacremoses
 sentencepiece
 datasets
