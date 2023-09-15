@@ -9,16 +9,16 @@
 #include <cmath>
 #include <vector>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
 namespace normalize_l2 {
 
@@ -31,7 +31,7 @@ std::shared_ptr<ov::opset1::Constant> createNewScalesConst(const ov::opset1::Con
         newData[i] = source[i] < 0 ? T{-1} : T{1};
     }
 
-    const ngraph::element::Type type = originalConst.get_output_element_type(0);
+    const ov::element::Type type = originalConst.get_output_element_type(0);
     return ov::opset1::Constant::create(type, originalConst.get_shape(), newData);
 }
 
@@ -49,7 +49,7 @@ NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : Lay
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -96,7 +96,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
     return true;
 }
 
-bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool NormalizeL2Transformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> operation = m.get_match_root();
     if (!canBeTransformed(context, operation)) {
         return false;
@@ -114,12 +114,12 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     std::shared_ptr<ov::opset1::Constant> newScalesConst;
     const auto type = scalesConst->get_output_element_type(0);
     switch (type) {
-        case ngraph::element::Type_t::f16: {
-            newScalesConst = normalize_l2::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
+        case ov::element::Type_t::f16: {
+            newScalesConst = normalize_l2::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f16>::value_type>(*scalesConst);
             break;
         }
-        case ngraph::element::Type_t::f32: {
-            newScalesConst = normalize_l2::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
+        case ov::element::Type_t::f32: {
+            newScalesConst = normalize_l2::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f32>::value_type>(*scalesConst);
             break;
         }
         default: {
@@ -128,8 +128,8 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     }
 
     auto newNormalize = std::make_shared<ov::op::TypeRelaxed<ov::opset1::NormalizeL2>>(
-        std::vector<ngraph::element::Type>{ element::f32, axes->output(0).get_element_type() },
-        std::vector<ngraph::element::Type>{deqPrecision},
+        std::vector<ov::element::Type>{ element::f32, axes->output(0).get_element_type() },
+        std::vector<ov::element::Type>{deqPrecision},
         ov::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
         axes,
         normalize->get_eps(),
@@ -137,8 +137,8 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     NetworkHelper::copyInfo(normalize, newNormalize);
 
     auto newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-        std::vector<ngraph::element::Type>{ element::f32, element::f32 },
-        std::vector<ngraph::element::Type>{normalize->get_output_element_type(0)},
+        std::vector<ov::element::Type>{ element::f32, element::f32 },
+        std::vector<ov::element::Type>{normalize->get_output_element_type(0)},
         ov::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
         ov::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());
 

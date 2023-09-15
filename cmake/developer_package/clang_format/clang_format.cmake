@@ -32,10 +32,10 @@ if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
 endif()
 
 #
-# add_clang_format_target(FOR_TARGETS <target1 target2 ...> | FOR_SOURCES <source1 source2 ...>
-#                         [EXCLUDE_PATTERNS <pattern1 pattern2 ...>])
+# ov_add_clang_format_target(FOR_TARGETS <target1 target2 ...> | FOR_SOURCES <source1 source2 ...>
+#                            [EXCLUDE_PATTERNS <pattern1 pattern2 ...>])
 #
-function(add_clang_format_target TARGET_NAME)
+function(ov_add_clang_format_target TARGET_NAME)
     if(NOT ENABLE_CLANG_FORMAT)
         return()
     endif()
@@ -129,4 +129,9 @@ function(add_clang_format_target TARGET_NAME)
 
     add_dependencies(clang_format_check_all ${TARGET_NAME})
     add_dependencies(clang_format_fix_all ${TARGET_NAME}_fix)
+endfunction()
+
+function(add_clang_format_target)
+    message(WARNING "add_clang_format_target is deprecated, use ov_add_clang_format_target instead")
+    ov_add_clang_format_target(${ARGV})
 endfunction()

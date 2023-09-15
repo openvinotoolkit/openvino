@@ -14,8 +14,6 @@ struct embedding_bag : public primitive_base<embedding_bag> {
 
     embedding_bag() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Select type of embedding_bag operation
     enum embedding_bag_type {
         packed_sum,
