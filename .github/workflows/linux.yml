@@ -793,7 +793,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.ref_name == 'master' && github.sha || github.ref_name }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           restore-keys: |
             ${{ runner.os }}-tests-functional-cpu-stamp
 
