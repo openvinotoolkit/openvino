@@ -16,7 +16,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/normalize_dequantization_function.hpp"
+#include "lpt_ov_models/normalize_dequantization_function.hpp"
 
 using namespace testing;
 using namespace ov::pass;

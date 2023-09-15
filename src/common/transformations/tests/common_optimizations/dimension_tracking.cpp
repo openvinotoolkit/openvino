@@ -11,7 +11,7 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1.hpp"

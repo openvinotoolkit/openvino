@@ -11,8 +11,8 @@
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/max_pool.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/fuse_fake_quantize_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {

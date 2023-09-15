@@ -12,7 +12,7 @@
 #include <utility>
 
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "lpt_ov_models/convolution_function.hpp"
 
 using namespace testing;
 using namespace ov;

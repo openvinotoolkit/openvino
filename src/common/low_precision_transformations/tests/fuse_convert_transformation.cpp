@@ -14,9 +14,9 @@
 #include "low_precision/fuse_convert.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/fuse_convert_function.hpp"
+#include "lpt_ov_models/fuse_convert_function.hpp"
 
 namespace {
 using namespace testing;

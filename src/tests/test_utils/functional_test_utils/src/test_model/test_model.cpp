@@ -4,7 +4,7 @@
 
 #include "functional_test_utils/test_model/test_model.hpp"
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"

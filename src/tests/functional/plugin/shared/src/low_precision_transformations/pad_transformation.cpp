@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/pad_function.hpp"
+#include "lpt_ov_models/pad_function.hpp"
 
 namespace LayerTestsDefinitions {
 

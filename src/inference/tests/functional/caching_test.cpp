@@ -15,7 +15,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "ie_plugin_config.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"

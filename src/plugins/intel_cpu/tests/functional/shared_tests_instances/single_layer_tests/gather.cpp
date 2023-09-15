@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "single_layer_tests/gather.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace LayerTestsDefinitions;
 

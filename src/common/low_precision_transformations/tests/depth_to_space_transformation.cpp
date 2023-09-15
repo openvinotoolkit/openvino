@@ -16,7 +16,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/depth_to_space_function.hpp"
+#include "lpt_ov_models/depth_to_space_function.hpp"
 
 namespace {
 using namespace ov::pass;

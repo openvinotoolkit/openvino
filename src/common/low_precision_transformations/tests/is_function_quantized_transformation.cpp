@@ -11,7 +11,7 @@
 #include "low_precision/low_precision.hpp"
 
 #include <gtest/gtest.h>
-#include "lpt_ngraph_functions/common/builders.hpp"
+#include "lpt_ov_models/common/builders.hpp"
 
 using namespace testing;
 using namespace ov;

@@ -11,8 +11,8 @@
 //#include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/max_pool_function.hpp"
+#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
+#include "lpt_ov_models/max_pool_function.hpp"
 
 namespace LayerTestsDefinitions {
 

@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/subtract_function.hpp"
+#include "lpt_ov_models/subtract_function.hpp"
 
 
 

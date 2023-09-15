@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset11.hpp"
 

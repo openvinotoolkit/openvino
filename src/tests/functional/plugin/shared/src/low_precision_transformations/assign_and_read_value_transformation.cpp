@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/assign_and_read_value_function.hpp"
+#include "lpt_ov_models/assign_and_read_value_function.hpp"
 
 namespace LayerTestsDefinitions {
 

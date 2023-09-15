@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/clamp_function.hpp"
+#include "lpt_ov_models/clamp_function.hpp"
 
 namespace LayerTestsDefinitions {
 

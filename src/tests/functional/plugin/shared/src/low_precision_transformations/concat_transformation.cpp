@@ -11,8 +11,8 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "lpt_ov_models/concat_function.hpp"
 
 namespace LayerTestsDefinitions {
 

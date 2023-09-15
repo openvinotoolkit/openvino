@@ -12,8 +12,8 @@
 #include "low_precision/concat.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
+#include "lpt_ov_models/concat_function.hpp"
+#include "lpt_ov_models/common/builders.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;

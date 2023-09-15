@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "helpers/test_model_repo.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"

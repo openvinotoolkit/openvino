@@ -9,8 +9,8 @@
 
 #include "../skip_tests_check.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 

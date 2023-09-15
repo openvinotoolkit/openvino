@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/reduce_function.hpp"
+#include "lpt_ov_models/reduce_function.hpp"
 
 namespace LayerTestsDefinitions {
 

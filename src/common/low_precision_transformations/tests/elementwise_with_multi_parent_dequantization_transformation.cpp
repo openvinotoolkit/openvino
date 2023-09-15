@@ -18,8 +18,8 @@
 #include "simple_low_precision_transformer.hpp"
 
 #include "low_precision/add.hpp"
-#include "lpt_ngraph_functions/elementwise_with_multi_parent_dequantization_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ov_models/elementwise_with_multi_parent_dequantization_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
 
 using namespace testing;
 using namespace ov::pass;

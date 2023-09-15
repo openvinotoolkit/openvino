@@ -15,8 +15,8 @@
 #include "low_precision/relu.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/relu_function.hpp"
+#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "lpt_ov_models/relu_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
