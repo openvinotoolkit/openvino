@@ -50,7 +50,7 @@ TEST(check, check_with_explanation) {
 
 TEST(check, ov_throw_exception_check_relative_path_to_source) {
     // guthub actions uses sccache wich doesn't support /d1trimfile compile option
-    if (std::getenv("GITHUB_ACTIONS")){
+    if (std::getenv("GITHUB_ACTIONS")) {
         GTEST_SKIP();
     }
     using namespace testing;
