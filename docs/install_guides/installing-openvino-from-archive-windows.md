@@ -11,28 +11,9 @@
    
    Note that the Archive distribution:
    
-   * offers both C++ and Python APIs
+   * offers both C/C++ and Python APIs
    * additionally includes code samples 
    * is dedicated to users of all major OSs: Windows, Linux, macOS
-   * may offer different hardware support under different operating systems
-     (see the drop-down below for more details)
-     
-   .. dropdown:: Inference Options
-
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Operating System     CPU    GPU    GNA    NPU    AUTO      Auto-batch     HETERO    MULTI  
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Debian9 armhf         V     n/a    n/a    n/a     V            V            V        n/a   
-       Debian9 arm64         V     n/a    n/a    n/a     V            V            V        n/a   
-       CentOS7 x86_64        V      V      V     n/a     V            V            V         V    
-       Ubuntu18 x86_64       V      V      V     n/a     V            V            V         V    
-       Ubuntu20 x86_64       V      V      V      V      V            V            V         V    
-       Ubuntu22 x86_64       V      V      V      V      V            V            V         V    
-       RHEL8 x86_64          V      V      V     n/a     V            V            V         V    
-       Windows x86_64        V      V      V      V      V            V            V         V    
-       MacOS x86_64          V     n/a    n/a    n/a     V            V            V        n/a   
-       MacOS arm64           V     n/a    n/a    n/a     V            V            V        n/a   
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
 
 
 System Requirements
@@ -148,7 +129,17 @@ Step 1: Download and Install OpenVINO Core Components
       If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2023`` folder may already exist. If you want to override it, navigate to the ``C:\Program Files (x86)\Intel`` folder and delete the existing linked folder before running the ``mklink`` command.
 
 
-Congratulations, you finished the installation! The ``C:\Program Files (x86)\Intel\openvino_2023`` folder now contains the core components for OpenVINO. If you used a different path in Step 1, you will find the ``openvino_2023`` folder there. The path to the ``openvino_2023`` directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
+Congratulations, you have finished the installation! For some use cases you may still 
+need to install additional components. Check the description below, as well as the 
+:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+to see if your case needs any of them.
+
+The ``C:\Program Files (x86)\Intel\openvino_2023`` folder now contains the core components for OpenVINO. 
+If you used a different path in Step 1, you will find the ``openvino_2023`` folder there. 
+The path to the ``openvino_2023`` directory is also referred as ``<INSTALL_DIR>`` 
+throughout the OpenVINO documentation.
+
+
 
 .. _set-the-environment-variables-windows:
 

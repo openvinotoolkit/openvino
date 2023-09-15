@@ -144,12 +144,10 @@ TEST_P(PriorBoxClusteredV0CpuShapeInferenceTest , shape_inference_with_const_map
     const auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
     const auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
     auto op = make_op(layer_shape, image_shape, attrs);
-    const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
-    std::map<size_t, HostTensorPtr> const_data{{0, std::make_shared<HostTensor>(layer_const)}};
+    std::unordered_map<size_t, ov::Tensor> const_data{{0, {element::i32, ov::Shape{2}, data[0].data()}}};
 
     if (input_shapes.size() == 2) {
-        const auto image_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[1]);
-        const_data.insert({1, std::make_shared<HostTensor>(image_const)});
+        const_data.insert({1, {element::i32, ov::Shape{2}, data[1].data()}});
     }
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
 }
@@ -171,4 +169,3 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

@@ -58,7 +58,7 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: Build OpenVINO with CMake
@@ -144,6 +144,6 @@ jobs:
           lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
           genhtml coverage.info --output-directory coverage-report
       - name: Collect coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           verbose: true

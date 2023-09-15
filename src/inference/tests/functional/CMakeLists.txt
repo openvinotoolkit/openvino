@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(SUGGEST_OVERRIDE_SUPPORTED)
-    ie_add_compiler_flags(-Wno-suggest-override)
-endif()
-
 set(TARGET_NAME ov_inference_functional_tests)
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
 
 set(DEPENDENCIES
     mock_engine
