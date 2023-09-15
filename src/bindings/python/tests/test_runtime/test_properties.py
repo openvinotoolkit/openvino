@@ -6,9 +6,15 @@ import pytest
 import numpy as np
 import os
 
-
-import openvino.properties.hint as hints
 import openvino.properties as props
+import openvino.properties.hint as hints
+import openvino.properties.intel_cpu as intel_cpu
+import openvino.properties.intel_auto as intel_auto
+import openvino.properties.intel_gpu as intel_gpu
+import openvino.properties.intel_gpu.hint as intel_gpu_hint
+import openvino.properties.device as device
+import openvino.properties.log as log
+import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
 
 
@@ -86,21 +92,21 @@ def test_deprecation():
             ),
         ),
         (
-            props.device.Type,
+            device.Type,
             (
-                (props.device.Type.INTEGRATED, "Type.INTEGRATED", 0),
-                (props.device.Type.DISCRETE, "Type.DISCRETE", 1),
+                (device.Type.INTEGRATED, "Type.INTEGRATED", 0),
+                (device.Type.DISCRETE, "Type.DISCRETE", 1),
             ),
         ),
         (
-            props.log.Level,
+            log.Level,
             (
-                (props.log.Level.NO, "Level.NO", -1),
-                (props.log.Level.ERR, "Level.ERR", 0),
-                (props.log.Level.WARNING, "Level.WARNING", 1),
-                (props.log.Level.INFO, "Level.INFO", 2),
-                (props.log.Level.DEBUG, "Level.DEBUG", 3),
-                (props.log.Level.TRACE, "Level.TRACE", 4),
+                (log.Level.NO, "Level.NO", -1),
+                (log.Level.ERR, "Level.ERR", 0),
+                (log.Level.WARNING, "Level.WARNING", 1),
+                (log.Level.INFO, "Level.INFO", 2),
+                (log.Level.DEBUG, "Level.DEBUG", 3),
+                (log.Level.TRACE, "Level.TRACE", 4),
             ),
         ),
     ],
@@ -120,10 +126,10 @@ def test_properties_enums(ov_enum, expected_values):
     [
         (
             (
-                props.intel_gpu.hint.ThrottleLevel.LOW,
-                props.intel_gpu.hint.ThrottleLevel.MEDIUM,
-                props.intel_gpu.hint.ThrottleLevel.HIGH,
-                props.intel_gpu.hint.ThrottleLevel.DEFAULT,
+                intel_gpu_hint.ThrottleLevel.LOW,
+                intel_gpu_hint.ThrottleLevel.MEDIUM,
+                intel_gpu_hint.ThrottleLevel.HIGH,
+                intel_gpu_hint.ThrottleLevel.DEFAULT,
             ),
             (
                 ("Priority.LOW", 0),
@@ -158,18 +164,18 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (props.range_for_async_infer_requests, "RANGE_FOR_ASYNC_INFER_REQUESTS"),
         (props.execution_devices, "EXECUTION_DEVICES"),
         (props.loaded_from_cache, "LOADED_FROM_CACHE"),
-        (props.device.full_name, "FULL_DEVICE_NAME"),
-        (props.device.architecture, "DEVICE_ARCHITECTURE"),
-        (props.device.type, "DEVICE_TYPE"),
-        (props.device.gops, "DEVICE_GOPS"),
-        (props.device.thermal, "DEVICE_THERMAL"),
-        (props.device.uuid, "DEVICE_UUID"),
-        (props.device.luid, "DEVICE_LUID"),
-        (props.device.capabilities, "OPTIMIZATION_CAPABILITIES"),
-        (props.intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
-        (props.intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
-        (props.intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
-        (props.intel_gpu.memory_statistics, "GPU_MEMORY_STATISTICS"),
+        (device.full_name, "FULL_DEVICE_NAME"),
+        (device.architecture, "DEVICE_ARCHITECTURE"),
+        (device.type, "DEVICE_TYPE"),
+        (device.gops, "DEVICE_GOPS"),
+        (device.thermal, "DEVICE_THERMAL"),
+        (device.uuid, "DEVICE_UUID"),
+        (device.luid, "DEVICE_LUID"),
+        (device.capabilities, "OPTIMIZATION_CAPABILITIES"),
+        (intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
+        (intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
+        (intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
+        (intel_gpu.memory_statistics, "GPU_MEMORY_STATISTICS"),
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -280,12 +286,12 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
-            props.intel_cpu.denormals_optimization,
+            intel_cpu.denormals_optimization,
             "CPU_DENORMALS_OPTIMIZATION",
             ((True, True),),
         ),
         (
-            props.intel_cpu.sparse_weights_decompression_rate,
+            intel_cpu.sparse_weights_decompression_rate,
             "CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE",
             (
                 (0.1, np.float32(0.1)),
@@ -293,7 +299,7 @@ def test_properties_ro(ov_property_ro, expected_value):
             ),
         ),
         (
-            props.intel_auto.device_bind_buffer,
+            intel_auto.device_bind_buffer,
             "DEVICE_BIND_BUFFER",
             (
                 (True, True),
@@ -303,7 +309,7 @@ def test_properties_ro(ov_property_ro, expected_value):
             ),
         ),
         (
-            props.intel_auto.enable_startup_fallback,
+            intel_auto.enable_startup_fallback,
             "ENABLE_STARTUP_FALLBACK",
             (
                 (True, True),
@@ -313,7 +319,7 @@ def test_properties_ro(ov_property_ro, expected_value):
             ),
         ),
         (
-            props.intel_auto.enable_runtime_fallback,
+            intel_auto.enable_runtime_fallback,
             "ENABLE_RUNTIME_FALLBACK",
             (
                 (True, True),
@@ -322,39 +328,39 @@ def test_properties_ro(ov_property_ro, expected_value):
                 (0, False),
             ),
         ),
-        (props.device.id, "DEVICE_ID", (("0", "0"),)),
+        (device.id, "DEVICE_ID", (("0", "0"),)),
         (
-            props.log.level,
+            log.level,
             "LOG_LEVEL",
-            ((props.log.Level.NO, props.log.Level.NO),),
+            ((log.Level.NO, log.Level.NO),),
         ),
         (
-            props.intel_gpu.enable_loop_unrolling,
+            intel_gpu.enable_loop_unrolling,
             "GPU_ENABLE_LOOP_UNROLLING",
             ((True, True),),
         ),
         (
-            props.intel_gpu.disable_winograd_convolution,
+            intel_gpu.disable_winograd_convolution,
             "GPU_DISABLE_WINOGRAD_CONVOLUTION",
             ((True, True),),
         ),
         (
-            props.intel_gpu.hint.queue_throttle,
+            intel_gpu_hint.queue_throttle,
             "GPU_QUEUE_THROTTLE",
-            ((props.intel_gpu.hint.ThrottleLevel.LOW, hints.Priority.LOW),),
+            ((intel_gpu_hint.ThrottleLevel.LOW, hints.Priority.LOW),),
         ),
         (
-            props.intel_gpu.hint.queue_priority,
+            intel_gpu_hint.queue_priority,
             "GPU_QUEUE_PRIORITY",
             ((hints.Priority.LOW, hints.Priority.LOW),),
         ),
         (
-            props.intel_gpu.hint.host_task_priority,
+            intel_gpu_hint.host_task_priority,
             "GPU_HOST_TASK_PRIORITY",
             ((hints.Priority.LOW, hints.Priority.LOW),),
         ),
         (
-            props.intel_gpu.hint.available_device_mem,
+            intel_gpu_hint.available_device_mem,
             "AVAILABLE_DEVICE_MEM_SIZE",
             ((128, 128),),
         ),
@@ -375,74 +381,74 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 # Special cases
 ###
 def test_properties_device_priorities():
-    assert props.device.priorities() == "MULTI_DEVICE_PRIORITIES"
-    assert props.device.priorities("CPU,GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
-    assert props.device.priorities("CPU", "GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
+    assert device.priorities() == "MULTI_DEVICE_PRIORITIES"
+    assert device.priorities("CPU,GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
+    assert device.priorities("CPU", "GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
 
     with pytest.raises(TypeError) as e:
         value = 6
-        props.device.priorities("CPU", value)
+        device.priorities("CPU", value)
     assert f"Incorrect passed value: {value} , expected string values." in str(e.value)
 
 
 def test_properties_device_properties():
-    assert props.device.properties() == "DEVICE_PROPERTIES"
+    assert device.properties() == "DEVICE_PROPERTIES"
 
     def make_dict(*arg):
         return dict(  # noqa: C406
             [*arg])
 
     def check(value1, value2):
-        assert props.device.properties(value1) == ("DEVICE_PROPERTIES", OVAny(value2))
+        assert device.properties(value1) == ("DEVICE_PROPERTIES", OVAny(value2))
 
-    check({"CPU": {props.streams.num(): 2}},
+    check({"CPU": {streams.num(): 2}},
           {"CPU": {"NUM_STREAMS": 2}})
-    check({"CPU": make_dict(props.streams.num(2))},
-          {"CPU": {"NUM_STREAMS": props.streams.Num(2)}})
+    check({"CPU": make_dict(streams.num(2))},
+          {"CPU": {"NUM_STREAMS": streams.Num(2)}})
     check({"GPU": make_dict(hints.inference_precision(Type.f32))},
           {"GPU": {"INFERENCE_PRECISION_HINT": Type.f32}})
-    check({"CPU": make_dict(props.streams.num(2), hints.inference_precision(Type.f32))},
-          {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": props.streams.Num(2)}})
-    check({"CPU": make_dict(props.streams.num(2), hints.inference_precision(Type.f32)),
-           "GPU": make_dict(props.streams.num(1), hints.inference_precision(Type.f16))},
-          {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": props.streams.Num(2)},
-           "GPU": {"INFERENCE_PRECISION_HINT": Type.f16, "NUM_STREAMS": props.streams.Num(1)}})
+    check({"CPU": make_dict(streams.num(2), hints.inference_precision(Type.f32))},
+          {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": streams.Num(2)}})
+    check({"CPU": make_dict(streams.num(2), hints.inference_precision(Type.f32)),
+           "GPU": make_dict(streams.num(1), hints.inference_precision(Type.f16))},
+          {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": streams.Num(2)},
+           "GPU": {"INFERENCE_PRECISION_HINT": Type.f16, "NUM_STREAMS": streams.Num(1)}})
 
 
 def test_properties_streams():
     # Test extra Num class
-    assert props.streams.Num().to_integer() == -1
-    assert props.streams.Num(2).to_integer() == 2
-    assert props.streams.Num.AUTO.to_integer() == -1
-    assert props.streams.Num.NUMA.to_integer() == -2
+    assert streams.Num().to_integer() == -1
+    assert streams.Num(2).to_integer() == 2
+    assert streams.Num.AUTO.to_integer() == -1
+    assert streams.Num.NUMA.to_integer() == -2
     # Test RW property
-    property_tuple = props.streams.num(props.streams.Num.AUTO)
+    property_tuple = streams.num(streams.Num.AUTO)
     assert property_tuple[0] == "NUM_STREAMS"
     assert property_tuple[1].value == -1
 
-    property_tuple = props.streams.num(42)
+    property_tuple = streams.num(42)
     assert property_tuple[0] == "NUM_STREAMS"
     assert property_tuple[1].value == 42
 
 
 def test_properties_capability():
-    assert props.device.Capability.FP32 == "FP32"
-    assert props.device.Capability.BF16 == "BF16"
-    assert props.device.Capability.FP16 == "FP16"
-    assert props.device.Capability.INT8 == "INT8"
-    assert props.device.Capability.INT16 == "INT16"
-    assert props.device.Capability.BIN == "BIN"
-    assert props.device.Capability.WINOGRAD == "WINOGRAD"
-    assert props.device.Capability.EXPORT_IMPORT == "EXPORT_IMPORT"
+    assert device.Capability.FP32 == "FP32"
+    assert device.Capability.BF16 == "BF16"
+    assert device.Capability.FP16 == "FP16"
+    assert device.Capability.INT8 == "INT8"
+    assert device.Capability.INT16 == "INT16"
+    assert device.Capability.BIN == "BIN"
+    assert device.Capability.WINOGRAD == "WINOGRAD"
+    assert device.Capability.EXPORT_IMPORT == "EXPORT_IMPORT"
 
 
 def test_properties_memory_type_gpu():
-    assert props.intel_gpu.MemoryType.surface == "GPU_SURFACE"
-    assert props.intel_gpu.MemoryType.buffer == "GPU_BUFFER"
+    assert intel_gpu.MemoryType.surface == "GPU_SURFACE"
+    assert intel_gpu.MemoryType.buffer == "GPU_BUFFER"
 
 
 def test_properties_capability_gpu():
-    assert props.intel_gpu.CapabilityGPU.HW_MATMUL == "GPU_HW_MATMUL"
+    assert intel_gpu.CapabilityGPU.HW_MATMUL == "GPU_HW_MATMUL"
 
 
 def test_properties_hint_model():
@@ -460,10 +466,10 @@ def test_properties_hint_model():
 def test_single_property_setting(device):
     core = Core()
 
-    core.set_property(device, props.streams.num(props.streams.Num.AUTO))
+    core.set_property(device, streams.num(streams.Num.AUTO))
 
-    assert props.streams.Num.AUTO.to_integer() == -1
-    assert type(core.get_property(device, props.streams.num())) == int
+    assert streams.Num.AUTO.to_integer() == -1
+    assert type(core.get_property(device, streams.num())) == int
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
@@ -483,7 +489,7 @@ def test_single_property_setting(device):
                 hints.scheduling_core_type(hints.SchedulingCoreType.PCORE_ONLY),
                 hints.enable_hyper_threading(True),
                 hints.num_requests(12),
-                props.streams.num(5),
+                streams.num(5),
             ],
         ),
         # Pure dict
@@ -498,7 +504,7 @@ def test_single_property_setting(device):
             hints.scheduling_core_type(): hints.SchedulingCoreType.PCORE_ONLY,
             hints.enable_hyper_threading(): True,
             hints.num_requests(): 12,
-            props.streams.num(): 5,
+            streams.num(): 5,
         },
         # Mixed dict
         {
@@ -510,7 +516,7 @@ def test_single_property_setting(device):
             hints.performance_mode(): hints.PerformanceMode.LATENCY,
             hints.scheduling_core_type(): hints.SchedulingCoreType.PCORE_ONLY,
             hints.num_requests(): 12,
-            "NUM_STREAMS": props.streams.Num(5),
+            "NUM_STREAMS": streams.Num(5),
             "ENABLE_MMAP": "NO",
         },
     ],
@@ -528,7 +534,7 @@ def test_core_cpu_properties(properties_to_set):
     assert core.get_property("CPU", props.cache_dir()) == "./"
     assert core.get_property("CPU", props.inference_num_threads()) == 9
     assert core.get_property("CPU", props.affinity()) == props.Affinity.NONE
-    assert core.get_property("CPU", props.streams.num()) == 5
+    assert core.get_property("CPU", streams.num()) == 5
 
     # RO properties
     assert type(core.get_property("CPU", props.supported_properties())) == dict
@@ -536,5 +542,5 @@ def test_core_cpu_properties(properties_to_set):
     assert type(core.get_property("CPU", props.optimal_number_of_infer_requests())) == int
     assert type(core.get_property("CPU", props.range_for_streams())) == tuple
     assert type(core.get_property("CPU", props.range_for_async_infer_requests())) == tuple
-    assert type(core.get_property("CPU", props.device.full_name())) == str
-    assert type(core.get_property("CPU", props.device.capabilities())) == list
+    assert type(core.get_property("CPU", device.full_name())) == str
+    assert type(core.get_property("CPU", device.capabilities())) == list

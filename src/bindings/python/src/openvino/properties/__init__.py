@@ -28,9 +28,9 @@ from openvino._pyopenvino.properties import loaded_from_cache
 
 # Submodules
 from openvino.runtime.properties import hint
-from openvino._pyopenvino.properties import intel_cpu
-from openvino._pyopenvino.properties import intel_gpu
-from openvino._pyopenvino.properties import intel_auto
-from openvino._pyopenvino.properties import device
-from openvino._pyopenvino.properties import log
-from openvino._pyopenvino.properties import streams
+from openvino.runtime.properties import intel_cpu
+from openvino.runtime.properties import intel_gpu
+from openvino.runtime.properties import intel_auto
+from openvino.runtime.properties import device
+from openvino.runtime.properties import log
+from openvino.runtime.properties import streams
