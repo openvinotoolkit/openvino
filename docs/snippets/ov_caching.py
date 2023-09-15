@@ -5,7 +5,7 @@
 from utils import get_path_to_model, get_temp_dir
 import openvino as ov
 
-import openvino.runtime.properties as props
+import openvino.properties as props
 
 device_name = 'GNA'
 model_path = get_path_to_model()
@@ -35,6 +35,8 @@ compiled_model = core.compile_model(model=model_path, device_name=device_name)
 assert compiled_model
 
 # ! [ov:caching:part3]
+import openvino.properties.device as device
+
 # Find 'EXPORT_IMPORT' capability in supported capabilities
-caching_supported = 'EXPORT_IMPORT' in core.get_property(device_name, props.device.capabilities())
+caching_supported = 'EXPORT_IMPORT' in core.get_property(device_name, device.capabilities())
 # ! [ov:caching:part3]

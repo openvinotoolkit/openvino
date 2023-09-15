@@ -3,8 +3,9 @@
 #
 
 import openvino as ov
-import openvino.runtime.properties as props
-import openvino.runtime.properties.hint as hints
+import openvino.properties as props
+import openvino.properties.hint as hints
+import openvino.properties.device as device
 
 from utils import get_model
 
@@ -16,11 +17,11 @@ def main():
     # [get_available_devices]
 
     # [hetero_priorities]
-    device_priorites = core.get_property("HETERO", props.device.priorities())
+    device_priorites = core.get_property("HETERO", device.priorities())
     # [hetero_priorities]
 
     # [cpu_device_name]
-    cpu_device_name = core.get_property("CPU", props.device.full_name())
+    cpu_device_name = core.get_property("CPU", device.full_name())
     # [cpu_device_name]
 
     model = get_model()
@@ -56,8 +57,8 @@ def main():
         return 0
 
     # [multi_device]
-    config = {props.device.priorities(): "CPU,GPU"}
+    config = {device.priorities(): "CPU,GPU"}
     compiled_model = core.compile_model(model, "MULTI", config)
     # change the order of priorities
-    compiled_model.set_property({props.device.priorities(): "GPU,CPU"})
+    compiled_model.set_property({device.priorities(): "GPU,CPU"})
     # [multi_device]

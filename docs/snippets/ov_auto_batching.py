@@ -15,8 +15,8 @@ def main():
         return 0
 
     # [compile_model]
-    import openvino.runtime.properties as props
-    import openvino.runtime.properties.hint as hints
+    import openvino.properties as props
+    import openvino.properties.hint as hints
 
     config = {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT}
     compiled_model = core.compile_model(model, "GPU", config)
