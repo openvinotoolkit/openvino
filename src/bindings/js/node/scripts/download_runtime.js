@@ -74,24 +74,6 @@ async function detectOS() {
     }
   };
 
-  if (platform === 'linux') {
-    const osReleaseData = await fs.readFile('/etc/os-release', 'utf8');
-    const os = osReleaseData.includes('Ubuntu 22')
-      ? 'ubuntu22'
-      : osReleaseData.includes('Ubuntu 20')
-      ? 'ubuntu20'
-      : osReleaseData.includes('Ubuntu 18')
-      ? 'ubuntu18'
-      : null;
-
-    if (!os) {
-      console.error('Cannot detect your OS');
-      process.exit(1);
-    }
-
-    platformMapping.linux.os = os;
-  }
-
   const arch = os.arch();
 
   if (!['arm64', 'x64'].includes(arch)) {
@@ -103,6 +85,29 @@ async function detectOS() {
     arm64: 'arm64',
     x64: 'x86_64',
   };
+
+  platformMapping.arch = archMapping[arch];
+
+  if (platform === 'linux') {
+    const osReleaseData = await fs.readFile('/etc/os-release', 'utf8');
+    const os = osReleaseData.includes('Ubuntu 22')
+      ? 'ubuntu22'
+      : osReleaseData.includes('Ubuntu 20')
+      ? 'ubuntu20'
+      : osReleaseData.includes('Ubuntu 18')
+      ? 'ubuntu18'
+      : ['arm64', 'armhf'].includes(platformMapping.arch)
+        && osReleaseData.includes('ID=debian')
+      ? 'debian9'
+      : null;
+
+    if (!os) {
+      console.error('Cannot detect your OS');
+      process.exit(1);
+    }
+
+    platformMapping.linux.os = os;
+  }
 
   return { platform, arch: archMapping[arch], ...platformMapping[platform] };
 }
