@@ -1223,12 +1223,14 @@ class PathCheckerFunctions(unittest.TestCase):
     def test_single_writable_dir(self):
         self.assertEqual(__class__.WRITABLE_DIR, writable_dir(__class__.WRITABLE_DIR))
 
-    @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
+    @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do not support not writable dir")
+    @unittest.skipIf(os.geteuid() != 0, "root user does not support not writable dir")
     def test_single_non_writable_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_DIR)
 
-    @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
+    @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do not support not writable dir")
+    @unittest.skipIf(os.geteuid() != 0, "root user does not support not writable dir")
     def test_single_non_writable_sub_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_SUB_DIR)

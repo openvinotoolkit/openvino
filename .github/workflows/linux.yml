@@ -885,6 +885,17 @@ jobs:
           mkdir -p ${TMPDIR}/not_writable_dir && chmod a-w ${TMPDIR}/not_writable_dir
           mkdir -p ${TMPDIR}/another_not_writable_dir && chmod a-w ${TMPDIR}/another_not_writable_dir
 
+      - name: Install git
+        run: |
+          sudo apt update
+          sudo apt --assume-yes install git git-lfs
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
@@ -914,12 +925,6 @@ jobs:
       - name: Install Python wheels
         run: |
           python3 -m pip install openvino --find-links=$INSTALL_DIR/tools
-
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: 'openvino'
-          submodules: 'recursive'
 
       - name: Install MO dependencies
         run: |
