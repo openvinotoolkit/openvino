@@ -157,7 +157,7 @@ inline void fill_data_roi(InferenceEngine::Blob::Ptr& blob,
     fill_roi_raw_ptr<T>(data, blob->size(), range, height, width, omega, is_roi_max_mode, seed);
 }
 
-template <InferenceEngine::Precision::ePrecision PRC>
+template <ov::element::Type_t type>
 inline void fill_data_roi(ov::runtime::Tensor& tensor,
                           const uint32_t range,
                           const int height,
@@ -165,7 +165,7 @@ inline void fill_data_roi(ov::runtime::Tensor& tensor,
                           const float omega,
                           const bool is_roi_max_mode,
                           const int seed = 1) {
-    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    using T = typename ov::fundamental_type_for<type>;
     auto* data = static_cast<T*>(tensor.data());
     std::default_random_engine random(seed);
     std::uniform_int_distribution<int32_t> distribution(0, range);
