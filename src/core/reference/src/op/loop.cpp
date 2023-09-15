@@ -110,9 +110,9 @@ void loop(const std::shared_ptr<Model>& func,
                 std::vector<char*> pointers_to_data(num_iterations);
                 for (size_t j = 0; j < pointers_to_data.size(); ++j) {
                     pointers_to_data[slice_desc->m_stride > 0 ? j : (pointers_to_data.size() - j - 1)] =
-                        sliced_values[slice_in_idx][j].data<char>();
+                        static_cast<char*>(sliced_values[slice_in_idx][j].data());
                 }
-                reference::split(args[slice_desc->m_input_index].data<char>(),
+                reference::split(static_cast<char*>(args[slice_desc->m_input_index].data()),
                                  args[slice_desc->m_input_index].get_shape(),
                                  el_size,
                                  slice_desc->m_axis,
@@ -211,10 +211,10 @@ void loop(const std::shared_ptr<Model>& func,
             std::vector<const char*> pointers_on_values;
             pointers_on_values.reserve(values_to_concat[i].size());
             for (const auto& vec : values_to_concat[i]) {
-                pointers_on_values.push_back(vec.data<char>());
+                pointers_on_values.push_back(static_cast<char*>(vec.data()));
             }
             reference::concat(pointers_on_values,
-                              out[concat_desc->m_output_index].data<char>(),
+                              static_cast<char*>(out[concat_desc->m_output_index].data()),
                               shapes_to_concat,
                               shape,
                               concat_desc->m_axis,
