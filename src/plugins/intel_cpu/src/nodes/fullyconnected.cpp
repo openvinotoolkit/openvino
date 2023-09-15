@@ -155,8 +155,13 @@ FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const Gr
         if (find == end)
             stateLLMFc = State_NotUse;
     }
-    auto p = std::getenv("USE_LLM");
-    if (p && p[0] == '0') stateLLMFc = State_NotUse;
+#ifdef CPU_DEBUG_CAPS
+    if (getenv("OV_CPU_FC_EXEC_TYPE")) {
+        if (std::string(getenv("OV_CPU_FC_EXEC_TYPE")) != "LLM") {
+            stateLLMFc = State_NotUse;
+        }
+    }
+#endif
 #endif
 }
 
@@ -746,6 +751,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     if (useWeightsDecompressionImpl) {
         // Weights decompression case
         wdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
+        bdt = dnnl::memory::data_type::f32;
     } else if (one_of(indt, dnnl::memory::data_type::bf16, dnnl::memory::data_type::f16)) {
 #if defined(OPENVINO_ARCH_X86_64)
         bdt = dnnl::memory::data_type::f32;
@@ -1148,6 +1154,7 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
     if (!one_of(inRank, 2u, 3u))
         return false;
 
+    memset(&param, 0, sizeof(param));
     const auto& weight_dims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
     const auto N = weight_dims[0];
     const auto K = weight_dims[1];
@@ -1158,8 +1165,7 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
         (data_type == Precision::I8 && weight_type == Precision::I8 && K < 64) ||
         // TODO: add int8 support
         (data_type != Precision::BF16) ||
-        // TODO: add weight compression support
-        (weight_type == Precision::I8 || weight_type == Precision::U8) ||
+        (weight_type == Precision::I8) ||
         (!isDynamicNode()) ||
         // 1 stream on 1+ numa node. Limitation: weights do not share among with multiple
         //   streams inside a numa because LLM will run with few streams.
@@ -1202,12 +1208,11 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
                     param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU_TANH);
             }
             // int8 weight compress
-            auto p = getenv("USE_INT8_WEIGHT");
-            if (p && p[0] == '1') {
-                // will compute q and dq when dq == 0
-                param.q = 0;
-                param.dq = 0;
-                param.dt_b = llmdnn::llmdnn_s8;
+            if (!decompressionMultiply.empty()) {
+                param.scale = decompressionMultiply.data();
+                param.zp = decompressionSubtract.data();
+                param.scale_zp_size = decompressionMultiply.size();
+                param.dt_b = llmdnn::llmdnn_u8;
                 param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::DEQUANT);
             }
 
@@ -1332,18 +1337,32 @@ bool FullyConnected::initLLMFc() {
     llmdnn::simple_parallel_for(thread_num, [&] (size_t idx) {
         fcLLMs = std::make_shared<llmdnn::fc>();
     });
-    bool ret = fcLLMs->init(param);
+    auto weight_ptr = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
+    void* weight = weight_ptr->getData();
+    weightDims = weight_ptr->getStaticDims();
+    auto N = weightDims[0];
+    auto K = weightDims[1];
+
+    bool ret;
+    // per tensor will extend to per channel
+    if (param.scale_zp_size == 1) {
+        std::vector<float> scale(N, param.scale[0]);
+        std::vector<float> zp(N, 0);
+        if (param.zp)
+            std::fill(zp.begin(), zp.end(), param.zp[0]);
+        param.scale = scale.data();
+        param.zp = zp.data();
+        param.scale_zp_size = N;
+        ret = fcLLMs->init(param);
+    } else {
+        ret = fcLLMs->init(param);
+    }
     if (ret) {
         stateLLMFc = State_Use;
         NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
         selected_pd->setImplementationType(gemm_llmdnn);
 
         // pack weight
-        auto weight_ptr = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
-        void* weight = weight_ptr->getData();
-        weightDims = weight_ptr->getStaticDims();
-        auto N = weightDims[0];
-        auto K = weightDims[1];
         const auto weight_type = getOriginalInputPrecisionAtPort(WEIGHTS_ID);
         auto weight_dnnl_type = DnnlExtensionUtils::IEPrecisionToDataType(weight_type);
         llmdnn::tensor weight_tensor;
