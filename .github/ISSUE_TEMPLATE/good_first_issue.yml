@@ -1,5 +1,5 @@
 name: Good First Issue
-description: A template for creation of Good First Issues
+description: Create an Good First Issue for new contributors.
 title: "[Good First Issue]: "
 labels: ["good first issue", "no_stale"]
 body:
@@ -54,6 +54,6 @@ body:
       label: Contact points
       description: |
           People who can be asked questions about the task.
-      placeholder: @openvino-pushbot
+      placeholder: GitHub users
     validations:
       required: true
