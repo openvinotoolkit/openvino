@@ -140,9 +140,9 @@ body:
       label: Issue submission checklist
       description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
       options:
-        - label: I report the performance issue. It's not a question
+        - label: I report the performance issue. It's not a question.
           required: true
-        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found the solution
+        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found a solution.
           required: true
         - label: There is reproducer code and related data files such as images, videos, models, etc.
           required: true
