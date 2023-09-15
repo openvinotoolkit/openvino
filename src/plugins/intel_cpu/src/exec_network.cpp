@@ -180,7 +180,7 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
 
                     auto isQuantizedFlag =
                         (_cfg.lpTransformsMode == Config::On) &&
-                        ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(_network.getFunction());
+                        ov::pass::low_precision::LowPrecision::isFunctionQuantized(_network.getFunction());
 
                     ctx = std::make_shared<GraphContext>(_cfg, extensionManager, weightsCache, isQuantizedFlag);
                 }

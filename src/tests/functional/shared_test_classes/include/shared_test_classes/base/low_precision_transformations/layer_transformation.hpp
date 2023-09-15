@@ -21,10 +21,10 @@ namespace LayerTestsUtils {
 
 class LayerTransformationParamsNGraphFactory {
 public:
-    static ngraph::pass::low_precision::LayerTransformation::Params createParamsU8I8AndI8();
-    static ngraph::pass::low_precision::LayerTransformation::Params createParamsU8I8();
-    static ngraph::pass::low_precision::LayerTransformation::Params createParamsI8I8();
-    static ngraph::pass::low_precision::LayerTransformation::Params createParams();
+    static ov::pass::low_precision::LayerTransformation::Params createParamsU8I8AndI8();
+    static ov::pass::low_precision::LayerTransformation::Params createParamsU8I8();
+    static ov::pass::low_precision::LayerTransformation::Params createParamsI8I8();
+    static ov::pass::low_precision::LayerTransformation::Params createParams();
 };
 
 class LayerTransformationParamsFactory : public LayerTransformationParamsNGraphFactory {
@@ -41,25 +41,25 @@ protected:
 
     static std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision);
 
-    static std::string toString(const ngraph::pass::low_precision::LayerTransformation::Params& params);
+    static std::string toString(const ov::pass::low_precision::LayerTransformation::Params& params);
 
     static std::string getTestCaseNameByParams(
         const InferenceEngine::Precision precision,
         const InferenceEngine::SizeVector& inputShapes,
         const std::string& targetDevice,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params);
+        const ov::pass::low_precision::LayerTransformation::Params& params);
 
     static std::string getTestCaseNameByParams(
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShapes,
         const std::string& targetDevice,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params);
+        const ov::pass::low_precision::LayerTransformation::Params& params);
 };
 
 typedef std::tuple<
     InferenceEngine::Precision,
     InferenceEngine::SizeVector,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
+    ov::pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
 
 }  // namespace LayerTestsUtils

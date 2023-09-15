@@ -9,7 +9,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -18,7 +18,7 @@ namespace subgraph {
 std::shared_ptr<ngraph::Function> ElementwiseWithMultiParentDequantizationFunction::get(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::element::Type& precision1,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
     const ngraph::element::Type& precision2,

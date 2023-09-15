@@ -193,6 +193,11 @@ endfunction()
 #
 # ie_add_api_validator_post_build_step(TARGET <name>)
 #
+macro(ov_add_api_validator_post_build_step)
+    _ov_add_api_validator_post_build_step(${ARGV})
+endmacro()
+
 macro(ie_add_api_validator_post_build_step)
+    message(WARNING "ie_add_api_validator_post_build_step is deprecated, use ov_add_api_validator_post_build_step instead")
     _ov_add_api_validator_post_build_step(${ARGV})
 endmacro()

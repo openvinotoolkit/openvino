@@ -52,13 +52,13 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{},
             ov::op::TemporaryReplaceOutputType(data, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(operationConst, element::f32).get());
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
     }
 
     if (ov::is_type<ov::opset1::Subtract>(operation) || ov::is_type<ov::opset1::Add>(operation)) {
         replace_node(
             operationConst,
-            ngraph::pass::low_precision::fold<ov::opset1::Convert>(operationConst, data->get_output_element_type(0)));
+            ov::pass::low_precision::fold<ov::opset1::Convert>(operationConst, data->get_output_element_type(0)));
     }
 
     return operation;

@@ -120,6 +120,10 @@ jobs:
 
       - name: Install conan and dependencies
         run: |
+          
+          # create build directory
+          mkdir -p ${{ env.BUILD_DIR }}
+          
           python3 -m pip install conan
           # install build profile compilers
           sudo -E apt --assume-yes install gcc g++
