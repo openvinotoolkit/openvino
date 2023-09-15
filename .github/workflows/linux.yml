@@ -789,7 +789,6 @@ jobs:
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
 
       - name: Restore tests execution time
-        id: tests-functional-cpu-stamp
         uses: actions/cache/restore@v3
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
@@ -805,7 +804,6 @@ jobs:
 
       - name: Save tests execution time
         uses: actions/cache/save@v3
-        id: tests-functional-cpu-stamp
         if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
         with:
           path: path/to/dependencies
