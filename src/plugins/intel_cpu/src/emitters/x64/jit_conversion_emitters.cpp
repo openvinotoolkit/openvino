@@ -192,6 +192,11 @@ void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t> &in_ve
     }
 }
 
+void jit_convert_truncation_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_convert_truncation_emitter." << "\n";
+    std::cerr << "input_type:" << input_type << " output_type" << output_type << "\n";
+}
+
 jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator *host, cpu_isa_t host_isa,
                                                                const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {
@@ -329,6 +334,11 @@ void jit_convert_saturation_emitter::dword2int8(const std::vector<size_t> &in_ve
 size_t jit_convert_saturation_emitter::aux_vecs_count() const {
     // 1 register is for dword2int8 unsigned
     return output_type == ov::element::u8 && host_isa_ == dnnl::impl::cpu::x64::avx512_core? 1 : 0;
+}
+
+void jit_convert_saturation_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_convert_saturation_emitter." << "\n";
+    std::cerr << "input_type:" << input_type << " output_type" << output_type << "\n";
 }
 
 }   // namespace intel_cpu

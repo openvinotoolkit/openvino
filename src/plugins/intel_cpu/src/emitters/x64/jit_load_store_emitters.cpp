@@ -599,6 +599,14 @@ void jit_load_emitter::register_table_entries() {
     }
 }
 
+void jit_load_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_load_emitter." << "\n";
+    std::cerr << "Emitter name:" << name_ << "\n";
+    std::cerr << "load_num_:" << load_num_ << "\n";
+    std::cerr << "src_prc_:" << src_prc_ << "\n";
+    std::cerr << "dst_prc_:" << dst_prc_ << "\n";
+}
+
 /// STORE ///
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                      Precision src_prc, Precision dst_prc, int store_num, arithmetic_mode mode, Precision exec_prc,
@@ -1261,6 +1269,14 @@ void jit_store_emitter::register_table_entries() {
         push_arg_entry_of("mask_truncation_byte", 0x000000ff, true);
         push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
     }
+}
+
+void jit_store_emitter::print_debug_info() const {
+    std::cerr << "Segfault happens in jit_store_emitter." << "\n";
+    std::cerr << "Emitter name:" << name_ << "\n";
+    std::cerr << "store_num_:" << store_num_ << "\n";
+    std::cerr << "src_prc_:" << src_prc_ << "\n";
+    std::cerr << "dst_prc_:" << dst_prc_ << "\n";
 }
 
 }   // namespace intel_cpu

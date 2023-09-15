@@ -13,6 +13,8 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 
+jit_emitter* g_debug_err_handler = nullptr;
+
 size_t jit_emitter::get_max_vecs_count() const {
     return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 32 : 16;
 }
@@ -208,9 +210,23 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
+    build_debug_info();
+
     emit_impl(in_idxs, out_idxs);
 
     emitter_postamble();
+}
+
+void jit_emitter::build_debug_info() const {
+    h->push(h->r15);
+    h->push(h->r14);
+
+    h->mov(h->r15, reinterpret_cast<uint64_t>(&g_debug_err_handler));
+    h->mov(h->r14, reinterpret_cast<uint64_t>(this));
+    h->mov(h->qword[h->r15], h->r14);
+
+    h->pop(h->r14);
+    h->pop(h->r15);
 }
 
 }   // namespace intel_cpu

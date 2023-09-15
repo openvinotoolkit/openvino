@@ -22,6 +22,8 @@ public:
 
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
+    void print_debug_info() const override;
+
 protected:
     jit_dnnl_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                        dnnl_alg_kind_t algKind, float inpAlpha, float inpBeta,
@@ -47,6 +49,7 @@ public:
     jit_dnnl_aux_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                            dnnl_alg_kind_t algKind, float inpAlpha, float inpBeta,
                            InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
+    void print_debug_info() const override;
 
 private:
 };

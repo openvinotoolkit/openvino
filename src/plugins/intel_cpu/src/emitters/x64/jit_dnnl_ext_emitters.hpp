@@ -22,6 +22,10 @@ public:
 
             set_injector();
         }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_relu_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
+    }
 };
 
 class jit_sigmoid_emitter : public jit_dnnl_emitter {
@@ -35,6 +39,10 @@ public:
 
             set_injector();
         }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_sigmoid_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
+    }
 };
 
 class jit_tanh_emitter : public jit_dnnl_emitter {
@@ -48,6 +56,10 @@ public:
 
             set_injector();
         }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_tanh_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
+    }
 };
 
 class jit_elu_emitter : public jit_dnnl_emitter {
@@ -61,6 +73,10 @@ public:
 
             set_injector();
         }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_elu_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
+    }
 };
 
 class jit_exp_emitter : public jit_dnnl_emitter {
@@ -74,6 +90,10 @@ public:
 
             set_injector();
         }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_exp_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
+    }
 };
 
 class jit_abs_emitter : public jit_dnnl_emitter {
@@ -87,6 +107,10 @@ public:
 
             set_injector();
         }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_abs_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
+    }
 };
 
 class jit_clamp_emitter : public jit_dnnl_emitter {
@@ -101,6 +125,10 @@ public:
 
             set_injector();
         }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_clamp_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
+    }
 };
 
 class jit_swish_emitter : public jit_dnnl_emitter {
@@ -114,6 +142,10 @@ public:
         beta = 0.f;
 
         set_injector();
+    }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_swish_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
 
@@ -129,6 +161,10 @@ public:
 
         set_injector();
     }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_hswish_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
+    }
 };
 
 class jit_gelu_v0_emitter : public jit_dnnl_emitter {
@@ -139,6 +175,10 @@ public:
         kind = dnnl_eltwise_gelu_erf;
 
         set_injector();
+    }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_gelu_v0_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
 
@@ -157,6 +197,10 @@ public:
             IE_THROW(NotImplemented) << "Subgraph node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
 
         set_injector();
+    }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_gelu_v7_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
 
@@ -178,6 +222,10 @@ public:
             dnnl_eltwise_round_half_away_from_zero :
             dnnl_eltwise_round_half_to_even;
         set_injector();
+    }
+    void print_debug_info() const override {
+        std::cerr << "ERROR is from jit_round_emitter." << "\n";
+        std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
 

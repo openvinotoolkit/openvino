@@ -36,6 +36,8 @@
 #include <common/primitive_hashing_utils.hpp>
 #include "snippets/pass/hash.hpp"
 
+#include <signal.h>
+
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
@@ -494,11 +496,21 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
     const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
-    parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
+    parallel_for5d(1, 1, 1, 1, 1,
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
+#ifndef _WIN32
+            
+            __sighandler_t signal_handler = [](int signal) {
+                std::cerr << "Segfault was caught by the signal handler.\n";
+                ov::intel_cpu::g_debug_err_handler->print_debug_info();
+            };
+            struct sigaction new_handler{};
+            new_handler.sa_handler = signal_handler;
+            sigaction(SIGSEGV, &new_handler, nullptr);
+#endif
             callable(indexes, &call_args);
         });
 }
@@ -519,7 +531,15 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
                 indexes[j] = static_cast<int64_t>(tmp % work_size[j]);
                 tmp /= work_size[j];
             }
-
+#ifndef _WIN32
+            __sighandler_t signal_handler = [](int signal) {
+                std::cerr << "Segfault was caught by the signal handler.\n";
+                ov::intel_cpu::g_debug_err_handler->print_debug_info();
+            };
+            struct sigaction new_handler{};
+            new_handler.sa_handler = signal_handler;
+            sigaction(SIGSEGV, &new_handler, nullptr);
+#endif
             schedule.get_callable<kernel>()(indexes.data(), &call_args);
         }
     });

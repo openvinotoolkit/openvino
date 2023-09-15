@@ -83,10 +83,20 @@ void jit_dnnl_emitter::emit_data() const {
     }
 }
 
+void jit_dnnl_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_dnnl_emitter." << "\n";
+    std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
+}
+
 jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator *host, cpu_isa_t host_isa,
                                            dnnl_alg_kind_t algKind, float inpAlpha, float inpBeta,
                                            InferenceEngine::Precision exec_prc)
     : jit_dnnl_emitter(host, host_isa, algKind, inpAlpha, inpBeta, exec_prc) {
+}
+
+void jit_dnnl_aux_emitter::print_debug_info() const {
+    std::cerr << "ERROR is from jit_dnnl_aux_emitter." << "\n";
+    std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
 }
 
 }   // namespace intel_cpu

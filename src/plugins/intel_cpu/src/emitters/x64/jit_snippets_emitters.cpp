@@ -13,6 +13,7 @@
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 #include "snippets/op/rank_normalization.hpp"
+// #include <cxxabi.h>
 
 using namespace InferenceEngine;
 using namespace Xbyak;
@@ -28,6 +29,19 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
 namespace {
 constexpr size_t gpr_size = 8;
+
+// std::string get_type_name(const jit_emitter* emitter) {
+//         std::string name = typeid(*emitter).name();
+// #ifndef _WIN32
+//         int status;
+//         std::unique_ptr<char, void (*)(void*)> demangled_name(
+//                 abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
+//                 std::free);
+//         name = demangled_name.get();
+// #endif
+//         return name;
+// }
+
 } // namespace
 
 inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::vector<Reg64>& regs) {
@@ -102,7 +116,10 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     : jit_container_emitter(h, isa, expr),
       reg_indexes_idx(abi_param1.getIdx()),
       reg_const_params_idx(abi_param2.getIdx()) {
-    const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
+    // const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
+    m_kernel_node = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
+//    const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(n);
+    const auto kernel = m_kernel_node;
     if (!kernel)
         IE_THROW() << "KernelEmitter invoked with invalid op argument";
     if (kernel->region.empty())
@@ -208,7 +225,14 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
                               const std::vector<size_t> &out) const {
     validate_arguments(in, out);
+    build_debug_info();
     emit_impl(in, out);
+}
+
+void KernelEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from KernelEmitter, " << "\n";
+    std::cerr << "where num_inputs:" << num_inputs << " num_outputs:" << num_outputs << " num_unique_buffers:" << num_unique_buffers
+        << " reg_indexes_idx:" << reg_indexes_idx << " reg_const_params_idx:" << reg_const_params_idx << "\n";
 }
 
 void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
@@ -347,6 +371,11 @@ LoopBeginEmitter::LoopBeginEmitter(jit_generator* h, cpu_isa_t isa, const Expres
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
+void LoopBeginEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from LoopBeginEmitter, " << "\n";
+    std::cerr << "where evaluate_once:" << evaluate_once << " work_amount:" << work_amount << "\n";
+}
+
 void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
@@ -394,6 +423,12 @@ LoopEndEmitter::LoopEndEmitter(jit_generator* h, cpu_isa_t isa, const Expression
     evaluate_once = loop_end->get_evaluate_once();
     io_data_size = loop_end->get_element_type_sizes();
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+}
+
+void LoopEndEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from LoopEndEmitter, " << "\n";
+    std::cerr << "where num_inputs:" << num_inputs << " num_outputs:" << num_outputs
+        << " wa_increment:" << wa_increment << " work_amount:" << work_amount << " evaluate_once:" << evaluate_once << "\n";
 }
 
 void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
@@ -491,6 +526,11 @@ void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
+void BroadcastMoveEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from BroadcastMoveEmitter, " << "\n";
+    std::cerr << "where byte_size:" << byte_size << "\n";
+}
+
 ScalarEmitter::ScalarEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     const auto& precision = n->get_output_element_type(0);
@@ -530,6 +570,11 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_dst  = Vmm(out[0]);
     h->uni_vbroadcastss(vmm_dst, table_val("scalar"));
+}
+
+void ScalarEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from ScalarEmitter, " << "\n";
+    std::cerr << "where value:" << value << "\n";
 }
 
 MemoryEmitter::MemoryEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
@@ -573,6 +618,10 @@ void StoreEmitter::emit_data() const {
     store_emitter->emit_data();
 }
 
+void StoreEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from StoreEmitter." << "\n";
+}
+
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
@@ -606,6 +655,10 @@ void LoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size
 
 void LoadEmitter::emit_data() const {
     load_emitter->emit_data();
+}
+
+void LoadEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from LoadEmitter." << "\n";
 }
 
 BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -648,6 +701,10 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
+void BroadcastLoadEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from BroadcastLoadEmitter." << "\n";
+}
+
 LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
@@ -679,6 +736,10 @@ void LoadConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vect
 
 void LoadConvertEmitter::emit_data() const {
     load_emitter->emit_data();
+}
+
+void LoadConvertEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from LoadConvertEmitter." << "\n";
 }
 
 StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -718,6 +779,11 @@ void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 void StoreConvertEmitter::emit_data() const {
     store_emitter->emit_data();
 }
+
+void StoreConvertEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from StoreConvertEmitter." << "\n";
+}
+
 size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) {
     return kIdx * BRGEMM_N_KERNEL_NUM + nIdx;
 }
@@ -1232,6 +1298,16 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
     (*brg_kernel)(&brgemm_p);
 }
 
+void BrgemmEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from BrgemmEmitter, " << "\n";
+    std::cerr << "where m_M:" << m_M << " m_K:" << m_K << " m_K_blk:" << m_K_blk << " m_K_tail:" << m_K_tail
+        << " m_N:" << m_N << " m_N_blk:" << m_N_blk << " m_N_tail:" << m_N_tail
+        << " m_brg0VnniFactor:" << m_brg0VnniFactor << " m_N_blk_loop:" << m_N_blk_loop << " m_K_blk_loop:" << m_K_blk_loop
+        << " m_load_offset_a:" << m_load_offset_a << " m_load_offset_b:" << m_load_offset_b << " m_load_offset_scratch:" << m_load_offset_scratch
+        << " m_store_offset_c:" << m_store_offset_c
+        << " m_with_scratch:" << m_with_scratch << " m_with_comp:" << m_with_comp << "\n";
+}
+
 BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
@@ -1475,6 +1551,15 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
     (*kernel)(&ctx);
 }
 
+void BrgemmCopyBEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from BrgemmCopyBEmitter, " << "\n";
+    std::cerr << "where m_LDB:" << m_LDB << " m_K:" << m_K << " m_K_blk:" << m_K_blk << " m_K_tail:" << m_K_tail
+        << " m_N:" << m_N << " m_N_blk:" << m_N_blk << " m_N_tail:" << m_N_tail
+        << " m_brgemm_prc_in0:" << m_brgemm_prc_in0 << " m_brgemm_prc_in1:" << m_brgemm_prc_in1
+        << " m_brgemmVNNIFactor:" << m_brgemmVNNIFactor << " m_with_comp:" << m_with_comp
+        << " m_in_offset:" << m_in_offset << " m_out_offset:" << m_out_offset << " m_comp_offset:" << m_comp_offset << "\n";
+}
+
 HorizonEmitter::HorizonEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
     if (ov::is_type<const snippets::op::HorizonMax>(expr->get_node())) {
@@ -1541,6 +1626,10 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
         default:
             assert(!"Unsupported horizontal operation.");
     }
+}
+
+void HorizonEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from HorizonEmitter" << "\n";
 }
 
 FillEmitter::FillEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -1624,6 +1713,10 @@ void FillEmitter::fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const {
             h->uni_vblendps(dst_vmm, src_vmm, table_val("value"), imm);
         }
     }
+}
+
+void FillEmitter::print_debug_info() const {
+    std::cerr << "ERROR is from FillEmitter" << "\n";
 }
 
 }  // namespace intel_cpu

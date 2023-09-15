@@ -71,6 +71,8 @@ public:
 
     size_t get_inputs_num() const override;
 
+    void print_debug_info() const override;
+
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const Xbyak::Reg64 &reg_src,  const int out_vec_idx, const int offset) const;
@@ -108,7 +110,6 @@ public:
                       arithmetic_mode mode = arithmetic_mode::saturation,
                       InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32,
                       emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_gpr);
-
     /**
     * store_num values with src_prc in Vmm[in_vec_idx] is stored to ptr[reg_dst + offset_byte] address as dst_prc data, where offset_byte is in_idxs[1]
     * supported src_prc and dst_prc pairs are as below(x indicate for support):
@@ -133,6 +134,8 @@ public:
     std::shared_ptr<jit_uni_vcvtneps2bf16> get_uni_vcvtneps2bf16() const {
         return uni_vcvtneps2bf16_;
     }
+
+    void print_debug_info() const override;
 
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>

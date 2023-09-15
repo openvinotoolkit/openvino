@@ -82,6 +82,7 @@ public:
     size_t get_inputs_num() const override {return 0;}
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out) const;
+    void print_debug_info() const override;
 
 private:
     using jit_emitter::emit_code;
@@ -110,6 +111,7 @@ private:
 
     const size_t reg_indexes_idx;
     const size_t reg_const_params_idx;
+    std::shared_ptr<snippets::op::Kernel> m_kernel_node;
 };
 
 class LoopBeginEmitter : public jit_emitter {
@@ -121,6 +123,7 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
+    void print_debug_info() const override;
 
 private:
     using jit_emitter::emit_code;
@@ -143,6 +146,7 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
+    void print_debug_info() const override;
 
 private:
     using jit_emitter::emit_code;
@@ -204,6 +208,7 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -223,6 +228,7 @@ public:
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+    void print_debug_info() const override;
 
 protected:
     size_t aux_gprs_count() const override {return 1;}
@@ -268,6 +274,7 @@ public:
                  const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -288,6 +295,7 @@ public:
                 const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -308,6 +316,7 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -324,6 +333,7 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -344,6 +354,7 @@ public:
                         const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -366,6 +377,7 @@ public:
     size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
     size_t aux_gprs_count() const override;
+    void print_debug_info() const override;
 
     static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
     static size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
@@ -433,6 +445,7 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
         return {{element::i8}, {element::bf16}};
     }
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -472,6 +485,7 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
         return {{element::f32}};
     }
+    void print_debug_info() const override;
 
 protected:
     size_t aux_vecs_count() const override {return 1;}
@@ -496,6 +510,7 @@ public:
                 const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
+    void print_debug_info() const override;
 
 protected:
     size_t aux_gprs_count() const override;
