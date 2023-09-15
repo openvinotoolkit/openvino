@@ -8,7 +8,6 @@
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/visualize_tree.hpp"  // DEBUG
 #include "ts_test_case.hpp"
 #include "ts_test_utils.hpp"
 
