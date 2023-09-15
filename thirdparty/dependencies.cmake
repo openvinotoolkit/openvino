@@ -533,20 +533,20 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(CMAKE_CXX_STANDARD 14)
             if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
                 # '<': signed/unsigned mismatch
-                ie_add_compiler_flags(/wd4018)
+                ov_add_compiler_flags(/wd4018)
                 # conditional expression is constant
-                ie_add_compiler_flags(/wd4127)
+                ov_add_compiler_flags(/wd4127)
                 # 'conversion' conversion from 'type1' to 'type2', possible loss of data
-                ie_add_compiler_flags(/wd4244)
+                ov_add_compiler_flags(/wd4244)
                 # 'conversion' : conversion from 'type1' to 'type2', signed/unsigned mismatch
-                ie_add_compiler_flags(/wd4245)
+                ov_add_compiler_flags(/wd4245)
                 # 'var' : conversion from 'size_t' to 'type', possible loss of data
-                ie_add_compiler_flags(/wd4267)
+                ov_add_compiler_flags(/wd4267)
             elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
                 # we need to pass -Wextra first, then -Wno-sign-compare
                 # otherwise, snappy's CMakeLists.txt will do it for us
-                ie_add_compiler_flags(-Wextra)
-                ie_add_compiler_flags(-Wno-sign-compare)
+                ov_add_compiler_flags(-Wextra)
+                ov_add_compiler_flags(-Wno-sign-compare)
             endif()
 
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
@@ -569,7 +569,7 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.13.1 EXACT QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.14.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'

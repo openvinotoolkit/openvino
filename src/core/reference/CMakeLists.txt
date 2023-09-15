@@ -21,11 +21,11 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(openvino::reference ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME reference)
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
 
@@ -43,7 +43,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
 find_package(Threads REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 

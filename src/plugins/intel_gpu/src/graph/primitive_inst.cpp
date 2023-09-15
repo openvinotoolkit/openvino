@@ -773,11 +773,11 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         update_shape();
 
         // Check successor reorder if layouts are same
-        // Need to set can_be_optimized for user reorder at predesescor because
+        // Need to set can_be_optimized for user reorder at predecessor because
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
         do_runtime_skip_reorder();
         if (_impl_params->output_layouts[0].count() == 0) {
-            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping becuase output data is empty " << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);
             update_shape_done_by_other = false; // reset
             return ev;
@@ -1137,6 +1137,7 @@ event::ptr primitive_inst::update_weights() {
     if (!reorder_kernel_params) {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
         // incorrect memory buffer may be assigned, so reset cached weights for such case
+        _reordered_weights_cache.add(original_layout, original_weights_memory);
         _impl_params->weights_layout = optional_layout(original_layout);
     } else {
         auto expected_layout = reorder_kernel_params->get_output_layout();
@@ -1152,6 +1153,7 @@ event::ptr primitive_inst::update_weights() {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reinterpret original weights memory from " << original_layout.to_short_string()
                                            << " to " << expected_layout.to_short_string() << std::endl;
+            _reordered_weights_cache.add(expected_layout, engine.reinterpret_buffer(*original_weights_memory, expected_layout));
             return nullptr;
         } else {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
@@ -1184,7 +1186,7 @@ event::ptr primitive_inst::update_weights() {
             memory::ptr weights_memory = nullptr;
             if (_reordered_weights_cache.is_full()) {
                 weights_memory = _reordered_weights_cache.get_lru_element().second;
-                can_reuse = weights_memory->size() <= expected_layout.bytes_count();
+                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && (weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr());
             }
 
             if (can_reuse) {

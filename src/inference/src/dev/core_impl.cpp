@@ -743,7 +743,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
-    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(device_name));
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
@@ -776,7 +776,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
-    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
@@ -1095,8 +1095,9 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
             const auto disabled = batch_mode->second.as<std::string>() == CONFIG_VALUE(NO);
             // virtual plugins like AUTO/MULTI will need the config
             // e.g. to deduce the #requests correctly
+            // proxy plugin should also keep the config
             // otherwise, no need for this config key in the rest of loading
-            if (!is_virtual_device(deviceName))
+            if (!is_virtual_device(deviceName) && !is_proxy_device(deviceName))
                 config.erase(batch_mode);
             if (disabled)
                 return model;

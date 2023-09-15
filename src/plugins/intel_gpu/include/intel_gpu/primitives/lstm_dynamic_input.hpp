@@ -22,8 +22,6 @@ struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
 
     lstm_dynamic_input() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs lstm_dynamic layer.
     /// @param id This primitive id.
     /// @param input Primitive id of input layer.

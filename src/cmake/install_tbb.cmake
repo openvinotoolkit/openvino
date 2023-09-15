@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include(cmake/ie_parallel.cmake)
+include(cmake/ov_parallel.cmake)
 
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()

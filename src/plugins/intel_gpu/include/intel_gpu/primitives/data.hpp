@@ -17,8 +17,6 @@ struct data : public primitive_base<data> {
 
     data() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs data primitive.
     /// @param id This primitive id.
     /// @param mem @ref memory object which contains data.
