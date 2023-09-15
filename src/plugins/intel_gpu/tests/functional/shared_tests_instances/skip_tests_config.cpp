@@ -64,8 +64,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)",
             // Issue: 76197
             R"(.*registerPluginsXMLUnicodePath.*)",
-            // Issue: CVS-76980
-            R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
             // Issue: CVS-88667 - Need to verify hetero interoperability
             R"(.*nightly_OVClassHeteroExecutableNetworlGetMetricTest.*SUPPORTED_(CONFIG_KEYS|METRICS).*)",
             // TODO: Issue: 89555
@@ -85,9 +83,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
             R"(.*ExecGraphSerializationTest.*)",
-            // TODO: support getconfig in auto/multi CVS-104942
-            // TODO: move auto/multi cases to dedicated unit tests
-            R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
             // unsupported metrics
             R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
             // Issue: 111437
@@ -95,9 +90,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.CompareWithRefs.*)",
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.CompareWithRefs.*)",
-            // New plugin API doesn't support changes of pre-processing
-            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
-            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
             // New plugin work with tensors, so it means that blob in old API can have different pointers
             R"(.*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
             R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
