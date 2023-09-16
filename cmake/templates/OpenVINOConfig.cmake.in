@@ -404,7 +404,7 @@ macro(_ov_find_intel_gpu_dependencies)
             unset(extra_args)
             unset(onednn_gpu_lib)
         else()
-            set(onednn_gpu_lib_path "@ONEDNN_GPU_LIB_PATH@")
+            set_and_check(onednn_gpu_lib_path "@PACKAGE_ONEDNN_GPU_LIB_PATH@")
         endif()
 
         set_target_properties(openvino::onednn_gpu_tgt PROPERTIES
