@@ -134,7 +134,7 @@ endfunction()
 
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)
-    ov_install_static_lib(mlas cpu)
+    ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()
