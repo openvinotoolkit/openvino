@@ -63,11 +63,11 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
                     {{config.get_property(ov::num_streams), 1, 1, 0, 0}},
                     true};
             auto postConfig = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executorConfig);
-            return std::make_shared<ov::threading::CPUStreamsExecutor>(postConfig);
+            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(postConfig);
         }
 
-            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
+        return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+            IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
@@ -108,11 +108,11 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                     {{config.get_property(ov::num_streams), 1, 1, 0, 0}},
                     true};
             auto postConfig = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executorConfig);
-            return std::make_shared<ov::threading::CPUStreamsExecutor>(postConfig);
+            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(postConfig);
         }
 
-            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
+        return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+            IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
