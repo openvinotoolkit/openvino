@@ -157,7 +157,7 @@ if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")
 endif()
 if(DNNL_USE_ACL)
-    list(APPEND BUILD_PATH_VARS "FIND_ACL_PATH")
+    list(APPEND BUILD_PATH_VARS "FIND_ACL_PATH;CMAKE_ARCHIVE_OUTPUT_DIRECTORY")
     set(FIND_ACL_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
 endif()
 
@@ -177,12 +177,10 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
 
 # install tree
 
-if(DNNL_USE_ACL OR ENABLE_ONEDNN_FOR_GPU)
-    list(APPEND INSTALL_PATH_VARS "OPENVINO_LIB_DIR")
-    # remove generator expression at the end, because searching in Release / Debug will be
-    # done by ACLConfig.cmake itself
-    string(REPLACE "$<CONFIG>" "" OPENVINO_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
-endif()
+list(APPEND INSTALL_PATH_VARS "OPENVINO_LIB_DIR")
+# remove generator expression at the end, because searching in Release / Debug
+# will be done by inside OpenVINOConfig.cmak / ACLConfig.cmake
+string(REPLACE "$<CONFIG>" "" OPENVINO_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
 
 set(IE_INCLUDE_DIR "${OV_CPACK_INCLUDEDIR}/ie")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
