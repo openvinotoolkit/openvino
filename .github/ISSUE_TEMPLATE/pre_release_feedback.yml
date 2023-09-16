@@ -16,16 +16,15 @@ body:
     attributes:
       label: Pre-release feedback
       description: What is the issue or feedback on the pre-release?
-      placeholder: Please describe the issue and/or feedback
-      value: "Inference performance drop in OpenVINO 2022.4."
+      placeholder: There is an inference performance drop in OpenVINO 2022.4.
     validations:
       required: true
   - type: textarea
     id: thoughts
     attributes:
-      label: New Feature Feedback?
+      label: New Feature Feedback
       description: Do you have any feedback on the new features released in the pre-release?
-      placeholder: Any thoughts on the new feature are welcome
+      placeholder: Any thoughts on the new features are welcome.
     validations:
       required: false
   - type: markdown
