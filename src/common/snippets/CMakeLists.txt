@@ -24,7 +24,7 @@ add_library(${TARGET_NAME} STATIC
 add_library(openvino::snippets ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME snippets)
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     UNITY
 )
 
