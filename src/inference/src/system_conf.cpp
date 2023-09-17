@@ -26,11 +26,6 @@
 #    include <sys/types.h>
 #endif
 
-#ifdef __APPLE__
-#    include <sys/types.h>
-#    include <sys/sysctl.h>
-#endif
-
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    define XBYAK_NO_OP_NAMES
 #    define XBYAK_UNDEF_JNL
