@@ -176,6 +176,65 @@ def get_concrete_func(tf_function, example_input, input_needs_packing, error_mes
     return concrete_func
 
 
+def create_generic_function_from_keras_model(keras_model):
+    import tensorflow as tf
+    assert isinstance(keras_model, tf.keras.Model), \
+        "[TensorFlow Frontend] internal error: the input model must be of Keras model type"
+    if not hasattr(keras_model, 'input') or getattr(keras_model, 'input') is None:
+        return None
+    keras_input_signature = getattr(keras_model, 'input')
+    tf_input_signature = None
+    wrapper_function = None
+    if isinstance(keras_input_signature, dict):
+        tf_input_signature = []
+        for tensor_name, tensor_spec in keras_input_signature.items():
+            tf_input_signature.append(tf.TensorSpec(shape=tensor_spec.shape,
+                                                    dtype=tensor_spec.dtype,
+                                                    name=tensor_name))
+    elif isinstance(keras_input_signature, list):
+        tf_input_signature = []
+        for tensor_spec in keras_input_signature.items():
+            tf_input_signature.append(tf.TensorSpec(shape=tensor_spec.shape,
+                                                    dtype=tensor_spec.dtype,
+                                                    name=tensor_spec.name))
+    else:
+        try:
+            # single KerasTensor case
+            tf_input_signature = []
+            tf_input_signature.append(tf.TensorSpec(shape=keras_input_signature.shape,
+                                                    dtype=keras_input_signature.dtype,
+                                                    name=keras_input_signature.name))
+        except:
+            tf_input_signature = None
+    if tf_input_signature is not None:
+        @tf.function(input_signature=tf_input_signature)
+        def wrapper_function_dict(*args):
+            input_dict = {}
+            for ind, tensor_spec in enumerate(tf_input_signature):
+                input_dict[tensor_spec.name] = args[ind]
+            outputs = keras_model(input_dict)
+            # need to wrap the output into dictionary
+            # it helps to preserve original keras tensor names
+            post_outputs = {}
+            if isinstance(outputs, dict):
+                for output_name, output_value in outputs.items():
+                    post_outputs[output_name] = output_value
+            else:
+                try:
+                    if isinstance(outputs, list) and isinstance(keras_model.outputs, list) and \
+                            len(outputs) == len(keras_model.outputs):
+                        for output_value, output_tensor in zip(outputs, keras_model.outputs):
+                            post_outputs[output_tensor.name] = output_value
+                    else:
+                        post_outputs[keras_model.output.name] = outputs
+                except:
+                    post_outputs = outputs
+            return post_outputs
+
+        wrapper_function = wrapper_function_dict
+    return wrapper_function
+
+
 def trace_tf_model(model, input_shapes, input_types, example_input):
     import tensorflow as tf
     if isinstance(model.__call__, tf.types.experimental.GenericFunction):
@@ -184,23 +243,18 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
     elif isinstance(model, tf.types.experimental.GenericFunction):
         tf_function = model
         input_needs_packing = False
-    elif (isinstance(model, tf.keras.Model) or isinstance(model, tf.keras.layers.Layer)) and \
-            hasattr(model, 'input') and getattr(model, 'input') is not None:
-        # it also covers TensorFlow Hub cases with hub.KerasLayer
-        keras_input_signature = getattr(model, 'input')
-        tf_input_signature = []
-        if isinstance(keras_input_signature, dict):
-            for tensor_name, tensor_spec in keras_input_signature.items():
-                tf_input_signature.append(tf.TensorSpec(shape=tensor_spec.shape,
-                                                        dtype=tensor_spec.dtype,
-                                                        name=tensor_name))
-        elif isinstance(keras_input_signature, list):
-            for tensor_spec in tf_input_signature:
-                tf_input_signature.append(tf.TensorSpec(shape=tensor_spec.shape,
-                                                        dtype=tensor_spec.dtype,
-                                                        name=tensor_spec.name))
-        tf_function = tf.function(model, input_signature=tf_input_signature)
-        input_needs_packing = False
+    elif isinstance(model, tf.keras.Model) or isinstance(model, tf.keras.layers.Layer):
+        tf_function = create_generic_function_from_keras_model(model)
+        if tf_function is not None:
+            input_needs_packing = False
+        else:
+            # Wrap model to tf.Function.
+            # In this case we loose input/output tensor names.
+            @tf.function
+            def tf_function(args):
+                return model(*args)
+
+            input_needs_packing = True
     else:
         # Wrap model to tf.Function.
         # In this case we loose input/output tensor names.
@@ -266,7 +320,12 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
                 if func_input.dtype == tf.resource:
                     continue
                 internal_tensor_names.append(func_input.name)
-            if len(input_model.structured_input_signature) > 1 and \
+            if len(input_model.structured_input_signature) > 0 and \
+                    len(internal_tensor_names) == len(input_model.structured_input_signature[0]):
+                for internal_name, tensor_spec in zip(internal_tensor_names, input_model.structured_input_signature[0]):
+                    input_names_map = input_names_map or {}
+                    input_names_map[internal_name] = tensor_spec.name
+            elif len(input_model.structured_input_signature) > 1 and \
                     len(internal_tensor_names) == len(input_model.structured_input_signature[1]):
                 external_tensor_names = sorted(input_model.structured_input_signature[1].keys())
                 for internal_name, external_name in zip(internal_tensor_names, external_tensor_names):
@@ -282,6 +341,19 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
                 for external_name, internal_name in zip(external_names, internal_names):
                     output_names_map = output_names_map or {}
                     output_names_map[internal_name] = external_name
+            else:
+                for external_name, internal_tensor in input_model.structured_outputs.items():
+                    internal_tf_tensor = None
+                    if isinstance(internal_tensor, tf.Tensor):
+                        internal_tf_tensor = internal_tensor
+                    if isinstance(internal_tensor, list) and len(internal_tensor) > 0 and \
+                            isinstance(internal_tensor[0], tf.Tensor):
+                        internal_tf_tensor = internal_tensor[0]
+                    if internal_tf_tensor is None:
+                        output_names_map = None
+                        break
+                    output_names_map = output_names_map or {}
+                    output_names_map[internal_tf_tensor.name] = external_name
         return GraphIteratorTFGraph(input_model.graph, share_weights, False, input_names_map, output_names_map)
     raise Exception("Could not wrap model of type {} to GraphIteratorTFGraph.".format(type(input_model)))
 
