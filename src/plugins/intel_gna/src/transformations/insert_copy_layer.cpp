@@ -20,6 +20,9 @@ using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::graph_utils;
 using namespace ov::opset9;
 
+static const std::string kNonCompProperty("non_compute_node");
+static const std::string kResultProperty("result_vector");
+
 NGRAPH_RTTI_DEFINITION(InsertCopyBeforeAssignLayer, "InsertCopyBeforeAssignLayer");
 NGRAPH_RTTI_DEFINITION(InsertCopyBeforeConcatLayer, "InsertCopyBeforeConcatLayer");
 NGRAPH_RTTI_DEFINITION(HandleMultiConnectedLayerToConcatAndMemory, "HandleMultiConnectedLayerToConcatAndMemory");
@@ -157,8 +160,7 @@ InsertCopyBeforeAssignLayer::InsertCopyBeforeAssignLayer() {
 
             // Crop -> Memory, Input -> Split -> Memory, Concat -> Memory
             if ((std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) && !is_crop_affined(current_node)) ||
-                std::dynamic_pointer_cast<ngraph::opset8::Concat>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
+                is_concat(current_node) || std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
                 std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node)) {
                 insert_copy_layer_between(matched_node_input, node, i);
             }
@@ -258,7 +260,7 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
             std::vector<FuncChildrenInfo> results;
             for (auto& child : current_node->output(0).get_target_inputs()) {
                 auto next_node = std::dynamic_pointer_cast<ngraph::Node>(child.get_node()->shared_from_this());
-                auto result = find_func_layers(next_node, current_node, child.get_index());
+                auto result = find_func_layers(next_node, current_node, static_cast<int32_t>(child.get_index()));
                 results.insert(results.end(), result.begin(), result.end());
             }
 
@@ -276,12 +278,12 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
             std::vector<FuncChildrenInfo> concat_nodes, memory_nodes;
             for (auto& child : input_to) {
                 auto current_node = std::dynamic_pointer_cast<ngraph::Node>(child.get_node()->shared_from_this());
-                auto children_info = find_func_layers(current_node, node, child.get_index());
+                auto children_info = find_func_layers(current_node, node, static_cast<int32_t>(child.get_index()));
 
                 for (const auto& child_info : children_info) {
                     auto child = std::get<1>(child_info);
 
-                    if (std::dynamic_pointer_cast<ngraph::opset8::Concat>(child)) {
+                    if (is_concat(child)) {
                         concat_nodes.push_back(child_info);
                     } else if (std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(child) ||
                                std::dynamic_pointer_cast<ngraph::op::AssignBase>(child)) {
@@ -342,54 +344,66 @@ MatchNonComputationalLayers::MatchNonComputationalLayers() {
             return false;
         }
 
-        std::string noncomp_prop("non_compute_node");
-        std::string result_prop("result_vector");
-
         // Since we traverse graph in reverse order, the result should be one of the first nodes
         auto& rt_info = node->get_rt_info();
         auto res_node = std::dynamic_pointer_cast<ngraph::opset8::Result>(node);
         if (res_node) {
-            rt_info[noncomp_prop] = true;
+            rt_info[kNonCompProperty] = true;
             // We collect the results to the vector, because it possible to have
             // two different non-computational subgraphs with different results
-            rt_info[result_prop] = ngraph::ResultVector{res_node};
+            rt_info[kResultProperty] = ngraph::ResultVector{res_node};
         }
 
-        if (!rt_info.count(noncomp_prop) || !rt_info[noncomp_prop].as<bool>())
+        if (!rt_info.count(kNonCompProperty) || !rt_info[kNonCompProperty].as<bool>()) {
             return false;
+        }
 
         // if current node is non-computational, pass the properties for each input
         for (size_t i = 0; i < node->get_input_size(); i++) {
             auto& input_rti = node->get_input_node_shared_ptr(i)->get_rt_info();
-            input_rti[noncomp_prop] = true;
-            if (input_rti.count(result_prop) && !input_rti[result_prop].as<ngraph::ResultVector>().empty()) {
-                for (auto&& res : rt_info[result_prop].as<ngraph::ResultVector>()) {
-                    input_rti[result_prop].as<ngraph::ResultVector>().push_back(res);
+            input_rti[kNonCompProperty] = true;
+            if (input_rti.count(kResultProperty) && !input_rti[kResultProperty].as<ngraph::ResultVector>().empty()) {
+                for (auto&& res : rt_info[kResultProperty].as<ngraph::ResultVector>()) {
+                    input_rti[kResultProperty].as<ngraph::ResultVector>().push_back(res);
                 }
             } else {
-                input_rti[result_prop] = rt_info[result_prop];
+                input_rti[kResultProperty] = rt_info[kResultProperty];
             }
         }
-
         // Found parameter node with non-computational property, so we detected desired subgraph
         // Need to insert a copy op for each pre-result node, that runs out to this parameter
         if (std::dynamic_pointer_cast<ngraph::opset8::Parameter>(node)) {
-            auto result_vec = rt_info[result_prop].as<ngraph::ResultVector>();
+            auto result_vec = rt_info[kResultProperty].as<ngraph::ResultVector>();
             for (auto&& result_node : result_vec) {
                 auto copy_out = result_node->get_input_node_shared_ptr(0);
                 for (size_t i = 0; i < copy_out->get_input_size(); i++) {
                     auto copy_in = copy_out->get_input_node_shared_ptr(i);
                     if (!std::dynamic_pointer_cast<ngraph::opset8::Constant>(copy_in) &&
                         // Copy already inserted from different result
-                        !std::dynamic_pointer_cast<ov::intel_gna::op::Copy>(copy_in))
+                        !std::dynamic_pointer_cast<ov::intel_gna::op::Copy>(copy_in)) {
                         insert_copy_layer_between(copy_in, copy_out, i);
+                    }
                 }
             }
         }
-
         return true;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(noncompute_op, matcher_name);
     this->register_matcher(m, callback);
+}
+
+bool HandleNonFunctionalSubgraphsCleanup::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    RUN_ON_MODEL_SCOPE(HandleNonFunctionalSubgraphsCleanup);
+
+    std::vector<std::string> properties{kNonCompProperty, kResultProperty};
+
+    for (const auto& node : m->get_ops()) {
+        auto& rt_info = node->get_rt_info();
+        for (const auto& property : properties) {
+            rt_info.erase(property);
+        }
+    }
+
+    return false;
 }

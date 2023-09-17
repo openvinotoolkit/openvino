@@ -91,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     ConcatTransformation::getTestCaseName);
 }  // namespace
@@ -122,7 +122,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     ConcatTransformation::getTestCaseName);
 }  // namespace concat_transformation_mixed

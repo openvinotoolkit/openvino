@@ -11,7 +11,7 @@ Supported configurations:
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - Microsoft Visual Studio 2019 or higher, version 16.3 or later
   > **NOTE**: Native Microsoft Visual Studio for WoA is available since 2022. 
-- Python 3.7 or higher for OpenVINO Runtime Python API
+- Python 3.7 - 3.11 for OpenVINO Runtime Python API
   > **NOTE**: Python for ARM64 is available since [3.11](https://www.python.org/downloads/windows/) version. 
 - [Git for Windows*]
 - (Windows on ARM only) [LLVM for Windows on ARM (WoA)](https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.6/LLVM-15.0.6-woa64.exe)
@@ -44,11 +44,17 @@ Supported configurations:
     ```sh
     cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release <openvino>
     ```
-
+    
    On Windows on ARM for ARM64 architecture:
     ```sh
     cmake -G "Visual Studio 16 2019" -DOPENVINO_EXTRA_MODULES=<openvino_contrib>/modules/arm_plugin -DCMAKE_BUILD_TYPE=Release <openvino>
     ```
+    
+   > **HINT**: **Generating PDB Files and Debugging Your Build** <br>
+   > If you intend to generate PDB files and debug your build, it is essential to set the CMake build type appropriately.
+   > You should utilize one of the following CMake build type options: <br>
+   >* `-DCMAKE_BUILD_TYPE=RelWithDebInfo`: This option generates PDB files with release information, making it suitable for debugging optimized builds. <br>
+   >* `-DCMAKE_BUILD_TYPE=Debug`: This option generates PDB files optimized for debugging, providing comprehensive debugging information. 
 
 4. Build generated solution in Visual Studio or run `cmake --build . --config Release --verbose -j8` to build from the command line. Be aware that this process may take some time.
 
@@ -75,11 +81,14 @@ Supported configurations:
      -DPYTHON_LIBRARY="C:\Program Files\Python11\libs\python11.lib" ^
      -DPYTHON_INCLUDE_DIR="C:\Program Files\Python11\include"
      ```
-  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4):
+  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+     ```sh
+     pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
+     ```
   4. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
-     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python_api/python3.11;%PYTHONPATH%
-     set OPENVINO_LIB_PATH=<openvino_repo>/bin/<arch>/Release;%OPENVINO_LIB_PATH%
+     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;%PYTHONPATH%
+     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;%OPENVINO_LIB_PATH%
      ```
      or install the wheel with pip:
      ```

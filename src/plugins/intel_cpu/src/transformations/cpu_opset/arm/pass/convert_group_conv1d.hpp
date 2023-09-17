@@ -5,9 +5,54 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
+/*
+ * Description:
+ *     ConvertConv1DBase detects 1D Convolution / GroupConvolution and replaces
+ *     it with the sequence Unsqueeze - 2D Convolution / GroupConvolution - Squeeze.
+ *     Unsqueeze adds the additional dimension to Convolution inputs and Squeeze 
+ *     removes the additional dimension from the Convolution output.
+ *
+ * Before:
+ * 
+ * +--------------+    +---------------+
+ * | Input tensor |    | Kernel tensor |
+ * +-----------+--+    +-+-------------+
+ *             |         |
+ *           +-v---------v-+
+ *           | Convolution |
+ *           +------+------+
+ *                  |
+ *           +------v------+
+ *           |   Result    |
+ *           +-------------+
+ * 
+ * After:
+ * 
+ * +--------------+    +--------------+ +---------------+   +--------------+
+ * | Input tensor |    | Constant (1) | | Kernel tensor |   | Constant (1) |
+ * +-----------+--+    +-+------------+ +-----------+---+   +-+------------+
+ *             |         |                          |         |
+ *           +-v---------v-+                      +-v---------v-+
+ *           | Unsqueeze   |                      | Unsqueeze   |
+ *           +------+------+                      +------+------+
+ *                  |                                    |
+ *           +------v------------------------------------v------+  +--------------+
+ *           |                  Convolution                     |  | Constant (1) |
+ *           +---------------------------------------------+----+  +-+------------+
+ *                                                         |         |
+ *                                                       +-v---------v-+
+ *                                                       |   Squeeze   |
+ *                                                       +------+------+
+ *                                                              |
+ *                                                       +------v------+
+ *                                                       |    Result   |
+ *                                                       +-------------+
+ * 
+ */
+
 namespace ov {
 namespace intel_cpu {
-class ConvertConv1DBase: public ngraph::pass::MatcherPass {
+class ConvertConv1DBase: public ov::pass::MatcherPass {
 protected:
     OPENVINO_RTTI("ConvertConv1DBase", "0");
     template <class Conv>

@@ -20,6 +20,8 @@
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "ops/copy.hpp"
 #include "ops/identity.hpp"
 #include "ops/pwl.hpp"
@@ -35,7 +37,9 @@ template <typename T>
 inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
     using A = typename ov::element_type_traits<T::value>::value_type;
     const auto& v = constant->get_vector<A>();
-    std::copy(v.begin(), v.end(), std::back_inserter(values));
+    std::transform(v.begin(), v.end(), std::back_inserter(values), [](A value) {
+        return static_cast<double>(value);
+    });
     return true;
 }
 
@@ -77,6 +81,13 @@ inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
     return true;
 }
 
+/**
+ * @brief Checks if 2 shapes are the same
+ */
+inline bool are_shapes_equal(const ov::Shape& shape_1, const ov::Shape& shape_2) {
+    return (shape_1.size() == shape_2.size()) && std::equal(shape_1.begin(), shape_1.end(), shape_2.begin());
+}
+
 inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index) {
     size_t offset = 0;
 
@@ -84,16 +95,16 @@ inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
         std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(input_op)) {
         for (size_t index = 0; index < input_op_out_index; index++) {
             size_t outputSize = ngraph::shape_size(input_op->get_output_shape(index));
-            offset += outputSize * limitations::bytesPerSplitElement;
+            offset += outputSize * limitations::Limitations::kBytesPerSplitElement;
         }
     }
-    return (offset == ALIGN64(offset));
+    return limitations::Limitations::get_instance()->is_aligned(offset);
 }
 
 inline bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
     auto crop = std::dynamic_pointer_cast<ngraph::op::CropIE>(node);
     if (crop != nullptr && !crop->offset.empty()) {
-        return limitations::isCropAffinedOffset(crop->offset.back());
+        return limitations::Limitations::get_instance()->is_crop_affined_offset(crop->offset.back());
     }
     return false;
 }
@@ -194,7 +205,20 @@ inline bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
 }
 
 inline bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
-    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr);
+    return ((std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr) ||
+            std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node) != nullptr);
+}
+
+inline bool is_concat(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::Concat>(node) != nullptr);
+}
+
+inline bool is_fake_quantize(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::FakeQuantize>(node) != nullptr);
+}
+
+inline bool is_read_value(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::ReadValue>(node) != nullptr);
 }
 
 template <typename T>
@@ -239,11 +263,38 @@ inline bool is_activation(const std::shared_ptr<ngraph::Node>& node) noexcept {
     return is_activation(node.get());
 }
 
+inline bool is_non_functional(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::Reshape>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::Squeeze>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::Unsqueeze>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::FakeQuantize>(node) != nullptr;
+}
+
+inline bool is_copy(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::intel_gna::op::Copy>(node) != nullptr;
+}
+
+inline bool is_matmul(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::MatMul>(node) != nullptr;
+}
+
+inline bool is_fully_connected(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node) != nullptr;
+}
+
+inline bool is_split(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::Split>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::VariadicSplit>(node) != nullptr;
+}
+
+inline bool is_interleaved(const std::shared_ptr<ov::Node>& node) {
+    return is_matmul(node) || is_fully_connected(node);
+}
+
 inline bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
     return ((std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::Slice>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::Concat>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ngraph::opset9::Slice>(node) != nullptr) || is_concat(node) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Reshape>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Squeeze>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Unsqueeze>(node) != nullptr) ||
@@ -264,7 +315,7 @@ inline bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
     return ((std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Convolution>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Add>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Multiply>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::op::Eltwise>(node) != nullptr) ||
@@ -337,14 +388,14 @@ inline ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> ord
  * @param order the permutation array to apply to the input shape
  * @return vector with indexes to gather
  */
-inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& input_shape, const Shape& order) {
+inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& input_shape, const AxisVector& order) {
     // Supported shape ranks: 2d, 3d, 4d
     if (input_shape.size() < 2 || input_shape.size() > 4) {
         THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
     }
 
     ov::Shape input_shape_4d = input_shape;
-    ov::Shape order_4d = order;
+    ov::AxisVector order_4d = order;
     // Just to simplify the code we transform all shapes to 4d by adding dimension(s) equal to 1 at the end
     while (input_shape_4d.size() < 4) {
         input_shape_4d.push_back(1);
@@ -372,6 +423,283 @@ inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& 
     }
 
     return gather_order;
+}
+
+inline int64_t get_first_valuable_dim_id(const ov::Shape& shape) {
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (shape[i] != 1) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief Converts Gather indexes into positive form
+ */
+template <typename T>
+std::vector<T> normalize_gather_indices(const std::vector<T>& indices) {
+    std::vector<T> normalized(indices.size());
+    for (size_t i = 0; i < indices.size(); ++i) {
+        T index = indices[i];
+        if (index < 0)
+            index += indices.size();
+        normalized[i] = index;
+    }
+    return normalized;
+}
+
+/**
+ * @brief Gets Gather indexes from Constant and converts them into positive form
+ */
+inline std::vector<int64_t> get_normalized_gather_indices(const std::shared_ptr<ov::opset12::Constant>& indices) {
+    return normalize_gather_indices(indices->cast_vector<int64_t>());
+}
+
+/**
+ * @brief Checks if node has dynamic rank inputs
+ */
+inline bool has_dynamic_rank_input(const std::shared_ptr<ov::Node>& node) {
+    for (const auto& input_node : node->input_values()) {
+        const Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Gets maximum rank of all input nodes
+ */
+inline Rank::value_type get_max_input_rank(const std::shared_ptr<ov::Node>& node) {
+    Rank::value_type max_input_rank = 0;
+    for (auto& input_node : node->input_values()) {
+        const Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return -1;
+        const Rank::value_type output_rank_len = output_rank.get_length();
+        if (output_rank_len > max_input_rank)
+            max_input_rank = output_rank_len;
+    }
+    return max_input_rank;
+}
+
+/**
+ * @brief Gets dimension value by axis (works if axis could be < 0)
+ */
+inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
+    if (axis < 0)
+        axis += static_cast<int64_t>(shape.size());
+    if (axis < 0 || axis >= static_cast<int64_t>(shape.size()))
+        throw std::runtime_error("get_dim_by_axis invalid axis");
+    return shape[axis];
+}
+
+/**
+ * @brief unsqueezes shape to rank
+ */
+inline Shape unsqueeze_shape(const Shape& shape, ov::Rank::value_type rank) {
+    const ov::Rank::value_type rank_delta = rank - static_cast<ov::Rank::value_type>(shape.size());
+
+    if (rank_delta <= 0)
+        return shape;
+
+    Shape broadcasted(rank);
+    for (int i = 0; i < rank_delta; ++i) {
+        broadcasted[i] = 1;
+    }
+    std::copy(shape.begin(), shape.end(), broadcasted.begin() + rank_delta);
+
+    return broadcasted;
+}
+
+/**
+ * @brief Converts axis to positive form
+ */
+inline int64_t convert_axis_to_positive(int64_t axis, ov::Rank rank) {
+    const auto rank_val = rank.get_length();
+    if (axis < 0)
+        axis += rank_val;
+    if (axis < 0 || axis >= rank_val)
+        throw std::runtime_error("convert_axis_to_positive invalid axis");
+    return axis;
+}
+
+/**
+ * @brief Reverts gather indices in such a way that reverted and initial gather will do nothing if
+ *   they stay one after another. Works only with positive form (no negative indices).
+ */
+inline std::vector<int64_t> reverse_gather_indexes(const std::vector<int64_t>& indexes) {
+    std::vector<int64_t> out(indexes.size());
+    for (size_t i = 0; i < indexes.size(); i++) {
+        out.at(indexes[i]) = i;
+    }
+    return out;
+}
+
+/**
+ * @brief Finds first consumer node
+ */
+inline Node* find_first_consumer(const std::shared_ptr<ov::Node>& node) {
+    for (const auto& output : node->outputs()) {
+        auto inputs = output.get_target_inputs();
+        if (inputs.empty())
+            continue;
+        return inputs.begin()->get_node();
+    }
+    return nullptr;
+}
+
+/**
+ * @brief Finds first input node with type NodeT
+ */
+template <typename NodeT>
+std::shared_ptr<NodeT> find_first_input_node(const std::shared_ptr<ov::Node>& node) {
+    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
+        std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(input_idx);
+        auto target_node = ov::as_type_ptr<NodeT>(input_node);
+        if (target_node)
+            return target_node;
+    }
+    return {};
+}
+
+/**
+ * @brief Gets split axis from Constant converting it to positive form
+ */
+inline bool get_split_axis(const std::shared_ptr<ov::opset12::Constant>& split_axis,
+                           const ov::Rank& rank,
+                           int64_t& axis) {
+    auto split_axis_val = split_axis->cast_vector<int64_t>();
+    if (split_axis_val.empty()) {
+        return false;
+    }
+    axis = convert_axis_to_positive(split_axis_val[0], rank);
+    return true;
+}
+
+/**
+ * @brief Checks if has 2D input shape inputs
+ */
+inline bool has_2d_inputs(const ov::Output<ov::Node>& output) {
+    auto node = output.get_node_shared_ptr();
+    auto input_left_rank = node->get_input_partial_shape(0).rank();
+    auto input_right_rank = node->get_input_partial_shape(0).rank();
+    return (input_left_rank.is_static() && input_right_rank.is_static() && input_left_rank.get_length() == 2 &&
+            input_right_rank.get_length() == 2);
+}
+
+/**
+ * @brief Checks if the permutation does nothing
+ */
+inline bool is_pointless_permutation(const std::vector<int64_t>& indices) {
+    for (size_t i = 0; i < indices.size(); ++i) {
+        if (indices[i] != static_cast<int64_t>(i))
+            return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Checks if MatMul input with @arg input_idx input is transposed
+ */
+inline bool is_matmul_input_transposed(const std::shared_ptr<ov::opset12::MatMul>& matmul, size_t input_idx) {
+    if (!input_idx)
+        return matmul->get_transpose_a();
+    return matmul->get_transpose_b();
+}
+
+/**
+ * @brief Checks if Reshape node is Unsqueeze
+ */
+inline bool is_reshape_unsqueeze(const ov::Output<ov::Node>& output) {
+    auto reshape = output.get_node_shared_ptr();
+    const ov::Shape input_shape = trim_shape(reshape->get_input_shape(0));
+    const ov::Shape output_shape = trim_shape(reshape->get_output_shape(0));
+    return are_shapes_equal(input_shape, output_shape);
+}
+
+/**
+ * @brief Checks if output has rank not more than expected
+ */
+inline std::function<bool(Output<Node>)> rank_not_more_than(const ov::Rank::value_type expected_rank) {
+    return [=](Output<Node> output) -> bool {
+        const Rank rank = output.get_partial_shape().rank();
+        return (rank.is_static() && (rank.get_length() <= expected_rank));
+    };
+}
+
+/**
+ * @brief Checks if output has rank not more than expected
+ */
+inline bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset12::Constant>& node,
+                                            const ov::Rank::value_type expected_rank) {
+    const ov::Rank rank = node->get_output_partial_shape(0).rank();
+    return (rank.is_static() && (rank.get_length() <= expected_rank));
+}
+
+/**
+ * @brief Checks if output is Constant with rank 1
+ */
+inline bool is_constant_1d(const Output<Node>& output) {
+    return ov::pass::pattern::rank_equals(0)(output) || ov::pass::pattern::rank_equals(1)(output);
+}
+
+/**
+ * @brief Checks if node has parent node with type T
+ */
+template <typename T>
+bool has_parent_node(std::shared_ptr<ov::Node> node) {
+    for (const auto& parent : node->input_values()) {
+        if (dynamic_cast<const T*>(parent.get_node()))
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Checks if node has child node with type T
+ */
+template <typename T>
+bool has_child_node(std::shared_ptr<ov::Node> node) {
+    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
+        for (auto& input : node->get_output_target_inputs(output_idx)) {
+            if (dynamic_cast<const T*>(input.get_node()))
+                return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief Checks if shape without dimensions == 1 is 2D
+ */
+inline bool is_shape_2d(const ov::Shape& shape) {
+    return graph_utils::squeeze_shape(shape).size() == 2;
+}
+
+/**
+ * @brief Checks if node has N consumers
+ */
+inline bool has_n_consumers(const std::shared_ptr<ov::Node>& node, size_t n_consumers) {
+    return node->output(0).get_target_inputs().size() == n_consumers;
+}
+
+/**
+ * @brief Merge gather indexes.
+ * @param ids_in vector with indexes to 1st gather
+ * @param ids_out vector with indexes to 2nd gather
+ * @return vector with indexes to merged gather
+ */
+inline std::vector<size_t> combine_gather_indexes(const std::vector<size_t>& ids_in,
+                                                  const std::vector<size_t>& ids_out) {
+    if (ids_in.size() != ids_out.size())
+        return {};
+    std::vector<size_t> result(ids_in.size());
+    for (size_t i = 0; i < result.size(); ++i) {
+        result[i] = ids_in[ids_out[i]];
+    }
+    return result;
 }
 
 }  // namespace graph_utils

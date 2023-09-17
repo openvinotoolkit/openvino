@@ -7,8 +7,10 @@ import copy
 import numpy as np
 import pytest
 
+from openvino import Model, PartialShape, Shape
+
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Dimension, Model, PartialShape, Shape
+from openvino.runtime import Dimension
 
 
 def test_dimension():

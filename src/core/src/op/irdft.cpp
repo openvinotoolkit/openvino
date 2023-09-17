@@ -42,7 +42,6 @@ void ov::op::v9::IRDFT::validate_and_infer_types() {
 
     validate_types();
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes;
 
     const auto& data = get_input_partial_shape(0);
@@ -54,6 +53,6 @@ void ov::op::v9::IRDFT::validate_and_infer_types() {
         input_shapes = {data, axes, signal_size};
     }
 
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }

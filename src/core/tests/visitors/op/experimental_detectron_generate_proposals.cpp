@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
+
+#include <gtest/gtest.h>
+
 #include <vector>
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset6.hpp"
-#include "util/visitor.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
-using ExperimentalProposals = opset6::ExperimentalDetectronGenerateProposalsSingleImage;
-using Attrs = opset6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes;
+using ExperimentalProposals = ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
+using Attrs = ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes;
 
 TEST(attributes, detectron_proposals) {
     NodeBuilder::get_ops().register_factory<ExperimentalProposals>();
@@ -27,10 +26,10 @@ TEST(attributes, detectron_proposals) {
     attrs.post_nms_count = 1000;
     attrs.pre_nms_count = 1000;
 
-    auto im_info = std::make_shared<op::Parameter>(element::f32, Shape{3});
-    auto anchors = std::make_shared<op::Parameter>(element::f32, Shape{201600, 4});
-    auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{12, 200, 336});
-    auto scores = std::make_shared<op::Parameter>(element::f32, Shape{3, 200, 336});
+    auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
+    auto anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{201600, 4});
+    auto deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{12, 200, 336});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 200, 336});
 
     auto proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
 

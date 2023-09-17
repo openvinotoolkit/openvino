@@ -31,6 +31,7 @@ struct GetK {
         return static_cast<T>(k);
     }
 };
+}  // namespace util
 /**
  * \brief TopK shape inference
  *
@@ -42,10 +43,10 @@ struct GetK {
  *
  * \return Vector of output shapes for
  */
-template <class TShape>
-std::vector<TShape> shape_infer(const util::TopKBase* op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const util::TopKBase* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     using TDim = typename TShape::value_type;
     using TDimValue = typename TDim::value_type;
 
@@ -58,21 +59,23 @@ std::vector<TShape> shape_infer(const util::TopKBase* op,
     const auto& input_shape = input_shapes[0];
     const auto input_rank = input_shape.rank();
 
-    NODE_VALIDATION_CHECK(op,
-                          input_rank.is_dynamic() || input_rank.get_length() > 0,
-                          "Input rank must be greater than 0.");
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           input_rank.is_dynamic() || input_rank.get_length() > 0,
+                           "Input rank must be greater than 0.");
 
     const auto& k_shape = input_shapes[1];
-    NODE_VALIDATION_CHECK(op, k_shape.rank().compatible(0), "The 'K' input must be a scalar.");
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, k_shape.rank().compatible(0), "The 'K' input must be a scalar.");
 
-    auto output_shape = input_shape;
+    TRShape output_shape = input_shape;
     if (input_shape.rank().is_static()) {
         OPENVINO_SUPPRESS_DEPRECATED_START
         const auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_shape.rank());
         OPENVINO_SUPPRESS_DEPRECATED_END
         auto& dim_axis = output_shape[normalized_axis];
 
-        if (auto k_as_shape = get_input_const_data_as_shape<TShape>(op, 1, constant_data, GetK<TDimValue>(op))) {
+        if (auto k_as_shape =
+                get_input_const_data_as_shape<TRShape>(op, 1, tensor_accessor, util::GetK<TDimValue>(op))) {
             NODE_VALIDATION_CHECK(op,
                                   k_as_shape->size() == 1,
                                   "Only one value (scalar) should be provided as the 'K' input to TopK",
@@ -103,39 +106,7 @@ std::vector<TShape> shape_infer(const util::TopKBase* op,
         }
     }
 
-    return std::vector<TShape>(2, output_shape);
+    return {2, output_shape};
 }
-}  // namespace util
-
-namespace v1 {
-
-/**
- * \brief TopK shape inference
- *
- * \tparam TShape  Type of shape.
- *
- * \param op             Pointer to TopK operator.
- * \param input_shapes   Input shapes of TopK.
- * \param output_shapes  Output shapes of TopK
- * \param constant_data  Map of constant data. Default empty.
- */
-template <typename T>
-void shape_infer(const TopK* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = util::shape_infer(op, input_shapes, constant_data);
-}
-}  // namespace v1
-
-namespace v3 {
-template <typename T>
-void shape_infer(const TopK* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = util::shape_infer(op, input_shapes, constant_data);
-}
-}  // namespace v3
 }  // namespace op
 }  // namespace ov

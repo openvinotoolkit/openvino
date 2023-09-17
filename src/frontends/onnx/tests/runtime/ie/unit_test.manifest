@@ -120,29 +120,6 @@ onnx_model_max_pool_dyn_rank_without_default_attrs
 onnx_model_lp_norm_default_dynamic
 onnx_instance_normalization_dynamic
 
-# (Constant W, R inputs are required) Ticket: 49207
-# Function references undeclared parameters
-# LSTMSequence
-IE_CPU.onnx_model_lstm_fwd_large_batch_no_clip
-IE_CPU.onnx_model_lstm_fwd_mixed_seq
-IE_CPU.onnx_model_lstm_mixed_seq_reverse
-# GRUSequence
-IE_CPU.onnx_model_gru_defaults_fwd
-IE_CPU.onnx_model_gru_fwd_mixed_seq_len
-IE_CPU.onnx_model_gru_rev_clip
-IE_CPU.onnx_model_gru_reverse
-IE_CPU.onnx_model_gru_fwd_bias_initial_h
-IE_CPU.onnx_model_gru_bidirectional
-IE_CPU.onnx_model_gru_fwd_linear_before_reset
-# RNNSequence
-IE_CPU.onnx_model_rnn_defaults_fwd
-IE_CPU.onnx_model_rnn_fwd_activations
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
-IE_CPU.onnx_model_rnn_rev_clip
-IE_CPU.onnx_model_rnn_reverse
-IE_CPU.onnx_model_rnn_fwd_bias_initial_h
-IE_CPU.onnx_model_rnn_bidirectional
-
 # Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
 # Peepholes input unsupported
 onnx_model_lstm_fwd_with_clip_peepholes
@@ -382,9 +359,6 @@ IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
 
 # RuntimeError: Unsupported dynamic ops: v4::Interpolate - Ticket: 50691
 onnx_upsample6_dynamic
-
-# random values returned from the plugin: ticket 51762
-onnx_model_deformable_conv_2d
 
 # Not yet implemented - refer PR#6601
 IE_CPU.onnx_model_gather_float_2D_neg_indices

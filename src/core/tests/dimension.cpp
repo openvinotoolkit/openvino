@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/dimension.hpp"
+#include "openvino/core/dimension.hpp"
 
 #include "gtest/gtest.h"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(dimension, broadcast_merge_static_1_and_10) {
     Dimension result;
@@ -119,4 +120,45 @@ TEST(dimension, division_of_static_dims) {
     Dimension::value_type four(4);
     Dimension empty(2, 1);
     EXPECT_EQ(seven / four, empty);
+}
+
+TEST(dimension, dimension_equality) {
+    auto te = make_shared<TableOfEquivalence>();
+    DimensionTracker dt(te);
+
+    // labeling dimensions
+    Dimension A, B, C;
+    dt.set_up_for_tracking(A);
+    dt.set_up_for_tracking(B);
+    dt.set_up_for_tracking(C);
+
+    // checking labels are unique
+    EXPECT_NE(DimensionTracker::get_label(A), no_label);
+    EXPECT_NE(DimensionTracker::get_label(B), no_label);
+    EXPECT_NE(DimensionTracker::get_label(C), no_label);
+    EXPECT_NE(DimensionTracker::get_label(A), DimensionTracker::get_label(B));
+    EXPECT_NE(DimensionTracker::get_label(B), DimensionTracker::get_label(C));
+    EXPECT_NE(DimensionTracker::get_label(A), DimensionTracker::get_label(C));
+    EXPECT_EQ(DimensionTracker::get_label(A), DimensionTracker::get_label(A));
+    EXPECT_EQ(DimensionTracker::get_label(B), DimensionTracker::get_label(B));
+    EXPECT_EQ(DimensionTracker::get_label(C), DimensionTracker::get_label(C));
+
+    // setting A == B and B == C
+    te->set_as_equal(A, B);
+    te->set_as_equal(C, B);
+
+    // expected to see A == B, B == C and A == C
+    EXPECT_TRUE(te->are_equal(A, B));
+    EXPECT_TRUE(te->are_equal(A, C));
+    EXPECT_TRUE(te->are_equal(B, C));
+
+    // clear up all the tracking info
+    DimensionTracker::reset_tracking_info(A);
+    DimensionTracker::reset_tracking_info(B);
+    DimensionTracker::reset_tracking_info(C);
+
+    // expected to have no label
+    EXPECT_EQ(DimensionTracker::get_label(A), no_label);
+    EXPECT_EQ(DimensionTracker::get_label(B), no_label);
+    EXPECT_EQ(DimensionTracker::get_label(C), no_label);
 }

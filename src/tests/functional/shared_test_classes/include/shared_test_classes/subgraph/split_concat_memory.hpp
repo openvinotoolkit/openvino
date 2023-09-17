@@ -4,29 +4,31 @@
 
 #pragma once
 
-#include <string>
+#include <gtest/gtest.h>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 using SplitConcatMemoryParamsTuple = typename std::tuple<
-    std::vector<size_t>,         // input shapes
-    InferenceEngine::Precision,  // precision
+    ov::Shape,                   // input shapes
+    ov::element::Type,           // precision
     int,                         // axis of split
     std::string                  // device name
 >;
 
-
 class SplitConcatMemory : public testing::WithParamInterface<SplitConcatMemoryParamsTuple>,
-                          virtual public LayerTestsUtils::LayerTestsCommon {
+                          virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ParamType>& obj);
 
 protected:
     void SetUp() override;
-
     int axis;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov

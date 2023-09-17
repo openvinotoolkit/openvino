@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about LogSoftmax-5 - an activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *LogSoftmax-5*
 
 **Category**: *Activation function*
@@ -52,7 +56,8 @@ where :math:`C` is a size of tensor along *axis* dimension.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="LogSoftmax" ... >
        <data axis="1" />

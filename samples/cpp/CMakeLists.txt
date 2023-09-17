@@ -126,9 +126,13 @@ elseif(gflags_required)
     endif()
 
     if(NOT gflags_FOUND)
+        set(GFLAGS_TARGET gflags_nothreads_static)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
             add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-            set(GFLAGS_TARGET gflags_nothreads_static)
+        elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags")
+            # Allow running samples CMakeLists.txt as stand alone from openvino sources
+            add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags"
+                             "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/gflags" EXCLUDE_FROM_ALL)
         else()
             message(FATAL_ERROR "Failed to find 'gflags' library using '${gflags_component}' component")
         endif()
@@ -229,8 +233,8 @@ macro(ie_add_sample)
     endif()
     add_dependencies(ie_samples ${IE_SAMPLE_NAME})
 
-    if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
-        add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
+    if(COMMAND ov_add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
+        ov_add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
     endif()
     if(COMMAND ov_ncc_naming_style AND NOT c_sample)
         ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"

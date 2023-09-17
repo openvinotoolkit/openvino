@@ -27,12 +27,12 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
     ngraph::op::PadType paddingType;
     std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
 
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "K" << CommonTestUtils::vec2str(kernelSize) << "_";
-    result << "S" << CommonTestUtils::vec2str(strides) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "K" << ov::test::utils::vec2str(kernelSize) << "_";
+    result << "S" << ov::test::utils::vec2str(strides) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "O=" << numOutChannels << "_";
     result << "G=" << numOfGroups << "_";
     result << "AP=" << paddingType << "_";
@@ -45,7 +45,7 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
 }
 
 void ConvConcatSubgraphTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
     nodeType type;
     commonConvParams convParams;
     CPUSpecificParams cpuParams;
@@ -64,7 +64,8 @@ void ConvConcatSubgraphTest::SetUp() {
 
     selectedType += "_FP32";
 
-    auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShapes, inputShapes});
+    ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShapes)),
+                                    std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShapes))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
     std::vector<std::shared_ptr<ngraph::Node>> convolutionNodes(2);

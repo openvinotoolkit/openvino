@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about SoftPlus-4 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *SoftPlus-4*
 
 **Category**: *Activation function*
@@ -49,7 +53,8 @@ For example, if *T* is ``fp32``, ``threshold`` should be ``20`` or if *T* is ``f
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="SoftPlus">
         <input>

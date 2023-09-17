@@ -18,6 +18,8 @@ namespace cldnn {
 struct input_layout : public primitive_base<input_layout> {
     CLDNN_DECLARE_PRIMITIVE(input_layout)
 
+    input_layout() : primitive_base("", {}) {}
+
     /// @brief Constructs input layout primitive.
     /// @param id This primitive id.
     /// @param layout Defines layout for the data will be passed to network.
@@ -35,6 +37,16 @@ struct input_layout : public primitive_base<input_layout> {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, id);
         return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<input_layout>::save(ob);
+        ob << layout;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<input_layout>::load(ib);
+        ib >> layout;
     }
 };
 }  // namespace cldnn

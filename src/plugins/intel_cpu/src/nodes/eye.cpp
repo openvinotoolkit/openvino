@@ -6,7 +6,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <utils/bfloat16.hpp>
 #include <ie_parallel.hpp>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
 
 #define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
 
@@ -62,8 +62,6 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
 }
 
 void Eye::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
     if (!one_of(getParentEdges().size(), 3u, 4u))
         THROW_ERROR << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -94,7 +92,7 @@ void Eye::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outDataConf;
 
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
     outDataConf.reserve(1);
     outDataConf.emplace_back(LayoutType::ncsp, convertPrecision(outType));
@@ -110,7 +108,7 @@ void Eye::executeSpecified() {
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!outPtr || !outPtr ->isAllocated())
             THROW_ERROR << errorPrefix << "Destination memory didn't allocate.";
-    T *dst = reinterpret_cast<T *>(outPtr->GetPtr());
+    T *dst = reinterpret_cast<T *>(outPtr->getData());
 
     const size_t batchVolume = getBatchVolume(getBatchShape());
     const size_t spatialCount = colNum * rowNum;

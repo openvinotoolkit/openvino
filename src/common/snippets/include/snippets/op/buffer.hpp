@@ -29,7 +29,7 @@ class Buffer : public ov::op::Op {
 public:
     OPENVINO_OP("Buffer", "SnippetsOpset");
     Buffer() = default;
-    Buffer(const ov::Shape& shape, size_t id = 0);
+    Buffer(const ov::Shape& shape, ov::element::Type element_type = ov::element::u8, size_t id = 0);
     Buffer(const ov::Output<ov::Node>& arg, const ov::Shape& shape, size_t id = 0);
     Buffer(const ov::Output<ov::Node>& arg, int32_t allocation_rank = -1, size_t id = 0);
 
@@ -48,8 +48,9 @@ public:
     int64_t get_offset() const { return m_offset; }
     void set_id(size_t id) { m_id = id; }
     void set_offset(int64_t offset) { m_offset = offset; }
-
     size_t get_byte_size() const;
+
+    void set_element_type(ov::element::Type element_type);
 
     bool is_intermediate_memory() const { return m_type == Type::IntermediateMemory; }
     bool is_new_memory() const { return m_type == Type::NewMemory; }
@@ -59,6 +60,7 @@ private:
     ov::Shape m_shape = {};
     int64_t m_offset = 0;
     size_t m_id = 0;  // Default ID - 0. All Buffers are from the same set
+    ov::element::Type m_element_type = ov::element::u8;  // u8 - default 1 byte
 };
 
 } // namespace op

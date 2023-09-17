@@ -88,7 +88,6 @@ KERNEL(reverse_ref)(
         }
 #if INPUT0_DIMS >= 5
         else if (axis[i] == Z_INDEX) {
-            printf("outputZ %d", OUTPUT_SIZE_Z);
             z = OUTPUT_SIZE_Z - z - 1;
         }
 #if INPUT0_DIMS == 6

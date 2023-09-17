@@ -4,10 +4,11 @@
 
 #include "transformations/remove_in_out_processing.hpp"
 
+#include "backend/gna_limitations.hpp"
 #include "common/graph_utils.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
@@ -15,8 +16,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::limitations;
 
 namespace {
 
@@ -29,7 +31,7 @@ inline bool is_preprocessing_layer_not_supported(std::shared_ptr<ov::Node>& laye
 
     // Verify that transpose layer cannot be executed on GNA
     if (std::dynamic_pointer_cast<ov::opset1::Transpose>(layer)) {
-        return !limitations::is_transpose_supported(layer);
+        return !Limitations::is_transpose_supported(layer);
     }
 
     return false;

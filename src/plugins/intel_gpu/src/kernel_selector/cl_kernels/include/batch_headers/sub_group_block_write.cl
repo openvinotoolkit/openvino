@@ -32,17 +32,20 @@
 #define BLOCK_WRITE_TYPE_size1 uchar
 #define BLOCK_WRITE_TYPE_size2 ushort
 #define BLOCK_WRITE_TYPE_size4 uint
+#define BLOCK_WRITE_TYPE_size8 ulong
 #define BLOCK_WRITE_TYPE(type_size) CAT(BLOCK_WRITE_TYPE_size, type_size)
 
 #define BLOCK_WRITE_FUNC_size1       _sub_group_block_write_uc
 #define BLOCK_WRITE_FUNC_size2       _sub_group_block_write_us
 #define BLOCK_WRITE_FUNC_size4       _sub_group_block_write
+#define BLOCK_WRITE_FUNC_size8       _sub_group_block_write_ul
 #define BLOCK_WRITE_FUNC(type_size)  CAT(BLOCK_WRITE_FUNC_size, type_size)
 
 #define BLOCK_WRITEN_FUNC_SIZE_DEF(type_size, vector_size)  MAKE_VECTOR_TYPE(BLOCK_WRITE_FUNC(type_size), vector_size)
 #define BLOCK_WRITEN_FUNC_size1(vector_size)                BLOCK_WRITEN_FUNC_SIZE_DEF(1, vector_size)
 #define BLOCK_WRITEN_FUNC_size2(vector_size)                BLOCK_WRITEN_FUNC_SIZE_DEF(2, vector_size)
 #define BLOCK_WRITEN_FUNC_size4(vector_size)                BLOCK_WRITEN_FUNC_SIZE_DEF(4, vector_size)
+#define BLOCK_WRITEN_FUNC_size8(vector_size)                BLOCK_WRITEN_FUNC_SIZE_DEF(8, vector_size)
 #define BLOCK_WRITEN_FUNC(type_size, vector_size)           CAT(BLOCK_WRITEN_FUNC_size, type_size)(vector_size)
 
 #define BLOCK_WRITEN_RAW(type_size, vector_size, addr_space, ptr, offset, val)                                  \
@@ -132,4 +135,16 @@
     DECLARE_BLOCK_WRITE_EMULATION(1, 4)
     DECLARE_BLOCK_WRITE_EMULATION(1, 8)
     DECLARE_BLOCK_WRITE_EMULATION(1, 16)
+#endif
+
+#if defined(cl_intel_subgroups_long)
+    #define _sub_group_block_write_ul(ptr, v)  intel_sub_group_block_write_ul(ptr, v)
+    #define _sub_group_block_write_ul2(ptr, v) intel_sub_group_block_write_ul2(ptr, v)
+    #define _sub_group_block_write_ul4(ptr, v) intel_sub_group_block_write_ul4(ptr, v)
+    #define _sub_group_block_write_ul8(ptr, v) intel_sub_group_block_write_ul8(ptr, v)
+#elif (__OPENCL_C_VERSION__ >= 200)
+    DECLARE_BLOCK_WRITE_EMULATION(8, 1)
+    DECLARE_BLOCK_WRITE_EMULATION(8, 2)
+    DECLARE_BLOCK_WRITE_EMULATION(8, 4)
+    DECLARE_BLOCK_WRITE_EMULATION(8, 8)
 #endif

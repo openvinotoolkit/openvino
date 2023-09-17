@@ -4,18 +4,20 @@
 
 #include "transformations/op_conversions/convert_subtract.hpp"
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 
 using namespace ov;
 
 static bool convert_subtract(const std::shared_ptr<Node>& node) {
-    auto sub = std::dynamic_pointer_cast<opset1::Subtract>(node);
+    auto sub = std::dynamic_pointer_cast<ov::op::v1::Subtract>(node);
     if (!sub) {
         return false;
     }
@@ -28,9 +30,9 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
         return false;
     }
 
-    std::shared_ptr<Node> neg =
-        std::make_shared<opset1::Multiply>(sub->input_value(1),
-                                           opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
+    std::shared_ptr<Node> neg = std::make_shared<ov::op::v1::Multiply>(
+        sub->input_value(1),
+        ov::op::v0::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
     NodeVector new_nodes;
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto constant = ov::get_constant_from_source(neg)) {
@@ -40,7 +42,7 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
         new_nodes.push_back(neg);
     }
 
-    auto add = std::make_shared<opset1::Add>(sub->input_value(0), neg);
+    auto add = std::make_shared<ov::op::v1::Add>(sub->input_value(0), neg);
     new_nodes.push_back(add);
 
     add->set_friendly_name(sub->get_friendly_name());
@@ -52,7 +54,7 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
 
 pass::ConvertSubtract::ConvertSubtract() {
     MATCHER_SCOPE(ConvertSubtract);
-    auto sub = pattern::wrap_type<opset1::Subtract>();
+    auto sub = pattern::wrap_type<ov::op::v1::Subtract>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -65,7 +67,8 @@ pass::ConvertSubtract::ConvertSubtract() {
 
 pass::ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
     MATCHER_SCOPE(ConvertSubtractWithConstant);
-    auto sub = pattern::wrap_type<opset1::Subtract>({pattern::any_input(), pattern::wrap_type<opset1::Constant>()});
+    auto sub =
+        pattern::wrap_type<ov::op::v1::Subtract>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();

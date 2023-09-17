@@ -42,13 +42,13 @@ std::vector<std::string> dataWithNegativeValues{"1", "-2", "3", "-4", "5", "-6",
 INSTANTIATE_TEST_SUITE_P(smoke_Constant, ConstantLayerTest,
                         ::testing::Combine(::testing::ValuesIn(shapes),
                                            ::testing::ValuesIn(precisions), ::testing::Values(data),
-                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConstantLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Constant_with_negative_values, ConstantLayerTest,
                         ::testing::Combine(::testing::ValuesIn(shapes),
                                            ::testing::ValuesIn(precisionsWithNegativeValues),
                                            ::testing::Values(dataWithNegativeValues),
-                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConstantLayerTest::getTestCaseName);
 }  // namespace

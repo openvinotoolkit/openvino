@@ -57,7 +57,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_set1, GatherNDLayerTest,
         gatherNDArgsSubset1,
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values<Config>({})),
     GatherNDLayerTest::getTestCaseName);
 
@@ -66,7 +66,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_set2, GatherNDLayerTest,
         gatherNDArgsSubset2,
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values<Config>({})),
     GatherNDLayerTest::getTestCaseName);
 
@@ -75,7 +75,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_set3, GatherNDLayerTest,
         gatherNDArgsSubset3,
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values<Config>({})),
     GatherNDLayerTest::getTestCaseName);
 
@@ -85,7 +85,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_set1, GatherND8LayerTest,
         gatherNDArgsSubset1,
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values<Config>({})),
     GatherND8LayerTest::getTestCaseName);
 
@@ -94,7 +94,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_set2, GatherND8LayerTest,
         gatherNDArgsSubset2,
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values<Config>({})),
     GatherND8LayerTest::getTestCaseName);
 
@@ -103,7 +103,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_set3, GatherND8LayerTest,
         gatherNDArgsSubset3,
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values<Config>({})),
     GatherND8LayerTest::getTestCaseName);
 

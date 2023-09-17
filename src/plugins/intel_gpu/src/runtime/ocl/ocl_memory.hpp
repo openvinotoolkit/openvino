@@ -46,7 +46,7 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
     event::ptr copy_to(stream& stream, void* other , bool blocking) override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) override;
+    dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
 #endif
 
 protected:
@@ -124,7 +124,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 
     event::ptr copy_to(stream& stream, void* host_ptr, bool blocking) override;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) override;
+    dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
 #endif
 
     static allocation_type detect_allocation_type(const ocl_engine* engine, const void* mem_ptr);

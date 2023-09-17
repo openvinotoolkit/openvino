@@ -106,7 +106,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FuseSplitConcatPairToInterpolate4D, FuseSplitConc
         ::testing::ValuesIn(axes4D),
         ::testing::ValuesIn(num_of_outputs_of_split),
         ::testing::ValuesIn(scale_factors),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FuseSplitConcatPairToInterpolateTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_FuseSplitConcatPairToInterpolate5D, FuseSplitConcatPairToInterpolateTest,
@@ -116,7 +116,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FuseSplitConcatPairToInterpolate5D, FuseSplitConc
         ::testing::ValuesIn(axes5D),
         ::testing::ValuesIn(num_of_outputs_of_split),
         ::testing::ValuesIn(scale_factors),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FuseSplitConcatPairToInterpolateTest::getTestCaseName);
 }  // namespace
 } // namespace CPUSubgraphTestsDefinitions

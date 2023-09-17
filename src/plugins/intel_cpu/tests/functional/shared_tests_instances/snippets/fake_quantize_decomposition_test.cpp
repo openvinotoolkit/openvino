@@ -52,7 +52,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + Subgraph + reorder(nchw)
         ::testing::Values(std::pair<size_t, size_t>{4, 1}),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -63,7 +63,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x6 + Subgraph + reorder(nchw)
         ::testing::Values(std::pair<size_t, size_t>{10, 1}),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x4 + Subgraph + reorder(nchw)
         ::testing::Values(std::pair<size_t, size_t>{8, 1}),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 }  // namespace decompositionInSubgraph
 
@@ -123,7 +123,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + reorder(nhwc) + Convolution(with internal weight reordering) + reorder(nchw)
         ::testing::Values(std::pair<size_t, size_t>{5, 0}),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 
 }  // namespace legacyFuse

@@ -59,15 +59,16 @@ namespace InferenceEngine {
     }
 
 #define CALL_STATUS_FNC(function, ...)                     \
-    if (!actual)                                           \
+    if (!actual) {                                         \
         IE_THROW() << "Wrapper used was not initialized."; \
+    }                                                      \
     ResponseDesc resp;                                     \
     auto res = actual->function(__VA_ARGS__, &resp);       \
     if (res != OK)                                         \
     IE_EXCEPTION_SWITCH(                                   \
         res,                                               \
         ExceptionType,                                     \
-        InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << resp.msg)
+        (InferenceEngine::details::ThrowNow<ExceptionType>{IE_LOCATION_PARAM}) <<= std::stringstream{} << resp.msg)
 
 #define CALL_STATUS_FNC_NO_ARGS(function)                                                 \
     if (!actual)                                                                          \
@@ -75,8 +76,9 @@ namespace InferenceEngine {
     ResponseDesc resp;                                                                    \
     auto res = actual->function(&resp);                                                   \
     if (res != OK)                                                                        \
-    IE_EXCEPTION_SWITCH(res,                                                              \
-                        ExceptionType,                                                    \
-                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION)
+    IE_EXCEPTION_SWITCH(                                                                  \
+        res,                                                                              \
+        ExceptionType,                                                                    \
+        (InferenceEngine::details::ThrowNow<ExceptionType>{IE_LOCATION_PARAM}) <<= std::stringstream{})
 
 }  // namespace InferenceEngine

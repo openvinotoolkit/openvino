@@ -145,6 +145,7 @@ void dump_full_node(std::ofstream& out, const program_node* node) {
     } catch(const std::exception& e) {
         auto node_info = std::shared_ptr<json_composite>(new json_composite());
         node_info->add("id", node->id());
+        node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(node)));
         node_info->add("error", "failed to make string from descriptor");
         std::stringstream emtpy_desc;
         node_info->dump(emtpy_desc);
@@ -250,7 +251,9 @@ void dump_graph_init(std::ofstream& graph,
             }
             if (it == user->get_dependencies().end())
                 doubled = false;
-            graph << "    " << get_node_id(node) << " -> " << get_node_id(user);
+            graph << "    " << get_node_id(node) << " -> " << get_node_id(user)
+                  << " [label=\"" << it->second << " -> " << std::distance(user->get_dependencies().begin(), it) << "\"]";
+
 
             bool data_flow = node->is_in_data_flow() && user->is_in_data_flow();
             if (data_flow) {

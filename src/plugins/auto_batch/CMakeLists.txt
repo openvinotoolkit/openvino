@@ -16,12 +16,12 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "BATCH"
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
-              VERSION_DEFINES_FOR src/auto_batch.cpp ADD_CLANG_FORMAT)
+              VERSION_DEFINES_FOR src/plugin.cpp ADD_CLANG_FORMAT)
 
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 
 # must be called after all target_link_libraries
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

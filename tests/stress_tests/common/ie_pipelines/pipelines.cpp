@@ -102,6 +102,17 @@ std::function<void()> reinfer_request_inference(std::shared_ptr<InferApiBase> &i
     };
 }
 
+std::function<void()> recreate_and_infer_in_thread(std::shared_ptr<InferApiBase> &ie_wrapper) {
+    return [&] {
+        auto func = [&] {
+            ie_wrapper->create_infer_request();
+            ie_wrapper->prepare_input();
+            ie_wrapper->infer();
+        };
+        std::thread t(func);
+	t.join();
+    };
+}
 
 std::function<void()>
 inference_with_streams(const std::string &model, const std::string &target_device, const int &nstreams,

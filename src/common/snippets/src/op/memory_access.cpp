@@ -24,6 +24,9 @@ MemoryAccess::MemoryAccess(const OutputVector& arguments, const std::set<size_t>
     ctor_initialize(input_ports, output_ports);
 }
 
+MemoryAccess::MemoryAccess(const OutputVector& arguments, const PortMap& input_ports, const PortMap& output_ports)
+    : Op(arguments), m_input_ports(input_ports), m_output_ports(output_ports) {}
+
 void MemoryAccess::ctor_initialize(const std::set<size_t>& input_ports, const std::set<size_t>& output_ports) {
     for (auto port : input_ports) {
         m_input_ports[port] = {0, 0, port};

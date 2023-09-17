@@ -6,7 +6,6 @@
 
 #include <list>
 
-#include "ngraph/rt_info.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"

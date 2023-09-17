@@ -87,7 +87,7 @@ protected:
         ngraph::Shape proposalShape = { proposal.size() / 5, 5 };
 
         auto coords = ngraph::builder::makeConstant<float>(ngraph::element::f32, proposalShape, proposal);
-        auto params = ngraph::builder::makeParams(ngraph::element::f32, {featureMapShape});
+        ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(featureMapShape))};
 
         auto psroi = std::make_shared<ngraph::op::v0::PSROIPooling>(params[0], coords, outputDim, groupSize,
                                                        spatialScale, spatialBinsX, spatialBinsY, mode);
@@ -167,7 +167,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest, PSROIPoolingLayerC
                                 ::testing::Combine(
                                         psroiPoolingAverageParams,
                                         ::testing::ValuesIn(netPrecisions),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUSpecificParams(resCPUParams))),
                         PSROIPoolingLayerCPUTest::getTestCaseName);
 
@@ -176,7 +176,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBilinearLayoutTest, PSROIPoolingLayer
                                 ::testing::Combine(
                                         psroiPoolingBilinearParams,
                                         ::testing::ValuesIn(netPrecisions),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUSpecificParams(resCPUParams))),
                         PSROIPoolingLayerCPUTest::getTestCaseName);
 } // namespace

@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/tensor_iterator.hpp"
+#include "openvino/reference/tensor_iterator.hpp"
 
 #include "backend.hpp"
 #include "evaluate_node.hpp"
 #include "tensor_conversion_util.hpp"
 
 namespace ti_v0 {
-ngraph::runtime::reference::custom_evaluate_function evaluate = [](const std::shared_ptr<ngraph::Function>& function,
-                                                                   const ngraph::HostTensorVector& inputs,
-                                                                   ngraph::HostTensorVector& outputs) -> void {
+ov::reference::custom_evaluate_function evaluate = [](const std::shared_ptr<ngraph::Function>& function,
+                                                      const ngraph::HostTensorVector& inputs,
+                                                      ngraph::HostTensorVector& outputs) -> void {
     const auto& parameters = function->get_parameters();
     const auto& parametersNumber = parameters.size();
     const auto& inputsNumber = inputs.size();
@@ -46,13 +46,13 @@ template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v0::TensorIterator>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
-    ngraph::runtime::reference::tensor_iterator(op->get_num_iterations(),
-                                                op->get_function(),
-                                                op->get_output_descriptions(),
-                                                op->get_input_descriptions(),
-                                                outputs,
-                                                inputs,
-                                                ti_v0::evaluate);
+    ov::reference::tensor_iterator(op->get_num_iterations(),
+                                   op->get_function(),
+                                   op->get_output_descriptions(),
+                                   op->get_input_descriptions(),
+                                   outputs,
+                                   inputs,
+                                   ti_v0::evaluate);
     return true;
 }
 

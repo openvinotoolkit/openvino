@@ -41,7 +41,7 @@ public:
      * @param port Port of the tensor to get.
      * @return Tensor for the port @p port.
      */
-    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
     /**
      * @brief Sets an input/output tensor to infer.
@@ -49,7 +49,7 @@ public:
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
     /**
      * @brief Gets a batch of tensors for input data to infer by input port.
@@ -62,7 +62,7 @@ public:
      * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      * @return vector of tensors
      */
-    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override;
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
 
     /**
      * @brief Sets a batch of tensors for input data to infer by input port.
@@ -74,7 +74,8 @@ public:
      * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
      * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      */
-    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override;
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     /**
      * @brief Plugin implementation for set tensors
@@ -83,7 +84,8 @@ public:
      * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
      * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      */
-    virtual void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors);
+    virtual void set_tensors_impl(const ov::Output<const ov::Node> port,
+                                  const std::vector<ov::SoPtr<ov::ITensor>>& tensors);
 
     /**
      * @brief Gets inputs for infer request
@@ -132,7 +134,7 @@ protected:
      * @param port Input/Output port
      * @param tensor Input/Output tensor
      */
-    void check_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) const;
+    void check_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) const;
 
     /**
      * @brief Check that all tensors are valid. Throws an exception if it's not.
@@ -146,15 +148,15 @@ protected:
      * @param allocate_callback function which allocates the tensor
      */
     void allocate_tensor(const ov::Output<const ov::Node>& port,
-                         const std::function<void(ov::Tensor& tensor)>& allocate_callback);
+                         const std::function<void(ov::SoPtr<ov::ITensor>& tensor)>& allocate_callback);
 
-    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::vector<ov::Tensor>> m_batched_tensors;
+    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::vector<ov::SoPtr<ov::ITensor>>> m_batched_tensors;
+    ov::SoPtr<ov::ITensor>& get_tensor_ptr(const ov::Output<const ov::Node>& port) const;
 
 private:
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     // Mutable to return reference to ov::Tensor
-    mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> m_tensors;
-    ov::Tensor& get_ref_tensor(const ov::Output<const ov::Node>& port) const;
+    mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::SoPtr<ov::ITensor>> m_tensors;
 
     /**
      * @brief Finds input or output port

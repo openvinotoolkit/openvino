@@ -15,7 +15,7 @@ namespace {
 kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
     auto cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
     if (cldnn_axis >= static_cast<int64_t>(rank))
-        IE_THROW() << "Concatenation axis exceeds number of dimensions";
+        OPENVINO_THROW("Concatenation axis exceeds number of dimensions");
 
     // Difference in dimension ordering between IE and GPU plugin,
     // reverse spatial dimensions after batch and feature.
@@ -33,7 +33,7 @@ kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
         case 3: return kernel_selector::concat_axis::Y;
         case 4: return kernel_selector::concat_axis::Z;
         case 5: return kernel_selector::concat_axis::W;
-        default: IE_THROW() << "Unsupported concatenation axis: " << axis;
+        default: OPENVINO_THROW("Unsupported concatenation axis: ", axis);
     }
 
     return kernel_selector::concat_axis::FEATURE;  // shouldn't get here
@@ -47,7 +47,7 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
     using kernel_selector_t = kernel_selector::concatenation_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::concatenation_params, kernel_selector::concatenation_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::concatenation_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<concatenation_impl>(*this);
@@ -182,3 +182,4 @@ attach_concatenation_impl::attach_concatenation_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::concatenation_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::concatenation)

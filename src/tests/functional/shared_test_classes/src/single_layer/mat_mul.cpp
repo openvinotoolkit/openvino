@@ -32,8 +32,8 @@ std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayer
         obj.param;
 
     std::ostringstream result;
-    result << "IS0=" << CommonTestUtils::vec2str(shapeRelatedParams.input1.first) << "_";
-    result << "IS1=" << CommonTestUtils::vec2str(shapeRelatedParams.input2.first) << "_";
+    result << "IS0=" << ov::test::utils::vec2str(shapeRelatedParams.input1.first) << "_";
+    result << "IS1=" << ov::test::utils::vec2str(shapeRelatedParams.input2.first) << "_";
     result << "transpose_a=" << shapeRelatedParams.input1.second << "_";
     result << "transpose_b=" << shapeRelatedParams.input2.second << "_";
     result << "secondaryInputType=" << secondaryInputType << "_";
@@ -61,7 +61,7 @@ void MatMulTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapeRelatedParams.input1.first});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapeRelatedParams.input1.first))};
 
     auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {

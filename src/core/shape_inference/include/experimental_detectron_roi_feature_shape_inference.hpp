@@ -16,15 +16,14 @@ namespace v6 {
 // outputs:
 //          1.  out_shape = [number_of_ROIs, number_of_channels, output_size, output_size]
 //          2.  out_rois_shape = [number_of_ROIs, 4]
-template <class TShape>
-std::vector<TShape> shape_infer(const ExperimentalDetectronROIFeatureExtractor* op,
-                                const std::vector<TShape>& input_shapes,
-                                const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
-    using TDim = typename TShape::value_type;
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ExperimentalDetectronROIFeatureExtractor* op,
+                                 const std::vector<TShape>& input_shapes) {
+    using TDim = typename TRShape::value_type;
     using namespace ov::util;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= 2);
 
-    auto output_shapes = std::vector<TShape>();
+    auto output_shapes = std::vector<TRShape>();
     output_shapes.reserve(2);
 
     const auto& rois_shape = input_shapes[0];

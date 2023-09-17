@@ -19,6 +19,9 @@
 #include <openvino/core/partial_shape.hpp>
 #include <openvino/core/type/element_type.hpp>
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
+
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
@@ -232,7 +235,7 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
     case ov::element::Type_t::i64:
         return cldnn::data_types::i64;
     case ov::element::Type_t::boolean:
-        return cldnn::data_types::i8;
+        return cldnn::data_types::u8;
     case ov::element::Type_t::u1:
         return cldnn::data_types::bin;
     default:
@@ -355,6 +358,24 @@ struct padding {
         seed = cldnn::hash_combine(seed, _upper_size.hash());
         seed = cldnn::hash_combine(seed, _dynamic_pad_dims.hash());
         return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const {
+        ob << _lower_size.sizes();
+        ob << _upper_size.sizes();
+        ob << _filling_value;
+        ob << _dynamic_pad_dims.sizes();
+    }
+
+    void load(BinaryInputBuffer& ib) {
+        std::vector<tensor::value_type> sizes;
+        ib >> sizes;
+        _lower_size = tensor(sizes);
+        ib >> sizes;
+        _upper_size = tensor(sizes);
+        ib >> _filling_value;
+        ib >> sizes;
+        _dynamic_pad_dims = tensor(sizes);
     }
 
 private:

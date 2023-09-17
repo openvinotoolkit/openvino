@@ -38,12 +38,11 @@ ov_add_test_target(
             # process models
             test_model_zoo
         LINK_LIBRARIES
-            engines_test_util
-            commonTestUtils
-            ngraph_reference
-            ngraph::builder
+            common_test_utils
+            openvino::reference
+            openvino::builders
             openvino::util
-            ov_shape_inference
+            openvino::shape_inference
             ${CMAKE_DL_LIBS}
             Threads::Threads
             openvino::conditional_compilation

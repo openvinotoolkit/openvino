@@ -35,7 +35,7 @@ public:
 }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ngraph::NodeTypeInfo resize_type;
         int channels_count;
         int batch_count;

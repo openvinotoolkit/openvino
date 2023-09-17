@@ -5,6 +5,7 @@
 #include "test_utils.h"
 
 #include "intel_gpu/runtime/layout.hpp"
+#include "impls/ocl/kernel_selector_helper.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -304,4 +305,68 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_transform_test,
         {format::bfwzyx, format::bfyx,  ov::PartialShape{1, 2, 3, 4, 5, 6}, ov::PartialShape{1, 2, 3*4*5, 6}},
 
         {format::bfzyx, format::bfyx,  ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 3*4, 5}},
+    }));
+
+struct layouts_convert_params {
+    format::type in_format;
+    ov::PartialShape in_shape;
+    bool is_grouped;
+};
+
+class layout_convert_test : public testing::TestWithParam<layouts_convert_params> { };
+
+TEST_P(layout_convert_test, basic) {
+    auto p = GetParam();
+
+    auto test_layout = layout(p.in_shape, data_types::f32, p.in_format);
+    auto weights_tensor = convert_weights_tensor(test_layout, p.is_grouped);
+    auto converted_layout = from_weights_tensor(weights_tensor);
+
+    if (p.in_format == format::bfzyx && p.is_grouped) {
+        ASSERT_EQ(converted_layout, layout(p.in_shape, data_types::f32, format::goiyx));
+    } else if (p.in_format == format::bfwzyx && p.is_grouped) {
+        ASSERT_EQ(converted_layout, layout(p.in_shape, data_types::f32, format::goizyx));
+    } else if (p.in_format == format::os_i_osv16__ai8) {
+        auto ref_shape = p.in_shape;
+        for (size_t i = ref_shape.size(); i < converted_layout.get_dims().size(); ++i)
+            ref_shape.push_back(1);
+        test_layout.set_partial_shape(ref_shape);
+        ASSERT_EQ(test_layout, converted_layout);
+    } else {
+        ASSERT_EQ(test_layout, converted_layout);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, layout_convert_test,
+    testing::ValuesIn(std::vector<layouts_convert_params>{
+        // 4D formats
+        {format::oiyx, ov::PartialShape{1, 2, 3, 4}, false},
+        {format::ioyx, ov::PartialShape{1, 2, 3, 4}, false},
+        {format::os_i_osv16__ai8, ov::PartialShape{1, 2}, false},
+        {format::os_iyx_osv16, ov::PartialShape{1, 2, 3, 4}, false},
+        {format::os_i_yxs_osv4_yxsv4, ov::PartialShape{1, 2, 3, 4}, false},
+        {format::os_is_yx_isa8_osv8_isv2, ov::PartialShape{1, 2, 3, 4}, false},
+        {format::is_os_yx_isa2_osa8_isv8_osv2, ov::PartialShape{1, 2, 3, 4}, false},
+        {format::is_o32_yx_isv32_swizzled_by_4, ov::PartialShape{1, 2, 3, 4}, false},
+        // 4D formats grouped
+        {format::bfzyx, ov::PartialShape{1, 2, 3, 4, 5}, true},
+        {format::goiyx, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        {format::g_os_iyx_osv32, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        {format::g_os_is_yx_isv8_osv16_isv2, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        {format::g_os_is_yx_osv16_isv4, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        // {format::gs_oi_yxs_gsv32_yxsv4, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        // 5D formats
+        {format::oizyx, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        {format::iozyx, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        {format::os_is_zyx_isa8_osv16_isv4, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        {format::os_is_zyx_osa4_isa8_osv8_isv4, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        {format::is_os_zyx_isa8_osv8_isv2, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        {format::is_os_zyx_isv16_osv16, ov::PartialShape{1, 2, 3, 4, 5}, false},
+        // 5D formats grouped
+        {format::bfwzyx, ov::PartialShape{1, 2, 3, 4, 5, 6}, true},
+        {format::giozyx, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
+        {format::gs_oizyx_gsv32, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
+        {format::g_os_zyx_is_osv32_isv32, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
+        {format::g_is_os_zyx_isv16_osv16, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
+        {format::g_os_is_zyx_osa4_isa8_osv8_isv2, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
     }));

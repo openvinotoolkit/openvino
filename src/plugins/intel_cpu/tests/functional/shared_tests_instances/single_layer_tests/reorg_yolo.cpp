@@ -29,42 +29,42 @@ const auto testCase_caffe_yolov2 = ::testing::Combine(
     ::testing::ValuesIn(inShapes_caffe_yolov2),
     ::testing::Values(strides[0]),
     ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_smallest = ::testing::Combine(
     ::testing::Values(inShapes[0]),
     ::testing::Values(strides[0]),
     ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_stride_2 = ::testing::Combine(
     ::testing::Values(inShapes[1]),
     ::testing::Values(strides[0]),
     ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_stride_3 = ::testing::Combine(
     ::testing::Values(inShapes[2]),
     ::testing::Values(strides[1]),
     ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_smaller_h = ::testing::Combine(
     ::testing::Values(inShapes[4]),
     ::testing::Values(strides[0]),
     ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_batch_2 = ::testing::Combine(
     ::testing::Values(inShapes[3]),
     ::testing::Values(strides[0]),
     ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_caffe_YoloV2, ReorgYoloLayerTest, testCase_caffe_yolov2, ReorgYoloLayerTest::getTestCaseName);

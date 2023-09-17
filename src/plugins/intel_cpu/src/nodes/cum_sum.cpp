@@ -12,6 +12,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "cum_sum.h"
 #include "utils/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 
 using namespace InferenceEngine;
 
@@ -72,7 +73,10 @@ void CumSum::initSupportedPrimitiveDescriptors() {
         return;
 
     dataPrecision = getOriginalInputPrecisionAtPort(CUM_SUM_DATA);
-    if (!one_of(dataPrecision, Precision::I8, Precision::U8, Precision::I16, Precision::BF16, Precision::I32, Precision::FP32, Precision::I64, Precision::U64))
+    if (!one_of(dataPrecision,
+                Precision::I8, Precision::U8,
+                Precision::I16, Precision::I32, Precision::I64, Precision::U64,
+                Precision::BF16, Precision::FP16, Precision::FP32))
         IE_THROW() << errorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
 
     if (inputShapes.size() == numOfInputs) {
@@ -84,7 +88,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     inDataConf.emplace_back(LayoutType::ncsp, dataPrecision);
-    for (int i = 1; i < inputShapes.size(); ++i)
+    for (size_t i = 1; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
@@ -101,6 +105,7 @@ void CumSum::execute(dnnl::stream strm) {
               OV_CASE(Precision::U8, uint8_t),
               OV_CASE(Precision::I16, int16_t),
               OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::FP16, ov::float16),
               OV_CASE(Precision::I32, int32_t),
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::I64, int64_t),
@@ -109,9 +114,9 @@ void CumSum::execute(dnnl::stream strm) {
 
 template <typename dataType>
 void CumSum::exec() {
-    const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->GetPtr());
-    auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
-    const VectorDims strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->getData());
+    auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    const VectorDims strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     if (reverse) {
         if (exclusive) {
@@ -226,18 +231,18 @@ inline size_t CumSum::getStartOffset(const std::vector<size_t> &forStartOffset, 
     return startOffset;
 }
 
-size_t CumSum::getAxis(const Memory& _axis, const Memory& _data) const {
+size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
     const auto& axisPrecision = _axis.getDesc().getPrecision();
-    const int64_t dataShapeSize = static_cast<int64_t>(_data.GetShape().getRank());
+    const int64_t dataShapeSize = static_cast<int64_t>(_data.getShape().getRank());
     int64_t axisValueFromBlob = 0;
     switch (axisPrecision) {
         case Precision::I32 : {
-            const auto *axisPtr = reinterpret_cast<const int32_t *>(_axis.GetPtr());
+            const auto *axisPtr = reinterpret_cast<const int32_t *>(_axis.getData());
             axisValueFromBlob = static_cast<int64_t>(axisPtr[0]);
             break;
         }
         case Precision::I64 : {
-            const auto *axisPtr = reinterpret_cast<const int64_t *>(_axis.GetPtr());
+            const auto *axisPtr = reinterpret_cast<const int64_t *>(_axis.getData());
             axisValueFromBlob = axisPtr[0];
             break;
         }

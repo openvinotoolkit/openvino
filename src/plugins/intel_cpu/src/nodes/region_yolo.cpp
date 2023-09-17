@@ -380,7 +380,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
 }
 
 void RegionYolo::execute(dnnl::stream strm) {
-    const auto &inShape = getParentEdgeAt(0)->getMemory().GetShape();
+    const auto &inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto &inDims = inShape.getStaticDims();
     size_t B =  (inShape.getRank() > 0) ? inDims[0] : 1;
     size_t IC = (inShape.getRank() > 1) ? inDims[1] : 1;
@@ -390,7 +390,7 @@ void RegionYolo::execute(dnnl::stream strm) {
     size_t mask_size = mask.size();
     int end_index = 0;
     int num_ = 0;
-    int output_size = 0;
+    size_t output_size = 0;
     if (do_softmax) {
         // Region layer (Yolo v2)
         end_index = IW * IH;
@@ -403,20 +403,20 @@ void RegionYolo::execute(dnnl::stream strm) {
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
-    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount())
+    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount())
         IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != "
-                   << getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount();
+                   << getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount();
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;
 
-    const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
                 getChildEdgeAt(0)->getMemory().getDesc().getPrecision(), output_size);
 
-    for (int b = 0; b < B; b++) {
+    for (size_t b = 0; b < B; b++) {
         for (int n = 0; n < num_; n++) {
             size_t index = b * inputs_size + n * IW * IH * (classes + coords + 1);
             calculate_logistic(index, total_size, dst_data);
@@ -429,7 +429,7 @@ void RegionYolo::execute(dnnl::stream strm) {
     if (do_softmax) {
         int index = IW * IH * (coords + 1);
         int batch_offset = inputs_size / num;
-        for (int b = 0; b < B * num; b++) {
+        for (size_t b = 0; b < B * num; b++) {
             softmax_kernel->execute(src_data + input_prec.size() * (index + b * batch_offset),
                                     dst_data + output_prec.size() * (index + b * batch_offset), 1, classes, IH, IW);
         }

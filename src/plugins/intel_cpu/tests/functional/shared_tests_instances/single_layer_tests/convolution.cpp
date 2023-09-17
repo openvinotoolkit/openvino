@@ -44,7 +44,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 3, 30})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -56,7 +56,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 3, 30})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ConvolutionLayerTest::getTestCaseName);
 
 /* ============= 2D Convolution ============= */
@@ -88,7 +88,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -100,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ConvolutionLayerTest::getTestCaseName);
 
 // weight for this convolution have Acdb16a layout
@@ -128,7 +128,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_SpecificWeightLayout, ConvolutionLa
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 1, 50, 75})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvolutionLayerTest::getTestCaseName);
 } // namespace specificWeightLayout
 
@@ -160,7 +160,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 3, 10, 10, 10})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -172,7 +172,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 3, 10, 10, 10})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ConvolutionLayerTest::getTestCaseName);
 
 }  // namespace

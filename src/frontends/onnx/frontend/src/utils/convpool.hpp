@@ -8,7 +8,9 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/deprecated.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace convpool {
@@ -110,3 +112,4 @@ Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters, i
 }  // namespace  onnx_import
 
 }  // namespace  ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

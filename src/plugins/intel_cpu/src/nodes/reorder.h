@@ -24,7 +24,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
     bool isExecutable() const override;
 
@@ -61,7 +61,7 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const Memory &input, const Memory &output, MultiCachePtr cache = nullptr);
+    static void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache = nullptr);
 
 private:
     dnnl::reorder::primitive prim;

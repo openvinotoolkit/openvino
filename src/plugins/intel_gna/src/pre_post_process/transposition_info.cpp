@@ -19,8 +19,8 @@ namespace pre_post_processing {
 using namespace ov::opset10;
 
 std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
-    int32_t c_size = t_info.num_transpose_rows;
-    int32_t hw_size = t_info.num_transpose_columns;
+    int32_t c_size = static_cast<int32_t>(t_info.num_transpose_rows);
+    int32_t hw_size = static_cast<int32_t>(t_info.num_transpose_columns);
 
     if (!t_info.transpose) {
         return nullptr;
@@ -51,7 +51,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
 
 std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes) {
     // count transposition parts need to be transposed
-    int count_transposes = std::count_if(transposes.begin(), transposes.end(), [](TranspositionInfo t_info) {
+    auto count_transposes = std::count_if(transposes.begin(), transposes.end(), [](TranspositionInfo t_info) {
         return t_info.transpose || t_info.num_transpose_rows != 1 || t_info.num_transpose_columns != 1;
     });
     if (count_transposes == 0) {
@@ -63,7 +63,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& 
         return ToProcessModel(transposes.front());
     }
 
-    std::vector<int32_t> indices = {};
+    std::vector<size_t> indices = {};
     for (auto& transpose : transposes) {
         size_t c_size = transpose.num_transpose_rows;
         size_t hw_size = transpose.num_transpose_columns;
@@ -74,7 +74,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& 
         std::vector<size_t> transpose_order =
             transpose.transpose ? std::vector<size_t>{1, 0} : std::vector<size_t>{0, 1};
         slice_indices =
-            graph_utils::make_gather_indices_from_transpose_axes(ov::Shape{c_size, hw_size}, transpose_order);
+            graph_utils::make_gather_indexes_from_transpose_axes(ov::Shape{c_size, hw_size}, transpose_order);
         size_t id = indices.size();
         std::for_each(slice_indices.begin(), slice_indices.end(), [&id](size_t& i) {
             i += id;

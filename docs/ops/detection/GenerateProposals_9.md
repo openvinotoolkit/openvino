@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GenerateProposals-9 - an object detection operation, 
+                which can be performed on four required input tensors.
+
 **Versioned name**: *GenerateProposals-9*
 
 **Category**: *Object detection*
@@ -110,7 +114,8 @@ The ``height`` and ``width`` from inputs ``anchors``, ``boxesdeltas`` and ``scor
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="GenerateProposals" version="opset9">
        <data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000" roi_num_type="i32"/>

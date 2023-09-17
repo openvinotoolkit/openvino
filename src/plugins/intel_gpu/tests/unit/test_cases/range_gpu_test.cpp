@@ -350,5 +350,97 @@ TEST(range_gpu_test, dynamic_stop) {
     }
 }
 
+TEST(range_cpu_impl_test, dynamic_all) {
+    auto& engine = get_test_engine();
+
+    int32_t start_val = 0;
+    int32_t step_val = 1;
+    int32_t expected_dim = 25;
+
+    auto dynamic_input_layout = layout{ ov::PartialShape::dynamic(0), data_types::i32, format::bfyx };
+
+    auto input0 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input1 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input2 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+
+    set_values<int32_t>(input0, { start_val });
+    set_values<int32_t>(input1, { expected_dim });
+    set_values<int32_t>(input2, { step_val });
+
+    topology topology;
+    topology.add(input_layout("input0", dynamic_input_layout));
+    topology.add(input_layout("input1", dynamic_input_layout));
+    topology.add(input_layout("input2", dynamic_input_layout));
+    topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"range", {format::bfyx, "", impl_types::cpu}} }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("range");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("range").get_memory();
+
+    mem_lock<int32_t> output_ptr(output, tests::get_test_stream());
+
+    for (size_t i = 0; i < static_cast<size_t>(expected_dim); ++i) {
+        ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
+    }
+}
+
+TEST(range_cpu_impl_test, dynamic_stop) {
+    auto& engine = get_test_engine();
+
+    int32_t start_val = 0;
+    int32_t step_val = 1;
+    int32_t expected_dim = 25;
+
+    auto dynamic_input_layout = layout{ ov::PartialShape::dynamic(0), data_types::i32, format::bfyx };
+
+    auto input0 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input1 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input2 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+
+    set_values<int32_t>(input0, { start_val });
+    set_values<int32_t>(input1, { expected_dim });
+    set_values<int32_t>(input2, { step_val });
+
+    topology topology;
+    topology.add(data("input0", input0));
+    topology.add(input_layout("input1", dynamic_input_layout));
+    topology.add(data("input2", input2));
+    topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"range", {format::bfyx, "", impl_types::cpu}} }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+
+    auto inst = network.get_primitive("range");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("range").get_memory();
+
+    mem_lock<int32_t> output_ptr(output, tests::get_test_stream());
+
+    for (size_t i = 0; i < static_cast<size_t>(expected_dim); ++i) {
+        ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
+    }
+}
+
 }  // namespace
 }  // namespace cldnn

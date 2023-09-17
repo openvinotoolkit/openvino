@@ -4,9 +4,9 @@
 
 #include "op_extension.hpp"
 
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/op.hpp"
-#include "so_extension.hpp"
 #include "tf_utils.hpp"
 
 using namespace ov::frontend;

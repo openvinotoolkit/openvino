@@ -60,7 +60,12 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     ASSERT_TRUE(req);
     ASSERT_NO_THROW(req.SetBlob(first_input_name, rblob));
     ASSERT_NO_THROW(req.StartAsync());
-    ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
+    // cpu can consume remote buffer
+    auto exe_device = exec_net_multi.GetConfig("EXECUTION_DEVICES").as<std::vector<std::string>>();
+    if (exe_device.size() == 1 && exe_device[0] == "CPU")
+        ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
+    else
+        ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
 }
 
 TEST_P(MultiDevice_Bind_oversubsciption_test, oversubsciptionOfInferRequest) {

@@ -11,7 +11,7 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        ov::Shape,                       // Input 0 Shape
+        InputShape,                      // Input 0 Shape
         int,                             // Axis
         size_t,                          // Expected num nodes
         size_t,                          // Expected num subgraphs
@@ -19,7 +19,7 @@ typedef std::tuple<
 > SoftmaxParams;
 
 typedef std::tuple<
-        std::pair<ov::Shape, ov::Shape>,  // Input Shapes
+        std::pair<InputShape, InputShape>,// Input Shapes
         int,                              // Axis
         size_t,                           // Expected num nodes
         size_t,                           // Expected num subgraphs

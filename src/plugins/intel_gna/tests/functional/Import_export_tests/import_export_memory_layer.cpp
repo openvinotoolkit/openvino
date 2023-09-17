@@ -101,7 +101,7 @@ protected:
         std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, withReset) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 336}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 336})};
         auto mem_c = ngraph::builder::makeConstant(ngPrc, {1, 336}, std::vector<size_t>{1});
         auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
 
@@ -155,7 +155,7 @@ const std::vector<std::pair<bool, bool>> withReset = {
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkMemoryCase,
                          ImportMemoryTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigs),
                                             ::testing::ValuesIn(withReset)),

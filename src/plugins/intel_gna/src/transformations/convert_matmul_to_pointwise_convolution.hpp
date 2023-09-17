@@ -22,7 +22,7 @@ namespace pass {
  *                                                  |
  *                                      Transose (NCHW -> NHWC)
  */
-class ConvertMatmulToPointWiseConvolution : public ngraph::pass::MatcherPass {
+class ConvertMatmulToPointWiseConvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMatmulToPointWiseConvolution", "0");
     ConvertMatmulToPointWiseConvolution();
@@ -42,7 +42,7 @@ public:
  *                                                 |
  *                                      Transose (NCHW -> NHWC)
  */
-class ConvertMatmulWithBiasToPointWiseConvolution : public ngraph::pass::MatcherPass {
+class ConvertMatmulWithBiasToPointWiseConvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMatmulWithBiasToPointWiseConvolution", "0");
     ConvertMatmulWithBiasToPointWiseConvolution();
@@ -64,7 +64,7 @@ public:
  *                                                 |
  *                                         Transose (NCHW -> NHWC)
  */
-class ConvertMatmulWithFqToPointWiseConvolution : public ngraph::pass::MatcherPass {
+class ConvertMatmulWithFqToPointWiseConvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMatmulWithFqToPointWiseConvolution", "0");
     ConvertMatmulWithFqToPointWiseConvolution();

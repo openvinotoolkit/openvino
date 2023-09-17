@@ -17,7 +17,7 @@ ov_add_test_target(
             openvino_paddle_frontend
             openvino::runtime
             gtest_main_manifest
-            funcTestUtils
+            func_test_utils
         ADD_CLANG_FORMAT
         LABELS
             OV
@@ -36,7 +36,8 @@ endif()
 
 if(NOT EXIT_CODE EQUAL 0)
     set(paddlepaddle_FOUND OFF)
-    message(WARNING "Python requirement file ${PADDLE_REQ} is not installed, PaddlePaddle frontend unit tests will be skipped")
+    message(WARNING "Python requirement file ${PADDLE_REQ} is not installed, PaddlePaddle testing models weren't generated, 
+                     some tests will fail due models not found")
 else()
     set(paddlepaddle_FOUND ON)
 endif()

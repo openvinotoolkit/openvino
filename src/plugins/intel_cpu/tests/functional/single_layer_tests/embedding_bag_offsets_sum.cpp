@@ -52,8 +52,8 @@ public:
 
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
-        result << "I" << CommonTestUtils::vec2str(indices) << "_";
-        result << "O" << CommonTestUtils::vec2str(offsets) << "_";
+        result << "I" << ov::test::utils::vec2str(indices) << "_";
+        result << "O" << ov::test::utils::vec2str(offsets) << "_";
         result << "DI" << defaultIndex << "_";
         result << "WW" << withWeights << "_";
         result << "WDI" << withDefIndex << "_";
@@ -75,7 +75,7 @@ public:
         std::tie(inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex) = embParams;
 
         selectedType = makeSelectedTypeStr("ref", inType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes });
 
@@ -161,7 +161,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, EmbeddingBagOffsetsSumLayerCPUTest,
                 embBagOffsetSumArgSet,
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::ValuesIn(indPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         EmbeddingBagOffsetsSumLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace CPULayerTestsDefinitions

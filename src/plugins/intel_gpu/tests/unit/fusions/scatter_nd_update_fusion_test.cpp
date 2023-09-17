@@ -69,16 +69,6 @@ public:
             return cldnn::format::bfwzyx;
     }
 
-    template<typename T>
-    T generate_random_val(int min, int max, int k = 8) {
-        // 1/k is the resolution of the floating point numbers
-        std::uniform_int_distribution<int> distribution(k * min, k * max);
-        T val = (T)distribution(this->generator);
-        val /= k;
-
-        return val;
-    }
-
     template <typename T>
     std::vector<T> generate_unique_indices(scatter_nd_update_test_params& p) {
         std::set<std::vector<T>> unique_indices;
@@ -92,7 +82,7 @@ public:
         while (unique_indices.size() != count) {
             std::vector<T> indices;
             for (size_t i = 0; i < static_cast<size_t>(last_indices_dim); i++) {
-                indices.push_back(static_cast<T>(generate_random_val<int>(0, data_shape[i] - 1)));
+                indices.push_back(static_cast<T>(rg.generate_random_val<int>(0, data_shape[i] - 1)));
             }
 
             unique_indices.insert(indices);

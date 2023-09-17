@@ -8,13 +8,14 @@
 
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
 
 void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info) {
     OPENVINO_ASSERT(tensor, "Could not check empty tensor type");
-    auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._impl);
+    auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(get_tensor_impl(tensor)._ptr);
     OPENVINO_ASSERT(remote_tensor, "Tensor is not remote.");
     if (!type_info.empty()) {
         auto remote_properties = remote_tensor->get_properties();

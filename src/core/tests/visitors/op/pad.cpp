@@ -2,51 +2,57 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/pad.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
-TEST(attributes, pad_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Pad>();
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
+template <class T>
+class PadAttrVisitorTest : public testing::Test {};
+
+TYPED_TEST_SUITE_P(PadAttrVisitorTest);
+
+TYPED_TEST_P(PadAttrVisitorTest, pad_basic) {
+    NodeBuilder::get_ops().register_factory<TypeParam>();
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+    auto pads_end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
 
     auto pad_mode = op::PadMode::EDGE;
 
-    auto pad = make_shared<opset1::Pad>(arg, pads_begin, pads_end, pad_mode);
+    auto pad = make_shared<TypeParam>(arg, pads_begin, pads_end, pad_mode);
     NodeBuilder builder(pad, {arg, pads_begin, pads_end});
-    auto g_pad = ov::as_type_ptr<opset1::Pad>(builder.create());
+    auto g_pad = ov::as_type_ptr<TypeParam>(builder.create());
 
     EXPECT_EQ(g_pad->get_pad_mode(), pad->get_pad_mode());
     EXPECT_EQ(g_pad->get_pads_begin(), pad->get_pads_begin());
     EXPECT_EQ(g_pad->get_pads_end(), pad->get_pads_end());
 }
 
-TEST(attributes, pad_op2) {
-    NodeBuilder::get_ops().register_factory<opset1::Pad>();
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pad_value = make_shared<op::Parameter>(element::f32, Shape{});
+TYPED_TEST_P(PadAttrVisitorTest, pad_const_mode) {
+    NodeBuilder::get_ops().register_factory<TypeParam>();
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+    auto pads_end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+    auto pad_value = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
 
     auto pad_mode = op::PadMode::CONSTANT;
 
-    auto pad = make_shared<opset1::Pad>(arg, pads_begin, pads_end, pad_value, pad_mode);
+    auto pad = make_shared<TypeParam>(arg, pads_begin, pads_end, pad_value, pad_mode);
     NodeBuilder builder(pad, {arg, pads_begin, pads_end, pad_value});
-    auto g_pad = ov::as_type_ptr<opset1::Pad>(builder.create());
+    auto g_pad = ov::as_type_ptr<TypeParam>(builder.create());
 
     EXPECT_EQ(g_pad->get_pad_mode(), pad->get_pad_mode());
     EXPECT_EQ(g_pad->get_pads_begin(), pad->get_pads_begin());
     EXPECT_EQ(g_pad->get_pads_end(), pad->get_pads_end());
 }
+
+REGISTER_TYPED_TEST_SUITE_P(PadAttrVisitorTest, pad_basic, pad_const_mode);
+
+using PadOpTypes = testing::Types<op::v1::Pad, op::v12::Pad>;
+INSTANTIATE_TYPED_TEST_SUITE_P(attributes, PadAttrVisitorTest, PadOpTypes);

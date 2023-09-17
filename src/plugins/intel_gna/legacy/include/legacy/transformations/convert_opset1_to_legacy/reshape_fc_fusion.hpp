@@ -28,7 +28,7 @@ class ReshapeFullyConnectedFusion;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ReshapeFullyConnectedFusion : public ngraph::pass::MatcherPass {
+class ngraph::pass::ReshapeFullyConnectedFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReshapeFullyConnectedFusion", "0");
     ReshapeFullyConnectedFusion();

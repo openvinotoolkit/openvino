@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: In OpenVINO™, you can use several methods to address the issues 
+                 of non-reshape-able models and shape collision, which prevent 
+                 normal shape propagation.
+
+
 How To Avoid Shape Collision
 ############################
 
@@ -25,7 +31,7 @@ How To Fix Non-Reshape-able Model
 
 To fix some operators which prevent normal shape propagation:
 
-* see if the issue can be fixed via changing the values of some operators' input. For example, the most common problem of non-reshape-able models is a ``Reshape`` operator with a hard-coded output shape. You can cut-off the hard-coded second input of ``Reshape`` and fill it in with relaxed values. For the following example in the diagram below, the Model Optimizer CLI should read:
+* see if the issue can be fixed via changing the values of some operators' input. For example, the most common problem of non-reshape-able models is a ``Reshape`` operator with a hard-coded output shape. You can cut-off the hard-coded second input of ``Reshape`` and fill it in with relaxed values. For the following example in the diagram below, the model conversion API command line should read:
 
   .. code-block:: sh
 
@@ -38,7 +44,7 @@ To fix some operators which prevent normal shape propagation:
 
   .. image:: _static/images/batch_relaxation.png
 
-* transform the model during Model Optimizer conversion on the back phase. For more information, see the :doc:`Model Optimizer extension <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`,
+* transform the model conversion on the back phase. For more information, see the :doc:`How to Convert a Model <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`,
 * transform OpenVINO Model during the runtime. For more information, see :doc:`OpenVINO Runtime Transformations <openvino_docs_transformations>`,
 * modify the original model with the help of the original framework.
 

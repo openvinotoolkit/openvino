@@ -33,7 +33,7 @@ const auto isInfParams = ::testing::Combine(::testing::ValuesIn(inShapesStatic),
                                             ::testing::ValuesIn(detectNegative),
                                             ::testing::ValuesIn(detectPositive),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(additional_config));
 
 TEST_P(IsInfLayerTest, CompareWithRefs) {

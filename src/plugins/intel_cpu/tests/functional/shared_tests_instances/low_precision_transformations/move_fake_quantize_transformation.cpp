@@ -14,7 +14,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     //ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
 };
 
@@ -146,7 +146,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn({false, true}),
         ::testing::ValuesIn(params)),
@@ -177,7 +177,7 @@ namespace testValues2 {
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::ValuesIn(shapes),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(ov::test::utils::DEVICE_CPU),
             ::testing::ValuesIn(trasformationParamValues),
             ::testing::ValuesIn({false}),
             ::testing::ValuesIn(params)),

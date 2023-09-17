@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include <gtest/gtest.h>
+
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace ov::opset8;
 using namespace testing;
 

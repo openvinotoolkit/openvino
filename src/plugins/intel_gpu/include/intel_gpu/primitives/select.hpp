@@ -20,6 +20,8 @@ namespace cldnn {
 struct select : public primitive_base<select> {
     CLDNN_DECLARE_PRIMITIVE(select)
 
+    select() : primitive_base("", {}) {}
+
     /// @brief Constructs select primitive.
     /// @param id This primitive id.
     /// @param mask Input primitive id with values needed for select computation.
@@ -48,6 +50,16 @@ struct select : public primitive_base<select> {
         auto rhs_casted = downcast<const select>(rhs);
 
         return broadcast_spec == rhs_casted.broadcast_spec;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<select>::save(ob);
+        ob << make_data(&broadcast_spec, sizeof(ov::op::AutoBroadcastSpec));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<select>::load(ib);
+        ib >> make_data(&broadcast_spec, sizeof(ov::op::AutoBroadcastSpec));
     }
 };
 }  // namespace cldnn

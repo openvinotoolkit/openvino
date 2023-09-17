@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp"
+#include "openvino/reference/ctc_greedy_decoder_seq_len.hpp"
 
 #include "evaluate_node.hpp"
 
@@ -20,23 +20,23 @@ inline void evaluate(const std::shared_ptr<ngraph::op::v6::CTCGreedyDecoderSeqLe
         blank_index = inputs[2]->get_data_ptr<const TI>();
     }
     if (op->get_sequence_length_type() == ngraph::element::i32) {
-        ngraph::runtime::reference::ctc_greedy_decoder_seq_len<TF>(inputs[0]->get_data_ptr<const TF>(),
-                                                                   inputs[1]->get_data_ptr<const TI>(),
-                                                                   blank_index,
-                                                                   outputs[0]->get_data_ptr<TIND1>(),
-                                                                   outputs[1]->get_data_ptr<int32_t>(),
-                                                                   inputs[0]->get_shape(),
-                                                                   outputs[0]->get_shape(),
-                                                                   op->get_merge_repeated());
+        ov::reference::ctc_greedy_decoder_seq_len<TF>(inputs[0]->get_data_ptr<const TF>(),
+                                                      inputs[1]->get_data_ptr<const TI>(),
+                                                      blank_index,
+                                                      outputs[0]->get_data_ptr<TIND1>(),
+                                                      outputs[1]->get_data_ptr<int32_t>(),
+                                                      inputs[0]->get_shape(),
+                                                      outputs[0]->get_shape(),
+                                                      op->get_merge_repeated());
     } else if (op->get_sequence_length_type() == ngraph::element::i64) {
-        ngraph::runtime::reference::ctc_greedy_decoder_seq_len<TF>(inputs[0]->get_data_ptr<const TF>(),
-                                                                   inputs[1]->get_data_ptr<const TI>(),
-                                                                   blank_index,
-                                                                   outputs[0]->get_data_ptr<TIND1>(),
-                                                                   outputs[1]->get_data_ptr<int64_t>(),
-                                                                   inputs[0]->get_shape(),
-                                                                   outputs[0]->get_shape(),
-                                                                   op->get_merge_repeated());
+        ov::reference::ctc_greedy_decoder_seq_len<TF>(inputs[0]->get_data_ptr<const TF>(),
+                                                      inputs[1]->get_data_ptr<const TI>(),
+                                                      blank_index,
+                                                      outputs[0]->get_data_ptr<TIND1>(),
+                                                      outputs[1]->get_data_ptr<int64_t>(),
+                                                      inputs[0]->get_shape(),
+                                                      outputs[0]->get_shape(),
+                                                      op->get_merge_repeated());
     }
 }
 }  // namespace ctc_greedy_decoder_v6

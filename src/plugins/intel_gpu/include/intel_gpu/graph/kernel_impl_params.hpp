@@ -22,6 +22,7 @@
 namespace cldnn {
 
 struct program;
+struct network;
 
 
 struct kernel_impl_params {
@@ -36,6 +37,7 @@ struct kernel_impl_params {
     stream::ptr strm;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
+    bool _can_be_optimized = false;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;
@@ -53,6 +55,13 @@ struct kernel_impl_params {
 
     std::map<size_t, memory::ptr> memory_deps = {};
     size_t primary_input_idx = 0;
+    std::vector<std::shared_ptr<program>> inner_progs = {};
+    std::vector<std::shared_ptr<network>> inner_nets = {};
+    std::vector<std::map<size_t, primitive_id>> io_output_maps = {};
+    // TODO : These values are temporarily added for prior box.
+    // Such values decided at runtime shape infer and primitive creation will be handled with more generalized way in the near future.
+    std::vector<size_t> output_size;
+    std::vector<size_t> img_size;
 
     kernel_impl_params() : prog(nullptr), strm(nullptr), desc(nullptr), unique_id(0) {}
 
@@ -65,8 +74,8 @@ struct kernel_impl_params {
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs)
                        : has_runtime_layouts(true)
                        , prog(&_prog)
-                       , strm(_strm)
-                       , desc(_desc)
+                       , strm(std::move(_strm))
+                       , desc(std::move(_desc))
                        , unique_id(_uid)
                        , input_layouts(_in_layouts)
                        , output_layouts(_out_layouts)
@@ -105,22 +114,33 @@ struct kernel_impl_params {
     }
 
     bool is_dynamic() const {
-        for (auto i : input_layouts)
+        for (auto& i : input_layouts)
             if (i.is_dynamic())
                 return true;
-        for (auto i : output_layouts)
+        for (auto& i : output_layouts)
             if (i.is_dynamic())
                 return true;
         return false;
     }
 
+    bool can_be_optimized() const {
+        return _can_be_optimized;
+    }
+
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
+
+    template <class PType>
+    bool is_type() const {
+        return std::static_pointer_cast<const PType>(desc)->type == PType::type_id();
+    }
+
+virtual primitive_type_id type() const { return desc->type; }
 
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);
     const program& get_program() const {
-        OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params in not initialized");
+        OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");
         return *prog;
     }
     stream& get_stream() const { return *strm; }

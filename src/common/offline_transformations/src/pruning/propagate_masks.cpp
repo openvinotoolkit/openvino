@@ -5,21 +5,22 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
-#include <ngraph/coordinate_transform.hpp>
-#include <ngraph/log.hpp>
-#include <ngraph/op/gelu.hpp>
-#include <ngraph/op/max_pool.hpp>
-#include <ngraph/op/shape_of.hpp>
-#include <ngraph/op/softmax.hpp>
-#include <ngraph/opsets/opset10.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 
 #include "mask_attribute.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/util/pad_base.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/util/log.hpp"
 #include "pruning.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace mask_propagation {
 
@@ -39,7 +40,7 @@ class Concat;
 
 }  // namespace mask_propagation
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 namespace ov {
 namespace pass {
@@ -52,23 +53,23 @@ class Split;
 }  // namespace pass
 }  // namespace ov
 
-static ngraph::Shape broadcast_shape_to_rank(ngraph::Shape shape_to_broadcast, int64_t dst_rank) {
+static ov::Shape broadcast_shape_to_rank(ov::Shape shape_to_broadcast, int64_t dst_rank) {
     auto initial_rank = static_cast<int64_t>(shape_to_broadcast.size());
     auto num_of_broadcased_dims = dst_rank - initial_rank;
     std::vector<size_t> dims(num_of_broadcased_dims, 1);
     dims.insert(dims.end(), shape_to_broadcast.begin(), shape_to_broadcast.end());
-    auto new_shape = ngraph::Shape(dims);
+    auto new_shape = ov::Shape(dims);
     return new_shape;
 }
 
-class ngraph::pass::mask_propagation::MatMul : public MatcherPass {
+class ov::pass::mask_propagation::MatMul : public MatcherPass {
 public:
     MatMul() {
         auto a = pattern::any_input(pattern::has_static_shape());
         auto b = pattern::any_input(pattern::has_static_shape());
         auto matmul = pattern::wrap_type<opset10::MatMul>({a, b});
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_a = pattern_map.at(a);
             const auto& m_b = pattern_map.at(b);
@@ -78,21 +79,21 @@ public:
             auto b_mask = getMask(m_b);
 
             if (!a_mask && !b_mask) {
-                NGRAPH_DEBUG << "No mask for any input of " << m_matmul.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG << "No mask for any input of " << m_matmul.get_node()->get_friendly_name() << "\n";
                 return false;
             }
             if (!b_mask) {
-                NGRAPH_DEBUG << "No mask for input b of " << m_matmul.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG << "No mask for input b of " << m_matmul.get_node()->get_friendly_name() << "\n";
                 return false;
             }
 
             const auto matmul_range = m_matmul.get_shape().size();
             if (matmul_range < 2) {
-                NGRAPH_DEBUG << "Matmul operation with rank = 1 is not supported by pruning algo by now\n";
+                OPENVINO_DEBUG << "Matmul operation with rank = 1 is not supported by pruning algo by now\n";
                 return false;
             }
 
-            Mask* a_mask_row = nullptr;
+            ov::Mask* a_mask_row = nullptr;
             if (a_mask)
                 a_mask_row = a_mask.get();
             auto b_mask_row = b_mask.get();
@@ -109,7 +110,7 @@ public:
             const auto b_inner_dim = (transpose_b) ? shape_b.size() - 1 : shape_b.size() - 2;
             const auto b_outer_dim = (transpose_b) ? shape_b.size() - 2 : shape_b.size() - 1;
 
-            auto matmul_mask = std::make_shared<Mask>(matmul_range);
+            auto matmul_mask = std::make_shared<ov::Mask>(matmul_range);
             auto matmul_mask_row = matmul_mask.get();
             const auto matmul_cols_dim = matmul_range - 1;
             const auto matmul_rows_dim = matmul_range - 2;
@@ -118,8 +119,8 @@ public:
             if (a_mask) {
                 bool init = true;
                 a_mask->add_callback(
-                    [=](Mask::Ptr cur_mask) -> bool {
-                        auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                    [=](ov::Mask::Ptr cur_mask) -> bool {
+                        auto result_mask = std::make_shared<ov::Mask>(cur_mask->size());
                         result_mask->copy_value_from_mask_reversed(matmul_mask_row);
                         result_mask->at(a_inner_dim) = b_mask_row->at(b_inner_dim);
                         result_mask->at(a_outer_dim) = matmul_mask_row->at(matmul_rows_dim);
@@ -128,8 +129,8 @@ public:
                     },
                     matmul_mask);
                 matmul_mask->add_callback(
-                    [=](Mask::Ptr cur_mask) mutable -> bool {
-                        auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                    [=](ov::Mask::Ptr cur_mask) mutable -> bool {
+                        auto result_mask = std::make_shared<ov::Mask>(cur_mask->size());
                         result_mask->copy_value_from_mask(cur_mask.get());
                         result_mask->copy_value_from_mask_reversed(a_mask_row);
                         if (init) {
@@ -148,8 +149,8 @@ public:
             }
             // connect b with matmul mask
             b_mask->add_callback(
-                [=](Mask::Ptr cur_mask) -> bool {
-                    auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                [=](ov::Mask::Ptr cur_mask) -> bool {
+                    auto result_mask = std::make_shared<ov::Mask>(cur_mask->size());
                     result_mask->copy_value_from_mask_reversed(matmul_mask_row);
                     if (a_mask_row)
                         result_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
@@ -161,9 +162,9 @@ public:
                 },
                 matmul_mask);
             matmul_mask->add_callback(
-                [=](Mask::Ptr cur_mask) -> bool {
+                [=](ov::Mask::Ptr cur_mask) -> bool {
                     if (a_mask_row) {
-                        auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                        auto result_mask = std::make_shared<ov::Mask>(cur_mask->size());
                         result_mask->copy_value_from_mask(cur_mask.get());
                         result_mask->copy_value_from_mask_reversed(b_mask_row);
                         result_mask->at(matmul_rows_dim) = cur_mask->at(matmul_rows_dim);
@@ -192,19 +193,19 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "MatMulMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul, "MatMulMaskPropagation");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::mask_propagation::Convolution : public MatcherPass {
+class ov::pass::mask_propagation::Convolution : public MatcherPass {
 public:
     Convolution() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input(pattern::has_static_shape());
         auto conv = pattern::wrap_type<opset10::Convolution>({input, weights});
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_weights = pattern_map.at(weights);
             const auto& m_output = pattern_map.at(conv);
@@ -216,20 +217,20 @@ public:
             // Weights mask for convolution should be initialized in the InitMasks pass (and propagate after it).
             // If mask isn't initialized - this weights (and hence all convolution) can't be pruned for some reason.
             if (!weights_mask) {
-                NGRAPH_DEBUG << "No weights mask for " << m_output.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG << "No weights mask for " << m_output.get_node()->get_friendly_name() << "\n";
                 return false;
             }
             auto weights_mask_row = weights_mask.get();
 
             // Create output mask that describes which channel dimensions will be removed
-            auto conv_mask = std::make_shared<Mask>(m_weights.get_shape().size());
+            auto conv_mask = std::make_shared<ov::Mask>(m_weights.get_shape().size());
             auto conv_mask_row = conv_mask.get();
             auto input_mask = getMask(m_input);
-            Mask* input_mask_row = nullptr;
+            ov::Mask* input_mask_row = nullptr;
             if (input_mask)
                 input_mask_row = input_mask.get();
 
-            const auto conv_mask_callback = [input_mask_row, weights_mask_row](Mask::Ptr cur_mask) -> bool {
+            const auto conv_mask_callback = [input_mask_row, weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                 cur_mask->at(1 /*input data channel*/) = weights_mask_row->at(0 /* weights output channel dim*/);
                 if (input_mask_row && input_mask_row->at(1) != weights_mask_row->at(1))
                     cur_mask->initialize_dependencies();
@@ -241,7 +242,7 @@ public:
                 // so we update weights mask to be aligned with input shape.
                 conv_mask->add_callback(conv_mask_callback, input_mask);
                 input_mask->add_callback(
-                    [weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                    [weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                         cur_mask->at(1) = weights_mask_row->at(1);
                         return true;
                     },
@@ -250,7 +251,7 @@ public:
 
             conv_mask->add_callback(conv_mask_callback, weights_mask);
             weights_mask->add_callback(
-                [input_mask_row, conv_mask_row](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row, conv_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(0) = conv_mask_row->at(1);
                     if (input_mask_row)
                         cur_mask->at(1) = input_mask_row->at(1);
@@ -271,19 +272,19 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvolutionMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(conv, "ConvolutionMaskPropagation");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::mask_propagation::GroupConvolution : public MatcherPass {
+class ov::pass::mask_propagation::GroupConvolution : public MatcherPass {
 public:
     GroupConvolution() {
         auto input = pattern::any_input(pattern::has_static_dim(1));
         auto weights = pattern::any_input(pattern::has_static_shape());
         auto group_conv = pattern::wrap_type<opset10::GroupConvolution>({input, weights});
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_weights = pattern_map.at(weights);
             const auto& m_output = pattern_map.at(group_conv);
@@ -305,43 +306,43 @@ public:
             auto weights_mask = getMask(m_weights);
             if (!weights_mask) {
                 // Setting mask only if weights are constant
-                if (ngraph::is_type<opset10::Constant>(m_output.get_node_shared_ptr())) {
-                    weights_mask = std::make_shared<Mask>(weights_shape.size());
+                if (ov::is_type<opset10::Constant>(m_output.get_node_shared_ptr())) {
+                    weights_mask = std::make_shared<ov::Mask>(weights_shape.size());
                     setMask(m_weights, weights_mask);
                 } else {
-                    NGRAPH_DEBUG << "GroupConvolution: No weights mask and weights aren't constant for "
-                                 << *m_output.get_node() << "\n";
+                    OPENVINO_DEBUG << "GroupConvolution: No weights mask and weights aren't constant for "
+                                   << *m_output.get_node() << "\n";
                     return false;
                 }
             }
             auto weights_mask_row = weights_mask.get();
 
-            auto conv_mask = std::make_shared<Mask>(input_shape.rank().get_length());
+            auto conv_mask = std::make_shared<ov::Mask>(input_shape.rank().get_length());
             auto conv_mask_row = conv_mask.get();
 
             conv_mask->add_callback(
-                [input_mask_row](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(1 /*input data channel*/) = input_mask_row->at(1 /*output data channel*/);
                     return true;
                 },
                 input_mask);
 
             input_mask->add_callback(
-                [conv_mask_row](Mask::Ptr cur_mask) -> bool {
+                [conv_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(1 /*output data channel*/) = conv_mask_row->at(1 /*input data channel*/);
                     return true;
                 },
                 conv_mask);
 
             conv_mask->add_callback(
-                [weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                [weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(1 /*input data channel*/) = weights_mask_row->at(0 /*weights output channel dim*/);
                     return true;
                 },
                 weights_mask);
 
             weights_mask->add_callback(
-                [conv_mask_row](Mask::Ptr cur_mask) -> bool {
+                [conv_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(0 /*weights output channel dim*/) = conv_mask_row->at(1 /*output data channel*/);
                     return true;
                 },
@@ -356,12 +357,12 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(group_conv, "GroupConvolutionMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(group_conv, "GroupConvolutionMaskPropagation");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::mask_propagation::GroupConvolutionReshape : public MatcherPass {
+class ov::pass::mask_propagation::GroupConvolutionReshape : public MatcherPass {
 public:
     GroupConvolutionReshape() {
         auto input = pattern::any_input(pattern::has_static_shape());
@@ -371,7 +372,7 @@ public:
         auto gconv =
             pattern::wrap_type<opset10::GroupConvolution>({pattern::any_input(), reshape}, pattern::has_static_shape());
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_shape = pattern_map.at(shape);
             const auto& m_output = pattern_map.at(reshape);
@@ -401,24 +402,24 @@ public:
             const auto constant = get_constant_from_source(m_shape.get_node_shared_ptr());
             OPENVINO_SUPPRESS_DEPRECATED_END
             if (!constant) {
-                NGRAPH_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
+                OPENVINO_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
                 return false;
             }
             auto input_mask_row = input_mask.get();
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
 
             auto output_mask_row = output_mask.get();
 
             // Depthwise Convolution pruned only by input channels (== groups) ->
             // Propagating mask from Group (0) dim in Reshape input to Group (0) dim in Reshape output and back
             input_mask->add_callback(
-                [output_mask_row](Mask::Ptr cur_mask) -> bool {
+                [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(0) = output_mask_row->at(0);
                     return true;
                 },
                 output_mask);
             output_mask->add_callback(
-                [input_mask_row](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(0) = input_mask_row->at(0);
                     return true;
                 },
@@ -440,7 +441,7 @@ public:
             const auto concat = std::make_shared<opset10::Concat>(
                 NodeVector{opset10::Constant::create(m_shape.get_element_type(), {2}, {-1, 1}), gather},
                 0);
-            for (auto consumer : m_shape_consumers)
+            for (auto& consumer : m_shape_consumers)
                 consumer.replace_source_output(concat);
 
             // This transformation propagates only Reshape mask and doesn't do anything with GroupConvolution.
@@ -448,12 +449,12 @@ public:
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "GroupConvolutionReshapeMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(gconv, "GroupConvolutionReshapeMaskPropagation");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::mask_propagation::Elementwise : public MatcherPass {
+class ov::pass::mask_propagation::Elementwise : public MatcherPass {
 public:
     Elementwise() {
         auto input = pattern::any_input();
@@ -464,7 +465,7 @@ public:
                 pattern::has_static_rank());
         // TODO: add Div, Power support
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_output = pattern_map.at(eltwise);
             // Inputs are taken in deterministic way
@@ -479,12 +480,12 @@ public:
                 return false;
 
             if (m_output.get_node_shared_ptr()->get_autob() != op::AutoBroadcastType::NUMPY) {
-                NGRAPH_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
-                             << " because node is using unsupported broadcast mode." << std::endl;
+                OPENVINO_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
+                               << " because node is using unsupported broadcast mode." << std::endl;
                 return false;
             }
             // Case when input masks should be united instead of intersection
-            bool union_eltwise_type = ngraph::is_type<opset10::Multiply>(m_output.get_node_shared_ptr());
+            bool union_eltwise_type = ov::is_type<opset10::Multiply>(m_output.get_node_shared_ptr());
 
             using dims_set = std::set<int64_t>;
             auto input_shape_broadcasted_dims = dims_set();
@@ -526,13 +527,13 @@ public:
                              std::inserter(weights_shape_mask, weights_shape_mask.begin()),
                              ge_zero_pred);
 
-                for (auto& elem : weights_shape_broadcasted_dims) {
+                for (const auto elem : weights_shape_broadcasted_dims) {
                     const auto shifted_elem = elem + input_shape_size_diff;
                     if (shifted_elem >= 0)
                         input_shape_mask.insert(shifted_elem);
                 }
 
-                for (auto& elem : input_shape_broadcasted_dims) {
+                for (const auto elem : input_shape_broadcasted_dims) {
                     const auto shifted_elem = elem + weights_shape_size_diff;
                     if (shifted_elem >= 0)
                         weights_shape_mask.insert(shifted_elem);
@@ -541,8 +542,8 @@ public:
 
             // Prevent case when input_shape and weights_shape both has broadcasted dims
             if (input_shape_broadcasted_dims.size() && weights_shape_broadcasted_dims.size()) {
-                NGRAPH_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
-                             << " because both input shapes contains broadcasted dims." << std::endl;
+                OPENVINO_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
+                               << " because both input shapes contains broadcasted dims." << std::endl;
                 return false;
             }
 
@@ -562,28 +563,28 @@ public:
             }
 
             if (!input_mask) {
-                NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
             if (!weights_mask) {
                 // Set dummy mask to weight input in case this input has no mask
                 // and has broadcastable dimentions
                 if (!weights_shape_broadcasted_dims.size()) {
-                    NGRAPH_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                    OPENVINO_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                     return false;
                 }
-                weights_mask = std::make_shared<Mask>(m_weights.get_partial_shape().rank().get_length());
+                weights_mask = std::make_shared<ov::Mask>(m_weights.get_partial_shape().rank().get_length());
                 setMask(m_weights, weights_mask);
             }
 
             auto input_mask_row = input_mask.get();
             auto weights_mask_row = weights_mask.get();
             // Merging masks from two inputs
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
-            auto out_mask_callback = [=](Mask::Ptr cur_mask) -> bool {
-                Mask::Ptr result_mask;
+            auto out_mask_callback = [=](ov::Mask::Ptr cur_mask) -> bool {
+                ov::Mask::Ptr result_mask;
                 if (union_eltwise_type) {
                     result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
                 } else {
@@ -596,21 +597,21 @@ public:
             output_mask->add_callback(out_mask_callback, input_mask);
 
             input_mask->add_callback(
-                [weights_mask_row, input_shape_mask](Mask::Ptr cur_mask) -> bool {
+                [weights_mask_row, input_shape_mask](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->copy_value_from_mask_reversed_masked(weights_mask_row, input_shape_mask);
                     return true;
                 },
                 weights_mask);
             input_mask->add_callback(
-                [output_mask_row](Mask::Ptr cur_mask) -> bool {
+                [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->copy_value_from_mask_reversed(output_mask_row);
                     return true;
                 },
                 output_mask);
             weights_mask->add_callback(
-                [input_mask_row, weights_shape_mask](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row, weights_shape_mask](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, weights_shape_mask);
-                    for (auto& dim : weights_shape_mask)
+                    for (const auto dim : weights_shape_mask)
                         cur_mask->at(dim).clear();
                     return true;
                 },
@@ -623,25 +624,25 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, "ElementwiseMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(eltwise, "ElementwiseMaskPropagation");
         register_matcher(m, callback);
     }
 
 private:
-    static ngraph::AxisSet get_axis_set(const ov::Shape shape) {
-        ngraph::AxisSet ret_val;
+    static ov::AxisSet get_axis_set(const ov::Shape shape) {
+        ov::AxisSet ret_val;
         if (shape.size()) {
-            ret_val = ngraph::AxisSet();
+            ret_val = ov::AxisSet();
             for (size_t i = 0; i < shape.size(); ++i)
                 ret_val.insert(i);
         } else {
-            ret_val = ngraph::AxisSet({0, 1, 2, 3});
+            ret_val = ov::AxisSet({0, 1, 2, 3});
         }
         return ret_val;
     }
 };
 
-class ngraph::pass::mask_propagation::FakeQuantize : public MatcherPass {
+class ov::pass::mask_propagation::FakeQuantize : public MatcherPass {
 public:
     FakeQuantize() {
         auto input = pattern::any_input(pattern::has_static_shape());
@@ -651,7 +652,7 @@ public:
         auto output_high = pattern::any_input(pattern::has_static_shape());
         auto fake_quantize =
             pattern::wrap_type<opset10::FakeQuantize>({input, input_low, input_high, output_low, output_high});
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_input = pattern_map.at(input);
             const auto& m_input_low = pattern_map.at(input_low);
@@ -664,23 +665,23 @@ public:
 
             // Input mask is the only source of pruning in FQ
             if (!input_mask) {
-                NGRAPH_DEBUG << "FakeQuantize: No input mask for " << *m_output.get_node() << "\n";
+                OPENVINO_DEBUG << "FakeQuantize: No input mask for " << *m_output.get_node() << "\n";
                 return false;
             }
 
             auto input_mask_row = input_mask.get();
 
             // Propagate input mask to output mask and in the opposite direction
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
             // Output mask is equal to input mask
-            auto output_mask_callback = [input_mask_row](Mask::Ptr cur_mask) -> bool {
+            auto output_mask_callback = [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                 cur_mask->copy_value_from_mask(input_mask_row);
                 return true;
             };
 
-            auto input_mask_callback = [output_mask_row](Mask::Ptr cur_mask) -> bool {
+            auto input_mask_callback = [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                 cur_mask->copy_value_from_mask(output_mask_row);
                 return true;
             };
@@ -712,32 +713,32 @@ public:
             if (!fq_node)
                 return false;
             size_t idx = 0;
-            if (fq_node->get_auto_broadcast() != ngraph::op::AutoBroadcastType::NONE) {
-                for (auto node : fq_params_nodes) {
-                    auto const_node = std::dynamic_pointer_cast<op::Constant>(node);
+            if (fq_node->get_auto_broadcast() != ov::op::AutoBroadcastType::NONE) {
+                for (const auto& node : fq_params_nodes) {
+                    auto const_node = std::dynamic_pointer_cast<op::v0::Constant>(node);
                     if (!const_node)
                         OPENVINO_THROW("Unexpected operation type.");
                     auto new_shape = broadcast_shape_to_rank(const_node->get_shape(),
                                                              m_input.get_partial_shape().rank().get_length());
-                    auto new_const = std::make_shared<op::Constant>(*const_node, new_shape);
+                    auto new_const = std::make_shared<op::v0::Constant>(*const_node, new_shape);
                     new_const->set_friendly_name(const_node->get_friendly_name());
-                    ngraph::copy_runtime_info(const_node, new_const);
-                    ngraph::replace_node(const_node, new_const);
+                    ov::copy_runtime_info(const_node, new_const);
+                    ov::replace_node(const_node, new_const);
                     fq_params_nodes[idx++] = new_const;
                 }
             }
 
-            auto fq_params_mask_callback = [input_mask_row](Mask::Ptr cur_mask) -> bool {
+            auto fq_params_mask_callback = [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                 cur_mask->at(1 /* fq params have same shapes as input */) =
                     input_mask_row->at(1 /* channel dim in data */);
                 return true;
             };
 
-            for (auto fq_param : fq_params_nodes) {
-                auto mask = std::make_shared<Mask>(fq_param->get_shape().size());
+            for (const auto& fq_param : fq_params_nodes) {
+                auto mask = std::make_shared<ov::Mask>(fq_param->get_shape().size());
                 mask->add_callback(fq_params_mask_callback, input_mask);
                 input_mask->add_callback(
-                    [mask](Mask::Ptr cur_mask) -> bool {
+                    [mask](ov::Mask::Ptr cur_mask) -> bool {
                         return true;
                     },
                     mask);
@@ -748,17 +749,17 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(fake_quantize, "FakeQuantizeMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(fake_quantize, "FakeQuantizeMaskPropagation");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::mask_propagation::Concat : public MatcherPass {
+class ov::pass::mask_propagation::Concat : public MatcherPass {
 public:
     Concat() {
         auto concat = pattern::wrap_type<opset10::Concat>(pattern::has_static_shape());
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_output = pattern_map.at(concat);
             auto concat_ptr = std::dynamic_pointer_cast<opset10::Concat>(m_output.get_node_shared_ptr());
@@ -768,12 +769,12 @@ public:
             auto axis = concat_ptr->get_concatenation_axis();
 
             auto inputs = concat_ptr->inputs();
-            std::map<int64_t, Mask::Ptr> input_masks;
-            std::map<int64_t, Mask*> input_masks_row;
+            std::map<int64_t, ov::Mask::Ptr> input_masks;
+            std::map<int64_t, ov::Mask*> input_masks_row;
             std::vector<int64_t> input_sizes;
 
             size_t first_input_idx = 0;
-            Mask::Ptr first_input_mask;
+            ov::Mask::Ptr first_input_mask;
             bool first_initialized = false;
             for (size_t i = 0; i < inputs.size(); i++) {
                 auto input = inputs[i];
@@ -795,16 +796,16 @@ public:
                 return false;
             }
 
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
-            auto out_mask_callback = [input_masks_row, input_sizes, axis](Mask::Ptr cur_mask) -> bool {
+            auto out_mask_callback = [input_masks_row, input_sizes, axis](ov::Mask::Ptr cur_mask) -> bool {
                 int64_t cur_size = 0;
                 cur_mask->at(axis).clear();
 
                 for (size_t i = 0; i < input_sizes.size(); ++i) {
                     if (input_masks_row.count(i)) {
-                        for (auto idx : input_masks_row.at(i)->at(axis)) {
+                        for (const auto idx : input_masks_row.at(i)->at(axis)) {
                             cur_mask->at(axis).insert(idx + cur_size);
                         }
                     }
@@ -814,14 +815,15 @@ public:
             };
 
             auto create_input_mask_callback_for_idx = [output_mask_row, input_sizes, axis](size_t input_idx) {
-                auto input_mask_callback = [output_mask_row, input_sizes, axis, input_idx](Mask::Ptr cur_mask) -> bool {
+                auto input_mask_callback =
+                    [output_mask_row, input_sizes, axis, input_idx](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->clean_dim_values();
                     uint64_t min_val = 0;
                     for (size_t i = 0; i < input_idx; i++) {
                         min_val += input_sizes[i];
                     }
                     uint64_t max_val = min_val + input_sizes[input_idx];
-                    for (auto idx : output_mask_row->at(axis)) {
+                    for (const auto idx : output_mask_row->at(axis)) {
                         if (idx < max_val && idx >= min_val) {
                             cur_mask->at(axis).insert(idx - min_val);
                         }
@@ -837,7 +839,7 @@ public:
                     auto input_mask = input_masks.at(i);
                     input_mask->add_callback(create_input_mask_callback_for_idx(i), first_input_mask);
                     first_input_mask->add_callback(
-                        [](Mask::Ptr cur_mask) -> bool {
+                        [](ov::Mask::Ptr cur_mask) -> bool {
                             return true;
                         },
                         input_mask);
@@ -849,12 +851,12 @@ public:
 
             return true;
         };
-        auto m = std::make_shared<ngraph::pattern::Matcher>(concat, "ConcatMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(concat, "ConcatMaskPropagation");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::mask_propagation::PassThrough : public MatcherPass {
+class ov::pass::mask_propagation::PassThrough : public MatcherPass {
 public:
     PassThrough() {
         auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
@@ -874,12 +876,12 @@ public:
                                            opset10::MaxPool,
                                            opset10::ROIPooling,
                                            opset10::PSROIPooling,
-                                           opset10::Pad,
+                                           ov::op::util::PadBase,
                                            opset10::MVN,
                                            op::v0::Gelu,
                                            opset10::Gelu>();
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_output = pattern_map.at(unary_op);
             const auto& m_input = m_output.get_node_shared_ptr()->input_value(0);
@@ -891,12 +893,12 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(unary_op, "PassThroughMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(unary_op, "PassThroughMaskPropagation");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::mask_propagation::Reduce : public MatcherPass {
+class ov::pass::mask_propagation::Reduce : public MatcherPass {
 public:
     Reduce() {
         auto inputs = pattern::any_input();
@@ -904,7 +906,7 @@ public:
         auto pooling_by_reduce =
             pattern::wrap_type<opset10::ReduceMin, opset10::ReduceMax, opset10::ReduceMean>({inputs, weights});
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto m_weights = pattern_map.at(weights);
             const auto& m_input = pattern_map.at(inputs);
@@ -912,7 +914,7 @@ public:
 
             // Check reduce operation reduces only dimension without masks
             if (auto input_mask = getMask(m_input)) {
-                auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+                auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
                 const auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
                 OPENVINO_ASSERT(!!constant, "Dynamic cast returned a nullptr");
                 const auto reduce_dims = constant->cast_vector<int64_t>();
@@ -920,13 +922,13 @@ public:
                 auto input_mask_row = input_mask.get();
                 auto output_mask_row = output_mask.get();
                 input_mask->add_callback(
-                    [output_mask_row](Mask::Ptr cur_mask) -> bool {
+                    [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                         cur_mask->copy_value_from_mask(output_mask_row);
                         return true;
                     },
                     output_mask);
                 output_mask->add_callback(
-                    [input_mask_row, reduce_dims](Mask::Ptr cur_mask) -> bool {
+                    [input_mask_row, reduce_dims](ov::Mask::Ptr cur_mask) -> bool {
                         // Propagate masks through dimension only if this dimension isn't reduced
                         for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
                             if (std::find(reduce_dims.begin(), reduce_dims.end(), dim) == reduce_dims.end())
@@ -945,7 +947,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(pooling_by_reduce, "PassThroughReduceMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pooling_by_reduce, "PassThroughReduceMaskPropagation");
         register_matcher(m, callback);
     }
 };
@@ -1012,18 +1014,18 @@ struct ChannelsMap {
 /* Returns coordinate iterator through all values of given channel
  *  on unsquized_shape_dim dimension according to unsquized_shape shape.
  */
-NGRAPH_SUPPRESS_DEPRECATED_START
-static ngraph::CoordinateTransform get_channel_iter(const ov::Shape unsquized_shape,
-                                                    const size_t unsquized_shape_dim,
-                                                    const size_t channel) {
+OPENVINO_SUPPRESS_DEPRECATED_START
+static ov::CoordinateTransform get_channel_iter(const ov::Shape unsquized_shape,
+                                                const size_t unsquized_shape_dim,
+                                                const size_t channel) {
     auto begin = ov::Coordinate(unsquized_shape.size(), 0);
     auto end = ov::Coordinate(unsquized_shape);
     begin[unsquized_shape_dim] = channel;
     end[unsquized_shape_dim] = channel + 1;
-    ngraph::CoordinateTransform iter(unsquized_shape, begin, end);
+    ov::CoordinateTransform iter(unsquized_shape, begin, end);
     return iter;
 }
-NGRAPH_SUPPRESS_DEPRECATED_END
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 /* Maps squzed_mask_dim mask dimension to vector of masks for unsquized_dims.
  *  Using dims_attrs and unsquized_shape for channel iteration.
@@ -1035,7 +1037,7 @@ static ChannelsMap map_channels(const std::set<uint64_t> squized_mask_dim,
     auto squized_mask_res = std::set<uint64_t>();
     auto unsquized_mask = std::map<uint64_t, std::set<uint64_t>>();
     auto suspicious_elems = std::set<uint64_t>();
-    for (auto& unsquized_dim : unsquized_dims) {
+    for (const auto unsquized_dim : unsquized_dims) {
         unsquized_mask[unsquized_dim] = std::set<uint64_t>();
         auto squized_mask_dim_copy = std::set<uint64_t>();
         const auto unsquized_shift = unsquized_dim - unsquized_dims[0];
@@ -1054,7 +1056,7 @@ static ChannelsMap map_channels(const std::set<uint64_t> squized_mask_dim,
                 ch %= dims_attrs[unsquized_dim].dim;
 
             // Start iterating through chanel
-            NGRAPH_SUPPRESS_DEPRECATED_START
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto iter = get_channel_iter(unsquized_shape, unsquized_shift, ch);
             for (const auto& coord : iter) {
                 const auto idx = iter.index(coord);
@@ -1063,7 +1065,7 @@ static ChannelsMap map_channels(const std::set<uint64_t> squized_mask_dim,
                     squized_mask_dim_copy.erase(idx);
                 }
             }
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (cur_ch_elems.size() !=
                 dims_attrs[unsquized_dim].elems_inner_dims * dims_attrs[unsquized_dim].elems_outer_dims) {
                 suspicious_elems.insert(cur_ch_elems.begin(), cur_ch_elems.end());
@@ -1113,14 +1115,14 @@ static std::vector<DimsAttr> collect_dims_attrs(const std::vector<dims_vec> dims
     return dims_attrs;
 }
 
-class ngraph::pass::mask_propagation::Reshape : public MatcherPass {
+class ov::pass::mask_propagation::Reshape : public MatcherPass {
 public:
     Reshape() {
         auto inputs = pattern::any_input(pattern::has_static_shape());
         auto weights = pattern::any_input();
         auto reshape = pattern::wrap_type<opset10::Reshape>({inputs, weights}, pattern::has_static_shape());
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto m_weights = pattern_map.at(weights);
             const auto& m_input = pattern_map.at(inputs);
@@ -1128,7 +1130,7 @@ public:
 
             // Check if this reshape is before group convolution
             // In such case this reshape should be processed by GroupConvolutionReshape pass
-            for (const auto inp : m_output.get_target_inputs())
+            for (const auto& inp : m_output.get_target_inputs())
                 if (is_type<opset10::GroupConvolution>(inp.get_node()))
                     return true;
 
@@ -1138,9 +1140,9 @@ public:
                 constant = get_constant_from_source(m_weights.get_node_shared_ptr());
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 if (!constant) {
-                    NGRAPH_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
-                                 << " with no constant node " << m_weights.get_node()->get_friendly_name()
-                                 << " as shape input.";
+                    OPENVINO_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
+                                   << " with no constant node " << m_weights.get_node()->get_friendly_name()
+                                   << " as shape input.";
                     return false;
                 }
             }
@@ -1148,8 +1150,8 @@ public:
             // Check reshape operation reshape only dimension without masks
             if (auto input_mask = getMask(m_input)) {
                 enum ReshapeType { default_, extend, shrink } configuration(ReshapeType::default_);
-                auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
-                auto weights_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length(), true);
+                auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
+                auto weights_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length(), true);
 
                 const auto input_shape = m_input.get_shape();
                 const auto output_shape = m_output.get_node()->output(0).get_shape();
@@ -1188,7 +1190,7 @@ public:
                     // from 0 to k dimensions.
                     // Example: [a, b, c, 3, 2] -> [a, b, c, 2, 3]
                     input_mask->add_callback(
-                        [weights_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                        [weights_mask_row, not_reshaped_dims](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t dim = 0; dim < cur_mask->size(); ++dim)
                                 if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = weights_mask_row->at(dim);
@@ -1198,7 +1200,7 @@ public:
                         },
                         weights_mask);
                     weights_mask->add_callback(
-                        [input_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                        [input_mask_row, not_reshaped_dims](ov::Mask::Ptr cur_mask) -> bool {
                             // Propagate masks down through dimension only if this dimension isn't reshaped
                             for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
                                 if (dim < not_reshaped_dims)
@@ -1210,7 +1212,7 @@ public:
                         input_mask);
 
                     output_mask->add_callback(
-                        [weights_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                        [weights_mask_row, not_reshaped_dims](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t dim = 0; dim < cur_mask->size(); ++dim)
                                 if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = weights_mask_row->at(dim);
@@ -1221,7 +1223,7 @@ public:
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [output_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                        [output_mask_row, not_reshaped_dims](ov::Mask::Ptr cur_mask) -> bool {
                             // Propagate masks up through dimension only if this dimension isn't reshaped
                             for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
                                 if (dim < not_reshaped_dims)
@@ -1241,17 +1243,17 @@ public:
                     const auto dims_attrs = collect_dims_attrs(dims_map, output_shape);
                     const auto dims_shape = map_reshaped_shapes(output_shape, dims_map);
                     input_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t in_dim = 0; in_dim < dims_map.size(); ++in_dim) {
                                 cur_mask->at(in_dim).clear();
-                                for (auto& out_dim : dims_map[in_dim]) {
+                                for (const auto out_dim : dims_map[in_dim]) {
                                     const auto unsquized_shift = out_dim - dims_map[in_dim][0];
-                                    for (auto& ch : weights_mask_row->at(out_dim)) {
-                                        NGRAPH_SUPPRESS_DEPRECATED_START
+                                    for (const auto ch : weights_mask_row->at(out_dim)) {
+                                        OPENVINO_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift, ch);
                                         for (const auto& coord : iter)
                                             cur_mask->at(in_dim).insert(iter.index(coord));
-                                        NGRAPH_SUPPRESS_DEPRECATED_END
+                                        OPENVINO_SUPPRESS_DEPRECATED_END
                                     }
                                 }
                             }
@@ -1260,13 +1262,13 @@ public:
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t in_dim = 0; in_dim < dims_map.size(); ++in_dim) {
                                 const auto map = map_channels(input_mask_row->at(in_dim),
                                                               dims_map[in_dim],
                                                               dims_attrs,
                                                               dims_shape[in_dim]);
-                                for (auto& dim : map.unsquized_mask)
+                                for (const auto& dim : map.unsquized_mask)
                                     cur_mask->at(dim.first) = dim.second;
                                 if (map.should_init)
                                     cur_mask->initialize_dependencies();
@@ -1276,14 +1278,14 @@ public:
                         input_mask);
 
                     output_mask->add_callback(
-                        [weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                        [weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->copy_value_from_mask(weights_mask_row);
                             return true;
                         },
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->copy_value_from_mask(output_mask_row);
                             return true;
                         },
@@ -1298,13 +1300,13 @@ public:
                     const auto dims_attrs = collect_dims_attrs(dims_map, input_shape);
                     const auto dims_shape = map_reshaped_shapes(input_shape, dims_map);
                     input_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 const auto map = map_channels(weights_mask_row->at(out_dim),
                                                               dims_map[out_dim],
                                                               dims_attrs,
                                                               dims_shape[out_dim]);
-                                for (auto& dim : map.unsquized_mask)
+                                for (const auto& dim : map.unsquized_mask)
                                     cur_mask->at(dim.first) = dim.second;
                                 if (map.should_init)
                                     cur_mask->initialize_dependencies();
@@ -1314,17 +1316,17 @@ public:
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 cur_mask->at(out_dim).clear();
-                                for (auto& in_dim : dims_map[out_dim]) {
+                                for (const auto in_dim : dims_map[out_dim]) {
                                     const auto unsquized_shift = in_dim - dims_map[out_dim][0];
-                                    for (auto& ch : input_mask_row->at(in_dim)) {
-                                        NGRAPH_SUPPRESS_DEPRECATED_START
+                                    for (const auto ch : input_mask_row->at(in_dim)) {
+                                        OPENVINO_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift, ch);
                                         for (const auto& coord : iter)
                                             cur_mask->at(out_dim).insert(iter.index(coord));
-                                        NGRAPH_SUPPRESS_DEPRECATED_END
+                                        OPENVINO_SUPPRESS_DEPRECATED_END
                                     }
                                 }
                             }
@@ -1333,14 +1335,14 @@ public:
                         input_mask);
 
                     output_mask->add_callback(
-                        [weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                        [weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->copy_value_from_mask(weights_mask_row);
                             return true;
                         },
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 const auto map = map_channels(output_mask_row->at(out_dim),
                                                               dims_map[out_dim],
@@ -1364,18 +1366,18 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(reshape, "ReshapeMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape, "ReshapeMaskPropagation");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::mask_propagation::Transpose : public MatcherPass {
+class ov::pass::mask_propagation::Transpose : public MatcherPass {
 public:
     Transpose() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
         auto transpose = pattern::wrap_type<opset10::Transpose>({input, weights});
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_input = pattern_map.at(input);
             const auto& m_weights = pattern_map.at(weights);
@@ -1385,19 +1387,19 @@ public:
             const auto input_order_node = get_constant_from_source(m_weights.get_node_shared_ptr());
             OPENVINO_SUPPRESS_DEPRECATED_END
             if (!input_order_node) {
-                NGRAPH_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
-                             << " with no constant node " << m_weights.get_node()->get_friendly_name()
-                             << " as input_order input.";
+                OPENVINO_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
+                               << " with no constant node " << m_weights.get_node()->get_friendly_name()
+                               << " as input_order input.";
                 return false;
             }
 
             const auto input_mask = getMask(m_input);
             if (!input_mask) {
-                NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
             if (static_cast<int64_t>(input_mask->size()) != m_output.get_partial_shape().rank().get_length()) {
-                NGRAPH_DEBUG << "Transpose which change tensor rank is not supported yet.";
+                OPENVINO_DEBUG << "Transpose which change tensor rank is not supported yet.";
                 return false;
             }
 
@@ -1408,22 +1410,22 @@ public:
                 // Dim should be valid because of transpose operation input_order input restrictions
                 backward_order.push_back(dim);
             }
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             const auto input_mask_row = input_mask.get();
             const auto output_mask_row = output_mask.get();
 
             output_mask->add_callback(
-                [input_mask_row, forward_order](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row, forward_order](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->clear();
-                    for (auto& dim : forward_order)
+                    for (const auto dim : forward_order)
                         cur_mask->push_back(input_mask_row->at(dim));
                     return true;
                 },
                 input_mask);
             input_mask->add_callback(
-                [output_mask_row, backward_order](Mask::Ptr cur_mask) -> bool {
+                [output_mask_row, backward_order](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->clear();
-                    for (auto& dim : backward_order)
+                    for (const auto dim : backward_order)
                         cur_mask->push_back(output_mask_row->at(dim));
                     return true;
                 },
@@ -1435,26 +1437,26 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(transpose, "TransposePropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose, "TransposePropagation");
         register_matcher(m, callback);
     }
 };
 
-static ngraph::Mask::Ptr create_connect_split_output_mask(ngraph::Mask::Ptr input_mask,
-                                                          const int64_t axis,
-                                                          const uint64_t split_start,
-                                                          const uint64_t split_end) {
-    auto output_mask = std::make_shared<ngraph::Mask>();
+static ov::Mask::Ptr create_connect_split_output_mask(ov::Mask::Ptr input_mask,
+                                                      const int64_t axis,
+                                                      const uint64_t split_start,
+                                                      const uint64_t split_end) {
+    auto output_mask = std::make_shared<ov::Mask>();
     auto input_mask_raw = input_mask.get();
     output_mask->add_callback(
-        [input_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
+        [input_mask_raw, axis, split_start, split_end](ov::Mask::Ptr cur_mask) -> bool {
             cur_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
             return true;
         },
         input_mask);
     auto output_mask_raw = output_mask.get();
     input_mask->add_callback(
-        [output_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
+        [output_mask_raw, axis, split_start, split_end](ov::Mask::Ptr cur_mask) -> bool {
             auto& dim_mask = cur_mask->at(axis);
             auto it = dim_mask.lower_bound(split_start);
             while (it != dim_mask.end() && *it < split_end) {
@@ -1463,7 +1465,7 @@ static ngraph::Mask::Ptr create_connect_split_output_mask(ngraph::Mask::Ptr inpu
             for (size_t j = 0; j < output_mask_raw->size(); j++) {
                 const auto& dim_mask = output_mask_raw->at(j);
                 if (static_cast<int64_t>(j) == axis) {
-                    for (auto d : dim_mask)
+                    for (const auto d : dim_mask)
                         cur_mask->at(j).insert(d + split_start);
                 } else {
                     cur_mask->at(j) = dim_mask;
@@ -1480,19 +1482,18 @@ class ov::pass::mask_propagation::VariadicSplit : public MatcherPass {
 public:
     VariadicSplit() {
         auto input_pattern = pattern::any_input(pattern::has_static_rank());
-        auto axis_pattern = pattern::wrap_type<ngraph::opset10::Constant>();
-        auto split_lengths_pattern = pattern::wrap_type<ngraph::opset10::Constant>();
+        auto axis_pattern = pattern::wrap_type<ov::opset10::Constant>();
+        auto split_lengths_pattern = pattern::wrap_type<ov::opset10::Constant>();
         auto split_pattern =
-            pattern::wrap_type<ngraph::opset10::VariadicSplit>({input_pattern, axis_pattern, split_lengths_pattern});
+            pattern::wrap_type<ov::opset10::VariadicSplit>({input_pattern, axis_pattern, split_lengths_pattern});
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            auto axis_node = as_type<ngraph::opset10::Constant>(pattern_map.at(axis_pattern).get_node());
+            auto axis_node = as_type<ov::opset10::Constant>(pattern_map.at(axis_pattern).get_node());
             const auto& input = pattern_map.at(input_pattern);
-            const auto input_mask = ngraph::getMask(input);
+            const auto input_mask = ov::getMask(input);
             auto split = pattern_map.at(split_pattern).get_node();
-            auto split_lengths_const =
-                as_type<ngraph::opset10::Constant>(pattern_map.at(split_lengths_pattern).get_node());
+            auto split_lengths_const = as_type<ov::opset10::Constant>(pattern_map.at(split_lengths_pattern).get_node());
 
             if (!axis_node)
                 return false;
@@ -1527,11 +1528,11 @@ public:
 
             uint64_t split_start = 0;
             uint64_t split_end = 0;
-            std::vector<ngraph::Mask::Ptr> output_masks;
+            std::vector<ov::Mask::Ptr> output_masks;
             for (size_t i = 0; i < split->get_output_size(); i++) {
                 split_end += split_lengths[i];
                 output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
-                ngraph::setMask(split->output(i), output_masks[i]);
+                ov::setMask(split->output(i), output_masks[i]);
                 split_start = split_end;
             }
             for (const auto& output_mask : output_masks) {
@@ -1548,14 +1549,14 @@ class ov::pass::mask_propagation::Split : public MatcherPass {
 public:
     Split() {
         auto input_pattern = pattern::any_input(pattern::has_static_rank());
-        auto axis_pattern = pattern::wrap_type<ngraph::opset10::Constant>();
-        auto split_pattern = pattern::wrap_type<ngraph::opset10::Split>({input_pattern, axis_pattern});
+        auto axis_pattern = pattern::wrap_type<ov::opset10::Constant>();
+        auto split_pattern = pattern::wrap_type<ov::opset10::Split>({input_pattern, axis_pattern});
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            auto axis_node = as_type<ngraph::opset10::Constant>(pattern_map.at(axis_pattern).get_node());
+            auto axis_node = as_type<ov::opset10::Constant>(pattern_map.at(axis_pattern).get_node());
             const auto& input = pattern_map.at(input_pattern);
-            const auto input_mask = ngraph::getMask(input);
+            const auto input_mask = ov::getMask(input);
 
             if (!axis_node)
                 return false;
@@ -1577,10 +1578,10 @@ public:
             uint64_t split_start = 0;
             auto split_step = split_dim / num_splits;
             uint64_t split_end = split_step;
-            std::vector<ngraph::Mask::Ptr> output_masks;
+            std::vector<ov::Mask::Ptr> output_masks;
             for (size_t i = 0; i < split->get_output_size(); i++) {
                 output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
-                ngraph::setMask(split->output(i), output_masks[i]);
+                ov::setMask(split->output(i), output_masks[i]);
                 split_start = split_end;
                 split_end += split_step;
             }
@@ -1594,24 +1595,24 @@ public:
     }
 };
 
-class ngraph::pass::mask_propagation::StopPropagation : public MatcherPass {
+class ov::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
     StopPropagation() {
         auto any_node = pattern::any_input();
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_output = pattern_map.at(any_node);
             const auto& node = m.get_match_root();
 
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
             bool any_input_with_masks = false;
             for (const auto& input : node->input_values()) {
                 if (auto input_mask = getMask(input)) {
                     auto input_mask_row = input_mask.get();
                     input_mask->add_callback(
-                        [output_mask_row](Mask::Ptr cur_mask) -> bool {
+                        [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->clean_dim_values();
                             if (!output_mask_row->all_dims_are_empty())
                                 cur_mask->initialize_dependencies();
@@ -1619,7 +1620,7 @@ public:
                         },
                         output_mask);
                     output_mask->add_callback(
-                        [input_mask_row](Mask::Ptr cur_mask) -> bool {
+                        [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->copy_value_from_mask(input_mask_row);
                             return true;
                         },
@@ -1627,15 +1628,15 @@ public:
 
                     // Invalidate current mask and its parent masks
                     output_mask->apply_callback(input_mask);
-                    NGRAPH_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node
-                                 << " is in scope of stop ops.\n";
+                    OPENVINO_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node
+                                   << " is in scope of stop ops.\n";
                     any_input_with_masks = true;
                 }
             }
             if (any_input_with_masks) {
                 // Set mask to stop op first input tensor to prevent mask rewriting for
                 // nodes which share output tensor with previous node.
-                if (ngraph::is_type<opset10::Result>(m_output.get_node_shared_ptr()))
+                if (ov::is_type<opset10::Result>(m_output.get_node_shared_ptr()))
                     setMask(*m_output.get_node()->inputs().begin(), output_mask);
                 else
                     setMask(m_output, output_mask);
@@ -1643,27 +1644,27 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(any_node, "StopMaskPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(any_node, "StopMaskPropagation");
         register_matcher(m, callback);
     }
 };
 
-class ngraph::pass::mask_propagation::SkipPropagation : public MatcherPass {
+class ov::pass::mask_propagation::SkipPropagation : public MatcherPass {
 public:
     SkipPropagation() {
         // Skip mask propagation for ShapeOf operation to prevent this opearation to be
         // processed as stop op.
         auto node = pattern::wrap_type<opset10::ShapeOf, op::v0::ShapeOf>();
-        ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(node, "SkipPropagation");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(node, "SkipPropagation");
         register_matcher(m, callback);
     }
 };
 
-ngraph::pass::PropagateMasks::PropagateMasks() {
+ov::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::MatMul>();
     add_matcher<mask_propagation::Convolution>();
     add_matcher<mask_propagation::GroupConvolutionReshape>();

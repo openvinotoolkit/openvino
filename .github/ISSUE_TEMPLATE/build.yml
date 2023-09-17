@@ -1,0 +1,95 @@
+name: Build Issue report
+description: Report a build or installation issue.
+title: "[Build]: "
+labels: ["build", "support_request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please provide all the necessary information to expedite the response.
+  - type: input
+    id: ov_version
+    attributes:
+      label: OpenVINO Version 
+      description: OpenVINO version, branch, or tag in OpenVINO GitHub
+      placeholder: 2021.4.0 LTS / Master Branch / tag 2022.3.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What OS are you using?
+      options:
+        - Ubuntu 18.04 (LTS)
+        - Ubuntu 20.04 (LTS)
+        - Ubuntu 22.04 (LTS)
+        - Windows System
+        - Red Hat Enterprise Linux 8
+        - OpenSUSE
+        - Android System
+        - Raspbian Stretch OS
+        - macOS Systems for Intel CPU
+        - macOS Systems for Apple Silicon
+        - WebAssembly
+        - WSL2 for Windows
+        - Other (Please specify in description)
+    validations:
+      required: true
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Hardware Architecture 
+      description: What is your hardware architecture used in this test?
+      options:
+        - x86 (64 bits)
+        - x86 (32 bits)
+        - ARM (64 bits)
+        - ARM (32 bits)
+        - RISC-V
+        - Other (please specify in the description)
+    validations:
+      required: true
+  - type: textarea
+    id: target_platform
+    attributes:
+      label: Target Platform
+      description: |
+          You can also provide us full system log with the following command 
+          Windows cmd     - "systeminfo" 
+          Linux terminal  - "lscpu" and "lscpu -e"
+      placeholder: Paste your full platform/system information here 
+    validations:
+      required: false
+  - type: textarea
+    id: build_description
+    attributes:
+      label: Build issue description
+      description: What issue are you facing during the build/installation?
+      placeholder: Please provide a detailed description of what happened
+    validations:
+      required: true
+  - type: textarea
+    id: build_script
+    attributes:
+      label: Build scrip or step-by-step to reproduce
+      description: How can we reproduce your issue?
+      placeholder: Please provide detailed instructions on how to reproduce the issue
+    validations:
+      required: false
+  - type: textarea
+    id: build_logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so there is no need for backticks.
+      render: shell
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Issue submission checklist
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
+      options:
+        - label: I'm reporting an issue. It's not a question.
+          required: true
+        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found a solution.
+          required: true

@@ -82,6 +82,15 @@ template <element::Type_t IN_ET>
 std::vector<SpaceToBatchParams> generateParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<SpaceToBatchParams> batchToSpaceParams {
+        // space_to_batch_3D
+        SpaceToBatchParams(
+            reference_tests::Tensor({1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{1, 1, 1}),
+            reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
+            reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
+            reference_tests::Tensor({1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+            "space_to_batch_4D"),
+
         // space_to_batch_4D
         SpaceToBatchParams(
             reference_tests::Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),

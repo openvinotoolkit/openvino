@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/ctc_greedy_decoder.hpp"
-#include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
+#include "openvino/op/ctc_greedy_decoder.hpp"
+#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
 
 #include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -18,7 +18,7 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::Node>& op, bool ctc_merge_repeated) {
+static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, bool ctc_merge_repeated) {
     validate_inputs_count(op, {2, 3});
     auto inputs = p.GetInputInfo(op);
 
@@ -30,7 +30,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
         if (inputDataType == cldnn::data_types::i64) {
             // GPU primitive supports only i32 data type for 'sequence_length' and 'blank_index' inputs
             // so we need additional reorder if it's provided as i64
-            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + Program::m_preProcessTag;
+            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
             auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputs[portIndex],
@@ -45,13 +45,13 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
 
     uint32_t blank_index = static_cast<uint32_t>(op->get_input_shape(0).back() - 1);
     if (reordered_inputs.size() == 3) {
-        auto blank_index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        auto blank_index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         if (!blank_index_node) {
-            IE_THROW() << "Unsupported blank_index node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            OPENVINO_THROW("Unsupported blank_index node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         }
         float val;
-        if (ngraph::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
-            IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        if (ov::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
+            OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         }
         blank_index = static_cast<uint32_t>(val);
         reordered_inputs.pop_back();
@@ -62,8 +62,8 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
     std::vector<cldnn::memory::ptr> shared_memory;
     if (num_output == 2) {
         auto mutable_precision = op->get_output_element_type(1);
-         if (mutable_precision == ngraph::element::i64) {
-            mutable_precision = ngraph::element::i32;
+         if (mutable_precision == ov::element::i64) {
+            mutable_precision = ov::element::i32;
         }
 
         cldnn::layout mutableLayout = cldnn::layout(
@@ -90,7 +90,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
                 tensor_from_dims(op->get_output_shape(0)));
 
     // GPU primitive supports only i32 as output data type
-    primitive.output_data_types = {cldnn::element_type_to_data_type(ngraph::element::i32)};
+    primitive.output_data_types = {cldnn::element_type_to_data_type(ov::element::i32)};
 
     if (num_output == 2) {
         primitive.second_output = reordered_inputs.back().pid;
@@ -107,11 +107,11 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
     }
 }
 
-static void CreateCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::op::v0::CTCGreedyDecoder>& op) {
+static void CreateCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::CTCGreedyDecoder>& op) {
     CreateCommonCTCGreedyDecoderOp(p, op, op->get_ctc_merge_repeated());
 }
 
-static void CreateCTCGreedyDecoderSeqLenOp(Program& p, const std::shared_ptr<ngraph::op::v6::CTCGreedyDecoderSeqLen>& op) {
+static void CreateCTCGreedyDecoderSeqLenOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::CTCGreedyDecoderSeqLen>& op) {
     CreateCommonCTCGreedyDecoderOp(p, op, op->get_merge_repeated());
 }
 

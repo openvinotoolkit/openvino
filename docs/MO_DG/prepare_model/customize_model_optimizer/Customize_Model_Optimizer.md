@@ -1,6 +1,7 @@
-# [LEGACY] Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
+# Legacy Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
 
 @sphinxdirective
+
 
 .. toctree::
    :maxdepth: 1
@@ -224,6 +225,7 @@ example of the shape infer function for the :doc:`Reshape <openvino_docs_ops_sha
 available in the ``mo/ops/reshape.py`` file):
 
 .. code-block:: py
+   :force:
    
     @staticmethod
     def infer(node: Node):

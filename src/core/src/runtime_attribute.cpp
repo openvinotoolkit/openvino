@@ -4,8 +4,8 @@
 
 #include "openvino/core/runtime_attribute.hpp"
 
-#include "ngraph/node.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 
@@ -16,15 +16,15 @@ bool RuntimeAttribute::visit_attributes(AttributeVisitor&) {
     return false;
 }
 
-Any RuntimeAttribute::init(const std::shared_ptr<ngraph::Node>& node) const {
+ov::Any RuntimeAttribute::init(const std::shared_ptr<ov::Node>& node) const {
     return {};
 }
 
-Any RuntimeAttribute::merge(const ngraph::NodeVector& nodes) const {
+ov::Any RuntimeAttribute::merge(const ov::NodeVector& nodes) const {
     return {};
 }
 
-Any RuntimeAttribute::merge(const ngraph::OutputVector& outputs) const {
+ov::Any RuntimeAttribute::merge(const ov::OutputVector& outputs) const {
     return {};
 }
 

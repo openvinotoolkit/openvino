@@ -20,7 +20,7 @@ To apply optimization when there is only a model and no data is available. It is
 
 Install Datumaro:
 
-.. code-block:: bash
+.. code-block:: sh
 
    pip install datumaro
 
@@ -29,7 +29,7 @@ Create a synthetic dataset with elements of the specified type and shape, and sa
 
 Usage:
 
-.. code-block:: bash
+.. code-block:: sh
 
    datum generate [-h] -o OUTPUT_DIR -k COUNT --shape SHAPE [SHAPE ...]
      [-t {image}] [--overwrite] [--model-dir MODEL_PATH]
@@ -37,7 +37,7 @@ Usage:
 
 Example of generating 300 images with height = 224 and width = 256 and saving them in the ``./dataset`` directory.
 
-.. code-block:: bash
+.. code-block:: sh
 
    datum generate  -o ./dataset -k 300 --shape 224 256
 

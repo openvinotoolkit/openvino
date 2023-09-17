@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Greater-1 - an element-wise, comparison operation, which 
+                can be performed on two given tensors in OpenVINO.
 
 **Versioned name**: *Greater-1*
 
@@ -56,7 +59,8 @@ After broadcasting, *Greater* does the following with the input tensors *a* and 
 
 *Example 1: no broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Greater">
        <data auto_broadcast="none"/>
@@ -81,7 +85,8 @@ After broadcasting, *Greater* does the following with the input tensors *a* and 
 
 *Example 2: numpy broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Greater">
        <data auto_broadcast="numpy"/>

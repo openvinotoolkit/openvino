@@ -19,6 +19,7 @@ namespace tensorflow_lite {
 class TensorLitePlace;
 struct TensorInfo;
 
+
 class DecoderFlatBuffer : public ov::frontend::DecoderBase {
 public:
     explicit DecoderFlatBuffer(const tflite::Operator* node_def,
@@ -43,9 +44,7 @@ public:
         return (opts->*member)();
     }
 
-    ov::Any get_attribute(const std::string& name) const override {
-        return {};
-    }
+    ov::Any get_attribute(const std::string& name) const override;
 
     size_t get_input_size() const override;
     size_t get_output_size() const;
@@ -68,13 +67,30 @@ public:
     std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_output_tensor(size_t idx,
             const ov::frontend::InputModel& model) const;
 
-private:
+protected:
     std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor(
-            const ov::frontend::tensorflow_lite::TensorInfo& tensor_info, const InputModel& model) const;
+            const ov::frontend::tensorflow_lite::TensorInfo& tensor_info, const ov::frontend::InputModel& model) const;
 
     const tflite::Operator* m_node_def;
     std::string m_type, m_name;
     std::map<size_t, ov::frontend::tensorflow_lite::TensorInfo> m_input_info, m_output_info;
+};
+
+class DecoderFlatBufferTensors : public DecoderFlatBuffer {
+public:
+    DecoderFlatBufferTensors(const TensorInfo &info, int64_t input_idx, int64_t output_idx) :
+        DecoderFlatBuffer(nullptr, "", "", {}, {}), m_info{info}, m_input_idx(input_idx), m_output_idx(output_idx) {};
+
+    std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor(const ov::frontend::InputModel& model) const {
+        auto tensor = DecoderFlatBuffer::decode_tensor(m_info, model);
+        tensor->set_input_index(m_input_idx);
+        tensor->set_output_index(m_output_idx);
+        return tensor;
+    }
+
+private:
+    TensorInfo m_info;
+    int64_t m_input_idx, m_output_idx;
 };
 
 } // namespace tensorflow_lite

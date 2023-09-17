@@ -184,6 +184,13 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             {{{7,1,1},data_types::f32,format::bfyx}, {{},data_types::i64,format::bfyx}, {{1},data_types::i64,format::bfyx}},
             {{{7,1,1},data_types::f32,format::bfyx}}, 0
         },
+        {
+            tensor({128,100,1,3,1,1,1}),
+            {tensor({0,0,0,0,1,1,1})},
+            {},
+            {{{128,100,4},data_types::f32,format::bfyx}},
+            {{{128,100,3},data_types::f32,format::bfyx}}, 0
+        }
     }));
 
 };  // shape_infer_tests

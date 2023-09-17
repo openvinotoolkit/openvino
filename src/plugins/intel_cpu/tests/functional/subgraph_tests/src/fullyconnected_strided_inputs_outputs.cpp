@@ -33,7 +33,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         Precision netPrecision;
         size_t rank;
         std::tie(netPrecision, rank) = this->GetParam();
@@ -46,7 +46,7 @@ protected:
         SizeVector splitShape{2, 16};
         if (rank == 3) bcastTo3D(splitShape);
 
-        auto params = builder::makeParams(ngPrec, {splitShape});
+        ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(splitShape))};
 
         const auto splitOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
         const auto splitAxis = rank == 3 ? 1 : 0;

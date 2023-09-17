@@ -1479,18 +1479,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestSingle
 TEST(ReferenceTopKTestInvalid, topk_v1_invalid_strings) {
     const auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 3});
     const auto k = opset1::Constant::create(element::i64, Shape{}, {1});
-    EXPECT_THROW(opset1::TopK(data, k, 0, "max", "invalid_mode"), ngraph::CheckFailure);
-    EXPECT_THROW(opset1::TopK(data, k, 0, "invalid_sort", "index"), ngraph::CheckFailure);
+    EXPECT_THROW(opset1::TopK(data, k, 0, "max", "invalid_mode"), ov::AssertFailure);
+    EXPECT_THROW(opset1::TopK(data, k, 0, "invalid_sort", "index"), ov::AssertFailure);
 }
 
 TEST(ReferenceTopKTestInvalid, topk_v1_invalid_k) {
     const auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 3});
     const auto k_non_scalar = opset1::Constant::create(element::i64, Shape{2}, {1, 2});
-    EXPECT_THROW(opset1::TopK(data, k_non_scalar, 0, "max", "index"), ngraph::NodeValidationFailure);
+    EXPECT_THROW(opset1::TopK(data, k_non_scalar, 0, "max", "index"), ov::NodeValidationFailure);
     const auto k_float = opset1::Constant::create(element::f32, Shape{}, {1.0f});
-    EXPECT_THROW(opset1::TopK(data, k_float, 0, "max", "index"), ngraph::NodeValidationFailure);
+    EXPECT_THROW(opset1::TopK(data, k_float, 0, "max", "index"), ov::NodeValidationFailure);
     const auto k_negative = opset1::Constant::create(element::i8, Shape{}, {-1});
-    EXPECT_THROW(opset1::TopK(data, k_negative, 0, "max", "index"), ngraph::NodeValidationFailure);
+    EXPECT_THROW(opset1::TopK(data, k_negative, 0, "max", "index"), ov::NodeValidationFailure);
 }
 
 
@@ -1641,18 +1641,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestSingle
 TEST(ReferenceTopKTestInvalidV3, topk_v3_invalid_strings) {
     const auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 3});
     const auto k = opset1::Constant::create(element::i64, Shape{}, {1});
-    EXPECT_THROW(opset3::TopK(data, k, 0, "max", "invalid_mode"), ngraph::CheckFailure);
-    EXPECT_THROW(opset3::TopK(data, k, 0, "invalid_sort", "index"), ngraph::CheckFailure);
+    EXPECT_THROW(opset3::TopK(data, k, 0, "max", "invalid_mode"), ov::AssertFailure);
+    EXPECT_THROW(opset3::TopK(data, k, 0, "invalid_sort", "index"), ov::AssertFailure);
 }
 
 TEST(ReferenceTopKTestInvalidV3, topk_v3_invalid_k) {
     const auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 3});
     const auto k_non_scalar = opset1::Constant::create(element::i64, Shape{2}, {1, 2});
-    EXPECT_THROW(opset3::TopK(data, k_non_scalar, 0, "max", "index"), ngraph::NodeValidationFailure);
+    EXPECT_THROW(opset3::TopK(data, k_non_scalar, 0, "max", "index"), ov::NodeValidationFailure);
     const auto k_float = opset1::Constant::create(element::f32, Shape{}, {1.0f});
-    EXPECT_THROW(opset3::TopK(data, k_float, 0, "max", "index"), ngraph::NodeValidationFailure);
+    EXPECT_THROW(opset3::TopK(data, k_float, 0, "max", "index"), ov::NodeValidationFailure);
     const auto k_negative = opset1::Constant::create(element::i8, Shape{}, {-1});
-    EXPECT_THROW(opset3::TopK(data, k_negative, 0, "max", "index"), ngraph::NodeValidationFailure);
+    EXPECT_THROW(opset3::TopK(data, k_negative, 0, "max", "index"), ov::NodeValidationFailure);
 }
 
 class ReferenceTopKv11StableTest : public ReferenceTopKTest {

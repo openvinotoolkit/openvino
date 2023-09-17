@@ -17,8 +17,8 @@ target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../
 
 target_link_libraries(${TARGET_NAME}
         PUBLIC
-                engines_test_util offline_transformations
-                commonTestUtils ngraph_test_util funcTestUtils openvino::util
+                offline_transformations
+                common_test_utils func_test_utils openvino::util
                 openvino::runtime
         PRIVATE
                 cnpy)
@@ -30,4 +30,4 @@ target_compile_definitions(${TARGET_NAME}
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

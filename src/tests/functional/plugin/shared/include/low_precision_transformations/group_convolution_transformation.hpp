@@ -43,7 +43,7 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     std::pair<ngraph::PartialShape, ngraph::Shape>,
     GroupConvolutionTransformationParam,
     bool // add precision preserved operation

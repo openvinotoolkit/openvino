@@ -17,9 +17,11 @@ namespace onnx_import {
 class SparseTensor {
 public:
     SparseTensor() = delete;
-    explicit SparseTensor(const ONNX_NAMESPACE::SparseTensorProto& sparse_tensor, const std::string& model_dir)
-        : m_values{sparse_tensor.values(), model_dir},
-          m_indices{sparse_tensor.indices(), model_dir},
+    SparseTensor(const ONNX_NAMESPACE::SparseTensorProto& sparse_tensor,
+                 const std::string& model_dir,
+                 detail::MappedMemoryHandles mmap_cache)
+        : m_values{sparse_tensor.values(), model_dir, mmap_cache},
+          m_indices{sparse_tensor.indices(), model_dir, mmap_cache},
           m_shape{std::begin(sparse_tensor.dims()), std::end(sparse_tensor.dims())} {
         if (m_shape == Shape{0}) {
             // It's possible to construct a sparse tensor in ONNX with "dims: 0" property

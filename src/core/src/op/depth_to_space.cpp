@@ -12,9 +12,9 @@
 #include <ngraph/ops.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/depth_to_space.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/reference/depth_to_space.hpp"
 
 using namespace ngraph;
 
@@ -50,6 +50,7 @@ void op::DepthToSpace::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool evaluate_depth_to_space(const HostTensorVector& outputs,
                              const HostTensorVector& inputs,
@@ -61,13 +62,13 @@ bool evaluate_depth_to_space(const HostTensorVector& outputs,
     if (in->get_partial_shape().is_dynamic()) {
         return false;
     }
-    runtime::reference::depth_to_space(in->get_data_ptr<char>(),
-                                       in->get_shape(),
-                                       out->get_data_ptr<char>(),
-                                       out->get_shape(),
-                                       block_size,
-                                       mode,
-                                       elem_size);
+    ov::reference::depth_to_space(in->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  out->get_data_ptr<char>(),
+                                  out->get_shape(),
+                                  block_size,
+                                  mode,
+                                  elem_size);
     return true;
 }
 }  // namespace
@@ -76,6 +77,7 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs, const HostTenso
     OV_OP_SCOPE(v0_DepthToSpace_evaluate);
     return evaluate_depth_to_space(outputs, inputs, m_blocksize, m_mode);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::DepthToSpace::has_evaluate() const {
     OV_OP_SCOPE(v0_DepthToSpace_has_evaluate);

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "shared_test_classes/base/snippets_test_utils.hpp"
+#include "snippets_helpers.hpp"
 
 namespace ov {
 namespace test {
@@ -12,8 +13,9 @@ namespace snippets {
 
 typedef std::tuple<
         std::vector<ov::PartialShape>,     // Input shapes
-        bool,                              // With Multiply
+        std::vector<ov::element::Type>,    // Input Element types
         ov::element::Type,                 // Inference precision
+        bool,                              // With Multiply
         size_t,                            // Expected num nodes
         size_t,                            // Expected num subgraphs
         std::string,                       // Target Device
@@ -29,24 +31,59 @@ protected:
     void SetUp() override;
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
-    virtual void init_subgraph();
+    virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph();
 
     bool m_with_mul = false;
+    std::vector<ov::element::Type> m_input_types;
 };
 
 class MHASelect : public MHA {
 protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
-    void init_subgraph() override;
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
 };
 
 class MHAWOTransposeOnInputs : public MHA {
 protected:
-    void init_subgraph() override;
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
 };
 
 class MHAWOTranspose : public MHA {
-    void init_subgraph() override;
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
+class MHAMulAdd : public MHA {
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
+class MHATransposedB : public MHA {
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
+class MHAINT8MatMul : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
+class MHAQuantMatMul0 : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
+class MHAFQAfterMatMul : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
+class MHAFQ : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
+class MHAWithExtractedReshape : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
 };
 
 } // namespace snippets

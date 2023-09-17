@@ -24,6 +24,9 @@ class InputModel : public ov::frontend::InputModel {
     std::map<std::string, std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace>> get_tensor_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
 
+    ////// Subgraph Handling /////
+    std::vector<std::shared_ptr<InputModel>> get_subgraphs() const;
+
 public:
     explicit InputModel(const ov::frontend::tensorflow_lite::GraphIteratorFlatBuffer::Ptr& graph_iterator,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});

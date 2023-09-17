@@ -40,7 +40,7 @@ const auto testCase1D = ::testing::Combine(
     ::testing::ValuesIn(axes1D),
     ::testing::ValuesIn(signalSizes1D),
     ::testing::ValuesIn(opTypes),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 /* 2D DFT */
@@ -58,7 +58,7 @@ const auto testCase2D = ::testing::Combine(
     ::testing::ValuesIn(axes2D),
     ::testing::ValuesIn(signalSizes2D),
     ::testing::ValuesIn(opTypes),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 
@@ -78,7 +78,7 @@ const auto testCase3D = ::testing::Combine(
     ::testing::ValuesIn(axes3D),
     ::testing::ValuesIn(signalSizes3D),
     ::testing::ValuesIn(opTypes),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 /* 4D DFT */
@@ -97,7 +97,7 @@ const auto testCase4D = ::testing::Combine(
     ::testing::ValuesIn(axes4D),
     ::testing::ValuesIn(signalSizes4D),
     ::testing::ValuesIn(opTypes),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 

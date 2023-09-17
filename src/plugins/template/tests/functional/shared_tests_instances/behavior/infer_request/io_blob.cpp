@@ -15,7 +15,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         InferRequestIOBBlobTest::getTestCaseName);
 

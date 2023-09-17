@@ -14,8 +14,18 @@
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include "gna/gna_config.hpp"
 #include "gpu/gpu_config.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 #include "samples/args_helper.hpp"
 #include "samples/common.hpp"
@@ -85,8 +95,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
     if (isNetworkCompiled && isPrecisionSet) {
         std::string err = std::string("Cannot set precision for a compiled model. ") +
-                          std::string("Please re-compile your model with required precision "
-                                      "using compile_tool");
+                          std::string("Please re-compile your model with required precision.");
 
         throw std::logic_error(err);
     }
@@ -299,6 +308,7 @@ int main(int argc, char* argv[]) {
             slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         // Load clDNN Extensions
         if ((FLAGS_d.find("GPU") != std::string::npos) && !FLAGS_c.empty()) {
             // Override config if command line parameter is specified
@@ -311,6 +321,7 @@ int main(int argc, char* argv[]) {
             core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
             slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         slog::info << "OpenVINO:" << slog::endl;
         slog::info << ov::get_openvino_version() << slog::endl;
@@ -800,16 +811,18 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (isDynamicNetwork && FLAGS_api == "sync") {
+        bool allow_inference_only_or_sync = can_measure_as_static(app_inputs_info);
+
+        if (!allow_inference_only_or_sync && FLAGS_api == "sync") {
             throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only. "
-                                   "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
+                                   "Please use -api async -hint latency -nireq 1 to emulate sync behavior");
         }
 
         // Defining of benchmark mode
         // for static models inference only mode is used as default one
         bool inferenceOnly = FLAGS_inference_only;
         if (isDynamicNetwork) {
-            if (isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() != 1) {
+            if (isFlagSetInCommandLine("inference_only") && inferenceOnly && !allow_inference_only_or_sync) {
                 throw std::logic_error(
                     "Dynamic models with different input data shapes must be benchmarked only in full mode.");
             }
@@ -832,10 +845,12 @@ int main(int argc, char* argv[]) {
                 for (auto& item : devices_properties) {
                     slog::info << "  " << item.first << ": " << slog::endl;
                     for (auto& item2 : item.second.as<ov::AnyMap>()) {
+                        OPENVINO_SUPPRESS_DEPRECATED_START
                         if (item2.first == ov::supported_properties ||
                             item2.first == METRIC_KEY(SUPPORTED_CONFIG_KEYS) ||
                             item2.first == METRIC_KEY(SUPPORTED_METRICS))
                             continue;
+                        OPENVINO_SUPPRESS_DEPRECATED_END
                         slog::info << "    " << item2.first << ": " << item2.second.as<std::string>() << slog::endl;
                     }
                 }

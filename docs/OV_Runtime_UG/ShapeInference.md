@@ -8,35 +8,31 @@
 
    troubleshooting_reshape_errors
 
+.. meta::
+   :description: OpenVINO™ allows changing model input shape during the runtime when the provided input has a different size than the model's input shape.
 
-OpenVINO™ enables you to change model input shape during the application runtime. 
-It may be useful when you want to feed the model an input that has different size than the model input shape. 
+
+OpenVINO™ enables you to change model input shape during the application runtime.
+It may be useful when you want to feed the model an input that has different size than the model input shape.
 The following instructions are for cases where you need to change the model input shape repeatedly.
 
 .. note::
 
-   If you need to do this only once, prepare a model with updated shapes via 
-   :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. 
-   For more information, refer to the :ref:`Specifying --input_shape Command-line Parameter <when_to_specify_input_shapes>` article.
+   If you need to do this only once, prepare a model with updated shapes via
+   :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   For more information, refer to the :ref:`Specifying input_shape Parameter <when_to_specify_input_shapes>` article.
 
 
 The reshape method
 ++++++++++++++++++++
 
-The reshape method is used as ``ov::Model::reshape`` in C++ and 
-`Model.reshape <api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ 
-in Python. The method updates input shapes and propagates them down to the outputs 
-of the model through all intermediate layers. The code below is an example of how 
+The reshape method is used as ``ov::Model::reshape`` in C++ and
+`Model.reshape <api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__
+in Python. The method updates input shapes and propagates them down to the outputs
+of the model through all intermediate layers. The code below is an example of how
 to set a new batch size with the ``reshape`` method:
 
 .. tab-set::
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-         :language: cpp
-         :fragment: picture_snippet
 
    .. tab-item:: Python
       :sync: py
@@ -45,7 +41,14 @@ to set a new batch size with the ``reshape`` method:
          :language: Python
          :fragment: picture_snippet
 
-The diagram below presents the results of using the method, where the size of 
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+         :language: cpp
+         :fragment: picture_snippet
+
+The diagram below presents the results of using the method, where the size of
 model input is changed with an image input:
 
 .. image:: _static/images/original_vs_reshaped_model.svg
@@ -55,111 +58,111 @@ When using the ``reshape`` method, you may take one of the approaches:
 .. _usage_of_reshape_method:
 
 
-1. You can pass a new shape to the method in order to change the input shape of 
-the model with a single input. See the example of adjusting spatial dimensions to the input image:
+1. You can pass a new shape to the method in order to change the input shape of
+   the model with a single input. See the example of adjusting spatial dimensions to the input image:
 
-.. tab-set::
+   .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
+      .. tab-item:: Python
+         :sync: py
 
-      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-         :language: cpp
-         :fragment: spatial_reshape
+         .. doxygensnippet:: docs/snippets/ShapeInference.py
+            :language: python
+            :fragment: simple_spatials_change
 
-   .. tab-item:: Python
-      :sync: py
+      .. tab-item:: C++
+         :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ShapeInference.py
-         :language: python
-         :fragment: simple_spatials_change
+         .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+            :language: cpp
+            :fragment: spatial_reshape
 
 
-To do the opposite - to resize input image to match the input shapes of the model, 
-use the :doc:`pre-processing API <openvino_docs_OV_UG_Preprocessing_Overview>`.
+   To do the opposite - to resize input image to match the input shapes of the model,
+   use the :doc:`pre-processing API <openvino_docs_OV_UG_Preprocessing_Overview>`.
 
 
 2. You can express a reshape plan, specifying the input by the port, the index, and the tensor name:
 
-.. tab-set::
+   .. tab-set::
 
-   .. tab-item:: Port
+      .. tab-item:: Port
 
-      .. tab-set::
+         .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
+            .. tab-item:: Python
+               :sync: py
 
-            ``map<ov::Output<ov::Node>, ov::PartialShape`` specifies input by passing actual input port:
+               ``openvino.runtime.Output`` dictionary key specifies input by passing actual input object.
+               Dictionary values representing new shapes could be ``PartialShape``:
 
-            .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-               :language: cpp
-               :fragment: [obj_to_shape]
+               .. doxygensnippet:: docs/snippets/ShapeInference.py
+                  :language: python
+                  :fragment: [obj_to_shape]
 
-         .. tab-item:: Python
-            :sync: py
+            .. tab-item:: C++
+               :sync: cpp
 
-            ``openvino.runtime.Output`` dictionary key specifies input by passing actual input object.
-            Dictionary values representing new shapes could be ``PartialShape``:
+               ``map<ov::Output<ov::Node>, ov::PartialShape`` specifies input by passing actual input port:
 
-            .. doxygensnippet:: docs/snippets/ShapeInference.py
-               :language: python
-               :fragment: [obj_to_shape]
+               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+                  :language: cpp
+                  :fragment: [obj_to_shape]
 
-   .. tab-item:: Index
+      .. tab-item:: Index
 
-      .. tab-set::
+         .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
+            .. tab-item:: Python
+               :sync: py
 
-            ``map<size_t, ov::PartialShape>`` specifies input by its index:
+               ``int`` dictionary key specifies input by its index.
+               Dictionary values representing new shapes could be ``tuple``:
 
-            .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-               :language: cpp
-               :fragment: [idx_to_shape]
+               .. doxygensnippet:: docs/snippets/ShapeInference.py
+                  :language: python
+                  :fragment: [idx_to_shape]
 
-         .. tab-item:: Python
-            :sync: py
+            .. tab-item:: C++
+               :sync: cpp
 
-            ``int`` dictionary key specifies input by its index.
-            Dictionary values representing new shapes could be ``tuple``:
+               ``map<size_t, ov::PartialShape>`` specifies input by its index:
 
-            .. doxygensnippet:: docs/snippets/ShapeInference.py
-               :language: python
-               :fragment: [idx_to_shape]
+               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+                  :language: cpp
+                  :fragment: [idx_to_shape]
 
-   .. tab-item:: Tensor Name
+      .. tab-item:: Tensor Name
 
-      .. tab-set::
+         .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
+            .. tab-item:: Python
+               :sync: py
 
-            ``map<string, ov::PartialShape>`` specifies input by its name:
+               ``str`` dictionary key specifies input by its name.
+               Dictionary values representing new shapes could be ``str``:
 
-            .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-               :language: cpp
-               :fragment: [name_to_shape]
+               .. doxygensnippet:: docs/snippets/ShapeInference.py
+                  :language: python
+                  :fragment: [name_to_shape]
 
-         .. tab-item:: Python
-            :sync: py
+            .. tab-item:: C++
+               :sync: cpp
 
-            ``str`` dictionary key specifies input by its name.
-            Dictionary values representing new shapes could be ``str``:
+               ``map<string, ov::PartialShape>`` specifies input by its name:
 
-            .. doxygensnippet:: docs/snippets/ShapeInference.py
-               :language: python
-               :fragment: [name_to_shape]
+               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+                  :language: cpp
+                  :fragment: [name_to_shape]
 
 
-You can find the usage scenarios of the ``reshape`` method in 
+You can find the usage scenarios of the ``reshape`` method in
 :doc:`Hello Reshape SSD Samples <openvino_inference_engine_samples_hello_reshape_ssd_README>`.
 
 .. note::
 
-   In some cases, models may not be ready to be reshaped. Therefore, a new input 
-   shape cannot be set neither with :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` 
+   In some cases, models may not be ready to be reshaped. Therefore, a new input
+   shape cannot be set neither with :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
    nor the ``reshape`` method.
 
 The set_batch method
@@ -170,13 +173,6 @@ To change the batch dimension of the model, :ref:`set the layout <declare_model_
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-         :language: cpp
-         :fragment: set_batch
-
    .. tab-item:: Python
       :sync: py
 
@@ -184,25 +180,32 @@ To change the batch dimension of the model, :ref:`set the layout <declare_model_
          :language: Python
          :fragment: set_batch
 
+   .. tab-item:: C++
+      :sync: cpp
 
-The ``set_batch`` method is a high-level API of the reshape functionality, so all 
-information about the ``reshape`` method implications are applicable for ``set_batch`` 
+      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+         :language: cpp
+         :fragment: set_batch
+
+
+The ``set_batch`` method is a high-level API of the reshape functionality, so all
+information about the ``reshape`` method implications are applicable for ``set_batch``
 too, including the troubleshooting section.
 
-Once you set the input shape of the model, call the ``compile_model`` method to 
+Once you set the input shape of the model, call the ``compile_model`` method to
 get a ``CompiledModel`` object for inference with updated shapes.
 
-There are other approaches to change model input shapes during the stage of 
+There are other approaches to change model input shapes during the stage of
 :ref:`IR generation <when_to_specify_input_shapes>` or :ref:`model representation <openvino_docs_OV_UG_Model_Representation>` in OpenVINO Runtime.
 
 
 .. important::
 
-   Shape-changing functionality could be used to turn dynamic model input into a 
-   static one and vice versa. Always set static shapes when the shape of data is 
-   NOT going to change from one inference to another. Setting static shapes can 
-   avoid memory and runtime overheads for dynamic shapes which may vary depending 
-   on hardware plugin and model used. For more information, refer to the 
+   Shape-changing functionality could be used to turn dynamic model input into a
+   static one and vice versa. Always set static shapes when the shape of data is
+   NOT going to change from one inference to another. Setting static shapes can
+   avoid memory and runtime overheads for dynamic shapes which may vary depending
+   on hardware plugin and model used. For more information, refer to the
    :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>`.
 
 

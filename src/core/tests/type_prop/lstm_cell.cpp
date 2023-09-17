@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/opsets/opset4.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, lstm_cell) {
     const size_t batch_size = 2;
@@ -53,9 +51,8 @@ TEST(type_prop, lstm_cell_invalid_input) {
         const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Parameter hidden_size not matched for W, R, B, initial_hidden_state and initial_cell_state"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("First dimension of W input shape is required to be compatible"));
     }
 
     // Invalid R tensor shape.
@@ -65,9 +62,7 @@ TEST(type_prop, lstm_cell_invalid_input) {
         const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter hidden_size not matched for W, R, B, "
-                                         "initial_hidden_state and initial_cell_state inputs."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `hidden_size` is not matched between inputs"));
     }
 
     // Invalid H_t tensor shape.
@@ -77,9 +72,7 @@ TEST(type_prop, lstm_cell_invalid_input) {
         const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter batch_size not matched for X, "
-                                         "initial_hidden_state or initial_cell_state inputs."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `batch_size` is not matched between inputs"));
     }
 
     // Invalid C_t tensor shape.
@@ -89,20 +82,19 @@ TEST(type_prop, lstm_cell_invalid_input) {
         const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter batch_size not matched for X, "
-                                         "initial_hidden_state or initial_cell_state inputs."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `batch_size` is not matched between inputs"));
     }
 
     // Invalid B tensor shape.
     C_t = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, hidden_size});
     auto B = make_shared<opset4::Parameter>(element::f32, Shape{2 * gates_count * hidden_size});
-    auto P = make_shared<opset4::Parameter>(element::f32, Shape{3 * hidden_size});
     try {
         const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size not matched for W, R, B"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("First dimension of B input shape is required to be compatible with 12. Got shape: 24."));
     }
 }
 
@@ -181,42 +173,42 @@ TEST(type_prop, lstm_cell_invalid_input_rank0) {
     // Invalid rank0 for W tensor.
     W = make_shared<opset4::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "LSTMCell node was created with invalid data.";
 
     // Invalid rank0 for X tensor.
     W = make_shared<opset4::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
     X = make_shared<opset4::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "LSTMCell node was created with invalid data.";
 
     // Invalid rank0 for H_t tensor.
     X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
     H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "LSTMCell node was created with invalid data.";
 
     // Invalid rank0 for C_t tensor.
     H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     C_t = make_shared<opset4::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "LSTMCell node was created with invalid data.";
 
     // Invalid rank0 for R tensor.
     C_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     R = make_shared<opset4::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "LSTMCell node was created with invalid data.";
 
     // Invalid rank0 for B tensor.
     R = make_shared<opset4::Parameter>(element::f32, PartialShape{gates_count * hidden_size, hidden_size});
     auto B = make_shared<opset4::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(const auto unused = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size),
-                 ngraph::NodeValidationFailure)
+                 ov::NodeValidationFailure)
         << "LSTMCell node was created with invalid data.";
 }
 

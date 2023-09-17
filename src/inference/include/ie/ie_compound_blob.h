@@ -9,12 +9,23 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <initializer_list>
 #include <memory>
 #include <vector>
 
 #include "ie_blob.h"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 /**
  * @brief This class represents a blob that contains other blobs
@@ -22,7 +33,7 @@ namespace InferenceEngine {
  * Compound blob is a wrapper blob over references to underlying blobs. These blobs should share
  * some properties and can be grouped into a single entity.
  */
-class INFERENCE_ENGINE_API_CLASS(CompoundBlob) : public Blob {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(CompoundBlob) : public Blob {
 public:
     /**
      * @brief A smart pointer to the CompoundBlob object
@@ -116,167 +127,11 @@ protected:
 };
 
 /**
- * @brief Represents a blob that contains two planes (Y and UV) in NV12 color format
- */
-class INFERENCE_ENGINE_DEPRECATED("This class is deprecated and will be removed in 2023.1 release")
-    INFERENCE_ENGINE_API_CLASS(NV12Blob)
-    : public CompoundBlob {
-public:
-    /**
-     * @brief A smart pointer to the NV12Blob object
-     */
-    using Ptr = std::shared_ptr<NV12Blob>;
-
-    /**
-     * @brief A smart pointer to the const NV12Blob object
-     */
-    using CPtr = std::shared_ptr<const NV12Blob>;
-
-    /**
-     * @brief Constructs NV12 blob from two planes Y and UV
-     *
-     * @param y Blob object that represents Y plane in NV12 color format
-     * @param uv Blob object that represents UV plane in NV12 color format
-     */
-    NV12Blob(const Blob::Ptr& y, const Blob::Ptr& uv);
-
-    /**
-     * @brief Constructs NV12 blob from two planes Y and UV
-     *
-     * @param y Blob object that represents Y plane in NV12 color format
-     * @param uv Blob object that represents UV plane in NV12 color format
-     */
-    NV12Blob(Blob::Ptr&& y, Blob::Ptr&& uv);
-
-    /**
-     * @brief Returns a shared pointer to Y plane
-     * @return Y plane
-     */
-    virtual Blob::Ptr& y() noexcept;
-
-    /**
-     * @brief Returns a shared pointer to Y plane
-     * @return Y plane
-     */
-    virtual const Blob::Ptr& y() const noexcept;
-
-    /**
-     * @brief Returns a shared pointer to UV plane
-     * @return UV plane
-     */
-    virtual Blob::Ptr& uv() noexcept;
-
-    /**
-     * @brief Returns a shared pointer to UV plane
-     * @return UV plane
-     */
-    virtual const Blob::Ptr& uv() const noexcept;
-
-    Blob::Ptr createROI(const ROI& roi) const override;
-};
-
-/**
- * @brief Represents a blob that contains three planes (Y,U and V) in I420 color format
- */
-class INFERENCE_ENGINE_DEPRECATED("This class is deprecated and will be removed in 2023.1 release")
-    INFERENCE_ENGINE_API_CLASS(I420Blob)
-    : public CompoundBlob {
-public:
-    /**
-     * @brief A smart pointer to the I420Blob object
-     */
-    using Ptr = std::shared_ptr<I420Blob>;
-
-    /**
-     * @brief A smart pointer to the const I420Blob object
-     */
-    using CPtr = std::shared_ptr<const I420Blob>;
-
-    /**
-     * @brief Constructs I420 blob from three planes Y, U and V
-     * @param y Blob object that represents Y plane in I420 color format
-     * @param u Blob object that represents U plane in I420 color format
-     * @param v Blob object that represents V plane in I420 color format
-     */
-    I420Blob(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v);
-
-    /**
-     * @brief Constructs I420 blob from three planes Y, U and V
-     * @param y Blob object that represents Y plane in I420 color format
-     * @param u Blob object that represents U plane in I420 color format
-     * @param v Blob object that represents V plane in I420 color format
-     */
-    I420Blob(Blob::Ptr&& y, Blob::Ptr&& u, Blob::Ptr&& v);
-
-    /**
-     * @brief Returns a reference to shared pointer to Y plane
-     *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
-     * the I420Blob object is destroyed.
-     *
-     * @return reference to shared pointer object of Y plane
-     */
-    Blob::Ptr& y() noexcept;
-
-    /**
-     * @brief Returns a constant reference to shared pointer to Y plane
-     *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
-     * the I420Blob object is destroyed.
-     *
-     * @return constant reference to shared pointer object of Y plane*
-     */
-    const Blob::Ptr& y() const noexcept;
-
-    /**
-     * @brief Returns a reference to shared pointer to U plane
-     *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
-     * the I420Blob object is destroyed.
-     *
-     * @return reference to shared pointer object of U plane
-     */
-    Blob::Ptr& u() noexcept;
-
-    /**
-     * @brief Returns a constant reference to shared pointer to U plane
-     *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
-     * the I420Blob object is destroyed.
-     *
-     * @return constant reference to shared pointer object of U plane
-     */
-    const Blob::Ptr& u() const noexcept;
-
-    /**
-     * @brief Returns a reference to shared pointer to V plane
-     *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
-     * the I420Blob object is destroyed.
-     *
-     * @return reference to shared pointer object of V plane
-     */
-    Blob::Ptr& v() noexcept;
-
-    /**
-     * @brief Returns a constant reference to shared pointer to V plane
-     *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
-     * the I420Blob object is destroyed.
-     *
-     * @return constant reference to shared pointer object of V plane
-     */
-    const Blob::Ptr& v() const noexcept;
-
-    Blob::Ptr createROI(const ROI& roi) const override;
-};
-
-/**
  * @brief This class represents a blob that contains other blobs - one per batch
  * @details Plugin which supports BatchedBlob input should report BATCHED_BLOB
  * in the OPTIMIZATION_CAPABILITIES metric.
  */
-class INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the BatchedBlob object
@@ -315,3 +170,4 @@ public:
     explicit BatchedBlob(std::vector<Blob::Ptr>&& blobs);
 };
 }  // namespace InferenceEngine
+IE_SUPPRESS_DEPRECATED_END

@@ -58,9 +58,13 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& dat
     if (data.empty()) {
         return out << "{}";
     }
-    return out <<  "_" << data.quantizationLevel << data.constantShape << "_" << data.inputLowValues << "_" << data.inputHighValues <<
-        "_" << data.outputLowValues << "_" << data.outputHighValues << "_" <<
-        (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
+    return out << "level=" << data.quantizationLevel <<
+        "_shape=" << data.constantShape <<
+        "_input_low=" << data.inputLowValues <<
+        "_input_high=" << data.inputHighValues <<
+        "_output_low=" << data.outputLowValues <<
+        "_output_high" << data.outputHighValues <<
+        "_precision=" << (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
 }
 
 class FakeQuantizeOnDataWithConstant {
@@ -96,11 +100,13 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithC
     if (data.empty()) {
         return out << "{}";
     }
-    return out <<  "_" << data.quantizationLevel <<
-        (data.constantShapes.empty() ? ngraph::Shape{} : data.constantShapes[0]) << "_" <<
-        data.inputLowValues << "_" << data.inputHighValues << "_" <<
-        data.outputLowValues << "_" << data.outputHighValues << "_" <<
-        (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
+    return out << "level=" << data.quantizationLevel <<
+        "_shape=" <<(data.constantShapes.empty() ? ngraph::Shape{} : data.constantShapes[0]) <<
+        "_input_low=" << data.inputLowValues <<
+        "_input_high=" << data.inputHighValues <<
+        "_output_low=" << data.outputLowValues <<
+        "_output_high=" << data.outputHighValues <<
+        "_precision=" << (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
 }
 
 }  // namespace subgraph

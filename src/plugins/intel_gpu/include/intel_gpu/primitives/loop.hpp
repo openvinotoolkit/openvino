@@ -7,8 +7,6 @@
 #include <functional>
 #include "primitive.hpp"
 #include "intel_gpu/graph/topology.hpp"
-#include "intel_gpu/graph/serialization/string_serializer.hpp"
-#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 #define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
@@ -57,8 +55,6 @@ struct loop : public primitive_base<loop> {
     loop() : primitive_base("", {}),
              max_iteration(0) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     struct io_primitive_map {
         /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
         ///
@@ -70,8 +66,8 @@ struct loop : public primitive_base<loop> {
         /// @param stride Step of iteration. Negative value means backward iteration. Applies only when axis >=0.
         io_primitive_map(primitive_id external_id = "", primitive_id internal_id = "",
             int64_t axis = -1, int64_t start = 0, int64_t end = -1, int64_t stride = 1) :
-            external_id(external_id),
-            internal_id(internal_id),
+            external_id(std::move(external_id)),
+            internal_id(std::move(internal_id)),
             axis(axis),
             start(start),
             end(end),
@@ -208,6 +204,7 @@ struct loop : public primitive_base<loop> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<loop>::save(ob);
         ob << trip_count_id;
         ob << initial_execution_id;
         ob << num_iteration_id;
@@ -220,6 +217,7 @@ struct loop : public primitive_base<loop> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<loop>::load(ib);
         ib >> trip_count_id;
         ib >> initial_execution_id;
         ib >> num_iteration_id;

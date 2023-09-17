@@ -17,6 +17,8 @@
 #include "transformations/transpose_sinking/ts_gather.hpp"
 #include "transformations/transpose_sinking/ts_interpolate.hpp"
 #include "transformations/transpose_sinking/ts_reduction.hpp"
+#include "transformations/transpose_sinking/ts_reset_no_sinking_attribute.hpp"
+#include "transformations/transpose_sinking/ts_shape_of.hpp"
 #include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/transpose_sinking/ts_split.hpp"
 #include "transformations/transpose_sinking/ts_squeeze.hpp"
@@ -39,6 +41,7 @@ TSGeneralForward::TSGeneralForward() {
     add_matcher<TSInterpolateForward>();
     add_matcher<TSSliceForward>();
     add_matcher<TSGatherForward>();
+    add_matcher<TSShapeOfForward>();
     add_matcher<TSFuse>();
 }
 
@@ -73,6 +76,7 @@ bool TSGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
         manager.register_pass<DisableShapeOfConstantFolding>();
         manager.register_pass<TSGeneralBackward>();
         manager.register_pass<ConstantFolding>();
+        manager.register_pass<TSResetNoSinkingAttribute>();
         manager.run_passes(f);
     }
 

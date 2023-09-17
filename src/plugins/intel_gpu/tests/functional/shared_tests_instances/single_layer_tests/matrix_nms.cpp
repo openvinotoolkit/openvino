@@ -43,7 +43,7 @@ const auto nmsParamsStatic =
                        ::testing::ValuesIn(normalized),
                        ::testing::ValuesIn(decayFunction),
                        ::testing::ValuesIn(outStaticShape),
-                       ::testing::Values(CommonTestUtils::DEVICE_GPU));
+                       ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatrixNmsLayerTest_static,
                          MatrixNmsLayerTest,

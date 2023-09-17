@@ -11,6 +11,8 @@ namespace cldnn {
 struct count_nonzero : public primitive_base<count_nonzero> {
     CLDNN_DECLARE_PRIMITIVE(count_nonzero)
 
+    count_nonzero() : primitive_base("", {}) {}
+
     /// @brief Constructs count_nonzero primitive.
     /// @param id This primitive id.
     /// @param data Input data primitive id.
@@ -26,6 +28,8 @@ struct count_nonzero : public primitive_base<count_nonzero> {
 
 struct gather_nonzero : public primitive_base<gather_nonzero> {
     CLDNN_DECLARE_PRIMITIVE(gather_nonzero)
+
+    gather_nonzero() : primitive_base("", {}) {}
 
     /// @brief Constructs gather_nonzero primitive.
     /// @param id This primitive id.

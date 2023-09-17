@@ -14,51 +14,30 @@
 #include <utility>
 #include <memory>
 #include <string>
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include "ie_remote_context.hpp"
+#include "plugin.hpp"
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define MultiDevicePlugin MockMultiDevicePlugin
-#else
-#define MOCKTESTMACRO
-#endif
-
-namespace MultiDevicePlugin {
-
-class MultiDeviceInferRequest : public InferenceEngine::IInferRequestInternal {
+namespace ov {
+namespace auto_plugin {
+class CompiledModel;
+class InferRequest : public ov::ISyncInferRequest {
 public:
-    using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
-    explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
-                                     const InferenceEngine::OutputsDataMap& networkOutputs,
-                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
-                                     InferenceEngine::RemoteContext::Ptr ctx = nullptr);
-    explicit MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
-                                     InferenceEngine::RemoteContext::Ptr ctx = nullptr);
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
-    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) override;
-    /**
-     * @deprecated This method will be removed in 2024.1 release
-     * @brief Sets blob with a pre-process information
-     */
-    void SetBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& blob,
-                 const InferenceEngine::PreProcessInfo& info) override;
-    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
-    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
-    // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
-    void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
-    InferenceEngine::SoIInferRequestInternal& GetSharedRequest() { return _sharedRequest; }
-    InferenceEngine::SoIInferRequestInternal _scheduledRequest;
+    explicit InferRequest(const std::shared_ptr<const ov::auto_plugin::CompiledModel>& compiled_model,
+                          const SoAsyncInferRequest& request_to_share_tensors_with);
+    ~InferRequest();
+
+    void infer() override;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+
+    const SoAsyncInferRequest& get_shared_request();
+    void set_scheduled_request(SoAsyncInferRequest request);
+    // Auto-Device impl specific: sets the data (tensors from the device-less requests to the specific device request)
+    void set_tensors_to_another_request(const SoAsyncInferRequest& req);
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
 private:
-    void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
-                            InferenceEngine::RemoteContext::Ptr ctx);
-    InferenceEngine::SoIInferRequestInternal _sharedRequest;
-    std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelInputsMap;
-    std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelOutputsMap;
+    SoAsyncInferRequest m_shared_request;
+    SoAsyncInferRequest m_scheduled_request;
 };
-
-}  // namespace MultiDevicePlugin
+} // namespace auto_plugin
+} // namespace ov

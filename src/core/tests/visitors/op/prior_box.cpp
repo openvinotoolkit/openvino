@@ -2,26 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "ngraph/opsets/opset8.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/prior_box.hpp"
+
+#include <gtest/gtest.h>
+
+#include "openvino/op/shape_of.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, prior_box_op) {
-    NodeBuilder::get_ops().register_factory<opset1::PriorBox>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::PriorBox>();
+    const auto layer_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
     op::v0::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{16.f, 32.f};
@@ -37,9 +32,9 @@ TEST(attributes, prior_box_op) {
     attrs.variance = vector<float>{2.22f, 3.14f};
     attrs.scale_all_sizes = true;
 
-    auto prior_box = make_shared<opset1::PriorBox>(layer_shape, image_shape, attrs);
+    auto prior_box = make_shared<ov::op::v0::PriorBox>(layer_shape, image_shape, attrs);
     NodeBuilder builder(prior_box, {layer_shape, image_shape});
-    auto g_prior_box = ov::as_type_ptr<opset1::PriorBox>(builder.create());
+    auto g_prior_box = ov::as_type_ptr<ov::op::v0::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
     const auto g_prior_box_attrs = g_prior_box->get_attrs();
@@ -62,9 +57,9 @@ TEST(attributes, prior_box_op) {
 }
 
 TEST(attributes, prior_box_op2) {
-    NodeBuilder::get_ops().register_factory<opset1::PriorBox>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::PriorBox>();
+    const auto layer_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
     op::v0::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{0.1f, 0.141421f};
@@ -80,9 +75,9 @@ TEST(attributes, prior_box_op2) {
     attrs.variance = vector<float>{0.1f, 0.1f, 0.2f, 0.2f};
     attrs.scale_all_sizes = false;
 
-    auto prior_box = make_shared<opset1::PriorBox>(layer_shape, image_shape, attrs);
+    auto prior_box = make_shared<ov::op::v0::PriorBox>(layer_shape, image_shape, attrs);
     NodeBuilder builder(prior_box, {layer_shape, image_shape});
-    auto g_prior_box = ov::as_type_ptr<opset1::PriorBox>(builder.create());
+    auto g_prior_box = ov::as_type_ptr<ov::op::v0::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
     const auto g_prior_box_attrs = g_prior_box->get_attrs();
@@ -105,9 +100,9 @@ TEST(attributes, prior_box_op2) {
 }
 
 TEST(attributes, prior_box_v8_op) {
-    NodeBuilder::get_ops().register_factory<opset8::PriorBox>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v8::PriorBox>();
+    const auto layer_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
     op::v8::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{16.f, 32.f};
@@ -124,9 +119,9 @@ TEST(attributes, prior_box_v8_op) {
     attrs.scale_all_sizes = true;
     attrs.min_max_aspect_ratios_order = false;
 
-    auto prior_box = make_shared<opset8::PriorBox>(layer_shape, image_shape, attrs);
+    auto prior_box = make_shared<ov::op::v8::PriorBox>(layer_shape, image_shape, attrs);
     NodeBuilder builder(prior_box, {layer_shape, image_shape});
-    auto g_prior_box = ov::as_type_ptr<opset8::PriorBox>(builder.create());
+    auto g_prior_box = ov::as_type_ptr<ov::op::v8::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
     const auto g_prior_box_attrs = g_prior_box->get_attrs();
@@ -150,11 +145,13 @@ TEST(attributes, prior_box_v8_op) {
 }
 
 TEST(attributes, prior_box_v8_op2) {
-    NodeBuilder::get_ops().register_factory<opset8::PriorBox>();
+    NodeBuilder::get_ops().register_factory<ov::op::v8::PriorBox>();
 
-    auto params = ngraph::builder::makeParams(ov::element::Type_t::i32, {{128, 128}, {32, 32}});
-    auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-    auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{128, 128}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{32, 32})};
+
+    auto shape_of_1 = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
+    auto shape_of_2 = std::make_shared<ov::op::v3::ShapeOf>(params[1]);
 
     op::v8::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{16.f, 32.f};
@@ -171,9 +168,9 @@ TEST(attributes, prior_box_v8_op2) {
     attrs.scale_all_sizes = true;
     attrs.min_max_aspect_ratios_order = false;
 
-    auto prior_box = make_shared<opset8::PriorBox>(shape_of_1, shape_of_2, attrs);
+    auto prior_box = make_shared<ov::op::v8::PriorBox>(shape_of_1, shape_of_2, attrs);
     NodeBuilder builder(prior_box, {shape_of_1, shape_of_2});
-    auto g_prior_box = ov::as_type_ptr<opset8::PriorBox>(builder.create());
+    auto g_prior_box = ov::as_type_ptr<ov::op::v8::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
     const auto g_prior_box_attrs = g_prior_box->get_attrs();

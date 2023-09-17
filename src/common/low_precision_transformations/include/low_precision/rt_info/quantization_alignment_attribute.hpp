@@ -9,14 +9,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include <ngraph/node.hpp>
-
-#include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "shared_value_attribute.hpp"
 #include "attribute_parameters.hpp"
 
-namespace ngraph {
+namespace ov {
 /**
  * @ingroup ie_transformation_common_api
  * @brief QuantizationAlignmentAttribute defines subgraph with the same quantization alignment.
@@ -31,10 +28,10 @@ public:
     QuantizationAlignmentAttribute(const bool value = false);
 
     static ov::Any create(
-        const std::shared_ptr<ngraph::Node>& node,
+        const std::shared_ptr<ov::Node>& node,
         const AttributeParameters& params = AttributeParameters());
     void merge_attributes(std::vector<ov::Any>& attributes);
     std::string to_string() const override;
 };
 
-} // namespace ngraph
+} // namespace ov

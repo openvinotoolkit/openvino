@@ -10,8 +10,8 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/reference/range.hpp"
 #include "range_shape_inference.hpp"
 
 using namespace std;
@@ -83,12 +83,11 @@ void op::v4::Range::validate_and_infer_types() {
                           "'step' input scalar should be a numeric type. Got: ",
                           get_input_element_type(2));
 
-    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
     std::vector<PartialShape> input_shapes;
     for (size_t i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
 
-    op::v4::shape_infer(this, input_shapes, result_shapes);
+    const auto result_shapes = op::v4::shape_infer(this, input_shapes);
 
     set_output_type(0, m_output_type, result_shapes[0]);
 }
@@ -135,6 +134,7 @@ bool get_casted_value(const HostTensorPtr& tensor, T* val) {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace rangeop {
 namespace {
 template <element::Type_t ET>
@@ -170,7 +170,7 @@ bool evaluate(const HostTensorPtr& out,
     }
     ov::Shape out_shape = ov::Shape({static_cast<size_t>(out_size)});
     out->set_shape(out_shape);
-    runtime::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
+    ov::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
     return true;
 }
 
@@ -356,12 +356,11 @@ void op::v0::Range::validate_and_infer_types() {
     if (result_et == element::Type_t::dynamic) {
         set_output_type(0, result_et, ov::PartialShape::dynamic(1));
     } else {
-        std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
         std::vector<PartialShape> input_shapes;
         for (size_t i = 0; i < get_input_size(); i++)
             input_shapes.push_back(get_input_partial_shape(i));
 
-        op::v0::shape_infer(this, input_shapes, result_shapes);
+        const auto result_shapes = op::v0::shape_infer(this, input_shapes);
 
         set_output_type(0, result_et, result_shapes[0]);
     }

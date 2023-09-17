@@ -18,11 +18,11 @@
 #include "multi-device/multi_device_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "so_extension.hpp"
 
 namespace ov {
 
@@ -33,7 +33,9 @@ struct Parsed {
     AnyMap _config;
 };
 
-Parsed parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config = {});
+Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
+                                 const AnyMap& config = {},
+                                 const bool keep_core_property = false);
 
 /**
  * @brief Checks whether config is applicable for device with 'device_name'
@@ -50,7 +52,7 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& co
  */
 bool is_config_applicable(const std::string& device_name, const std::string& device_name_to_parse);
 
-std::string findPluginXML(const std::string& xmlFile);
+std::string find_plugins_xml(const std::string& xmlFile);
 
 class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_this<InferenceEngine::ICore> {
 private:
@@ -63,6 +65,9 @@ private:
 
     std::mutex& get_mutex(const std::string& dev_name = "") const;
     void add_mutex(const std::string& dev_name);
+
+    bool is_proxy_device(const ov::Plugin& plugin) const;
+    bool is_proxy_device(const std::string& dev_name) const;
 
     class CoreConfig final {
     public:
@@ -142,9 +147,7 @@ private:
 
     std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
     mutable std::unordered_set<std::string> opsetNames;
-    // TODO: make extensions to be optional with conditional compilation
-    mutable std::vector<InferenceEngine::IExtensionPtr> extensions;
-    mutable std::vector<ov::Extension::Ptr> ov_extensions;
+    mutable std::vector<ov::Extension::Ptr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
 
@@ -153,29 +156,33 @@ private:
     ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
                                                           ov::Plugin& plugin,
                                                           const ov::AnyMap& parsedConfig,
-                                                          const ov::RemoteContext& context,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                           const CacheContent& cacheContent) const;
 
     static ov::SoPtr<ov::ICompiledModel> load_model_from_cache(
         const CacheContent& cacheContent,
         ov::Plugin& plugin,
         const ov::AnyMap& config,
-        const ov::RemoteContext& context,
+        const ov::SoPtr<ov::IRemoteContext>& context,
         std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
 
     bool device_supports_model_caching(const ov::Plugin& plugin) const;
 
     bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
+    bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
     OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
 
     ov::SoPtr<ov::ICompiledModel> compile_model_with_preprocess(ov::Plugin& plugin,
                                                                 const std::shared_ptr<const ov::Model>& model,
-                                                                const ov::RemoteContext& context,
+                                                                const ov::SoPtr<ov::IRemoteContext>& context,
                                                                 const ov::AnyMap& config) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
+
+    bool is_hidden_device(const std::string& device_name) const;
+    void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
     template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
     void try_to_register_plugin_extensions(const std::basic_string<C>& path) const {
@@ -218,9 +225,9 @@ public:
      */
     void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
 
-    void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
-                             std::string& deviceName,
-                             ov::AnyMap& config) const;
+    std::shared_ptr<const ov::Model> apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
+                                                         std::string& deviceName,
+                                                         ov::AnyMap& config) const;
 
     /*
      * @brief Register plugins according to the build configuration
@@ -303,12 +310,6 @@ public:
      */
     void AddExtension(const InferenceEngine::IExtensionPtr& extension);
 
-    /**
-     * @brief Provides a list of extensions
-     * @return A list of registered extensions
-     */
-    const std::vector<InferenceEngine::IExtensionPtr>& GetExtensions() const;
-
     bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 
     std::map<std::string, InferenceEngine::Version> GetVersions(const std::string& deviceName) const;
@@ -333,8 +334,9 @@ public:
      * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform `plugin` is wrapped with
      * shared library suffix and prefix to identify library full name
      * @param device_name A name of device
+     * @param properties Plugin configuration
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name);
+    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties);
 
     /**
      * @brief Provides a list of plugin names in registry; physically such plugins may not be created
@@ -353,7 +355,7 @@ public:
 
     void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
 
-    bool device_supports_model_caching(const std::string& deviceName) const;
+    bool device_supports_model_caching(const std::string& device_name) const override;
 
     // ov::ICore
     std::shared_ptr<ov::Model> read_model(const std::string& model,
@@ -367,7 +369,7 @@ public:
                                                 const ov::AnyMap& config = {}) const override;
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                const ov::RemoteContext& context,
+                                                const ov::SoPtr<ov::IRemoteContext>& context,
                                                 const ov::AnyMap& config = {}) const override;
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
@@ -383,19 +385,23 @@ public:
                                                const std::string& device_name = {},
                                                const ov::AnyMap& config = {}) const override;
 
+    ov::SoPtr<ov::ICompiledModel> import_model(std::istream& modelStream,
+                                               const ov::SoPtr<ov::IRemoteContext>& context,
+                                               const ov::AnyMap& config) const override;
+
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const std::string& device_name,
                                     const ov::AnyMap& config) const override;
 
     std::vector<std::string> get_available_devices() const override;
 
-    ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const override;
 
     ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const override;
 
     bool is_new_api() const override;
 
-    ov::RemoteContext get_default_context(const std::string& device_name) const override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const std::string& device_name) const override;
 
     /**
      * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
@@ -404,7 +410,7 @@ public:
      *
      * @param properties Map of pairs: (property name, property value).
      */
-    void set_property(const std::string& device_name, const AnyMap& properties);
+    void set_property(const std::string& device_name, const AnyMap& properties) override;
 
     /**
      * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.

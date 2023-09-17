@@ -3,6 +3,7 @@
 //
 
 #include "test_utils/test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/deconvolution.hpp>
@@ -303,7 +304,7 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad_exclude_fu
         reorder("plane_output", input_info("elt_scale"), format::bfyx, data_types::f32)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
@@ -1754,15 +1755,14 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
     //  Input  : 1x32x16x16
     //  Stride : 2x2
     //  Pad    : 4x4
-
-    //auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    VVVVF<FLOAT16> input_rnd = generate_random_4d<FLOAT16>(1, 32, 16, 16, -2, 2);
+    VVVVF<FLOAT16> input_rnd = rg.generate_random_4d<FLOAT16>(1, 32, 16, 16, -2, 2);
     VF<FLOAT16> input_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
-    VVVVF<FLOAT16> filter_rnd = generate_random_4d<FLOAT16>(1, 32, 9, 9, -1, 1);
+    VVVVF<FLOAT16> filter_rnd = rg.generate_random_4d<FLOAT16>(1, 32, 9, 9, -1, 1);
     VF<FLOAT16> filter_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, filter_rnd);
-    VF<FLOAT16> bias_rnd = generate_random_1d<FLOAT16>(1, -1, 1);
+    VF<FLOAT16> bias_rnd = rg.generate_random_1d<FLOAT16>(1, -1, 1);
     VF<float> filter_rnd_f32_vec, bias_f32_rnd;
 
     for (unsigned int i = 0; i < filter_rnd_vec.size(); i++)
@@ -2631,38 +2631,26 @@ public:
         }
     }
 
-    template <typename T>
-    VVVVVF<T> generate_random(cldnn::tensor size) {
-        return generate_random_5d<T>(
-            size.batch[0],
-            size.feature[0],
-            size.spatial[2],
-            size.spatial[1],
-            size.spatial[0],
-            type_test_ranges<T>::min,
-            type_test_ranges<T>::max);
-    }
-
-    template <typename T>
-    VVVVVVF<T> generate_random_weights(cldnn::tensor size) {
-        return generate_random_6d<T>(
-            size.group[0],
-            size.batch[0],
-            size.feature[0],
-            size.spatial[2],
-            size.spatial[1],
-            size.spatial[0],
-            type_test_ranges<T>::min,
-            type_test_ranges<T>::max);
-    }
-
-    void run(cldnn::engine& eng, const deconvolution_random_test_params& params, ExecutionConfig config) {
+    void run(cldnn::engine& eng, const deconvolution_random_test_params& params, ExecutionConfig config, tests::random_generator& rg) {
         uint32_t groups = params.weights_size.group[0];
         size_t ifm = params.weights_size.feature[0];
         size_t ofm = params.weights_size.batch[0];
 
-        auto input_data = generate_random<InputT>(params.input_size);
-        auto weights_data = generate_random_weights<WeightsT>(params.weights_size);
+        auto input_data = rg.generate_random_5d<InputT>(params.input_size.batch[0],
+                                                        params.input_size.feature[0],
+                                                        params.input_size.spatial[2],
+                                                        params.input_size.spatial[1],
+                                                        params.input_size.spatial[0],
+                                                        type_test_ranges<InputT>::min,
+                                                        type_test_ranges<InputT>::max);
+        auto weights_data = rg.generate_random_6d<WeightsT>(params.weights_size.group[0],
+                                                            params.weights_size.batch[0],
+                                                            params.weights_size.feature[0],
+                                                            params.weights_size.spatial[2],
+                                                            params.weights_size.spatial[1],
+                                                            params.weights_size.spatial[0],
+                                                            type_test_ranges<WeightsT>::min,
+                                                            type_test_ranges<WeightsT>::max);
 
         auto in_layout = cldnn::layout(cldnn::type_to_data_type<InputT>::value, params.input_format, params.input_size);
         auto wei_layout = cldnn::layout(cldnn::type_to_data_type<WeightsT>::value, params.weights_format, params.weights_size);
@@ -2684,7 +2672,7 @@ public:
             auto bias_size = cldnn::tensor(feature(params.weights_size.batch[0] * params.weights_size.group[0]));
             auto bias_lay = cldnn::layout(cldnn::type_to_data_type<OutputT>::value, cldnn::format::bfyx, bias_size);
             auto bias_mem = eng.allocate_memory(bias_lay);
-            bias_data = generate_random_1d<OutputT>(bias_lay.feature(), -1, 1);
+            bias_data = rg.generate_random_1d<OutputT>(bias_lay.feature(), -1, 1);
             set_values(bias_mem, bias_data);
             topo.add(cldnn::data("bias", bias_mem));
             topo.add(cldnn::deconvolution("deconv", input_info("input"), { "weights" }, { "bias" }, groups, params.strides, params.pad));
@@ -2764,6 +2752,7 @@ public:
 class deconvolution_random_test : public testing::TestWithParam<deconvolution_random_test_params> {
 protected:
     void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
         config.set_property(ov::intel_gpu::optimize_data(true));
     }
 
@@ -2787,6 +2776,7 @@ protected:
         }
     }
 
+    tests::random_generator rg;
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(get_test_engine());
 
 private:
@@ -2794,7 +2784,7 @@ private:
     void run_typed() {
         auto& params = GetParam();
         deconvolution_random_test_base<InputT, WeightsT, OutputT> test;
-        test.run(get_test_engine(), params, config);
+        test.run(get_test_engine(), params, config, rg);
     }
 
     template <typename InputT, typename WeightsT>

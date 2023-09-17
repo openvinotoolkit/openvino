@@ -93,7 +93,9 @@ enum class KernelType {
     PRIOR_BOX,
     EYE,
     GENERATE_PROPOSALS,
-    MULTICLASS_NMS
+    MULTICLASS_NMS,
+    UNIQUE_COUNT,
+    UNIQUE_GATHER,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -365,6 +367,8 @@ enum class ResampleType {
     CAFFE_BILINEAR_INTERP,
     CUBIC,
     LINEAR_ONNX,
+    BILINEAR_PILLOW,
+    BICUBIC_PILLOW,
 };
 
 enum class CoordinateTransformationMode {

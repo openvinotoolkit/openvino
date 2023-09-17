@@ -31,7 +31,7 @@ And build OpenVINO as usual.
 
 ## Generate coverage report
 
-In order to generate coverage reports, first of all, the tests must be run. Depending on how many tests are run, the better covegare percentage can be achieved. E.g. for `openvino` component, `InferenceEngineUnitTests`, `ieUnitTests`, `ieFuncTests` must be run as well as plugin tests.
+In order to generate coverage reports, first of all, the tests must be run. Depending on how many tests are run, the better coverage percentage can be achieved. E.g. for `openvino` component, `InferenceEngineUnitTests`, `ieUnitTests`, `ieFuncTests` must be run as well as plugin tests.
 
 ```bash
 $ ctest -V

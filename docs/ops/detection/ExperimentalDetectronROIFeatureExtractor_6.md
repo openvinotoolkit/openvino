@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ExperimentalDetectronROIFeatureExtractor-6 - 
+                an object detection operation, which can be performed on two 
+                required input tensors.
+
 **Versioned name**: *ExperimentalDetectronROIFeatureExtractor-6*
 
 **Category**: *Object detection*
@@ -77,7 +82,8 @@ For more details please see the following source: `Feature Pyramid Networks for 
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
        <data aligned="false" output_size="7" pyramid_scales="4,8,16,32,64" sampling_ratio="2"/>

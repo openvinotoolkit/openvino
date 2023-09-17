@@ -93,14 +93,14 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const 
 }
 
 void DetectionOutput::prepareParams() {
-    const auto& idPriorDims = getParentEdgeAt(ID_PRIOR)->getMemory().GetShape().getStaticDims();
-    const auto &idConfDims = getParentEdgeAt(ID_CONF)->getMemory().GetShape().getStaticDims();
+    const auto& idPriorDims = getParentEdgeAt(ID_PRIOR)->getMemory().getShape().getStaticDims();
+    const auto &idConfDims = getParentEdgeAt(ID_CONF)->getMemory().getShape().getStaticDims();
     priorsNum = static_cast<int>(idPriorDims.back() / priorSize);
     isPriorsPerImg = idPriorDims.front() != 1;
     classesNum = static_cast<int>(idConfDims.back() / priorsNum);
     locNumForClasses = isShareLoc ? 1 : classesNum;
 
-    const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().GetShape().getStaticDims();
+    const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().getShape().getStaticDims();
     if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1]))
         IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of location predictions ("
         << priorsNum * locNumForClasses * 4 << " vs "
@@ -127,7 +127,7 @@ void DetectionOutput::prepareParams() {
     //        --> g_topk(vector<>(all detections) --> indices per class))
     // MXNet: max conf for prior within img, filter(indices) --> topk_img(buffer) --> nms_cls(indices)
     //        --> g_topk(vector<>(all detections) --> indices per class))
-    int cacheSizeL3 = utils::get_cache_size(3, true);
+    unsigned cacheSizeL3 = utils::get_cache_size(3, true);
     isSparsityWorthwhile =
         (confidenceThreshold > sparsityThreshold) &&
         ((classesNum * priorsNum * sizeof(float) * 2) > cacheSizeL3);
@@ -144,7 +144,7 @@ void DetectionOutput::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
@@ -169,15 +169,15 @@ void DetectionOutput::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void DetectionOutput::execute(dnnl::stream strm) {
-    float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
-    const float *locData     = reinterpret_cast<const float *>(getParentEdgeAt(ID_LOC)->getMemoryPtr()->GetPtr());
-    const float *confData    = reinterpret_cast<const float *>(getParentEdgeAt(ID_CONF)->getMemoryPtr()->GetPtr());
-    const float *priorData   = reinterpret_cast<const float *>(getParentEdgeAt(ID_PRIOR)->getMemoryPtr()->GetPtr());
+    const float *locData     = reinterpret_cast<const float *>(getParentEdgeAt(ID_LOC)->getMemoryPtr()->getData());
+    const float *confData    = reinterpret_cast<const float *>(getParentEdgeAt(ID_CONF)->getMemoryPtr()->getData());
+    const float *priorData   = reinterpret_cast<const float *>(getParentEdgeAt(ID_PRIOR)->getMemoryPtr()->getData());
     const float *ARMConfData = inputShapes.size() > 3 ?
-            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_CONF)->getMemoryPtr()->GetPtr()) : nullptr;
+            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_CONF)->getMemoryPtr()->getData()) : nullptr;
     const float *ARMLocData = inputShapes.size() > 4 ?
-            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_LOC)->getMemoryPtr()->GetPtr()) : nullptr;
+            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_LOC)->getMemoryPtr()->getData()) : nullptr;
 
     float *reorderedConfData = reorderedConf.data();
     int *reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
@@ -386,7 +386,7 @@ inline void DetectionOutput::confFilterCF(float* reorderedConfData, int* indices
     parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
         // in:  reorderedConf
         // out: pindices count
-        if (c == backgroundClassId)
+        if (c == static_cast<size_t>(backgroundClassId))
             return;
         int off = n * priorsNum * classesNum + c * priorsNum;
         const float *pconf = reorderedConfData + off;
@@ -540,7 +540,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
         parallel_for(classesNum, [&](size_t c) {
             // in:  conf_h info
             // out: buffer, detectionCount(k)
-            if (c == backgroundClassId)  // Ignore background class
+            if (c == static_cast<size_t>(backgroundClassId))  // Ignore background class
                 return;
             int countIdx = offH + c * confInfoLen + priorsNum;
             int count = reorderedConfDataIndices[countIdx];
@@ -845,7 +845,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
     else
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
-    if (dstDataSize > getChildEdgesAtPort(0)[0]->getMemory().GetSize()) {
+    if (static_cast<size_t>(dstDataSize) > getChildEdgesAtPort(0)[0]->getMemory().getSize()) {
         IE_THROW() << errorPrefix << OUT_OF_BOUNDS;
     }
     memset(dstData, 0, dstDataSize);

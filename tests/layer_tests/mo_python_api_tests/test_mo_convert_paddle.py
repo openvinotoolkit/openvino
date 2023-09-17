@@ -97,7 +97,8 @@ class TestMoConvertPaddle(CommonMOConvertTest):
     def test_mo_import_from_memory_paddle_fe(self, create_model, ie_device, precision, ir_version,
                                              temp_dir):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
-        test_params = {'input_model': fw_model, 'use_new_frontend': True}
+        test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)
+        test_params.update({'use_convert_model_from_mo': True})
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)

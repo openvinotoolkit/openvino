@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultipleAdd_Nd, MultiplyAddLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         MultiplyAddLayerTest::getTestCaseName);
 
 }  // namespace

@@ -9,10 +9,11 @@
 #include <sstream>
 #include "time_utils.hpp"
 
-namespace MultiDevicePlugin {
-namespace TimeUtils {
+namespace ov {
+namespace auto_plugin {
+namespace time_utils {
 
-bool localtimeSafe(const time_t* time, struct tm* result) {
+bool local_time_safe(const time_t* time, struct tm* result) {
     if (time && result) {
 #if defined(_WIN32)
         localtime_s(result, time);
@@ -24,11 +25,11 @@ bool localtimeSafe(const time_t* time, struct tm* result) {
     return false;
 }
 
-std::string putTime(std::chrono::system_clock::time_point tp, const char* format) {
+std::string put_time(std::chrono::system_clock::time_point tp, const char* format) {
     struct tm t = {};
     time_t timeObj = std::chrono::system_clock::to_time_t(tp);
 
-    localtimeSafe(&timeObj, &t);
+    local_time_safe(&timeObj, &t);
 
     std::stringstream ss;
 
@@ -43,7 +44,7 @@ std::string putTime(std::chrono::system_clock::time_point tp, const char* format
     return ss.str();
 }
 
-std::string getCurrentTime() {
+std::string get_current_time() {
     std::stringstream ss;
 
 #ifdef VERBOSE_LOG
@@ -56,9 +57,10 @@ std::string getCurrentTime() {
 
     auto microseconds = (std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count() % 1000000) / 100;
 
-    ss << putTime(now, timeFormat) << '.' << std::setfill('0') << std::setw(4) << microseconds;
+    ss << put_time(now, timeFormat) << '.' << std::setfill('0') << std::setw(4) << microseconds;
 
     return ss.str();
 }
-} // namespace TimeUtils
-} // namespace MultiDevicePlugin
+} // namespace time_utils
+} // namespace auto_plugin
+} // namespace ov

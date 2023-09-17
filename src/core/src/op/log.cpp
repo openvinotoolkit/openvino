@@ -7,7 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/log.hpp"
+#include "openvino/reference/log.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -27,12 +27,13 @@ shared_ptr<Node> op::Log::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Log>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace logop {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::log<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::log<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 

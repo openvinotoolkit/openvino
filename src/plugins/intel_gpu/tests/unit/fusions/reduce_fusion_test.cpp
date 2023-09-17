@@ -34,8 +34,10 @@ struct reduce_test_params {
 
 class ReduceFusingTest : public ::BaseFusingTest<reduce_test_params> {
 public:
-    void execute(reduce_test_params& p, bool is_dynamic = false) {
-        auto input_prim = get_mem(get_input_layout(p));
+    // If an input generator fills values for blocked formats, it sets random values outside of shape.
+    // To avoid this issue made by a generator, it could use a proper planar format given by 'default_format' and add a reorder.
+    void execute(reduce_test_params& p, bool is_dynamic = false, bool use_planar_input = false) {
+        auto input_prim = get_mem(get_input_layout(p, use_planar_input));
 
         cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
         cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
@@ -63,8 +65,11 @@ public:
         return layout{ ov::PartialShape::dynamic(p.in_shape.size()), p.data_type, p.input_format };
     }
 
-    layout get_input_layout(reduce_test_params& p) {
-        return layout{ p.in_shape, p.data_type, p.input_format };
+    layout get_input_layout(reduce_test_params& p, bool use_planar_input = false) {
+        if (use_planar_input)
+            return layout{ p.in_shape, p.data_type, format::get_default_format(p.input_format)};
+        else
+            return layout{ p.in_shape, p.data_type, p.input_format };
     }
 
     layout get_output_layout(reduce_test_params& p) {
@@ -113,19 +118,17 @@ public:
 
 class reduce_eltwise_activation_quantize : public ReduceFusingTest {};
 TEST_P(reduce_eltwise_activation_quantize, basic) {
-    // TODO: Fix me, refer PR(#15873)
-    if (engine.get_device_info().supports_immad)
-        return;
     auto p = GetParam();
     update_out_shape(p);
     create_topologies(
-        input_layout("input", get_input_layout(p)),
+        input_layout("input", get_input_layout(p, true)),
+        reorder("input_reorder", input_info("input"), p.input_format, p.data_type),
         data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -128)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_output_layout(p))),
-        reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
+        reduce("reduce", input_info("input_reorder"), p.reduce_mode, p.reduce_axes, p.keep_dims),
         eltwise("eltwise", { input_info("reduce"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
         activation("activation", input_info("eltwise"), activation_func::relu),
         quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"),
@@ -134,20 +137,22 @@ TEST_P(reduce_eltwise_activation_quantize, basic) {
     );
 
     tolerance = 1.f;
-    execute(p);
+    // Use a planar input format. It is changed to the 'input_format' by 'input_reorder'
+    execute(p, false, true);
 }
 
 TEST_P(reduce_eltwise_activation_quantize, per_channel) {
     auto p = GetParam();
     update_out_shape(p);
     create_topologies(
-        input_layout("input", get_input_layout(p)),
+        input_layout("input", get_input_layout(p, true)),
+        reorder("input_reorder", input_info("input"), p.input_format, p.data_type),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -128)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_output_layout(p))),
-        reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
+        reduce("reduce", input_info("input_reorder"), p.reduce_mode, p.reduce_axes, p.keep_dims),
         eltwise("eltwise", { input_info("reduce"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
         activation("activation", input_info("eltwise"), activation_func::relu),
         quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 256, data_types::i8),
@@ -155,7 +160,8 @@ TEST_P(reduce_eltwise_activation_quantize, per_channel) {
     );
 
     tolerance = 1.f;
-    execute(p);
+    // Use a planar input format. It is changed to the 'input_format' by 'input_reorder'
+    execute(p, false, true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_eltwise_activation_quantize, ::testing::ValuesIn(std::vector<reduce_test_params>{
@@ -215,7 +221,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_eltwise_activation_quantize, ::test
     reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::max, { 2, 1, 0 }, true, "reduce_ref" },
     reduce_test_params{ CASE_REDUCE_U8_2, 2, 5, reduce_mode::sum, { 4, 3, 0 }, true, "reduce_ref" },
     reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::min, { 3, 2, 1 }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::sum, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
     reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::mean, { 1, 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
     reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::max, { 2, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
     reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::sum, { 3, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
@@ -226,6 +231,17 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_eltwise_activation_quantize, ::test
     reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
     reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::max, { 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
     reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::mean, { 3 }, true, "reduce_gpu_b_fs_yx_fsv16" }
+}));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu_bf_axis, reduce_eltwise_activation_quantize, ::testing::ValuesIn(std::vector<reduce_test_params>{
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::sum, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::max, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::prod, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::mean, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::sum_square, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::l1, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::l2, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::log_sum, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" }
 }));
 
 class reduce_scale_activation : public ReduceFusingTest {};

@@ -12,19 +12,10 @@ namespace ov {
 namespace op {
 namespace v3 {
 
-template <class TShape>
-void shape_infer(const EmbeddingSegmentsSum* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
-}
-
-template <class TShape>
-std::vector<TShape> shape_infer(
-    const EmbeddingSegmentsSum* op,
-    const std::vector<TShape>& input_shapes,
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const EmbeddingSegmentsSum* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
     const auto input_size = input_shapes.size();
 
     NODE_VALIDATION_CHECK(op, input_size >= 4 && input_size <= 6);
@@ -58,12 +49,11 @@ std::vector<TShape> shape_infer(
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same.");
     }
     const auto& emb_table_shape = input_shapes[EMB_TABLE];
-    TShape result_shape = emb_table_shape;
+    TRShape result_shape = emb_table_shape;
     if (emb_table_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, emb_table_shape.size() > 0, "EMB_TABLE can't be a scalar.");
-        TShape segments_value;
-        if (get_data_as_shape<TShape>(NUM_SEGMENTS, op, segments_value, constant_data)) {
-            result_shape[0] = segments_value[0];
+        if (auto segments_value = get_input_const_data_as_shape<TRShape>(op, NUM_SEGMENTS, ta)) {
+            result_shape[0] = (*segments_value)[0];
         } else {
             result_shape[0] = Dimension::dynamic();
         }

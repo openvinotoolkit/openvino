@@ -12,9 +12,9 @@ namespace {
 
 auto params = []() {
     return std::vector<Params>{
-        std::tuple<Device, Config>{CommonTestUtils::DEVICE_GPU, {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}},
-        std::tuple<Device, Config>{CommonTestUtils::DEVICE_GPU, {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)}}},
-        std::tuple<Device, Config>{CommonTestUtils::DEVICE_GPU, {{CONFIG_KEY(CACHE_DIR), "cache"}}},
+        std::tuple<Device, Config>{ov::test::utils::DEVICE_GPU, {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}},
+        std::tuple<Device, Config>{ov::test::utils::DEVICE_GPU, {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)}}},
+        std::tuple<Device, Config>{ov::test::utils::DEVICE_GPU, {{CONFIG_KEY(CACHE_DIR), "cache"}}},
     };
 };
 
@@ -36,7 +36,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     ie.SetConfig(config, target_device);
     runParallel([&] () {
         auto value = counter++;
-        auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_context.get());
+        auto remote_context = make_shared_context(ie, ov::test::utils::DEVICE_GPU, ocl_instance->_context.get());
         (void)ie.LoadNetwork(networks[value % networks.size()], remote_context);
     }, numIterations, numThreads);
 }

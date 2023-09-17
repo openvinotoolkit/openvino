@@ -17,6 +17,7 @@
 #include "log/debug.hpp"
 
 using namespace ov::intel_gna::gna_convolution_layer;
+using namespace ov::intel_gna::limitations;
 
 void CNNFilter32(intel_dnn_component_t* component) {
     auto filters = reinterpret_cast<float*>(component->op.conv1D.ptr_filters);
@@ -77,7 +78,8 @@ void CNNMaxPoolLegacy(intel_dnn_component_t* component,
                         sum += ptr_inputs[k * in_c + i];
                     }
 
-                    ptr_outputs[m * in_c + i] = ov::intel_gna::frontend::SaturationCast<int32_t>(sum, &num_saturate);
+                    ptr_outputs[m * in_c + i] =
+                        ov::intel_gna::frontend::SaturationCast<int32_t>(static_cast<float>(sum), &num_saturate);
                     m++;
                 }
                 if (num_saturate > 0) {
@@ -306,7 +308,7 @@ void CNN2DFilter32(intel_dnn_component_t* component) {
             }
         }
         // kernel padded to 16B = 4 * sizeof(float)
-        kernelIndex += ALIGN(kh * kw * kc, ov::intel_gna::limitations::convEachKernelByteAlignment / sizeof(float));
+        kernelIndex += ALIGN(kh * kw * kc, Limitations::kConvEachKernelByteAlignment / sizeof(float));
     }
 }
 

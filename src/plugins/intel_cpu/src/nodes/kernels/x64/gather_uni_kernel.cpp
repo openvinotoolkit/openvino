@@ -987,7 +987,7 @@ template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux) {
     Xbyak::Label lEnd;
     Xbyak::Xmm xAux(vAux.getIdx());
-    for (int j = 0; j < vlen / vlenXmm; j++) {
+    for (size_t j = 0; j < vlen / vlenXmm; j++) {
         if (isa == x64::avx2)
             vextracti128(xAux, vmmSrc, j);
         else if (isa == x64::avx512_core)

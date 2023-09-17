@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
@@ -13,12 +14,12 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-
 bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::LoadMoveBroadcastToBroadcastLoad")
+    const auto& loop_manager = linear_ir.get_loop_manager();
     bool modified = false;
 
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
+    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto& expr = *expr_it;
         const auto& op = expr->get_node();
         // Match on MoveBroadcast because MoveBroadcast is rare node in bodies
@@ -47,10 +48,15 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
             const auto move_consumers = expr->get_output_port_connector(0)->get_consumers();
             PortDescriptorUtils::set_port_descriptor_ptr(broadcastload->output(0), expr->get_output_port(0).get_descriptor_ptr()->clone());
             const auto broadcastload_expr = linear_ir.create_expression(broadcastload, { parent_expr->get_input_port_connector(0) });
+            // Copy Loop identifies
+            broadcastload_expr->set_loop_ids(parent_expr->get_loop_ids());
+            // Update the corresponding Loops with
+            loop_manager->update_loops_port(parent_expr->get_loop_ids(), parent_expr->get_input_port(0), {broadcastload_expr->get_input_port(0)}, true);
+
             const auto mv_expr_it = expr_it;
             const auto insertion_pos = std::next(expr_it);
             expr_it = linear_ir.insert(insertion_pos, broadcastload_expr);
-            linear_ir.erase(std::find(linear_ir.begin(), mv_expr_it, parent_expr));
+            linear_ir.erase(linear_ir.find_before(mv_expr_it, parent_expr));
             linear_ir.erase(mv_expr_it);
             linear_ir.replace_input(move_consumers, broadcastload_expr->get_output_port_connector(0));
             modified |= true;

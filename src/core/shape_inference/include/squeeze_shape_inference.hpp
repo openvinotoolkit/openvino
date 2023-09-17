@@ -18,22 +18,20 @@ namespace v0 {
  *
  * \param op             Squeeze operator pointer.
  * \param input_shapes   Squeeze input shapes.
- * \param output_shapes  Output shapes result of squeeze shape inference.
- * \param constant_data  Map of constant data.
+ * \param ta             Tensor accessor to constant data.
  */
-template <class T>
-void shape_infer(const Squeeze* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const Squeeze* op,
+                                 const std::vector<T>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    using DimType = typename T::value_type;
 
-    NODE_VALIDATION_CHECK(op, output_shapes.size() == 1);
     const auto number_of_inputs = input_shapes.size();
     OPENVINO_ASSERT(!input_shapes.empty());
 
     const auto& arg_shape = input_shapes[0];
     const auto& arg_rank = arg_shape.rank();
+    auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
 
     std::unique_ptr<std::set<int64_t>> unique_axes;
@@ -51,15 +49,14 @@ void shape_infer(const Squeeze* op,
 
         std::vector<int64_t> axes;
         if (arg_rank.is_static() && axes_shape.is_static()) {
-            if (get_data_as_int64<T>(1, op, axes, constant_data)) {
+            if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 1, ta)) {
                 // The values of `axes` input are known
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                normalize_axes(op, arg_rank.get_length(), axes);
+                normalize_axes(op, arg_rank.get_length(), *axes);
                 OPENVINO_SUPPRESS_DEPRECATED_END
-                unique_axes.reset(new std::set<int64_t>(axes.cbegin(), axes.cend()));
+                unique_axes.reset(new std::set<int64_t>(axes->cbegin(), axes->cend()));
             } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
-                // The `axes` input must be a Parameter with single element to ensure uniqueness of axes
-                // only rank is deduced
+                // The `axes` input is a single element tensor which is unique by definition, deducing output rank
                 NODE_VALIDATION_CHECK(op,
                                       std::any_of(arg_shape.cbegin(),
                                                   arg_shape.cend(),
@@ -71,7 +68,7 @@ void shape_infer(const Squeeze* op,
                                       " doesn't contain squeezable dimension,"
                                       " but axes input is expected to have one element.");
                 output_shape = PartialShape::dynamic(arg_rank.get_length() - 1);
-                return;
+                return output_shapes;
             }
         }
     } else {
@@ -82,14 +79,21 @@ void shape_infer(const Squeeze* op,
     if (arg_rank.is_static() && (unique_axes != nullptr)) {
         output_shape.resize(0);
         if (unique_axes->empty()) {
-            // According to specification, if only first input provided` or axes are empty
-            // remove all dimensions equal to 1.
-            std::copy_if(arg_shape.cbegin(),
-                         arg_shape.cend(),
-                         std::back_inserter(output_shape),
-                         [](const DimType& dim) {
-                             return !dim.compatible(1);
-                         });
+            // if only first input provided or axes are empty remove all dimensions equal to 1.
+            if (std::any_of(arg_shape.cbegin(), arg_shape.cend(), [](const DimType& d) {
+                    return d.is_dynamic() && d.compatible(1);
+                })) {
+                // we are unsure if dynamic dimensions would be equal to 1 or not, so we set dynamic output rank
+                output_shape = PartialShape::dynamic();
+                return output_shapes;
+            } else {
+                std::copy_if(arg_shape.cbegin(),
+                             arg_shape.cend(),
+                             std::back_inserter(output_shape),
+                             [](const DimType& dim) {
+                                 return !dim.compatible(1);
+                             });
+            }
         } else {
             int64_t idx = 0;
             auto rm_axis_iter = unique_axes->cbegin();
@@ -113,15 +117,10 @@ void shape_infer(const Squeeze* op,
                          std::back_inserter(output_shape),
                          not_squeezable_at_axis);
         }
-        // When arg shape has got static rank but shape is dynamic and output shape dimensions is empty (scalar)
-        // make dynamic output except the case when arg_shape is 1-D shape with 0 or 1 element then should be scalar.
-        if (arg_shape.is_dynamic() && (output_shape.size() == 0) &&
-            !(arg_rank.get_length() == 1 && arg_shape[0].get_max_length() <= 1)) {
-            output_shape = PartialShape::dynamic();
-        }
     } else {
         output_shape = PartialShape::dynamic();
     }
+    return output_shapes;
 }
 }  // namespace v0
 }  // namespace op

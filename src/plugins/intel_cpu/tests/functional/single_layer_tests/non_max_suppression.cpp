@@ -147,7 +147,10 @@ protected:
         }
 
         std::shared_ptr<ngraph::Node> maxOutBoxesPerClassNode;
-        auto params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
+        }
         params[0]->set_friendly_name("param_1");
         params[1]->set_friendly_name("param_2");
 
@@ -430,7 +433,7 @@ const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::ValuesIn(encodType),
                                           ::testing::ValuesIn(sortResDesc),
                                           ::testing::ValuesIn(outType),
-                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)
+                                          ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerCPUTest, NmsLayerCPUTest, nmsParams, NmsLayerCPUTest::getTestCaseName);

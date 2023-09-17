@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Gelu-7 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Gelu-7*
 
@@ -66,7 +69,8 @@ For ``tanh`` approximation mode, *Gelu* function is represented as:
 
 *Example*: ``tanh`` approximation mode
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Gelu">
        <data approximation_mode="tanh"/>
@@ -87,7 +91,8 @@ For ``tanh`` approximation mode, *Gelu* function is represented as:
 
 *Example:* ``erf`` approximation mode
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Gelu">
        <data approximation_mode="erf"/>

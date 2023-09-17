@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/binary_convolution.hpp"
+#include "openvino/reference/binary_convolution.hpp"
 
 #include "evaluate_node.hpp"
 
@@ -21,17 +21,17 @@ inline void evaluate(const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& o
     const auto filter_shape = inputs[1]->get_shape();
     const auto out_shape = outputs[0]->get_shape();
 
-    ngraph::runtime::reference::binary_convolution<T_IN, T_F>(in_data_ptr,
-                                                              filter_data_ptr,
-                                                              out_data_ptr,
-                                                              in_shape,
-                                                              filter_shape,
-                                                              out_shape,
-                                                              op->get_strides(),
-                                                              op->get_dilations(),
-                                                              op->get_pads_begin(),
-                                                              op->get_pads_end(),
-                                                              op->get_pad_value());
+    ov::reference::binary_convolution<T_IN, T_F>(in_data_ptr,
+                                                 filter_data_ptr,
+                                                 out_data_ptr,
+                                                 in_shape,
+                                                 filter_shape,
+                                                 out_shape,
+                                                 op->get_strides(),
+                                                 op->get_dilations(),
+                                                 op->get_pads_begin(),
+                                                 op->get_pads_end(),
+                                                 op->get_pad_value());
 }
 }  // namespace bin_conv_v1
 

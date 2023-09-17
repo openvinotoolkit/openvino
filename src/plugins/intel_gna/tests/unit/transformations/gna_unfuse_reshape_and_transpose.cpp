@@ -10,7 +10,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 
 namespace testing {
@@ -170,7 +170,7 @@ typedef std::tuple<std::tuple<ngraph::Shape, ngraph::Shape, bool, bool>,
     UnfuseReshapeAndTransposeParams;
 
 class UnfuseReshapeAndTransposeTestSuiteFixture
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public ::testing::WithParamInterface<UnfuseReshapeAndTransposeParams> {
 public:
     void SetUp() override;

@@ -22,8 +22,6 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
                             center_point_box(false),
                             sort_result_descending(false) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Creates non max suppression primitive.
     /// @param id This primitive id.
     /// @param boxes_positions Id of primitive with bounding boxes.
@@ -122,6 +120,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<non_max_suppression>::save(ob);
         ob << selected_indices_num;
         ob << center_point_box;
         ob << sort_result_descending;
@@ -134,6 +133,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<non_max_suppression>::load(ib);
         ib >> selected_indices_num;
         ib >> center_point_box;
         ib >> sort_result_descending;

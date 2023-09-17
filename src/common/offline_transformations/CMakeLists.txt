@@ -19,7 +19,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev openvino::itt openvino::pugixml ngraph::reference
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev openvino::itt openvino::pugixml openvino::reference
                                              openvino::runtime)
 
 set_source_files_properties(INCLUDE_DIRECTORIES
@@ -30,7 +30,7 @@ target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 # developer package
 

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about NV12toBGR-8 - an image processing operation, which 
+                can be performed to convert an image from NV12 to BGR format.
+
 **Versioned name**: *NV12toBGR-8*
 
 **Category**: *Image processing*
@@ -34,7 +38,8 @@ Same as specified for :doc:`NV12toRGB <openvino_docs_ops_image_NV12toRGB_8>` ope
 
 *Example 1*
 
-.. code-block::  cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="NV12toBGR">
         <input>
@@ -58,7 +63,8 @@ Same as specified for :doc:`NV12toRGB <openvino_docs_ops_image_NV12toRGB_8>` ope
 
 *Example 2*
 
-.. code-block::  cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="NV12toBGR">
         <input>

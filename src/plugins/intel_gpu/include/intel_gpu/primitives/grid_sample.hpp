@@ -10,13 +10,13 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-
-
 using GridSampleOp = ov::op::v9::GridSample;
 
 /// @brief GridSample-9 primitive.
 struct grid_sample : primitive_base<grid_sample> {
     CLDNN_DECLARE_PRIMITIVE(grid_sample)
+
+    grid_sample() : primitive_base("", {}) {}
 
     /// @brief Constructs grid_sample primitive.
     /// @param id This primitive id.
@@ -48,6 +48,16 @@ struct grid_sample : primitive_base<grid_sample> {
         return attributes.align_corners == rhs_casted.attributes.align_corners &&
                attributes.mode == rhs_casted.attributes.mode &&
                attributes.padding_mode == rhs_casted.attributes.padding_mode;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<grid_sample>::save(ob);
+        ob << make_data(&attributes, sizeof(GridSampleOp::Attributes));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<grid_sample>::load(ib);
+        ib >> make_data(&attributes, sizeof(GridSampleOp::Attributes));
     }
 };
 

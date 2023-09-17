@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
+#include "openvino/op/shape_of.hpp"
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/op/broadcast.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, shape_of_v0) {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto so = make_shared<op::v0::ShapeOf>(a);
 
     ASSERT_EQ(so->get_output_element_type(0), element::i64);
@@ -20,7 +20,7 @@ TEST(type_prop, shape_of_v0) {
 }
 
 TEST(type_prop, shape_of_partial_et_dynamic_v0) {
-    auto a = make_shared<op::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
+    auto a = make_shared<ov::op::v0::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
     auto so = make_shared<op::v0::ShapeOf>(a);
 
     ASSERT_EQ(so->get_output_element_type(0), element::i64);
@@ -28,7 +28,8 @@ TEST(type_prop, shape_of_partial_et_dynamic_v0) {
 }
 
 TEST(type_prop, shape_of_partial_rank_static_dynamic_v0) {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 4});
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32,
+                                                PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 4});
     auto so = make_shared<op::v0::ShapeOf>(a);
 
     ASSERT_EQ(so->get_output_element_type(0), element::i64);
@@ -36,7 +37,7 @@ TEST(type_prop, shape_of_partial_rank_static_dynamic_v0) {
 }
 
 TEST(type_prop, shape_of_partial_rank_dynamic_v0) {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
     auto so = make_shared<op::v0::ShapeOf>(a);
 
     ASSERT_EQ(so->get_output_element_type(0), element::i64);
@@ -44,7 +45,7 @@ TEST(type_prop, shape_of_partial_rank_dynamic_v0) {
 }
 
 TEST(type_prop, shape_of_v3) {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto so = make_shared<op::v3::ShapeOf>(a);
 
     ASSERT_EQ(so->get_output_element_type(0), element::i64);
@@ -52,7 +53,7 @@ TEST(type_prop, shape_of_v3) {
 }
 
 TEST(type_prop, shape_of_partial_et_dynamic_v3) {
-    auto a = make_shared<op::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
+    auto a = make_shared<ov::op::v0::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
     auto so = make_shared<op::v3::ShapeOf>(a);
 
     ASSERT_EQ(so->get_output_element_type(0), element::i64);
@@ -60,7 +61,8 @@ TEST(type_prop, shape_of_partial_et_dynamic_v3) {
 }
 
 TEST(type_prop, shape_of_partial_rank_static_dynamic_v3) {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 4});
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32,
+                                                PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 4});
     auto so = make_shared<op::v3::ShapeOf>(a);
 
     ASSERT_EQ(so->get_output_element_type(0), element::i64);
@@ -68,7 +70,7 @@ TEST(type_prop, shape_of_partial_rank_static_dynamic_v3) {
 }
 
 TEST(type_prop, shape_of_partial_rank_dynamic_v3) {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
     auto so = make_shared<op::v3::ShapeOf>(a);
 
     ASSERT_EQ(so->get_output_element_type(0), element::i64);
@@ -76,7 +78,7 @@ TEST(type_prop, shape_of_partial_rank_dynamic_v3) {
 }
 
 TEST(type_prop, shape_of_output_type_v3) {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto so = make_shared<op::v3::ShapeOf>(a, element::i32);
     try {
         auto sx = make_shared<op::v3::ShapeOf>(a, element::i8);
@@ -109,9 +111,9 @@ TEST(type_prop, shape_of_1_dynamic_value_and_label_propagation) {
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::v0::ShapeOf>(param_0);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, shape_0);
     ASSERT_EQ(bc->get_shape(), (Shape{3, 4}));
@@ -125,8 +127,8 @@ TEST(type_prop, shape_of_3_dynamic_value_and_label_propagation) {
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, target_0);
     auto shape_0 = std::make_shared<op::v3::ShapeOf>(param_0);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, shape_0);

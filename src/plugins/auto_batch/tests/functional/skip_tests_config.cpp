@@ -10,7 +10,6 @@
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> disabled_items = {
         // TODO: for CVS-68949
-        R"(.*AutoBatching_Test_DetectionOutput.*)",
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
@@ -24,6 +23,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*)",
         // BATCH plugin doesn't support this case
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        // BATCH/TEMPLATE plugin doesn't support this case
+        R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)",
     };
 
     return disabled_items;

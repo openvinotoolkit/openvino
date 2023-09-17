@@ -24,7 +24,7 @@ std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<
     std::vector<ngraph::Shape> weightsShape;
     std::string targetDevice;
     RecurrentCellTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, activationsShape, weightsShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
@@ -41,7 +41,7 @@ void RecurrentCellTransformation::SetUp() {
     std::vector<ngraph::PartialShape> activations_shapes;
     std::vector<ngraph::Shape> weights_shapes;
     RecurrentCellTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
 
     std::tie(precision, activations_shapes, weights_shapes, targetDevice, params, param) = this->GetParam();
 
@@ -71,6 +71,9 @@ void RecurrentCellTransformation::SetUp() {
 
 void RecurrentCellTransformation::Run() {
     LayerTestsCommon::Run();
+
+    if (!executableNetwork)
+        return;
 
     const auto params = std::get<5>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);

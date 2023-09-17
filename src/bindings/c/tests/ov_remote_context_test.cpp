@@ -27,7 +27,7 @@ protected:
         char* info = nullptr;
         const char* key = ov_property_key_available_devices;
         EXPECT_EQ(ov_core_get_property(core, "GPU", key, &info), ov_status_e::OK);
-        EXPECT_STRNE(info, nullptr);
+        ASSERT_STRNE(info, nullptr);
 
         if (strlen(info) == 0) {
             ov_free(info);
@@ -360,9 +360,9 @@ TEST_P(ov_remote_context_ocl, create_remote_tensor_nv12_from_ocl_image2D) {
     const int height = 480;
     const int width = 640;
     ov_shape_t shape_y = {0, nullptr};
-    int64_t dims_y[4] = {1, 1, height, width};
+    int64_t dims_y[4] = {1, height, width, 1};
     ov_shape_t shape_uv = {0, nullptr};
-    int64_t dims_uv[4] = {1, 2, height / 2, width / 2};
+    int64_t dims_uv[4] = {1, height / 2, width / 2, 2};
 
     cl_int err;
     cl_image_format image_format;
@@ -555,9 +555,9 @@ TEST_P(ov_remote_context_ocl, remote_tensor_nv12_inference) {
     EXPECT_NE(nullptr, context);
 
     ov_shape_t shape_y = {0, nullptr};
-    int64_t dims_y[4] = {1, 1, height, width};
+    int64_t dims_y[4] = {1, height, width, 1};
     ov_shape_t shape_uv = {0, nullptr};
-    int64_t dims_uv[4] = {1, 2, height / 2, width / 2};
+    int64_t dims_uv[4] = {1, height / 2, width / 2, 2};
 
     cl_int err;
     cl_image_format image_format;

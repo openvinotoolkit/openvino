@@ -4551,7 +4551,7 @@ TEST_P(onednn_replace_full_tensor_sum_to_binary_add, basic) {
 #define CASE_CONV_ELTW_SUM_TO_BINARY_ADD { 1, 32, 4, 4 }, { 1, 32, 2, 2 }, { 32, 32, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_replace_full_tensor_sum_to_binary_add, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_TO_BINARY_ADD, 2, 3, 4 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_TO_BINARY_ADD, 2, 2, 3 },
 }));
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

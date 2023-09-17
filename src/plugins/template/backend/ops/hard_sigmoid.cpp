@@ -4,7 +4,7 @@
 
 // clang-format off
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/hard_sigmoid.hpp"
+#include "openvino/reference/hard_sigmoid.hpp"
 // clang-format on
 
 template <ngraph::element::Type_t ET>
@@ -12,11 +12,11 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::HardSigmoid>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::hard_sigmoid<T>(inputs[0]->get_data_ptr<T>(),
-                                                inputs[1]->get_data_ptr<const T>()[0],
-                                                inputs[2]->get_data_ptr<const T>()[0],
-                                                outputs[0]->get_data_ptr<T>(),
-                                                ngraph::shape_size(outputs[0]->get_shape()));
+    ov::reference::hard_sigmoid<T>(inputs[0]->get_data_ptr<T>(),
+                                   inputs[1]->get_data_ptr<const T>()[0],
+                                   inputs[2]->get_data_ptr<const T>()[0],
+                                   outputs[0]->get_data_ptr<T>(),
+                                   ngraph::shape_size(outputs[0]->get_shape()));
     return true;
 }
 

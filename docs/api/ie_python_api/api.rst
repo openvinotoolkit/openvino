@@ -1,6 +1,10 @@
 OpenVINO Python API
 ===================
 
+.. meta::
+   :description: Explore Python API and implementation of its features in Intel® Distribution of OpenVINO™ Toolkit.
+
+
 .. autosummary::
    :toctree: _autosummary
    :template: custom-module-template.rst

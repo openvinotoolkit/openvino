@@ -82,7 +82,7 @@ namespace {
 ///
 std::shared_ptr<Node> get_normalized_axis_node(const std::shared_ptr<Node> node_rank, int64_t axis) {
     auto axis_node = ngraph::opset1::Constant::create(element::i64, Shape{1}, {axis});
-    // shortcut for alredy positive value
+    // shortcut for already positive value
     if (axis >= 0) {
         return axis_node;
     }
@@ -163,7 +163,7 @@ shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value, const size
 
     if (value.get_partial_shape().is_static()) {
         auto shape = value.get_shape();
-        // Multiply all alements of shape from start_axis to end_axis inclusive
+        // Multiply all elements of shape from start_axis to end_axis inclusive
         size_t collapsed_axis_size = accumulate(next(begin(shape), start_axis),
                                                 next(begin(shape), end_axis + 1),
                                                 size_t{1},

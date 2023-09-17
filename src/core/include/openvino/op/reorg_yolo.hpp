@@ -36,6 +36,8 @@ public:
         return m_strides;
     }
 
+    void set_strides(const size_t stride);
+
 private:
     Strides m_strides;
 };

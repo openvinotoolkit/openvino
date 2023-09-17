@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ScatterNDUpdate-3 - a data movement operation, which can be 
+                performed on three required input tensors.
+
 **Versioned name**: *ScatterNDUpdate-3*
 
 **Category**: *Data movement*
@@ -66,7 +70,8 @@ Example 2 that shows update of two slices of ``4x4`` shape in ``data``:
 
 **Example**
 
-.. code-block:: cpp  
+.. code-block:: xml
+   :force:
 
     <layer ... type="ScatterNDUpdate">
         <input>

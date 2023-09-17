@@ -8,6 +8,7 @@
 
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(aligned_buffer, alignment) {
     runtime::AlignedBuffer buffer(100, 64);
     size_t addr = reinterpret_cast<size_t>(buffer.get_ptr()) % 64;

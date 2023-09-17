@@ -26,7 +26,7 @@ std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     if (inputShapes.front().first.size() != 0) {
         result << "IS=(";
         for (const auto &shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result.seekp(-1, result.cur);
         result << ")_";
@@ -34,11 +34,11 @@ std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     result << "TS=";
     for (const auto& shape : inputShapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
-    result << "AS=" << CommonTestUtils::vec2str(activationShapes) << "_";
-    result << "ConstantsValue=" << CommonTestUtils::vec2str(activationTypeAndConstValue.second) << "_";
+    result << "AS=" << ov::test::utils::vec2str(activationShapes) << "_";
+    result << "ConstantsValue=" << ov::test::utils::vec2str(activationTypeAndConstValue.second) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrecision.name() << "_";
     result << "outPRC=" << outPrecision.name() << "_";
@@ -52,13 +52,19 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
     uint32_t range = 0;
     int32_t resolution = 0;
 
-    if (activationType == ngraph::helpers::ActivationTypes::Exp &&
-        netPrecision == InferenceEngine::Precision::BF16) {
+    if (activationType == ActivationTypes::Exp && netPrecision == Precision::BF16) {
         startFrom = 0;
         range = 2;
         resolution = 32768;
-    } else if (activationType == ngraph::helpers::ActivationTypes::Acosh) {
+    } else if (activationType == ActivationTypes::Acosh) {
         startFrom = 2;
+        range = 2;
+        resolution = 128;
+    } else if (activationType == ActivationTypes::Acos ||
+               activationType == ActivationTypes::Asin ||
+               activationType == ActivationTypes::Atanh) {
+        // range [-1. 1] is required
+        startFrom = -1;
         range = 2;
         resolution = 128;
     } else {
@@ -68,7 +74,7 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
     }
     inputs.clear();
     const auto& funcInputs = function->inputs();
-    for (int i = 0; i < funcInputs.size(); ++i) {
+    for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
         ov::Tensor tensor;
         if (funcInput.get_element_type().is_real()) {
@@ -82,7 +88,7 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
 }
 
 void ActivationLayerCPUTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     std::vector<ov::test::InputShape> inputShapes;
     std::vector<size_t> activationShapes;
@@ -115,10 +121,10 @@ void ActivationLayerCPUTest::SetUp() {
     init_input_shapes(inputShapes);
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
-    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, activationShapes, constantsValue);
+    auto params = std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front());
+    auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
-    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
+    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, ov::ParameterVector{params}, "Activation");
 }
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {

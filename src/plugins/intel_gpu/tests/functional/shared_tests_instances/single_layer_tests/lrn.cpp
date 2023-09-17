@@ -31,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck, LrnLayerTest,
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(std::vector<size_t>({10, 10, 3, 2})),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         LrnLayerTest::getTestCaseName);
 
 }  // namespace

@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "editor_types.hpp"
+#include "ngraph/deprecated.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace ov {
 namespace onnx_editor {
@@ -31,9 +33,15 @@ public:
     ///        is parsed and loaded into the m_model_proto member variable.
     ///
     /// \param model_path Path to the file containing the model.
-    ONNXModelEditor(const std::string& model_path, frontend::ExtensionHolder extensions = {});
+    /// \param enable_mmap Enable mapping files with external weights instead of reading.
+    /// \param extensions Holder for custom extensions (like custom ops).
+    explicit ONNXModelEditor(const std::string& model_path,
+                             const bool enable_mmap = false,
+                             frontend::ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions = {});
+    ONNXModelEditor(const std::wstring& model_path,
+                    const bool enable_mmap = false,
+                    frontend::ExtensionHolder extensions = {});
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded
@@ -42,9 +50,12 @@ public:
     /// \param model_stream The stream containing the model.
     /// \param model_path Path to the file containing the model. This information can be used
     ///                   for ONNX external weights feature support.
-    ONNXModelEditor(std::istream& model_stream,
-                    const std::string& path = {},
-                    frontend::ExtensionHolder extensions = {});
+    /// \param enable_mmap Enable mapping files with external weights instead of reading.
+    /// \param extensions Holder for custom extensions (like custom ops).
+    explicit ONNXModelEditor(std::istream& model_stream,
+                             const std::string& path = {},
+                             const bool enable_mmap = false,
+                             frontend::ExtensionHolder extensions = {});
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
@@ -296,8 +307,9 @@ public:
 private:
     void update_mapper_if_needed() const;
 
-    frontend::ExtensionHolder m_extensions;
     const std::string m_model_path;
+    ngraph::onnx_import::detail::MappedMemoryHandles m_mmap_cache;
+    frontend::ExtensionHolder m_extensions;
 
     struct Impl;
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;

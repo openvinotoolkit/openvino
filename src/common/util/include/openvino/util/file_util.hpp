@@ -163,6 +163,28 @@ inline int64_t file_size(const char* path) {
     return in.tellg();
 }
 
+/**
+ * @brief      Returns file size for file
+ * @param[in]  path  The file name
+ * @return     file size
+ */
+inline bool file_exists(const char* path) {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widefilename = ov::util::string_to_wstring(path);
+    const wchar_t* file_name = widefilename.c_str();
+#elif defined(__ANDROID__) || defined(ANDROID)
+    std::string file_name = path;
+    std::string::size_type pos = file_name.find('!');
+    if (pos != std::string::npos) {
+        file_name = file_name.substr(0, pos);
+    }
+#else
+    const char* file_name = path;
+#endif
+    std::ifstream in(file_name, std::ios_base::binary | std::ios_base::ate);
+    return in.good();
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
@@ -174,6 +196,14 @@ inline int64_t file_size(const std::wstring& path) {
     return file_size(wstring_to_string(path).c_str());
 }
 
+/**
+ * @brief      Returns true if file exists
+ * @param[in]  path  The file name
+ * @return     true if file exists
+ */
+inline bool file_exists(const std::wstring& path) {
+    return file_exists(wstring_to_string(path).c_str());
+}
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
@@ -187,13 +217,11 @@ inline int64_t file_size(const std::string& path) {
 
 /**
  * @brief      Returns true if file exists
- * @param[in]  path  The path to file
+ * @param[in]  path  The file name
  * @return     true if file exists
  */
-template <typename C,
-          typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
-inline bool file_exists(const std::basic_string<C>& path) {
-    return file_size(path) > 0;
+inline bool file_exists(const std::string& path) {
+    return file_exists(path.c_str());
 }
 
 std::string get_file_ext(const std::string& path);
@@ -309,6 +337,23 @@ std::vector<uint8_t> load_binary(const std::string& path);
  * @param path - binary file path to store
  */
 void save_binary(const std::string& path, std::vector<uint8_t> binary);
+void save_binary(const std::string& path, const char* binary, size_t bin_size);
+
+/**
+ * @brief Trim OpenVINO project file name path if OpenVINO project directory found.
+ *
+ * Function use `OV_NATIVE_PARENT_PROJECT_ROOT_DIR` definition with project directory name defines
+ * 'openvino_dir_name'. The input file name is scanned for OV_NATIVE_PARENT_PROJECT_ROOT_DIR,
+ * if found returns pointer to trimmed name otherwise returns input pointer.
+ *
+ * e.g: OV_NATIVE_PARENT_PROJECT_ROOT_DIR = openvino
+ * - /home/user/openvino/src/example.cpp -> src/example.cpp
+ * - ../../../../openvino/src/example.cpp -> src/example.cpp
+ *
+ * @param fname  Pointer to OpenVINO file name path.
+ * @return Pointer to trimmed file name path.
+ */
+const char* trim_file_name(const char* const fname);
 
 }  // namespace util
 }  // namespace ov

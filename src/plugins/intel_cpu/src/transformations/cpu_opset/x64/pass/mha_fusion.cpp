@@ -8,6 +8,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "simplify_fakequantize.hpp"
 
@@ -470,7 +471,8 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
                                                                                    ngraph::pattern::wrap_type<ngraph::opset4::Constant>(),
                                                                                    ngraph::pattern::wrap_type<ngraph::opset4::Constant>(),
                                                                                    ngraph::pattern::wrap_type<ngraph::opset4::Constant>()});
-    auto transpose3 = std::make_shared<ngraph::opset3::Transpose>(fakeQuantize1, in10);
+    auto in11 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{ matmul1, fakeQuantize1 });
+    auto transpose3 = std::make_shared<ngraph::opset3::Transpose>(in11, in10);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -532,10 +534,13 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
             return false;
 
         std::vector<float> fq1_scale;
-        if (auto fq_node = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize1).get_node_shared_ptr())) {
-            fq1_scale = simplifyToScale(fq_node);
-            if (!fq1_scale.size())
-                return false;
+        const bool fakeQuantize1Exists = pattern_to_output.find(fakeQuantize1) != pattern_to_output.end();
+        if (fakeQuantize1Exists) {
+            if (auto fq_node = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize1).get_node_shared_ptr())) {
+                fq1_scale = simplifyToScale(fq_node);
+                if (!fq1_scale.size())
+                    return false;
+            }
         }
 
         auto matmul1_node = ngraph::as_type_ptr<ngraph::opset3::MatMul>(pattern_to_output.at(matmul1).get_node_shared_ptr());
@@ -551,19 +556,23 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
                                                             fq0_node->get_output_element_type(0), ngraph::element::undefined, ngraph::element::undefined,
                                                             transpose3_node->get_output_element_type(0));
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(transpose0).get_node_shared_ptr(),
-                                   pattern_to_output.at(transpose1).get_node_shared_ptr(),
-                                   pattern_to_output.at(fakeQuantize0).get_node_shared_ptr(),
-                                   pattern_to_output.at(matmul0).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(softmax).get_node_shared_ptr(),
-                                   pattern_to_output.at(transpose2).get_node_shared_ptr(),
-                                   pattern_to_output.at(matmul1).get_node_shared_ptr(),
-                                   pattern_to_output.at(fakeQuantize1).get_node_shared_ptr(),
-                                   pattern_to_output.at(transpose3).get_node_shared_ptr(),
-                                  },
-                                  mha);
+        std::vector<std::shared_ptr<Node>> merged = {
+            pattern_to_output.at(transpose0).get_node_shared_ptr(),
+            pattern_to_output.at(transpose1).get_node_shared_ptr(),
+            pattern_to_output.at(fakeQuantize0).get_node_shared_ptr(),
+            pattern_to_output.at(matmul0).get_node_shared_ptr(),
+            pattern_to_output.at(mul).get_node_shared_ptr(),
+            pattern_to_output.at(add).get_node_shared_ptr(),
+            pattern_to_output.at(softmax).get_node_shared_ptr(),
+            pattern_to_output.at(transpose2).get_node_shared_ptr(),
+            pattern_to_output.at(matmul1).get_node_shared_ptr(),
+            pattern_to_output.at(transpose3).get_node_shared_ptr(),
+        };
+
+        if (fakeQuantize1Exists) {
+            merged.push_back(pattern_to_output.at(fakeQuantize1).get_node_shared_ptr());
+        }
+        ngraph::copy_runtime_info(merged, mha);
 
         if (transformation_callback(mha)) {
             return false;

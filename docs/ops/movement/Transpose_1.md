@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Transpose-1 - a data movement operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *Transpose-1*
 
 **Category**: *Data movement*
@@ -36,7 +40,8 @@
 
 *Example 1*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Transpose">
         <input>
@@ -61,7 +66,8 @@
 
 *Example 2: input_order = empty 1D tensor of Shape[0]*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Transpose">
         <input>

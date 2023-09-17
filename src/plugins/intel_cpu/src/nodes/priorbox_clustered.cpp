@@ -13,59 +13,13 @@
 #include <dnnl_types.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include "shape_inference/custom/priorbox_clustered.hpp"
 
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-namespace {
-/**
- * Implements Prior Box Clustered shape inference algorithm. The output shape is [2,  4 * height * width * number_of_priors].
- * `number_of_priors` is an attribute of the operation. heigh and width are in the the first input parameter.
- *  
- */
-class PriorBoxClusteredShapeInfer : public ShapeInferEmptyPads {
-public:
-    explicit PriorBoxClusteredShapeInfer(size_t number_of_priors) : m_number_of_priors(number_of_priors) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->GetPtr());
-        const int H = in_data[0];
-        const int W = in_data[1];
-        const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);
-        return {{{2, output}}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return PortMask(0);
-    }
-
-private:
-    size_t m_number_of_priors = 0;
-};
-
-class PriorBoxClusteredShapeInferFactory : public ShapeInferFactory {
-public:
-    explicit PriorBoxClusteredShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBoxClustered>(m_op);
-        if (!priorBox) {
-            IE_THROW() << "Unexpected op type in PriorBoxClustered shape inference factory: " << m_op->get_type_name();
-        }
-        const auto& attrs = priorBox->get_attrs();
-        auto number_of_priors = attrs.widths.size();
-        return std::make_shared<PriorBoxClusteredShapeInfer>(number_of_priors);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
-} // namespace
-
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBoxClustered>(op);
@@ -106,13 +60,13 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ngraph::Node>& op, co
 }
 
 bool PriorBoxClustered::needShapeInfer() const {
-    auto& memory = getChildEdgeAt(0)->getMemoryPtr();
-    if (memory->GetShape().isDynamic()) {
+    auto memory = getChildEdgeAt(0)->getMemoryPtr();
+    if (memory->getShape().isDynamic()) {
         return true;
     }
 
-    const auto& outputShape = memory->GetShape().getStaticDims();
-    const int* in_data = reinterpret_cast<int*>(memory->GetPtr());
+    const auto& outputShape = memory->getShape().getStaticDims();
+    const int* in_data = reinterpret_cast<int*>(memory->getData());
     const int h = in_data[0];
     const int w = in_data[1];
     const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
@@ -143,11 +97,11 @@ void PriorBoxClustered::createPrimitive() {
 }
 
 void PriorBoxClustered::execute(dnnl::stream strm) {
-    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
 
-    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
     int img_height = in_image[0];
     int img_width = in_image[1];
 
@@ -158,15 +112,15 @@ void PriorBoxClustered::execute(dnnl::stream strm) {
         step_h = static_cast<float>(img_height) / layer_height;
     }
 
-    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto& out_shape = getChildEdgeAt(0)->getMemory().GetShape().getStaticDims();
+    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto& out_shape = getChildEdgeAt(0)->getMemory().getShape().getStaticDims();
 
     size_t var_size = variances.size();
     parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
         float center_x = (w + offset) * step_w;
         float center_y = (h + offset) * step_h;
 
-        for (size_t s = 0; s < number_of_priors; ++s) {
+        for (int s = 0; s < number_of_priors; ++s) {
             float box_width = widths[s];
             float box_height = heights[s];
 

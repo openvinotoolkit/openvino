@@ -59,7 +59,7 @@ public:
      */
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override;
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
     /**
      * @brief Specifies some plugin properties
@@ -85,7 +85,7 @@ public:
      *
      * @return Remote context
      */
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
     /**
      * @brief Create default remote context
@@ -94,7 +94,7 @@ public:
      *
      * @return Remote context
      */
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 
     /**
      * @brief Import model to the plugin
@@ -116,7 +116,7 @@ public:
      * @return shared pointer to compiled model interface
      */
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
     /**
@@ -160,8 +160,11 @@ public:
      */
     void set_device_name(const std::string& device_name);
 
+    void set_shared_object(const std::shared_ptr<void>& so);
+
 private:
     std::shared_ptr<InferenceEngine::IInferencePlugin> m_old_plugin;
+    std::shared_ptr<void> m_so;
 
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& update_exec_network(
         const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& network) const;

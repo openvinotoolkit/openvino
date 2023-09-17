@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(invalid, ProposalBehTest,
                         ::testing::Combine(
                                 proposalParams,
                                 ::testing::ValuesIn(img_info_invalid),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ProposalBehTest::getTestCaseName
 );
 

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/interval.hpp"
+#include "openvino/core/interval.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 Interval::value_type clip(Interval::value_type value) {

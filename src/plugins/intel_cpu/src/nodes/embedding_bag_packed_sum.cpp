@@ -75,11 +75,11 @@ void EmbeddingBagPackedSum::prepareParams() {
 }
 
 void EmbeddingBagPackedSum::initFromInputs() {
-    _indices = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
+    _indices = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->getData());
 }
 
-void EmbeddingBagPackedSum::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
-    if (embIndex >= _batch * _indicesPerBag)
+void EmbeddingBagPackedSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+    if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag)
         IE_THROW() << "Invalid embedding bag index.";
 
     withWeight = true;
@@ -99,10 +99,10 @@ bool EmbeddingBagPackedSum::isExecutable() const {
 }
 
 void EmbeddingBagPackedSum::execute(dnnl::stream strm) {
-    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
-        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
+        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->getData());
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
     EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),

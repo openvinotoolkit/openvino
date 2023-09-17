@@ -17,6 +17,7 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -53,3 +54,4 @@ OutputVector lp_norm(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

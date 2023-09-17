@@ -89,7 +89,11 @@ bool denormals_as_zero(bool on) {
         } fxsave_area;  // should be at least 16 byte aligned. fxsave_area is 32 byte aligned.
 
             fxsave_area.mxcsr_mask = 0;
+        #ifdef _WIN32
+            _fxsave(&fxsave_area);
+        #else
             __builtin_ia32_fxsave(&fxsave_area);
+        #endif
             unsigned int mxcsr_mask = fxsave_area.mxcsr_mask;  // 0 value for the bit indicate reserved
 
             unsigned int mxcsr = _mm_getcsr();

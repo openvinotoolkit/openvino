@@ -7,7 +7,6 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/graph/serialization/loop_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
 #include <exception>
@@ -101,18 +100,19 @@ layout loop_inst::calc_output_layout(loop_node const & node, kernel_impl_params 
     auto target = std::find_if(body_outputs.begin(), body_outputs.end(), [&](const cldnn::program_node * output) {
         return output->id() == output_internal_id;
     });
+    layout loop_output_layout;
     if (target == body_outputs.end()) {
         CLDNN_ERROR_MESSAGE(impl_param.desc->id, "output not found");
-    }
-
-    // set body output layout
-    layout loop_output_layout = (*target)->get_output_layout();
-    const int64_t axis_to_iterate_throgh = output_mapping.axis;
-    if (axis_to_iterate_throgh != -1) {
-        const size_t ndim = loop_output_layout.get_rank();
-        auto shape = loop_output_layout.get_dims();
-        shape[axis_to_iterate_throgh] = static_cast<int32_t>(node.get_max_iteration());
-        loop_output_layout.set_tensor(tensor(format::get_default_format(ndim), shape));
+    } else {
+        // set body output layout
+        loop_output_layout = (*target)->get_output_layout();
+        const int64_t axis_to_iterate_throgh = output_mapping.axis;
+        if (axis_to_iterate_throgh != -1) {
+            const size_t ndim = loop_output_layout.get_rank();
+            auto shape = loop_output_layout.get_dims();
+            shape[axis_to_iterate_throgh] = static_cast<int32_t>(node.get_max_iteration());
+            loop_output_layout.set_tensor(tensor(format::get_default_format(ndim), shape));
+        }
     }
     return loop_output_layout;
 }
@@ -316,9 +316,10 @@ void loop_inst::update_mapped_memory() {
     }
 }
 
-void loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx) {
-    primitive_inst::set_output_memory(mem, check, idx);
+event::ptr loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx) {
+    auto ev = primitive_inst::set_output_memory(mem, check, idx);
     update_mapped_memory();
+    return ev;
 }
 
 void loop_inst::preprocess_output_memory() {
@@ -349,7 +350,7 @@ void loop_inst::preprocess_output_memory() {
             const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
             const int64_t start = output_mapping.start < 0? _max_iteration - 1: output_mapping.start;
             concatenated_memory_mapping memory_mapping_info(
-                output_mapping.axis, to_mem, sliced_mems, _network.get_stream(),
+                output_mapping.axis, std::move(to_mem), sliced_mems, _network.get_stream(),
                 num_elements_iteration, output_mapping.stride, start);
             memory_mapping_info.sliced_data_prim = body_network->get_primitive(internal_id);
             memory_mapping_info.concat_data_prim = get_network().get_primitive(external_id);
@@ -530,7 +531,7 @@ void loop_inst::load(BinaryInputBuffer& ib) {
     ib >> _condition_id;
     ib >> _num_iteration_id;
     ib >> _max_iteration;
-    body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine(), get_network().is_primary_stream());
+    body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine(), get_network().is_primary_stream(), 0);
 }
 
 }  // namespace cldnn

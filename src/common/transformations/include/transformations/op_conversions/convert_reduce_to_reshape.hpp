@@ -6,11 +6,12 @@
 
 #include <algorithm>
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
 #include <vector>
+
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,6 +20,7 @@ namespace pass {
 class TRANSFORMATIONS_API ConvertReduceToReshape;
 class TRANSFORMATIONS_API ConvertReduceMeanToReshape;
 class TRANSFORMATIONS_API ConvertReduceSumToReshape;
+class TRANSFORMATIONS_API ConvertReduceProdToReshape;
 class TRANSFORMATIONS_API ConvertReduceMaxToReshape;
 class TRANSFORMATIONS_API ConvertReduceMinToReshape;
 class TRANSFORMATIONS_API ConvertReduceLogicalAndToReshape;
@@ -45,6 +47,12 @@ class ov::pass::ConvertReduceSumToReshape : public CvtReduceBase {
 public:
     OPENVINO_RTTI("ConvertReduceSumToReshape", "0");
     ConvertReduceSumToReshape();
+};
+
+class ov::pass::ConvertReduceProdToReshape : public CvtReduceBase {
+public:
+    OPENVINO_RTTI("ConvertReduceProdToReshape", "0");
+    ConvertReduceProdToReshape();
 };
 
 class ov::pass::ConvertReduceMaxToReshape : public CvtReduceBase {
@@ -79,6 +87,7 @@ public:
         // Redundant reduce based on its mode
         add_matcher<ConvertReduceMeanToReshape>();
         add_matcher<ConvertReduceSumToReshape>();
+        add_matcher<ConvertReduceProdToReshape>();
         add_matcher<ConvertReduceMaxToReshape>();
         add_matcher<ConvertReduceMinToReshape>();
         add_matcher<ConvertReduceLogicalAndToReshape>();

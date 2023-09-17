@@ -2,10 +2,11 @@
 
 @sphinxdirective
 
-This document provides instructions for creating a Yocto image with Intel® Distribution of OpenVINO™ toolkit.
+.. meta::
+   :description: Learn how to create a Yocto image with Intel® Distribution of 
+                 OpenVINO™ toolkit on your host machine.
 
-System Requirements
-###################
+This document provides instructions for creating a Yocto image with Intel® Distribution of OpenVINO™ toolkit.
 
 Follow the `Yocto Project official documentation <https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution>`__ to set up and configure your host machine to be compatible with BitBake.
 
@@ -72,7 +73,7 @@ Step 1: Set Up Environment
       # Include OpenVINO Python API package in the target image.
       CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-python3"
    
-      # Include Model Optimizer in the target image.
+      # Include model conversion API in the target image.
       CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
    
 
@@ -123,7 +124,7 @@ Additional Resources
 - `Meta-intel <https://git.yoctoproject.org/meta-intel/tree/README>`__
 - `Meta-openembedded <http://cgit.openembedded.org/meta-openembedded/tree/README>`__
 - `Meta-clang <https://github.com/kraj/meta-clang/tree/master/#readme>`__
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
+
 
 @endsphinxdirective
 

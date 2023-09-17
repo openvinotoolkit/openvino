@@ -38,7 +38,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast0D,
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{}),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 
 // NUMPY MODE //////////////////////////////////////////
@@ -60,7 +60,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast1D,
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{1}),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTest,
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTest,
             ::testing::Values(ngraph::op::BroadcastType::NUMPY),
             ::testing::Values(std::vector<size_t>{1}),
             ::testing::ValuesIn(inputTPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+            ::testing::Values(ov::test::utils::DEVICE_GPU)),
         BroadcastLayerTest::getTestCaseName);
 
 // 2D
@@ -88,7 +88,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast2D,
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{3, 1}),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 
 // 3D
@@ -106,7 +106,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast3D,
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{1, 4, 1}),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast6D,
@@ -116,7 +116,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast6D,
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{1, 2, 1, 4, 1, 6}),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast5D,
@@ -126,7 +126,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast5D,
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{1, 2, 1, 4, 1}),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 // END NUMPY MODE //////////////////////////////////////
 
@@ -150,7 +150,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestBidirectionalBroadcast,
                                            ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL),
                                            ::testing::ValuesIn(inShapesBidi),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 
 // EXPLICIT MODE ///////////////////////////////////////
@@ -166,7 +166,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast1D,
                                            ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
                                            ::testing::ValuesIn(inShapesExplicit1D),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestBidirectionalBroadcast3,
@@ -176,7 +176,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestBidirectionalBroadcast3,
                                             ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL),
                                             ::testing::Values(inShapesBidi[2]),
                                             ::testing::ValuesIn(inputPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          BroadcastLayerTest::getTestCaseName);
 
 // EXPLICIT MODE
@@ -203,7 +203,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast2D,
                                            ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
                                            ::testing::ValuesIn(inShapesExplicit2D),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 
 // 3D
@@ -218,7 +218,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast3D,
                                            ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
                                            ::testing::ValuesIn(inShapesExplicit3D),
                                            ::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 // END EXPLICIT MODE ///////////////////////////////////
 

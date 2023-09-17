@@ -208,7 +208,7 @@ public:
     }
 
     void set_remove_item_callback(FuncRemoveItem callback) {
-        _remove_popped_item = callback;
+        _remove_popped_item = std::move(callback);
     }
 
 private:

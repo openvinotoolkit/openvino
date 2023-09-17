@@ -35,3 +35,5 @@ recreate_compiled_model(std::shared_ptr<InferApiBase> &ie, const std::string &mo
 std::function<void()> recreate_infer_request(std::shared_ptr<InferApiBase> &ie_wrapper);
 
 std::function<void()> reinfer_request_inference(std::shared_ptr<InferApiBase> &ie_wrapper);
+
+std::function<void()> recreate_and_infer_in_thread(std::shared_ptr<InferApiBase> &ie_wrapper);

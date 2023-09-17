@@ -5,7 +5,7 @@
 
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
 
-If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™ Runtime](https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) Python package includes a set of libraries for an easy inference integration with your products.
+If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™ Runtime](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) Python package includes a set of libraries for an easy inference integration with your products.
 
 ## System Requirements
 
@@ -65,14 +65,14 @@ Run the command below: <br>
 
 Run the command below:
 ```sh
-python -c "from openvino.runtime import Core"
+python -c "from openvino.runtime import Core; print(Core().available_devices)"
 ```
-   
-If installation was successful, you will not see any error messages (no console output).
+
+If installation was successful, you will see the list of available devices.
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/nightly/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2023.1/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
 
 ### Errors with Installing via PIP for Users in China
 
@@ -103,7 +103,7 @@ sudo apt-get install libpython3.7
 - [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
 - [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
 
-Copyright © 2018-2022 Intel Corporation
+Copyright © 2018-2023 Intel Corporation
 > **LEGAL NOTICE**: Your use of this software and any required dependent software (the
 “Software Package”) is subject to the terms and conditions of the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html) for the Software Package, which may also include notices, disclaimers, or
 license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.

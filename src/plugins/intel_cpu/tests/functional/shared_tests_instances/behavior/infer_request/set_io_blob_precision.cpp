@@ -22,6 +22,6 @@ const std::vector<setType> typeSet = {setType::INPUT, setType::OUTPUT, setType::
 const auto params = ::testing::Combine(::testing::ValuesIn(precisionSet),
                                        ::testing::ValuesIn(precisionSet),
                                        ::testing::ValuesIn(typeSet),
-                                       ::testing::Values(CommonTestUtils::DEVICE_CPU));
+                                       ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SetBlobCPU, SetBlobTest, params, SetBlobTest::getTestCaseName);

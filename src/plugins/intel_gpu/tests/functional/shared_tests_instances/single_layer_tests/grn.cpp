@@ -26,7 +26,7 @@ namespace {
                                                 ::testing::Values(std::vector<size_t>({1, 3, 30, 30}),
                                                                   std::vector<size_t>({2, 16, 15, 20})),
                                                 ::testing::Values(0.33f, 1.1f),
-                                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                              GrnLayerTest::getTestCaseName);
 
 }  // namespace

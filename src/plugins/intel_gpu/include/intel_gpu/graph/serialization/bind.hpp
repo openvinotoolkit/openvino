@@ -11,9 +11,12 @@
 #include "buffer.hpp"
 #include "static_instance.hpp"
 
-#define DECLARE_OBJECT_TYPE_SERIALIZATION \
-    static const std::string type_for_serialization; \
-    std::string get_type() const override { return type_for_serialization; }
+#define DECLARE_OBJECT_TYPE_SERIALIZATION(cls_name)                        \
+    static const std::string& get_type_info_s() {                               \
+        static const std::string type_name = #cls_name;                    \
+        return type_name;                                                  \
+    }                                                                      \
+    const std::string& get_type_info() const override {  return get_type_info_s(); }
 
 #define BIND_TO_BUFFER(buffer, type)                                                       \
         template <>                                                                        \
@@ -101,7 +104,7 @@ public:
 
 private:
     buffer_binder() {
-        saver_storage<BufferType>::instance().set_save_function({T::type_for_serialization, save});
+        saver_storage<BufferType>::instance().set_save_function({T::get_type_info_s(), save});
     }
 
     buffer_binder(const buffer_binder&) = delete;
@@ -130,7 +133,7 @@ public:
 private:
     buffer_binder() {
         def<BufferType>::instance().set_load_function(
-                {T::type_for_serialization, [](BufferType& buffer, std::unique_ptr<void, void_deleter<void>>& result_ptr) {
+                {T::get_type_info_s(), [](BufferType& buffer, std::unique_ptr<void, void_deleter<void>>& result_ptr) {
             std::unique_ptr<T> derived_ptr = std::unique_ptr<T>(new T());
             derived_ptr->load(buffer);
             result_ptr.reset(derived_ptr.release());
@@ -153,7 +156,7 @@ public:
 private:
     buffer_binder() {
         dif<BufferType>::instance().set_load_function(
-                {T::type_for_serialization, [](BufferType& buffer, std::unique_ptr<void, void_deleter<void>>& result_ptr, engine& engine) {
+                {T::get_type_info_s(), [](BufferType& buffer, std::unique_ptr<void, void_deleter<void>>& result_ptr, engine& engine) {
             std::unique_ptr<T> derived_ptr = std::unique_ptr<T>(new T(engine));
             derived_ptr->load(buffer);
             result_ptr.reset(derived_ptr.release());

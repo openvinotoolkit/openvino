@@ -4,13 +4,17 @@
 
 set(TARGET_NAME ov_transformations_tests)
 
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    ov_add_compiler_flags(-Wno-missing-declarations)
+endif()
+
 ov_add_test_target(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDENCIES
     LINK_LIBRARIES
         gmock
-        funcTestUtils
+        func_test_utils
         offline_transformations
         sharedTestClasses
         lptNgraphFunctions

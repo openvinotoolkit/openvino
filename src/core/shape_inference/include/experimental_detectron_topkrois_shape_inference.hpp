@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/op/experimental_detectron_topkrois.hpp>
+#include "openvino/op/experimental_detectron_topkrois.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v6 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(ExperimentalDetectronTopKROIs* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(ExperimentalDetectronTopKROIs* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     const auto& input_rois_shape = input_shapes[0];
@@ -44,13 +45,6 @@ std::vector<TShape> shape_infer(ExperimentalDetectronTopKROIs* op, const std::ve
     }
 
     return {{static_cast<typename TShape::value_type>(op->get_max_rois()), 4}};
-}
-
-template <class TShape>
-void shape_infer(ExperimentalDetectronTopKROIs* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
 }
 }  // namespace v6
 }  // namespace op

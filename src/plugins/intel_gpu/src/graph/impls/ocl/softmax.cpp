@@ -29,7 +29,7 @@ static inline kernel_selector::softmax_dim get_softmax_dim(int64_t axis, size_t 
             else
                 return kernel_selector::softmax_dim::X;
         case 4: return kernel_selector::softmax_dim::X;
-        default: IE_THROW() << "Invalid softmax axis " << axis;
+        default: OPENVINO_THROW("Invalid softmax axis ", axis);
     }
 }
 
@@ -39,7 +39,7 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
     using kernel_selector_t = kernel_selector::softmax_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::softmax_params, kernel_selector::softmax_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::softmax_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<softmax_impl>(*this);
@@ -88,3 +88,4 @@ attach_softmax_impl::attach_softmax_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::softmax)

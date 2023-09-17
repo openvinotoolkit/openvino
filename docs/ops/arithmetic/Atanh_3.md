@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Atanh-3 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Atanh-3*
 
 **Category**: *Arithmetic unary*
@@ -16,13 +20,13 @@ Float type input:
 
    a_{i} = atanh(a_{i})
 
-Signed Intragral type put:
+Signed Integral type put:
 
 .. math::
 
    a_{i} = (i <= -1) ? std::numeric_limits<T>::min() : (i >= 1) ? std::numeric_limits<T>::max() : atanh(a_{i})
 
-Unsigned Intragral type put:
+Unsigned Integral type put:
 
 .. math::
 
@@ -45,7 +49,8 @@ Unsigned Intragral type put:
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Atanh">
        <input>

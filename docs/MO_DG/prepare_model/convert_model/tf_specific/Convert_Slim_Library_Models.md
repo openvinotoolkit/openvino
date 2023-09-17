@@ -2,12 +2,18 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a Slim Image 
+                 Classification model from TensorFlow to the OpenVINO 
+                 Intermediate Representation.
+
+
 `TensorFlow-Slim Image Classification Model Library <https://github.com/tensorflow/models/tree/master/research/slim/README.md>`__ is a library to define, train and evaluate classification models in TensorFlow. The library contains Python scripts defining the classification topologies together with checkpoint files for several pre-trained classification topologies. To convert a TensorFlow-Slim library model, complete the following steps:
 
 1. Download the TensorFlow-Slim models `git repository <https://github.com/tensorflow/models>`__.
 2. Download the pre-trained model `checkpoint <https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models>`__.
 3. Export the inference graph.
-4. Convert the model using the Model Optimizer.
+4. Convert the model using model conversion API.
 
 The `Example of an Inception V1 Model Conversion <#example_of_an_inception_v1_model_conversion>`__ below illustrates the process of converting an Inception V1 Model.
 
@@ -46,7 +52,7 @@ This example demonstrates how to convert the model on Linux OSes, but it could b
       --output_file inception_v1_inference_graph.pb
 
 
-Model Optimizer comes with the summarize graph utility, which identifies graph input and output nodes. Run the utility to determine input/output nodes of the Inception V1 model:
+Model conversion API comes with the summarize graph utility, which identifies graph input and output nodes. Run the utility to determine input/output nodes of the Inception V1 model:
 
 .. code-block:: sh
 
@@ -63,27 +69,28 @@ The output looks as follows:
 
 The tool finds one input node with name ``input``, type ``float32``, fixed image size ``(224,224,3)`` and undefined batch size ``-1``. The output node name is ``InceptionV1/Logits/Predictions/Reshape_1``.
 
-**Step 4**. Convert the model with the Model Optimizer:
+**Step 4**. Convert the model with the model conversion API:
 
 .. code-block:: sh
 
   mo --input_model ./inception_v1_inference_graph.pb --input_checkpoint ./inception_v1.ckpt -b 1 --mean_value [127.5,127.5,127.5] --scale 127.5
 
 
-The ``-b`` command line parameter is required because the Model Optimizer cannot convert a model with undefined input size.
+The ``-b`` command line parameter is required because model conversion API cannot convert a model with undefined input size.
 
 For the information on why ``--mean_values`` and ``--scale`` command-line parameters are used, refer to the `Mean and Scale Values for TensorFlow-Slim Models <#Mean-and-Scale-Values-for-TensorFlow-Slim-Models>`__.
 
 Mean and Scale Values for TensorFlow-Slim Models 
 #################################################
 
-The TensorFlow-Slim Models were trained with normalized input data. There are several different normalization algorithms used in the Slim library. OpenVINO classification sample does not perform image pre-processing except resizing to the input layer size. It is necessary to pass mean and scale values to the Model Optimizer so they are embedded into the generated IR in order to get correct classification results.
+The TensorFlow-Slim Models were trained with normalized input data. There are several different normalization algorithms used in the Slim library. OpenVINO classification sample does not perform image pre-processing except resizing to the input layer size. It is necessary to pass mean and scale values to model conversion API so they are embedded into the generated IR in order to get correct classification results.
 
 The file `preprocessing_factory.py <https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/preprocessing_factory.py>`__ contains a dictionary variable ``preprocessing_fn_map`` defining mapping between the model type and pre-processing function to be used. The function code should be analyzed to figure out the mean/scale values.
 
 The `inception_preprocessing.py <https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py>`__ file defines the pre-processing function for the Inception models. The ``preprocess_for_eval`` function contains the following code:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
     ...
     import tensorflow as tf

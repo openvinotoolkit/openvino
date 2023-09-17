@@ -13,8 +13,8 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/runtime/reference/space_to_depth.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/reference/space_to_depth.hpp"
 
 using namespace ngraph;
 
@@ -52,6 +52,7 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool evaluate_space_to_depth(const HostTensorVector& outputs,
                              const HostTensorVector& inputs,
@@ -65,13 +66,13 @@ bool evaluate_space_to_depth(const HostTensorVector& outputs,
         return false;
     }
 
-    runtime::reference::space_to_depth(in->get_data_ptr<char>(),
-                                       in->get_shape(),
-                                       out->get_data_ptr<char>(),
-                                       out->get_shape(),
-                                       block_size,
-                                       mode,
-                                       elem_size);
+    ov::reference::space_to_depth(in->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  out->get_data_ptr<char>(),
+                                  out->get_shape(),
+                                  block_size,
+                                  mode,
+                                  elem_size);
     return true;
 }
 }  // namespace

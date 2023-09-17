@@ -21,7 +21,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GNA,
                          ::testing::Combine(::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                             ::testing::ValuesIn(precisionsGNA),
                                             ::testing::ValuesIn(batchSizesGNA),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(ov::AnyMap{})),
                          CompileModelCacheTestBase::getTestCaseName);
 }  // namespace

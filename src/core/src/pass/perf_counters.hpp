@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
 #include <itt.hpp>
 #include <mutex>
-#include <ngraph/node.hpp>
 #include <unordered_map>
+
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace pass {
@@ -16,10 +18,10 @@ class PerfCounters {
 public:
     PerfCounters() = default;
 
-    openvino::itt::handle_t operator[](::ngraph::Node::type_info_t const& type_inf);
+    openvino::itt::handle_t operator[](ov::Node::type_info_t const& type_inf);
 
 private:
-    using key = ::ngraph::Node::type_info_t const*;
+    using key = ov::Node::type_info_t const*;
     using value = openvino::itt::handle_t;
     using counters_map = std::unordered_map<key, value>;
 

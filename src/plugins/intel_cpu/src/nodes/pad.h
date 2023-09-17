@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -14,9 +12,9 @@ namespace node {
 
 class Pad : public Node {
 public:
-    Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
@@ -57,15 +55,15 @@ private:
                     const std::vector<MemoryCPtr>& srcMemory,
                     const std::vector<MemoryCPtr>& dstMemory,
                     const std::string& errorPrefix);
-        void exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
+        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
         ~PadExecutor() = default;
 
     private:
-        void padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
-        template<typename T> void padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
-        void padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
-        void padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
-        void padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const bool isSymmetric = false);
+        void padConstant(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
+        template<typename T> void padConstantCommon(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
+        void padConstantZero(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
+        void padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
+        void padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const bool isSymmetric = false);
         void paramsInitialization(const PadAttrs& attrs,
                                   const std::vector<MemoryCPtr>& srcMemory,
                                   const std::vector<MemoryCPtr>& dstMemory);

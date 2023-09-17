@@ -2,10 +2,25 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about main transformations, which are mostly low 
+                 precision transformations that handle decomposition and 
+                 dequantization operations.
+
+
 Main transformations are the majority of low precision transformations. Transformations operate with dequantization operations. Main transformations include:
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   BatchToSpaceTransformation <openvino_docs_OV_UG_lpt_BatchToSpaceTransformation>
+   SpaceToBatchTransformation <openvino_docs_OV_UG_lpt_SpaceToBatchTransformation>
+   
+   
 * :doc:`AddTransformation <openvino_docs_OV_UG_lpt_AddTransformation>` 
 * :doc:`AvgPoolTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>` 
+* :doc:`BatchToSpaceTransformation <openvino_docs_OV_UG_lpt_BatchToSpaceTransformation>` 
 * :doc:`ClampTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>` 
 * :doc:`ConcatTransformation <openvino_docs_OV_UG_lpt_ConcatTransformation>` 
 * :doc:`ConvolutionTransformation <openvino_docs_OV_UG_lpt_ConvolutionTransformation>` 
@@ -28,6 +43,7 @@ Main transformations are the majority of low precision transformations. Transfor
 * :doc:`ReduceSumTransformation <openvino_docs_OV_UG_lpt_ReduceSumTransformation>` 
 * :doc:`ReluTransformation <openvino_docs_OV_UG_lpt_ReluTransformation>` 
 * :doc:`ReshapeTransformation <openvino_docs_OV_UG_lpt_ReshapeTransformation>` 
+* :doc:`SpaceToBatchTransformation <openvino_docs_OV_UG_lpt_SpaceToBatchTransformation>` 
 * :doc:`SqueezeTransformation <openvino_docs_OV_UG_lpt_SqueezeTransformation>` 
 * :doc:`ShuffleChannelsTransformation <openvino_docs_OV_UG_lpt_ShuffleChannelsTransformation>` 
 * :doc:`SplitTransformation <openvino_docs_OV_UG_lpt_SplitTransformation>` 

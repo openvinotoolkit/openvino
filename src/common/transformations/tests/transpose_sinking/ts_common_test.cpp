@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
@@ -114,11 +114,28 @@ class PadFactory : public IFactory {
 public:
     explicit PadFactory(const std::string& type_name) : IFactory(type_name) {}
     NodePtr create(const OutputVector& parent_nodes) const override {
-        return std::make_shared<Pad>(parent_nodes[0], parent_nodes[1], parent_nodes[2], ov::op::PadMode::CONSTANT);
+        return std::make_shared<ov::op::v1::Pad>(parent_nodes[0],
+                                                 parent_nodes[1],
+                                                 parent_nodes[2],
+                                                 ov::op::PadMode::CONSTANT);
     }
 };
 FactoryPtr CreatePadFactory(const std::string& type_name) {
     return std::make_shared<PadFactory>(type_name);
+}
+
+class Pad12Factory : public IFactory {
+public:
+    explicit Pad12Factory(const std::string& type_name) : IFactory(type_name) {}
+    NodePtr create(const OutputVector& parent_nodes) const override {
+        return std::make_shared<ov::op::v12::Pad>(parent_nodes[0],
+                                                  parent_nodes[1],
+                                                  parent_nodes[2],
+                                                  ov::op::PadMode::CONSTANT);
+    }
+};
+FactoryPtr CreatePad12Factory(const std::string& type_name) {
+    return std::make_shared<Pad12Factory>(type_name);
 }
 
 class BatchToSpaceFactory : public IFactory {
@@ -252,6 +269,9 @@ FactoryPtr CreateFakeQuantizeFactory(const std::string& type_name) {
 
 #undef CREATE_PAD_FACTORY
 #define CREATE_PAD_FACTORY(type_name) CreatePadFactory(#type_name)
+
+#undef CREATE_PAD12_FACTORY
+#define CREATE_PAD12_FACTORY(type_name) CreatePad12Factory(#type_name)
 
 #undef CREATE_BATCH_TO_SPACE_FACTORY
 #define CREATE_BATCH_TO_SPACE_FACTORY(type_name) CreateBatchToSpaceFactory(#type_name)
@@ -412,6 +432,46 @@ auto test_forward_binary = []() {
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryForward, TSTestFixture, test_forward_binary());
 
+auto test_forward_binary_broadcasted = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSBinaryForward);
+    test_case.num_main_ops = {1, 10};
+    test_case.inputs_to_main = {
+        parameter(element::f32, {96, 55, 55}),
+        parameter(element::f32, {1, 1, 1, 1}),
+    };
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = binary_factories;
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto new_transpose = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec = out_vec;
+        shared_ptr<Node> order;
+        if (std::string(out_vec[idxs[0]].get_node_shared_ptr()->get_type_name()) == "PRelu") {
+            order = make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{2, 1, 0});
+        } else {
+            order = make_shared<Constant>(element::i32, Shape{4}, std::vector<int64_t>{0, 3, 2, 1});
+        }
+        new_out_vec[idxs[0]] = make_shared<Transpose>(out_vec[idxs[0]], order);
+        return new_out_vec;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{new_transpose}, {{1}}};
+    test_case.model_ref.main_op = binary_factories;
+    test_case.model_ref.preprocess_outputs_of_main = {{new_transpose}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryForwardBroadcasted,
+                         TSTestFixture,
+                         test_forward_binary_broadcasted());
+
 auto test_forward_fq = []() {
     TestCase test_case;
 
@@ -537,6 +597,34 @@ auto test_forward_pad = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonPadForward, TSTestFixture, test_forward_pad());
+
+auto test_negative_forward_pad = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSDataMovementForward);
+    test_case.num_main_ops = {1, 2};
+    test_case.inputs_to_main = {
+        parameter(element::f32, {1, 3, 55, 55}),
+        constant<int64_t>(element::i32, {4}, {1, -2, -3, -4}),
+        constant<int64_t>(element::i32, {4}, {1, -2, -3, -4}),
+    };
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = {CREATE_PAD12_FACTORY(Pad12)};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    test_case.model_ref.preprocess_inputs_to_main = {{set_gather_for}, {{1, 2}}};
+    test_case.model_ref.main_op = {CREATE_PAD12_FACTORY(Pad12)};
+    test_case.model_ref.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonNegativePad12Forward, TSTestFixture, test_negative_forward_pad());
 
 auto test_forward_batch_to_space = []() {
     TestCase test_case;

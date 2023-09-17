@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
+#include "openvino/reference/embedding_bag_offsets_sum.hpp"
 
 #include "evaluate_node.hpp"
 
@@ -13,15 +13,14 @@ inline void evaluate(const std::shared_ptr<ngraph::op::v3::EmbeddingBagOffsetsSu
                      const ngraph::HostTensorVector& inputs) {
     using T1 = typename ngraph::element_type_traits<t1>::value_type;
     using T2 = typename ngraph::element_type_traits<t2>::value_type;
-    ngraph::runtime::reference::embeddingBagOffsetsSum<T1, T2>(
-        inputs[0]->get_data_ptr<T1>(),
-        inputs[1]->get_data_ptr<T2>(),
-        inputs[2]->get_data_ptr<T2>(),
-        inputs.size() > 3 ? inputs[3]->get_data_ptr<T2>() : nullptr,
-        inputs.size() > 4 ? inputs[4]->get_data_ptr<T1>() : nullptr,
-        outputs[0]->get_data_ptr<T1>(),
-        ngraph::shape_size(inputs[1]->get_shape()),
-        outputs[0]->get_shape());
+    ov::reference::embeddingBagOffsetsSum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                                  inputs[1]->get_data_ptr<T2>(),
+                                                  inputs[2]->get_data_ptr<T2>(),
+                                                  inputs.size() > 3 ? inputs[3]->get_data_ptr<T2>() : nullptr,
+                                                  inputs.size() > 4 ? inputs[4]->get_data_ptr<T1>() : nullptr,
+                                                  outputs[0]->get_data_ptr<T1>(),
+                                                  ngraph::shape_size(inputs[1]->get_shape()),
+                                                  outputs[0]->get_shape());
 }
 }  // namespace embedding_bag_offsets_sum_v3
 

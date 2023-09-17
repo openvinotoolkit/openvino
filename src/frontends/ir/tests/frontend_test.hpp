@@ -22,7 +22,7 @@ protected:
     void createTemporalModelFile(std::string xmlFileContent,
                                  std::vector<unsigned char> binFileContent = std::vector<unsigned char>()) {
         ASSERT_TRUE(xmlFileContent.size() > 0);
-        auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+        auto filePrefix = ov::test::utils::generateTestFilePrefix();
         xmlFileName = filePrefix + "_IrFrontendTestModel.xml";
         binFileName = filePrefix + "_IrFrontendTestModel.bin";
 

@@ -81,7 +81,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         }
 
         // moving mask vector at the beginning of aux vectors list to simplify further processing
-        for (int i = 0; i < aux_vec_idxs.size(); i++) {
+        for (size_t i = 0; i < aux_vec_idxs.size(); i++) {
             if (aux_vec_idxs[i] == 0) {
                 size_t tmp = aux_vec_idxs[0];
                 aux_vec_idxs[0] = aux_vec_idxs[i];

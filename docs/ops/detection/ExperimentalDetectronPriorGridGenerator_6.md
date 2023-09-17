@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ExperimentalDetectronPriorGridGenerator-6 - 
+                an object detection operation, which can be performed on three 
+                required input tensors.
+
 **Versioned name**: *ExperimentalDetectronPriorGridGenerator-6*
 
 **Category**: *Object detection*
@@ -75,7 +80,8 @@ Numbers of generated cells is ``featmap_height`` and ``featmap_width`` if *h* an
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="ExperimentalDetectronPriorGridGenerator" version="opset6">
        <data flatten="true" h="0" stride_x="32.0" stride_y="32.0" w="0"/>

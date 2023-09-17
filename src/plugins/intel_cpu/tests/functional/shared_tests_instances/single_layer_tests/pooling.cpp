@@ -63,7 +63,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRounding, PoolingLayerTe
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* +========== Same Upper Pad Floor Rounding ========== */
@@ -87,7 +87,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_SameUpperPad_FloorRounding, PoolingLayerT
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* +========== Same Lower Pad Floor Rounding ========== */
@@ -111,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_SameLowerPad_FloorRounding, PoolingLayerT
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Floor Rounding 5D input========== */
@@ -135,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRounding_5Dinput, Poolin
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 2})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* ========== Same Upper Pad Floor Rounding 5D input========== */
@@ -159,7 +159,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_SameUpperPad_FloorRounding_5Dinput, Pooli
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 2})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* ========== Same Lower Pad Ceil Rounding 5D input========== */
@@ -183,7 +183,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_SameLowerPad_CeilRounding_5Dinput, Poolin
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 2})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Ceil Rounding ========== */
@@ -207,7 +207,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRounding, PoolingLayerTes
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 
@@ -234,7 +234,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTes
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 std::vector<poolSpecificParams> psParams({poolSpecificParams(ngraph::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {0, 0}, {0, 0},
@@ -251,7 +251,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_CeilRounding_corner, PoolingL
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 1024, 6, 6})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* +========== Explicit Pad Floor Rounding ========== */
@@ -276,7 +276,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTe
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Floor Rounding 5D input========== */
@@ -300,7 +300,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding_5Dinput, Poolin
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 4})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* ========== Same Upper Pad Floor Rounding 5D input========== */
@@ -324,7 +324,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_SameUpperPad_FloorRounding_5Dinput, Pooli
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 4})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* ========== Same Lower Pad Ceil Rounding 5D input========== */
@@ -348,7 +348,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_SameLowerPad_CeilRounding_5Dinput, Poolin
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 2})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
 ////* ========== Max Pooling V8 ========== */
@@ -378,7 +378,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_ExplicitPad_FloorRounding, MaxPoolingV8
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 /* ========== Same Upper Pad Floor Rounding ========== */
@@ -403,7 +403,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolv8_SameUpperPad_FloorRounding, MaxPoolingV
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 /* ========== Same Lower Pad Floor Rounding ========== */
@@ -428,7 +428,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolv8_SameLowerPad_FloorRounding, MaxPoolingV
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 /* ========= Explicit Pad Floor Rounding 5D input========== */
@@ -453,7 +453,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolv8_ExplicitPad_FloorRounding_5Dinput, MaxP
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 2})),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 /* ========= Same Upper Pad Floor Rounding 5D input========== */
@@ -478,7 +478,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolv8_SameUpperPad_FloorRounding_5Dinput, Max
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 2})),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 /* ========= Same Lower Pad Ceil Rounding 5D input========== */
@@ -503,7 +503,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolv8_SameLowerPad_CeilRounding_5Dinput, MaxP
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 2})),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 /* ========= Explicit Pad Ceil Rounding ========== */
@@ -528,7 +528,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolv8_ExplicitPad_CeilRounding, MaxPoolingV8L
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 ////* ========== Avg and Max Polling Cases ========== */
@@ -554,7 +554,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          PoolingLayerTest::getTestCaseName);
 
 const auto maxPoolv8_ValidPad_Params = ::testing::Combine(
@@ -578,7 +578,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MAXPoolv8_ValidPad, MaxPoolingV8LayerTest,
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 }  // namespace

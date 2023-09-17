@@ -9,6 +9,8 @@
 using namespace InferenceEngine;
 using namespace ::testing;
 
+IE_SUPPRESS_DEPRECATED_START
+
 TEST(LockedMemoryTest, canUnlockMemoryAfterUsage) {
     std::unique_ptr<MockAllocator> allocator(new MockAllocator());
     char array[] = {1, 2, 3};

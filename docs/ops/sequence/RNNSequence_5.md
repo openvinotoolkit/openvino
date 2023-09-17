@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about RNNSequence-5 - a sequence processing operation, which 
+                can be performed on six required input tensors.
+
 **Versioned name**: *RNNSequence-5*
 
 **Category**: *Sequence processing*
@@ -80,53 +84,54 @@ A single cell in the sequence is implemented in the same way as in `RNNCell <#RN
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
-  <layer ... type="RNNSequence" ...>
-      <data hidden_size="128"/>
-      <input>
-          <port id="0">
-              <dim>1</dim>
-              <dim>4</dim>
-              <dim>16</dim>
-          </port>
-          <port id="1">
-              <dim>1</dim>
-              <dim>1</dim>
-              <dim>128</dim>
-          </port>
-          <port id="2">
-              <dim>1</dim>
-          </port>
-          <port id="3">
-              <dim>1</dim>
-              <dim>128</dim>
-              <dim>16</dim>
-          </port>
-          <port id="4">
-              <dim>1</dim>
-              <dim>128</dim>
-              <dim>128</dim>
-          </port>
-          <port id="5">
-              <dim>1</dim>
-              <dim>128</dim>
-          </port>
-      </input>
-      <output>
-          <port id="6">
-              <dim>1</dim>
-              <dim>1</dim>
-              <dim>4</dim>
-              <dim>128</dim>
-          </port>
-          <port id="7">
-              <dim>1</dim>
-              <dim>1</dim>
-              <dim>128</dim>
-          </port>
-      </output>
-  </layer>
+   <layer ... type="RNNSequence" ...>
+       <data hidden_size="128"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>4</dim>
+               <dim>16</dim>
+           </port>
+           <port id="1">
+               <dim>1</dim>
+               <dim>1</dim>
+               <dim>128</dim>
+           </port>
+           <port id="2">
+               <dim>1</dim>
+           </port>
+           <port id="3">
+               <dim>1</dim>
+               <dim>128</dim>
+               <dim>16</dim>
+           </port>
+           <port id="4">
+               <dim>1</dim>
+               <dim>128</dim>
+               <dim>128</dim>
+           </port>
+           <port id="5">
+               <dim>1</dim>
+               <dim>128</dim>
+           </port>
+       </input>
+       <output>
+           <port id="6">
+               <dim>1</dim>
+               <dim>1</dim>
+               <dim>4</dim>
+               <dim>128</dim>
+           </port>
+           <port id="7">
+               <dim>1</dim>
+               <dim>1</dim>
+               <dim>128</dim>
+           </port>
+       </output>
+   </layer>
 
 @endsphinxdirective
 

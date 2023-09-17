@@ -14,7 +14,7 @@
 #endif
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 namespace {
 
@@ -701,4 +701,84 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
                                           testing::Values(true)),
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
 #endif
+
+class grid_sample_gpu_dynamic : public ::testing::TestWithParam<grid_sample_test_params<float, float>> {};
+TEST_P(grid_sample_gpu_dynamic, basic) {
+    bool is_caching_test;
+    format::type fmt;
+    grid_sample_test_inputs<float, float> p;
+    std::tie(p, fmt, is_caching_test) = testing::TestWithParam<grid_sample_test_params<float, float>>::GetParam();
+
+    auto& engine = get_test_engine();
+    const auto data_data_type = data_types::f32;
+    const auto grid_data_type = data_types::f32;
+    const auto plane_format = format::bfyx;
+
+    auto in0_layout = layout{{-1, -1, -1, -1}, data_data_type, fmt};
+    auto in1_layout = layout{{-1, -1, -1, 2}, grid_data_type, fmt};
+
+    ov::Shape in0_shape = ov::Shape();
+    ov::Shape in1_shape = ov::Shape();
+    for (auto shape : p.data_shape) {
+        in0_shape.push_back(shape);
+    }
+    for (auto shape : p.grid_shape) {
+        in1_shape.push_back(shape);
+    }
+    auto input0 = engine.allocate_memory(layout{ov::PartialShape(in0_shape), data_data_type, fmt});
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), grid_data_type, fmt});
+
+    set_values(input0, p.data);
+    set_values(input1, p.grid);
+
+    topology topology;
+    topology.add(input_layout("data", in0_layout));
+    topology.add(input_layout("grid", in1_layout));
+    topology.add(reorder("reordered_data", input_info("data"), fmt, data_data_type));
+    topology.add(reorder("reordered_grid", input_info("grid"), fmt, grid_data_type));
+    topology.add(grid_sample("grid_sample", { input_info("reordered_data"), input_info("reordered_grid") }, p.attributes));
+    topology.add(reorder("plane_grid_sample", input_info("grid_sample"), plane_format, data_data_type));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("data", input0);
+    network.set_input_data("grid", input1);
+
+    const auto outputs = network.execute();
+    auto output = outputs.at("plane_grid_sample").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), p.expected_values.size());
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_NEAR(p.expected_values[i], output_ptr[i], getError<float>());
+    }
+}
+
+const std::vector<format::type> dynamic_layout_formats = {
+    format::bfyx
+};
+
+std::vector<grid_sample_test_inputs<float, float>> dynamicGridSampleTestInputs() {
+    return {
+        {
+            {1, 1, 3, 5},
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+            {1, 1, 7, 2},
+            {-10.1f, -9.7f, -7.55f, 0.37f, -77.f, 11.56f, 0.5f, 2.55f, 1.7f, 1.1f, 3.f, -0.17f, 1.301f, -1.001f},
+            {true, GridSampleOp::InterpolationMode::NEAREST, GridSampleOp::PaddingMode::BORDER},
+            {1, 6, 11, 14, 15, 10, 5},
+            "nearest_border_align_odd_dims_outer"
+        },
+    };
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_dynamic_test,
+                         grid_sample_gpu_dynamic,
+                         testing::Combine(testing::ValuesIn(dynamicGridSampleTestInputs()),
+                                          testing::ValuesIn(dynamic_layout_formats),
+                                          testing::Values(false)));
+
 }  // namespace

@@ -32,6 +32,9 @@ std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo
     result << "IS=" << inputSize << "_";
     result << "OutputType=" << outputType << "_";
     result << "targetDevice=" << targetDevice;
+    for (auto const& configItem : config) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return result.str();
 }
 
@@ -46,7 +49,8 @@ void OutputBeforeActivation::SetUp() {
 
     std::vector<size_t> input_dims { 1, inputSize };
 
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims, input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims)),
+                                         std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
     auto input0 = input_parameter[0];
     auto input1 = input_parameter[1];
 

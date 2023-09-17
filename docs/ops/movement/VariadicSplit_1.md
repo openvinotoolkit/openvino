@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about VariadicSplit-1 - a data movement operation, which can be 
+                performed on three required input tensors.
+
 **Versioned name**: *VariadicSplit-1*
 
 **Category**: *Data movement*
@@ -38,7 +42,8 @@ Where D is the rank of input tensor `data`. The sum of elements in ``split_lengt
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="VariadicSplit" ...>
         <input>
@@ -77,7 +82,8 @@ Where D is the rank of input tensor `data`. The sum of elements in ``split_lengt
     </layer>
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="VariadicSplit" ...>
         <input>

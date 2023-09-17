@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/resample.hpp>
@@ -307,6 +308,12 @@ struct resample_random_test_params {
 };
 
 struct resample_random_test : testing::TestWithParam<resample_random_test_params>{
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -315,7 +322,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         cldnn::mem_lock<T> ptr(mem, get_test_stream());
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
@@ -545,6 +552,12 @@ struct caffe_resample_random_test_params {
 
 struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random_test_params>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -553,7 +566,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         cldnn::mem_lock<T> ptr(mem, get_test_stream());
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
@@ -1718,7 +1731,7 @@ static tensor create_tensor(const std::vector<int64_t>& shape) {
 
 template <cldnn::format::type FMT>
 struct format_wrapper {
-    static constexpr format fmt = FMT;
+    static constexpr cldnn::format::type fmt = FMT;
 };
 
 template <typename T>
@@ -1930,6 +1943,12 @@ struct resample_opt_random_test_params {
 
 struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_test_params>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -1939,7 +1958,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         size_t y = l.spatial(1);
         size_t z = l.spatial(2);
 
-        auto data = generate_random_5d<T>(b, f, z, y, x, min, max, k);
+        auto data = rg.generate_random_5d<T>(b, f, z, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {

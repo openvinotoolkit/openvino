@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "bound_evaluation_util.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 
 namespace ov {
 // bool could_propagate(const Output<Node>& output, std::vector<Node*>& order);

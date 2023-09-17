@@ -7,20 +7,28 @@
 #include <functional>
 #include <string>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#endif
+
 #include "ngraph/opsets/opset.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#endif
 #include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace pass {
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 /**
- * @brief Serialize transformation converts ngraph::Function into IR files
+ * @brief Serialize transformation converts ov::Model into IR files
  * @attention
  * - dynamic shapes are not supported
- * - order of generated layers in xml file is ngraph specific (given by
- * get_ordered_ops()); MO generates file with different order, but they are
- * logically equivalent
  * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API Serialize : public ov::pass::ModelPass {
@@ -58,7 +66,7 @@ private:
 };
 
 /**
- * @brief StreamSerialize transformation converts ngraph::Function into single binary stream
+ * @brief StreamSerialize transformation converts ov::Model into single binary stream
  * @attention
  * - dynamic shapes are not supported
  * \ingroup ov_pass_cpp_api
@@ -93,6 +101,7 @@ private:
     std::function<void(std::ostream&)> m_custom_data_serializer;
     const Serialize::Version m_version;
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace pass
 }  // namespace ov

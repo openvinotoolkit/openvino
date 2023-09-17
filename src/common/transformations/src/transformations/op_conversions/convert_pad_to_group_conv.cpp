@@ -5,20 +5,22 @@
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/pattern.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/util/pad_base.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);
-    auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
+    auto neg = ov::pass::pattern::wrap_type<op::util::PadBase>(pattern::has_static_dim(1));
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto pad = std::dynamic_pointer_cast<ov::opset4::Pad>(m.get_match_root());
+        auto pad = std::dynamic_pointer_cast<ov::op::util::PadBase>(m.get_match_root());
         if (!pad) {
             return false;
         }
@@ -40,7 +42,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
 
         if (pad->inputs().size() == 4) {
             if (auto pad_value =
-                    std::dynamic_pointer_cast<opset4::Constant>(pad->input_value(3).get_node_shared_ptr())) {
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(pad->input_value(3).get_node_shared_ptr())) {
                 // pad value is a scalar
                 if (pad_value->cast_vector<float>()[0] != 0) {
                     return false;
@@ -54,6 +56,15 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
 
         if (pad_begin.empty() || pad_end.empty()) {
             // pads will be empty if inputs are not constants
+            return false;
+        }
+
+        // check that Pad has non-negative values
+        auto pred = [](int64_t a) {
+            return a < 0;
+        };
+        if (std::any_of(pad_begin.begin(), pad_begin.end(), pred) ||
+            std::any_of(pad_begin.begin(), pad_begin.end(), pred)) {
             return false;
         }
 
@@ -72,7 +83,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         // Create fake weights with ones GOIXY
         Shape weights_shape(rank + 1, 1);
         weights_shape[0] = channel_dim;  // G dimension
-        auto weights = opset4::Constant::create(pad->input(0).get_element_type(), weights_shape, {1});
+        auto weights = ov::op::v0::Constant::create(pad->input(0).get_element_type(), weights_shape, {1});
 
         // Create GroupConvolution attributes
         Strides stride(rank - 2, 1);
@@ -80,14 +91,14 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         CoordinateDiff new_pad_end{pad_end.begin() + 2, pad_end.end()};
 
         auto conv =
-            std::make_shared<opset4::GroupConvolution>(input, weights, stride, new_pad_begin, new_pad_end, stride);
+            std::make_shared<ov::op::v1::GroupConvolution>(input, weights, stride, new_pad_begin, new_pad_end, stride);
 
         conv->set_friendly_name(pad->get_friendly_name());
-        ngraph::copy_runtime_info(pad, conv);
-        ngraph::replace_node(pad, conv);
+        ov::copy_runtime_info(pad, conv);
+        ov::replace_node(pad, conv);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(neg, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -3,6 +3,9 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Gelu-2 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Gelu-2*
 
@@ -44,7 +47,8 @@ Additionally, the *Gelu* function may be approximated as follows:
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Gelu">
        <input>

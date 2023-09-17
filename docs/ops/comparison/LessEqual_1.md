@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about LessEqual-1 - an element-wise, comparison operation, which 
+                can be performed on two given tensors in OpenVINO.
+
 **Versioned name**: *LessEqual-1*
 
 **Category**: *Comparison binary*
@@ -50,7 +54,8 @@ After broadcasting *LessEqual* does the following with the input tensors *a* and
 
 *Example 1: no broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="LessEqual">
        <data auto_broadcast="none"/>
@@ -75,7 +80,8 @@ After broadcasting *LessEqual* does the following with the input tensors *a* and
 
 *Example 2: numpy broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="LessEqual">
        <data auto_broadcast="numpy"/>

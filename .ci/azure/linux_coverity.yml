@@ -70,6 +70,7 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
@@ -126,10 +127,10 @@ jobs:
     displayName: 'Clean ccache stats'
 
   - script: |
-        set -e
-        wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
-        tar xvf coverity_tool.tgz
-        rm coverity_tool.tgz
+      set -e
+      wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
+      tar xvf coverity_tool.tgz
+      rm coverity_tool.tgz
     workingDirectory: $(WORK_DIR)
     displayName: 'Install coverity tool'
 
@@ -154,11 +155,11 @@ jobs:
     displayName: 'Pack cov-int folder for submission'
 
   - script: |
-        curl --form token=$(COVERITY_TOKEN) \
-          --form email=$(COVERITY_USER) \
-          --form file=@openvino.tgz \
-          --form version="$(Build.SourceVersion)" \
-          --form description="https://github.com/openvinotoolkit/openvino/runs/$(Build.BuildNumber)" \
-          https://scan.coverity.com/builds?project=openvino
+      curl --form token=$(COVERITY_TOKEN) \
+        --form email=$(COVERITY_USER) \
+        --form file=@openvino.tgz \
+        --form version="$(Build.SourceVersion)" \
+        --form description="https://github.com/openvinotoolkit/openvino/runs/$(Build.BuildNumber)" \
+        https://scan.coverity.com/builds?project=openvino
     workingDirectory: $(BUILD_DIR)
     displayName: 'Submit for analysis'

@@ -35,6 +35,9 @@ public:
           m_decoder_outputs(decoder->outputs()) {
         FRONT_END_GENERAL_CHECK(m_tensor_map != nullptr && m_external_parameters != nullptr &&
                                 m_mutated_tensors != nullptr && m_translate_session != nullptr);
+        for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
+            m_inputs_is_none.push_back(decoder->input_is_none(i));
+        }
     }
 
     // Do not search for input in tensor map; try to access it as a constant of specified type T and return its value
@@ -48,7 +51,7 @@ public:
     // Search for input in tensor map and return an output port for already converted op
     // TODO: int due to base class uses it, but naturally it should be size_t for PT
     Output<Node> get_input(int index) const override {
-        FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
+        FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input is none with index: ", index);
         auto input = m_decoder_inputs.at(index);
         FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
         return m_tensor_map->at(input);
@@ -71,7 +74,11 @@ public:
     }
 
     bool input_is_none(size_t index) const {
-        return m_decoder->input_is_none(index);
+        return index >= m_inputs_is_none.size() || m_inputs_is_none.at(index);
+    }
+
+    Any get_output_type(size_t index) const {
+        return m_decoder->get_output_type(index);
     }
 
     size_t get_output_size() const {
@@ -143,6 +150,7 @@ private:
     TranslateSession* m_translate_session = nullptr;
     const std::vector<size_t> m_decoder_inputs;
     const std::vector<size_t> m_decoder_outputs;
+    std::vector<bool> m_inputs_is_none;
 };
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::pytorch::NodeContext&)>;

@@ -8,7 +8,7 @@
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/gelu.hpp"
+#include "openvino/reference/gelu.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -101,6 +101,7 @@ op::GeluApproximationMode op::v7::Gelu::get_approximation_mode() const {
     return m_approximation_mode;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace gelu {
 namespace {
 template <element::Type_t ET>
@@ -109,7 +110,7 @@ inline bool evaluate(const HostTensorPtr& arg0,
                      op::GeluApproximationMode mode,
                      const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::gelu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), mode, count);
+    ov::reference::gelu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), mode, count);
     return true;
 }
 

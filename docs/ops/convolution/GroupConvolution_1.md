@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GroupConvolution-1 - a 1D, 2D or 3D, convolution operation, which 
+                can be performed on input and kernel tensors in OpenVINO.
+
 **Versioned name**: *GroupConvolution-1*
 
 **Category**: *Convolution*
@@ -92,7 +96,8 @@ as in regular convolution and concatenates the results. More thorough explanatio
 
 1D GroupConvolution
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer type="GroupConvolution" ...>
        <data dilations="1" pads_begin="2" pads_end="2" strides="1" auto_pad="explicit"/>
@@ -120,7 +125,8 @@ as in regular convolution and concatenates the results. More thorough explanatio
 
 2D GroupConvolution
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer type="GroupConvolution" ...>
        <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" auto_pad="explicit"/>
@@ -151,7 +157,8 @@ as in regular convolution and concatenates the results. More thorough explanatio
 
 3D GroupConvolution
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer type="GroupConvolution" ...>
        <data dilations="1,1,1" pads_begin="2,2,2" pads_end="2,2,2" strides="1,1,1" auto_pad="explicit"/>

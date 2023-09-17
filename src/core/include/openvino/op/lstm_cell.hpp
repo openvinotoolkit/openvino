@@ -240,11 +240,6 @@ private:
     /// \brief The order of gates in weights tensors.
     ///
     LSTMWeightsFormat m_weights_format;
-
-    static constexpr std::size_t s_gates_count{4};
-    static constexpr std::size_t s_peepholes_count{3};
-    template <class T>
-    friend void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v0
 
@@ -380,10 +375,6 @@ private:
     /// \brief The Activation function h.
     ///
     util::ActivationFunction m_activation_h;
-
-    static constexpr std::size_t s_gates_count{4};
-    template <class T>
-    friend void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v4
 }  // namespace op

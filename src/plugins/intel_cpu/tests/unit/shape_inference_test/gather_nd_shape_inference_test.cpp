@@ -9,7 +9,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils.hpp"
-#include "utils/shape_inference/shape_inference.hpp"
+#include "shape_inference/shape_inference.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -34,8 +34,7 @@ template <typename TGatherND>
 void run_gather_nd_test(const GatherNDTestParams& test_params) {
     auto op = make_gather_nd<TGatherND>(test_params.batch_dims);
 
-    ShapeVector output_shapes(1);
-    shape_inference(op.get(), test_params.input_shapes, output_shapes);
+    auto output_shapes = shape_inference(op.get(), test_params.input_shapes);
 
     EXPECT_EQ(output_shapes[0], test_params.exp_shape)
         << "Failed for input shapes: " << ov::util::vector_to_string(test_params.input_shapes)
@@ -105,7 +104,7 @@ TYPED_TEST_P(StaticShapeInferenceGatherNDTest, gather_nd_common_default_ctor) {
     ShapeVector input_shapes{{8, 3, 11, 12}, {8, 5, 2}};
     ShapeVector output_shapes(1);
 
-    shape_infer(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{8, 5, 12}));
 }
 

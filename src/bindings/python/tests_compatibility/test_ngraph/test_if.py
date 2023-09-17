@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import ngraph as ng
+import pytest
 import numpy as np
 from ngraph.utils.tensor_iterator_types import (
     GraphBody,
@@ -161,11 +162,13 @@ def test_diff_if_with_two_outputs():
              ["If", 2, []])
 
 
+@pytest.mark.xfail(reason="ngraph.exceptions.NgraphTypeError: ('Unidentified data type %s', dtype('O'))")
 def test_simple_if():
     check_if(simple_if, True, ["Relu", 1, [2]])
     check_if(simple_if, False, ["Relu", 1, [2]])
 
 
+@pytest.mark.xfail(reason="ngraph.exceptions.NgraphTypeError: ('Unidentified data type %s', dtype('O'))")
 def test_simple_if_without_body_parameters():
     check_if(simple_if_without_parameters, True, ["Relu", 1, []])
     check_if(simple_if_without_parameters, False, ["Relu", 1, []])

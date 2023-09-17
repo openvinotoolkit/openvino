@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace std;
 
 std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
     s << "[";
-    s << ngraph::join(shape, ",");
+    s << ov::util::join(shape, ",");
     s << "]";
     return s;
 }
@@ -37,10 +37,10 @@ ov::Shape::Shape(const Shape& axis_lengths) = default;
 ov::Shape::Shape(size_t n, size_t initial_value) : std::vector<size_t>(n, initial_value) {}
 
 ov::Shape::Shape(const std::string& value) {
-    auto val = ngraph::trim(value);
+    auto val = ov::util::trim(value);
     if (val[0] == '[' && val[val.size() - 1] == ']')
         val = val.substr(1, val.size() - 2);
-    val = ngraph::trim(val);
+    val = ov::util::trim(val);
     std::vector<size_t> dims;
     std::stringstream ss(val);
     std::string field;

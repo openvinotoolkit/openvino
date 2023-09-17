@@ -10,12 +10,11 @@
 
 namespace ov {
 namespace op {
-namespace v3 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const ScatterElementsUpdate* op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const util::ScatterElementsUpdateBase* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
 
     const auto& data_shape = input_shapes[0];
@@ -51,7 +50,7 @@ std::vector<TShape> shape_infer(const ScatterElementsUpdate* op,
                           updates_shape);
 
     if (data_shape.rank().is_static()) {
-        if (const auto axis_input = get_input_const_data_as<TShape, int64_t>(op, 3, constant_data)) {
+        if (const auto axis_input = get_input_const_data_as<TShape, int64_t>(op, 3, ta)) {
             OPENVINO_SUPPRESS_DEPRECATED_START
             ov::normalize_axis(op, (*axis_input)[0], data_rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
@@ -60,14 +59,13 @@ std::vector<TShape> shape_infer(const ScatterElementsUpdate* op,
     return {data_shape};
 }
 
-template <class TShape>
-void shape_infer(const ScatterElementsUpdate* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes,
-                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
+namespace v12 {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ScatterElementsUpdate* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return ov::op::shape_infer(op, input_shapes, ta);
 }
-
-}  // namespace v3
+}  // namespace v12
 }  // namespace op
 }  // namespace ov

@@ -18,15 +18,16 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 openvino::runtime
-                ngraph_reference
+                openvino::reference
                 interpreter_backend
                 openvino::runtime::dev
-        ADD_CPPLINT
+                common_test_utils
+        ADD_CLANG_FORMAT
         DEVELOPER_PACKAGE
             tests
 )
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )

@@ -40,6 +40,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             assert values.dtype == dtype
         assert np.allclose(values, expected)
 
+
     @generate(
         *[
             (

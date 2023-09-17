@@ -28,8 +28,8 @@ struct FullyConnectedBatchSizeMoreThan8 {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::vector<size_t> inputShape = {9, 1};
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-        auto weights = CommonTestUtils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+        auto weights = ov::test::utils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
         auto fullyConnected = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, weights);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fullyConnected)};
         return std::make_shared<ngraph::Function>(results, params, getName());
@@ -46,8 +46,8 @@ struct FullyConnectedBatchSizeLessThanOrEqual8 {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::vector<size_t> inputShape = {7, 1};
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-        auto weights = CommonTestUtils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+        auto weights = ov::test::utils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
         auto fullyConnected = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, weights);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fullyConnected)};
         return std::make_shared<ngraph::Function>(results, params, getName());
@@ -109,13 +109,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_layers_restrictions,
                          LayersRestrictionsFullyConnectedBatchSizeMoreThan8,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          LayersRestrictionsFullyConnectedBatchSizeMoreThan8::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_layers_restrictions,
                          LayersRestrictionsFullyConnectedBatchSizeLessThanOrEqual8,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          LayersRestrictionsFullyConnectedBatchSizeLessThanOrEqual8::getTestCaseName);
 }  // namespace LayerTestsDefinitions

@@ -15,7 +15,7 @@ std::string CumSumLayerTest::getTestCaseName(const testing::TestParamInfo<cumSum
     std::tie(inputShapes, inputPrecision, axis, exclusive, reverse, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "Precision=" << inputPrecision.name() << "_";
     result << "Axis=" << axis << "_";
     result << "Exclusive=" << (exclusive ? "TRUE" : "FALSE") << "_";

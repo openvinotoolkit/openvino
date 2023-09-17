@@ -11,14 +11,15 @@
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/maximum.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/reference/maximum.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 // ------------------------------------ v0 -------------------------------------
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace maximumop {
 namespace {
 template <element::Type_t ET>
@@ -26,12 +27,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::maximum(arg0->get_data_ptr<ET>(),
-                                arg1->get_data_ptr<ET>(),
-                                out->get_data_ptr<ET>(),
-                                arg0->get_shape(),
-                                arg1->get_shape(),
-                                broadcast_spec);
+    ov::reference::maximum(arg0->get_data_ptr<ET>(),
+                           arg1->get_data_ptr<ET>(),
+                           out->get_data_ptr<ET>(),
+                           arg0->get_shape(),
+                           arg1->get_shape(),
+                           broadcast_spec);
     return true;
 }
 

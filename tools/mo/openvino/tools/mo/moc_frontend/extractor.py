@@ -5,11 +5,21 @@ import re
 from enum import Enum
 
 import numpy as np
-from openvino._pyopenvino import Place, PartialShape
+from openvino._pyopenvino import Place, PartialShape # pylint: disable=no-name-in-module,import-error
 
 from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
-from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_collision
 from openvino.tools.mo.utils.error import Error
+
+
+def raise_no_node(node_name: str):
+    raise Error('No node with name {}'.format(node_name))
+
+
+def raise_node_name_collision(node_name: str, found_nodes: list):
+    raise Error('Name collision was found, there are several nodes for mask "{}": {}. '
+                'If your intention was to specify port for node, please instead specify node names connected to '
+                'this port. If your intention was to specify the node name, please add port to the node '
+                'name'.format(node_name, found_nodes))
 
 
 class IOType(Enum):
@@ -91,7 +101,7 @@ def decode_name_with_port(
             else:
                 return node.get_input_port(input_port_index=int(port_index))
         else:
-            None
+            return None
 
     regexp_post = r"(.+):(\d+)"
     match = re.search(regexp_post, node_name)
@@ -153,12 +163,12 @@ def fe_input_user_data_repack(
         Transforms node names to node ids.
     :param input_model: current input model
     :param input_user_shapes: data structure representing user input cutting request. It may be:
-    # None value if user did not provide neither --input nor --input_shape keys
+    # None value if user did not provide neither "input" nor "input_shape" keys
     # list instance which contains input layer names with or without ports if user provided
-        only --input key
+        only "input" key
     # dict instance which contains input layer names with or without ports as keys and shapes as
-        values if user provided both --input and --input_shape
-    # np.ndarray if user provided only --input_shape key
+        values if user provided both "input" and "input_shape"
+    # np.ndarray if user provided only "input_shape" key
     :param freeze_placeholder: dictionary with placeholder names as keys and freezing value as values
     :param input_user_data_types: dictionary with input nodes and its data types
     :return: restructured input shapes and freeze placeholder shapes information
@@ -188,7 +198,7 @@ def fe_input_user_data_repack(
     _input_shapes = []
     _input_names = []
     model_inputs = input_model.get_inputs()
-    
+
     if isinstance(input_user_shapes, list) and len(input_user_shapes) > 1 and isinstance(input_user_shapes[0],
                                                                                          PartialShape):
         for shape in input_user_shapes:
@@ -232,7 +242,7 @@ def fe_input_user_data_repack(
     elif isinstance(input_user_shapes, PartialShape):
         # this branch covers the single use of `input_shape` without `input` option
         # but it can be used along with `freeze_placeholder_with_value` option
-        # for example, --input_shape [3] --freeze_placeholder_with_value "is_training->False"
+        # for example, input_shape [3] freeze_placeholder_with_value "is_training->False"
         # means the model has two inputs: one is is_training to be frozen, the other to re-write the shape
         # NOTE: the logic relies on parameters with the single name
         frozen_names = freeze_placeholder.keys()
@@ -399,7 +409,7 @@ def convert_params_lists_to_dicts(input_model,
 
         # this cycle adds each unnamed type to dictionary using name from model_inputs
         for idx, node_type in enumerate(input_user_data_types):
-            assert isinstance(node_type, (type, Type)), "Got incorrect format of input types. " \
+            assert isinstance(node_type, (type, np.dtype, Type)), "Got incorrect format of input types. " \
                                                         "Expected numpy type or openvino.runtime.Type, " \
                                                         "got {}.".format(type(node_type))
 
@@ -415,8 +425,8 @@ def convert_params_lists_to_dicts(input_model,
     # unnamed_freeze_placeholders is always list, it is not empty only if unnamed inputs were used.
     for value in unnamed_freeze_placeholders:
         assert isinstance(value, list), "Got incorrect format of input values. " \
-                                            "Expected list, " \
-                                            "got {}.".format(type(value))
+                                        "Expected list, " \
+                                        "got {}.".format(type(value))
         inp_name = find_first_unused_input(model_inputs, freeze_placeholder, {}, "input value")
         freeze_placeholder[inp_name] = value
 

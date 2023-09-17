@@ -35,7 +35,7 @@ namespace SubgraphTestsDefinitions {
     INSTANTIATE_TEST_SUITE_P(smoke_basic, ConvReshapeAct,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(ov::test::utils::DEVICE_CPU),
             ::testing::ValuesIn(input_shapes),
             ::testing::ValuesIn(kernel_shapes),
             ::testing::ValuesIn(output_channels),

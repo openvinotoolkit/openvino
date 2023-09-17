@@ -23,7 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "common/cpu_memcpy.h"
 #include <common/primitive_hashing_utils.hpp>
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include "utils/ngraph_utils.hpp"
@@ -473,7 +473,7 @@ private:
         constexpr unsigned simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
         constexpr unsigned tail8_simd_w = 8;
         constexpr unsigned tail4_simd_w = 4;
-        constexpr unsigned repeats = isa == cpu::x64::sse41 ? 2 : 1;
+        constexpr int repeats = isa == cpu::x64::sse41 ? 2 : 1;
 
         Label main_loop_label;
         Label tail_blk8_label;
@@ -616,7 +616,7 @@ private:
 
             auto tail_unroll = [&](size_t iter) {
                 const auto &broadcasted = jqp_.broadcasted;
-                for (int i = 0; i < iter; i++) {
+                for (size_t i = 0; i < iter; i++) {
                     if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)])
                         uni_vmovss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
                     if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)])
@@ -979,7 +979,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
         auto initAxisIdx = [&](const VectorDims& inputDims) {
             size_t axisIdx = 0;
-            for (int i = 1; i < inputDims.size(); i++) {
+            for (size_t i = 1; i < inputDims.size(); i++) {
                 if (inputDims[i] > 1) {
                     axisIdx = i;
                 }
@@ -1048,14 +1048,14 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
         binarization = levels == 2;
 
         if (binarization) {
-            for (int i = 0; i < outputLowAxisSize; i++) {
+            for (size_t i = 0; i < outputLowAxisSize; i++) {
                 if (outputLowData[i] != 1.f && outputLowData[i] != 0.f) {
                     binarization = false;
                     break;
                 }
             }
 
-            for (int i = 0; i < outputHighAxisSize; i++) {
+            for (size_t i = 0; i < outputHighAxisSize; i++) {
                 if (outputHighData[i] != 1.f && outputHighData[i] != 0.f) {
                     binarization = false;
                     break;
@@ -1098,7 +1098,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
                     return true;
 
                 auto first = data[0];
-                for (int i = 1; i < size; i++) {
+                for (size_t i = 1; i < size; i++) {
                     if (data[i] != first)
                         return false;
                 }
@@ -1156,15 +1156,15 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
             bool quantizationOnly = true;
 
-            for (int i = 0; i < cropLow.size(); i++) {
+            for (size_t i = 0; i < cropLow.size(); i++) {
                 cropLow[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
             }
 
-            for (int i = 0; i < cropHigh.size(); i++) {
+            for (size_t i = 0; i < cropHigh.size(); i++) {
                 cropHigh[i] = inputHighData[isInputHighBroadcasted ? 0 : i];
             }
 
-            for (int i = 0; i < inputScale.size(); i++) {
+            for (size_t i = 0; i < inputScale.size(); i++) {
                 float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
@@ -1183,7 +1183,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 #endif
             }
 
-            for (int i = 0; i < outputScale.size(); i++) {
+            for (size_t i = 0; i < outputScale.size(); i++) {
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
 
@@ -1203,7 +1203,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
                     quantizationOnly = false;
             }
 
-            for (int i = 0; i < outputShift.size(); i++) {
+            for (size_t i = 0; i < outputShift.size(); i++) {
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
 
                 outputShift[i] = ol;
@@ -1214,7 +1214,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
             bool isFakeQuantization = true;
             bool isFakeQuantizationWithScale = true;
-            for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
+            for (size_t i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
                 float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
@@ -1226,7 +1226,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             }
 
             if (isFakeQuantizationWithScale) {
-                for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
+                for (size_t i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
                     float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                     float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                     float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
@@ -1391,7 +1391,7 @@ bool FakeQuantize::needPrepareParams() const {
 
 void FakeQuantize::prepareParams() {
     if (isBinarization()) {
-        const size_t axisSize = getParentEdgeAt(0)->getMemory().GetShape().getStaticDims()[getAxis()];
+        const size_t axisSize = getParentEdgeAt(0)->getMemory().getShape().getStaticDims()[getAxis()];
         const size_t newPaddedSize = rnd_up(axisSize, 16);
         IE_ASSERT(newPaddedSize != 0);
 
@@ -1415,8 +1415,7 @@ void FakeQuantize::prepareParams() {
             }
 
             if (internalBlobMemory.empty() || needUpdThr) {
-                auto binarizationThresholdsDataMem = std::make_shared<Memory>(getEngine());
-                binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
+                auto binarizationThresholdsDataMem = std::make_shared<Memory>(getEngine(), weightsDataDesc, getBinarizationTresholdsPtr());
                 if (internalBlobMemory.empty()) {
                     internalBlobMemory.push_back(binarizationThresholdsDataMem);
                 } else {
@@ -1425,8 +1424,7 @@ void FakeQuantize::prepareParams() {
             }
 
             if (internalBlobMemory.size() == (numBinFqIntBlob - 1) || needUpdMask) {
-                auto binarizationMaskDataMem = std::make_shared<Memory>(getEngine());
-                binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
+                auto binarizationMaskDataMem = std::make_shared<Memory>(getEngine(), weightsDataDesc, getBinarizationOutputMaskPtr());
                 if (internalBlobMemory.size() == (numBinFqIntBlob - 1)) {
                     internalBlobMemory.push_back(binarizationMaskDataMem);
                 } else {
@@ -1455,7 +1453,7 @@ void FakeQuantize::createPrimitive() {
         const auto &srcMemory = getParentEdgeAt(0)->getMemory();
         const auto &srcDesc = srcMemory.getDesc();
 
-        key.jqp.is_planar = srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5);
+        key.jqp.is_planar = srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3u, 4u, 5u);
         key.jqp.op_type = getAlgorithm();
 
         if (isBinarization()) {
@@ -1486,16 +1484,16 @@ void FakeQuantize::createPrimitive() {
 }
 
 void FakeQuantize::executeReference() {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
+    auto src = reinterpret_cast<const float *>(srcMemory->getData());
 
     auto srcDims = srcMemory->getStaticDims();
     auto dstDims = dstMemory->getStaticDims();
 
-    auto s_str = srcMemory->GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    auto d_str = dstMemory->GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto s_str = srcMemory->getDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto d_str = dstMemory->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     const int N = srcDims[0];
     const int C = srcDims.size() > 1 ? srcDims[1] : 1;
@@ -1516,13 +1514,13 @@ void FakeQuantize::executeReference() {
         }
         d_str[1] = tmp;
 
-        auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<uint8_t *>(dstMemory->getData());
 
         const int nbits = 8;
         const int CB = impl::utils::div_up(C, nbits);
 
-        auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
-        auto output_mask = reinterpret_cast<const uint32_t*>(internalBlobMemory[1]->GetData());
+        auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->getData());
+        auto output_mask = reinterpret_cast<const uint32_t*>(internalBlobMemory[1]->getData());
 
         parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
@@ -1552,7 +1550,7 @@ void FakeQuantize::executeReference() {
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto dst = reinterpret_cast<float *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<float *>(dstMemory->getData());
 
         parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = srcDims.size() == 5 ?
@@ -1596,18 +1594,18 @@ void FakeQuantize::executeReference() {
 }
 void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    const auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t *>(srcMemory->getData());
+    auto dst = reinterpret_cast<uint8_t *>(dstMemory->getData());
 
-    auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
-    auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
+    auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->getData());
+    auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->getData());
 
     auto src_dims = srcMemory->getStaticDims();
 
-    auto srcMemDesc = srcMemory->GetDescWithType<BlockedMemoryDesc>();
+    auto srcMemDesc = srcMemory->getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> s_str = srcMemDesc->getStrides();
     size_t tmp = s_str[s_str.size() - 1];
     for (int i = s_str.size() - 1; i > 1; i--) {
@@ -1638,11 +1636,11 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
 
 void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t *>(srcMemory->getData());
+    auto dst = reinterpret_cast<uint8_t *>(dstMemory->getData());
 
     auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
@@ -1655,7 +1653,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto src_type_size = jqp.src_prc.size();
     auto dst_type_size = jqp.dst_prc.size();
 
-    auto srcMemDesc = srcMemory->GetDescWithType<BlockedMemoryDesc>();
+    auto srcMemDesc = srcMemory->getDescWithType<BlockedMemoryDesc>();
     auto s_str = srcMemDesc->getStrides();
 
     if (is_blk_format) {
@@ -1838,9 +1836,8 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
 
 void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
-        memPtr.reset(new Memory(getEngine()));
         DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {dataSize});
-        memPtr->Create(memoryDesc, data);
+        memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data);
 
         postOpsMem.push_back(memPtr);
     }
@@ -1933,12 +1930,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
                 return abs(val - ref) < zero_thr;
             });
         };
-    int OC = std::max({inputScale.size(),
-                       inputShift.size(),
-                       cropLow.size(),
-                       cropHigh.size(),
-                       outputScale.size(),
-                       outputShift.size()});
+    size_t OC = std::max({inputScale.size(),
+                          inputShift.size(),
+                          cropLow.size(),
+                          cropHigh.size(),
+                          outputScale.size(),
+                          outputShift.size()});
 
     IE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
     IE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
@@ -1975,7 +1972,7 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
     if (f.ish.size() == 1)
         f.ish.resize(OC, f.ish[0]);
 
-    for (int i = 0; i < OC; i++) {
+    for (size_t i = 0; i < OC; i++) {
         auto& clo = f.clo[i];
         auto& chi = f.chi[i];
         auto& isc = f.isc[i];
@@ -2056,12 +2053,12 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
               ", doRounding=",
               doRounding);
     DEBUG_LOG("\t ---- Original formula ----");
-    DEBUG_LOG("\t    cropLow =[", PrintableVector<float>(cropLow), "]");
-    DEBUG_LOG("\t   cropHigh =[", PrintableVector<float>(cropHigh), "]");
-    DEBUG_LOG("\t inputScale =[", PrintableVector<float>(inputScale), "]");
-    DEBUG_LOG("\t inputShift =[", PrintableVector<float>(inputShift), "]");
-    DEBUG_LOG("\t outputScale=[", PrintableVector<float>(outputScale), "]");
-    DEBUG_LOG("\t outputShift=[", PrintableVector<float>(outputShift), "]");
+    DEBUG_LOG("\t    cropLow =[", printable(cropLow), "]");
+    DEBUG_LOG("\t   cropHigh =[", printable(cropHigh), "]");
+    DEBUG_LOG("\t inputScale =[", printable(inputScale), "]");
+    DEBUG_LOG("\t inputShift =[", printable(inputShift), "]");
+    DEBUG_LOG("\t outputScale=[", printable(outputScale), "]");
+    DEBUG_LOG("\t outputShift=[", printable(outputShift), "]");
 
     const size_t bufferAlignment = 1;
     initializePostOpData(dnnlpoc.getOutputDims(), bufferAlignment, doRounding);
@@ -2069,12 +2066,12 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     auto& f = optimizedFormula;
 
     DEBUG_LOG("\t ---- Optimized formula ----");
-    DEBUG_LOG("\t inputScale =[", PrintableVector<float>(f.isc), "]");
-    DEBUG_LOG("\t inputShift =[", PrintableVector<float>(f.ish), "]");
-    DEBUG_LOG("\t    cropLow =[", PrintableVector<float>(f.clo), "]");
-    DEBUG_LOG("\t   cropHigh =[", PrintableVector<float>(f.chi), "]");
-    DEBUG_LOG("\toutputScale =[", PrintableVector<float>(f.osc), "]");
-    DEBUG_LOG("\toutputShift =[", PrintableVector<float>(f.osh), "]");
+    DEBUG_LOG("\t inputScale =[", printable(f.isc), "]");
+    DEBUG_LOG("\t inputShift =[", printable(f.ish), "]");
+    DEBUG_LOG("\t    cropLow =[", printable(f.clo), "]");
+    DEBUG_LOG("\t   cropHigh =[", printable(f.chi), "]");
+    DEBUG_LOG("\toutputScale =[", printable(f.osc), "]");
+    DEBUG_LOG("\toutputShift =[", printable(f.osh), "]");
 
     // when FQ is last postOps and output data type is u8/s8
     // round & clip2 can be further optimized since saturation will be performed by oneDNN by default

@@ -27,6 +27,9 @@ class Scatter(Op):
             'infer': self.infer,
             'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
 
+            'reduction': None,
+            'use_init_val': None,
+
             'in_ports_count': 4,
             'out_ports_count': 1,
         }
@@ -85,6 +88,13 @@ class ScatterElementsUpdate(Scatter):
     op = op_type = 'ScatterElementsUpdate'
     version = 'opset3'
 
+    def backend_attrs(self):
+        version = self.get_opset()
+        if version == 'opset12':
+            return ['reduction', 'use_init_val']
+        else:
+            return []
+
     @staticmethod
     def infer(node: Node):
         Scatter.infer(node)
@@ -111,7 +121,9 @@ class ScatterElementsUpdate(Scatter):
             ''.format(node_name, indices_shape, updates_shape)
 
         axis = node.in_port(3).data.get_value()
-        if input_value is not None and indices_value is not None and updates_value is not None and axis is not None:
+        opset = node.soft_get('version', 'default')
+        is_opset12_reduction = opset == 'opset12' and (node.soft_get('reduction') != 'none' or not node.soft_get('use_init_val'))
+        if input_value is not None and indices_value is not None and updates_value is not None and axis is not None and not is_opset12_reduction:
             assert axis.size == 1, "The node {} has axis input value size equal to {} but it should be exactly 1.".format(
                 node_name, axis.size)
             axis = axis.item()

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GRUCell-3 - a sequence processing operation, which 
+                can be performed on four required and one optional input tensor.
+
 **Versioned name**: *GRUCell-3*
 
 **Category**: *Sequence processing*
@@ -10,7 +14,7 @@
 
 **Detailed description**: *GRUCell* computes the output *Ht* for the current time step based on the followint formula:
 
-.. code-block::
+.. code-block:: sh
 
    Formula:
      *  - matrix multiplication
@@ -86,7 +90,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="GRUCell" ...>
        <data hidden_size="128" linear_before_reset="1"/>

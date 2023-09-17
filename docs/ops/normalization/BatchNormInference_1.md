@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about BatchNormInference-5 - a normalization operation, which can be 
+                performed on five required input tensors.
+
 **Versioned name**: *BatchNormInference-5*
 
 **Category**: *Normalization*
@@ -100,7 +104,8 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
 
 Example: 2D input tensor ``data`` 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="BatchNormInference" ...>
        <data epsilon="9.99e-06" />
@@ -132,7 +137,8 @@ Example: 2D input tensor ``data``
 
 Example: 4D input tensor ``data``
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="BatchNormInference" ...>
        <data epsilon="9.99e-06" />

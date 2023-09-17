@@ -11,7 +11,6 @@
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 namespace BehaviorTestsDefinitions {
-using namespace CommonTestUtils;
 using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestIOBBlobTest, CanCreateInferRequest) {
@@ -386,7 +385,7 @@ protected:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }
@@ -439,6 +438,7 @@ class InferRequestIOBBlobSetLayoutTest : public testing::WithParamInterface<Infe
                                          public ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestIOBBlobSetLayoutParams> obj) {
+        using namespace ov::test::utils;
         InferenceEngine::Layout  layout;
         std::string target_device;
         std::map<std::string, std::string> configuration;

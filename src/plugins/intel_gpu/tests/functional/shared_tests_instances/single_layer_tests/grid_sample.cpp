@@ -55,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GridSample,
                                           testing::ValuesIn(padding_modes),
                                           testing::ValuesIn(data_precisions),
                                           testing::ValuesIn(grid_precisions),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          GridSampleLayerTest::getTestCaseName);
 
 }  // namespace

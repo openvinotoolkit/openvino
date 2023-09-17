@@ -9,7 +9,8 @@ Parameters
 
 Default Quantization algorithm has mandatory and optional parameters. For more details on how to use these parameters, refer to :doc:`Best Practices <pot_docs_BestPractices>` document. Below is an example of the definition of Default Quantization method and its parameters:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    {
        "name": "DefaultQuantization", # the name of optimization algorithm
@@ -127,7 +128,7 @@ Additional Resources
 Tutorials:
 
 * `Quantization of Image Classification model <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino>`__
-* `Quantization of Object Detection model from Model Zoo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization>`__
+* `Quantization of Object Detection model from Model Zoo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-yolov5-quantization-migration>`__
 * `Quantization of Segmentation model for medical data <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize>`__
 * `Quantization of BERT for Text Classification <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert>`__
 

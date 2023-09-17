@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about DetectionOutput-1 - an object detection operation, which 
+                can be performed on three mandatory and two additional input tensors in OpenVINO.
+
 **Versioned name**: *DetectionOutput-1*
 
 **Category**: *Object detection*
@@ -152,7 +156,8 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="DetectionOutput" ... >
        <data background_label_id="1" code_type="caffe.PriorBoxParameter.CENTER_SIZE" confidence_threshold="0.019999999552965164" input_height="1" input_width="1" keep_top_k="200" nms_threshold="0.44999998807907104" normalized="true" num_classes="2" share_location="true" top_k="200" variance_encoded_in_target="false" clip_after_nms="false" clip_before_nms="false" objectness_score="0" decrease_label_id="false"/>

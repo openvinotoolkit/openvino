@@ -6,8 +6,8 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/sign.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -27,12 +27,13 @@ shared_ptr<Node> op::Sign::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Sign>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace signop {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::sign<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::sign<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 

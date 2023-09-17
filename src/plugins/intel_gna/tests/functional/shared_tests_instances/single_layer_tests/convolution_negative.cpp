@@ -194,7 +194,7 @@ protected:
                                                 ::testing::Values(InferenceEngine::Layout::ANY),            \
                                                 ::testing::Values(InferenceEngine::Layout::ANY),            \
                                                 ::testing::ValuesIn(input2DNCHW##suffix_input),             \
-                                                ::testing::Values(CommonTestUtils::DEVICE_GNA)),            \
+                                                ::testing::Values(ov::test::utils::DEVICE_GNA)),            \
                              GnaConv2DNegativeTest##whats_wrong::getTestCaseName);
 
 constexpr auto GNA_3_0 = ov::intel_gna::HWGeneration::GNA_3_0;

@@ -2,19 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/validation_util.hpp"
 
-using namespace std;
-
-ov::op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
-    const ngraph::Output<ngraph::Node>& arg,
-    const ngraph::Output<ngraph::Node>& reduction_axes,
-    bool keep_dims)
+ov::op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(const ov::Output<ov::Node>& arg,
+                                                                       const ov::Output<ov::Node>& reduction_axes,
+                                                                       bool keep_dims)
     : ArithmeticReduction(arg, reduction_axes),
       m_keep_dims{keep_dims} {}
 
@@ -28,7 +22,6 @@ void ov::op::util::ArithmeticReductionKeepDims::validate_and_infer_types() {
     OV_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_validate_and_infer_types);
 
     const element::Type& data_et = get_input_element_type(0);
-    const PartialShape& axes_shape = get_input_partial_shape(1);
     const element::Type& axes_et = get_input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
@@ -40,12 +33,6 @@ void ov::op::util::ArithmeticReductionKeepDims::validate_and_infer_types() {
                           axes_et.is_integral_number(),
                           "Element type of axes input must be integer. Got: ",
                           axes_et);
-
-    const Rank axes_rank = axes_shape.rank();
-    NODE_VALIDATION_CHECK(this,
-                          axes_rank.compatible(0) || axes_rank.compatible(1),
-                          "Axes input must be a scalar or 1D input. Got: ",
-                          axes_shape);
 
     PartialShape result_shape = infer_reduction_output_shape(m_keep_dims);
     set_input_is_relevant_to_shape(1);

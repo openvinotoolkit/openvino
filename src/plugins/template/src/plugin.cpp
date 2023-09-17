@@ -6,8 +6,6 @@
 
 #include <memory>
 
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -15,9 +13,9 @@
 #include "remote_context.hpp"
 #include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 
 namespace {
@@ -48,14 +46,13 @@ ov::template_plugin::Plugin::~Plugin() {
 // ! [plugin:dtor]
 
 // ! [plugin:create_context]
-std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::create_context(
-    const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::create_context(const ov::AnyMap& remote_properties) const {
     return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 // ! [plugin:create_context]
 
 // ! [plugin:get_default_context]
-std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
+ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
     const ov::AnyMap& remote_properties) const {
     return std::make_shared<ov::template_plugin::RemoteContext>();
 }
@@ -98,7 +95,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
-    const ov::RemoteContext& context) const {
+    const ov::SoPtr<ov::IRemoteContext>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
@@ -125,9 +122,10 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
 // ! [plugin:import_model]
 
 // ! [plugin:import_model_with_remote]
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
-                                                                              const ov::RemoteContext& context,
-                                                                              const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
+    std::istream& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
@@ -194,6 +192,8 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset11_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
         // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());
@@ -226,7 +226,6 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::full_name,
                                                     ov::device::architecture,
                                                     ov::device::capabilities,
-                                                    ov::caching_properties,
                                                     ov::range_for_async_infer_requests};
         return ro_properties;
     };
@@ -234,7 +233,6 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
-                                                    ov::exclusive_async_requests,
                                                     ov::template_plugin::disable_transformations};
         return rw_properties;
     };
@@ -245,25 +243,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         }
         return ret;
     };
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
-        return to_string_vector(metrics);
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
-                                            .get_property(ov::supported_properties.name())
-                                            .as<std::vector<std::string>>();
-        for (auto&& configKey : streamExecutorConfigKeys) {
-            if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
-                configs.emplace_back(configKey);
-            }
-        }
-        return to_string_vector(configs);
-    } else if (ov::supported_properties == name) {
+    if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
@@ -272,6 +252,10 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return decltype(ov::supported_properties)::value_type(supported_properties);
+    } else if (ov::internal::supported_properties == name) {
+        return decltype(ov::internal::supported_properties)::value_type{
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
         std::vector<std::string> available_devices = {""};
@@ -279,15 +263,13 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
     } else if (ov::device::full_name == name) {
         std::string device_name = "Template Device Full Name";
         return decltype(ov::device::full_name)::value_type(device_name);
-    } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-        return true;
     } else if (ov::device::architecture == name) {
         // TODO: return device architecture for device specified by DEVICE_ID config
         std::string arch = "TEMPLATE";
         return decltype(ov::device::architecture)::value_type(arch);
-    } else if (ov::caching_properties == name) {
+    } else if (ov::internal::caching_properties == name) {
         std::vector<ov::PropertyName> caching_properties = {ov::device::architecture};
-        return decltype(ov::caching_properties)::value_type(caching_properties);
+        return decltype(ov::internal::caching_properties)::value_type(caching_properties);
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
         std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};

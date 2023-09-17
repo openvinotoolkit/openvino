@@ -42,12 +42,12 @@ public:
     static std::string to_string(binary_convolution_node const& node);
     typed_primitive_inst(network& network, binary_convolution_node const& node);
 
-    bool need_reset_input_memory() const override {
+    bool need_reset_input_memory(size_t idx = 0) const override {
+        if (idx != 0)
+            return false;
+
         auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
-        if (input_layout.data_padding) {
-            return true;
-        }
-        return false;
+        return input_layout.data_padding ? true : false;
     }
 
     bool need_reset_output_memory() const override {

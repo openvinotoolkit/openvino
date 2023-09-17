@@ -3,10 +3,8 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
@@ -14,7 +12,10 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_identity_op(const NodeContext& node) {
-    vector<string> supported_ops = {"Identity",
+    vector<string> supported_ops = {"CheckNumerics",
+                                    "CheckNumericsV2",
+                                    "EnsureShape",
+                                    "Identity",
                                     "PreventGradient",
                                     "Snapshot",
                                     "StopGradient",

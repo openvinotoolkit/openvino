@@ -31,7 +31,7 @@ const auto basicCases = ::testing::Combine(
     ::testing::ValuesIn(idxPrecisions),
     ::testing::Values(0),
     ::testing::ValuesIn(mergeRepeated),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_set1, CTCGreedyDecoderSeqLenLayerTest,
                         basicCases,
@@ -45,6 +45,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_set2, CTCGreedyDecoderSeqLenLayerTest,
                         ::testing::ValuesIn(idxPrecisions),
                         ::testing::ValuesIn(std::vector<int>{0, 5, 10}),
                         ::testing::ValuesIn(mergeRepeated),
-                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                     CTCGreedyDecoderSeqLenLayerTest::getTestCaseName);
 }  // namespace

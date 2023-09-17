@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph_functions/builders.hpp>
 #include "openvino/op/prelu.hpp"
 #include "base_reference_test.hpp"
 

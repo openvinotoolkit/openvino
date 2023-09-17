@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(SpaceToDepthBS2,
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::ValuesIn(modes),
                                             ::testing::Values(2),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          SpaceToDepthLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShapesBS3 = {
@@ -45,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(SpaceToDepthBS3,
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::ValuesIn(modes),
                                             ::testing::Values(3),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          SpaceToDepthLayerTest::getTestCaseName);
 
 }  // namespace

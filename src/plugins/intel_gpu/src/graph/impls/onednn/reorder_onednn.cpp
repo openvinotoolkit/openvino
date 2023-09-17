@@ -19,7 +19,7 @@ struct reorder_onednn : typed_primitive_onednn_impl<reorder, dnnl::reorder::prim
     using parent = typed_primitive_onednn_impl<reorder, dnnl::reorder::primitive_desc, dnnl::reorder>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::reorder_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -32,12 +32,15 @@ protected:
         int input_idx = DNNL_ARG_FROM;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             auto& input = instance.input_memory(i);
-            args.insert({input_idx++, input.get_onednn_memory(_pd.src_desc())});
+            auto offset = onednn::get_offset(instance.get_input_layout(i),
+                                             _pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)));
+            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            args.insert({DNNL_ARG_TO, output.get_onednn_memory(_pd.dst_desc())});
+            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
         return args;
@@ -92,6 +95,8 @@ public:
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
+
+        _scratchpad_md = _pd.scratchpad_desc();
 
         _prim = dnnl::reorder(_pd, prim_cache);
 #endif

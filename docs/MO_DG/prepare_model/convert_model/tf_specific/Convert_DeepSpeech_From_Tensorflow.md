@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a DeepSpeech model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 `DeepSpeech project <https://github.com/mozilla/DeepSpeech>`__ provides an engine to train speech-to-text models.
 
 Downloading the Pretrained DeepSpeech Model
@@ -19,10 +24,10 @@ To download the model, follow the instruction below:
 
 * For UNIX-like systems, run the following command:
 
-.. code-block:: sh
+  .. code-block:: sh
 
-   wget -O - https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz | tar xvfz -
-   wget -O - https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz | tar xvfz -
+     wget -O - https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz | tar xvfz -
+     wget -O - https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz | tar xvfz -
 
 * For Windows systems:
 
@@ -73,14 +78,14 @@ are assigned to cell state and hidden state, which are these two variables.
 Converting the Main Part of DeepSpeech Model into OpenVINO IR
 #############################################################
 
-Model Optimizer assumes that the output model is for inference only. That is why you should cut ``previous_state_c`` and ``previous_state_h`` variables off and resolve keeping cell and hidden states on the application level.
+Model conversion API assumes that the output model is for inference only. That is why you should cut ``previous_state_c`` and ``previous_state_h`` variables off and resolve keeping cell and hidden states on the application level.
 
 There are certain limitations for the model conversion:
 
 * Time length (``time_len``) and sequence length (``seq_len``) are equal.
 * Original model cannot be reshaped, so you should keep original shapes.
 
-To generate the IR, run Model Optimizer with the following parameters:
+To generate the IR, run model conversion with the following parameters:
 
 .. code-block:: sh
 
@@ -94,6 +99,6 @@ Where:
 
 * ``input_lengths->[16]`` Replaces the input node with name "input_lengths" with a constant tensor of shape [1] with a single integer value of 16. This means that the model now can consume input sequences of length 16 only.
 * ``input_node[1 16 19 26],previous_state_h[1 2048],previous_state_c[1 2048]`` replaces the variables with a placeholder.
-* ``--output ".../GatherNd_1,.../GatherNd,logits"`` output node names.
+* ``output ".../GatherNd_1,.../GatherNd,logits"`` output node names.
 
 @endsphinxdirective

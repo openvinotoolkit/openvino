@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/cum_sum.hpp>
@@ -142,6 +143,11 @@ using cum_sum_test_params = std::tuple<int,            // batch
 template <typename cum_sum_params, typename input_type = float, typename output_type = float>
 class cum_sum_gpu : public ::testing::TestWithParam<cum_sum_params> {
 public:
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
 
     data_types get_alloc_data_type(void) {
         if (std::is_same<input_type, float>::value)
@@ -176,8 +182,8 @@ public:
         auto input = engine.allocate_memory({ get_alloc_data_type(), in_out_format, shape });
         const int inputSize = b * f * w * z * y * x;
         VF<input_type> inputVals = std::is_same<input_type, FLOAT16>::value ?
-                                   generate_random_1d<input_type>(inputSize, -1, 1, 1) :
-                                   generate_random_1d<input_type>(inputSize, -100, 100, 8);
+                                   rg.generate_random_1d<input_type>(inputSize, -1, 1, 1) :
+                                   rg.generate_random_1d<input_type>(inputSize, -100, 100, 8);
 
         set_values(input, inputVals);
 

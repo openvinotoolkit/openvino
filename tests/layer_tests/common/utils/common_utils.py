@@ -2,18 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-
 import numpy as np
-from openvino.tools.mo import mo
 
 logger = logging.getLogger(__name__)
 
 
 def generate_ir(coverage=False, **kwargs):
+    from openvino.tools.mo import mo
     mo_path = Path(mo.__file__).parent
     mo_runner = mo_path.joinpath('main.py').as_posix()
     if coverage:
@@ -45,6 +45,18 @@ def generate_ir(coverage=False, **kwargs):
     logger.error(stderr)
     return exit_code, stderr
 
+
+def generate_ir_python_api(coverage=False, **kwargs):
+    from openvino.runtime import serialize
+    from openvino.tools.mo import convert_model
+
+    out_dir = kwargs['output_dir'] + os.sep + kwargs['model_name'] + ".xml"
+
+    # TODO: Remove usage of legacy params from layer tests and switch to convert_model from tools.ovc
+    ov_model = convert_model(**kwargs)
+    serialize(ov_model, out_dir)
+
+    return 0, ""
 
 def shell(cmd, env=None, cwd=None, out_format="plain"):
     """

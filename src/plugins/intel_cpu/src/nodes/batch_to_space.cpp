@@ -102,26 +102,26 @@ static std::vector<size_t> getShape5D(const SizeVector &shape) {
 
 template<typename T>
 void BatchToSpace::batchToSpaceKernel() {
-    const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    size_t dataRank = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetShape().getRank();
+    const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    size_t dataRank = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));
     }
 
-    const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
+    const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
     cropsBeginIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         cropsBeginIn.push_back(*(padsBeginPtr + i));
     }
 
-    auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     const auto &inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
     const auto &outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
 
     const bool blocked = srcDesc->hasLayoutType(LayoutType::nCsp8c) || srcDesc->hasLayoutType(LayoutType::nCsp16c);
     const auto dimsSize = inDims.size();
@@ -139,7 +139,7 @@ void BatchToSpace::batchToSpaceKernel() {
         blockShape.erase(blockShape.begin() + 1);
     }
 
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
 
     const size_t blockSize = blocked ? dstDesc->getBlockDims().back() : 1lu;
     const size_t blockCountInput = srcDesc->getBlockDims()[1];

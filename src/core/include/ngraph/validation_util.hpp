@@ -4,6 +4,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <tuple>
 
 #include "ngraph/coordinate_diff.hpp"
@@ -22,17 +32,17 @@ using ov::infer_convolution_forward;
 using ov::normalize_axes;
 using ov::normalize_axis;
 
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 Strides conv_default_strides(const Node* node, const PartialShape& data_batch_shape, const PartialShape& filters_shape);
 
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 CoordinateDiff conv_default_padding(const Node* node,
                                     const PartialShape& data_batch_shape,
                                     const PartialShape& filters_shape);
 
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 PartialShape infer_windowed_reduction_output_shape(const Node* node,
                                                    const PartialShape& data_shape,
@@ -45,7 +55,7 @@ PartialShape infer_windowed_reduction_output_shape(const Node* node,
                                                    bool is_window_all_in_padding_allowed,
                                                    bool ceil_mode = false);
 
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 void validate_conv_params_spatial_dimensions(const Node* node,
                                              const size_t num_spatial_dims,
                                              const op::PadType auto_pad,
@@ -66,7 +76,7 @@ void validate_conv_params_spatial_dimensions(const Node* node,
 /// \param     pads_end          Pads end.
 ///
 /// \return Partial shape of the output.
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 PartialShape validate_and_infer_convolution_forward_output_shape(const Node* node,
                                                                  const Rank& result_ps_rank,
                                                                  const PartialShape& data_batch_pshape,
@@ -77,7 +87,7 @@ PartialShape validate_and_infer_convolution_forward_output_shape(const Node* nod
                                                                  CoordinateDiff& pads_begin,
                                                                  CoordinateDiff& pads_end);
 
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 PartialShape infer_batched_pooling_forward(const Node* node,
                                            const PartialShape& data_batch_shape,
@@ -89,7 +99,7 @@ PartialShape infer_batched_pooling_forward(const Node* node,
                                            bool ceil_mode = false,
                                            const Strides& window_dilation = Strides{});
 
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
                                                                                element::Type input_element_type,
@@ -103,7 +113,7 @@ std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(c
                                                                                const PartialShape& mean_shape,
                                                                                const PartialShape& variance_shape);
 
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
                                                                                element::Type input_element_type,
@@ -127,7 +137,7 @@ std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(c
 ///
 /// \return true if auto padding was applied successfully (all needed informations such as
 ///         spatial dims are known), false otherwise.
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 bool try_apply_auto_padding(const PartialShape& image_shape,
                             const Shape& filter_shape,
@@ -137,7 +147,7 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
                             CoordinateDiff& padding_above,
                             CoordinateDiff& padding_below);
 
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 PartialShape infer_slice_shape(const Node* node,
                                const PartialShape& input_shape,
@@ -154,7 +164,7 @@ PartialShape infer_slice_shape(const Node* node,
 /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
 /// if not.
 /// \deprecated Use evaluate_upper_bound instead
-NGRAPH_DEPRECATED("Use evaluate_upper_bound: it would return HostTensorPtr to the value instead of a pair")
+NGRAPH_API_DEPRECATED
 NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 
 /// \brief Evaluates outputs, treating values in value_map as already computed. value_map is
@@ -165,27 +175,27 @@ NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 /// \param outputs Root set of values to try to compute
 /// \param evaluation_context Storage of additional settings and attributes that can be used
 /// when evaluating the function. This additional information can be shared across nodes.
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                                std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
                                const OutputVector& outputs,
                                const EvaluationContext& evaluation_context = EvaluationContext());
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::min()
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_min_of_type(element::Type_t t);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::lowest()
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_lowest_of_type(element::Type_t t);
 
 /// \brief Checks if size of HostTensorVector is the same as passed size attribute. Then checks
 /// that all the HostTensorPtrs are not equal to nullptr
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);
 
 namespace opset1 {
@@ -202,7 +212,7 @@ namespace opset1 {
 /// \param      pads_begin        The placeholder for paddings at the beginning of axis.
 /// \param      pads_end          The placeholder for paddings at the end of axis.
 ///
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                       const Shape& filters_shape,

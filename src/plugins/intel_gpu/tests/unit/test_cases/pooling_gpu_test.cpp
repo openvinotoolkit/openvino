@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/pooling.hpp>
@@ -2070,6 +2071,8 @@ public:
     using parent = pooling_test_base<InputT, Mode>;
     using output_t = typename parent::output_t;
 
+    tests::random_generator rg;
+
     virtual VVVVVF<output_t> calculate_reference() {
         VVVVVF<output_t> reference(this->batch_num(), VVVVF<output_t>(this->input_features()));
         for (size_t bi = 0; bi < this->batch_num(); ++bi) {
@@ -2091,6 +2094,7 @@ public:
     }
 
     virtual void param_set_up(const pooling_random_test_params& params) {
+        rg.set_seed(GET_SUITE_NAME);
         size_t b, f, in_x, in_y, in_z, p_x, p_y, p_z;
         int s_x, s_y, s_z, o_x, o_y, o_z;
         format::type in_fmt;
@@ -2105,7 +2109,7 @@ public:
             in_fmt
         ) = params;
 
-        auto input_data = generate_random_5d<InputT>(b, f, in_z, in_y, in_x, -256, 256);
+        auto input_data = rg.generate_random_5d<InputT>(b, f, in_z, in_y, in_x, -256, 256);
 
         this->set_input(in_fmt, std::move(input_data));
         this->set_pool_size(p_x, p_y, p_z);
@@ -2195,6 +2199,8 @@ public:
     using parent = pooling_random_test_base<InputT, Mode>;
     using output_t = typename parent::output_t;
 
+    tests::random_generator rg;
+
     topology build_topology(engine& eng) override {
         topology topo = parent::build_topology(eng);
 
@@ -2228,8 +2234,8 @@ public:
 
     void param_set_up(const pooling_random_test_params& params) override {
         parent::param_set_up(params);
-        _scale = generate_random_1d<output_t>(this->input_features(), -1, 1);
-        _shift = generate_random_1d<output_t>(this->input_features(), -32, 32);
+        _scale = rg.generate_random_1d<output_t>(this->input_features(), -1, 1);
+        _shift = rg.generate_random_1d<output_t>(this->input_features(), -32, 32);
     }
 
 private:
@@ -2279,6 +2285,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x8x8_input_2x2_pool_2x2_stride)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int features = 16;
@@ -2293,7 +2300,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x8x8_input_2x2_pool_2x2_stride)
 
     const tensor input_tensor(batches, features, x_input, y_input);
 
-    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+    auto input_data = rg.generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
 
     auto input_prim = engine.allocate_memory({data_types::f32, format::bfyx, input_tensor});
     set_values(input_prim, input_data);
@@ -2363,6 +2370,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x8x8_input_2x2_pool_2x2_stride)
 
 TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x2x2_input_4x4_pool_1x1_stride_1x1_inpad)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int features = 16;
@@ -2377,7 +2385,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x2x2_input_4x4_pool_1x1_stride_1x
 
     const tensor input_tensor(batches, features, x_input, y_input);
 
-    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+    auto input_data = rg.generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
 
     auto input_prim = engine.allocate_memory({data_types::f32, format::bfyx, input_tensor});
     set_values(input_prim, input_data);
@@ -2446,6 +2454,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x2x2_input_4x4_pool_1x1_stride_1x
 
 TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x3_stride)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int features = 16;
@@ -2460,7 +2469,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x3_stride)
 
     const tensor input_tensor(batches, features, x_input, y_input);
 
-    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+    auto input_data = rg.generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
 
     auto input_prim = engine.allocate_memory({data_types::f32, format::bfyx, input_tensor});
     set_values(input_prim, input_data);
@@ -2530,6 +2539,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x3_stride)
 
 TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x1_stride)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int features = 16;
@@ -2545,7 +2555,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x1_stride)
 
     const tensor input_tensor(batches, features, x_input, y_input);
 
-    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+    auto input_data = rg.generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
 
     auto input_prim = engine.allocate_memory({data_types::f32, format::bfyx, input_tensor});
     set_values(input_prim, input_data);
@@ -2613,6 +2623,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x1_stride)
 
 TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x20x20_input_5x5_pool_3x1_stride)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int features = 16;
@@ -2628,7 +2639,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x20x20_input_5x5_pool_3x1_stride)
 
     const tensor input_tensor(batches, features, x_input, y_input);
 
-    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+    auto input_data = rg.generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
 
     auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx,input_tensor });
     set_values(input_prim, input_data);
@@ -2698,6 +2709,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x20x20_input_5x5_pool_3x1_stride)
 
 TEST(pooling_forward_gpu, bsv16_fsv16_max_32x32x20x20_input_5x5_pool_3x1_stride)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int features = 32;
@@ -2713,7 +2725,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_32x32x20x20_input_5x5_pool_3x1_stride)
 
     const tensor input_tensor(batches, features, x_input, y_input);
 
-    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+    auto input_data = rg.generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
 
     auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx,input_tensor });
     set_values(input_prim, input_data);
@@ -2872,6 +2884,11 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_32x16x20x20_input_5x5_pool_3x1_stride)
 
 class pooling_test : public tests::generic_test
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
 
 public:
 
@@ -2953,7 +2970,7 @@ public:
         int k = (generic_params->data_type == data_types::f32) ? 8 : 4;
         auto input = inputs[0];
         auto l = inputs[0]->get_layout();
-        VVVVF<Type> input_rnd = generate_random_4d<Type>(l.batch(), l.feature(), l.spatial(1), l.spatial(0), -10, 10, k);
+        VVVVF<Type> input_rnd = rg.generate_random_4d<Type>(l.batch(), l.feature(), l.spatial(1), l.spatial(0), -10, 10, k);
         VF<Type> input_rnd_vec = flatten_4d<Type>(input->get_layout().format, input_rnd);
         set_values(input, input_rnd_vec);
     }

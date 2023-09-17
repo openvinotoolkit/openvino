@@ -3,8 +3,8 @@
 #
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-missing-declarations)
-    ie_add_compiler_flags(-Wno-bool-compare)
+    ov_add_compiler_flags(-Wno-missing-declarations)
+    ov_add_compiler_flags(-Wno-bool-compare)
 endif()
 
 set(TARGET_NAME ov_legacy_transformations_tests)
@@ -15,7 +15,7 @@ ov_add_test_target(
     DEPENDENCIES
     LINK_LIBRARIES
         gmock
-        funcTestUtils
+        func_test_utils
         sharedTestClasses
         lptNgraphFunctions
         inference_engine_legacy

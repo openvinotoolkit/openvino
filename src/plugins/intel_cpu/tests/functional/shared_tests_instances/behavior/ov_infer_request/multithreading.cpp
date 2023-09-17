@@ -17,24 +17,24 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> Multiconfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestMultithreadingTests,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
                             OVInferRequestMultithreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestMultithreadingTests,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
                                 ::testing::ValuesIn(Multiconfigs)),
                             OVInferRequestMultithreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestMultithreadingTests,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                 ::testing::ValuesIn(Multiconfigs)),
                             OVInferRequestMultithreadingTests::getTestCaseName);
 

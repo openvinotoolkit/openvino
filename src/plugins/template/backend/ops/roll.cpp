@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/roll.hpp"
+#include "openvino/reference/roll.hpp"
 
 #include "evaluate_node.hpp"
 
@@ -34,7 +34,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v7::Roll>& op,
                            return static_cast<int64_t>(elem);
                        });
     }
-    ngraph::runtime::reference::roll(
+    ov::reference::roll(
         inputs[0]->get_data_ptr<const char>(),
         inputs[1]->get_element_type() != ngraph::element::Type_t::i64 ? shift_int64.data()
                                                                       : inputs[1]->get_data_ptr<const int64_t>(),

@@ -11,7 +11,7 @@
 #include <transformations/init_node_info.hpp>
 #include <tuple>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 
@@ -245,7 +245,7 @@ Graph createReferenceGraph() {
 // -------------------------------------------------------------------------------------------------------
 
 class ConvertMatmulToPointWiseConvolutionFixture
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public ::testing::WithParamInterface<
           std::tuple<Graph /* tranformed */, Graph /* reference */, ngraph::pass::Manager>> {
 public:
@@ -412,7 +412,7 @@ struct FixtureData {
 using FixtureInputShapes = std::tuple<ngraph::Shape /* input data */, ngraph::Shape /* input const */>;
 
 class ConvertMatmulToPointWiseConvolutionInvalidInputFixture
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public ::testing::WithParamInterface<std::tuple<FixtureData, FixtureInputShapes>> {
 public:
     void SetUp() override;

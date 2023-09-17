@@ -16,8 +16,8 @@ std::string TileLayerTest::getTestCaseName(const testing::TestParamInfo<TileLaye
     std::tie(tileParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "Repeats=" << CommonTestUtils::vec2str(tileParams) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "Repeats=" << ov::test::utils::vec2str(tileParams) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
@@ -33,7 +33,7 @@ void TileLayerTest::SetUp() {
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(tileParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto tile = ngraph::builder::makeTile(paramOuts[0], tileParams);

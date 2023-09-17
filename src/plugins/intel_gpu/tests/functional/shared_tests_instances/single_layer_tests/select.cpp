@@ -55,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_none,
                          ::testing::Combine(::testing::ValuesIn(noneShapes),
                                             ::testing::ValuesIn(inputPrecision),
                                             ::testing::Values(ngraph::op::AutoBroadcastType::NONE),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          SelectLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_numpy,
@@ -63,5 +63,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_numpy,
                          ::testing::Combine(::testing::ValuesIn(numpyShapes),
                                             ::testing::ValuesIn(inputPrecision),
                                             ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          SelectLayerTest::getTestCaseName);

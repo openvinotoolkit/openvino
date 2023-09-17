@@ -27,7 +27,7 @@ IE_SUPPRESS_DEPRECATED_END
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferRequestConfigTest,
                          ::testing::Combine(::testing::Values(0u),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          InferRequestConfigTest::getTestCaseName);
 }  // namespace

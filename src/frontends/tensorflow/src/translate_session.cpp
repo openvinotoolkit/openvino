@@ -9,6 +9,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
+#include "tf_utils.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend::tensorflow;
@@ -65,31 +66,40 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
     // 2. find a set of clean-up names and aligned with the model signature
     const auto& tensor_names = ov_output.get_names();
     std::unordered_set<std::string> cleanup_names;
+    bool signature_passed = true;
     if (is_input_tensor) {
-        for (const auto& tensor_name : tensor_names) {
-            if (saved_model_input_names->count(tensor_name) > 0) {
-                cleanup_names.insert(saved_model_input_names->at(tensor_name));
-                param_node->set_friendly_name(saved_model_input_names->at(tensor_name));
+        if (saved_model_input_names) {
+            for (const auto& tensor_name : tensor_names) {
+                if (saved_model_input_names->count(tensor_name) > 0) {
+                    cleanup_names.insert(saved_model_input_names->at(tensor_name));
+                    param_node->set_friendly_name(saved_model_input_names->at(tensor_name));
+                }
             }
+        } else {
+            signature_passed = false;
         }
     }
 
     if (is_output_tensor) {
-        std::vector<std::string> result_names;
-        for (const auto& tensor_name : tensor_names) {
-            if (saved_model_output_names->count(tensor_name) > 0) {
-                cleanup_names.insert(saved_model_output_names->at(tensor_name));
-                result_names.push_back(saved_model_output_names->at(tensor_name));
+        if (saved_model_output_names) {
+            std::vector<std::string> result_names;
+            for (const auto& tensor_name : tensor_names) {
+                if (saved_model_output_names->count(tensor_name) > 0) {
+                    cleanup_names.insert(saved_model_output_names->at(tensor_name));
+                    result_names.push_back(saved_model_output_names->at(tensor_name));
+                }
             }
-        }
-        // align the Result node names as many as possible
-        // it is not bad if we remain it as is because OV API 2.0 relies only on tensor names
-        size_t result_names_size = result_names.size();
-        if (result_names_size > 0) {
-            for (size_t ind = 0; ind < results.size(); ++ind) {
-                auto new_result_name = result_names[ind % result_names_size];
-                results[ind]->set_friendly_name(new_result_name);
+            // align the Result node names as many as possible
+            // it is not bad if we remain it as is because OV API 2.0 relies only on tensor names
+            size_t result_names_size = result_names.size();
+            if (result_names_size > 0) {
+                for (size_t ind = 0; ind < results.size(); ++ind) {
+                    auto new_result_name = result_names[ind % result_names_size];
+                    results[ind]->set_friendly_name(new_result_name);
+                }
             }
+        } else {
+            signature_passed = false;
         }
     }
 
@@ -97,7 +107,7 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
     // otherwise, the tensor corresponds to unused Parameter or Result nodes
     if (cleanup_names.size() > 0) {
         ov_output.set_names(cleanup_names);
-    } else {
+    } else if (signature_passed) {
         // this is unused tensor that should be removed
         // because it not present in the signature
         ov_output.add_names({"saved_model_unused"});
@@ -186,6 +196,8 @@ void TranslateSession::inject_body_model(std::shared_ptr<ov::Model> body_model,
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
     OpMap ng_op_map;
+    ControlDepsMap control_deps_map;
+
     ov::ParameterVector params;
     ov::ResultVector results;
     const auto& model_tf = std::dynamic_pointer_cast<InputModel>(input_model);
@@ -241,16 +253,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         // prepare a list of OV node inputs for each node
         ov::OutputVector ov_inputs;
         size_t operation_input_size = operation_decoder->get_input_size();
+        std::vector<std::string> control_dependencies_names;
 
         if (operation_decoder->get_op_type() == "NextIteration") {
             // we expect no inputs for NextIteration because we break-up the cycle in InputModel
             operation_input_size = 0;
         }
         for (size_t input_port_idx = 0; input_port_idx < operation_input_size; ++input_port_idx) {
-            // TODO: Implement more general approach. Skipping Constants that have input edges
-            if (operation_decoder->get_op_type() == "Const") {
-                break;
-            }
             std::string producer_name;
             size_t producer_port_idx;
             try {
@@ -270,6 +279,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             // skip conditional edges that must be resolved before operation translation
             // now we can meet them because we still work with TensorFlow protobuf
             if (is_conditional_edge(producer_name)) {
+                // control dependency contains "^" in the beginning
+                control_dependencies_names.push_back(producer_name.substr(1));
                 continue;
             }
 
@@ -355,6 +366,20 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                            operation_place->get_output_ports().size());
             set_node_name(operation_name, fw_node);
             ov_outputs = named_from_indexed(fw_node->outputs());
+        }
+
+        // create input control dependencies set for the current operation node
+        std::set<ov::Output<ov::Node>> input_control_deps;
+        for (const auto& control_dep_name : control_dependencies_names) {
+            if (control_deps_map.count(control_dep_name) > 0) {
+                const auto& input_control_dep = control_deps_map[control_dep_name];
+                input_control_deps.insert(input_control_dep.cbegin(), input_control_dep.cend());
+            }
+        }
+        // register output control dependencies in control dependencies map
+        std::set<ov::Output<ov::Node>> output_control_deps;
+        if (propagate_conditional_flow(ov_inputs, ov_outputs, input_control_deps, output_control_deps)) {
+            control_deps_map[operation_name] = output_control_deps;
         }
 
         // register OV node outputs in the map for new operation node

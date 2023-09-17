@@ -96,38 +96,38 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
 
 const auto basicCases = []() {
     return ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+        ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto basicPreluCases = []() {
     return ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationParamTypes)),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+        ::testing::ValuesIn(ov::test::utils::combineParams(preluBasic)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto big_rank_cases = []() {
     return ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(big_rank_activation_types)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(big_rank_activation_types)),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(big_ranks)),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+        ::testing::ValuesIn(ov::test::utils::combineParams(big_ranks)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases(), ActivationLayerTest::getTestCaseName);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "reshape_inst.h"
@@ -63,8 +64,20 @@ void handle_reshape::run(program& p) {
                 return;
 
             auto& out_node = node.get_users().front();
-            if (out_node->is_type<reshape>())
-                p.extract_and_remove(node);
+
+            if (!out_node->is_type<reshape>())
+                return;
+
+            const auto& out_reshape = out_node->as<reshape>();
+            // In case of new shape infer we should not shrink reshapes chain if first reshape changes input rank, e.g.
+            // [a, b] -> reshape1 -> [a1, b1, c1] -> reshape2 -> [a2, b2, 0] and any of the reshapes has special_zero=true
+            // Configuration above will fail if we remove reshape1 node as attempt to handle special zero will fail due to small rank of input
+            if (p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
+                out_node->get_output_pshape().size() != node.get_input_pshape().size() &&
+                (out_reshape.get_primitive()->special_zero || node.get_primitive()->special_zero))
+                return;
+
+            p.extract_and_remove(node);
         });
     }
 
@@ -104,7 +117,7 @@ void handle_reshape::run(program& p) {
                         if (user->is_type<fully_connected>() || user->is_type<gemm>()) {
                             bool is_fc = user->is_type<fully_connected>();
                             auto wei_dt = is_fc ? user->as<fully_connected>().weights().get_output_layout().data_type :
-                                                    user->as<gemm>().get_dependency(1).get_output_layout().data_type;
+                                                    user->as<gemm>().get_input_layout(1).data_type;
                             onednn_support = layout_optimizer::onednn_check_data_types_for_fc_gemm(output_data_type, wei_dt, out_dt);
                         } else if (user->is_type<convolution>() || user->is_type<deconvolution>()) {
                             bool is_conv = user->is_type<convolution>();

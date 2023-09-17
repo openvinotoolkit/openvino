@@ -29,10 +29,10 @@ namespace v0 {
 ///
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API LSTMSequence : public Op {
+class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("LSTMSequence", "opset1");
-    LSTMSequence();
+    OPENVINO_OP("LSTMSequence", "opset1", util::RNNCellBase);
+    LSTMSequence() = default;
 
     using direction = RecurrentSequenceDirection;
 
@@ -87,10 +87,13 @@ public:
         return m_activations;
     }
     float get_clip_threshold() const {
-        return m_clip_threshold;
+        return m_clip;
     }
     direction get_direction() const {
         return m_direction;
+    }
+    void set_direction(const direction& dir) {
+        m_direction = dir;
     }
     std::int64_t get_hidden_size() const {
         return m_hidden_size;
@@ -103,12 +106,7 @@ public:
     }
 
 private:
-    std::vector<float> m_activations_alpha;
-    std::vector<float> m_activations_beta;
-    std::vector<std::string> m_activations;
-    float m_clip_threshold;
     direction m_direction;
-    std::int64_t m_hidden_size;
     bool m_input_forget;
     LSTMWeightsFormat m_weights_format;
 };
@@ -165,6 +163,9 @@ public:
 
     direction get_direction() const {
         return m_direction;
+    }
+    void set_direction(const direction& dir) {
+        m_direction = dir;
     }
 
 private:

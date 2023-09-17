@@ -138,7 +138,6 @@ private:
             jg(ow_tail, T_NEAR);
 
             oc_loop(jcp_.ur_w);
-            add(reg_input, jcp_.ur_w * jcp_.stride_w * jcp_.ic * jcp_.typesize_in);
             add(reg_sampled_wei, jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_wei);  // type = float
             add(reg_sampled_offs, jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_offsets);  // type = int
 
@@ -310,7 +309,6 @@ private:
                         Label nullify_v4_end_tail;
 
                         mov(aux2_reg_input, aux_reg_input);
-                        add(aux2_reg_input, (ow * jcp_.stride_w * jcp_.ic) * jcp_.typesize_in);
 
                         mov(aux3_reg_input_buffer, aux2_reg_input_buffer);
                         add(aux3_reg_input_buffer, (ow * jcp_.kh * jcp_.kw * jcp_.ic) * jcp_.typesize_in);
@@ -758,12 +756,12 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>
     defConvAttr.group = defConvNodeBase->get_group();
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
     auto& strides = defConvNodeBase->get_strides();
-    for (int i = 0; i < strides.size(); i++) {
+    for (size_t i = 0; i < strides.size(); i++) {
         defConvAttr.stride.push_back(strides[i]);
     }
 
     auto& dilations = defConvNodeBase->get_dilations();
-    for (int i = 0; i < dilations.size(); i++) {
+    for (size_t i = 0; i < dilations.size(); i++) {
         defConvAttr.dilation.push_back(dilations[i] - 1);
     }
 
@@ -827,6 +825,9 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
 
     auto &weiDims = getInputShapeAtPort(WEI_ID).getDims();
     if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
+        // 1. strict fallback, until devising of multigroup handling in common case
+        defConvAttr.group != 1 ||
+        // 2. common fallback, except specific n_group / n_channel combinations
         (defConvAttr.group != 1 && ((weiDims[1] % simd_w != 0)  // in_channels_per_gr !% simd_w
         || ((weiDims[0] / defConvAttr.group) % simd_w != 0)))) {  // out_channels_per_gr !% simd_w
         enforceRef = true;
@@ -915,9 +916,6 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
         const int h_in = oh * KSH - padT;
         const int w_in = ow * KSW - padL;
 
-        const int waOffsetH = (enforceRef ? 0 : h_in);
-        const int waOffsetW = (enforceRef ? 0 : w_in);
-
         const float *data_offset_ptr = offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1];
         const float *modulation_offset_ptr = nullptr;
         if (modulation != nullptr) {
@@ -964,10 +962,10 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
                     float lw = map_w - w_low;
                     float hh = 1 - lh, hw = 1 - lw;
 
-                    int h_ind_low = std::max(h_low, 0) - waOffsetH;
-                    int h_ind_high = std::min(h_high, cur_h_end - 1) - waOffsetH;
-                    int w_ind_low = std::max(w_low, 0) - waOffsetW;
-                    int w_ind_high = std::min(w_high, cur_w_end - 1) - waOffsetW;
+                    int h_ind_low = std::max(h_low, 0);
+                    int h_ind_high = std::min(h_high, cur_h_end - 1);
+                    int w_ind_low = std::max(w_low, 0);
+                    int w_ind_high = std::min(w_high, cur_w_end - 1);
 
                     hh = (h_low >= 0 ? hh : 0);
                     hw = (w_low >= 0 ? hw : 0);
@@ -1022,10 +1020,10 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
     dstStrides = std::vector<size_t>(dstDesc->getStrides().size());
     pSampledCoordsVector = nullptr;
     pInterpWeightsVector = nullptr;
-    for (int i = 0; i < srcDesc->getStrides().size(); i++) {
+    for (size_t i = 0; i < srcDesc->getStrides().size(); i++) {
         srcStrides[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }
-    for (int i = 0; i < dstDesc->getStrides().size(); i++) {
+    for (size_t i = 0; i < dstDesc->getStrides().size(); i++) {
         dstStrides[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 
@@ -1137,18 +1135,32 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
             int sampledCoordIndex = (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
             size_t weiIndex = (size_t) g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
-            for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
-                for (int kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
+            for (size_t kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
+                for (size_t kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
                     // check if current addendum marked as equal zero
                     if (pSampledCoordsVector[sampledCoordIndex] != -1) {
                         const int v11 = pSampledCoordsVector[sampledCoordIndex];
                         const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
                         const int v21  = pSampledCoordsVector[sampledCoordIndex + 2];
                         const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
-                        float val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];  // v12
-                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];  // v21
-                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
+
+                        float val = 0;
+                        float w11 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w12 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w21 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w22 = pInterpWeightsVector[sampledCoordIndex++];
+
+                        // Prevent access to invalid memory in the case, when
+                        // data_im_ptr[v_i1_i2] is out of the input memory.
+                        // Logic of skipping of such points realized by nullifying
+                        // of corresponding weight, but we must explicitly check it, because
+                        // 0 * (*wrong_pointer) != 0 in common case, i.e.
+                        // 0 * NaN == NaN or throws segfault
+                        val += ((w11 == 0) ? 0 : w11 * data_im_ptr[v11]);
+                        val += ((w12 == 0) ? 0 : w12 * data_im_ptr[v12]);
+                        val += ((w21 == 0) ? 0 : w21 * data_im_ptr[v21]);
+                        val += ((w22 == 0) ? 0 : w22 * data_im_ptr[v22]);
+
                         d += val * weights[weiIndex + kh_off + kw_off];
                     } else {
                         sampledCoordIndex += sampledPointsPerPixel;
@@ -1165,10 +1177,10 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
 }
 
 void DeformableConvolution::prepareParams() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
-    auto& weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
+    auto weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
 
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
@@ -1180,7 +1192,7 @@ void DeformableConvolution::prepareParams() {
         IE_THROW() << errorPrefix << " did not allocate weights memory";
 
     if (getOriginalInputsNumber() > 3) {
-        auto& modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
+        auto modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
         if (!modMemPtr || !modMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate modulations memory";
     }
@@ -1195,15 +1207,15 @@ void DeformableConvolution::prepareParams() {
     updatePadding();
 
     std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector {
-        getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
-        getParentEdgeAt(OFF_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
-        getParentEdgeAt(WEI_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>()
+        getParentEdgeAt(DATA_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(OFF_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(WEI_ID)->getMemory().getDescWithType<BlockedMemoryDesc>()
     };
 
     if (withModulation) {
-        descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>());
+        descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().getDescWithType<BlockedMemoryDesc>());
     }
-    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>());
+    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>());
 
     DefConvKey key = {
         descVector,
@@ -1262,8 +1274,7 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src, const flo
         const size_t _oc = g * jcp.nb_oc;
         const size_t _ic = g * jcp.nb_ic;
 
-        par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1] +
-                            (oh * jcp.stride_h - jcp.t_pad) * srcStrides[2] - jcp.l_pad * srcStrides[3]];
+        par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1]];
         par_conv.sampledWei = &(pInterpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
         par_conv.sampledCoords = &(pSampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
         par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
@@ -1284,15 +1295,15 @@ void DeformableConvolution::execute(dnnl::stream strm) {
     auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src = reinterpret_cast<const float *>(srcMemory0.GetPtr());
-    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.GetPtr());
-    const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetPtr());
+    const auto *src = reinterpret_cast<const float *>(srcMemory0.getData());
+    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.getData());
+    const auto *weights = reinterpret_cast<const float *>(srcMemory2.getData());
     float* modulation = nullptr;
     if (inputsNumber > 3) {
-        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().GetPtr());
+        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().getData());
     }
 
-    float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
+    float *dst = reinterpret_cast<float *>(dstMemory.getData());
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)

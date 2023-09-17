@@ -11,6 +11,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -40,7 +41,9 @@ enum class OpInput {
 struct OpInputMap {
     using container_type = std::map<OpInput, Output<ngraph::Node>>;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit OpInputMap(const onnx_import::Node& node, std::size_t gates_count);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     OpInputMap(container_type&& map);
     virtual ~OpInputMap() = default;
 
@@ -56,7 +59,9 @@ struct OpInputMap {
 /// \brief      This structure aggregates operator's attributes.
 ///
 struct OpAttributes {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit OpAttributes(const Node& node);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     virtual ~OpAttributes() = default;
 
     ngraph::op::RecurrentSequenceDirection m_direction;

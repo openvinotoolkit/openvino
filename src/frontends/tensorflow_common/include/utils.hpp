@@ -149,6 +149,12 @@ void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<siz
     }
 }
 
+// retrieve data slices collected in a range [start; stop) by the first dimension
+ov::Output<ov::Node> get_data_slice(const ov::Output<ov::Node>& data,
+                                    const int64_t& start,
+                                    const int64_t& stop,
+                                    const int64_t& step);
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

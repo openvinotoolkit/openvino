@@ -3,6 +3,7 @@
 //
 
 #include "border_inst.h"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "pad_shape_inference.hpp"
 
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -41,65 +42,54 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
         output_type = impl_param.get_fused_output_layout().data_type;
     }
 
+    size_t in_rank = input0_layout.get_partial_shape().size();
+
     ov::op::v1::Pad op;
     op.set_pad_mode(desc->pad_mode);
 
     const bool is_begin_mem = (desc->non_constant_input_mask & border::PAD_NON_CONST_INPUT::BEGIN);
     const bool is_end_mem = (desc->non_constant_input_mask & border::PAD_NON_CONST_INPUT::END);
-    ShapeType pads_shape = is_begin_mem ? impl_param.get_input_layout(1).get<ShapeType>() : ov::Shape{ desc->pads_begin.size() };
-    std::vector<ShapeType> output_shapes = {ShapeType{}};
-    std::vector<ShapeType> input_shapes = {
-        input0_layout.get<ShapeType>(),
-        pads_shape,
-        pads_shape,
-    };
+
+    const size_t begin_mem_idx = is_begin_mem ? 1 : 0;
+    const size_t end_mem_idx = is_begin_mem ? 2 : 1;
 
     auto& memory_deps = impl_param.memory_deps;
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
-
-    if ((is_begin_mem && memory_deps.count(1)) && (is_end_mem && memory_deps.count(2))) {
-        auto pads_begin_mem = memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_begin_lock(pads_begin_mem, impl_param.get_stream());
-        const_data.emplace(1, make_host_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
-
-        auto pads_end_mem = memory_deps.at(2);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_end_lock(pads_end_mem, impl_param.get_stream());
-        const_data.emplace(2, make_host_tensor(pads_end_mem->get_layout(), pads_end_lock.data()));
-
-        ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
-    } else if ((is_begin_mem || is_end_mem) && memory_deps.count(1)) {
-        if (is_begin_mem) {
-            auto pads_begin_mem = memory_deps.at(1);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_begin_lock(pads_begin_mem, impl_param.get_stream());
-            const_data.emplace(1, make_host_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
-
-            auto pads_end_data = desc->pads_end;
-            auto pads_end_tensor = make_host_tensor({pads_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
-            const_data.emplace(2, pads_end_tensor);
-
-            ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
-        } else {
-            auto pads_begin_data = desc->pads_begin;
-            auto pads_begin_tensor = make_host_tensor({pads_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
-            const_data.emplace(1, pads_begin_tensor);
-
-            auto pads_end_mem = memory_deps.at(1);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_end_lock(pads_end_mem, impl_param.get_stream());
-            const_data.emplace(2, make_host_tensor(pads_end_mem->get_layout(), pads_end_lock.data()));
-
-            ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
-        }
-    } else {
-        auto pads_begin_data = desc->pads_begin;
-        auto pads_begin_tensor = make_host_tensor({pads_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
-        const_data.emplace(1, pads_begin_tensor);
-
-        auto pads_end_data = desc->pads_end;
-        auto pads_end_tensor = make_host_tensor({pads_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
-        const_data.emplace(2, pads_end_tensor);
-
-        ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+    if ((is_begin_mem && memory_deps.count(begin_mem_idx) == 0) ||
+        (is_end_mem && memory_deps.count(end_mem_idx) == 0)) {
+        return {layout{ShapeType::dynamic(static_cast<int64_t>(in_rank)), input0_layout.data_type, input0_layout.format}};
     }
+
+    int64_t begin_size = desc->pads_begin.size();
+    int64_t end_size = desc->pads_end.size();
+
+    layout pads_begin_layout = is_begin_mem ? impl_param.get_input_layout(begin_mem_idx) : layout({ begin_size }, data_types::i64, format::bfyx);
+    layout pads_end_layout = is_end_mem ? impl_param.get_input_layout(end_mem_idx) : layout({ end_size }, data_types::i64, format::bfyx);
+
+    std::vector<ShapeType> input_shapes = {
+        input0_layout.get<ShapeType>(),
+        pads_begin_layout.get<ShapeType>(),
+        pads_end_layout.get<ShapeType>(),
+    };
+
+    TensorsContainer const_data(&impl_param.get_stream());
+
+    auto pads_begin_data = desc->pads_begin;
+    auto pads_end_data = desc->pads_end;
+
+    if (is_begin_mem) {
+        const_data.emplace(1, memory_deps.at(begin_mem_idx));
+    } else {
+        const_data.emplace(1, make_tensor(pads_begin_layout, static_cast<void*>(pads_begin_data.data())));
+    }
+
+    if (is_end_mem) {
+        const_data.emplace(2, memory_deps.at(end_mem_idx));
+    } else {
+        const_data.emplace(2, make_tensor(pads_end_layout, static_cast<void*>(pads_end_data.data())));
+    }
+
+    auto ta = cldnn::make_tensor_accessor(const_data);
+    std::vector<ShapeType> output_shapes = ov::op::shape_infer(&op, input_shapes, ta);
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 
@@ -117,6 +107,7 @@ std::string border_inst::to_string(border_node const& node) {
     border_info.add("pads_end", desc->pads_end);
     border_info.add("pad mode", desc->pad_mode);
     border_info.add("pad value", std::to_string(desc->pad_value));
+    border_info.add("negative_pad", std::to_string(desc->allow_negative_pad));
 
     node_info->add("border info", border_info);
 
@@ -132,23 +123,24 @@ border_inst::typed_primitive_inst(network& network, border_node const& node) : p
     }
 
     const auto& input_sizes = input_layout.get_dims();
-    auto pad_mode = argument->pad_mode;
+    const auto pad_mode = argument->pad_mode;
+    const bool allow_negative_pad = argument->allow_negative_pad;
 
-    // Check if sizes of border are in proper range.
-    CLDNN_ERROR_BOOL(node.id(),
-                     "pads_begin border sizes",
-                     std::any_of(argument->pads_begin.begin(), argument->pads_begin.end(),
-                                 [](std::ptrdiff_t pad) {
-                                    return pad < 0;
-                                }),
-                     "Invalid border size: negative value");
-    CLDNN_ERROR_BOOL(node.id(),
-                     "pads_end border sizes",
-                     std::any_of(argument->pads_end.begin(), argument->pads_end.end(),
-                                 [](std::ptrdiff_t pad) {
-                                    return pad < 0;
-                                }),
-                     "Invalid border size: negative value");
+    const auto check_negative_pad = [](std::ptrdiff_t pad) {
+                                        return pad < 0;
+                                    };
+
+    if (!allow_negative_pad) {
+        // Check if sizes of border are in proper range.
+        CLDNN_ERROR_BOOL(node.id(),
+                         "pads_begin border sizes",
+                         std::any_of(argument->pads_begin.begin(), argument->pads_begin.end(), check_negative_pad),
+                         "Invalid border size: negative value");
+        CLDNN_ERROR_BOOL(node.id(),
+                         "pads_end border sizes",
+                         std::any_of(argument->pads_end.begin(), argument->pads_end.end(), check_negative_pad),
+                         "Invalid border size: negative value");
+    }
 
     if (pad_mode == ov::op::PadMode::SYMMETRIC) {
         bool valid_pads = true;

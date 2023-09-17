@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ API 2.0 focuses on the use of development tools and 
+                 deployment of applications, it also simplifies migration from 
+                 different frameworks to OpenVINO.
+
+
 One of the main concepts for OpenVINO™ API 2.0 is being "easy to use", which includes:
 
 * Simplification of migration from different frameworks to OpenVINO.
@@ -10,7 +16,19 @@ One of the main concepts for OpenVINO™ API 2.0 is being "easy to use", which i
 * Development and deployment of OpenVINO-based applications.
 
 
-To accomplish that, the 2022.1 release OpenVINO introduced significant changes to the installation and deployment processes. This guide will walk you through these changes.
+To accomplish that, the 2022.1 release OpenVINO introduced significant changes to the installation 
+and deployment processes. Further changes were implemented in 2023.1, aiming at making the installation
+process even simpler.
+
+.. tip::
+
+   These instructions are largely deprecated and should be used for versions prior to 2023.1.
+
+   The OpenVINO Development Tools package is being deprecated and will be discontinued entirely in 2025.
+   With this change, the OpenVINO Runtime package has become the default choice for installing the 
+   software. It now includes all components necessary to utilize OpenVINO's functionality. 
+
+
 
 The Installer Package Contains OpenVINO™ Runtime Only
 #####################################################
@@ -23,7 +41,7 @@ Since OpenVINO 2022.1, development tools have been distributed only via `PyPI <h
 The structure of the OpenVINO 2022.1 installer package has been organized as follows:
 
 * The ``runtime`` folder includes headers, libraries and CMake interfaces.
-* The ``tools`` folder contains :doc:`the compile tool <openvino_inference_engine_tools_compile_tool_README>`, :doc:`deployment manager <openvino_docs_install_guides_deployment_manager_tool>`, and a set of ``requirements.txt`` files with links to the corresponding versions of the ``openvino-dev`` package.
+* The ``tools`` folder contains :doc:`the compile tool <openvino_ecosystem>`, :doc:`deployment manager <openvino_docs_install_guides_deployment_manager_tool>`, and a set of ``requirements.txt`` files with links to the corresponding versions of the ``openvino-dev`` package.
 * The ``python`` folder contains the Python version for OpenVINO Runtime.
 
 Installing OpenVINO Development Tools via PyPI
@@ -41,8 +59,8 @@ In previous versions, OpenVINO Development Tools was a part of the main package.
    $ mo.py -h
 
 
-For 2022.1 and After
-++++++++++++++++++++
+For 2022.1 and After (prior to 2023.1)
+++++++++++++++++++++++++++++++++++++++++++
 
 In OpenVINO 2022.1 and later, you can install the development tools only from a `PyPI <https://pypi.org/project/openvino-dev/>`__ repository, using the following command (taking TensorFlow as an example):
 
@@ -61,7 +79,8 @@ Then, the tools can be used by commands like:
    $ pot -h
 
 
-Installation of any other dependencies is not required. For more details on the installation steps, see the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>`.
+Installation of any other dependencies is not required. For more details on the installation steps, see the 
+`Install OpenVINO Development Tools <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_install_dev_tools.html>`__ prior to OpenVINO 2023.1.
 
 Interface Changes for Building C/C++ Applications
 #################################################
@@ -102,67 +121,79 @@ It is possible to build applications without the CMake interface by using: MSVC 
 
 **With Inference Engine of previous versions**:
 
-.. tab:: Include dirs
+.. tab-set::
 
-   .. code-block:: sh
-
-      <INSTALL_DIR>/deployment_tools/inference_engine/include
-      <INSTALL_DIR>/deployment_tools/ngraph/include
-
-.. tab:: Path to libs
-
-   .. code-block:: sh
-
-      <INSTALL_DIR>/deployment_tools/inference_engine/lib/intel64/Release
-      <INSTALL_DIR>/deployment_tools/ngraph/lib/
-
-.. tab:: Shared libs
-
-   .. code-block:: sh
-
-      // UNIX systems
-      inference_engine.so ngraph.so
-
-      // Windows
-      inference_engine.dll ngraph.dll
-
-.. tab:: (Windows) .lib files
-
-   .. code-block:: sh
-
-      ngraph.lib
-      inference_engine.lib
+   .. tab-item:: Include dirs
+      :sync: include-dirs
+   
+      .. code-block:: sh
+   
+         <INSTALL_DIR>/deployment_tools/inference_engine/include
+         <INSTALL_DIR>/deployment_tools/ngraph/include
+   
+   .. tab-item:: Path to libs
+      :sync: path-libs
+   
+      .. code-block:: sh
+   
+         <INSTALL_DIR>/deployment_tools/inference_engine/lib/intel64/Release
+         <INSTALL_DIR>/deployment_tools/ngraph/lib/
+   
+   .. tab-item:: Shared libs
+      :sync: shared-libs
+   
+      .. code-block:: sh
+   
+         // UNIX systems
+         inference_engine.so ngraph.so
+   
+         // Windows
+         inference_engine.dll ngraph.dll
+   
+   .. tab-item:: (Windows) .lib files
+      :sync: windows-lib-files
+   
+      .. code-block:: sh
+   
+         ngraph.lib
+         inference_engine.lib
 
 **With OpenVINO Runtime 2022.1 (API 2.0)**:
 
-.. tab:: Include dirs
+.. tab-set::
 
-   .. code-block:: sh
-
-      <INSTALL_DIR>/runtime/include
-
-.. tab:: Path to libs
-
-   .. code-block:: sh
-
-      <INSTALL_DIR>/runtime/lib/intel64/Release
-
-.. tab:: Shared libs
-
-   .. code-block:: sh
-
-      // UNIX systems
-      openvino.so
-
-      // Windows
-      openvino.dll
-
-.. tab:: (Windows) .lib files
-
-  .. code-block:: sh
-
-    openvino.lib
-
+   .. tab-item:: Include dirs
+      :sync: include-dirs
+   
+      .. code-block:: sh
+   
+         <INSTALL_DIR>/runtime/include
+   
+   .. tab-item:: Path to libs
+      :sync: path-libs
+   
+      .. code-block:: sh
+   
+         <INSTALL_DIR>/runtime/lib/intel64/Release
+   
+   .. tab-item:: Shared libs
+      :sync: shared-libs
+   
+      .. code-block:: sh
+   
+         // UNIX systems
+         openvino.so
+   
+         // Windows
+         openvino.dll
+   
+   .. tab-item:: (Windows) .lib files
+      :sync: windows-lib-files
+   
+      .. code-block:: sh
+   
+         openvino.lib
+   
 
 Clearer Library Structure for Deployment
 ########################################

@@ -74,6 +74,7 @@ public:
             const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
         static int GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode);
         static void UpdateHybridCustomThreads(Config& config);
+        static Config ReserveCpuThreads(const Config& initial);
 
         /**
          * @brief      A constructor with arguments
@@ -94,7 +95,9 @@ public:
                int threadBindingStep = 1,
                int threadBindingOffset = 0,
                int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
+               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
+               std::vector<std::vector<int>> streamsInfoTable = {},
+               bool cpuReservation = false)
             : ov::threading::IStreamsExecutor::Config(name,
                                                       streams,
                                                       threadsPerStream,
@@ -102,7 +105,9 @@ public:
                                                       threadBindingStep,
                                                       threadBindingOffset,
                                                       threads,
-                                                      threadPreferredCoreType) {}
+                                                      threadPreferredCoreType,
+                                                      streamsInfoTable,
+                                                      cpuReservation) {}
 
         Config(const ov::threading::IStreamsExecutor::Config& config)
             : ov::threading::IStreamsExecutor::Config(config) {}
@@ -126,6 +131,12 @@ public:
     virtual int GetNumaNodeId() = 0;
 
     /**
+     * @brief Return the id of current socket
+     * @return `ID` of current socket, or throws exceptions if called not from stream thread
+     */
+    virtual int GetSocketId() = 0;
+
+    /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */
@@ -137,6 +148,10 @@ public:
 
     int get_numa_node_id() override {
         return GetNumaNodeId();
+    }
+
+    int get_socket_id() override {
+        return GetSocketId();
     }
 
     void execute(Task task) override {

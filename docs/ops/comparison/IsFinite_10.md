@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about IsFinite-10 - an element-wise, comparison operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *IsFinite-10*
 
 **Category**: *Comparison*
@@ -33,7 +37,8 @@
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="IsFinite">
        <input>
@@ -51,7 +56,8 @@
    </layer>
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="IsFinite">
        <input>

@@ -133,7 +133,7 @@ public:
      */
     virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                               const ov::AnyMap& properties,
-                                                              const ov::RemoteContext& context) const = 0;
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const = 0;
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -157,7 +157,7 @@ public:
      *
      * @return A remote context object
      */
-    virtual std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Provides a default remote context instance if supported by a plugin
@@ -165,7 +165,7 @@ public:
      *
      * @return The default context.
      */
-    virtual std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -187,7 +187,7 @@ public:
      * @return An Compiled model
      */
     virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                             const ov::RemoteContext& context,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const = 0;
 
     /**
@@ -234,7 +234,7 @@ public:
      */
     const std::shared_ptr<ov::threading::ExecutorManager>& get_executor_manager() const;
 
-    ~IPlugin() = default;
+    virtual ~IPlugin() = default;
 
 protected:
     IPlugin();
@@ -294,8 +294,6 @@ constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PL
         try {                                                                                            \
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                        \
             plugin->set_version(version);                                                                \
-        } catch (const InferenceEngine::Exception& ex) {                                                 \
-            OPENVINO_THROW(ex.what());                                                                   \
         } catch (const std::exception& ex) {                                                             \
             OPENVINO_THROW(ex.what());                                                                   \
         }                                                                                                \

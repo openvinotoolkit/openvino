@@ -15,7 +15,9 @@ namespace cldnn {
 struct resample : public primitive_base<resample> {
     CLDNN_DECLARE_PRIMITIVE(resample)
 
-    using InterpolateOp = ov::op::v4::Interpolate;
+    resample() : primitive_base("", {}) {}
+
+    using InterpolateOp = ov::op::util::InterpolateBase;
 
     /// @brief Constructs Resample primitive.
     /// @param id This primitive id.
@@ -126,7 +128,7 @@ struct resample : public primitive_base<resample> {
 
     tensor output_size;
     /// @param num_filter Input filter. Only used by bilinear sample_type.
-    uint32_t num_filter;
+    uint32_t num_filter = 0;
     /// @param sizes Describing output shape for spatial axes.
     std::vector<int64_t> sizes;
     /// @param scales Scales of spatial axes, i.e. output_shape / input_shape
@@ -138,17 +140,17 @@ struct resample : public primitive_base<resample> {
     /// @param pads_end End paddings for input.
     std::vector<size_t> pads_end;
     /// @param operation_type Resample method (nearest neighbor/bilinear/caffe bilinear).
-    InterpolateOp::InterpolateMode operation_type;
+    InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::LINEAR;
     /// @param shape_calc_mode Specifies which input, sizes or scales, is used to calculate an output shape.
-    InterpolateOp::ShapeCalcMode shape_calc_mode;
+    InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES;
     /// @param antialias is a flag that specifies whether to perform anti-aliasing.
-    int32_t antialias;
+    int32_t antialias = 0;
     /// @param cube_coeff specifies the parameter a for cubic interpolation. cube_coeff is used only when mode == cubic.
-    float cube_coeff;
+    float cube_coeff = -0.75f;
     /// @param coord_trans_mode specifies how to transform the coordinate in the resized tensor to the coordinate in the original tensor
-    InterpolateOp::CoordinateTransformMode coord_trans_mode;
+    InterpolateOp::CoordinateTransformMode coord_trans_mode = InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     /// @param round_mode specifies round mode when mode == nearest and is used only when mode == nearest.
-    InterpolateOp::NearestMode round_mode;
+    InterpolateOp::NearestMode round_mode = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -186,6 +188,40 @@ struct resample : public primitive_base<resample> {
                cmp_fields(coord_trans_mode) &&
                cmp_fields(round_mode);
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<resample>::save(ob);
+        ob << output_size;
+        ob << num_filter;
+        ob << sizes;
+        ob << scales;
+        ob << axes;
+        ob << pads_begin;
+        ob << pads_end;
+        ob << make_data(&operation_type, sizeof(InterpolateOp::InterpolateMode));
+        ob << make_data(&shape_calc_mode, sizeof(InterpolateOp::ShapeCalcMode));
+        ob << antialias;
+        ob << cube_coeff;
+        ob << make_data(&coord_trans_mode, sizeof(InterpolateOp::CoordinateTransformMode));
+        ob << make_data(&round_mode, sizeof(InterpolateOp::NearestMode));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<resample>::load(ib);
+        ib >> output_size;
+        ib >> num_filter;
+        ib >> sizes;
+        ib >> scales;
+        ib >> axes;
+        ib >> pads_begin;
+        ib >> pads_end;
+        ib >> make_data(&operation_type, sizeof(InterpolateOp::InterpolateMode));
+        ib >> make_data(&shape_calc_mode, sizeof(InterpolateOp::ShapeCalcMode));
+        ib >> antialias;
+        ib >> cube_coeff;
+        ib >> make_data(&coord_trans_mode, sizeof(InterpolateOp::CoordinateTransformMode));
+        ib >> make_data(&round_mode, sizeof(InterpolateOp::NearestMode));
     }
 };
 }  // namespace cldnn

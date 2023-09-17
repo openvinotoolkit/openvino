@@ -64,7 +64,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_ExplicitPadding, GroupCon
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes1D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_AutoPadValid, GroupConvBackpropLayerTest,
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_AutoPadValid, GroupConvBa
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes1D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 /* ============= 2D GroupConvolution ============= */
@@ -122,7 +122,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupCon
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBackpropLayerTest,
@@ -135,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBa
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShape2D = {{1, 16, 9, 12}};
@@ -151,7 +151,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_OutputShapeDefined, Group
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShape2D),
                                 ::testing::ValuesIn(outputShapes2D),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> outputPadding2D = {{1, 1}, {2, 2}};
@@ -190,7 +190,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding_OutputPad
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_AutoPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
@@ -203,7 +203,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_AutoPadding_OutputPadding
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
@@ -248,7 +248,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupCon
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBackpropLayerTest,
@@ -261,7 +261,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBa
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShape3D = {{1, 16, 10, 10, 10}};
@@ -277,7 +277,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_OutputShapeDefined, Group
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShape3D),
                                 ::testing::ValuesIn(outputShapes3D),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> outputPadding3D = {{1, 1, 1}, {2, 2, 2}};
@@ -316,7 +316,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_ExplicitPadding_OutputPad
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
@@ -329,7 +329,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadding_OutputPadding
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 }  // namespace

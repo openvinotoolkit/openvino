@@ -15,7 +15,7 @@ def fill_any_like(name:str, x, value, dtype=None):
     paddle.enable_static()
     
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        data = paddle.static.data(name='x', shape=x.shape, dtype = data_type)
+        data = paddle.static.data(name='x', shape=x.shape, dtype = x.dtype)
         out = paddle.full_like(data, value, dtype=dtype)
         out = paddle.cast(out, np.float32)
 
@@ -39,8 +39,14 @@ def main():
     fill_any_like("fill_any_like_f16", x, 1.0, dtype='float16')
     fill_any_like("fill_any_like_f32", x, 1.2, dtype='float32')
     fill_any_like("fill_any_like_f64", x, 1.2, dtype='float64')
+    fill_any_like("fill_any_like_i16", x, 3, dtype='int16')
     fill_any_like("fill_any_like_i32", x, 2, dtype='int32')
     fill_any_like("fill_any_like_i64", x, 10, dtype='int64')
+    fill_any_like("fill_any_like_bool", x, True, dtype='bool')
+
+    sample_arr = [True, False]
+    x = np.random.choice(sample_arr, size=(13,17,11))
+    fill_any_like("fill_any_like_bool_2", x, False, dtype=None)
 
 if __name__ == "__main__":
     main()

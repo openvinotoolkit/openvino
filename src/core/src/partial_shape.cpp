@@ -8,9 +8,12 @@
 #include <iostream>
 #include <vector>
 
-#include "dimension_tracker.hpp"
-#include "ngraph/check.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/util/common_util.hpp"
+
+namespace {
+static constexpr char dim_out_range_access_txt[] = "Accessing out-of-range dimension in Dimension[]";
+}
 
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
 
@@ -26,10 +29,10 @@ ov::PartialShape::PartialShape(const Shape& shape)
       m_dimensions(shape.begin(), shape.end()) {}
 
 ov::PartialShape::PartialShape(const std::string& value) {
-    auto val = ngraph::trim(value);
+    auto val = ov::util::trim(value);
     if (val[0] == '[' && val[val.size() - 1] == ']')
         val = val.substr(1, val.size() - 2);
-    val = ngraph::trim(val);
+    val = ov::util::trim(val);
     if (val == "...") {
         m_rank_is_static = false;
         m_dimensions = std::vector<Dimension>();
@@ -119,13 +122,13 @@ ov::Shape ov::PartialShape::get_min_shape() const {
 }
 
 ov::Shape ov::PartialShape::get_shape() const {
-    NGRAPH_CHECK(rank().is_static(), "get_shape() must be called on a static shape");
+    OPENVINO_ASSERT(rank().is_static(), "get_shape() must be called on a static shape");
     Shape shape;
     shape.reserve(rank().get_length());
     for (auto dimension : m_dimensions) {
         auto min_val = dimension.get_interval().get_min_val();
         auto max_val = dimension.get_interval().get_max_val();
-        NGRAPH_CHECK(min_val == max_val, "get_shape() must be called on a static shape");
+        OPENVINO_ASSERT(min_val == max_val, "get_shape() must be called on a static shape");
         shape.push_back(min_val);
     }
     return shape;
@@ -137,7 +140,7 @@ ov::PartialShape ov::operator+(const PartialShape& s1, const PartialShape& s2) {
     }
 
     if (!s1.rank().compatible(s2.rank())) {
-        throw std::invalid_argument("rank mismatch");
+        OPENVINO_THROW("rank mismatch");
     }
 
     PartialShape result;
@@ -158,7 +161,7 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
                 str << ",";
             }
             if (const auto& l = ov::DimensionTracker::get_label(d))
-                str << "l<" << l << ">";
+                str << "<" << l << ">";
             str << d;
             first = false;
         }
@@ -266,7 +269,7 @@ bool ov::PartialShape::merge_rank(const Rank& r) {
 
 ov::Shape ov::PartialShape::to_shape() const {
     if (is_dynamic()) {
-        throw std::invalid_argument("to_shape was called on a dynamic shape.");
+        OPENVINO_THROW("to_shape was called on a dynamic shape.");
     }
 
     std::vector<size_t> shape_dimensions(m_dimensions.size());
@@ -325,41 +328,37 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
     }
     case op::AutoBroadcastType::PDPD: {
         if (dst.rank().is_dynamic() || src.rank().is_dynamic()) {
+            dst = PartialShape::dynamic();
             return true;
         } else {
             // Ranks are both static.
             auto dst_rank = dst.rank().get_length();
             auto src_rank = src.rank().get_length();
-            // source rank can't be bigger than destination rank according to PDPD broadcast rule.
-            if (src_rank > dst_rank)
-                return false;
-            if (dst_rank == src_rank && dst.compatible(src))
-                return true;
 
             int64_t axis = autob.m_axis;
-            if (axis < -1) {
+            if (src_rank > dst_rank || axis < -1)
                 return false;
-            }
-            if (axis == -1) {
-                axis = dst_rank - src_rank;
-            }
 
-            size_t len = src_rank;
-            while (len > 0 && src[len - 1].is_static() && src[len - 1].get_length() == 1) {
-                --len;
-            }
+            axis = (axis == -1) ? (dst_rank - src_rank) : axis;
 
-            for (size_t i = axis; i < axis + len; ++i) {
-                if (!(dst[i].compatible(src[i - axis]))) {
-                    return false;
+            if (src_rank + axis > dst_rank)
+                return false;
+
+            bool success = true;
+            for (int64_t i = 0; i < src_rank; ++i) {
+                if (dst[axis + i].is_static() && src[i].is_static()) {
+                    if (src[i].get_length() > dst[axis + i].get_length())
+                        return false;
                 }
+
+                success &= Dimension::broadcast_merge(dst[axis + i], dst[axis + i], src[i]);
             }
 
-            return true;
+            return success;
         }
     }
     default:
-        NGRAPH_CHECK(false, "Unsupported auto broadcast type: ", autob.m_type);
+        OPENVINO_THROW("Unsupported auto broadcast type: ", autob.m_type);
     }
 
     return false;
@@ -377,14 +376,14 @@ bool ov::PartialShape::all_non_negative() const {
 
 const ov::Dimension& ov::PartialShape::operator[](size_t i) const {
     if (i >= m_dimensions.size()) {
-        throw std::out_of_range("Accessing out-of-range dimension in Dimension[]");
+        OPENVINO_THROW(dim_out_range_access_txt);
     }
     return m_dimensions[i];
 }
 
 ov::Dimension& ov::PartialShape::operator[](size_t i) {
     if (i >= m_dimensions.size()) {
-        throw std::out_of_range("Accessing out-of-range dimension in Dimension[]");
+        OPENVINO_THROW(dim_out_range_access_txt);
     }
     m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];

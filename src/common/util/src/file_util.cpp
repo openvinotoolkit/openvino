@@ -18,8 +18,8 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <Shlwapi.h>
 #    include <direct.h>
+#    include <shlwapi.h>
 #    include <windows.h>
 /// @brief Max length of absolute file path
 #    define MAX_ABS_PATH _MAX_PATH
@@ -87,7 +87,7 @@ std::string ov::util::get_directory(const std::string& s) {
     // Linux-style separator
     auto pos = s.find_last_of('/');
     if (pos != std::string::npos) {
-        rc = s.substr(0, pos);
+        rc = s.substr(0, pos ? pos : 1);
         return rc;
     }
     // Windows-style separator
@@ -325,6 +325,12 @@ void ov::util::convert_path_win_style(std::string& path) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+#    ifdef __APPLE__
+#        pragma clang diagnostic push
+#        pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#    endif
+
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
 #    ifdef _WIN32
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
@@ -351,7 +357,12 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
     return result;
 #    endif
 }
-#endif
+
+#    ifdef __APPLE__
+#        pragma clang diagnostic pop
+#    endif
+
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::string ov::util::get_absolute_file_path(const std::string& path) {
     std::string absolutePath;
@@ -621,6 +632,11 @@ std::vector<uint8_t> ov::util::load_binary(const std::string& path) {
 }
 
 void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary) {
+    save_binary(path, reinterpret_cast<const char*>(&binary[0]), binary.size());
+    return;
+}
+
+void ov::util::save_binary(const std::string& path, const char* binary, size_t bin_size) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* filename = widefilename.c_str();
@@ -629,8 +645,27 @@ void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary)
 #endif
     std::ofstream out_file(filename, std::ios::out | std::ios::binary);
     if (out_file.is_open()) {
-        out_file.write(reinterpret_cast<const char*>(&binary[0]), binary.size());
+        out_file.write(binary, bin_size);
     } else {
         throw std::runtime_error("Could not save binary to " + path);
     }
+}
+
+const char* ov::util::trim_file_name(const char* const fname) {
+    static const auto pattern_native_sep =
+        std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + FileTraits<char>::file_separator;
+
+    const auto has_native_sep_pattern_ptr = std::strstr(fname, pattern_native_sep.c_str());
+    auto fname_trim_ptr = has_native_sep_pattern_ptr ? has_native_sep_pattern_ptr + pattern_native_sep.size() : fname;
+
+#if defined(_WIN32)
+    // On windows check also forward slash as in some case the __FILE__ can have it instead native backward slash.
+    if (fname_trim_ptr == fname) {
+        static const auto pattern_fwd_sep = std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + '/';
+        if (const auto has_fwd_sep_pattern_ptr = std::strstr(fname, pattern_fwd_sep.c_str())) {
+            fname_trim_ptr = has_fwd_sep_pattern_ptr + pattern_fwd_sep.size();
+        }
+    }
+#endif
+    return fname_trim_ptr;
 }

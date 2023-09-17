@@ -64,6 +64,7 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("op,op_type", [
         # some pytorch inplace ops do not support int
+        (torch.exp_, "aten::exp_"),
         (torch.sigmoid_, "aten::sigmoid_"),
         # trigonometry
         (torch.cos_, "aten::cos_"),

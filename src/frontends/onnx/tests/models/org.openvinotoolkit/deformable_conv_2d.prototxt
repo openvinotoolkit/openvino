@@ -41,13 +41,13 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 1
+            dim_value: 8
           }
           dim {
-            dim_value: 2
+            dim_value: 3
           }
           dim {
-            dim_value: 2
+            dim_value: 3
           }
         }
       }

@@ -142,7 +142,7 @@ def test_roi_align():
     [([5, 2], 0, False), ([5, 2], 1, False), ([5, 2, 6], 2, False), ([5, 2], 0, True)],
 )
 def test_cum_sum(input_shape, cumsum_axis, reverse):
-    input_data = np.arange(np.prod(input_shape)).reshape(input_shape)
+    input_data = np.arange(np.prod(input_shape), dtype=np.int64).reshape(input_shape)
 
     node = ng.cum_sum(input_data, cumsum_axis, reverse=reverse)
     assert node.get_output_size() == 1

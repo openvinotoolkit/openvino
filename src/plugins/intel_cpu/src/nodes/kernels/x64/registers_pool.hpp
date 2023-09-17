@@ -124,7 +124,7 @@ protected:
         PhysicalSet(int size) : isFreeIndexVector(size, true) {}
 
         void setAsUsed(size_t regIdx) {
-            if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
+            if (regIdx >= isFreeIndexVector.size()) {
                 IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
             }
             if (!isFreeIndexVector[regIdx]) {
@@ -134,7 +134,7 @@ protected:
         }
 
         void setAsUnused(size_t regIdx) {
-            if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
+            if (regIdx >= isFreeIndexVector.size()) {
                 IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
             }
             if (isFreeIndexVector[regIdx]) {
@@ -144,10 +144,10 @@ protected:
         }
 
         size_t getUnused(size_t requestedIdx) {
-            if (requestedIdx == anyIdx) {
+            if (requestedIdx == static_cast<size_t>(anyIdx)) {
                 return getFirstFreeIndex();
             } else {
-                if (requestedIdx >= isFreeIndexVector.size() || requestedIdx < 0) {
+                if (requestedIdx >= isFreeIndexVector.size()) {
                     IE_THROW() << "requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()";
                 }
                 if (!isFreeIndexVector[requestedIdx]) {

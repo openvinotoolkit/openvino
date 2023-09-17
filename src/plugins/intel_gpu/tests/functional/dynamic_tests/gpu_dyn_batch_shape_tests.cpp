@@ -33,14 +33,14 @@ public:
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             if (!shape.second.empty()) {
                 for (const auto& itr : shape.second) {
-                    result << CommonTestUtils::vec2str(itr);
+                    result << ov::test::utils::vec2str(itr);
                 }
             }
             result << ")_";
@@ -93,9 +93,9 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
         ss << "InferDynamicBatchBound_cached_" << netPrecision << "_" << targetDevice;
         cacheFolderName = ss.str();
 
-        CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
-        CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
-        CommonTestUtils::removeDir(cacheFolderName);
+        ov::test::utils::removeFilesWithExt(cacheFolderName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
+        ov::test::utils::removeDir(cacheFolderName);
 
         core = std::make_shared<ov::Core>();
         core->set_property(ov::cache_dir(cacheFolderName));
@@ -106,9 +106,9 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
         core->set_property(ov::cache_dir(cacheFolderName));
         run();
 
-        CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
-        CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
-        CommonTestUtils::removeDir(cacheFolderName);
+        ov::test::utils::removeFilesWithExt(cacheFolderName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
+        ov::test::utils::removeDir(cacheFolderName);
     }
 }
 
@@ -118,7 +118,7 @@ auto config = []() {
 };
 
 auto hetero_config = []() {
-    return ov::AnyMap{{"TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU}};
+    return ov::AnyMap{{"TARGET_FALLBACK", ov::test::utils::DEVICE_GPU}};
 };
 
 const std::vector<InputShape> inputShapes = {
@@ -134,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatch, OVDynamicBatchShape_Tests,
     ::testing::Combine(
         ::testing::Values(inputShapes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(config())),
     OVDynamicBatchShape_Tests::getTestCaseName);
 
@@ -142,7 +142,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatchHetero, OVDynamicBatchShape_Tests,
     ::testing::Combine(
         ::testing::Values(inputShapes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+        ::testing::Values(ov::test::utils::DEVICE_HETERO),
         ::testing::Values(hetero_config())),
     OVDynamicBatchShape_Tests::getTestCaseName);
 }  // namespace

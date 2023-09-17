@@ -13,15 +13,45 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
 
-#include "read_ir_test/read_ir.hpp"
 #include "gflag_config.hpp"
 #include "conformance.hpp"
+#ifdef ENABLE_CONFORMANCE_PGQL
+#    include "common_test_utils/postgres_link.hpp"
 
+void RegisterTestCustomQueries(void) {
+    std::map<std::string, std::string>& extTestQueries = *::PostgreSQLLink::get_ext_test_queries();
+    std::map<std::string, std::string>& extTestNames = *::PostgreSQLLink::get_ext_test_names();
+
+    std::string testName("checkPluginImplementationCompileModel");
+    extTestQueries[testName + "_ON_START"] =
+        "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', "
+        "'$targetDevice', '$targetDeviceArch', '$targetDeviceName', '$config', $__is_temp)";
+    extTestQueries[testName + "_ON_END"] = "OpImplCheck_CheckPluginImpl($__test_ext_id, $__test_id)";
+    extTestQueries[testName + "_ON_REFUSE"] =
+        "OpImplCheck_CheckPluginImpl($__test_id)";  // Query expected in case of a refused results
+    extTestNames[testName] = "$opName";
+
+    testName = "Inference";
+    extTestQueries[testName + "_ON_START"] =
+        "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
+        "'$targetDevice', '$targetDeviceArch', '$targetDeviceName', '$hashXml', '$pathXml', '$config', "
+        "'$caseType', '$irWeight', $__is_temp)";
+    extTestQueries[testName + "_ON_END"] = "ReadIRTest_ReadIR($__test_ext_id, $__test_id)";
+    extTestQueries[testName + "_ON_REFUSE"] =
+        "ReadIRTest_ReadIR($__test_id)";  // Query expected in case of a refused results
+    extTestNames[testName] = "$opName";
+}
+#endif
 #include "functional_test_utils/crash_handler.hpp"
 
 using namespace ov::test::conformance;
 
 int main(int argc, char* argv[]) {
+#ifdef ENABLE_CONFORMANCE_PGQL
+    ::PostgreSQLLink::set_manual_start(true);
+    RegisterTestCustomQueries();
+#endif
+
     // Workaround for Gtest + Gflag
     std::vector<char*> argv_gflags_vec;
     int argc_gflags = 0;
@@ -44,37 +74,39 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
-    FuncTestUtils::SkipTestsConfig::disable_tests_skipping = FLAGS_disable_test_config;
+    ov::test::utils::disable_tests_skipping = FLAGS_disable_test_config;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
     ov::test::utils::OpSummary::setOutputFolder(FLAGS_output_folder);
     ov::test::utils::OpSummary::setSaveReportTimeout(FLAGS_save_report_timeout);
     {
-        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
         apiSummary.setDeviceName(FLAGS_device);
     }
     if (FLAGS_shape_mode == std::string("static")) {
-        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::STATIC;
+        ov::test::conformance::shapeMode = ov::test::conformance::ShapeMode::STATIC;
     } else if (FLAGS_shape_mode == std::string("dynamic")) {
-        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::DYNAMIC;
+        ov::test::conformance::shapeMode = ov::test::conformance::ShapeMode::DYNAMIC;
     } else if (FLAGS_shape_mode != std::string("")) {
-        throw std::runtime_error("Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" + FLAGS_shape_mode + "`");
+        throw std::runtime_error(
+            "Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" +
+            FLAGS_shape_mode + "`");
     }
 
-    CommonTestUtils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
-    CommonTestUtils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
+    ov::test::utils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
+    ov::test::utils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();
-    ov::test::conformance::IRFolderPaths = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    ov::test::conformance::IRFolderPaths = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
     ov::test::conformance::refCachePath = FLAGS_ref_dir.c_str();
     if (!FLAGS_plugin_lib_name.empty()) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_skip_config_path.empty()) {
-        ov::test::conformance::disabledTests = CommonTestUtils::readListFiles(
-                CommonTestUtils::splitStringByDelimiter(FLAGS_skip_config_path));
+        ov::test::conformance::disabledTests =
+            ov::test::utils::readListFiles(ov::test::utils::splitStringByDelimiter(FLAGS_skip_config_path));
     }
     if (!FLAGS_config_path.empty()) {
         ov::test::conformance::pluginConfig = ov::test::conformance::readPluginConfig(FLAGS_config_path);
@@ -102,7 +134,7 @@ int main(int argc, char* argv[]) {
 
     // killed by external
     signal(SIGINT, exernalSignalHandler);
-    signal(SIGTERM , exernalSignalHandler);
+    signal(SIGTERM, exernalSignalHandler);
     signal(SIGSEGV, exernalSignalHandler);
     signal(SIGABRT, exernalSignalHandler);
     return RUN_ALL_TESTS();

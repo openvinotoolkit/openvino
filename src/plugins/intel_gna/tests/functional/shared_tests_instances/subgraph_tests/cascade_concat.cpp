@@ -36,7 +36,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_cascade_concat,
                                             ::testing::ValuesIn(shape3),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(false),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(additional_config)),
                          CascadeConcat::getTestCaseName);
 
@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_cascade_concat_multioutput,
                                             ::testing::ValuesIn(shape3),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(true),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(additional_config)),
                          CascadeConcat::getTestCaseName);
 
@@ -55,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_cascade_concat_reshape,
                          CascadeConcatWithMultiConnReshape,
                          ::testing::Combine(::testing::ValuesIn(shape_one_input),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(additional_config_one_input)),
                          CascadeConcatWithMultiConnReshape::getTestCaseName);
 }  // namespace

@@ -7,19 +7,17 @@
 #include <cstdint>
 
 #include "dimension_util.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/space_to_batch.hpp"
-#include "openvino/opsets/opset2.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const SpaceToBatch* op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const SpaceToBatch* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
     using namespace ov::util;
     using TVal = typename TShape::value_type::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
@@ -29,10 +27,10 @@ std::vector<TShape> shape_infer(const SpaceToBatch* op,
     const auto& pads_begin_shape = input_shapes[2];
     const auto& pads_end_shape = input_shapes[3];
 
-    auto inputs_same_ps = pads_begin_shape;
+    auto inputs_same_ps = static_cast<TRShape>(pads_begin_shape);
     NODE_VALIDATION_CHECK(
         op,
-        TShape::merge_into(inputs_same_ps, pads_end_shape) && TShape::merge_into(inputs_same_ps, block_shape),
+        TRShape::merge_into(inputs_same_ps, pads_end_shape) && TRShape::merge_into(inputs_same_ps, block_shape),
         "block_shape, pads_begin and pads_end inputs must have the same shape. Got: ",
         block_shape,
         ", ",
@@ -54,10 +52,10 @@ std::vector<TShape> shape_infer(const SpaceToBatch* op,
                               data_rank_size,
                               ")");
 
-        TShape out_shape;
+        TRShape out_shape;
         out_shape.reserve(data_rank_size);
 
-        auto blocks = get_input_const_data_as<TShape, int64_t>(op, 1, constant_data);
+        auto blocks = get_input_const_data_as<TShape, int64_t>(op, 1, ta);
         if (blocks) {
             TVal block_prod = std::accumulate(begin(*blocks), end(*blocks), int64_t(1), std::multiplies<int64_t>());
             out_shape.push_back(data_shape[0] * block_prod);
@@ -65,16 +63,16 @@ std::vector<TShape> shape_infer(const SpaceToBatch* op,
             out_shape.emplace_back(dim::inf_bound);
         }
 
-        std::vector<int64_t> pads_begin, pads_end;
-        if (blocks && get_data_as_int64<TShape>(2, op, pads_begin, constant_data) &&
-            get_data_as_int64<TShape>(3, op, pads_end, constant_data)) {
+        auto pads_begin = get_input_const_data_as<TShape, int64_t>(op, 2, ta);
+        auto pads_end = get_input_const_data_as<TShape, int64_t>(op, 3, ta);
+        if (blocks && pads_begin && pads_end) {
             for (auto idx = spatial_dim_offset; idx < data_rank_size; ++idx) {
                 NODE_VALIDATION_CHECK(op, (*blocks)[idx] > 0, "block_shape values must be greater than 0");
 
-                const auto padded_dim = data_shape[idx] + static_cast<TVal>(pads_begin[idx] + pads_end[idx]);
+                const auto padded_dim = data_shape[idx] + static_cast<TVal>((*pads_begin)[idx] + (*pads_end)[idx]);
                 const auto divisor = static_cast<TVal>((*blocks)[idx]);
 
-                if (padded_dim.get_max_length() == dim::inf_bound) {
+                if (static_cast<int64_t>(padded_dim.get_max_length()) == dim::inf_bound) {
                     out_shape.emplace_back(ceil_div(padded_dim.get_min_length(), divisor), dim::inf_bound);
                 } else {
                     out_shape.push_back(padded_dim / divisor);
@@ -91,15 +89,6 @@ std::vector<TShape> shape_infer(const SpaceToBatch* op,
         return {PartialShape::dynamic()};
     }
 }
-
-template <class TShape>
-void shape_infer(const SpaceToBatch* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes,
-                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
-}
-
 }  // namespace v1
 }  // namespace op
 }  // namespace ov

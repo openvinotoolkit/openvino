@@ -3,6 +3,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about the support for quantized models with different 
+                 precisions and the FakeQuantize operation used to express 
+                 quantization rules.
+
 One of the feature of OpenVINO is the support of quantized models with different precisions: INT8, INT4, etc.
 However, it is up to the plugin to define what exact precisions are supported by the particular HW.
 All quantized models which can be expressed in IR have a unified representation by means of *FakeQuantize* operation. 
@@ -53,8 +58,8 @@ Thus we can define:
 Quantization specifics and restrictions
 #######################################
 
-In general, OpenVINO can represent and execute quantized models from different sources. However, the Post-training Optimization Tool (POT)
-is considered the default way to get optimized models. Since the POT supports HW-aware quantization it means that specific rules can be implemented in it for 
+In general, OpenVINO can represent and execute quantized models from different sources. However, the Neural Network Compression Framework (NNCF)
+is considered the default way to get optimized models. Since the NNCF supports HW-aware quantization it means that specific rules can be implemented in it for 
 the particular HW. However, it is reasonable to have compatibility with general-purpose HW such as CPU and GPU and support their quantization schemes.
 Below we define these rules as follows:
 

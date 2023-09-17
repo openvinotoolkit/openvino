@@ -18,10 +18,10 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
-                funcTestUtils
+                func_test_utils
                 ngraphFunctions
 )
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
         PCH PRIVATE "src/precomp.hpp"
         )

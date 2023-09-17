@@ -12,8 +12,7 @@ from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.eliminate import shape_inference
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils.error import Error, InternalError, FrameworkError
-from openvino.tools.mo.utils.logger import progress_bar
-from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.logger import progress_bar  # pylint: disable=no-name-in-module,import-error
 
 _registered_classes_dict = {}
 
@@ -90,8 +89,8 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
             if hasattr(c, key) and getattr(c, key) is not None:
                 k = getattr(c, key)
                 if k.lower() in new_keys_lower:
-                    log.warning('Attempt to register of custom name {} for the second time as class {}. '
-                                'Note that custom names are case-insensitive. ' + refer_to_faq_msg(55), k, c)
+                    # log.warning('Attempt to register of custom name {} for the second time as class {}. '
+                    #             'Note that custom names are case-insensitive. ' + refer_to_faq_msg(55), k, c)
                     continue
                 else:
                     new_keys_lower[k.lower()] = k

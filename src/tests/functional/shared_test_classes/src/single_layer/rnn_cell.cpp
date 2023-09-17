@@ -7,6 +7,8 @@
 
 namespace LayerTestsDefinitions {
 
+using ngraph::helpers::InputLayerType;
+
 std::string RNNCellTest::getTestCaseName(const testing::TestParamInfo<RNNCellParams> &obj) {
     bool should_decompose;
     size_t batch;
@@ -14,9 +16,12 @@ std::string RNNCellTest::getTestCaseName(const testing::TestParamInfo<RNNCellPar
     size_t input_size;
     std::vector<std::string> activations;
     float clip;
+    InputLayerType WType;
+    InputLayerType RType;
+    InputLayerType BType;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip,
+    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, WType, RType, BType,
              netPrecision, targetDevice) = obj.param;
     std::vector<std::vector<size_t>> inputShapes = {{batch, input_size}, {batch, hidden_size},
                                      {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
@@ -25,9 +30,12 @@ std::string RNNCellTest::getTestCaseName(const testing::TestParamInfo<RNNCellPar
     result << "batch=" << batch << "_";
     result << "hidden_size=" << hidden_size << "_";
     result << "input_size=" << input_size << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "activations=" << CommonTestUtils::vec2str(activations) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "activations=" << ov::test::utils::vec2str(activations) << "_";
     result << "clip=" << clip << "_";
+    result << "WType=" << WType << "_";
+    result << "RType=" << RType << "_";
+    result << "BType=" << BType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
     return result.str();
@@ -42,17 +50,48 @@ void RNNCellTest::SetUp() {
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
     float clip;
+    InputLayerType WType;
+    InputLayerType RType;
+    InputLayerType BType;
     InferenceEngine::Precision netPrecision;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip,
+    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, WType, RType, BType,
             netPrecision, targetDevice) = this->GetParam();
     std::vector<std::vector<size_t>> inputShapes = {{batch, input_size}, {batch, hidden_size},
                                                     {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
     std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
-    auto rnn_cell = ngraph::builder::makeRNN(
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
-            WRB, hidden_size, activations, {}, {}, clip);
+
+    std::shared_ptr<ov::Node> W;
+    if (WType == InputLayerType::PARAMETER) {
+        const auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, WRB[0]);
+        W = param;
+        params.push_back(param);
+    } else {
+        W = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
+    }
+
+    std::shared_ptr<ov::Node> R;
+    if (RType == InputLayerType::PARAMETER) {
+        const auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, WRB[1]);
+        R = param;
+        params.push_back(param);
+    } else {
+        R = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
+    }
+
+    std::shared_ptr<ov::Node> B;
+    if (BType == InputLayerType::PARAMETER) {
+        const auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, WRB[2]);
+        B = param;
+        params.push_back(param);
+    } else {
+        B = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
+    }
+
+    auto rnn_cell = std::make_shared<ov::op::v0::RNNCell>(params[0], params[1], W, R, B, hidden_size, activations,
+                                                         activations_alpha, activations_beta, clip);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell)};
     function = std::make_shared<ngraph::Function>(results, params, "rnn_cell");
     if (should_decompose) {

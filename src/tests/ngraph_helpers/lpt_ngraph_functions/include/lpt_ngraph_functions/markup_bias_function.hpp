@@ -18,7 +18,8 @@ public:
     static std::shared_ptr<ov::Model> get(const ov::element::Type& precision,
                                           const ov::PartialShape& input_shape,
                                           const ov::PartialShape& add_shape,
-                                          const std::string& operation_type);
+                                          const std::string& operation_type,
+                                          const bool extra_multipy);
 };
 }  // namespace subgraph
 }  // namespace builder

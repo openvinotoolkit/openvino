@@ -28,7 +28,6 @@ if(ENABLE_TEMPLATE)
     list(APPEND DEPENDENCIES openvino_template_plugin)
 endif()
 
-# remove once CVS-69781 is fixed
 if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
 endif()
@@ -40,7 +39,7 @@ else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx)
 endif()
 
-if (TARGET inference_engine_snippets)
+if (TARGET openvino::snippets)
     list(APPEND LINK_LIBRARIES_PRIVATE snippetsNgraphFunctions)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
@@ -63,8 +62,8 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
-                funcTestUtils
-                ngraph_test_util
+                common_test_utils
+                func_test_utils
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses
@@ -78,7 +77,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
 endif()
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 

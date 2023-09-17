@@ -32,7 +32,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
                       'Example of usage for several files/layers: <layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.')
     args.add_argument('-d', '--device', default='CPU', type=str,
                       help='Optional. Specify a target device to infer on. '
-                      'CPU, GPU, VPUX, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
+                      'CPU, GPU, NPU, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
                       ' as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. '
                       'The sample will look for a suitable plugin for device specified. Default value is CPU.')
     args.add_argument('-bs', '--batch_size', type=int, choices=range(1, 9), metavar='[1-8]',

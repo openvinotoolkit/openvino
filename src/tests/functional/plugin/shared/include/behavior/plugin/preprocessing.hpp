@@ -65,11 +65,6 @@ public:
 
             inputs.push_back(blob);
         }
-        if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-            configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-            auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-            inferRequest.SetBatch(static_cast<int>(batchSize));
-        }
         inferRequest.Infer();
     }
 
@@ -91,7 +86,7 @@ public:
 
         auto make_ngraph = [&](bool with_extra_conv) {
             auto in_prec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(with_extra_conv ? inPrc : decltype(inPrc)(InferenceEngine::Precision::FP32));
-            auto paramsIn = ngraph::builder::makeParams(in_prec, {inputShape});
+            ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(in_prec, ov::Shape(inputShape))};
             auto paramIn = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 

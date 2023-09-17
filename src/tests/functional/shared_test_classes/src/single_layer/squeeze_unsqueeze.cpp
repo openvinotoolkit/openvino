@@ -17,8 +17,8 @@ std::string SqueezeUnsqueezeLayerTest::getTestCaseName(const testing::TestParamI
     std::ostringstream result;
     const char separator = '_';
     result << "OpType=" << opType << separator;
-    result << "IS=" << CommonTestUtils::vec2str(shapeItem.first) << separator;
-    result << "Axes=" << (shapeItem.second.empty() ? "default" : CommonTestUtils::vec2str(shapeItem.second)) << separator;
+    result << "IS=" << ov::test::utils::vec2str(shapeItem.first) << separator;
+    result << "Axes=" << (shapeItem.second.empty() ? "default" : ov::test::utils::vec2str(shapeItem.second)) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;
@@ -38,7 +38,7 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     std::tie(inputShapes, axesVector) = shapeItem;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
     std::shared_ptr<ngraph::Node> op;
 
     if (axesVector.empty() && opType == ngraph::helpers::SqueezeOpType::SQUEEZE) {

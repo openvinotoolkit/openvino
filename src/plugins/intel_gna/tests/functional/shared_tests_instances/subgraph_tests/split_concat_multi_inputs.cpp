@@ -27,7 +27,7 @@ std::vector<bool> isFc = {false, true};
 INSTANTIATE_TEST_SUITE_P(smoke_splitConcatMultiInputs,
                          SplitConcatMultiInputsTest,
                          ::testing::Combine(::testing::ValuesIn(precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(additionalConfig),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(splitsNum),

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/opsets/opset11.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 namespace ngraph {
 namespace onnx_import {
-namespace default_opset = ngraph::opset11;
+namespace default_opset = ov::opset12;
 }
 }  // namespace ngraph

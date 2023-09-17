@@ -64,6 +64,13 @@ public:
     const Attributes& get_attrs() const {
         return m_attrs;
     }
+
+    /**
+     * @brief Set the Proposal operator attributes.
+     * @param attrs  Attributes to be set.
+     */
+    void set_attrs(Attributes attrs);
+
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
@@ -93,9 +100,6 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    const Attributes& get_attrs() const {
-        return m_attrs;
-    }
 };
 }  // namespace v4
 }  // namespace op

@@ -25,11 +25,9 @@ void pre_replace_deconv::run(program& p) {
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;
         auto& node = (*node_itr).second;
-        // find deconvolution primitives with stride 1 and change them to convolution with trasposed weights
+        // find deconvolution primitives with stride 1 and change them to convolution with transposed weights
         if (node->is_type<deconvolution>()) {
             if (node->is_dynamic())
-                continue;
-            if (!p.get_config().get_property(ov::intel_gpu::optimize_data))
                 continue;
 
             auto& deconv_node = node->as<deconvolution>();
@@ -39,6 +37,7 @@ void pre_replace_deconv::run(program& p) {
             auto weights_nodes_id = deconv_prim->weights;
             auto biases_nodes_id = deconv_prim->bias;
             auto& input_node = deconv_node.get_dependency(0);
+            auto input_layout = deconv_node.get_input_layout(0);
             const primitive_id deconv_node_id = deconv_node.id();
             const primitive_id& input_node_id = input_node.id();
 
@@ -50,21 +49,20 @@ void pre_replace_deconv::run(program& p) {
 
                 bool perform_opt = false;
                 // fp16 and fp32 bfyx implementation supports transposed convolution
-                perform_opt |= cldnn::format::dimension(input_node.get_output_layout().format) == 4 &&
-                               (input_node.get_output_layout().data_type == data_types::f32 || input_node.get_output_layout().data_type == data_types::f16) &&
-                               !((_lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_node.get_output_layout().format == format::b_fs_yx_fsv16) &&
+                perform_opt |= cldnn::format::dimension(input_layout.format) == 4 &&
+                               (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
+                               !((_lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_layout.format == format::b_fs_yx_fsv16) &&
                                 _lo.is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
                 // int8/uint8 input
-                perform_opt |= (input_node.get_output_layout().data_type == data_types::i8 || input_node.get_output_layout().data_type == data_types::u8);
+                perform_opt |= (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
 
                 if (!perform_opt)
                     continue;
 
-
                 // setting convolution parameters based on deconvolution params
                 auto output_layout = deconv_node.get_output_layout();
                 auto output_pshape = output_layout.get_partial_shape();
-                auto input_pshape = input_node.get_output_layout().get_partial_shape();
+                auto input_pshape = input_layout.get_partial_shape();
                 auto spatial_rank = output_layout.get_spatial_rank();
                 auto stride = deconv_prim->stride;
                 auto pad = deconv_prim->pad;
@@ -72,8 +70,7 @@ void pre_replace_deconv::run(program& p) {
                 auto output_padding = deconv_prim->output_paddings[0];
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
-                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized
-                // list
+                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized list
                 p.remove_connection(input_node, deconv_node);
                 std::vector<std::shared_ptr<program_node>> weight_connections;
                 for (auto& weights_id : weights_nodes_id) {

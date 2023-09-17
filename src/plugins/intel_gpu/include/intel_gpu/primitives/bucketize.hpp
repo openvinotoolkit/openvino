@@ -11,6 +11,8 @@ namespace cldnn {
 struct bucketize : primitive_base<bucketize> {
     CLDNN_DECLARE_PRIMITIVE(bucketize)
 
+    bucketize() : primitive_base("", {}) {}
+
     /// @brief Constructs bucketize primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.
@@ -24,7 +26,7 @@ struct bucketize : primitive_base<bucketize> {
         : primitive_base(id, inputs, {output_padding}, {optional_data_type(output_type)}),
           with_right_bound(with_right_bound) {}
 
-    bool with_right_bound;
+    bool with_right_bound = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -39,6 +41,16 @@ struct bucketize : primitive_base<bucketize> {
         auto rhs_casted = downcast<const bucketize>(rhs);
 
         return with_right_bound == rhs_casted.with_right_bound;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<bucketize>::save(ob);
+        ob << with_right_bound;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<bucketize>::load(ib);
+        ib >> with_right_bound;
     }
 };
 

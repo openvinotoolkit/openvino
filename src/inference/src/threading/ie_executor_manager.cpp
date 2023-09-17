@@ -78,6 +78,10 @@ public:
         return m_executor->get_numa_node_id();
     }
 
+    int GetSocketId() override {
+        return m_executor->get_socket_id();
+    }
+
     void Execute(Task task) override {
         m_executor->execute(task);
     }

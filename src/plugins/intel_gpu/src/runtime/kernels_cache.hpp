@@ -18,7 +18,7 @@
 #include <string>
 #include <set>
 
-#include <threading/ie_cpu_streams_executor.hpp>
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "kernels_factory.hpp"
 #include "ocl/ocl_engine.hpp"
 
@@ -75,7 +75,7 @@ public:
 private:
     static std::mutex _mutex;
     engine& _engine;
-    InferenceEngine::CPUStreamsExecutor::Ptr _task_executor;
+    std::shared_ptr<ov::threading::ITaskExecutor> _task_executor;
     ExecutionConfig _config;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
@@ -96,7 +96,7 @@ public:
     explicit kernels_cache(engine& engine,
                            const ExecutionConfig& config,
                            uint32_t prog_id,
-                           InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr,
+                           std::shared_ptr<ov::threading::ITaskExecutor> task_executor = nullptr,
                            const std::vector<std::string>& batch_header_str = {});
     kernel::ptr get_kernel_from_cached_kernels(std::string id) const;
     std::vector<kernel::ptr> get_kernels(kernel_impl_params params) const;
@@ -121,7 +121,7 @@ public:
     std::vector<std::string> get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels) const;
     void add_to_cached_kernels(const std::vector<kernel::ptr>& kernels);
 
-    size_t get_kernel_batch_hash(const kernel_impl_params params) const {
+    size_t get_kernel_batch_hash(const kernel_impl_params& params) const {
         if (_kernel_batch_hash.find(params) != _kernel_batch_hash.end())
             return _kernel_batch_hash.at(params);
         return 0;

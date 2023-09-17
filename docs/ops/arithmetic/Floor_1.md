@@ -1,7 +1,10 @@
 # Floor  {#openvino_docs_ops_arithmetic_Floor_1}
- 
+
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Floor-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Floor-1*
 
@@ -35,7 +38,8 @@ element in the output tensor with the following formula:
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Floor">
        <input>

@@ -25,7 +25,7 @@ addIeTargetTest(
             PRIVATE
                 ngraphFunctions
                 gmock
-                commonTestUtils_s
+                common_test_utils_s
                 openvino_intel_gna_plugin_test_static
                 inference_engine_legacy_s
         ADD_CLANG_FORMAT

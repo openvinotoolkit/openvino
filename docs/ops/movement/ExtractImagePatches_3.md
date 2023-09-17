@@ -1,5 +1,11 @@
 # ExtractImagePatches {#openvino_docs_ops_movement_ExtractImagePatches_3}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about ExtractImagePatches-3 - a data movement operation, 
+                which can be performed on a 4D input tensor.
+
 **Versioned name**: *ExtractImagePatches-3*
 
 **Category**: *Data movement*
@@ -61,7 +67,8 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer type="ExtractImagePatches" ...>
        <data sizes="3,3" strides="5,5" rates="1,1" auto_pad="valid"/>

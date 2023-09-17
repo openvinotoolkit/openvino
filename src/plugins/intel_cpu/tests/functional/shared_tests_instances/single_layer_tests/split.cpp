@@ -29,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NumSplitsCheck, SplitLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
                                 ::testing::Values(std::vector<size_t>({})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         SplitLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_splitWithUnusedOutputsTest, SplitLayerTest,
@@ -43,6 +43,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_splitWithUnusedOutputsTest, SplitLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
                                 ::testing::Values(std::vector<size_t>({0, 3})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         SplitLayerTest::getTestCaseName);
 }  // namespace

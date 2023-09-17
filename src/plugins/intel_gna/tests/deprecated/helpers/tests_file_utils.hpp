@@ -11,9 +11,6 @@
 #include <string>
 
 namespace testing { namespace FileUtils {
-    /// @brief TODO: description
-    const std::string FileSeparator2 = "/"; // second option
-
     /**
      * @brief TODO: description
      * @param file_name - TODO: param

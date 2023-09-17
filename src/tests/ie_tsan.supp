@@ -14,3 +14,7 @@ race:^GNAPluginNS::supported_values[abi:cxx11]$
 
 # Issue 91368
 race:libopenvino_gapi_preproc.so
+
+# Issue 114114 ThreadSanitizer: signal-unsafe call inside of a signal
+# Suppress it since it's caused by signal handler from tests utilities that not uses threads
+signal:src/tests/ie_test_utils/functional_test_utils/src/crash_handler.cpp

@@ -46,8 +46,7 @@ def parse_and_check_command_line():
 
     if is_network_compiled and is_precisiton_set:
         raise Exception("Cannot set precision for a compiled model. " \
-                        "Please re-compile your model with required precision " \
-                        "using compile_tool")
+                        "Please re-compile your model with required precision.")
 
     return args, is_network_compiled
 
@@ -324,7 +323,7 @@ def main():
         ## If set batch size, disable the auto batching
         if args.batch_size:
             logger.warning("Batch size is set. Auto batching will be disabled")
-            benchmark.set_allow_auto_batching(False)
+            device_config["ALLOW_AUTO_BATCHING"] = False
 
         topology_name = ""
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
@@ -488,8 +487,8 @@ def main():
         static_mode = check_for_static(app_inputs_info)
         allow_inference_only_or_sync = can_measure_as_static(app_inputs_info)
         if not allow_inference_only_or_sync and benchmark.api_type == 'sync':
-            raise Exception("Benchmarking of the model with dynamic shapes is available for async API only."
-                                   "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior.")
+            raise Exception("Benchmarking of the model with dynamic shapes is available for async API only. "
+                            "Please use -api async -hint latency -nireq 1 to emulate sync behavior.")
 
         if benchmark.inference_only == None:
             if static_mode:
@@ -500,7 +499,7 @@ def main():
             raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
 
         # update batch size in case dynamic network with one data_shape
-        if benchmark.inference_only and batch_size.is_dynamic:
+        if allow_inference_only_or_sync and batch_size.is_dynamic:
             batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
 
         benchmark.latency_groups = get_latency_groups(app_inputs_info)

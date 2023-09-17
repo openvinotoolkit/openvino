@@ -17,7 +17,7 @@ struct reverse_impl : typed_primitive_impl_ocl<reverse> {
     using kernel_selector_t = kernel_selector::reverse_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::reverse_params, kernel_selector::reverse_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reverse_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reverse_impl>(*this);
@@ -72,3 +72,4 @@ attach_reverse_impl::attach_reverse_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reverse_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reverse)

@@ -17,7 +17,7 @@ OpenVINO Runtime offers multiple inference modes to allow optimum hardware utili
 The remaining modes assume certain levels of automation in selecting devices for inference. Using them in the deployed solution may potentially increase its performance and portability. The automated modes are:
 
 * :doc:`Automatic Device Selection (AUTO) <openvino_docs_OV_UG_supported_plugins_AUTO>`
-* :doc:``Multi-Device Execution (MULTI) <openvino_docs_OV_UG_Running_on_multiple_devices>`
+* :doc:`Multi-Device Execution (MULTI) <openvino_docs_OV_UG_Running_on_multiple_devices>`
 * :doc:`Heterogeneous Execution (HETERO) <openvino_docs_OV_UG_Hetero_execution>`
 * :doc:`Automatic Batching Execution (Auto-batching) <openvino_docs_OV_UG_Automatic_Batching>`
 

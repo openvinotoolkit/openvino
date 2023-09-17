@@ -34,23 +34,23 @@ std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, 
     std::vector<ShapeType> output_shapes = {ShapeType::dynamic(1)};
     std::vector<ShapeType> input_shapes = {ov::Shape(), ov::Shape(), ov::Shape()};
 
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
     auto& memory_deps = impl_param.memory_deps;
 
     if (memory_deps.count(0) > 0 && memory_deps.count(1) > 0 && memory_deps.count(2) > 0) {
         auto start_mem = memory_deps.at(0);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> start_mem_lock(start_mem, impl_param.get_stream());
-        const_data.emplace(0, make_host_tensor(start_mem->get_layout(), start_mem_lock.data()));
+        const_data.emplace(0, make_tensor(start_mem->get_layout(), start_mem_lock.data()));
 
         auto stop_mem = memory_deps.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> stop_mem_lock(stop_mem, impl_param.get_stream());
-        const_data.emplace(1, make_host_tensor(stop_mem->get_layout(), stop_mem_lock.data()));
+        const_data.emplace(1, make_tensor(stop_mem->get_layout(), stop_mem_lock.data()));
 
         auto step_mem = memory_deps.at(2);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> step_mem_lock(step_mem, impl_param.get_stream());
-        const_data.emplace(2, make_host_tensor(step_mem->get_layout(), step_mem_lock.data()));
+        const_data.emplace(2, make_tensor(step_mem->get_layout(), step_mem_lock.data()));
 
-        shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     }
 
     return {layout({output_shapes[0], output_data_type, impl_param.get_output_layout().format})};

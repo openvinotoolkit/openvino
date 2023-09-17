@@ -64,6 +64,7 @@ public:
 
     void flush() const override;
     void finish() const override;
+    void wait() override;
 
     void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) override;
     event::ptr enqueue_kernel(kernel& kernel,

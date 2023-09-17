@@ -39,6 +39,11 @@ bool ConcatenationKernelBase::Validate(const Params& p, const optional_params&) 
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
 
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
     if (GetConcatChannelIndex(params) == -1) {
         return false;
     }

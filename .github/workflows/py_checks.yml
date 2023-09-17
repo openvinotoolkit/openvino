@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Code checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -151,3 +151,16 @@ jobs:
       - name: Run Bandit
         run: python -m bandit -r ./ -f screen
         working-directory: src/bindings/python/src/compatibility/openvino
+
+        # layer_tests Flake code-style
+      - name: Run flake8 on python tests in openvino/tests/layer_tests
+        run: |
+          modified_files=$(git diff --name-only)
+          for file in $modified_files; do
+            if [[ $file == "openvino/tests/layer_tests/"* ]]; then
+              if [[ -f "$file" ]]; then
+                python -m flake8 "$file" --config= ./setup.cfg
+              fi
+            fi
+          done            
+

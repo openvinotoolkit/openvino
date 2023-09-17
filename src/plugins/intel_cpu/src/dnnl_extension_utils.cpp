@@ -32,6 +32,8 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
         return 1;
     case dnnl::memory::data_type::bin:
         return 1;
+    case dnnl::memory::data_type::f16:
+        return 2;
     case dnnl::memory::data_type::undef:
         return 0;
     default:
@@ -54,6 +56,8 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
             return memory::data_type::u8;
         case InferenceEngine::Precision::BIN:
             return memory::data_type::bin;
+        case InferenceEngine::Precision::FP16:
+            return memory::data_type::f16;
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
         default: {
@@ -76,6 +80,8 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
             return InferenceEngine::Precision::U8;
         case memory::data_type::bin:
             return InferenceEngine::Precision::BIN;
+        case memory::data_type::f16:
+            return InferenceEngine::Precision::FP16;
         case memory::data_type::undef:
             return InferenceEngine::Precision::UNSPECIFIED;
         default: {
@@ -179,26 +185,22 @@ std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_d
     return std::string(res);
 }
 
-bool DnnlExtensionUtils::find_implementation(dnnl::primitive_desc& desc, impl_desc_type implType) {
-    primitive_desc_iterator& itpd = desc;
-
-    while (itpd) {
-        const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
-
-        if (descImplType == implType) {
-            return true;
-        }
-
-        if (!itpd.next_impl())
-            break;
-    }
-
-    return false;
+bool DnnlExtensionUtils::find_implementation(dnnl::primitive_desc& desc, impl_desc_type impl_type) {
+    return DnnlExtensionUtils::find_implementation(desc,
+                                                   [impl_type](impl_desc_type cur_impl_type){
+                                                       return cur_impl_type == impl_type;
+                                                   });
 }
 
 dnnl_memory_desc_t DnnlExtensionUtils::clone_desc(const_dnnl_memory_desc_t cdesc) {
     dnnl_memory_desc_t cloned_md = nullptr;
     dnnl_memory_desc_clone(&cloned_md, cdesc);
+    return cloned_md;
+}
+
+dnnl_primitive_desc_t DnnlExtensionUtils::clone_primitive_desc(const_dnnl_primitive_desc_t cprim_desc) {
+    dnnl_primitive_desc_t cloned_md = nullptr;
+    dnnl_primitive_desc_clone(&cloned_md, cprim_desc);
     return cloned_md;
 }
 

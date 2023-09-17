@@ -3,6 +3,7 @@
 //
 #include "convert_fq_rnn_to_quantized_rnn.hpp"
 
+#include <algorithm>
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
@@ -14,6 +15,7 @@
 
 #include "ie_common.h"
 #include "itt.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #include <stdexcept>
 #include <vector>
@@ -104,7 +106,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             const auto& cell_state = pattern_map.at(cell_state_m);
             const auto& sequence_length = pattern_map.at(sequence_length_m);
 
-            // @todo prototype removal of unnecessary fq between two consequtive rnn nodes
+            // @todo prototype removal of unnecessary fq between two consecutive rnn nodes
             auto rnn_quantized_tr = std::make_shared<op::TypeRelaxed<ngraph::opset9::LSTMSequence>>(
                 element::TypeVector{ element::f32, element::f32, element::f32, element::f32, element::f32, element::f32, element::f32 },
                 element::TypeVector{ element::f32, element::f32, element::f32 },
@@ -164,11 +166,15 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         if (*input_scale_ptr == 0.f)
             OPENVINO_THROW("Cannot handle zero input scale");
 
-        const float                 input_scale  = 1 / *input_scale_ptr;
-        const std::vector<float> weights_scales  = weights_scale_constant->get_vector<float>();
+        const float input_scale  = 1 / *input_scale_ptr;
+        std::vector<float> weights_scales  = weights_scale_constant->get_vector<float>();
+
+        // transform dequantization scales into quantization ones
+        std::transform(weights_scales.begin(), weights_scales.end(), weights_scales.begin(), [](float& scale) { return 1 / scale; });
 
         auto& runtime_info = rnn_quantized->get_rt_info();
 
+        // use runtime information to store input and weight scales
         runtime_info["inputScale"]    = input_scale;
         runtime_info["weightsScales"] = weights_scales;
 
@@ -178,7 +184,6 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         if (input_shift_it != pattern_map.end()) {
             const auto  input_shift_constant = std::dynamic_pointer_cast<ngraph::opset9::Constant>(input_shift_it->second.get_node_shared_ptr());
             const float* input_shift_ptr      = input_shift_constant->get_data_ptr<float>();
-
             runtime_info["inputShift"] = *input_shift_ptr;
         }
 
@@ -198,15 +203,15 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             const auto& multiply = rnn->get_input_node_shared_ptr(1);
 
             auto new_convert  = convert->clone_with_new_inputs({rnn_quantized->output(1)});
-            std::shared_ptr<Node> multiply_in = new_convert;
+            std::shared_ptr<Node> multiply_input = new_convert;
             // dequantize with subtract
             if (subtract_it != pattern_map.end()) {
                 const auto subtract = std::dynamic_pointer_cast<ngraph::opset9::Subtract>(subtract_it->second.get_node_shared_ptr());
-                auto new_subtract = subtract->clone_with_new_inputs({rnn_quantized->output(1), subtract->input_value(1)});
-                multiply_in = new_subtract;
+                multiply_input = subtract->clone_with_new_inputs({multiply_input, subtract->input_value(1)});
             }
 
-            auto new_multiply = multiply->clone_with_new_inputs({multiply_in, multiply->input_value(1)});
+            auto new_multiply = multiply->clone_with_new_inputs({multiply_input, multiply->input_value(1)});
+            new_multiply->set_friendly_name(rnn_quantized->get_friendly_name() + ".1");
 
             for (auto output : H_outputs) {
                 output.replace_source_output(new_multiply);

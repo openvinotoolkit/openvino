@@ -1,5 +1,6 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import os
 
 import pytest
 import tensorflow as tf

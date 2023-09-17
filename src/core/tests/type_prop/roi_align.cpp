@@ -3,8 +3,8 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/opsets/opset11.hpp"
-#include "type_prop.hpp"
 
 using namespace std;
 using namespace ov;

@@ -75,7 +75,8 @@ Select quantization parameters
 
 Default Quantization algorithm has mandatory and optional parameters which are defined as a dictionary:
 
-.. code-block: python
+.. code-block:: py
+   :force:
 
    {
        "name": "DefaultQuantization",
@@ -89,7 +90,7 @@ Default Quantization algorithm has mandatory and optional parameters which are d
 
 * ``"target_device"`` - the following options are available:
 
-  * ``"ANY"`` (or ``"CPU"``) -  default option to quantize models for CPU, GPU, or VPU
+  * ``"ANY"`` (or ``"CPU"``) -  default option to quantize models for CPU, GPU, or NPU
   * ``"CPU_SPR"`` -  to quantize models for CPU SPR (4th Generation Intel® Xeon® Scalable processor family)
   * ``"GNA"``, ``"GNA3"``, ``"GNA3.5"`` - to quantize models for GNA devices respectively.
 
@@ -105,7 +106,8 @@ POT API provides methods to load and save model objects from OpenVINO Intermedia
 An example code below shows a basic quantization workflow:
 
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.tools.pot import IEEngine
    from openvino.tools.pot import load_model, save_model
@@ -177,7 +179,7 @@ Examples
 * Tutorials:
 
   * `Quantization of Image Classification model <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino>`__
-  * `Quantization of Object Detection model from Model Zoo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization>`__
+  * `Quantization of Object Detection model from Model Zoo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-yolov5-quantization-migration>`__
   * `Quantization of Segmentation model for medical data <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize>`__
   * `Quantization of BERT for Text Classification <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert>`__
 

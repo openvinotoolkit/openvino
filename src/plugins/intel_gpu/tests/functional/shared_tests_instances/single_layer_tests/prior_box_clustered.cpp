@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTe
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({ 4, 4 })),
                             ::testing::Values(std::vector<size_t>({ 50, 50 })),
-                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PriorBoxClusteredLayerTest::getTestCaseName
 );
 

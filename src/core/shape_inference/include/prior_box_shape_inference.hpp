@@ -9,28 +9,20 @@
 namespace ov {
 namespace op {
 namespace v0 {
-template <class TShape>
-std::vector<TShape> shape_infer(const PriorBox* const op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    return prior_box::shape_infer(op, input_shapes, constant_data);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const PriorBox* const op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return prior_box::shape_infer(op, input_shapes, ta);
 }
 }  // namespace v0
 
 namespace v8 {
-template <class TShape>
-std::vector<TShape> shape_infer(const PriorBox* const op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    return prior_box::shape_infer(op, input_shapes, constant_data);
-}
-
-template <class TShape>
-void shape_infer(const PriorBox* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes,
-                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = prior_box::shape_infer(op, input_shapes, constant_data);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const PriorBox* const op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return prior_box::shape_infer(op, input_shapes, ta);
 }
 }  // namespace v8
 

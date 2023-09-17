@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(random_uniform_type_specific_params),
                 ::testing::ValuesIn(global_seeds),
                 ::testing::ValuesIn(op_seeds),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
         RandomUniformLayerTest::getTestCaseName);
 
 }  // namespace

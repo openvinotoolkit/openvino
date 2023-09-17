@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ReverseSequence-1 - a data movement operation, 
+                which can be performed on two required input tensors.
+
 **Versioned name**: *ReverseSequence-1*
 
 **Category**: *Data movement*
@@ -46,7 +50,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="ReverseSequence">
         <data batch_axis="0" seq_axis="1"/>

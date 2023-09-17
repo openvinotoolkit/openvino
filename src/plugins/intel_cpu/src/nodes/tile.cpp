@@ -100,7 +100,7 @@ void Tile::prepareParams() {
     if (!constMap[TILE_REPEATS]) {
         const auto& repeatsMem = getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory();
 
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.GetPtr());
+        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.getData());
         originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
 
         repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1lu);
@@ -110,8 +110,8 @@ void Tile::prepareParams() {
         }
     }
 
-    auto srcBlockedDims = getParentEdgeAt(TILE_INPUT)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    auto dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto srcBlockedDims = getParentEdgeAt(TILE_INPUT)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto dstBlockedDims = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     optimizedCase = prepareOptimizedParams(this, srcBlockedDims, dstBlockedDims);
 }
@@ -124,9 +124,9 @@ bool Tile::needShapeInfer() const {
     if (!constMap[TILE_REPEATS]) {
         if (originRepeats.empty())
             return true;
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetPtr());
+        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().getData());
         for (size_t i = 0lu; i < originRepeats.size(); i++) {
-            if (originRepeats[i] != repeatsData[i])
+            if (originRepeats[i] != static_cast<size_t>(repeatsData[i]))
                 return true;
         }
     }
@@ -153,15 +153,15 @@ void Tile::plainExecute(dnnl::stream strm) {
 
     auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
-    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.GetPtr());
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetPtr());
+    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.getData());
+    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().getData());
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;
     auto inDims = srcMemory.getStaticDims();
     for (int i = 0; i < axis; i++ )
         m_outer_dim *= inDims[i];
-    for (int i = axis; i < inDims.size(); i++ )
+    for (size_t i = axis; i < inDims.size(); i++ )
         m_inner_dim *= inDims[i];
 
     int MB = srcMemory.getStaticDims()[0];

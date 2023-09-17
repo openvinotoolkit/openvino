@@ -18,6 +18,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -130,8 +131,10 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 /// \param node ONNX node
 ///
 /// \return     OutputVector with binary op
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
 OutputVector handle_opset6_binary_op(const Node& node);
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// \brief  Creates a "dummy" constant to be used in place of an invalid initializer
 ///         encountered in the original model.
@@ -150,6 +153,9 @@ void mark_as_optimized_out(Output<ov::Node>& node_output);
 
 /// \brief Checks if a given output was marked as optimized out byt the function above.
 bool is_optimized_out(const Output<ov::Node>& node_output);
+
+/// \brief Collect unsupported operators after convert_partially and all exceptions from translation process.
+std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted);
 }  // namespace  common
 }  // namespace onnx_import
 }  // namespace ngraph

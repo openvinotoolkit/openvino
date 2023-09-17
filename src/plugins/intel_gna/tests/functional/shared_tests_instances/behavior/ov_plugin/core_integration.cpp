@@ -36,6 +36,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultiHeteroOVGetMetricPropsTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("GNA"));
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MultiHeteroOVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values("MULTI", "HETERO"),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_OVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GNA = {
     {"GNA", std::make_pair(ov::AnyMap{}, "GNA")}};
 

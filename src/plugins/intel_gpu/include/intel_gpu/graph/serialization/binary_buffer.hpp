@@ -37,7 +37,7 @@ private:
 class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
 public:
     BinaryInputBuffer(std::istream& stream, engine& engine)
-    : InputBuffer(this, engine), _stream(stream), _impl_params(nullptr), _num_networks(0), _stream_id(0) {}
+    : InputBuffer(this, engine), _stream(stream), _impl_params(nullptr) {}
 
     void read(void* const data, std::streamsize size) {
         auto const read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
@@ -62,18 +62,10 @@ public:
     std::streampos tellg() { return _stream.tellg(); }
     void seekg(std::streampos pos) { _stream.seekg(pos); }
 
-    void new_network_added() { _num_networks += 1; }
-    int get_num_networks() const { return _num_networks; }
-
-    void set_stream_id(uint16_t stream_id) { _stream_id = stream_id; }
-    uint16_t get_stream_id() const { return _stream_id; }
-
 private:
     std::istream& _stream;
     void* _impl_params;
     std::vector<std::unordered_map<std::string, std::shared_ptr<memory>>> _const_data_map;
-    int _num_networks;
-    uint16_t _stream_id;
 };
 
 template <typename T>
@@ -112,12 +104,10 @@ public:
 
 #define ASSIGN_TYPE_NAME(cls_name) \
             namespace cldnn {                            \
-            const std::string cls_name::type_for_serialization = #cls_name; \
             }
 
 #define BIND_BINARY_BUFFER_WITH_TYPE(cls_name) \
             namespace cldnn {                            \
-            const std::string cls_name::type_for_serialization = #cls_name; \
             BIND_TO_BUFFER(BinaryOutputBuffer, cls_name) \
             BIND_TO_BUFFER(BinaryInputBuffer, cls_name)  \
             }

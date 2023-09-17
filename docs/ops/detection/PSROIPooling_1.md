@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about PSROIPooling-1 - an object detection operation, 
+                which can be performed on two required input tensors.
+
 **Versioned name**: *PSROIPooling-1*
 
 **Category**: *Object detection*
@@ -82,31 +86,32 @@ Batch indices must be in the range of ``[0, N-1]``.
 
 **Example**
 
-.. code-block::  cpp   
+.. code-block:: xml
+   :force:
 
-  <layer ... type="PSROIPooling" ... >
-      <data group_size="6" mode="bilinear" output_dim="360" spatial_bins_x="3" spatial_bins_y="3" spatial_scale="1"/>
-      <input>
-          <port id="0">
-              <dim>1</dim>
-              <dim>3240</dim>
-              <dim>38</dim>
-              <dim>38</dim>
-          </port>
-          <port id="1">
-              <dim>100</dim>
-              <dim>5</dim>
-          </port>
-      </input>
-      <output>
-          <port id="2">
-              <dim>100</dim>
-              <dim>360</dim>
-              <dim>6</dim>
-              <dim>6</dim>
-          </port>
-      </output>
-  </layer>
+   <layer ... type="PSROIPooling" ... >
+       <data group_size="6" mode="bilinear" output_dim="360" spatial_bins_x="3" spatial_bins_y="3" spatial_scale="1"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>3240</dim>
+               <dim>38</dim>
+               <dim>38</dim>
+           </port>
+           <port id="1">
+               <dim>100</dim>
+               <dim>5</dim>
+           </port>
+       </input>
+       <output>
+           <port id="2">
+               <dim>100</dim>
+               <dim>360</dim>
+               <dim>6</dim>
+               <dim>6</dim>
+           </port>
+       </output>
+   </layer>
 
 
 @endsphinxdirective

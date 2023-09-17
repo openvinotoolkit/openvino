@@ -2,46 +2,60 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to estimate performance of a model using Asynchronous Inference Request (C++) API in throughput mode.
+
+
 This sample demonstrates how to estimate performance of a model using Asynchronous Inference Request API in throughput mode. Unlike :doc:`demos <omz_demos>` this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
 The reported results may deviate from what :doc:`benchmark_app <openvino_inference_engine_samples_benchmark_app_README>` reports. One example is model input precision for computer vision tasks. benchmark_app sets ``uint8``, while the sample uses default model precision which is usually ``float32``.
 
-The following C++ API is used in the application:
+.. tab-set::
 
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Feature                  | API                                          | Description                                  |
-+==========================+==============================================+==============================================+
-| OpenVINO Runtime Version | ``ov::get_openvino_version``                 | Get Openvino API version.                    |
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Basic Infer Flow         | ``ov::Core``, ``ov::Core::compile_model``,   | Common API to do inference: compile a model, |
-|                          | ``ov::CompiledModel::create_infer_request``, | create an infer request,                     |
-|                          | ``ov::InferRequest::get_tensor``             | configure input tensors.                     |
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Asynchronous Infer       | ``ov::InferRequest::start_async``,           | Do asynchronous inference with callback.     |
-|                          | ``ov::InferRequest::set_callback``           |                                              |
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Model Operations         | ``ov::CompiledModel::inputs``                | Get inputs of a model.                       |
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Tensor Operations        | ``ov::Tensor::get_shape``,                   | Get a tensor shape and its data.             |
-|                          | ``ov::Tensor::data``                         |                                              |
-+--------------------------+----------------------------------------------+----------------------------------------------+
+   .. tab-item:: Requirements 
 
-+--------------------------------+------------------------------------------------------------------------------------------------+
-| Options                        | Values                                                                                         |
-+================================+================================================================================================+
-| Validated Models               | :doc:`alexnet <omz_models_model_alexnet>`,                                                     |
-|                                | :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`,                                           |
-|                                | :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,                                               |
-|                                | :doc:`face-detection-0200 <omz_models_model_face_detection_0200>`                              |
-+--------------------------------+------------------------------------------------------------------------------------------------+
-| Model Format                   | OpenVINO™ toolkit Intermediate Representation                                                  |
-|                                | (\*.xml + \*.bin), ONNX (\*.onnx)                                                              |
-+--------------------------------+------------------------------------------------------------------------------------------------+
-| Supported devices              | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                           |
-+--------------------------------+------------------------------------------------------------------------------------------------+
-| Other language realization     | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README>` |
-+--------------------------------+------------------------------------------------------------------------------------------------+
+      +--------------------------------+------------------------------------------------------------------------------------------------+
+      | Options                        | Values                                                                                         |
+      +================================+================================================================================================+
+      | Validated Models               | :doc:`alexnet <omz_models_model_alexnet>`,                                                     |
+      |                                | :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`,                                           |
+      |                                | :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,                                               |
+      |                                | :doc:`face-detection-0200 <omz_models_model_face_detection_0200>`                              |
+      +--------------------------------+------------------------------------------------------------------------------------------------+
+      | Model Format                   | OpenVINO™ toolkit Intermediate Representation                                                  |
+      |                                | (\*.xml + \*.bin), ONNX (\*.onnx)                                                              |
+      +--------------------------------+------------------------------------------------------------------------------------------------+
+      | Supported devices              | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                           |
+      +--------------------------------+------------------------------------------------------------------------------------------------+
+      | Other language realization     | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README>` |
+      +--------------------------------+------------------------------------------------------------------------------------------------+
 
+   .. tab-item:: C++ API
+      
+      The following C++ API is used in the application:
+
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Feature                  | API                                          | Description                                  |
+      +==========================+==============================================+==============================================+
+      | OpenVINO Runtime Version | ``ov::get_openvino_version``                 | Get Openvino API version.                    |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Basic Infer Flow         | ``ov::Core``, ``ov::Core::compile_model``,   | Common API to do inference: compile a model, |
+      |                          | ``ov::CompiledModel::create_infer_request``, | create an infer request,                     |
+      |                          | ``ov::InferRequest::get_tensor``             | configure input tensors.                     |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Asynchronous Infer       | ``ov::InferRequest::start_async``,           | Do asynchronous inference with callback.     |
+      |                          | ``ov::InferRequest::set_callback``           |                                              |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Model Operations         | ``ov::CompiledModel::inputs``                | Get inputs of a model.                       |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Tensor Operations        | ``ov::Tensor::get_shape``,                   | Get a tensor shape and its data.             |
+      |                          | ``ov::Tensor::data``                         |                                              |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+
+   .. tab-item:: Sample Code 
+
+      .. doxygensnippet:: samples/cpp/benchmark/throughput_benchmark/main.cpp 
+         :language: cpp
 
 How It Works
 ####################
@@ -70,7 +84,7 @@ To run the sample, you need to specify a model:
 
 .. note::
 
-   Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`Model Optimizer tool <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
    The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
@@ -130,6 +144,6 @@ See Also
 * :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 * :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
 * :doc:`Model Downloader <omz_tools_downloader>`
-* :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 
 @endsphinxdirective

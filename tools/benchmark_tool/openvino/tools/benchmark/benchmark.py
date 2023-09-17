@@ -59,9 +59,6 @@ class Benchmark:
     def set_cache_dir(self, cache_dir: str):
         self.core.set_property({'CACHE_DIR': cache_dir})
 
-    def set_allow_auto_batching(self, flag: bool):
-        self.core.set_property({'ALLOW_AUTO_BATCHING': flag})
-
     def read_model(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)
         head, ext = os.path.splitext(model_filename)
@@ -165,6 +162,7 @@ class Benchmark:
     def main_loop(self, requests, data_queue, batch_size, latency_percentile, pcseq):
         if self.api_type == 'sync':
             times, total_duration_sec, iteration = self.sync_inference(requests[0], data_queue)
+            fps = len(batch_size) * iteration / total_duration_sec
         elif self.inference_only:
             times, total_duration_sec, iteration = self.async_inference_only(requests)
             fps = len(batch_size) * iteration / total_duration_sec
@@ -176,9 +174,6 @@ class Benchmark:
         avg_latency_ms = sum(times) / len(times)
         min_latency_ms = times[0]
         max_latency_ms = times[-1]
-
-        if self.api_type == 'sync':
-            fps = len(batch_size) * 1000 / median_latency_ms
 
         if pcseq:
             for group in self.latency_groups:

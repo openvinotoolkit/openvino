@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         std::vector<int>,               // Axis to reduce order
-        CommonTestUtils::OpType,        // Scalar or vector type axis
+        ov::test::utils::OpType,        // Scalar or vector type axis
         bool,                           // Keep dims
         ngraph::helpers::ReductionType, // Reduce operation type
         InferenceEngine::Precision,     // Net precision

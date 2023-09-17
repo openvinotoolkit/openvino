@@ -13,6 +13,7 @@
 #include "ngraph/op/matmul.hpp"
 #include "ngraph/op/multiply.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {

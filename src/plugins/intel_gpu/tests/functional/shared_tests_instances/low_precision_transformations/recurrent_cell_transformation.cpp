@@ -14,7 +14,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
 };
 
@@ -92,7 +92,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);
@@ -172,7 +172,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);

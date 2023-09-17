@@ -31,10 +31,10 @@ public:
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {
             result << "Input" << i << "_";
-            result << "IS=" << CommonTestUtils::partialShape2str({shapes[i].first}) << "_";
+            result << "IS=" << ov::test::utils::partialShape2str({shapes[i].first}) << "_";
             result << "TS=";
             for (const auto& item : shapes[i].second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "direction=" << direction << "_";
@@ -49,12 +49,15 @@ protected:
         ElementType inType;
         std::tie(shapes, direction, inType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
         const size_t sequence_axis = 1;
         auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
 
         ngraph::ParameterVector body_params;
         for (size_t i = 0; i < shapes.size(); i++) {

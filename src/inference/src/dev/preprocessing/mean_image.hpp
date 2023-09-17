@@ -18,7 +18,7 @@ namespace pass {
  */
 class AddMeanImage : public ov::pass::MatcherPass {
 public:
-    using MeanMap = std::map<std::string, std::shared_ptr<ngraph::op::v0::Constant>>;
+    using MeanMap = std::map<std::string, std::shared_ptr<ov::op::v0::Constant>>;
 
     OPENVINO_RTTI("AddMeanImage", "0");
     explicit AddMeanImage(const MeanMap& inputInfoMap);

@@ -9,7 +9,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/hswish.hpp"
+#include "openvino/reference/hswish.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -28,13 +28,14 @@ shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<op::v4::HSwish>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace hswish {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
 
-    runtime::reference::hswish<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::hswish<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 

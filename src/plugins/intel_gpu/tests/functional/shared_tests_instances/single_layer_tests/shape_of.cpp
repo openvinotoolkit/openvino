@@ -26,6 +26,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Check, ShapeOfLayerTest,
                                 ::testing::ValuesIn(model_precisions),
                                 ::testing::Values(InferenceEngine::Precision::I64),
                                 ::testing::ValuesIn(input_shapes),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         ShapeOfLayerTest::getTestCaseName);
 }  // namespace

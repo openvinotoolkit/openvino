@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about MVN-6 - a normalization operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *MVN-6*
 
 **Category**: *Normalization*
@@ -81,7 +85,8 @@ If *normalize_variance* is set to ``true``, the output blob is divided by varian
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MVN">
        <data eps="1e-9" eps_mode="inside_sqrt" normalize_variance="true"/>

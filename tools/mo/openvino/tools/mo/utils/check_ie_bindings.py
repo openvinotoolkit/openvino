@@ -19,14 +19,15 @@ except ModuleNotFoundError:
 import openvino.tools.mo.utils.version as v
 try:
     import openvino_telemetry as tm  # pylint: disable=import-error,no-name-in-module
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 from openvino.tools.mo.utils.error import classify_error_type
-from openvino.tools.mo.utils.telemetry_utils import get_tid
+from openvino.tools.mo.utils.telemetry_utils import init_mo_telemetry
 
 
 def send_telemetry(mo_version: str, message: str, event_type: str):
-    t = tm.Telemetry(tid=get_tid(), app_name='Version Checker', app_version=mo_version)
+    t = init_mo_telemetry('Version Checker')
     # do not trigger new session if we are executing from the check from within the MO because it is actually not model
     # conversion run which we want to send
     if execution_type != 'mo':

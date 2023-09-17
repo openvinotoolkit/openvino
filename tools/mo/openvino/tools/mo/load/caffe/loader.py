@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 from openvino.tools.mo.load.loader import Loader
 from openvino.tools.mo.front.caffe import custom_layers_mapping, loader
 from openvino.tools.mo.front.caffe.extractor import caffe_type_extractors, caffe_extractor
@@ -17,6 +18,8 @@ class CaffeLoader(Loader):
 
     def load(self, graph: Graph):
         argv = graph.graph['cmd_params']
+        if argv.caffe_parser_path is None:
+            argv.caffe_parser_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'front', 'caffe', 'proto')
         caffe_pb2 = loader.import_caffe_pb2(argv.caffe_parser_path)
 
         proto, model = loader.load_caffe_proto_model(caffe_pb2, argv.input_proto, argv.input_model)
@@ -42,6 +45,8 @@ class CaffeLoader(Loader):
         graph.graph['original_shapes'] = original_shapes
         graph.graph['caffe_pb2'] = caffe_pb2
 
+        if argv.k is None:
+            argv.k = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'front', 'caffe', 'CustomLayersMapping.xml')
         custom_layers_map = custom_layers_mapping.load_layers_xml(argv.k)
         custom_layers_mapping.update_extractors(
             caffe_type_extractors,

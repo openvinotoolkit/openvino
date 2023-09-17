@@ -14,8 +14,6 @@ ParamsKey SoftmaxKernel_bf::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-    k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -26,6 +24,15 @@ ParamsKey SoftmaxKernel_bf::GetSupportedKey() const {
     k.EnableDifferentTypes();
     k.EnableBatching();
     k.EnableDynamicShapesSupport();
+    return k;
+}
+
+DeviceFeaturesKey SoftmaxKernel_bf::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+    k.requires_reqd_subgroup_size();
+
     return k;
 }
 

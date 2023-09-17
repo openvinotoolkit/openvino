@@ -211,6 +211,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_eltwise_activation, ::testing::Valu
 class gather_eltwise_activation_dynamic : public GatherPrimitiveFusingTest {};
 TEST_P(gather_eltwise_activation_dynamic, basic) {
     auto p = GetParam();
+    // Currently, eltwise fusion for dynamic shape + onednn is prevented
+    // To be removed once dynamic shape fusion is allowed for onednn
+    if (engine.get_device_info().supports_immad)
+        return;
+
     create_topologies(
         input_layout("input", get_input_layout(p, true)),
         input_layout("gather_indices", layout{ ov::PartialShape::dynamic(p.indices_shape.size()), p.data_type, format::bfyx }),

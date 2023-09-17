@@ -8,6 +8,10 @@
 
    openvino_docs_OV_UG_Model_caching_overview
 
+.. meta::
+   :description: OpenVINO provides methods that help to preserve minimal 
+                 latency despite the number of inference requests and 
+                 improve throughput without degrading latency.
 
 
 A significant portion of deep learning use cases involve applications loading a single model and using a single input at a time, which is the of typical "consumer" scenario.

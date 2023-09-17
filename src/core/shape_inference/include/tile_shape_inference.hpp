@@ -11,20 +11,20 @@ namespace ov {
 namespace op {
 namespace v0 {
 
-template <class T>
+template <class TShape>
 struct NegativeToZero {
     NegativeToZero() = default;
     template <class U>
-    T operator()(const U u) const {
-        return static_cast<T>(std::max<U>(0, ov::util::InTypeRange<U>()(u)));
+    TShape operator()(const U u) const {
+        return static_cast<TShape>(std::max<U>(0, ov::util::InTypeRange<U>()(u)));
     }
 };
 
-template <class T>
-std::vector<T> shape_infer(const Tile* op,
-                           const std::vector<T>& input_shapes,
-                           const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
-    using TDim = typename T::value_type;
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Tile* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+    using TDim = typename TShape::value_type;
     using TDimValue = typename TDim::value_type;
 
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
@@ -34,12 +34,13 @@ std::vector<T> shape_infer(const Tile* op,
     NODE_VALIDATION_CHECK(op, repeats_rank.compatible(1), "Tile repeats must be of rank 1");
 
     const auto& arg_shape = input_shapes[0];
-    T output_shape;
+    auto output_shapes = std::vector<TRShape>(1);
+    auto& output_shape = output_shapes[0];
 
     // Get repeats and pre process values
     constexpr auto negative_repeats_to_zero = NegativeToZero<TDimValue>();
 
-    auto repeats = get_input_const_data_as_shape<T>(op, 1, tensor_accessor, negative_repeats_to_zero);
+    auto repeats = get_input_const_data_as_shape<TRShape>(op, 1, tensor_accessor, negative_repeats_to_zero);
 
     const auto& arg_rank = arg_shape.rank();
     if (arg_rank.is_static() && repeats) {
@@ -66,7 +67,7 @@ std::vector<T> shape_infer(const Tile* op,
         // can't deduce shape, set default value
         output_shape = PartialShape::dynamic();
     }
-    return {output_shape};
+    return output_shapes;
 }
 }  // namespace v0
 }  // namespace op

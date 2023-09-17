@@ -6,6 +6,7 @@
 
 #include <type_traits>
 
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 
 namespace ov {
@@ -108,9 +109,10 @@ public:
  */
 template <class T,
           class U,
-          typename std::enable_if<((std::is_signed<T>::value || std::is_same<T, float16>::value) &&
-                                   (std::is_signed<U>::value || std::is_same<U, float16>::value)) ||
-                                  (std::is_unsigned<T>::value && std::is_unsigned<U>::value)>::type* = nullptr>
+          typename std::enable_if<
+              ((std::is_signed<T>::value || std::is_same<T, float16>::value || std::is_same<T, bfloat16>::value) &&
+               (std::is_signed<U>::value || std::is_same<U, float16>::value || std::is_same<U, bfloat16>::value)) ||
+              (std::is_unsigned<T>::value && std::is_unsigned<U>::value)>::type* = nullptr>
 constexpr bool lt(T a, U b) noexcept {
     return a < b;
 }
@@ -125,7 +127,8 @@ constexpr bool lt(T a, U b) noexcept {
 
 template <class T,
           class U,
-          typename std::enable_if<(std::is_floating_point<T>::value || std::is_same<T, float16>::value) &&
+          typename std::enable_if<(std::is_floating_point<T>::value || std::is_same<T, float16>::value ||
+                                   std::is_same<T, bfloat16>::value) &&
                                   std::is_unsigned<U>::value>::type* = nullptr>
 constexpr bool lt(T a, U b) noexcept {
     return a < 0 ? true : a < b;
@@ -141,8 +144,9 @@ constexpr bool lt(T a, U b) noexcept {
 
 template <class T,
           class U,
-          typename std::enable_if<std::is_unsigned<T>::value && (std::is_floating_point<U>::value ||
-                                                                 std::is_same<U, float16>::value)>::type* = nullptr>
+          typename std::enable_if<std::is_unsigned<T>::value &&
+                                  (std::is_floating_point<U>::value || std::is_same<U, float16>::value ||
+                                   std::is_same<U, bfloat16>::value)>::type* = nullptr>
 constexpr bool lt(T a, U b) noexcept {
     return b < 0 ? false : a < b;
 }

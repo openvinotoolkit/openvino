@@ -2,28 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/convert_precision.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/visualize_tree.hpp>
-#include <ov_ops/type_relaxed.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
-#include <transformations/convert_precision.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset5.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -1839,4 +1840,299 @@ TEST(TransformationTests, ConvertPrecision_disable_for_quantized_nodes_2) {
     const FunctionsComparator func_comparator = FunctionsComparator::with_default();
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto sin = make_shared<opset10::Sin>(param_1);
+        sin->set_friendly_name("sine");
+        sin->get_output_tensor(0).add_names({"sine:0"});
+        auto result_sin = make_shared<opset10::Result>(sin);
+        model = make_shared<Model>(result_sin, ParameterVector{param_1});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f64, element::f32}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto converted_param = make_shared<opset10::Convert>(param_1, element::f32);
+        auto sin = make_shared<opset10::Sin>(converted_param);
+        auto converted_sin = make_shared<opset10::Convert>(sin, element::f64);
+        converted_sin->get_output_tensor(0).add_names({"sine:0"});
+        auto result_sin = make_shared<opset10::Result>(converted_sin);
+        model_ref = make_shared<Model>(result_sin, ParameterVector{param_1});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    const auto& results = model->get_results();
+    ASSERT_EQ("sine", results[0]->get_input_node_ptr(0)->get_friendly_name());
+}
+
+TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+
+        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_2 = make_shared<opset10::Convert>(param_2, element::i64);
+
+        auto param_3 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_4 = make_shared<opset10::Parameter>(element::i64, Shape{3});
+
+        auto add = make_shared<opset10::Add>(convert_2, param_4);
+        auto mul = make_shared<opset10::Multiply>(param_1, param_3);
+        auto sin = make_shared<opset10::Sin>(convert_1);
+
+        add->set_friendly_name("add");
+        add->get_output_tensor(0).add_names({"add:0"});
+        mul->set_friendly_name("mul");
+        mul->get_output_tensor(0).add_names({"mul:0"});
+        sin->set_friendly_name("sine");
+        sin->get_output_tensor(0).add_names({"sine:0"});
+
+        auto result_add = make_shared<opset10::Result>(add);
+        auto result_mul = make_shared<opset10::Result>(mul);
+        auto result_sin = make_shared<opset10::Result>(sin);
+
+        model = make_shared<Model>(ResultVector{result_add, result_mul, result_sin},
+                                   ParameterVector{param_1, param_2, param_3, param_4});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(
+            precisions_map{{element::f64, element::f32}, {element::i64, element::i32}},
+            empty_type_to_fuse_map,
+            keep_precision_sensitive_in_fp32,
+            convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+
+        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_2 = make_shared<opset10::Convert>(param_2, element::i32);
+
+        auto param_3 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_3 = make_shared<opset10::Convert>(param_3, element::f32);
+        auto param_4 = make_shared<opset10::Parameter>(element::i64, Shape{3});
+        auto convert_4 = make_shared<opset10::Convert>(param_4, element::i32);
+
+        auto add = make_shared<opset10::Add>(convert_2, convert_4);
+        auto converted_add = make_shared<opset10::Convert>(add, element::i64);
+        auto convert_1_2 = make_shared<opset10::Convert>(param_1, element::f32);
+        auto mul = make_shared<opset10::Multiply>(convert_1_2, convert_3);
+        auto converted_mul = make_shared<opset10::Convert>(mul, element::f64);
+        auto sin = make_shared<opset10::Sin>(convert_1);
+
+        converted_add->get_output_tensor(0).add_names({"add:0"});
+        converted_mul->get_output_tensor(0).add_names({"mul:0"});
+        sin->get_output_tensor(0).add_names({"sine:0"});
+
+        auto result_add = make_shared<opset10::Result>(converted_add);
+        auto result_mul = make_shared<opset10::Result>(converted_mul);
+        auto result_sin = make_shared<opset10::Result>(sin);
+
+        model_ref = make_shared<Model>(ResultVector{result_add, result_mul, result_sin},
+                                       ParameterVector{param_1, param_2, param_3, param_4});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    const auto& results = model->get_results();
+    ASSERT_EQ("add", results[0]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("mul", results[1]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("sine", results[2]->get_input_node_ptr(0)->get_friendly_name());
+}
+
+TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutputs) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
+        auto split = make_shared<opset10::Split>(param_1, axis, 3);
+        split->set_friendly_name("split");
+        split->get_output_tensor(0).add_names({"split:0"});
+        split->get_output_tensor(1).add_names({"split:1"});
+        split->get_output_tensor(2).add_names({"split:2"});
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(0), "legacy_split:0");
+        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(1), "legacy_split:1");
+        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(2), "legacy_split:2");
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        model = make_shared<Model>(split->outputs(), ParameterVector{param_1});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f64, element::f32}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+        auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
+        auto split = make_shared<opset10::Split>(convert_1, axis, 3);
+
+        auto convert_split_0 = make_shared<opset10::Convert>(split->output(0), element::f64);
+        auto convert_split_1 = make_shared<opset10::Convert>(split->output(1), element::f64);
+        auto convert_split_2 = make_shared<opset10::Convert>(split->output(2), element::f64);
+        convert_split_0->get_output_tensor(0).add_names({"split:0"});
+        convert_split_1->get_output_tensor(0).add_names({"split:1"});
+        convert_split_2->get_output_tensor(0).add_names({"split:2"});
+        model_ref =
+            make_shared<Model>(NodeVector{convert_split_0, convert_split_1, convert_split_2}, ParameterVector{param_1});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    const auto& results = model->get_results();
+    ASSERT_EQ("split.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("split.1", results[1]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("split.2", results[2]->get_input_node_ptr(0)->get_friendly_name());
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ASSERT_EQ("legacy_split:0", ov::descriptor::get_ov_tensor_legacy_name(results[0]->get_input_tensor(0)));
+    ASSERT_EQ("legacy_split:1", ov::descriptor::get_ov_tensor_legacy_name(results[1]->get_input_tensor(0)));
+    ASSERT_EQ("legacy_split:2", ov::descriptor::get_ov_tensor_legacy_name(results[2]->get_input_tensor(0)));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto cond = make_shared<opset10::Parameter>(element::boolean, Shape{});
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+
+        auto if_op = make_shared<opset10::If>(cond);
+
+        auto param_1_then = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2_then = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto add = make_shared<opset10::Add>(param_1_then, param_2_then);
+        auto result_then = make_shared<opset10::Result>(add);
+        auto then_body = make_shared<Model>(result_then, ParameterVector{param_1_then, param_2_then});
+
+        auto param_1_else = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2_else = make_shared<opset10::Parameter>(element::f64, Shape{3});
+
+        auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
+        auto loop = make_shared<opset10::Loop>(trip_count, term_cond);
+
+        auto param_1_loop = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2_loop = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto mul = make_shared<opset10::Multiply>(param_1_loop, param_2_loop);
+        auto result_mul = make_shared<opset10::Result>(mul);
+        auto result_cond = make_shared<opset10::Result>(term_cond);
+        auto loop_body =
+            make_shared<Model>(ResultVector{result_cond, result_mul}, ParameterVector{param_1_loop, param_2_loop});
+
+        loop->set_function(loop_body);
+        loop->set_special_body_ports({-1, 0});
+        loop->set_merged_input(param_1_loop, param_1_else, result_mul);
+
+        auto result_else = make_shared<opset10::Result>(loop->get_iter_value(result_mul));
+        auto else_body = make_shared<Model>(result_else, ParameterVector{param_1_else, param_2_else});
+
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(param_1, param_1_then, param_1_else);
+        if_op->set_input(param_2, param_2_then, param_2_else);
+        auto result = if_op->set_output(result_then, result_else);
+
+        result.get_node()->set_friendly_name("if_result");
+        result.add_names({"if_result:0"});
+        model = make_shared<Model>(OutputVector{result}, ParameterVector{cond, param_1, param_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f64, element::f32}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto cond = make_shared<opset10::Parameter>(element::boolean, Shape{});
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+
+        auto if_op = make_shared<opset10::If>(cond);
+
+        auto param_1_then = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto param_2_then = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto add = make_shared<opset10::Add>(param_1_then, param_2_then);
+        auto result_then = make_shared<opset10::Result>(add);
+        auto then_body = make_shared<Model>(result_then, ParameterVector{param_1_then, param_2_then});
+
+        auto param_1_else = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto param_2_else = make_shared<opset10::Parameter>(element::f32, Shape{3});
+
+        auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
+        auto loop = make_shared<opset10::Loop>(trip_count, term_cond);
+
+        auto param_1_loop = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto param_2_loop = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto mul = make_shared<opset10::Multiply>(param_1_loop, param_2_loop);
+        auto result_mul = make_shared<opset10::Result>(mul);
+        auto result_cond = make_shared<opset10::Result>(term_cond);
+        auto loop_body =
+            make_shared<Model>(ResultVector{result_cond, result_mul}, ParameterVector{param_1_loop, param_2_loop});
+
+        loop->set_function(loop_body);
+        loop->set_special_body_ports({-1, 0});
+        loop->set_merged_input(param_1_loop, param_1_else, result_mul);
+
+        auto result_else = make_shared<opset10::Result>(loop->get_iter_value(result_mul));
+        auto else_body = make_shared<Model>(result_else, ParameterVector{param_1_else, param_2_else});
+
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+        auto convert_2 = make_shared<opset10::Convert>(param_2, element::f32);
+        if_op->set_input(convert_1, param_1_then, param_1_else);
+        if_op->set_input(convert_2, param_2_then, param_2_else);
+        auto result = if_op->set_output(result_then, result_else);
+        auto converted_result = make_shared<opset10::Convert>(result, element::f64);
+        converted_result->get_output_tensor(0).add_names({"if_result:0"});
+
+        model_ref = make_shared<Model>(converted_result, ParameterVector{cond, param_1, param_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    const auto& results = model->get_results();
+    ASSERT_EQ("if_result", results[0]->get_input_node_ptr(0)->get_friendly_name());
 }

@@ -20,7 +20,7 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 4244 conversion from 'XXX' to 'YYY', possible loss of data
-    ie_add_compiler_flags(/wd4244)
+    ov_add_compiler_flags(/wd4244)
 endif()
 
 set(ONNX_USE_PROTOBUF_SHARED_LIBS OFF CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
@@ -49,7 +49,6 @@ endforeach()
 if(WIN32)
     # from onnx==1.13.1 it requires C++17 when compiling on Windows
     target_compile_features(onnx PRIVATE cxx_std_17)
-    set_target_properties(onnx PROPERTIES CXX_STANDARD 17)
     # OPTIONAL is a reserved word for mingw at least
     if(MINGW)
         target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
@@ -65,7 +64,7 @@ ov_install_static_lib(onnx_proto ${OV_CPACK_COMP_CORE})
 
 # WA for ONNX: protobuf must be in the same export set of ONNX targets
 # in case of protobuf::libprotobuf-lite / protobuf::libprotobuf are imported targets
-if(NOT ENABLE_SYSTEM_PROTOBUF)
+if(NOT ENABLE_SYSTEM_PROTOBUF AND NOT BUILD_SHARED_LIBS)
     if(ONNX_USE_LITE_PROTO)
         set(protobuf_target_name libprotobuf-lite)
     else()

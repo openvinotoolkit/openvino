@@ -16,6 +16,7 @@
 #include "perf_counter.hpp"
 #include "tensor_conversion_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 class DynamicTensor : public ngraph::runtime::HostTensor {

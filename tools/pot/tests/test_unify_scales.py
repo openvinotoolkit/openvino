@@ -18,9 +18,6 @@ from .utils.path import TEST_ROOT
 from .utils.data_helper import load_json
 
 TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'MinMaxQuantization', 'performance', 'VPU'),
-    ('resnet-50-tf', 'tf', 'DefaultQuantization', 'performance', 'VPU'),
-    ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'accuracy', 'VPU'),
     ('concat_depthwise_model', 'pytorch', 'MinMaxQuantization', 'accuracy', 'CPU'),
 ]
 

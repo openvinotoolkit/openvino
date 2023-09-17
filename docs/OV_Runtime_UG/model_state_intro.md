@@ -7,7 +7,11 @@
    :hidden:
 
    openvino_docs_OV_UG_lowlatency2
-   openvino_docs_OV_UG_lowlatency_deprecated
+
+.. meta::
+   :description: OpenVINO Runtime includes a special API to work with stateful 
+                 networks, where a state can be automatically read, set, saved 
+                 or reset between inferences.
 
 
 Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
@@ -26,7 +30,7 @@ OpenVINO State Representation
 
 OpenVINO contains the ``Variable``, a special abstraction to represent a state in a model. There are two operations: :doc:`Assign <openvino_docs_ops_infrastructure_Assign_3>` - to save a value in a state and :doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_3>` - to read a value saved on previous iteration.
 
-To get a model with states ready for inference, convert a model from another framework to OpenVINO IR with Model Optimizer or create an OpenVINO model. 
+To get a model with states ready for inference, convert a model from another framework to OpenVINO IR with model conversion API or create an OpenVINO model. 
 (For more information, refer to the :doc:`Build OpenVINO Model section <openvino_docs_OV_UG_Model_Representation>`). 
 
 Below is the graph in both forms:
@@ -159,9 +163,21 @@ Example of Creating Model OpenVINO API
 
 In the following example, the ``SinkVector`` is used to create the ``ov::Model``. For a model with states, except inputs and outputs, the ``Assign`` nodes should also point to the ``Model`` to avoid deleting it during graph transformations. Use the constructor to do it, as shown in the example, or with the special ``add_sinks(const SinkVector& sinks)`` method. After deleting the node from the graph with the ``delete_sink()`` method, a sink can be deleted from ``ov::Model``.
 
-.. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
-   :language: cpp
-   :fragment: [model_create]
+.. tab-set::
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
+         :language: cpp
+         :fragment: [model_create]
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.py
+         :language: python
+         :fragment: ov:model_create
 
 .. _openvino-state-api:
 
@@ -185,10 +201,22 @@ Based on the IR from the previous section, the example below demonstrates infere
 
 One infer request and one thread will be used in this example. Using several threads is possible if there are several independent sequences. Then, each sequence can be processed in its own infer request. Inference of one sequence in several infer requests is not recommended. In one infer request, a state will be saved automatically between inferences, but if the first step is done in one infer request and the second in another, a state should be set in a new infer request manually (using the ``ov::IVariableState::set_state`` method).
 
+.. tab-set::
 
-.. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
-   :language: cpp
-   :fragment: [part1]
+   .. tab-item:: C++
+      :sync: cpp
+      
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
+         :language: cpp
+         :fragment: [part1]
+    
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.py
+         :language: python
+         :fragment: ov:part1
+
 
 
 For more elaborate examples demonstrating how to work with models with states, 
@@ -197,16 +225,12 @@ refer to the speech sample and a demo in the :doc:`Samples Overview <openvino_do
 LowLatency Transformations
 ##########################
 
-If the original framework does not have a special API for working with states, OpenVINO representation will not contain ``Assign``/``ReadValue`` layers after importing the model. For example, if the original ONNX model contains RNN operations, OpenVINO IR will contain :doc:`TensorIterator <openvino_docs_ops_infrastructure_TensorIterator_1>` operations and the values will be obtained only after execution of the whole ``TensorIterator`` primitive. Intermediate values from each iteration will not be available. Working with these intermediate values of each iteration is enabled by special :doc:`LowLatency <openvino_docs_OV_UG_lowlatency_deprecated>` and :doc:`LowLatency2 <openvino_docs_OV_UG_lowlatency2>` transformations, which also help receive these values with a low latency after each infer request.
-
-.. note::
-
-   It is recommended to use LowLatency2, as LowLatency transformation has already been deprecated.
+If the original framework does not have a special API for working with states, OpenVINO representation will not contain ``Assign``/``ReadValue`` layers after importing the model. For example, if the original ONNX model contains RNN operations, OpenVINO IR will contain :doc:`TensorIterator <openvino_docs_ops_infrastructure_TensorIterator_1>` operations and the values will be obtained only after execution of the whole ``TensorIterator`` primitive. Intermediate values from each iteration will not be available. Working with these intermediate values of each iteration is enabled by special and :doc:`LowLatency2 <openvino_docs_OV_UG_lowlatency2>` transformation, which also help receive these values with a low latency after each infer request.
 
 TensorIterator/Loop operations
 ++++++++++++++++++++++++++++++
 
-You can get the TensorIterator/Loop operations from different frameworks via Model Optimizer.
+You can get the TensorIterator/Loop operations from different frameworks via model conversion API.
 
 * **ONNX and frameworks supported via ONNX format** - ``LSTM``, ``RNN``, and ``GRU`` original layers are converted to the ``TensorIterator`` operation. The ``TensorIterator`` body contains ``LSTM``/``RNN``/``GRU Cell``. The ``Peepholes`` and ``InputForget`` modifications are not supported, while the ``sequence_lengths`` optional input is.
 ``ONNX Loop`` layer is converted to the OpenVINO :doc:`Loop <openvino_docs_ops_infrastructure_Loop_5>` operation.
@@ -214,7 +238,7 @@ You can get the TensorIterator/Loop operations from different frameworks via Mod
 * **Apache MXNet** - ``LSTM``, ``RNN``, ``GRU`` original layers are converted to ``TensorIterator`` operation, which body contains ``LSTM``/``RNN``/``GRU Cell`` operations.
 
 * **TensorFlow** - ``BlockLSTM`` is converted to ``TensorIterator`` operation. The ``TensorIterator`` body contains ``LSTM Cell`` operation, whereas ``Peepholes`` and ``InputForget`` modifications are not supported.
-The ``While`` layer is converted to ``TensorIterator``, which body can contain any supported operations. However, when count of iterations cannot be calculated in shape inference (Model Optimizer conversion) time, the dynamic cases are not supported.
+The ``While`` layer is converted to ``TensorIterator``, which body can contain any supported operations. However, when count of iterations cannot be calculated in shape inference (model conversion) time, the dynamic cases are not supported.
 
 * **TensorFlow2** - ``While`` layer is converted to ``Loop`` operation, which body can contain any supported operations.
 

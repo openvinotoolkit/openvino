@@ -471,13 +471,12 @@ public:
        * @endcode
      */
     tensor transform(cldnn::format new_fmt, value_type default_size) const {
-        cldnn::format format = cldnn::format::bfvuwzyx;
-        auto val_order = format.internal_order();
+        cldnn::format default_fmt = cldnn::format::bfvuwzyx;
+        auto val_order = default_fmt.internal_order();
         auto new_order = new_fmt.internal_order();
         std::vector<value_type> old_sizes = sizes();
         std::vector<value_type> new_sizes(old_sizes.size(), default_size);
         const auto& new_traits = format::traits(new_fmt);
-        const cldnn::format default_fmt = cldnn::format::bfvuwzyx;
         static const std::map<char, char> flatten_mapping = {
             { 'v', 'u'},
             { 'u', 'w'},
@@ -616,15 +615,17 @@ public:
         return offset;
     }
 
-    /// @brief Returns tensor as Partial shape of requested rank
-    ov::PartialShape get_partial_shape(size_t rank) const {
+    /// @brief Returns partial shape of the requested rank
+    /// @param rank The requested rank of partial shape
+    /// @param format_dims Number of actual dimensions for layout's format
+    ov::PartialShape get_partial_shape(size_t rank, size_t format_dims) const {
         ov::Shape shape;
         size_t i = 0;
         for (; i < std::min(static_cast<size_t>(2), rank); ++i) {
             shape.push_back(_sizes[i]);
         }
         for (; i < rank; ++i) {
-            shape.push_back(_sizes[rank - (i - 2) - 1]);
+            shape.push_back(_sizes[format_dims - (i - 2) - 1]);
         }
         return ov::PartialShape(shape);
     }

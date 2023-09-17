@@ -20,6 +20,7 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
 class PreprocEngine {
     using BlobDesc = std::tuple<Precision, Layout, SizeVector, ColorFormat>;
     using CallDesc = std::tuple<BlobDesc, BlobDesc, ResizeAlgorithm>;
@@ -55,5 +56,6 @@ public:
     void preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm,
         ColorFormat in_fmt, bool omp_serial, int batch_size = -1);
 };
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

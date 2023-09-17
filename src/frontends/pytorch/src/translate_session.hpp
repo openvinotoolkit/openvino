@@ -30,17 +30,29 @@ public:
     /// context which is visible from nested model. Empty external_tensor_map is used as an indication that this is a
     /// main body conversion.
     /// \return fully converted OV Model
-    std::shared_ptr<Model> convert_pytorch_model(
-        std::shared_ptr<TorchDecoder> pytorch_model,
-        const TensorMap& external_tensor_map = {},
-        const std::unordered_map<size_t, PlaceDesc>& external_descriptors = {});
+    std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
+                                                 const TensorMap& external_tensor_map = {},
+                                                 const std::shared_ptr<pytorch::InputModel>& input_model = nullptr);
 
+    /// \brief Returns backprop operations for direct operation
+    Output<Node> get_backprop_op(const std::shared_ptr<TorchDecoder>& node,
+                                 const Output<Node>& direct_op_output,
+                                 const Output<Node>& value);
+
+    /// \brief Writes pytorch tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,
                             size_t tensor_idx,
                             std::vector<std::string> additional_names = {});
+
+    /// \brief Gets pytorch tensor index from openvino tensor
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
 
-    size_t m_friendly_name_counter = 0;
+    /// \brief Make sure Node has unique name
+    void unique_name(const std::shared_ptr<Node>& node);
+
+    // Maps tensor index to initial tensor index which it is alias to, and to decoder of the node produced this alias
+    // and to the output produced during conversion of this node
+    std::map<size_t, std::tuple<size_t, std::shared_ptr<TorchDecoder>, Output<Node>>> m_may_be_alias;
 
 private:
     OutputVector convert_node(const NodeContext& context);
@@ -52,6 +64,8 @@ private:
 
     std::map<size_t, std::pair<size_t, Output<Node>>> m_counter_map;
     std::map<std::string, uint64_t> m_op_statistics;
+    std::unordered_set<std::string> m_unique_friendly_name_set;
+    size_t m_friendly_name_counter = 0;
 };
 
 }  // namespace pytorch

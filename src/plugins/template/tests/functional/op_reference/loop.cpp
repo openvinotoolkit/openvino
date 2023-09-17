@@ -44,8 +44,8 @@ struct LoopDynamicInputs : public LoopFunctionalBase {
         auto M_body = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto body_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
-        auto trip_count = std::make_shared<ov::opset8::Constant>(ngraph::element::i64, ov::Shape{1}, 3);
-        auto exec_condition = std::make_shared<ov::opset8::Constant>(ngraph::element::boolean, ov::Shape{1}, true);
+        auto trip_count = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1}, 3);
+        auto exec_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
         // Body
         auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
         auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
@@ -240,7 +240,7 @@ public:
         std::ostringstream result;
         result << "TS=";
         for (auto& input : param.inputs) {
-            result << CommonTestUtils::vec2str(input.shape) << "_";
+            result << ov::test::utils::vec2str(input.shape) << "_";
         }
         result << "_tripCount=" << param.trip_count;
         result << "_loopInType=";

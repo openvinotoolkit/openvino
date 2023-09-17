@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/type.hpp"
+#include "openvino/core/type.hpp"
 
 #include "openvino/util/common_util.hpp"
 
 namespace std {
-size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTypeInfo& k) const {
+size_t std::hash<ov::DiscreteTypeInfo>::operator()(const ov::DiscreteTypeInfo& k) const {
     return k.hash();
 }
 }  // namespace std

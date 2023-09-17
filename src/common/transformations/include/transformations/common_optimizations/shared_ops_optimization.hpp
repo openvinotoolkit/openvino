@@ -1,0 +1,27 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
+
+namespace ov {
+namespace pass {
+
+class TRANSFORMATIONS_API SharedOpOptimization;
+
+}  // namespace pass
+}  // namespace ov
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief SharedOpOptimization optimizes operations which are
+ * sourcing from same Output<Node> and perform the same action on the same data
+ */
+class ov::pass::SharedOpOptimization : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("SharedOpOptimization", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};

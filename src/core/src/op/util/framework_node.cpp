@@ -5,7 +5,6 @@
 #include "openvino/op/util/framework_node.hpp"
 
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
 
 ov::op::util::FrameworkNode::FrameworkNode(const OutputVector& inputs, size_t output_size, size_t num_subgraphs)
     : MultiSubGraphOp(num_subgraphs),

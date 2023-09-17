@@ -51,7 +51,12 @@ void RangeLayerTest::SetUp() {
     tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     std::vector<std::pair<std::string, std::vector<size_t>>> inputs {{"start", {}}, {"stop", {}}, {"step", {}}};
-    auto params = ngraph::builder::makeParams(ngPrc, inputs);
+    ov::ParameterVector params;
+    for (auto&& shape : inputs) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape.second));
+        param->set_friendly_name(shape.first);
+        params.push_back(param);
+    }
     auto range = std::make_shared<ngraph::opset4::Range>(params[0], params[1], params[2], ngPrc);
 
     function = std::make_shared<ngraph::Function>(
@@ -105,7 +110,9 @@ void RangeNumpyLayerTest::SetUp() {
     auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
     auto ngParamPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(paramPrc);
 
-    auto params = ngraph::builder::makeParams(ngParamPrc, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngParamPrc, ov::Shape()),
+                               std::make_shared<ov::op::v0::Parameter>(ngParamPrc, ov::Shape()),
+                               std::make_shared<ov::op::v0::Parameter>(ngParamPrc, ov::Shape())};
     params[0]->set_friendly_name("start");
     params[1]->set_friendly_name("stop");
     params[2]->set_friendly_name("step");

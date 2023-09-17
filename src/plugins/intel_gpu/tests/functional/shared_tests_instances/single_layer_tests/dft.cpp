@@ -26,7 +26,7 @@ const auto combine = [](const std::vector<InferenceEngine::SizeVector>& inputSha
                             testing::ValuesIn(axes),
                             testing::ValuesIn(signalSizes),
                             testing::ValuesIn(opTypes),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 using namespace LayerTestsDefinitions;

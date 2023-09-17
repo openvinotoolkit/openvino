@@ -27,7 +27,7 @@ void ov::intel_cpu::NgramNode::validate_and_infer_types() {
     NGRAPH_CHECK(m_k > 0, "k attribute must be greater than zero");
 
     const auto& idces_et = get_input_element_type(1);
-    const auto& idces_shape = get_input_partial_shape(0);
+    const auto& idces_shape = get_input_partial_shape(1);
     NGRAPH_CHECK(idces_shape.rank() == 2, "'batch_idces' input must have 2D shape whereas current shape is", idces_shape);
     NGRAPH_CHECK(idces_et.is_integral_number(), "'batch_idces' input must be integer whereas current element type is", idces_et);
 

@@ -23,7 +23,6 @@ public:
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    bool isOptimized() const;
     void initOptimalPrimitiveDescriptor() override;
 
     bool isExecutable() const override;
@@ -32,6 +31,7 @@ public:
     bool needShapeInfer() const override;
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
 private:
     struct SplitExecutor {

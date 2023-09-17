@@ -6,6 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
+#include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -24,7 +25,7 @@ class TRANSFORMATIONS_API TSConcatBackward;
  * @brief TSConcatForward transformation sinks Transpose through Concat operation
  * in the forward direction.
  */
-class ov::pass::transpose_sinking::TSConcatForward : public ov::pass::MatcherPass {
+class ov::pass::transpose_sinking::TSConcatForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
     OPENVINO_RTTI("ov::pass::TSConcatForward", "0");
     TSConcatForward();

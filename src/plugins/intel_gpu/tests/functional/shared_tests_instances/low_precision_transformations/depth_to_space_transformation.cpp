@@ -29,7 +29,7 @@ const std::vector<ngraph::PartialShape> inputShapesBS2 = {
 const auto DepthToSpaceBS2 = ::testing::Combine(
     ::testing::ValuesIn(precisions),
     ::testing::ValuesIn(inputShapesBS2),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+    ::testing::Values(ov::test::utils::DEVICE_GPU),
     ::testing::ValuesIn(modes),
     ::testing::Values(2)
 );
@@ -43,7 +43,7 @@ const std::vector<ngraph::PartialShape> inputShapesBS3 = {
 const auto DepthToSpaceBS3 = ::testing::Combine(
     ::testing::ValuesIn(precisions),
     ::testing::ValuesIn(inputShapesBS3),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+    ::testing::Values(ov::test::utils::DEVICE_GPU),
     ::testing::ValuesIn(modes),
     ::testing::Values(3)
 );

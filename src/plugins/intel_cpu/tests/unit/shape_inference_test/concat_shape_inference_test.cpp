@@ -7,7 +7,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "utils.hpp"
-#include "utils/shape_inference/static_shape.hpp"
+#include "shape_inference/static_shape.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 /** \brief Check shape_infer for concat op on static shapes. */
 TEST_P(ConcatStaticShapeInferenceTest, concat_static) {
-    shape_infer(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
 }

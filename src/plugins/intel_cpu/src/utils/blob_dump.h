@@ -29,8 +29,7 @@ public:
     BlobDumper() = default;
     BlobDumper(const DnnlBlockedMemoryDesc &desc) {
         dnnl::engine eng(dnnl::engine::kind::cpu, 0);
-        memory = std::make_shared<Memory>(eng);
-        memory->Create(desc);
+        memory = std::make_shared<Memory>(eng, desc);
     }
     BlobDumper(const BlobDumper&) = default;
     BlobDumper& operator = (BlobDumper&&) = default;
@@ -47,7 +46,7 @@ public:
     void dumpAsTxt(std::ostream &stream) const;
 
     void *getDataPtr() const {
-        return memory->GetPtr();
+        return memory->getData();
     }
 };
 

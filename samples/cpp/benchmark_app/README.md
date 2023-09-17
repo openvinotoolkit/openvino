@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to use the Benchmark C++ Tool to 
+                 estimate deep learning inference performance on supported 
+                 devices.
+
+
 This page demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
 
 .. note::
@@ -125,7 +131,7 @@ Advanced Usage
 
 .. note::
 
-   By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channel order in the sample or demo application or reconvert your model using the Model Optimizer tool with --reverse_input_channels argument specified. For more information about the argument, refer to When to Reverse Input Channels section of Converting a Model to Intermediate Representation (IR).
+   By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channel order in the sample or demo application or reconvert your model using ``mo`` with ``reverse_input_channels`` argument specified. For more information about the argument, refer to When to Reverse Input Channels section of Converting a Model to Intermediate Representation (IR).
 
 Per-layer performance and logging
 +++++++++++++++++++++++++++++++++
@@ -147,7 +153,8 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
 
 .. scrollbox::
 
-   .. code-block::
+   .. code-block:: sh
+      :force:
 
       [Step 1/11] Parsing and validating input arguments
       [ INFO ] Parsing input parameters
@@ -193,7 +200,7 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
           -ip   <value>           Optional. Specifies precision for all input layers of the model.
           -op   <value>           Optional. Specifies precision for all output layers of the model.
           -iop  <value>           Optional. Specifies precision for input and output layers by name.
-                                                   Example: -iop "input:FP16, output:FP16".
+                                                   Example: -iop "input:f16, output:f16".
                                                    Notice that quotes are required.
                                                    Overwrites precision from ip and op options for specified layers.
           -mean_values   [R,G,B]  Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for desired input of the    model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the original model was trained. Applying the    values affects performance and may cause type conversion
@@ -405,7 +412,7 @@ See Also
 ####################
 
 * :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 * :doc:`Model Downloader <omz_tools_downloader>`
 
 @endsphinxdirective

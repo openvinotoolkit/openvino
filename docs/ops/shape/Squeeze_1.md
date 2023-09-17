@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Squeeze-1 - a shape manipulation operation, which 
+                can be performed on one required and one optional input tensor.
+
 **Versioned name**: *Squeeze-1*
 
 **Category**: *Shape manipulation*
@@ -35,7 +39,8 @@
 
 *Example 1: squeeze 4D tensor to a 2D tensor*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Squeeze">
         <input>
@@ -61,7 +66,8 @@
 
 *Example 2: squeeze 1D tensor with 1 element to a 0D tensor (constant)*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Squeeze">
         <input>

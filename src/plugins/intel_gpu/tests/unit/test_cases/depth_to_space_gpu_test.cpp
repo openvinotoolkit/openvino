@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/depth_to_space.hpp>
@@ -205,12 +206,13 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     //  Output : 1x3x1920x1080
     //  Input values in fp16
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 12, 960, 540 } });
     size_t block_size = 2;
 
-    auto random_input = generate_random_4d<FLOAT16>(1, 12, 540, 960, -1, 1);
+    auto random_input = rg.generate_random_4d<FLOAT16>(1, 12, 540, 960, -1, 1);
     auto input_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, random_input);
     set_values(input1, input_rnd_vec);
 

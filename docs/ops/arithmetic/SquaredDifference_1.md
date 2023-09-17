@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about SquaredDifference-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *SquaredDifference-1*
 
 **Category**: *Arithmetic binary*
@@ -46,7 +50,8 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 *Example 1 - no broadcasting*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="SquaredDifference">
         <data auto_broadcast="none"/>
@@ -70,7 +75,8 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 *Example 2: numpy broadcasting*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="SquaredDifference">
         <data auto_broadcast="numpy"/>

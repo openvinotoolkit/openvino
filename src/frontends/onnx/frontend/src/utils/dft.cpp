@@ -6,6 +6,7 @@
 
 #include "default_opset.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/core/deprecated.hpp"
 
 using namespace ngraph::onnx_import;
 
@@ -46,7 +47,9 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
     if (is_inversed || !is_onesided) {  // skip for RDFT case
         conversion_to_complex_applied = try_convert_real_to_complex(processed_signal);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool dft_length_provided = !ngraph::op::is_null(length);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ov::Output<ov::Node> result;
     if (is_inversed) {

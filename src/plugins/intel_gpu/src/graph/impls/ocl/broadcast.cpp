@@ -17,7 +17,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     using kernel_selector_t = kernel_selector::broadcast_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::broadcast_params, kernel_selector::broadcast_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::broadcast_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<broadcast_impl>(*this);
@@ -182,3 +182,4 @@ attach_broadcast_impl::attach_broadcast_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::broadcast_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::broadcast)
