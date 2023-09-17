@@ -13,7 +13,6 @@
    * offers C/C++ APIs only
    * does not offer support for GNA and NPU inference
    * additionally includes code samples 
-   * is dedicated to Linux users.
 
 .. tab-set::
 

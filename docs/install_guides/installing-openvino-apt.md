@@ -13,7 +13,6 @@
    * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
    * additionally includes code samples 
-   * is dedicated to Linux users.
 
 
 .. tab-set::
@@ -188,6 +187,11 @@ For C++ and C, just run the ``build_samples.sh`` script:
    
          /usr/share/openvino/samples/c/build_samples.sh
 
+Python samples can run as following:
+
+.. code-block:: sh
+
+   python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
 
 Uninstalling OpenVINO Runtime
 #######################################
