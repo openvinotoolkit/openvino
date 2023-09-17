@@ -66,15 +66,15 @@ which means the compiler stage will require additional time to complete the proc
 
 After installation, you can use OpenVINO in your product's cmake scripts:
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      find_package(OpenVINO REQUIRED)
+   find_package(OpenVINO REQUIRED)
 
 And running from terminal:
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      cmake -B <build dir> -S <source dir> -DCMAKE_TOOLCHAIN_FILE=<path to vcpkg>/scripts/buildsystems/vcpkg.cmake
+   cmake -B <build dir> -S <source dir> -DCMAKE_TOOLCHAIN_FILE=<path to vcpkg>/scripts/buildsystems/vcpkg.cmake
 
 Congratulations! You've just Installed and used OpenVINO in your project! For some use cases you may still
 need to install additional components. Check the 

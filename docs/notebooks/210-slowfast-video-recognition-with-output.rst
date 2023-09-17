@@ -1,8 +1,6 @@
 Video Recognition using SlowFast and OpenVINO™
 ==============================================
 
-
-
 Teaching machines to detect, understand and analyze the contents of
 images has been one of the more well-known and well-studied problems in
 computer vision. However, analyzing videos to understand what is
@@ -40,9 +38,7 @@ This tutorial consists of the following steps
 
 .. |image0| image:: https://user-images.githubusercontent.com/34324155/143044111-94676f64-7ba8-4081-9011-f8054bed7030.png
 
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
 
 - `Prepare PyTorch Model <#prepare-pytorch-model>`__
 
@@ -50,25 +46,23 @@ This tutorial consists of the following steps
   - `Imports and Settings <#imports-and-settings>`__
 
 - `Export to ONNX <#export-to-onnx>`__
-- `Convert ONNX to OpenVINO™ Intermediate Representation <#convert-onnx-to-openvino™-intermediate-representation>`__
+- `Convert ONNX to OpenVINO™ Intermediate Representation <#convert-onnx-to-openvino-intermediate-representation>`__
 - `Select inference device <#select-inference-device>`__
 - `Verify Model Inference <#verify-model-inference>`__
 
-Prepare PyTorch Model `⇑ <#top>`__
+Prepare PyTorch Model
 ###############################################################################################################################
 
-
-Install necessary packages `⇑ <#top>`__
+Install necessary packages
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 .. code:: ipython3
 
-    !pip install fvcore -q
+    !pip install -q "openvino==2023.1.0.dev20230811"
+    !pip install -q fvcore
 
-Imports and Settings `⇑ <#top>`__
+Imports and Settings
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 .. code:: ipython3
 
@@ -81,7 +75,7 @@ Imports and Settings `⇑ <#top>`__
     from pathlib import Path
     from typing import Any, List, Dict
     from IPython.display import Video
-    from openvino.runtime.ie_api import CompiledModel
+    import openvino as ov
     
     sys.path.append("../utils")
     from notebook_utils import download_file
@@ -865,7 +859,7 @@ model.
             frames=frames, num_frames=num_frames, crop_size=crop_size, mean=mean, std=std
         )
     
-        if isinstance(model, CompiledModel):
+        if isinstance(model, ov.CompiledModel):
             # openvino compiled model
             output_blob = model.output(0)
             predictions = model(inputs)[output_blob]
@@ -920,9 +914,8 @@ inference using the same. The top 5 predictions can be seen below.
     Predicted labels: archery, throwing axe, playing paintball, golf driving, riding or walking with horse
 
 
-Export to ONNX `⇑ <#top>`__
+Export to ONNX
 ###############################################################################################################################
-
 
 Now that we have obtained our trained model and checked inference with
 it, we export the PyTorch model to Open Neural Network Exchange(ONNX)
@@ -945,29 +938,24 @@ quantization.
         export_params=True,
     )
 
-Convert ONNX to OpenVINO™ Intermediate Representation `⇑ <#top>`__
+Convert ONNX to OpenVINO Intermediate Representation
 ###############################################################################################################################
-
 
 Now that our ONNX model is ready, we can convert it to IR format. In
 this format, the network is represented using two files: an ``xml`` file
 describing the network architecture and an accompanying binary file that
 stores constant values such as convolution weights in a binary format.
 We can use model conversion API for converting into IR format as
-follows. The ``convert_model`` method returns an
-``openvino.runtime.Model`` object that can either be compiled and
-inferred or serialized.
+follows. The ``ov.convert_model`` method returns an ``ov.Model`` object
+that can either be compiled and inferred or serialized.
 
 .. code:: ipython3
 
-    from openvino.runtime import serialize
-    from openvino.tools import mo
-    
-    model = mo.convert_model(ONNX_MODEL_PATH)
+    model = ov.convert_model(ONNX_MODEL_PATH)
     IR_PATH = MODEL_DIR / "slowfast-r50.xml"
     
     # serialize model for saving IR
-    serialize(model=model, xml_path=str(IR_PATH))
+    ov.save_model(model=model, output_model=str(IR_PATH), compress_to_fp16=False)
 
 Next, we read and compile the serialized model using OpenVINO runtime.
 The ``read_model`` function expects the ``.bin`` weights file to have
@@ -977,16 +965,13 @@ using the ``weights`` parameter.
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
-    
-    core = Core()
+    core = ov.Core()
     
     # read converted model
     conv_model = core.read_model(str(IR_PATH))
 
-Select inference device `⇑ <#top>`__
+Select inference device
 ###############################################################################################################################
-
 
 Select device from dropdown list for running inference using OpenVINO:
 
@@ -1017,9 +1002,8 @@ Select device from dropdown list for running inference using OpenVINO:
     # load model on device
     compiled_model = core.compile_model(model=conv_model, device_name=device.value)
 
-Verify Model Inference `⇑ <#top>`__
+Verify Model Inference
 ###############################################################################################################################
-
 
 Using the compiled model, we run inference on the same sample video and
 print the top 5 predictions again.
