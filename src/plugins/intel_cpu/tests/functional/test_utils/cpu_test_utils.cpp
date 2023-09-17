@@ -6,6 +6,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+#include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "utils/general_utils.h"
 #include <cstdint>
 
@@ -321,7 +322,7 @@ CPUTestsBase::makeCPUInfo(const std::vector<cpu_memory_format_t>& inFmts,
                         ov::intel_cpu::OutputMemoryFormats(fmts2str(outFmts, "cpu:"))});
     }
     if (!priority.empty()) {
-        cpuInfo.insert({"PrimitivesPriority", impls2str(priority)});
+        cpuInfo.insert({ov::PrimitivesPriority::get_type_info_static(), impls2str(priority)});
     }
 
     cpuInfo.insert({"enforceBF16evenForGraphTail", true});
