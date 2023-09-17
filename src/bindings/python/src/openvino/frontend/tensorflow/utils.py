@@ -193,7 +193,7 @@ def create_generic_function_from_keras_model(keras_model):
                                                     name=tensor_name))
     elif isinstance(keras_input_signature, list):
         tf_input_signature = []
-        for tensor_spec in keras_input_signature.items():
+        for tensor_spec in keras_input_signature:
             tf_input_signature.append(tf.TensorSpec(shape=tensor_spec.shape,
                                                     dtype=tensor_spec.dtype,
                                                     name=tensor_spec.name))
