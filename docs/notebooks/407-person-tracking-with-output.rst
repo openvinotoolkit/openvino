@@ -1,7 +1,7 @@
 Person Tracking with OpenVINO™
 ==============================
 
-.. _top:
+
 
 This notebook demonstrates live person tracking with OpenVINO: it reads
 frames from an input video sequence, detects people in the frames,
@@ -95,6 +95,8 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
+.. _top:
+
 **Table of contents**:
 
 - `Imports <#imports>`__
@@ -182,15 +184,15 @@ Representation (OpenVINO IR).
 
    Using a model outside the list can require different pre- and post-processing.
 
-In this case, `person detection model <https://docs.openvino.ai/2023.0/omz_models_model_person_detection_0202.html>`__
+In this case, `person detection model <https://docs.openvino.ai/2023.1/omz_models_model_person_detection_0202.html>`__
 is deployed to detect the person in each frame of the video, and
-`reidentification model <https://docs.openvino.ai/2023.0/omz_models_model_person_reidentification_retail_0287.html>`__
+`reidentification model <https://docs.openvino.ai/2023.1/omz_models_model_person_reidentification_retail_0287.html>`__
 is used to output embedding vector to match a pair of images of a person
 by the cosine distance.
 
 If you want to download another model (``person-detection-xxx`` from
-`Object Detection Models list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#object-detection-models>`__,
-``person-reidentification-retail-xxx`` from `Reidentification Models list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#reidentification-models>`__),
+`Object Detection Models list <https://docs.openvino.ai/2023.1/omz_models_group_intel.html#object-detection-models>`__,
+``person-reidentification-retail-xxx`` from `Reidentification Models list <https://docs.openvino.ai/2023.1/omz_models_group_intel.html#reidentification-models>`__),
 replace the name of the model in the code below.
 
 .. code:: ipython3

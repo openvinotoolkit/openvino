@@ -7,8 +7,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void gather_tree(const char* step_ids,
                  const char* parent_ids,
@@ -21,5 +20,4 @@ void gather_tree(const char* step_ids,
                  const Shape& end_token_shape,
                  const element::Type& type);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

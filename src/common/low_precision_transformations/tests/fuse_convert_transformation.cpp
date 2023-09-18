@@ -9,8 +9,8 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/fuse_convert.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -47,13 +47,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     FuseConvertTransformationTestValues> FuseConvertTransformationParams;
 
 class FuseConvertTransformation : public LayerTransformation, public testing::WithParamInterface<FuseConvertTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const FuseConvertTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::FuseConvertFunction::get(
@@ -64,7 +64,7 @@ public:
                 testValues.constInput);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FuseConvertTransformation, ov::op::v0::Convert>(testValues.params);
+        transformer.add<ov::pass::low_precision::FuseConvertTransformation, ov::op::v0::Convert>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FuseConvertFunction::get(
@@ -76,7 +76,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FuseConvertTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const FuseConvertTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -102,7 +102,7 @@ TEST_P(FuseConvertTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 4, 16, 16},
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
     PartialShape::dynamic()
@@ -182,7 +182,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 4, 16, 16},
 };
 

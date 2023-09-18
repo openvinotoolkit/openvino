@@ -9,12 +9,11 @@
 #include <iterator>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
 
@@ -249,5 +248,4 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

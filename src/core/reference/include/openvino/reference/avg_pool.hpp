@@ -11,11 +11,10 @@
 #include <vector>
 
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void avg_pool_backprop(const T* delta,
@@ -231,5 +230,4 @@ void avg_pool(const T* arg,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

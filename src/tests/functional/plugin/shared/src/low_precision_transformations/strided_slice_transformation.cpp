@@ -28,7 +28,7 @@ std::string StridedSliceTransformation::getTestCaseName(const testing::TestParam
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
@@ -43,7 +43,7 @@ std::string StridedSliceTransformation::getTestCaseName(const testing::TestParam
 void StridedSliceTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 

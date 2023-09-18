@@ -11,6 +11,12 @@ using namespace reference_tests;
 using namespace ov;
 
 namespace {
+
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4244)
+#endif
+
 struct ReorgYoloParams {
     template <class IT>
     ReorgYoloParams(const ov::Strides& stride,
@@ -37,6 +43,10 @@ struct ReorgYoloParams {
     ov::Tensor refData;
     std::string testcaseName;
 };
+
+#ifdef _MSC_VER
+#    pragma warning(pop)
+#endif
 
 class ReferenceReorgYoloLayerTest : public testing::TestWithParam<ReorgYoloParams>, public CommonReferenceTest {
 public:

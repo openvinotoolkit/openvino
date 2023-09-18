@@ -6,8 +6,7 @@
 
 #include "openvino/reference/convolution.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace def_conv_impl {
 inline void validate_deformable_convolution_params(const Shape& in_shape,
@@ -316,5 +315,4 @@ void deformable_convolution(const T* in,
                            bilinear_interpolation_pad);
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

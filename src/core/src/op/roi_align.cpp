@@ -228,20 +228,20 @@ bool evaluate(const Tensor& feature_maps,
               const Shape& batch_indices_shape,
               const v9::ROIAlign::AlignedMode& aligned_mode = v9::ROIAlign::AlignedMode::ASYMMETRIC) {
     using T = typename element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::roi_align<T>(feature_maps.data<T>(),
-                                             rois.data<T>(),
-                                             batch_indices_vec_scaled_up.data(),
-                                             out.data<T>(),
-                                             feature_maps.get_shape(),
-                                             rois.get_shape(),
-                                             batch_indices_shape,
-                                             out.get_shape(),
-                                             pooled_height,
-                                             pooled_width,
-                                             sampling_ratio,
-                                             spatial_scale,
-                                             pooling_mode,
-                                             aligned_mode);
+    ov::reference::roi_align<T>(feature_maps.data<T>(),
+                                rois.data<T>(),
+                                batch_indices_vec_scaled_up.data(),
+                                out.data<T>(),
+                                feature_maps.get_shape(),
+                                rois.get_shape(),
+                                batch_indices_shape,
+                                out.get_shape(),
+                                pooled_height,
+                                pooled_width,
+                                sampling_ratio,
+                                spatial_scale,
+                                pooling_mode,
+                                aligned_mode);
     return true;
 }
 

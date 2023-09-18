@@ -20,7 +20,7 @@ std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(const testing:
     ngraph::element::Type precision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShapes, targetDevice, params, fakeQuantize) = obj.param;
 
@@ -30,7 +30,7 @@ std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(const testing:
 void FakeQuantizeAndMaxPoolTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, fakeQuantize) = this->GetParam();
 

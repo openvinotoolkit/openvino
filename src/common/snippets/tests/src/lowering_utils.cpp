@@ -6,6 +6,7 @@
 #include "lowering_utils.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/lowered/expression.hpp"
 
 
 namespace ov {
@@ -14,7 +15,7 @@ namespace snippets {
 
 DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&custom_opset) {
     auto dummy_functor = ov::snippets::jitters_value {
-        [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<DummyEmitter>(); },
+        [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
         [](const std::shared_ptr<ov::Node>& n) { return std::set<std::vector<element::Type>>{};}
     };
 
@@ -86,15 +87,15 @@ std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getSubgraph(const std
     for (const auto& op : f->get_ops()) {
         bool is_subgraph = is_type<ov::snippets::op::Subgraph>(op);
         if (is_subgraph) {
-            NGRAPH_CHECK(subgraph.use_count() == 0,
-                         "Functions provided for lowering tests contains more than one subgraph.");
+            OPENVINO_ASSERT(subgraph.use_count() == 0,
+                            "Functions provided for lowering tests contains more than one subgraph.");
             subgraph = as_type_ptr<ov::snippets::op::Subgraph>(op);
         }
-        NGRAPH_CHECK(is_subgraph ||
-                     is_type<ov::op::v0::Parameter>(op) ||
-                     is_type<ov::op::v0::Constant>(op) ||
-                     is_type<ov::op::v0::Result>(op),
-                     "Functions provided for lowering tests is not fully tokenizable");
+        OPENVINO_ASSERT(is_subgraph ||
+                        is_type<ov::op::v0::Parameter>(op) ||
+                        is_type<ov::op::v0::Constant>(op) ||
+                        is_type<ov::op::v0::Result>(op),
+                     "Models provided for lowering tests is not fully tokenizable");
     }
     return subgraph;
 }

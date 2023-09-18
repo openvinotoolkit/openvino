@@ -10,8 +10,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace details {
 template <bool check>
@@ -165,5 +164,4 @@ constexpr auto span(Element* data, std::size_t size) -> Span<Element> {
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

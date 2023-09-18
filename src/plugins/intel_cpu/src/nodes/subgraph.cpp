@@ -9,13 +9,10 @@
 #include <vector>
 #include <algorithm>
 #include <array>
-#include <tuple>
 
-#include <dnnl_debug.h>
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -31,6 +28,7 @@
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
+#include "transformations/snippets/x64/shape_inference.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
 #include "shape_inference/custom/subgraph.hpp"
@@ -142,7 +140,7 @@ snippets::op::Subgraph::BlockedShapeVector getBlockedShapes(const std::vector<st
 }
 } // namespace
 
-Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         : Node(op, context, SnippetShapeInferFactory(op)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
@@ -724,10 +722,12 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
 
     ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
-
+    // Todo: We don't need shape infer factory now, since shape infer will be done through validate_and_infer_types
+    //  pass std::make_shared<snippets::CPUShapeInferSnippetsFactory>() instead of nullptr, when shape infer is performed on LIR
     schedule = snippet_for_generation->generate(backend_passes,
                                                 control_flow_markup_pipeline,
                                                 control_flow_pipeline,
+                                                nullptr,
                                                 reinterpret_cast<const void*>(jcp));
 }
 

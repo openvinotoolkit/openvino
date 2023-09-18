@@ -22,12 +22,12 @@ void execute_unique(const ngraph::HostTensorVector& outputs,
     };
 
     const auto unique_elements =
-        ngraph::runtime::reference::find_unique_elements<Data_t, Index_t, Count_t>(inputs[0]->get_data_ptr<Data_t>(),
-                                                                                   inputs[0]->get_shape(),
-                                                                                   maybe_extract_axis(),
-                                                                                   op->get_sorted());
+        ov::reference::find_unique_elements<Data_t, Index_t, Count_t>(inputs[0]->get_data_ptr<Data_t>(),
+                                                                      inputs[0]->get_shape(),
+                                                                      maybe_extract_axis(),
+                                                                      op->get_sorted());
     const auto tensor_shapes =
-        ngraph::runtime::reference::make_tensor_shapes(unique_elements, inputs[0]->get_shape(), maybe_extract_axis());
+        ov::reference::make_tensor_shapes(unique_elements, inputs[0]->get_shape(), maybe_extract_axis());
 
     auto& out_unique_elements = outputs[0];
     auto& out_indices = outputs[1];
@@ -39,14 +39,14 @@ void execute_unique(const ngraph::HostTensorVector& outputs,
     out_rev_indices->set_shape(std::get<2>(tensor_shapes));
     out_counts->set_shape(std::get<1>(tensor_shapes));
 
-    ngraph::runtime::reference::unique(out_unique_elements->get_data_ptr<Data_t>(),
-                                       out_indices->get_data_ptr<Index_t>(),
-                                       out_rev_indices->get_data_ptr<Index_t>(),
-                                       out_counts->get_data_ptr<Count_t>(),
-                                       inputs[0]->get_data_ptr<Data_t>(),
-                                       inputs[0]->get_shape(),
-                                       std::get<0>(tensor_shapes),
-                                       unique_elements);
+    ov::reference::unique(out_unique_elements->get_data_ptr<Data_t>(),
+                          out_indices->get_data_ptr<Index_t>(),
+                          out_rev_indices->get_data_ptr<Index_t>(),
+                          out_counts->get_data_ptr<Count_t>(),
+                          inputs[0]->get_data_ptr<Data_t>(),
+                          inputs[0]->get_shape(),
+                          std::get<0>(tensor_shapes),
+                          unique_elements);
 }
 
 template <ngraph::element::Type_t Data_ET>

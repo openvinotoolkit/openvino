@@ -9,12 +9,11 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 // Return type is `void`, only enabled if `T` is a built-in FP
 // type, or nGraph's `bfloat16` or `float16` type.
@@ -41,5 +40,4 @@ typename std::enable_if<std::is_integral<T>::value>::type range(const T* start,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

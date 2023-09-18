@@ -6,8 +6,7 @@
 
 #include "openvino/reference/group_convolution.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 
 void infer_backward_conv_output_shape(const Shape& in_spatial_shape,
@@ -113,5 +112,4 @@ void validate_group_convolution_backprop_data_parameters(const Shape& in_shape,
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

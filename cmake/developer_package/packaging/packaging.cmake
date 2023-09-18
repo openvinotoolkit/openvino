@@ -24,6 +24,10 @@ macro(ov_install_static_lib target comp)
 
         install(TARGETS ${target} EXPORT OpenVINOTargets
                 ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
+
+        # export to local tree to build against static build tree
+        export(TARGETS ${target} NAMESPACE openvino::
+               APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
     endif()
 endmacro()
 

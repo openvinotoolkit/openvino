@@ -8,8 +8,7 @@
 #include "ngraph/op/util/attr_types.hpp"  // for op::PadMode
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void pad(const char* data,
          const char* pad_value,
@@ -21,5 +20,4 @@ void pad(const char* data,
          const CoordinateDiff& padding_above,
          const op::PadMode pad_mode);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

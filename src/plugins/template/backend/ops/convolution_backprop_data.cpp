@@ -18,7 +18,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData>& op
     const auto& filter_shape = inputs[1]->get_shape();
     ngraph::Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
     std::fill(in_dilation.begin(), in_dilation.end(), 1);
-    ngraph::runtime::reference::convolution_backprop_in<typename ngraph::element_type_traits<ET>::value_type>(
+    ov::reference::convolution_backprop_in<typename ngraph::element_type_traits<ET>::value_type>(
         in_data_ptr,
         filter_data,
         out_data_ptr,

@@ -12,11 +12,7 @@
 #include "ngraph/shape.hpp"
 #include "openvino/reference/non_max_suppression.hpp"
 
-using namespace ngraph;
-using namespace ngraph::runtime::reference;
-
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace {
 struct Rectangle {
@@ -452,5 +448,4 @@ void nms5_postprocessing(const HostTensorVector& outputs,
     nms_postprocessing(outputs, output_type, selected_indices, selected_scores, valid_outputs, selected_scores_type);
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

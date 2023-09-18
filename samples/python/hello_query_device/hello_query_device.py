@@ -5,7 +5,7 @@
 import logging as log
 import sys
 
-from openvino.runtime import Core
+import openvino as ov
 
 
 def param_to_string(parameters) -> str:
@@ -20,7 +20,7 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
 
     # --------------------------- Step 1. Initialize OpenVINO Runtime Core --------------------------------------------
-    core = Core()
+    core = ov.Core()
 
     # --------------------------- Step 2. Get metrics of available devices --------------------------------------------
     log.info('Available devices:')

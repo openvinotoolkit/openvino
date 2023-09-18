@@ -9,10 +9,8 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs, const std::string& equation);
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
