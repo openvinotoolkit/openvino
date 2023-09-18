@@ -84,15 +84,11 @@ private:
         const auto score_threshold = std::make_shared<opset1::Constant>(params.scoreThreshold.type,
                                                                         params.scoreThreshold.shape,
                                                                         params.scoreThreshold.data.data());
-        const auto soft_nms_sigma = std::make_shared<opset1::Constant>(params.softNmsSigma.type,
-                                                                       params.softNmsSigma.shape,
-                                                                       params.softNmsSigma.data.data());
         const auto nms = std::make_shared<opset13::NMSRotated>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               soft_nms_sigma,
                                                                params.boxEncoding,
                                                                false,
                                                                params.expectedSelectedIndices.type);
@@ -110,8 +106,7 @@ public:
                      params.scores.data,
                      params.maxOutputBoxesPerClass.data,
                      params.iouThreshold.data,
-                     params.scoreThreshold.data,
-                     params.softNmsSigma.data};
+                     params.scoreThreshold.data};
         refOutData = {params.expectedSelectedIndices.data,
                       params.expectedSelectedScores.data,
                       params.expectedValidOutputs.data};
@@ -128,20 +123,17 @@ private:
             std::make_shared<opset1::Parameter>(params.iouThreshold.type, params.iouThreshold.shape);
         const auto score_threshold =
             std::make_shared<opset1::Parameter>(params.scoreThreshold.type, params.scoreThreshold.shape);
-        const auto soft_nms_sigma =
-            std::make_shared<opset1::Parameter>(params.softNmsSigma.type, params.softNmsSigma.shape);
         const auto nms = std::make_shared<opset13::NMSRotated>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               soft_nms_sigma,
                                                                params.boxEncoding,
                                                                false,
                                                                params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(
             nms->outputs(),
-            ParameterVector{boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma});
+            ParameterVector{boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold});
         return f;
     }
 };
@@ -177,7 +169,7 @@ std::vector<NMSRotatedParams> generateParams() {
                 {3, 3},
                 std::vector<T_IND>{0, 0, 3, 0, 0, 1, 0, 0, 0}))  // batch 0, class 0, box_id (sorted max score first)
             .expectedSelectedScores(
-                reference_tests::Tensor(ET_TH, {3, 3}, std::vector<T_TH>{0.0, 0.0, 0.9, 0.0, 0.0, 0.8, 0.0, 0.0, 0.7}))
+                reference_tests::Tensor(ET_TH, {3, 3}, std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65}))
             .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
             .testcaseName("NMSRotated_new_rotation_1"),
         Builder{}
@@ -196,7 +188,7 @@ std::vector<NMSRotatedParams> generateParams() {
                 {2, 3},
                 std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
             .expectedSelectedScores(
-                reference_tests::Tensor(ET_TH, {2, 3}, std::vector<T_TH>{0.0, 0.0, 0.9, 0.0, 0.0, 0.7}))
+                reference_tests::Tensor(ET_TH, {2, 3}, std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.65}))
             .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{2}))
             .testcaseName("NMSRotated_new_rotation_2"),
         Builder{}

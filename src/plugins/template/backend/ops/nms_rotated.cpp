@@ -123,8 +123,8 @@ std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores
     return result;
 }
 
-InfoForNMSRotated get_info_for_nms9_eval(const std::shared_ptr<op::v13::NMSRotated>& nms9,
-                                         const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+InfoForNMSRotated get_info_for_nms_eval(const std::shared_ptr<op::v13::NMSRotated>& nms,
+                                        const std::vector<std::shared_ptr<HostTensor>>& inputs) {
     InfoForNMSRotated result;
 
     result.max_output_boxes_per_class = inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
@@ -138,14 +138,14 @@ InfoForNMSRotated get_info_for_nms9_eval(const std::shared_ptr<op::v13::NMSRotat
     result.boxes_shape = inputs[boxes_port]->get_shape();
     result.scores_shape = inputs[scores_port]->get_shape();
 
-    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms9->get_box_encoding());
+    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms->get_box_encoding());
     result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
 
     result.out_shape_size = shape_size(result.out_shape);
 
-    result.sort_result_descending = nms9->get_sort_result_descending();
+    result.sort_result_descending = nms->get_sort_result_descending();
 
-    result.output_type = nms9->get_output_type();
+    result.output_type = nms->get_output_type();
 
     return result;
 }
@@ -155,7 +155,7 @@ template <element::Type_t ET>
 bool evaluate(const std::shared_ptr<op::v13::NMSRotated>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
-    auto info = nms_v13::get_info_for_nms9_eval(op, inputs);
+    auto info = nms_v13::get_info_for_nms_eval(op, inputs);
 
     std::vector<int64_t> selected_indices(info.out_shape_size);
     std::vector<float> selected_scores(info.out_shape_size);
