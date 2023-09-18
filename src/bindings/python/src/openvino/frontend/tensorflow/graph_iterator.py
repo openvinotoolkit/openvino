@@ -68,7 +68,7 @@ class GraphIteratorTFGraph(GraphIterator):
             for out in self.m_graph.outputs:
                 outputs.append(out.name)
             return outputs
-        # If graph has no 'outputs' field, find nodes without outputs and considered them graph outputs.
+        # If graph has no 'outputs' field, find nodes without outputs and consider them graph outputs.
         # The order of outputs is important and wrong order may lead to conversion error.
         non_outputs = set()
         for op in self.m_graph.get_operations():
