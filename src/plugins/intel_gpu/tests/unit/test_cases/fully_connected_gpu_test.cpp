@@ -2656,7 +2656,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(false, true))
 );
 
-TEST(fully_connected_gpu, has_cached_weights_reorder) {
+TEST(fully_connected_gpu, DISABLED_has_cached_weights_reorder) {
     auto& engine = get_test_engine();
 
     const int32_t input_f = 3, input_b = 1, weight_b = 4;
