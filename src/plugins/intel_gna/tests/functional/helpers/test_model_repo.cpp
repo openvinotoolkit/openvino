@@ -4,14 +4,14 @@
 
 #include "test_model_repo.hpp"
 
-std::string get_model_repo() {
-    return "models:";
-};
-
-const char* TestDataHelpers::get_model_path_non_fatal() noexcept {
-    return TestDataHelpers::get_model_path_non_fatal_default();
-}
-
 std::string TestDataHelpers::get_data_path() {
-    return TestDataHelpers::get_data_path_default();
+    if (const auto env_var = std::getenv("GNA_DATA_PATH")) {
+        return env_var;
+    }
+
+#ifdef GNA_DATA_PATH
+    return GNA_DATA_PATH;
+#else
+    return nullptr;
+#endif
 }

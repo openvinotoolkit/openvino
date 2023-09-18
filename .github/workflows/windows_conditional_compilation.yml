@@ -40,7 +40,6 @@ env:
   LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
   BUILD_DIR: "${{ github.workspace }}\\build"
   BUILD_DIR_2: "${{ github.workspace }}\\build_s"
-  DATA_PATH: "${{ github.workspace }}\\testdata"
   MODELS_PATH: "${{ github.workspace }}\\testdata"
   OV_TEMP: "${{ github.workspace }}\\openvino_temp"
   BUILD_TYPE: "Release"
@@ -60,14 +59,13 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: 'openvino'
-          submodules: 'recursive'
+          submodules: 'true'
 
-      - name: Clone testdata for sample test
+      - name: Clone test models
         uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
-          submodules: 'recursive'
           lfs: 'true'
 
       #

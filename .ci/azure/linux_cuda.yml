@@ -39,12 +39,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 jobs:
 - job: CUDAPlugin_Lin
   timeoutInMinutes: '60'
@@ -60,7 +54,6 @@ jobs:
     HOME_DIR: $(Agent.HomeDirectory)
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_REPO_DIR: $(REPO_DIR)/../openvino
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BIN_DIR: $(OPENVINO_REPO_DIR)/bin/intel64/$(BUILD_TYPE)
@@ -137,7 +130,6 @@ jobs:
             -DENABLE_OV_ONNX_FRONTEND=OFF \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=ON \
-            -DENABLE_DATA=OFF \
             -S /root/repos/openvino \
             -B /root/w/build &&
           cmake --build /root/w/build --parallel --config Release --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests"

@@ -7,6 +7,18 @@
 #include <common_test_utils/file_utils.hpp>
 
 namespace TestDataHelpers {
+
+const std::string model_bin_name = "test_model.bin";
+const std::string model_xml_name = "test_model.xml";
+const std::string model_exported_name = "test_exported_model.blob";
+
+void generate_test_model() {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(model_xml_name, model_bin_name);
+    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
+    manager.run_passes(function);
+}
+
 std::string generate_test_xml_file() {
     // Create the file
     std::string plugin_xml = "plugin_test.xml";

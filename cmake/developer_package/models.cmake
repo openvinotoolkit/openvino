@@ -2,14 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_DATA)
-    find_package(Git REQUIRED)
-endif()
-
 set(MODELS_LST "")
 set(MODELS_LST_TO_FETCH "")
 
 function (add_models_repo add_to_fetcher model_name)
+    message(WARNING "DEPRECATED: 'add_models_repo' must not be used")
+
     list(LENGTH ARGV add_models_args)
     if (add_models_args EQUAL 3)
         list(GET ARGV 2 branch_name)
@@ -28,6 +26,8 @@ function (add_models_repo add_to_fetcher model_name)
 endfunction()
 
 function(add_lfs_repo name prefix url tag)
+    message(WARNING "DEPRECATED: 'add_lfs_repo' must not be used")
+
     if(TARGET ${name})
         return()
     endif()
@@ -44,6 +44,8 @@ function(add_lfs_repo name prefix url tag)
         INSTALL_COMMAND ""
         LOG_DOWNLOAD ON)
 
+    find_package(Git REQUIRED)
+
     execute_process(
         COMMAND ${GIT_EXECUTABLE} lfs install --local --force
         WORKING_DIRECTORY ${prefix}/src/${name}
@@ -59,6 +61,8 @@ function(add_lfs_repo name prefix url tag)
 endfunction()
 
 function (fetch_models_and_validation_set)
+    message(WARNING "DEPRECATED: 'fetch_models_and_validation_set' must not be used")
+
     foreach(loop_var ${MODELS_LST_TO_FETCH})
         string(REPLACE ":" ";" MODEL_CONFIG_LST ${loop_var})
 

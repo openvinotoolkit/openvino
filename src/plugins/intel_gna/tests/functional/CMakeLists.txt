@@ -25,7 +25,3 @@ addIeTargetTest(
 target_compile_definitions(${TARGET_NAME}
         PUBLIC ${ARGV}
             GNA_DATA_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/data\")
-
-if (ENABLE_DATA)
-    add_dependencies(${TARGET_NAME} data)
-endif()
