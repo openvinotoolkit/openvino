@@ -131,6 +131,12 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_min_sort_none)");
 #endif
 
+#if defined(__APPLE__) || defined(__MACOS)
+    // CVS-64054
+    retVector.emplace_back(R"(.*ReferenceTopKTest.*aType=(u32|u64).*topk_(max|min)_sort_none)");
+    retVector.emplace_back(R"(.*ReferenceTopKTest.*aType=(i32|i64|f16|f32).*topk_min_sort_none)");
+#endif
+
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSort.CompareWithRefs.*)");
     retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackend.CompareWithRefs.*)");
