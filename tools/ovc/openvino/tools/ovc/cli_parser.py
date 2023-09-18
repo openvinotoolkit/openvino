@@ -37,18 +37,12 @@ def is_shape_type(value):
         return True
     return False
 
-def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
+def single_input_to_input_cut_info(input: [tuple, list, PartialShape, Type, type]):
     """
     Parses parameters of single input to InputCutInfo.
     :param input: input cut parameters of single input
     :return: InputCutInfo
     """
-    if isinstance(input, str):
-        # Parse params from string
-        node_name, shape = parse_input_value(input)
-        # pylint: disable=no-member
-        return _InputCutInfo(node_name,
-                             PartialShape(shape) if shape is not None else None)
     if isinstance(input, (tuple, list)) or is_shape_type(input):
         # If input represents list with shape, wrap it to list. Single PartialShape also goes to this condition.
         # Check of all dimensions will be in is_shape_type(val) method below
@@ -68,10 +62,10 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                 if inp_type is not None:
                     raise Exception("More than one input type provided: {}".format(input))
                 inp_type = val
-            elif is_shape_type(val):
+            elif is_shape_type(val) or val is None:
                 if shape is not None:
                     raise Exception("More than one input shape provided: {}".format(input))
-                shape = PartialShape(val)
+                shape = PartialShape(val) if val is not None else None
             else:
                 raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
                                 "input type or input shape. Got unknown object: {}".format(val))
@@ -116,7 +110,20 @@ def is_single_input(input: [tuple, list]):
     return True
 
 
-def input_to_input_cut_info(input: [str, tuple, list]):
+def parse_inputs(inputs: str):
+    inputs_list = []
+    # Split to list of string
+    for input_value in split_inputs(inputs):
+
+        # Parse string with parameters for single input
+        node_name, shape = parse_input_value(input_value)
+        # pylint: disable=no-member
+        inputs_list.append((node_name, shape))
+    return inputs_list
+
+
+def input_to_input_cut_info(input: [dict, tuple, list]):
+
     """
     Parses 'input' to list of InputCutInfo.
     :param input: input cut parameters passed by user
@@ -136,6 +143,8 @@ def input_to_input_cut_info(input: [str, tuple, list]):
                                         PartialShape(shape) if shape is not None else None))
         return inputs
     if isinstance(input, (tuple, list)):
+        if len(input) == 0:
+            return []
         # Case when input is single shape set in tuple
         if len(input) > 0 and isinstance(input[0], (int, Dimension)):
             input = [input]

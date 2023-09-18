@@ -194,7 +194,7 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
     if example_input is not None:
         concrete_func = get_concrete_func(tf_function, example_input, input_needs_packing,
                                           "Could not trace the TF model with the following error: {}")
-    elif input_shapes is not None:
+    elif np.all([shape is not None for name, shape in input_shapes.items()]):
         inp = create_example_input_by_user_shapes(input_shapes, input_types)
         concrete_func = get_concrete_func(tf_function, inp, input_needs_packing,
                                           "Could not trace the TF model with the following error: {}")
