@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include <transformations/rt_info/decompression.hpp>
-#include <transformations/rt_info/dequantization_node.hpp>
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 

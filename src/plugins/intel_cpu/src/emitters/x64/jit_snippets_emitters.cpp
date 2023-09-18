@@ -131,8 +131,13 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
                 IE_THROW() << "Kernel detected unsupported io_type";
             }
         }
-        io_shapes.push_back(desc->get_shape());
-        io_data_layouts.push_back(desc->get_layout());
+        const auto& shape = desc->get_shape();
+        const auto& layout = desc->get_layout();
+        OPENVINO_ASSERT(shape.size() == layout.size(), "Shape and layout must have the same length");
+        const auto max_dim = *std::max_element(layout.begin(), layout.end());
+        OPENVINO_ASSERT(max_dim < shape.size(), "Max layout index can't be larger than the shape size");
+        io_shapes.push_back(shape);
+        io_data_layouts.push_back(layout);
         io_data_sizes.push_back(etype.size());
     }
 

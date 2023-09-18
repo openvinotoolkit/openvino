@@ -10,7 +10,7 @@
    
    Note that the APT distribution:
 
-   * offers both C++ and Python APIs
+   * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
    * additionally includes code samples 
    * is dedicated to Linux users.

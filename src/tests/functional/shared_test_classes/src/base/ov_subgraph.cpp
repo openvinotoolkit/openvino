@@ -43,7 +43,7 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 
 void SubgraphBaseTest::run() {
     is_reported = true;
-    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
          ov::test::utils::PassRate::Statuses::SKIPPED :
@@ -233,23 +233,17 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
                 std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
-                    std::shared_ptr<ov::Node> nextNodePtr = nodePtr->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-                    if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
-                        inputNode = nodePtr;
-                        nodePtr = nextNodePtr;
-                    }
-                }
                 auto it = inputMap.find(nodePtr->get_type_info());
                 ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});
+                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
                         break;
                     }
                 }
             }
         }
+        itTargetShape++;
     }
 }
 

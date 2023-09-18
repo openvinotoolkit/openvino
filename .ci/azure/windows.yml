@@ -34,12 +34,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 jobs:
 - job: Win
   strategy:
@@ -63,7 +57,6 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)\..\openvino_contrib
-    MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: $(WORK_DIR)\build
     BUILD_SAMPLES_DIR: $(WORK_DIR)\build_samples
@@ -129,11 +122,6 @@ jobs:
     clean: 'true'
     submodules: 'true'
     path: openvino_contrib
-
-  - checkout: testdata
-    clean: 'true'
-    lfs: 'true'
-    path: testdata
 
   - script: |
       python -m pip install --upgrade pip
@@ -263,6 +251,9 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-OVProxyTests.xml
     displayName: 'OV Proxy Plugin Tests'
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-OVHeteroUnitTests.xml
+    displayName: 'OV Hetero Unit Tests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-OVHeteroFuncTests.xml
     displayName: 'OV Hetero Func Tests'

@@ -3,3 +3,5 @@ Name: openvino-custom-sphinx-sitemap
 Version: 0.0.1
 Summary: Extends sphinx-sitemap plugin with additional sitemap metadata
 Requires-Python: >=3.9
+Requires-Dist: sphinx>=4.5.0
+Requires-Dist: sphinx-sitemap>=2.2.0

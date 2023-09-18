@@ -32,10 +32,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, default_ctor_no_args) {
     int32_t out_size[] = {2, 5};
     input_shapes = ShapeVector{{2}, {2}};
 
-    shape_inference(op.get(),
-                    input_shapes,
-                    output_shapes,
-                    {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, out_size)}});
+    output_shapes = shape_inference(op.get(), input_shapes, {{0, {element::i32, ov::Shape{2}, out_size}}});
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 200}));
@@ -50,10 +47,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_dynamic_rank) {
     int32_t output_size[] = {2, 5};
 
     input_shapes = ShapeVector{{2}, {2}};
-    shape_inference(op.get(),
-                    input_shapes,
-                    output_shapes,
-                    {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
+    output_shapes = shape_inference(op.get(), input_shapes, {{0, {element::i32, ov::Shape{2}, output_size}}});
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 200}));
@@ -68,10 +62,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_static_rank) {
     int32_t output_size[] = {5, 2};
 
     input_shapes = ShapeVector{{2}, {2}};
-    shape_inference(op.get(),
-                    input_shapes,
-                    output_shapes,
-                    {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
+    output_shapes = shape_inference(op.get(), input_shapes, {{0, {element::i32, ov::Shape{2}, output_size}}});
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 200}));
@@ -84,7 +75,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, out_size_constant) {
     op = make_op(out_size, img_size, attrs);
 
     input_shapes = ShapeVector{{2}, {2}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 480}));
@@ -97,7 +88,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_constants) {
     op = make_op(out_size, img_size, attrs);
 
     input_shapes = ShapeVector{{2}, {2}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 3840}));
@@ -112,10 +103,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, invalid_number_of_elements_in_out_siz
     int64_t output_size[] = {5, 2, 1};
     input_shapes = ShapeVector{{2}, {2}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(),
-                                    input_shapes,
-                                    output_shapes,
-                                    {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, {{0, {element::i64, ov::Shape{3}, output_size}}}),
                     NodeValidationFailure,
                     HasSubstr("Output size must have two elements"));
 }
@@ -129,10 +117,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, invalid_input_ranks) {
     int64_t output_size[] = {5, 2, 1};
     input_shapes = ShapeVector{{2, 1}, {2}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(),
-                                    input_shapes,
-                                    output_shapes,
-                                    {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, {{0, {element::i64, ov::Shape{3}, output_size}}}),
                     NodeValidationFailure,
                     HasSubstr("output size input rank 2 must match image shape input rank 1"));
 }

@@ -768,8 +768,7 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
 
     primitive_inst = find_primitive(id);
 
-    if (primitive_inst == nullptr)
-        throw std::runtime_error("topology doesn't contain primitive:" + id);
+    OPENVINO_ASSERT(primitive_inst != nullptr, "[GPU] topology doesn't contain primitive: ", id);
 
     if (primitive_inst->type() != input_layout::type_id()) {
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
@@ -911,8 +910,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     std::vector<event::ptr> ret_ev;
     p_inst = find_primitive(id);
 
-    if (!p_inst)
-        throw std::runtime_error("topology doesn't contain primitive: " + id);
+    OPENVINO_ASSERT(p_inst != nullptr, "[GPU] topology doesn't contain primitive: ", id);
 
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
@@ -927,7 +925,11 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     }
 
     for (auto& prim : o_iter->second) {
-        ret_ev.push_back(prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false));
+        auto mem = mem_new;
+        if (!prim->is_dynamic() && mem_new && prim->output_memory_ptr())
+            mem = eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout());
+
+        ret_ev.push_back(prim->set_output_memory(mem));
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
             prim->set_arguments();
@@ -1331,9 +1333,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         "_" + get_iteration_prefix(curr_iter) +
                                         layer_name + "_src" + std::to_string(i);
                     auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
+                    auto dep = inst->dependencies().at(i);
+                    auto input_layout = dep.first->get_output_layout(dep.second);
                     GPU_DEBUG_IF(debug_config->dump_layers_binary) {
                         // Binary dump : raw
-                        auto input_layout = inst->get_input_layout(i);
                         auto filename = get_file_path_for_binary_dump(input_layout, name);
 
                         mem_lock<char, mem_lock_type::read> lock(input_mem, get_stream());
@@ -1342,7 +1345,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         debug_str_for_bin_load += (filename + ",");
                     } else {
                         log_memory_to_file(input_mem,
-                                        inst->get_input_layout(i),
+                                        input_layout,
                                         get_stream(),
                                         name,
                                         debug_config->dump_layers_raw);
@@ -1719,6 +1722,10 @@ void network::allocate_variables_memories() {
             _variables_states.insert({info.first, std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(variable_layout, false))});
         }
     }
+}
+
+const cldnn::network::variables_state_info_map& network::get_variables_state_info() const {
+    return _variables_state_info;
 }
 
 void network::set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout) {

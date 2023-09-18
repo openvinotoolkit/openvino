@@ -14,6 +14,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
+#include "ie_extension.h"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #ifdef __GLIBC__
@@ -32,7 +33,7 @@ public:
         auto prefix = ov::test::utils::generateTestFilePrefix();
         modelName = prefix + modelName;
         weightsName = prefix + weightsName;
-        FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
+        ov::test::utils::generate_test_model(modelName, weightsName);
     }
 
     void TearDown() override {
@@ -60,10 +61,12 @@ public:
 
     void safeAddExtension(ov::Core& core) {
         try {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto extension = std::make_shared<InferenceEngine::Extension>(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                    std::string("template_extension") + IE_BUILD_POSTFIX));
             core.add_extension(extension);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const ov::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }

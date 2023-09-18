@@ -16,7 +16,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
 
     std::string variable_id;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::assign_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<assign_impl>(*this);

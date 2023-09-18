@@ -28,14 +28,6 @@ pr:
     - '*/conformance/*'
     - 'tests/layer_tests/*'
 
-resources:
-  repositories:
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 jobs:
 - job: Lin_Debian
   # About 150% of total time
@@ -50,7 +42,6 @@ jobs:
     VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
@@ -148,12 +139,6 @@ jobs:
       # Speed up tests
       git clone https://github.com/google/gtest-parallel.git
     displayName: 'Install build dependencies'
-
-    # Should be after 'Install dependencies' because Git lfs is not installed
-  - checkout: testdata
-    clean: 'true'
-    lfs: 'true'
-    path: testdata
 
   - task: CMake@1
     inputs:
@@ -285,6 +270,12 @@ jobs:
     displayName: 'OV Proxy Tests'
 
   - script: |
+      $(INSTALL_TEST_DIR)/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroUnitTests.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
+    displayName: 'OV Hetero Unit Tests'
+
+  - script: |
       $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
@@ -332,15 +323,9 @@ jobs:
     displayName: 'TEMPLATE FuncTests'
 
   - script: $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
-    env:
-      DATA_PATH: $(MODELS_PATH)
-      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
 
   - script: $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
-    env:
-      DATA_PATH: $(MODELS_PATH)
-      MODELS_PATH: $(MODELS_PATH)
     displayName: 'OV CAPITests'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
@@ -373,7 +358,7 @@ jobs:
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
       PYTHONPATH: $(INSTALL_TEST_DIR)
-    displayName: 'ONNX Frontend Python Tests' 
+    displayName: 'ONNX Frontend Python Tests'
 
   - script: |
       set -e

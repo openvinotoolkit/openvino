@@ -53,6 +53,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         `# OpenCL for GPU` \
         ocl-icd-opencl-dev \
         opencl-headers \
+        rapidjson-dev \
         `# GPU plugin extensions` \
         libva-dev \
         `# For TF FE saved models` \
@@ -105,7 +106,6 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         make \
         `# to determine openvino version via git` \
         git \
-        git-lfs \
         `# to build and check pip packages` \
         patchelf \
         fdupes \
@@ -144,7 +144,6 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
         make \
         `# to determine openvino version via git` \
         git \
-        git-lfs \
         `# to build and check pip packages` \
         patchelf \
         fdupes \
