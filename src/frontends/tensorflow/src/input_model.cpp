@@ -275,8 +275,8 @@ void InputModel::InputModelTFImpl::load_places() {
                                                               std::vector<std::string>{output_name});
             m_tensor_places[output_name] = output_place;
             m_outputs.push_back(output_place);
-            return;
         }
+        return;
     }
     for (const auto& output_name : out_names) {
         auto output_place = std::make_shared<TensorPlace>(m_input_model,
