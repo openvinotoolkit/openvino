@@ -5,6 +5,5 @@
 #include "openvino/frontend/extension/conversion.hpp"
 
 using namespace ov::frontend;
-ConversionExtensionBase::~ConversionExtensionBase() = default;
 
 ConversionExtension::~ConversionExtension() = default;
