@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cmath>
+#include <limits>
 
 #include "ngraph/shape.hpp"
 
