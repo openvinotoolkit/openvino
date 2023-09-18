@@ -608,8 +608,8 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
         const auto &boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
         if (boxes_dims.size() != 3)
             IE_THROW() << errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
-        // if (boxes_dims[2] != 4)
-        //     IE_THROW() << errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
+        if (boxes_dims[2] != 4)
+            IE_THROW() << errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
 
         const auto &scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
         if (scores_dims.size() != 3)
@@ -910,10 +910,10 @@ void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores
                     std::vector<float> boxCoord2(maxSeletedBoxNum, 0.0f);
                     std::vector<float> boxCoord3(maxSeletedBoxNum, 0.0f);
 
-                    boxCoord0[0] = boxesPtr[candidateBox.idx * 5];
-                    boxCoord1[0] = boxesPtr[candidateBox.idx * 5 + 1];
-                    boxCoord2[0] = boxesPtr[candidateBox.idx * 5 + 2];
-                    boxCoord3[0] = boxesPtr[candidateBox.idx * 5 + 3];
+                    boxCoord0[0] = boxesPtr[candidateBox.idx * 4];
+                    boxCoord1[0] = boxesPtr[candidateBox.idx * 4 + 1];
+                    boxCoord2[0] = boxesPtr[candidateBox.idx * 4 + 2];
+                    boxCoord3[0] = boxesPtr[candidateBox.idx * 4 + 3];
 
                     auto arg = jit_nms_args();
                     arg.iou_threshold = static_cast<float*>(&iouThreshold);
@@ -931,7 +931,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores
                         arg.selected_boxes_coord[1] = static_cast<float*>(&boxCoord1[candidateBox.suppress_begin_index]);
                         arg.selected_boxes_coord[2] = static_cast<float*>(&boxCoord2[candidateBox.suppress_begin_index]);
                         arg.selected_boxes_coord[3] = static_cast<float*>(&boxCoord3[candidateBox.suppress_begin_index]);
-                        arg.candidate_box = static_cast<const float*>(&boxesPtr[candidateBox.idx * 5]);
+                        arg.candidate_box = static_cast<const float*>(&boxesPtr[candidateBox.idx * 4]);
                         arg.candidate_status = static_cast<int*>(&candidateStatus);
                         (*nms_kernel)(&arg);
 
@@ -941,10 +941,10 @@ void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores
                             if (candidateBox.score == origScore) {
                                 selectedBoxes.push_back({ candidateBox.score, batch_idx, class_idx, candidateBox.idx });
                                 int selectedSize = selectedBoxes.size();
-                                boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * 5];
-                                boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * 5 + 1];
-                                boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * 5 + 2];
-                                boxCoord3[selectedSize - 1] = boxesPtr[candidateBox.idx * 5 + 3];
+                                boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * 4];
+                                boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * 4 + 1];
+                                boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * 4 + 2];
+                                boxCoord3[selectedSize - 1] = boxesPtr[candidateBox.idx * 4 + 3];
                             } else {
                                 candidateBox.suppress_begin_index = selectedBoxes.size();
                                 sorted_boxes.push(candidateBox);
@@ -959,7 +959,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores
 
                         int candidateStatus = NMSCandidateStatus::SELECTED; // 0 for suppressed, 1 for selected, 2 for updated
                         for (int selected_idx = static_cast<int>(selectedBoxes.size()) - 1; selected_idx >= candidateBox.suppress_begin_index; selected_idx--) {
-                            float iou = intersectionOverUnion(&boxesPtr[candidateBox.idx * 5], &boxesPtr[selectedBoxes[selected_idx].box_index * 5]);
+                            float iou = intersectionOverUnion(&boxesPtr[candidateBox.idx * 4], &boxesPtr[selectedBoxes[selected_idx].box_index * 4]);
 
                             // when is_soft_suppressed_by_iou is true, score is decayed to zero and implicitely suppressed if iou > iou_threshold.
                             candidateBox.score *= coeff(iou);
@@ -1022,10 +1022,10 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float *boxes, const float *sco
                     std::vector<float> boxCoord2(sortedBoxSize, 0.0f);
                     std::vector<float> boxCoord3(sortedBoxSize, 0.0f);
 
-                    boxCoord0[0] = boxesPtr[sorted_boxes[0].second * 5];
-                    boxCoord1[0] = boxesPtr[sorted_boxes[0].second * 5 + 1];
-                    boxCoord2[0] = boxesPtr[sorted_boxes[0].second * 5 + 2];
-                    boxCoord3[0] = boxesPtr[sorted_boxes[0].second * 5 + 3];
+                    boxCoord0[0] = boxesPtr[sorted_boxes[0].second * 4];
+                    boxCoord1[0] = boxesPtr[sorted_boxes[0].second * 4 + 1];
+                    boxCoord2[0] = boxesPtr[sorted_boxes[0].second * 4 + 2];
+                    boxCoord3[0] = boxesPtr[sorted_boxes[0].second * 4 + 3];
 
                     auto arg = jit_nms_args();
                     arg.iou_threshold = static_cast<float*>(&iouThreshold);
@@ -1040,14 +1040,14 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float *boxes, const float *sco
                     for (size_t candidate_idx = 1; (candidate_idx < sortedBoxSize) && (io_selection_size < max_out_box); candidate_idx++) {
                         int candidateStatus = NMSCandidateStatus::SELECTED; // 0 for suppressed, 1 for selected
                         arg.selected_boxes_num = io_selection_size;
-                        arg.candidate_box = static_cast<const float*>(&boxesPtr[sorted_boxes[candidate_idx].second * 5]);
+                        arg.candidate_box = static_cast<const float*>(&boxesPtr[sorted_boxes[candidate_idx].second * 4]);
                         arg.candidate_status = static_cast<int*>(&candidateStatus);
                         (*nms_kernel)(&arg);
                         if (candidateStatus == NMSCandidateStatus::SELECTED) {
-                            boxCoord0[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 5];
-                            boxCoord1[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 5 + 1];
-                            boxCoord2[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 5 + 2];
-                            boxCoord3[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 5 + 3];
+                            boxCoord0[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 4];
+                            boxCoord1[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 4 + 1];
+                            boxCoord2[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 4 + 2];
+                            boxCoord3[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 4 + 3];
                             filtBoxes[offset + io_selection_size] =
                                 filteredBoxes(sorted_boxes[candidate_idx].first, batch_idx, class_idx, sorted_boxes[candidate_idx].second);
                             io_selection_size++;
@@ -1057,8 +1057,8 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float *boxes, const float *sco
                     for (size_t candidate_idx = 1; (candidate_idx < sortedBoxSize) && (io_selection_size < max_out_box); candidate_idx++) {
                         int candidateStatus = NMSCandidateStatus::SELECTED; // 0 for suppressed, 1 for selected
                         for (int selected_idx = io_selection_size - 1; selected_idx >= 0; selected_idx--) {
-                            float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[candidate_idx].second * 5],
-                                &boxesPtr[filtBoxes[offset + selected_idx].box_index * 5]);
+                            float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[candidate_idx].second * 4],
+                                &boxesPtr[filtBoxes[offset + selected_idx].box_index * 4]);
                             if (iou >= iouThreshold) {
                                 candidateStatus = NMSCandidateStatus::SUPPRESSED;
                                 break;
