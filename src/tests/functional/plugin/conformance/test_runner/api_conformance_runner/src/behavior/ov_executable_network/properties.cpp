@@ -78,7 +78,7 @@ const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory,
                          OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
-                         ::testing::Combine(::testing::Values(return_all_possible_device_combination()),
+                         ::testing::Combine(::testing::ValuesIn(return_all_possible_device_combination()),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
 
 } // namespace

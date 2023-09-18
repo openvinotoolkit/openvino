@@ -42,12 +42,18 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             execution_mode = value.as<ov::hint::ExecutionMode>();
             if ((execution_mode != ov::hint::ExecutionMode::ACCURACY) &&
                 (execution_mode != ov::hint::ExecutionMode::PERFORMANCE)) {
-                OPENVINO_THROW("Unsupported execution mode, should be ACCURACY or PERFORMANCE, but was: ", value.as<std::string>());
+                OPENVINO_THROW("Unsupported execution mode, should be ACCURACY or PERFORMANCE, but was: ",
+                               value.as<std::string>());
             }
         } else if (ov::num_streams == key) {
             streams_executor_config.set_property(key, value);
         } else if (ov::hint::num_requests == key) {
-            num_requests = value.as<uint32_t>();
+            auto tmp_val = value.as<std::string>();
+            int tmp_i = std::stoi(tmp_val);
+            if (tmp_i >= 0)
+                num_requests = tmp_i;
+            else
+                OPENVINO_THROW("Incorrect value, it should be unsigned integer: ", key);
         } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }
