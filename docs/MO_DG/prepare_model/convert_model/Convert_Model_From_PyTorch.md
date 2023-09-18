@@ -58,7 +58,7 @@ parameter to be set, for example:
 
 Sometimes ``convert_model`` will produce inputs of the model with dynamic rank or dynamic type. 
 Such model may not be supported by the hardware chosen for inference. To avoid this issue,
-use the ``input`` argument of ``convert_model``. For more information, refer to `Convert Models Represented as Python Objects <openvino_docs_MO_DG_Python_API>`. 
+use the ``input`` argument of ``convert_model``. For more information, refer to :doc:`Convert Models Represented as Python Objects <openvino_docs_MO_DG_Python_API>`. 
 
 .. important::
 
