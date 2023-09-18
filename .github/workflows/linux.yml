@@ -534,8 +534,8 @@ jobs:
 
       - name: Create Directories
         run: |
-          mkdir -p ${{ env.INSTALL_DIR }} && chown ${{ env.TEST_USER_NAME }} ${{ env.INSTALL_DIR }}
-          mkdir -p ${{ env.INSTALL_TEST_DIR }} && chown ${{ env.TEST_USER_NAME }} ${{ env.INSTALL_TEST_DIR }}
+          mkdir -p ${{ env.INSTALL_DIR }}
+          mkdir -p ${{ env.INSTALL_TEST_DIR }}
 
       - name: Install git
         run: |
@@ -1049,11 +1049,11 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
           popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
       - name: Install Python wheels
         run: |
