@@ -341,19 +341,23 @@ std::vector<NMSRotatedParams> generateParamsWithoutConstants() {
     using T_IND = typename element_type_traits<ET_IND>::value_type;
     std::vector<NMSRotatedParams> params{
         Builder{}
-            .boxes(reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{0.0f, 0.0f,  1.0f, 1.0f,   0.0f, 0.1f,
-                                                                         1.0f, 1.1f,  0.0f, -0.1f,  1.0f, 0.9f,
-                                                                         0.0f, 10.0f, 1.0f, 11.0f,  0.0f, 10.1f,
-                                                                         1.0f, 11.1f, 0.0f, 100.0f, 1.0f, 101.0f}))
-            .scores(reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f}))
-            .maxOutputBoxesPerClass(reference_tests::Tensor(ET_BOX, {1}, std::vector<T_BOX>{1}))
-            .iouThreshold(reference_tests::Tensor(ET_TH, {1}, std::vector<T_TH>{0.4f}))
-            .scoreThreshold(reference_tests::Tensor(ET_TH, {1}, std::vector<T_TH>{0.2f}))
-            .softNmsSigma(reference_tests::Tensor(ET_TH, {1}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CORNER)
-            .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 3}))
-            .expectedSelectedScores(reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0f, 0.0f, 0.95f}))
-            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
+            .boxes(reference_tests::Tensor(ET, {1, 6, 5}, std::vector<T>{/*0*/ 0.5, 0.5,   1.0, 1.0, 0.0,
+                                                                         /*1*/ 0.5, 0.6,   1.0, 1.0, 0.0,
+                                                                         /*2*/ 0.5, 0.4,   1.0, 1.0, 0.0,
+                                                                         /*3*/ 0.5, 10.5,  1.0, 1.0, 0.0,
+                                                                         /*4*/ 0.5, 10.6,  1.0, 1.0, 0.0,
+                                                                         /*5*/ 0.5, 100.5, 1.0, 1.0, 0.0}))
+            .scores(reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
+            .maxOutputBoxesPerClass(reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
+            .expectedSelectedIndices(
+                reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0, 0, 0, 5}))
+            .expectedSelectedScores(
+                reference_tests::Tensor(ET_TH, {3, 3}, std::vector<T_TH>{0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3}))
+            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
             .testcaseName("NMSRotated_suppress_by_IOU_and_scores_without_constants"),
     };
     return params;
