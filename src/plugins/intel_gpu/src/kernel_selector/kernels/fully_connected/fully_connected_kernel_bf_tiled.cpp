@@ -385,16 +385,10 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
 
     tune_params tparams = GetAutoTuneParams(fc_params, autoTuneIndex);
 
-    WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (tparams.tile_ofm * simd == 32)
-        weights_layout = WeightsLayout::os_iyx_osv32;
-    else if (tparams.tile_ofm * simd == 64)
-        weights_layout = WeightsLayout::os_iyx_osv64;
-
     return GetCommonKernelsData(params,
                                 options,
                                 fc_params.inputs[0].GetLayout(),
-                                weights_layout,
+                                WeightsLayout::oiyx,
                                 tparams.exec_options,
                                 autoTuneIndex);
 }

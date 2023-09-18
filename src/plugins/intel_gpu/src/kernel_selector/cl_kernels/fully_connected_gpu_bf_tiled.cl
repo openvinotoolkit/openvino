@@ -188,7 +188,15 @@ KERNEL(fc)(
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
-            wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #if TILE_K_OFM == 1
+                wei = weights[weights_offset + sglid * FILTER_OFM_PITCH];
+            #else
+                unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
+                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        wei[kii * TILE_OFM + fi] = weights[weights_offset + sglid * FILTER_OFM_PITCH + kii + fi * FILTER_OFM_PITCH * SIMD];
+                    }
+                }
+            #endif
             #if COMPRESSED_WEIGHTS
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
@@ -197,7 +205,7 @@ KERNEL(fc)(
                     }
                 }
             #endif
-            weights_offset += TILE_K_OFM * SIMD;
+            weights_offset += TILE_K;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 const uint total_k = ki * TILE_K + kii;
@@ -225,7 +233,15 @@ KERNEL(fc)(
         #undef LOAD_IN_0
         input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
         unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
-            wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #if TILE_K_OFM == 1
+                wei = weights[weights_offset + sglid * FILTER_OFM_PITCH];
+            #else
+                unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
+                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        wei[kii * TILE_OFM + fi] = weights[weights_offset + sglid * FILTER_OFM_PITCH + kii + fi * FILTER_OFM_PITCH * SIMD];
+                    }
+                }
+            #endif
             #if COMPRESSED_WEIGHTS
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
@@ -234,7 +250,7 @@ KERNEL(fc)(
                     }
                 }
             #endif
-            weights_offset += TILE_K_OFM * SIMD;
+            weights_offset += TILE_K;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
