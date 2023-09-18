@@ -113,6 +113,7 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/rms_fusion.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -642,6 +643,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+
+        manager.run_passes(func);
+    }
+
+    {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::intel_gpu::RMSFusion>();
 
         manager.run_passes(func);
     }
