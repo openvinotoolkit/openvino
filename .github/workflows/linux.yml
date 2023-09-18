@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Get affected components
         id: smart_ci
-        uses: akladiev/testrepo/.github/actions/affected-components@0.1.0
+        uses: akladiev/testrepo/.github/actions/affected-components@0.1.2
         with:
           repository: ${{ github.repository }}
           pr: ${{ github.event.pull_request.number }}
