@@ -551,13 +551,11 @@ const std::vector<AddTransformationTestValues> testValuesWithFirstConstantBranch
       {{}, {}, {5.f}},
       {-3.f},
       "Subtract"},
-     ""}
-};
+     ""}};
 
-// Disable F16 tests
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          AddTransformation,
-                         ::testing::Combine(::testing::ValuesIn(std::vector<ov::element::Type>{ov::element::f32}),
+                         ::testing::Combine(::testing::ValuesIn(netPrecision),
                                             ::testing::ValuesIn(inputShapes4D),
                                             ::testing::ValuesIn(testValuesWithFirstConstantBranch)),
                          AddTransformation::getTestCaseName);
@@ -615,10 +613,9 @@ const std::vector<AddTransformationTestValues> testValuesWithSecondConstantBranc
      ""},
 };
 
-// Disable F16 tests
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          AddTransformation,
-                         ::testing::Combine(::testing::ValuesIn(std::vector<ov::element::Type>{ov::element::f32}),
+                         ::testing::Combine(::testing::ValuesIn(netPrecision),
                                             ::testing::ValuesIn(inputShapes4D),
                                             ::testing::ValuesIn(testValuesWithSecondConstantBranch)),
                          AddTransformation::getTestCaseName);
