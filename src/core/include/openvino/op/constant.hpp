@@ -474,12 +474,13 @@ private:
 #    pragma warning(disable : 4018)
 #    pragma warning(disable : 4804)
 #endif
-            if (!std::is_same<OUT_T, IN_T>::value) {
-                OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
-                                "Cannot cast vector from constant. Some values are outside the range.");
-                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
-                                "Cannot cast vector from constant. Some values are outside the range.");
-            }
+                           if (!std::is_same<OUT_T, IN_T>::value) {
+                               OPENVINO_ASSERT(
+                                   !std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
+                                   "Cannot cast vector from constant. Some values are outside the range.");
+                               OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
+                                               "Cannot cast vector from constant. Some values are outside the range.");
+                           }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
 #elif defined(__GNUC__)
@@ -487,8 +488,8 @@ private:
 #elif defined(_MSC_VER)
 #    pragma warning(pop)
 #endif
-            return static_cast<OUT_T>(c);
-        });
+                           return static_cast<OUT_T>(c);
+                       });
     }
 
     template <element::Type_t Type,
