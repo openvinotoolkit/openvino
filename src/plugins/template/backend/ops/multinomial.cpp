@@ -51,9 +51,6 @@ inline void evaluate(const std::shared_ptr<ov::op::v13::Multinomial>& op,
     case ov::element::Type_t::i64:
         evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::i64>(op, outputs, inputs);
         return;
-    case ov::element::Type_t::u1:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::u1>(op, outputs, inputs);
-        return;
     case ov::element::Type_t::u4:
         evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::u4>(op, outputs, inputs);
         return;
@@ -102,28 +99,6 @@ bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
     switch (element_type) {
     case ov::element::Type_t::f32:
         return evaluate<ov::element::Type_t::f32>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::i4:
-        return evaluate<ov::element::Type_t::i4>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::i8:
-        return evaluate<ov::element::Type_t::i8>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::i16:
-        return evaluate<ov::element::Type_t::i16>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::i32:
-        return evaluate<ov::element::Type_t::i32>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::i64:
-        return evaluate<ov::element::Type_t::i64>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::u1:
-        return evaluate<ov::element::Type_t::u1>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::u4:
-        return evaluate<ov::element::Type_t::u4>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::u8:
-        return evaluate<ov::element::Type_t::u8>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::u16:
-        return evaluate<ov::element::Type_t::u16>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::u32:
-        return evaluate<ov::element::Type_t::u32>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::u64:
-        return evaluate<ov::element::Type_t::u64>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
     default:
         OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
