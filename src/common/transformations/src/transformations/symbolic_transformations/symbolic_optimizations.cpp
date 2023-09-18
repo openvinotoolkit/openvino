@@ -76,7 +76,7 @@ void special_case_range_label_propagation(const std::shared_ptr<ov::Node>& node)
         ov::DimensionTracker::set_label(output_shape[0], add_in0_label);
     node->set_output_type(0, node->get_output_element_type(0), output_shape);
 }
-} // namespace
+}  // namespace
 
 ov::pass::SymbolicPropagation::SymbolicPropagation() {
     m_te = std::make_shared<ov::TableOfEquivalence>();
