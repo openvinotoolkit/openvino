@@ -43,6 +43,9 @@ def single_input_to_input_cut_info(input: [tuple, list, PartialShape, Type, type
     :param input: input cut parameters of single input
     :return: InputCutInfo
     """
+    if isinstance(input, str):
+        # pylint: disable=no-member
+        return _InputCutInfo(input, None)
     if isinstance(input, (tuple, list)) or is_shape_type(input):
         # If input represents list with shape, wrap it to list. Single PartialShape also goes to this condition.
         # Check of all dimensions will be in is_shape_type(val) method below
