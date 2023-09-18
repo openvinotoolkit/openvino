@@ -113,20 +113,20 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         do {
             for (auto&& task : tasks) {
                 task = [this] {
-                    CompiledModel::GetGraph();
+                    CompiledModel::get_graph();
                 };
             }
             m_task_executor->run_and_wait(tasks);
         } while (!all_graphs_ready());
     } else {
-        CompiledModel::GetGraph();
+        CompiledModel::get_graph();
     }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
     if (m_graphs.size() == 1) {
-        for (auto& node : GetGraph()._graph.GetNodes()) {
+        for (auto& node : get_graph()._graph.GetNodes()) {
             if (node->getType() == Type::MemoryInput) {
                 auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
                 if (!memoryNode) {
@@ -146,10 +146,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
 }
 
-CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
+CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
     int streamId = 0;
     int socketId = 0;
-    auto streamsExecutor = dynamic_cast<IStreamsExecutor*>(m_task_executor.get());
+    auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->get_stream_id();
         socketId = streamsExecutor->get_socket_id();
@@ -206,7 +206,7 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     if (m_graphs.empty())
         OPENVINO_THROW("No graph was found");
 
-    return GetGraph()._graph.dump();
+    return get_graph()._graph.dump();
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
@@ -217,7 +217,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return m_loaded_from_cache;
     }
 
-    Config engConfig = GetGraph()._graph.getConfig();
+    Config engConfig = get_graph()._graph.getConfig();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         return option->second;
@@ -259,7 +259,7 @@ ov::Any CompiledModel::get_metric(const std::string& name) const {
     if (m_graphs.empty())
         OPENVINO_THROW("No graph was found");
     // @todo Can't we just use local copy (_cfg) instead?
-    auto graphLock = GetGraph();
+    auto graphLock = get_graph();
     const auto& graph = graphLock._graph;
     const auto& config = graph.getConfig();
 

@@ -771,7 +771,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     WeightsSharing::Ptr fake_w_cache;
 
     if (model == nullptr) {
-        IE_THROW() << "Only ngraph-based models are supported!";
+        OPENVINO_THROW("Only ngraph-based models are supported!");
     }
 
     Config conf = engConfig;

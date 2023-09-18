@@ -31,7 +31,7 @@ namespace intel_cpu {
 SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_compiled_model(compiled_model) {
-    m_is_legacy_api = m_compiled_model->GetGraph()._graph.getConfig().isLegacyApi;
+    m_is_legacy_api = m_compiled_model->get_graph()._graph.getConfig().isLegacyApi;
 
     for (const auto& in : get_inputs()) {
         auto port_name = get_port_name(in, m_is_legacy_api);
@@ -51,7 +51,7 @@ void SyncInferRequest::create_infer_request() {
     if (m_compiled_model->m_graphs.size() == 0) {
         OPENVINO_THROW("No graph was found");
     }
-    graph = &(m_compiled_model->GetGraph()._graph);
+    graph = &(m_compiled_model->get_graph()._graph);
 
     // Alocate memory for each tensor if static shape
     for (const auto& it : m_input_ports_map) {
@@ -166,7 +166,7 @@ void SyncInferRequest::update_external_tensor_ptrs() {
 void SyncInferRequest::infer() {
     using namespace openvino::itt;
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, m_profiling_task);
-    auto graphLock = m_compiled_model->GetGraph();
+    auto graphLock = m_compiled_model->get_graph();
     graph = &(graphLock._graph);
 
     throw_if_canceled();
@@ -376,7 +376,7 @@ void SyncInferRequest::throw_if_canceled() const {
     }
 }
 
-InferenceEngine::TensorDesc SyncInferRequest::create_tensor_desc(const ov::SoPtr<ITensor>& tensor) {
+static InferenceEngine::TensorDesc create_tensor_desc(const ov::SoPtr<ITensor>& tensor) {
     auto element_type = tensor->get_element_type();
     auto shape = tensor->get_shape();
     std::vector<size_t> blk_order(shape.size());

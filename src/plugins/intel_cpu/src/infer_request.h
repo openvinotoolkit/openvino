@@ -107,7 +107,6 @@ private:
     void redefine_memory_for_input_nodes();
 
     void update_external_tensor_ptrs();
-    static InferenceEngine::TensorDesc create_tensor_desc(const ov::SoPtr<ov::ITensor>& tensor);
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
     bool m_is_legacy_api = false;
 

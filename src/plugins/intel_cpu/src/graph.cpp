@@ -946,7 +946,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         const auto ext_blob_map = out.find(name);
         const auto ext_blob = ext_blob_map->second;
         if (ext_blob_map == out.end()) {
-            IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
+            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name.c_str());
         }
 
         InferenceEngine::TensorDesc expectedDesc(

@@ -39,7 +39,7 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     case dnnl::memory::data_type::undef:
         return 0;
     default:
-        IE_THROW() << "Unsupported data type.";
+        OPENVINO_THROW("Unsupported data type.");
     }
 }
 

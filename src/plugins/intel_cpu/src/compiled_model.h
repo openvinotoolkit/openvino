@@ -75,11 +75,11 @@ private:
     mutable std::deque<GraphGuard> m_graphs;
     mutable SocketsWeights m_socketWeights;
 
-    /* WARNING: Use GetGraph() function to get access to graph in current stream.
+    /* WARNING: Use get_graph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
      *       even from main thread
      */
-    GraphGuard::Lock GetGraph() const;
+    GraphGuard::Lock get_graph() const;
 
     ov::Any get_metric(const std::string& name) const;
     ov::Any get_metric_legacy(const std::string& name, const GraphGuard& graph) const;
