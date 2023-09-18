@@ -29,7 +29,7 @@ TEST_P(InferRequest_IOTensor_Test, fail_to_set_nullptr_for_input) {
 
 TEST_P(InferRequest_IOTensor_Test, fail_to_set_nullptr_for_output) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
-    ASSERT_NO_THROW(compiled_model);
+    req = compiled_model.create_infer_request();
     ASSERT_THROW(req.set_tensor(output, {}), ov::Exception);
 }
 
