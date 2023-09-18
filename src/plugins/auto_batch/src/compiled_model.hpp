@@ -54,6 +54,10 @@ public:
 
     virtual ~CompiledModel();
 
+    const std::vector<ov::Output<const ov::Node>>& outputs() const override;
+
+    const std::vector<ov::Output<const ov::Node>>& inputs() const override;
+
 protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     static unsigned int ParseTimeoutValue(const std::string&);
