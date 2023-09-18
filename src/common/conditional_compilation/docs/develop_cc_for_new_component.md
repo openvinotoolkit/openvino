@@ -69,7 +69,6 @@ It checks whether the code region in this module is active or inactive by the ma
 
 There is an example of `conditional_compilation_gen.h`:
 ```
-#define ov_pass_FixRtInfo_run_on_function 1
 #define ov_pass_GraphRewrite_run_on_model 1
 #define ov_pass_InitNodeInfo_run_on_function 1
 #define ov_pass_ConstantFolding_run_on_model 1

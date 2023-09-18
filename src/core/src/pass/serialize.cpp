@@ -197,7 +197,7 @@ void ngfunction_2_ir(pugi::xml_node& node,
                      bool deterministic);
 
 namespace rt_info {
-const std::vector<std::string> list_of_names{
+static const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
     "alt_width",
 };

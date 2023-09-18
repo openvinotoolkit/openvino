@@ -106,8 +106,6 @@ function(openvino_developer_export_targets)
         if(TARGET "${target_name}")
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET "${original_name}")
-                message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
-                        "It will be exported to the OpenVINODeveloperPackage with the original name.")
                 list(REMOVE_ITEM ${EXPORT_COMPONENT} ${target_name})
                 list(APPEND ${EXPORT_COMPONENT} ${original_name})
             endif()

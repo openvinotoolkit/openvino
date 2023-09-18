@@ -62,7 +62,7 @@ static uint64_t hash_combine(uint64_t seed, const T &v) {
 namespace rt_info {
 
 // some node attr is not type of ov::RuntimeAttribute, need dedicate visitor.
-const std::vector<std::string> list_of_names{
+static const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
     "alt_width",
 };
