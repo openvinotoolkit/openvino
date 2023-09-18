@@ -19,8 +19,9 @@ void regclass_graph_op_If(py::module m) {
     py::class_<ov::op::v8::If, std::shared_ptr<ov::op::v8::If>, ov::Node> cls(m, "if_op");
     cls.doc() = "openvino.impl.op.If wraps ov::op::v0::If";
     cls.def(py::init<>());
-    cls.def(py::init<const ov::Output<ov::Node>&>(), py::arg("execution_condition"),
-        R"(
+    cls.def(py::init<const ov::Output<ov::Node>&>(),
+            py::arg("execution_condition"),
+            R"(
             Constructs If with condition
 
             :param execution_condition: condition node.
@@ -39,7 +40,7 @@ void regclass_graph_op_If(py::module m) {
                 }
             }),
             py::arg("execution_condition"),
-        R"(
+            R"(
             Constructs If with condition
 
             :param execution_condition: condition node.
@@ -48,16 +49,19 @@ void regclass_graph_op_If(py::module m) {
             :rtype: openvino.impl.op.If
         )");
 
-    cls.def("get_else_body", &ov::op::v8::If::get_else_body,
-        R"(
+    cls.def("get_else_body",
+            &ov::op::v8::If::get_else_body,
+            R"(
             Gets else_body as Model object.
 
             :return: else_body as Model object.
             :rtype: openvino.Model
         )");
 
-    cls.def("set_then_body", &ov::op::v8::If::set_then_body, py::arg("body"),
-        R"(
+    cls.def("set_then_body",
+            &ov::op::v8::If::set_then_body,
+            py::arg("body"),
+            R"(
             Sets new Model object as new then_body.
 
             :param body: new body for 'then' branch.
@@ -66,9 +70,10 @@ void regclass_graph_op_If(py::module m) {
             :rtype: None
         )");
 
-    cls.def("set_else_body", &ov::op::v8::If::set_else_body, 
-    py::arg("body"),
-        R"(
+    cls.def("set_else_body",
+            &ov::op::v8::If::set_else_body,
+            py::arg("body"),
+            R"(
             Sets new Model object as new else_body.
 
             :param body: new body for 'else' branch.
@@ -82,7 +87,7 @@ void regclass_graph_op_If(py::module m) {
             py::arg("value"),
             py::arg("then_parameter"),
             py::arg("else_parameter"),
-        R"(
+            R"(
             Sets new input to the operation associated with parameters of each sub-graphs
 
             :param value: input to operation
@@ -97,10 +102,11 @@ void regclass_graph_op_If(py::module m) {
             :rtype: None
         )");
 
-    cls.def("set_output", &ov::op::v8::If::set_output, 
-    py::arg("then_result"), 
-    py::arg("else_result"),
-        R"(
+    cls.def("set_output",
+            &ov::op::v8::If::set_output,
+            py::arg("then_result"),
+            py::arg("else_result"),
+            R"(
             Sets new output from the operation associated with results of each sub-graphs
 
             :param then_result: result from then_body
@@ -112,10 +118,11 @@ void regclass_graph_op_If(py::module m) {
             :return: output from operation
             :rtype: openvino.runtime.Output
         )");
-    
-    cls.def("get_function", &ov::op::util::MultiSubGraphOp::get_function, 
-    py::arg("index"),
-        R"(
+
+    cls.def("get_function",
+            &ov::op::util::MultiSubGraphOp::get_function,
+            py::arg("index"),
+            R"(
             Gets internal sub-graph by index in MultiSubGraphOp
 
             :param index: sub-graph's index in op
@@ -125,10 +132,11 @@ void regclass_graph_op_If(py::module m) {
             :rtype: openvino.Model
         )");
 
-    cls.def("set_function", &ov::op::util::MultiSubGraphOp::set_function, 
-    py::arg("index"), 
-    py::arg("func"),
-        R"(
+    cls.def("set_function",
+            &ov::op::util::MultiSubGraphOp::set_function,
+            py::arg("index"),
+            py::arg("func"),
+            R"(
             Adds sub-graph to MultiSubGraphOp
 
             :param index: index of new sub-graph
