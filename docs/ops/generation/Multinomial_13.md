@@ -62,7 +62,7 @@ Example 3 - 1D tensor, without replacement
 * ``output_type``
 
   * **Description**: the type of the output. Determines generation algorithm and affects resulting values. Output numbers generated for different values of *output_type* may not be equal.
-  * **Range of values**: "i32", "i64", "f16", "bf16", "f32", "f64".
+  * **Range of values**: "i4", "i8", "i16", "i32", "i64", "f32", "u4", "u8", "u16", u32", "u64".
   * **Type**: string
   * **Required**: *Yes*
 
@@ -112,8 +112,8 @@ Example 3 - 1D tensor, without replacement
 
 **Types**
 
-* **T_IN**: any supported floating-point type.
-* **T_SAMPLES**: any supported integer type.
+* **T_IN**: 32-bit floating point numbers.
+* **T_SAMPLES**: 32-bit or 64-bit integers.
 
 
 *Example 1: 1D input tensor.*
