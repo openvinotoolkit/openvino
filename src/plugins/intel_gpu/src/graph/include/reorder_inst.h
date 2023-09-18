@@ -58,7 +58,8 @@ public:
     bool is_simple_reorder() const {
         return !has_fused_primitives() &&
                !has_mean() &&
-               get_primitive()->subtract_per_feature.empty();
+               get_primitive()->subtract_per_feature.empty() &&
+               !get_primitive()->weights_reorder_params;
     }
 
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {

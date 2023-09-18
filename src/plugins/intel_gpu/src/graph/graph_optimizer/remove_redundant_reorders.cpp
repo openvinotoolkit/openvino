@@ -146,7 +146,8 @@ void remove_redundant_reorders::run(program& p) {
         bool remove_dep = r_dep_node.is_simple_reorder() &&
                           r_dep_node.get_users().size() == 1 &&
                           !r_dep_node.is_output() &&
-                          !r_dep_node.get_primitive()->has_surface_input();
+                          !r_dep_node.get_primitive()->has_surface_input() &&
+                          !r_node.get_primitive()->weights_reorder_params;
 
         // for chains like
         // fp32 -> reorder -> u8 -> reorder -> fp32
@@ -262,9 +263,7 @@ void remove_redundant_reorders::run(program& p) {
 
         if (!r_node.is_simple_reorder() ||
             no_output_optimization ||
-            r_node.get_primitive()->has_surface_input() ||
-            (r_node.get_primitive()->weights_reorder_params &&
-             r_node.get_primitive()->weights_reorder_params->should_be_transposed()))
+            r_node.get_primitive()->has_surface_input())
             continue;
 
         auto o_layout = r_node.get_output_layout();
