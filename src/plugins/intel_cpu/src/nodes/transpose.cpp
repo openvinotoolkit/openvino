@@ -119,7 +119,16 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     } else {
         // general plain case
         config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape));
-        config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape));
+        std::shared_ptr<CpuBlockedMemoryDesc> outMemDescPtr;
+        if (isOptimized) {
+            VectorDims blockedDims = outputDataShape.getDims();
+            std::swap(blockedDims[0], blockedDims[1]);
+            outMemDescPtr = std::make_shared<CpuBlockedMemoryDesc>(CpuBlockedMemoryDesc(prec, outputDataShape, blockedDims, {1, 0}));
+        } else {
+            outMemDescPtr = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape);
+        }
+        config.outConfs[0].setMemDesc(outMemDescPtr);
+
         supportedPrimitiveDescriptorsBuilder(config, transposeParams);
     }
 }
