@@ -86,7 +86,7 @@ def test_compile_model(request, tmp_path, device_name):
     assert isinstance(compiled_model, CompiledModel)
 
 
-@pytest.mark.parametrize(("loading_type"), [
+@pytest.mark.parametrize("loading_type", [
     None,
     "posixpath",
     "auto"
@@ -98,8 +98,8 @@ def test_compile_model(request, tmp_path, device_name):
 @pytest.mark.parametrize("config", [
     None,
     {"PERFORMANCE_HINT": "THROUGHPUT"},  # here I would replace them with actual properties later CC Ana
-    {"PERFORMANCE_HINT":"LATENCY"},
-    {"PERFORMANCE_HINT":"CUMULATIVE_THROUGHPUT"}
+    {"PERFORMANCE_HINT": "LATENCY"},
+    {"PERFORMANCE_HINT": "CUMULATIVE_THROUGHPUT"}
 ])
 def test_compact_api(request, tmp_path, loading_type, device_name, config):
     relu_model = get_relu_model()
@@ -115,6 +115,8 @@ def test_compact_api(request, tmp_path, loading_type, device_name, config):
                 compiled_model = compile_model(model=relu_model, device_name=device_name, config=config)
             else:
                 compiled_model = compile_model(model=relu_model, config=config)
+    else:
+        compiled_model = compile_model(model=relu_model, config=config)
 
     assert isinstance(compiled_model, CompiledModel)
 
