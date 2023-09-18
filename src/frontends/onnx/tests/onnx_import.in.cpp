@@ -6716,18 +6716,3 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unique_3d_with_duplicates_and_axis_2) 
 
     test_case.run();
 }
-
-// OPENVINO_TEST(${BACKEND_NAME}, onnx_nms_rotated) {
-//     const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4});
-//     const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
-
-//     auto nms = std::make_shared<default_opset::NonMaxSuppression>(node.get_ng_inputs().at(0));
-//     auto model = std::make_shared<ov::Model>(OutputVector{nms->output(0)});
-//     ov::pass::VisualizeTree("nms_rotates_poc_1.svg").run_on_model(model);
-
-//     EXPECT_EQ(nms->get_output_size(), 1);
-//     EXPECT_EQ(nms->get_output_element_type(0), element::i64);
-//     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({0, 3}));
-
-//     // test_case.run();
-// }
