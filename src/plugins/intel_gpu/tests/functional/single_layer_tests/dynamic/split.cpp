@@ -264,4 +264,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck6D, VariadicSplitLayerGPUDynam
                                 ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
                         VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 
+
+const std::vector<InputShape> inputShapes4d_static = {
+        {
+            {5, 16, 10, 8}, {{5, 16, 10, 8}, }
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck4D_static_input_dyn_output, VariadicSplitLayerGPUDynamicTest,
+                        ::testing::Combine(
+                                ::testing::Values(1),                                       // axes
+                                ::testing::Values(std::vector<int32_t>{2, 1, -1}),          // splitLength
+                                ::testing::Values(ElementType::f16),                        // netPrec
+                                ::testing::ValuesIn(inputShapes4d_static),                         // inShapes
+                                ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
+                        VariadicSplitLayerGPUDynamicTest::getTestCaseName);
+
 } // namespace GPULayerTestsDefinitions

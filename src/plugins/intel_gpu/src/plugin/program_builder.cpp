@@ -314,6 +314,14 @@ bool ProgramBuilder::requires_new_shape_infer(const ov::Node& op) const {
         return true;
     }
 
+    // When input node has dynamic shape with 4 dimension, this function return false
+    // because op.is_dynamic() which only checks input shapes return false.
+    // So, in the case of input data, we need to check output shape.
+    for (size_t i = 0; i < op.get_output_size(); i++) {
+        if (op.get_output_partial_shape(i).is_dynamic())
+            return true;
+    }
+
     if (ov::is_type<op::FullyConnectedCompressed>(&op))
         return true;
 

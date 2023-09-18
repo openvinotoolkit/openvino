@@ -1234,9 +1234,18 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             GPU_DEBUG_COUT << inst->id() << std::endl;
             if (inst->get_node().is_type<loop>()) {
                 auto& loop_node = inst->get_node().as<loop>();
-                auto loop_body_primitives = loop_node.get_body_topology().get_primitives_ids();
-                for (auto& primitive_id : loop_body_primitives) {
-                    GPU_DEBUG_COUT << "\t" << primitive_id << std::endl;
+                for (auto& prim : loop_node.get_body_program()->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+            } else if (inst->get_node().is_type<condition>()) {
+                auto& cond_node = inst->get_node().as<condition>();
+                GPU_DEBUG_COUT << "* Branch_True" << std::endl;
+                for (auto& prim : cond_node.get_branch_true().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+                GPU_DEBUG_COUT << "* Branch_False" << std::endl;
+                for (auto& prim : cond_node.get_branch_false().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
                 }
             }
         }
