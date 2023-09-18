@@ -33,18 +33,6 @@ inline void evaluate(const std::shared_ptr<ov::op::v13::Multinomial>& op,
                      const ov::HostTensorVector& outputs,
                      const ov::HostTensorVector& inputs) {
     switch (op->get_output_type()) {
-    case ov::element::Type_t::boolean:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::boolean>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::bf16:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::bf16>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::f16:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::f16>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::f64:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::f64>(op, outputs, inputs);
-        return;
     case ov::element::Type_t::f32:
         evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::f32>(op, outputs, inputs);
         return;
@@ -112,14 +100,6 @@ bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
         element_type = node->get_input_element_type(1);
 
     switch (element_type) {
-    case ov::element::Type_t::boolean:
-        return evaluate<ov::element::Type_t::boolean>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::bf16:
-        return evaluate<ov::element::Type_t::bf16>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::f16:
-        return evaluate<ov::element::Type_t::f16>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
-    case ov::element::Type_t::f64:
-        return evaluate<ov::element::Type_t::f64>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
     case ov::element::Type_t::f32:
         return evaluate<ov::element::Type_t::f32>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
     case ov::element::Type_t::i4:
