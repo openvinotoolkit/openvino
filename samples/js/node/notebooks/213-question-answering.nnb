@@ -77,10 +77,6 @@
                                 "=== Model Inputs:",
                                 "input_ids",
                                 "attention_mask",
-                                "token_type_ids",
-                                "position_ids",
-                                "=== Model Outputs:",
-                                "output_s",
                                 "output_e",
                                 ""
                             ]
@@ -185,9 +181,7 @@
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
                                 "Context: Computational complexity theory is a branch of the theory of computation in theoretical computer science that focuses on classifying computational problems according to their inherent difficulty, and relating those classes to each other. A computational problem is understood to be a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm.",
-                                "Answer: A computational problem",
-                                "Score: 0.5286847737759395",
-                                "Time: 0.059583751s",
+                                "Time: 0.052566626s",
                                 ""
                             ]
                         }
