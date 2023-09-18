@@ -1,12 +1,14 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import pytest
 import torch
 import tempfile
 import torchvision.transforms.functional as F
-from models_hub_common.test_convert_model import TestConvertModel
 from openvino import convert_model
+from models_hub_common.test_convert_model import TestConvertModel
+from models_hub_common.utils import get_models_list
 
 
 def get_all_models() -> list:
@@ -51,7 +53,7 @@ torch.manual_seed(0)
 
 
 class TestTorchHubConvertModel(TestConvertModel):
-    def setup_method(self):
+    def setup_class(self):
         self.cache_dir = tempfile.TemporaryDirectory()
         # set temp dir for torch cache
         torch.hub.set_dir(str(self.cache_dir.name))
@@ -107,12 +109,12 @@ class TestTorchHubConvertModel(TestConvertModel):
         super().teardown_method()
 
     @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
-    #@pytest.mark.precommit
+    @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.run(model_name, None, ie_device)
 
-    @pytest.mark.parametrize("model_name", get_all_models())
-    #@pytest.mark.nightly
-    @pytest.mark.precommit
-    def test_convert_model_all_models(self, model_name, ie_device):
-        self.run(model_name, None, ie_device)
+    @pytest.mark.parametrize("name",
+                             [pytest.param(n, marks=pytest.mark.xfail) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models"))])
+    @pytest.mark.nightly
+    def test_convert_model_all_models(self, name, ie_device):
+        self.run(name, None, ie_device)
