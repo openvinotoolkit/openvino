@@ -15,7 +15,7 @@ target_include_directories(${MOCK1_FE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(${MOCK1_FE_NAME} PRIVATE frontend_common)
 add_dependencies(ov_core_unit_tests ${MOCK1_FE_NAME})
 
-add_clang_format_target(${MOCK1_FE_NAME}_clang FOR_TARGETS ${MOCK1_FE_NAME})
+ov_add_clang_format_target(${MOCK1_FE_NAME}_clang FOR_TARGETS ${MOCK1_FE_NAME})
 
 install(TARGETS ${MOCK1_FE_NAME}
         RUNTIME DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
