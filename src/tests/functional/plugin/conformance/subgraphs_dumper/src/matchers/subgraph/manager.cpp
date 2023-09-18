@@ -87,7 +87,9 @@ ExtractorsManager::align_input_info(const std::shared_ptr<ov::Model>& model,
 }
 
 std::list<ExtractedPattern>
-ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model, bool is_extract_body) {
+ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model,
+                           bool is_extract_body,
+                           bool is_copy_constants) {
     std::list<ExtractedPattern> result;
     for (const auto &it : m_extractors) {
         // extract patterns from original models

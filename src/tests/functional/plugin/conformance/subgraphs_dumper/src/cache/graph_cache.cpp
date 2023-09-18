@@ -22,10 +22,13 @@ std::shared_ptr<GraphCache> GraphCache::m_cache_instance = nullptr;
 
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
                               const std::string& model_meta_data,
-                              bool extract_body, bool from_cache) {
+                              bool extract_body,
+                              bool from_cache) {
     std::cout << "[ INFO ][ GRAPH CACHE ] Processing model: " << model_meta_data << std::endl;
     auto model_total_op = model->get_ops().size() - model->get_output_size() - model->inputs().size();
-    auto extracted_patterns = m_manager.extract(model, extract_body);
+    // todo: not copy constants in case model bytesize > 16GB
+    bool is_not_large_model = model->get_graph_size() >> 34 == 0;
+    auto extracted_patterns = m_manager.extract(model, extract_body, is_not_large_model);
     if (extracted_patterns.empty()) {
         return;
     }

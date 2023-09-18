@@ -73,7 +73,8 @@ void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std:
 inline ExtractedPattern
 generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                std::unordered_set<std::string>& checked_ops,
-               const std::string& extractor_name) {
+               const std::string& extractor_name,
+               bool is_copy_constants = true) {
     // map to recover graph using cloned nodes and original connections
     // { original_node_name, cloned_node }
     std::unordered_map<std::string, std::shared_ptr<ov::Node>> cloned_node_map;
@@ -89,7 +90,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
             auto orig_node_name = node->get_friendly_name();
             checked_ops.insert(orig_node_name);
             cloned_node_map.insert({ orig_node_name,
-                                     clone_node(node, true, false, orig_node_name) });
+                                     clone_node(node, is_copy_constants, false, orig_node_name) });
             
             // create temporary vector to fill node output indexes
             std::vector<size_t> out_ports(node->outputs().size());

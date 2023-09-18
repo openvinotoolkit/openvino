@@ -16,7 +16,8 @@ using namespace ov::tools::subgraph_dumper;
 
 std::list<ExtractedPattern>
 RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
-                                bool is_extract_body) {
+                                bool is_extract_body,
+                                bool is_copy_constants) {
     std::unordered_set<std::string> checked_ops;
     std::list<ExtractedPattern> to_cache;
 
@@ -92,7 +93,7 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
         for (size_t i = 0; i < start_node_idx.size(); ++i) {
             try {
-                auto extracted_pattern = generate_model(nodes[i], checked_ops, extractor_name);
+                auto extracted_pattern = generate_model(nodes[i], checked_ops, extractor_name, is_copy_constants);
                 auto extracted_model = std::get<0>(extracted_pattern);
                 auto secondary_patterns = extract(std::get<0>(extracted_pattern), is_extract_body);
                 if (secondary_patterns.size() > 1) {

@@ -35,7 +35,8 @@ public:
                      const std::shared_ptr<ov::Model> &ref_model) const;
 
     virtual std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
-                                                bool is_extract_body = true) {
+                                                bool is_extract_body = true,
+                                                bool is_copy_constants = true) {
         return std::list<ExtractedPattern>{};
     };
 

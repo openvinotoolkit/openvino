@@ -18,7 +18,8 @@ public:
     ~FusedNamesExtractor();
 
     std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
-                                        bool is_extract_body = true) override;
+                                        bool is_extract_body = true,
+                                        bool is_copy_constants = true) override;
     void set_target_device(const std::string& _device) { device = _device; }
 
 protected:

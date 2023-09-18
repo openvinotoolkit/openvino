@@ -22,7 +22,8 @@ public:
     bool is_subgraph(const std::shared_ptr<ov::Model> &model,
                      const std::shared_ptr<ov::Model> &ref);
     std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
-                                        bool is_extract_body = true);
+                                        bool is_extract_body = true,
+                                        bool is_copy_constants = true);
 
     void set_extractors(const ExtractorsMap& extractors = {}) { m_extractors = extractors; }
     ExtractorsMap get_extractors() { return m_extractors; }
