@@ -222,6 +222,8 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<ov::opse
     const auto x = multiply->input_value(multiplyInputBranch);
     auto a = as_type_ptr<ov::opset1::Constant>(multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0));
     auto b = as_type_ptr<ov::opset1::Constant>(addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0));
+    if (!a || !b)
+        return addAfterMultiply;
     std::shared_ptr<ov::opset1::Constant> bDivA;
 
     const auto aPShape = a->get_output_partial_shape(0);

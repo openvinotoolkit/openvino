@@ -77,6 +77,8 @@ ov::Any IntervalsAlignmentAttribute::create(
                         dequantization.multiplyConstant);
 
                 auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
+                if (!multiplyResultConstant)
+                    return nullptr;
                 auto intervals = multiplyResultConstant->cast_vector<float>();
                 lowInterval = *std::min_element(intervals.begin(), intervals.end());
             }
