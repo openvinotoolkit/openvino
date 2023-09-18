@@ -25,7 +25,7 @@ ParamsKey MHAKernelRef::GetSupportedKey() const {
 CommonDispatchData MHAKernelRef::SetDefault(const mha_params& params) const {
     CommonDispatchData dispatchData;
 
-    /* FIXME: even for ref implementation, we can parallelize f-axis */
+    /* Note: even for ref implementation, we can parallelize f-axis */
     dispatchData.gws = {1, 1, 1};
     dispatchData.lws = dispatchData.gws;
 

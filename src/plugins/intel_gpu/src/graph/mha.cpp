@@ -17,7 +17,8 @@ layout mha_inst::calc_output_layout(mha_node const& node, kernel_impl_params con
 
     auto input_layout = impl_param.get_input_layout(0);
 
-    /* FIXME: add size assertion logic here */
+    CLDNN_ERROR_NOT_EQUAL(desc->id,
+                          "MHA layer input number", impl_param.input_layouts.size(), "expected number of inputs", static_cast<size_t>(3), "");
 
     return input_layout;
 }
