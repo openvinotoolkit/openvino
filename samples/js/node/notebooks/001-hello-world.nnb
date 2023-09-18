@@ -52,6 +52,34 @@
         {
             "language": "markdown",
             "source": [
+                "## Download an Image and Imagenet Classes"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg';\nconst classesUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_class_index.json';\n\nawait downloadFile(imgUrl, 'coco.jpg', '../../assets/images');\nawait downloadFile(classesUrl, 'imagenet_class_index.json', '../../assets/datasets');"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/datasets/imagenet_class_index.json'",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
                 "## Load the Model"
             ],
             "outputs": []
@@ -117,7 +145,7 @@
         {
             "language": "javascript",
             "source": [
-                "const imagenetClassesMap = require('../../assets/imagenet_classes_map.json');\n\nconsole.log(`Result: ${imagenetClassesMap[resultIndex]}`);"
+                "const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');\nconst imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];\n\nconsole.log(`Result: ${imagenetClasses[resultIndex][1]}`);"
             ],
             "outputs": [
                 {
@@ -125,7 +153,7 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "Result: flat-coated retriever",
+                                "Result: flat-coated_retriever",
                                 ""
                             ]
                         }

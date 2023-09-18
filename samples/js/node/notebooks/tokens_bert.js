@@ -9,7 +9,7 @@ exports.loadVocabFile = loadVocabFile;
 // Load vocabulary file for encoding
 async function loadVocabFile(vocabFileName) {
   const vocab = {};
-  const lines = await fs.readFileSync(vocabFileName, 'utf-8').split('\n');
+  const lines = (await fs.readFile(vocabFileName, 'utf-8')).split('\n');
 
   lines.forEach((line, index) => {
     const token = line.trim();

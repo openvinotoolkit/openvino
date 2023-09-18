@@ -52,6 +52,33 @@
         {
             "language": "markdown",
             "source": [
+                "## Download an Image"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const baseImagesDir = '../../assets/images';\nconst imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg';\n\nawait downloadFile(imgUrl, 'intel_rnb.jpg', baseImagesDir);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/images/intel_rnb.jpg'",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
                 "## Load the Model"
             ],
             "outputs": []
