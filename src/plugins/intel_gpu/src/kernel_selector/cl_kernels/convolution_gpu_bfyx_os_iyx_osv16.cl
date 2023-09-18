@@ -180,7 +180,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                         UNIT_TYPE val = _sub_group_shuffle( in[br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y], bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X);
 #endif
 
-                        out[br * OUTPUT_BLOCK_WIDTH + bc] += TO_ACCUMULATION_TYPE(w[wi % PREFETCH] * val);
+                        out[br * OUTPUT_BLOCK_WIDTH + bc] = mad(TO_ACCUMULATION_TYPE(w[wi % PREFETCH]), TO_ACCUMULATION_TYPE(val), out[br * OUTPUT_BLOCK_WIDTH + bc]);
                     }
                 }
                 w[wi % PREFETCH] = weights[weight_addr];

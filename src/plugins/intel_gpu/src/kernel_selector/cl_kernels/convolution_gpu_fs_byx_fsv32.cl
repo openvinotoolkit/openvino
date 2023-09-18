@@ -133,7 +133,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
                                 ifii % SUB_GROUP_SIZE);
 
                             const uint out_idx = out_x * FSV_PER_THREAD + out_f;
-                            out[out_idx] += TO_ACCUMULATION_TYPE(in_val * w[out_f]);
+                            out[out_idx] = mad(TO_ACCUMULATION_TYPE(in_val), TO_ACCUMULATION_TYPE(w[out_f]), out[out_idx]);
                         }
                     }
 
