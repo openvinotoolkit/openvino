@@ -414,6 +414,10 @@ void gpu_usm::unlock(const stream& /* stream */) {
 }
 
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
+    if (_bytes_count == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "Skip gpu_usm::fill for 0 size tensor" << std::endl;
+        return nullptr;
+    }
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
     cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
@@ -439,6 +443,10 @@ event::ptr gpu_usm::fill(stream& stream) {
 }
 
 event::ptr gpu_usm::copy_from(stream& stream, const memory& other, bool blocking) {
+    if (_bytes_count == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
+        return nullptr;
+    }
     auto& cl_stream = downcast<const ocl_stream>(stream);
     auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
     cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
@@ -462,6 +470,10 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other, bool blocking
 }
 
 event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr, bool blocking) {
+    if (_bytes_count == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
+        return nullptr;
+    }
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto dst_ptr = get_buffer().get();
     auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
@@ -477,6 +489,10 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr, bool blockin
 }
 
 event::ptr gpu_usm::copy_to(stream& stream, void* host_ptr, bool blocking) {
+    if (_bytes_count == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
+        return nullptr;
+    }
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
     cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
