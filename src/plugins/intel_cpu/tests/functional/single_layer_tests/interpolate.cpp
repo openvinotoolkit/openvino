@@ -338,7 +338,6 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         emptyFusingSpec,
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         fusingSwish,
-        fusingMultiplyPerTensor,
         fusingFakeQuantizePerTensorRelu,
 #endif
 };
