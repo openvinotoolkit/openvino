@@ -39,7 +39,7 @@ async function main() {
   packageName = packageName.replace('{version}', packageJson.binary.version);
 
   const binaryUrl = packageJson.binary.host + packageJson.binary['remote_path']
-    + packageName;
+    + `${osInfo.dir}/` + packageName;
 
   try {
     await fetchRuntime(binaryUrl);
@@ -57,7 +57,7 @@ async function main() {
 async function detectOS() {
   const platform = os.platform();
 
-  if (!['win32', 'linux'].includes(platform)) {
+  if (!['win32', 'linux', 'darwin'].includes(platform)) {
     console.error(`Platform '${platform}' doesn't support`);
     process.exit(1);
   }
@@ -65,51 +65,81 @@ async function detectOS() {
   const platformMapping = {
     win32: {
       os: 'windows',
+      dir: 'windows',
       letter: 'w',
       extension: 'zip',
     },
     linux: {
       letter: 'l',
+      dir: 'linux',
       extension: 'tgz',
-    }
+    },
+    darwin: {
+      letter: 'm',
+      dir: 'macos',
+      extension: 'tgz',
+    },
   };
 
   const arch = os.arch();
 
-  if (!['arm64', 'x64'].includes(arch)) {
+  if (!['arm64', 'armhf', 'x64'].includes(arch)) {
     console.error(`Architecture '${arch}' doesn't support`);
     process.exit(1);
   }
 
   const archMapping = {
     arm64: 'arm64',
+    armhf: 'armhf',
     x64: 'x86_64',
   };
 
-  platformMapping.arch = archMapping[arch];
+  let osVersion = null;
+  switch(platform) {
+    case 'linux':
+      const osReleaseData = await fs.readFile('/etc/os-release', 'utf8');
 
-  if (platform === 'linux') {
-    const osReleaseData = await fs.readFile('/etc/os-release', 'utf8');
-    const os = osReleaseData.includes('Ubuntu 22')
-      ? 'ubuntu22'
-      : osReleaseData.includes('Ubuntu 20')
-      ? 'ubuntu20'
-      : osReleaseData.includes('Ubuntu 18')
-      ? 'ubuntu18'
-      : ['arm64', 'armhf'].includes(platformMapping.arch)
-        && osReleaseData.includes('ID=debian')
-      ? 'debian9'
-      : null;
+      osVersion = osReleaseData.includes('Ubuntu 22')
+        ? 'ubuntu22'
+        : osReleaseData.includes('Ubuntu 20')
+        ? 'ubuntu20'
+        : osReleaseData.includes('Ubuntu 18')
+        ? 'ubuntu18'
+        : ['arm64', 'armhf'].includes(arch)
+          && osReleaseData.includes('ID=debian')
+        ? 'debian9'
+        : null;
 
-    if (!os) {
-      console.error('Cannot detect your OS');
-      process.exit(1);
-    }
+      break;
 
-    platformMapping.linux.os = os;
+    case 'darwin':
+      const [major, minor] = os.release().split('.');
+
+      osVersion = (major === 10 && minor >= 15)
+        ? 'macos_10_15'
+        : major === 11
+        ? 'macos_11_0'
+        : null;
+
+      break;
+
+    case 'win32':
+      osVersion = true;
+
+      break;
   }
 
-  return { platform, arch: archMapping[arch], ...platformMapping[platform] };
+  if (!osVersion) {
+    console.error('Cannot detect your OS');
+    process.exit(1);
+  }
+
+  return {
+    platform,
+    os: osVersion,
+    arch: archMapping[arch],
+    ...platformMapping[platform]
+  };
 }
 
 async function checkDirExistence(pathToDir) {
