@@ -145,7 +145,7 @@
         {
             "language": "javascript",
             "source": [
-                "const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');\n\nconsole.log(`Result: ${imagenetClassesMap[resultIndex][1]}`);"
+                "const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');\nconst imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];\n\nconsole.log(`Result: ${imagenetClasses[resultIndex][1]}`);"
             ],
             "outputs": [
                 {
@@ -153,7 +153,7 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "Result: curly-coated_retriever",
+                                "Result: flat-coated_retriever",
                                 ""
                             ]
                         }
