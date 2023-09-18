@@ -586,8 +586,8 @@ private:
                         add(reg_d_weights, jcp_.oc_block * sizeof(float));
                     }
 
-                    post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
                     depthwise_inj_idx++;
+                    post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
 
                     push(reg_oc_off);
                 } else if (post_op.is_sum(false)) {

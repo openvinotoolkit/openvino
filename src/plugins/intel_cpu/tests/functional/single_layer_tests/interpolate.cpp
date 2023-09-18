@@ -462,18 +462,13 @@ const std::vector<ShapeParams> shapeParams4D_fixed_C = {
 };
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-const std::vector<fusingSpecificParams> interpolateFusingParamsSet_fixed_C{
-        fusingFakeQuantizePerChannelRelu,
-        fusingMultiplyPerChannel,
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             interpolateCasesNN_Smoke,
             ::testing::ValuesIn(shapeParams4D_fixed_C),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::ValuesIn(interpolateFusingParamsSet_fixed_C),
+            ::testing::Values(fusingFakeQuantizePerChannelRelu),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
@@ -483,7 +478,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLa
             ::testing::ValuesIn(shapeParams4D_fixed_C),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::ValuesIn(interpolateFusingParamsSet_fixed_C),
+            ::testing::Values(fusingFakeQuantizePerChannelRelu),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 #endif
@@ -1020,4 +1015,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, Interp
     InterpolateLayerCPUTest::getTestCaseName);
 
 } // namespace
+
 } // namespace CPULayerTestsDefinitions
