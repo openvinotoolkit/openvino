@@ -57,7 +57,7 @@ Mapping from Framework Operation
 
 Mapping of custom operation is implemented differently, depending on model format used for import. You may choose one of the following:
 
-1. If a model is represented in the ONNX (including models exported from Pytorch in ONNX), TensorFlow Lite, PaddlePaddle or TensorFlow formats, then one of the classes from :doc:`Frontend Extension API <openvino_docs_Extensibility_UG_Frontend_Extensions>` should be used. It consists of several classes available in C++ which can be used with the ``--extensions`` option in Model Optimizer or when a model is imported directly to OpenVINO runtime using the ``read_model`` method. Python API is also available for runtime model import.
+1. If a model is represented in the ONNX (including models exported from PyTorch in ONNX), TensorFlow Lite, PaddlePaddle or TensorFlow formats, then one of the classes from :doc:`Frontend Extension API <openvino_docs_Extensibility_UG_Frontend_Extensions>` should be used. It consists of several classes available in C++ which can be used with the ``--extensions`` option in Model Optimizer or when a model is imported directly to OpenVINO runtime using the ``read_model`` method. Python API is also available for runtime model import.
 
 2. If a model is represented in the Caffe, Kaldi or MXNet formats (as legacy frontends), then :doc:`[Legacy] Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` should be used. This approach is available for model conversion in Model Optimizer only.
 
