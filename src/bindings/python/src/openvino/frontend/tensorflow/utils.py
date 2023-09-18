@@ -243,7 +243,7 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
     elif isinstance(model, tf.types.experimental.GenericFunction):
         tf_function = model
         input_needs_packing = False
-    elif isinstance(model, tf.keras.Model) or isinstance(model, tf.keras.layers.Layer):
+    elif isinstance(model, tf.keras.Model):
         tf_function = create_generic_function_from_keras_model(model)
         if tf_function is not None:
             input_needs_packing = False
