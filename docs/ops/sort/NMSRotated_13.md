@@ -122,7 +122,6 @@ Plugins which do not support dynamic output tensors produce ``selected_indices``
             <port id="2"/> <!-- 10 -->
             <port id="3"/>
             <port id="4"/>
-            <port id="5"/>
         </input>
         <output>
             <port id="6" precision="I64">
