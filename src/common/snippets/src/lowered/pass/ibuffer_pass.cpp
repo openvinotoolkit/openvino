@@ -3,14 +3,8 @@
 //
 
 
-#include "snippets/lowered/pass/allocate_buffer_memory.hpp"
+#include "snippets/lowered/pass/ibuffer_pass.hpp"
 
-#include "snippets/lowered/pass/solve_buffer_memory.hpp"
-#include "snippets/lowered/pass/init_buffers.hpp"
-#include "snippets/lowered/pass/identify_buffers.hpp"
-#include "snippets/lowered/pass/define_buffer_clusters.hpp"
-#include "snippets/lowered/pass/normalize_buffer_ids.hpp"
-#include "snippets/pass/tokenization.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -18,12 +12,12 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-void AllocateBufferMemory::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) {
+void IBufferPass::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
     // to correctly read and write data because all Buffers have the common data pointer on buffer scratchpad
 
     const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
-    OPENVINO_ASSERT(buffer, "Failed to set Buffer offset: AllocateBufferMemory expects Buffer op");
+    OPENVINO_ASSERT(buffer, "Failed to set Buffer offset: IBufferPass expects Buffer op");
     buffer->set_offset(static_cast<int64_t>(offset));
 
     // Propagate to up: in Store. Buffer can have only one Store
@@ -60,33 +54,6 @@ void AllocateBufferMemory::set_buffer_offset(const ExpressionPtr& buffer_expr, c
                     "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
         }
     }
-}
-
-bool AllocateBufferMemory::EnumerateExprs::run(lowered::LinearIR& linear_ir) {
-    int64_t order = 0;
-    for (const auto& expr : linear_ir) {
-        ov::snippets::pass::SetTopologicalOrder(expr->get_node(), order++);
-    }
-    return order > 0;
-}
-
-bool AllocateBufferMemory::run(lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBufferMemory");
-    if (!m_is_optimized) {
-        InitBuffers(m_buffer_scratchpad_size).run(linear_ir);
-        return m_buffer_scratchpad_size > 0;
-    }
-
-    AllocateBufferMemory::BufferClusters buffer_clusters;
-    PassPipeline pipeline;
-    pipeline.register_pass<EnumerateExprs>();
-    pipeline.register_pass<IdentifyBuffers>();
-    pipeline.register_pass<DefineBufferClusters>(buffer_clusters);
-    pipeline.register_pass<SolveBufferMemory>(m_buffer_scratchpad_size, buffer_clusters);
-    pipeline.register_pass<NormalizeBufferIDs>();
-    pipeline.run(linear_ir);
-
-    return m_buffer_scratchpad_size > 0;
 }
 
 } // namespace pass

@@ -14,7 +14,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-std::vector<MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateBufferMemory::BufferClusters& buffer_clusters) {
+std::vector<MemorySolver::Box> SolveBufferMemory::init_boxes(const BufferClusters& buffer_clusters) {
     std::vector<MemorySolver::Box> boxes;
     const auto count = static_cast<int>(buffer_clusters.size());
     for (int i = 0; i < count; i++) {
@@ -75,7 +75,7 @@ bool SolveBufferMemory::run(LinearIR& linear_ir) {
     for (const auto& box : boxes) {
         for (const auto& buffer : m_clusters[box.id]) {
             const auto offset = static_cast<size_t>(memSolver.getOffset(static_cast<int>(box.id)));
-            AllocateBufferMemory::set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
+            set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
         }
     }
     return m_buffer_scratchpad_size > 0;

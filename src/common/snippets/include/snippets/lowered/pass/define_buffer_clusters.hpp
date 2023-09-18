@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "pass.hpp"
-
-#include "allocate_buffer_memory.hpp"
+#include "ibuffer_pass.hpp"
 
 namespace ov {
 namespace snippets {
@@ -31,11 +29,11 @@ namespace pass {
  *                 These passes should be executed separately before this pass!
  * @ingroup snippets
  */
-class DefineBufferClusters : public Pass {
+class DefineBufferClusters : public IBufferPass {
 public:
-    OPENVINO_RTTI("DefineBufferClusters", "Pass")
+    OPENVINO_RTTI("DefineBufferClusters", "IBufferPass")
 
-    DefineBufferClusters(AllocateBufferMemory::BufferClusters& clusters) : m_clusters(clusters) {}
+    DefineBufferClusters(BufferClusters& clusters) : m_clusters(clusters) {}
 
     /**
      * @brief Apply the pass to the Linear IR
@@ -51,7 +49,7 @@ private:
      * @param target target expression with Buffer op
      * @return vector iterator which refers to the found cluster
      */
-    AllocateBufferMemory::BufferClusters::iterator find_cluster_by_expr(const ExpressionPtr& target);
+    BufferClusters::iterator find_cluster_by_expr(const ExpressionPtr& target);
     /**
      * @brief Returns True if Buffer is direct source for the target expr (there aren't other loop between the Buffer and target expr)
      * @param buffer_expr expression with assumed Buffer op
@@ -70,7 +68,7 @@ private:
      * @param cluster set of Buffer expressions - cluster
      * @return common buffer ID or SIZE_MAX - size value
      */
-    size_t get_cluster_buffer_id(const AllocateBufferMemory::BufferCluster& cluster) const;
+    size_t get_cluster_buffer_id(const BufferCluster& cluster) const;
 
     /**
      * @brief Analyzes Loop: if Loop has Buffer ops on inputs and outputs, can Loop read and write from/to the same memory.
@@ -119,10 +117,10 @@ private:
      * @param is_outer_up true if outer buffer is upper in Linear IR than inner Buffers
      * @return Return True if clusters have been united
      */
-    bool unite_nested_clusters(const AllocateBufferMemory::BufferClusters::iterator& inner_cluster_it, AllocateBufferMemory::BufferCluster& outer_cluster,
+    bool unite_nested_clusters(const BufferClusters::iterator& inner_cluster_it, BufferCluster& outer_cluster,
                                const ExpressionPtr& outer_buffer, bool is_outer_up);
 
-    AllocateBufferMemory::BufferClusters& m_clusters;
+    BufferClusters& m_clusters;
 };
 
 } // namespace pass

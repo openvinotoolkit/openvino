@@ -13,13 +13,11 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using BufferCluster = AllocateBufferMemory::BufferCluster;
-using BufferClusters = AllocateBufferMemory::BufferClusters;
 using ShiftPtrParams = IdentifyBuffers::ShiftPtrParams;
 
-BufferClusters::iterator DefineBufferClusters::find_cluster_by_expr(const ExpressionPtr& target) {
+DefineBufferClusters::BufferClusters::iterator DefineBufferClusters::find_cluster_by_expr(const ExpressionPtr& target) {
     return std::find_if(m_clusters.begin(), m_clusters.end(),
-                        [&target](const AllocateBufferMemory::BufferCluster& cluster) { return cluster.count(target) > 0; });
+                        [&target](const BufferCluster& cluster) { return cluster.count(target) > 0; });
 }
 
 bool DefineBufferClusters::is_direct_buffer(const ExpressionPtr& buffer_expr, const ExpressionPtr& target_expr) const {
@@ -35,7 +33,7 @@ void DefineBufferClusters::create_new_cluster(const ExpressionPtr& buffer_expr) 
     }
 }
 
-size_t DefineBufferClusters::get_cluster_buffer_id(const AllocateBufferMemory::BufferCluster& cluster) const {
+size_t DefineBufferClusters::get_cluster_buffer_id(const BufferCluster& cluster) const {
     OPENVINO_ASSERT(!cluster.empty(), "Buffer cluster is empty!");
     const auto id = (ov::as_type_ptr<op::Buffer>(cluster.cbegin()->get()->get_node()))->get_id();
     if (std::all_of(cluster.cbegin(), cluster.cend(),

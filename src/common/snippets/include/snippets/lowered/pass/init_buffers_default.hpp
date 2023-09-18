@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "pass.hpp"
+#include "ibuffer_pass.hpp"
 
 namespace ov {
 namespace snippets {
@@ -12,16 +12,16 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface InitBuffers
- * @brief The pass inits Buffer expressions in LinearIR : sets unique offsets and ID to Buffers.
+ * @interface InitBuffersDefault
+ * @brief The pass inits Buffer expressions in LinearIR default (non-optimized): sets unique offsets and ID to Buffers.
  * @ingroup snippets
  */
 
-class InitBuffers : public Pass {
+class InitBuffersDefault : public IBufferPass {
 public:
-    OPENVINO_RTTI("InitBuffers", "Pass")
+    OPENVINO_RTTI("InitBuffersDefault", "IBufferPass")
 
-    InitBuffers(size_t& buffer_scratchpad_size) : m_buffer_scratchpad_size(buffer_scratchpad_size) {
+    InitBuffersDefault(size_t& buffer_scratchpad_size) : m_buffer_scratchpad_size(buffer_scratchpad_size) {
         m_buffer_scratchpad_size = 0;
     }
     /**

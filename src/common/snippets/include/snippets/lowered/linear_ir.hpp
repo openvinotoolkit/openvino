@@ -21,6 +21,9 @@ public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
+    // True if the Buffer scratchpad size of LinearIR will be optimized (all possible optimizations will be activated)
+    // False if all Buffers will have uniqie ID and offsets in the Linear IR
+    bool m_are_buffers_optimized = true;
 };
 
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).

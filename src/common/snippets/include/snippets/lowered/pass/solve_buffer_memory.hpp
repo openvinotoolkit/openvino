@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "pass.hpp"
+#include "ibuffer_pass.hpp"
 
-#include "allocate_buffer_memory.hpp"
 #include "memory_solver.hpp"
 
 namespace ov {
@@ -21,11 +20,11 @@ namespace pass {
  *        Note: The pass requires expression enumeration. It should be executed separately before this pass!
  * @ingroup snippets
  */
-class SolveBufferMemory : public Pass {
+class SolveBufferMemory : public IBufferPass {
 public:
-    OPENVINO_RTTI("SolveBufferMemory", "Pass")
+    OPENVINO_RTTI("SolveBufferMemory", "IBufferPass")
 
-    SolveBufferMemory(size_t& buffer_scratchpad_size, AllocateBufferMemory::BufferClusters& clusters)
+    SolveBufferMemory(size_t& buffer_scratchpad_size, BufferClusters& clusters)
         : m_buffer_scratchpad_size(buffer_scratchpad_size), m_clusters(clusters) {}
     /**
      * @brief Apply the pass to the Linear IR
@@ -40,10 +39,10 @@ private:
      * @param buffer_clusters buffer clusters. These clusters can be got using DefineBufferClusters pass
      * @return vector of boxes for MemorySolver
      */
-    std::vector<MemorySolver::Box> init_boxes(const AllocateBufferMemory::BufferClusters& buffer_clusters);
+    std::vector<MemorySolver::Box> init_boxes(const BufferClusters& buffer_clusters);
 
     size_t& m_buffer_scratchpad_size;
-    AllocateBufferMemory::BufferClusters& m_clusters;
+    BufferClusters& m_clusters;
 
     constexpr static size_t m_alignment = 32; // 32 bytes for MemorySolver alignment
 };

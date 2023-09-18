@@ -30,7 +30,13 @@
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
-#include "snippets/lowered/pass/allocate_buffer_memory.hpp"
+#include "snippets/lowered/pass/ibuffer_pass.hpp"
+#include "snippets/lowered/pass/solve_buffer_memory.hpp"
+#include "snippets/lowered/pass/enumerate_expressions.hpp"
+#include "snippets/lowered/pass/init_buffers_default.hpp"
+#include "snippets/lowered/pass/identify_buffers.hpp"
+#include "snippets/lowered/pass/define_buffer_clusters.hpp"
+#include "snippets/lowered/pass/normalize_buffer_ids.hpp"
 #include "snippets/lowered/pass/propagate_layout.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/softmax_decomposition.hpp"
@@ -674,8 +680,20 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     backend_passes_post_common.run(linear_ir);
 
+    lowered::pass::PassPipeline buffer_pipeline;
+    if (linear_ir.get_config().m_are_buffers_optimized) {
+        lowered::pass::IBufferPass::BufferClusters buffer_clusters;
+        buffer_pipeline.register_pass<lowered::pass::EnumerateExpressions>();
+        buffer_pipeline.register_pass<lowered::pass::IdentifyBuffers>();
+        buffer_pipeline.register_pass<lowered::pass::DefineBufferClusters>(buffer_clusters);
+        buffer_pipeline.register_pass<lowered::pass::SolveBufferMemory>(m_buffer_scratchpad, buffer_clusters);
+        buffer_pipeline.register_pass<lowered::pass::NormalizeBufferIDs>();
+    } else {
+        buffer_pipeline.register_pass<lowered::pass::InitBuffersDefault>(m_buffer_scratchpad);
+    }
+    buffer_pipeline.run(linear_ir);
+
     lowered::pass::PassPipeline final_pipeline;
-    final_pipeline.register_pass<lowered::pass::AllocateBufferMemory>(m_buffer_scratchpad);
     final_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     final_pipeline.register_pass<lowered::pass::PropagateLayout>();
     final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
