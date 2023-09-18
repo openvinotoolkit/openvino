@@ -4,8 +4,6 @@
 import os
 import pytest
 import torch
-import tempfile
-import torchvision.transforms.functional as F
 from models_hub_common.test_convert_model import TestConvertModel
 from openvino import convert_model
 from models_hub_common.utils import get_models_list, compare_two_tensors
