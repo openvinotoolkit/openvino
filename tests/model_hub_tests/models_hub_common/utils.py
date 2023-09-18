@@ -22,7 +22,7 @@ def get_models_list(file_name: str):
                 model_name, model_link = model_info.split(',')
             elif len(model_info.split(',')) == 4:
                 model_name, model_link, mark, reason = model_info.split(',')
-                assert mark == "skip", "Incorrect failure mark for model info {}".format(model_info)
+                assert mark in ["skip", "xfail"], "Incorrect failure mark for model info {}".format(model_info)
             models.append((model_name, model_link, mark, reason))
 
     return models
