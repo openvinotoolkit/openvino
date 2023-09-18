@@ -222,7 +222,7 @@ TEST_P(ConvolutionBackpropDataTransformation, CompareFunctions) {
 
 const std::vector<element::Type> netPrecisions = {
     element::f32,
-    // element::f16
+    element::f16
 };
 
 namespace testValues1 {

@@ -58,7 +58,6 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
     OutputVector convertedOutput(1);
     convert->constant_fold(convertedOutput, convert->input_values());
     const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
-    OPENVINO_ASSERT(convertedWeights);
     const auto fq = makeFakeQuantize(convertedWeights, netPrecision, fqOnWeights);
 
     return fq;
