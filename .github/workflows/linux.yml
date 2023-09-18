@@ -806,7 +806,7 @@ jobs:
         uses: actions/cache/save@v3
         if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
         with:
-          path: path/to/dependencies
+          path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
