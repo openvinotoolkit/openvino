@@ -40,15 +40,15 @@ struct Point {
     }
 };
 
-static float dot_2d(const Point& A, const Point& B) {
+static inline float dot_2d(const Point& A, const Point& B) {
     return A.x * B.x + A.y * B.y;
 }
 
-static float cross_2d(const Point& A, const Point& B) {
+static inline float cross_2d(const Point& A, const Point& B) {
     return A.x * B.y - B.x * A.y;
 }
 
-static void get_rotated_vertices(const RotatedBox& box, Point (&pts)[4]) {
+static inline void get_rotated_vertices(const RotatedBox& box, Point (&pts)[4]) {
     // M_PI / 180. == 0.01745329251
     double theta = box.a;  // angle already in radians
     float cosTheta2 = (float)cos(theta) * 0.5f;
@@ -65,7 +65,7 @@ static void get_rotated_vertices(const RotatedBox& box, Point (&pts)[4]) {
     pts[3].y = 2 * box.y_ctr - pts[1].y;
 }
 
-static int get_intersection_points(const Point (&pts1)[4], const Point (&pts2)[4], Point (&intersections)[24]) {
+static inline int get_intersection_points(const Point (&pts1)[4], const Point (&pts2)[4], Point (&intersections)[24]) {
     // Line vector
     // A line from p1 to p2 is: p1 + (p2-p1)*t, t=[0,1]
     Point vec1[4], vec2[4];
@@ -140,7 +140,10 @@ static int get_intersection_points(const Point (&pts1)[4], const Point (&pts2)[4
     return num;
 }
 
-static int convex_hull_graham(const Point (&p)[24], const int& num_in, Point (&q)[24], bool shift_to_zero = false) {
+static inline int convex_hull_graham(const Point (&p)[24],
+                                     const int& num_in,
+                                     Point (&q)[24],
+                                     bool shift_to_zero = false) {
     assert(num_in >= 2);
 
     // Step 1:
@@ -233,7 +236,7 @@ static int convex_hull_graham(const Point (&p)[24], const int& num_in, Point (&q
     return m;
 }
 
-static float polygon_area(const Point (&q)[24], const int& m) {
+static inline float polygon_area(const Point (&q)[24], const int& m) {
     if (m <= 2) {
         return 0;
     }
@@ -246,7 +249,7 @@ static float polygon_area(const Point (&q)[24], const int& m) {
     return area / 2.0;
 }
 
-static float rotated_boxes_intersection(const RotatedBox& box1, const RotatedBox& box2) {
+static inline float rotated_boxes_intersection(const RotatedBox& box1, const RotatedBox& box2) {
     // There are up to 4 x 4 + 4 + 4 = 24 intersections (including dups) returned
     // from rotated_rect_intersection_pts
     Point intersectPts[24], orderedPts[24];
