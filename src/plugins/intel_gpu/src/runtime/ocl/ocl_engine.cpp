@@ -133,11 +133,48 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
                     "Requested ", layout.bytes_count(), " bytes "
                     "but max alloc size is ", get_device_info().max_alloc_mem_size, " bytes");
 
-    auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
-    OPENVINO_ASSERT(layout.bytes_count() + used_mem <= get_max_memory_size(),
+    auto dev_type = get_device_info().dev_type;
+    auto used_usm_device = get_used_device_memory(allocation_type::usm_device);
+    auto used_usm_host = get_used_device_memory(allocation_type::usm_host);
+    if (dev_type == device_type::integrated_gpu) {
+        auto total_used_mem = used_usm_device + used_usm_host;
+        if (layout.bytes_count() + total_used_mem > get_max_memory_size()) {
+#ifdef __unix__
+            OPENVINO_ASSERT(false,
                     "[GPU] Exceeded max size of memory allocation: ",
-                    "Required ", (layout.bytes_count() + used_mem), " bytes "
-                    "but memory size is ", get_max_memory_size(), " bytes");
+                    "Required ", (layout.bytes_count() + total_used_mem), " bytes "
+                    "but memory size of host memory is ", get_max_memory_size(), " bytes");
+#else
+            GPU_DEBUG_COUT << "[GPU][Warning] Exceeded max size of host memory: "
+                    << "Required " << (layout.bytes_count() + total_used_mem) << " bytes "
+                    << "but memory size of host memory is " << get_max_memory_size() << " bytes"
+                    << std::endl;
+            GPU_DEBUG_COUT << "=> Performance might be affected due to memory swap" << std::endl;
+#endif
+        }
+    } else { // discrete_gpu
+        if (type == allocation_type::usm_device) {
+            auto max_dev_mem = get_device_info().max_global_mem_size;
+            OPENVINO_ASSERT(layout.bytes_count() + used_usm_device <= max_dev_mem,
+                    "[GPU] Exceeded max size of memory object allocation for device mem: ",
+                    "Requested ", layout.bytes_count(), " bytes "
+                    "but max alloc size of device memory is ", max_dev_mem, " bytes");
+        } else {
+#ifdef __unix__
+        // Prevent from being killed by Ooo Killer of Linux
+            OPENVINO_ASSERT(layout.bytes_count() + used_usm_host <= get_host_memory_size(),
+                    "[GPU] Exceeded max size of memory allocation: ",
+                    "Required ", (layout.bytes_count() + used_usm_host), " bytes "
+                    "but memory size of host memory is ", get_host_memory_size(), " bytes");
+#else
+            GPU_DEBUG_COUT << "[GPU][Warning] Exceeded max size of host memory: "
+                    << "Required " << (layout.bytes_count() + used_usm_host) << " bytes "
+                    << "but memory size of host memory is " << get_host_memory_size() << " bytes"
+                    << std::endl;
+            GPU_DEBUG_COUT << "=> Performance might be affected due to memory swap" << std::endl;
+#endif
+        }
+    }
 
     OPENVINO_ASSERT(supports_allocation(type) || type == allocation_type::cl_mem,
                     "[GPU] Unsupported allocation type: ", type);

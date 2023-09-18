@@ -86,6 +86,10 @@ uint64_t engine::get_max_memory_size() const {
     return max_device_mem;
 }
 
+uint64_t engine::get_host_memory_size() const {
+    return static_cast<uint64_t>(get_cpu_ram_size());
+}
+
 bool engine::supports_allocation(allocation_type type) const {
     if (memory_capabilities::is_usm_type(type) && !use_unified_shared_memory())
         return false;
