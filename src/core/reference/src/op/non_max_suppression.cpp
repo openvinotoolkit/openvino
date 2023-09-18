@@ -21,7 +21,6 @@ struct Rectangle {
           x1{x_left},
           y2{y_right},
           x2{x_right} {};
-        //   angle {r_angle} {};
 
     Rectangle() = default;
 
@@ -29,7 +28,6 @@ struct Rectangle {
     float x1 = 0.0f;
     float y2 = 0.f;
     float x2 = 0.0f;
-    // float angle = 0.0f;
 };
 
 static float intersectionOverUnion(const Rectangle& boxI, const Rectangle& boxJ) {
@@ -138,7 +136,7 @@ void non_max_suppression5(const float* boxes_data,
     std::vector<BoxInfo> filteredBoxes;
 
     for (int64_t batch = 0; batch < num_batches; batch++) {
-        const float* boxesPtr = boxes_data + batch * num_boxes * 4; //
+        const float* boxesPtr = boxes_data + batch * num_boxes * 4;  //
         Rectangle* r = reinterpret_cast<Rectangle*>(const_cast<float*>(boxesPtr));
 
         for (int64_t class_idx = 0; class_idx < num_classes; class_idx++) {

@@ -6,9 +6,8 @@
 
 #include "compare.hpp"
 #include "dimension_util.hpp"
-#include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/nms_rotated.hpp"
-
+#include "openvino/op/non_max_suppression.hpp"
 #include "utils.hpp"
 
 namespace ov {

@@ -104,6 +104,7 @@
 #include "op/mod.hpp"
 #include "op/mul.hpp"
 #include "op/neg.hpp"
+#include "op/nms_rotated.hpp"
 #include "op/non_max_suppression.hpp"
 #include "op/non_zero.hpp"
 #include "op/not.hpp"
@@ -177,9 +178,6 @@
 #include "op/where.hpp"
 #include "op/xor.hpp"
 #include "openvino/util/log.hpp"
-
-#include "op/nms_rotated.hpp"
-
 
 using namespace ov::frontend::onnx;
 
@@ -314,7 +312,6 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
 static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 static const char* const MMDEPLOY_DOMAIN = "mmdeploy";
-
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));

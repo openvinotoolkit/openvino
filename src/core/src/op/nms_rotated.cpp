@@ -87,8 +87,6 @@ std::shared_ptr<Node> op::v13::NMSRotated::clone_with_new_inputs(const OutputVec
                                                  m_sort_result_descending,
                                                  m_output_type,
                                                  m_clockwise);
-
-
 }
 
 bool op::v13::NMSRotated::visit_attributes(AttributeVisitor& visitor) {

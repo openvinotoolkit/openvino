@@ -34,14 +34,14 @@ public:
     /// \param output_type Specifies the output tensor type
     /// \param clockwise Specifies the direction of the rotation
     NMSRotated(const Output<Node>& boxes,
-                      const Output<Node>& scores,
-                      const Output<Node>& max_output_boxes_per_class,
-                      const Output<Node>& iou_threshold,
-                      const Output<Node>& score_threshold,
-                      const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
-                      const bool sort_result_descending = true,
-                      const ov::element::Type& output_type = ov::element::i64,
-                      const bool clockwise = true);
+               const Output<Node>& scores,
+               const Output<Node>& max_output_boxes_per_class,
+               const Output<Node>& iou_threshold,
+               const Output<Node>& score_threshold,
+               const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
+               const bool sort_result_descending = true,
+               const ov::element::Type& output_type = ov::element::i64,
+               const bool clockwise = true);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -71,7 +71,6 @@ public:
 
     using Node::set_output_type;
 
-
 protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
@@ -80,7 +79,6 @@ protected:
 };
 }  // namespace v13
 }  // namespace op
-
 
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const op::v13::NMSRotated::BoxEncodingType& type);

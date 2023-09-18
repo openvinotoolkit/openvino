@@ -18,7 +18,6 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
-
 #include "nms_rotated_util.hpp"
 
 namespace ov {
@@ -46,7 +45,7 @@ void nms_postprocessing(const HostTensorVector& outputs,
                         const std::vector<float>& selected_scores,
                         int64_t valid_outputs,
                         const ngraph::element::Type selected_scores_type);
-}
+}  // namespace nms_rotated
 
 }  // namespace reference
 }  // namespace ov
