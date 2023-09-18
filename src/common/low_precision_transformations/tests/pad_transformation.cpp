@@ -16,8 +16,6 @@
 #include "lpt_ngraph_functions/pad_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include "openvino/pass/visualize_tree.hpp"
-
 namespace {
 using namespace testing;
 using namespace ov;
