@@ -212,13 +212,6 @@ protected:
             inType = outType = ngPrc;
         }
 
-        auto simple_post_ops = std::find_if(fusedOps.begin(), fusedOps.end(),
-            [](const std::string& ops){
-                return ops.compare("Multiply") == 0;
-            });
-        if (simple_post_ops != std::end(fusedOps))
-            rel_threshold = 3e-2f;
-
         init_input_shapes(inputShapes);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
