@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset11.hpp"
@@ -20,6 +19,7 @@
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/reference/convert.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -689,6 +689,8 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
     return res;
 }
 
+namespace {
+
 bool update_type(size_t idx,
                  const std::shared_ptr<ov::Node>& node,
                  const precisions_map& precisions,
@@ -703,6 +705,8 @@ bool update_type(size_t idx,
     }
     return false;
 }
+
+}  // namespace
 
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto nms = ov::as_type_ptr<opset8::MatrixNms>(node);
@@ -907,7 +911,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::el
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
+    ov::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
 
     return new_constant;
 }
@@ -927,7 +931,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
+    ov::reference::convert<src_type, dst_type>(src_data, dst_data, size);
 
     return new_constant;
 }

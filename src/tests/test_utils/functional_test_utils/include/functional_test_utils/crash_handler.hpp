@@ -5,11 +5,10 @@
 #pragma once
 
 #include <gtest/gtest.h>
+#include <setjmp.h>
+#include <signal.h>
 
 #include "common_test_utils/common_utils.hpp"
-
-#include <signal.h>
-#include <setjmp.h>
 
 namespace ov {
 namespace test {
@@ -24,6 +23,7 @@ class CrashHandler {
 private:
     static unsigned int MAX_TEST_WORK_TIME;
     static bool IGNORE_CRASH;
+
 public:
     CrashHandler(CONFORMANCE_TYPE type = CONFORMANCE_TYPE::op);
     ~CrashHandler();

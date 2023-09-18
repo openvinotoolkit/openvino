@@ -46,7 +46,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy
         Threads::Threads libGNA)
@@ -58,7 +58,7 @@ target_compile_definitions(${TARGET_NAME}
     )
 
 # must be called after all target_link_libraries
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #
 # Static version for tests

@@ -1,11 +1,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
+
 #include <gtest/gtest.h>
 
-#include <transformations/common_optimizations/shared_ops_optimization.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"

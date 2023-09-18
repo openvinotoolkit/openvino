@@ -1,7 +1,7 @@
 Instruction following using Databricks Dolly 2.0 and OpenVINO
 =============================================================
 
-.. _top:
+
 
 The instruction following is one of the cornerstones of the current
 generation of large language models(LLMs). Reinforcement learning with
@@ -81,6 +81,8 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
+
+.. _top:
 
 **Table of contents**:
 
@@ -427,8 +429,8 @@ Helpers for output parsing `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-Model was retrained to finish generation using special token ``### End``
-the code below find its id for using it as generation stop-criteria.
+Model was retrained to finish generation using special token ``### End``.
+The code below find its id for using it as generation stop-criteria.
 
 .. code:: ipython3
 
@@ -691,7 +693,7 @@ generation parameters:
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

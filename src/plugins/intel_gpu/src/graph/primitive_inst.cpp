@@ -773,11 +773,11 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         update_shape();
 
         // Check successor reorder if layouts are same
-        // Need to set can_be_optimized for user reorder at predesescor because
+        // Need to set can_be_optimized for user reorder at predecessor because
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
         do_runtime_skip_reorder();
         if (_impl_params->output_layouts[0].count() == 0) {
-            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping becuase output data is empty " << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);
             update_shape_done_by_other = false; // reset
             return ev;
@@ -1229,6 +1229,9 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
         if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
             return true;
         } else if (user->get_selected_impl() == nullptr) {
+            if (user->is_dynamic()) {
+                return true;
+            }
             if (user_requesting_mem_reuse_false(*user)) {
                 return true;
             }

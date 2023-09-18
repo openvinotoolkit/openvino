@@ -139,7 +139,7 @@ public:
      * @param target_tile_id Desired tile id within given context for multi-tile system. Default value (-1) means
      * that root device should be used
      */
-    D3DContext(Core& core, ID3D11Device* device, int target_tile_id = -1) : ClContext(core, (cl_context) nullptr) {
+    D3DContext(Core& core, ID3D11Device* device, int target_tile_id = -1) : ClContext() {
         // clang-format off
         AnyMap context_params = {
             {ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::VA_SHARED},

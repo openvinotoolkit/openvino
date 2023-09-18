@@ -1,6 +1,8 @@
 From Training to Deployment with TensorFlow and OpenVINO™
 =========================================================
 
+
+
 .. _top:
 
 **Table of contents**:
@@ -397,8 +399,10 @@ range by using a Rescaling layer.
 
     normalization_layer = layers.Rescaling(1./255)
 
-Note: The Keras Preprocessing utilities and layers introduced in this
-section are currently experimental and may change.
+
+.. note::
+
+   The Keras Preprocessing utilities and layers introduced in this section are currently experimental and may change.
 
 There are two ways to use this layer. You can apply it to the dataset by
 calling map:
@@ -428,11 +432,13 @@ calling map:
 Or, you can include the layer inside your model definition, which can
 simplify deployment. Let’s use the second approach here.
 
-Note: you previously resized images using the ``image_size`` argument of
-``image_dataset_from_directory``. If you want to include the resizing
-logic in your model as well, you can use the
-`Resizing <https://www.tensorflow.org/api_docs/python/tf/keras/layers/experimental/preprocessing/Resizing>`__
-layer.
+.. note::
+
+   You previously resized images using the ``image_size`` argument of
+   ``image_dataset_from_directory``. If you want to include the resizing
+   logic in your model as well, you can use the
+   `Resizing <https://www.tensorflow.org/api_docs/python/tf/keras/layers/experimental/preprocessing/Resizing>`__
+   layer.
 
 Create the Model `⇑ <#top>`__
 ###############################################################################################################################
@@ -482,7 +488,9 @@ Model Summary `⇑ <#top>`__
 
 View all the layers of the network using the model’s ``summary`` method.
 
-   **NOTE:** This section is commented out for performance reasons.
+.. note::
+
+   This section is commented out for performance reasons.
    Please feel free to uncomment these to compare the results.
 
 .. code:: ipython3
@@ -816,8 +824,10 @@ Predict on New Data `⇑ <#top>`__
 Finally, let us use the model to classify an image that was not included
 in the training or validation sets.
 
-   **Note**: Data augmentation and Dropout layers are inactive at
-   inference time.
+.. note::
+
+   Data augmentation and Dropout layers are inactive at inference time.
+
 
 .. code:: ipython3
 
@@ -914,7 +924,7 @@ Convert the TensorFlow model with OpenVINO Model Optimizer `⇑ <#top>`__
 
 To convert the model to OpenVINO IR with ``FP16`` precision, use model
 conversion Python API. For more information, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 

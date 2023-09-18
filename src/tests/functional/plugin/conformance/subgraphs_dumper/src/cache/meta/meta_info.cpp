@@ -56,6 +56,7 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
             ModelInfo tmp_model_info;
             tmp_model_info.this_op_cnt = model_child.attribute("this_op_count").as_uint();
             tmp_model_info.total_op_cnt = model_child.attribute("total_op_count").as_uint();
+            tmp_model_info.model_priority = model_child.attribute("priority") ? model_child.attribute("priority").as_uint() : 1;
             for (const auto& path : model_child.child("path")) {
                 tmp_model_info.model_paths.insert(std::string(path.attribute("path").value()));
             }
@@ -77,7 +78,7 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
             if (std::string(input.attribute("max").value()) != "undefined") {
                 in_info.ranges.max = input.attribute("max").as_double();
             } else {
-                in_info.ranges.min = DEFAULT_MAX_VALUE;
+                in_info.ranges.max = DEFAULT_MAX_VALUE;
             }
             input_info.insert({in_name, in_info});
         }
@@ -103,6 +104,7 @@ void MetaInfo::serialize(const std::string& serialization_path) {
             model_node.append_attribute("name").set_value(model.first.c_str());
             model_node.append_attribute("this_op_count").set_value(static_cast<unsigned long long>(model.second.this_op_cnt));
             model_node.append_attribute("total_op_count").set_value(static_cast<unsigned long long>(model.second.total_op_cnt));
+            model_node.append_attribute("priority").set_value(static_cast<unsigned long long>(model.second.model_priority));
             for (const auto& model_path : model.second.model_paths) {
                 model_node.append_child("path").append_child("model").append_attribute("path").set_value(model_path.c_str());
             }
@@ -160,7 +162,7 @@ void MetaInfo::update(const std::string& _model_path,
         if (input_info.find(in.first) == input_info.end()) {
             throw std::runtime_error("Incorrect Input Info!");
         } else if (input_info[in.first].is_const != in.second.is_const) {
-            throw std::runtime_error("Try to cast parameter ro constant!");
+            throw std::runtime_error("Try to cast parameter to constant!");
         } else {
             input_info[in.first] = in.second;
         }

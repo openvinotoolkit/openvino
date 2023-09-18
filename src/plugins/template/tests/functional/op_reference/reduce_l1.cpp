@@ -8,7 +8,6 @@
 #include "reduction.hpp"
 
 using namespace ov;
-using ReductionType = ngraph::helpers::ReductionType;
 
 namespace reference_tests {
 namespace ReductionOpsRefTestDefinitions {
@@ -20,7 +19,7 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
     std::vector<ReductionParams> params = {
         ReductionParams(ReductionType::L1, keep_dims, std::vector<int64_t>{2},
                         reference_tests::Tensor({3, 2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
-                        reference_tests::Tensor(ngraph::reduce(Shape{3, 2, 2}, AxisSet{2}, keep_dims),
+                        reference_tests::Tensor(reduce(Shape{3, 2, 2}, AxisSet{2}, keep_dims),
                                 element::Type(IN_ET), std::vector<T>{3, 7, 11, 15, 19, 23}))
     };
     return params;

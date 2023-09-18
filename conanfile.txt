@@ -1,29 +1,30 @@
 [requires]
-ade/0.1.2a
+ade/0.1.2c
 onetbb/[>=2021.2.1]
 pugixml/[>=1.10]
-protobuf/3.21.9
+protobuf/3.21.12
 ittapi/[>=3.23.0]
 zlib/[>=1.2.8]
-opencl-icd-loader/2023.04.17
-opencl-clhpp-headers/2023.04.17
-opencl-headers/2023.04.17
+opencl-icd-loader/[>=2023.04.17]
+rapidjson/[>=1.1.0]
 xbyak/[>=6.62]
 snappy/[>=1.1.7]
 gflags/2.2.2
-onnx/1.13.1
+onnx/1.14.1
 nlohmann_json/[>=3.1.1]
 pybind11/[>=2.10.1]
 flatbuffers/[>=22.9.24]
 
 [tool_requires]
-cmake/[>=3.15]
+cmake/[>=3.20]
+pkgconf/1.9.5
 patchelf/[>=0.12]
 protobuf/3.21.9
 flatbuffers/[>=22.9.24]
 
 [options]
 protobuf/*:lite=True
+protobuf/*:shared=False
 flatbuffers/*:header_only=True
 
 [generators]

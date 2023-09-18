@@ -100,4 +100,4 @@ class TestMulTypes(PytorchLayerTest):
         self.rhs_type = rhs_type
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, freeze_model=False, trace_model=True)

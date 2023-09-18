@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/deformable_convolution.hpp"
+#include "openvino/reference/deformable_convolution.hpp"
 
 #include "evaluate_node.hpp"
 
@@ -19,7 +19,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v8::DeformableConvolution>& op,
     const auto& offset_shape = inputs[1]->get_shape();
     const auto& filter_shape = inputs[2]->get_shape();
     if (inputs.size() == 3) {
-        ngraph::runtime::reference::deformable_convolution<typename ngraph::element_type_traits<ET>::value_type>(
+        ov::reference::deformable_convolution<typename ngraph::element_type_traits<ET>::value_type>(
             in_data_ptr,
             offset_data_ptr,
             filter_data_ptr,
@@ -38,7 +38,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v8::DeformableConvolution>& op,
     } else {
         const auto mask_data_ptr = inputs[3]->get_data_ptr<ET>();
         const auto& mask_shape = inputs[3]->get_shape();
-        ngraph::runtime::reference::deformable_convolution<typename ngraph::element_type_traits<ET>::value_type>(
+        ov::reference::deformable_convolution<typename ngraph::element_type_traits<ET>::value_type>(
             in_data_ptr,
             offset_data_ptr,
             filter_data_ptr,
@@ -72,7 +72,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v1::DeformableConvolution>& op,
     const auto& in_shape = inputs[0]->get_shape();
     const auto& offset_shape = inputs[1]->get_shape();
     const auto& filter_shape = inputs[2]->get_shape();
-    ngraph::runtime::reference::deformable_convolution<typename ngraph::element_type_traits<ET>::value_type>(
+    ov::reference::deformable_convolution<typename ngraph::element_type_traits<ET>::value_type>(
         in_data_ptr,
         offset_data_ptr,
         filter_data_ptr,

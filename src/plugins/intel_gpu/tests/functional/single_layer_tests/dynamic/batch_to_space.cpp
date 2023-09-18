@@ -120,7 +120,7 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto params = ngraph::builder::makeDynamicParams(inType, {inputDynamicShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
         std::shared_ptr<ov::Node> blockInput, beginInput, endInput;
         if (restInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             auto blockNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{block.size()});

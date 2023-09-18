@@ -1,7 +1,7 @@
 Image generation with Stable Diffusion XL and OpenVINO
 ======================================================
 
-.. _top:
+
 
 Stable Diffusion XL or SDXL is the latest image generation model that is
 tailored towards more photorealistic outputs with more detailed imagery
@@ -62,10 +62,12 @@ The tutorial consists of the following steps:
    Optimum <https://huggingface.co/blog/openvino>`__.
 -  Run 2-stages Stable Diffusion XL pipeline
 
-..
+.. note::
 
-   **Note**: Some demonstrated models can require at least 64GB RAM for
+   Some demonstrated models can require at least 64GB RAM for
    conversion and running.
+
+.. _top:
 
 **Table of contents**:
 
@@ -290,9 +292,9 @@ Text2image Generation Interactive Demo\ `⇑ <#top>`__
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. code:: ipython3
@@ -443,9 +445,9 @@ Image2Image Generation Interactive Demo\ `⇑ <#top>`__
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. code:: ipython3

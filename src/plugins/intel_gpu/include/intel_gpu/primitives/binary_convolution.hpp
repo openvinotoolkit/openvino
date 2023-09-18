@@ -16,8 +16,6 @@ struct binary_convolution : public primitive_base<binary_convolution> {
 
     binary_convolution() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs binary_convolution primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

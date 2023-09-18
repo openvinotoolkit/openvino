@@ -19,7 +19,7 @@ class ConvertTopKToTopKIEMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertTopKToTopKIEMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertTopKToTopKIEMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertTopKToTopKIEMatcher", "0");
     ConvertTopKToTopKIEMatcher();

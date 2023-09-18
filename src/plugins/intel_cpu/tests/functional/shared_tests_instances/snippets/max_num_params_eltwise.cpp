@@ -10,8 +10,19 @@ namespace test {
 namespace snippets {
 namespace {
 // Note that we need these shapes to cover all cases of code emission (none/one/multiple of scalar/vector tiles)
-std::vector<ov::Shape> input_shapes {{1, 64, 10, 10}, {1, 1, 17, 37}, {1, 1, 1, 1}, {1, 1, 1, 7},
-                                    {1, 1, 1, 128}, {1, 1, 1, 14}, {1, 1, 1, 16}, {1, 1, 1, 30}};
+std::vector<InputShape> input_shapes {{{}, {{1, 64, 10, 10}}},
+                                      {{}, {{1, 1, 17, 37}}},
+                                      {{}, {{1, 1, 1, 1}}},
+                                      {{}, {{1, 1, 1, 7}}},
+                                      {{}, {{1, 1, 1, 128}}},
+                                      {{}, {{1, 1, 1, 14}}},
+                                      {{}, {{1, 1, 1, 16}}},
+                                      {{}, {{1, 1, 1, 30}}},
+                                      // DS
+                                      {{-1, -1, -1, -1}, {{1, 64, 10, 10}, {1, 1, 17, 37}, {1, 64, 10, 10}}},
+                                      {{1, {1, 64}, {10, 20}, -1}, {{1, 64, 10, 10}, {1, 1, 17, 37}, {1, 64, 10, 10}}},
+                                      {{1, 1, 1, {1, 128}}, {{1, 1, 1, 1}, {1, 1, 1, 7}, {1, 1, 1, 128}, {1, 1, 1, 14}, {1, 1, 1, 16}, {1, 1, 1, 1}}}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, MaxNumParamsEltwise,
                          ::testing::Combine(
                              ::testing::ValuesIn(input_shapes),
@@ -20,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, MaxNumParamsEltwise,
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxNumParamsEltwise::getTestCaseName);
 
-}  // namespace
+} // namespace
 } // namespace snippets
 } // namespace test
 } // namespace ov

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp"
+#include "openvino/reference/experimental_detectron_proposal_single_image.hpp"
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
@@ -45,24 +45,24 @@ bool evaluate(const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronGenerat
     outputs[1]->set_element_type(output_type);
     outputs[1]->set_shape(output_scores_shape);
 
-    ngraph::runtime::reference::experimental_detectron_proposals_single_image(im_info_data.data(),
-                                                                              anchors_data.data(),
-                                                                              deltas_data.data(),
-                                                                              scores_data.data(),
-                                                                              attrs,
-                                                                              im_info_shape,
-                                                                              anchors_shape,
-                                                                              deltas_shape,
-                                                                              scores_shape,
-                                                                              output_rois.data(),
-                                                                              output_scores.data());
-    ngraph::runtime::reference::experimental_detectron_proposals_single_image_postprocessing(outputs[0]->get_data_ptr(),
-                                                                                             outputs[1]->get_data_ptr(),
-                                                                                             output_type,
-                                                                                             output_rois,
-                                                                                             output_scores,
-                                                                                             output_rois_shape,
-                                                                                             output_scores_shape);
+    ov::reference::experimental_detectron_proposals_single_image(im_info_data.data(),
+                                                                 anchors_data.data(),
+                                                                 deltas_data.data(),
+                                                                 scores_data.data(),
+                                                                 attrs,
+                                                                 im_info_shape,
+                                                                 anchors_shape,
+                                                                 deltas_shape,
+                                                                 scores_shape,
+                                                                 output_rois.data(),
+                                                                 output_scores.data());
+    ov::reference::experimental_detectron_proposals_single_image_postprocessing(outputs[0]->get_data_ptr(),
+                                                                                outputs[1]->get_data_ptr(),
+                                                                                output_type,
+                                                                                output_rois,
+                                                                                output_scores,
+                                                                                output_rois_shape,
+                                                                                output_scores_shape);
 
     return true;
 }

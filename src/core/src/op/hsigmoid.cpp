@@ -10,7 +10,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/hsigmoid.hpp"
+#include "openvino/reference/hsigmoid.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -35,7 +35,7 @@ template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
 
-    runtime::reference::hsigmoid<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::hsigmoid<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 

@@ -6,8 +6,8 @@
 
 #include "eye_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/eye.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/eye.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
@@ -16,7 +16,7 @@ namespace eye {
 namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
-    ngraph::runtime::reference::eye(out->get_data_ptr<ET>(), out->get_shape(), diagonal_index);
+    ov::reference::eye(out->get_data_ptr<ET>(), out->get_shape(), diagonal_index);
     return true;
 }
 

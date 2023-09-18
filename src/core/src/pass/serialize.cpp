@@ -12,7 +12,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ngraph/runtime/reference/convert.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
@@ -21,6 +20,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
@@ -157,7 +157,7 @@ private:
             auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const float*>(ptr);
-            ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, num_src_elements);
+            ov::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, num_src_elements);
             return new_ptr;
         } else if (src_type == ov::element::f64) {
             auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);

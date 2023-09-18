@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class MishDecomposition: public ngraph::pass::MatcherPass {
+class MishDecomposition: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MishDecomposition", "0");
     MishDecomposition();

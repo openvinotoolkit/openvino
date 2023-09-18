@@ -2,24 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "openvino/op/convolution.hpp"
+
+#include <gtest/gtest.h>
+
+#include "openvino/op/parameter.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, convolution) {
     NodeBuilder::get_ops().register_factory<op::v1::Convolution>();
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 16, 3, 3});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 16, 124, 124});
+    auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 16, 3, 3});
     auto strides = Strides{1, 1};
     auto pads_begin = CoordinateDiff{1, 2};
     auto pads_end = CoordinateDiff{1, 2};
@@ -43,8 +40,8 @@ TEST(attributes, convolution) {
 
 TEST(attributes, convolution2) {
     NodeBuilder::get_ops().register_factory<op::v1::Convolution>();
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 227, 227});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{96, 3, 227, 227});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 227, 227});
+    auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{96, 3, 227, 227});
     auto strides = Strides{4, 4};
     auto pads_begin = CoordinateDiff{0, 0};
     auto pads_end = CoordinateDiff{0, 0};

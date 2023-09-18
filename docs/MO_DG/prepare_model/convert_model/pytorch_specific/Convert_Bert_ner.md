@@ -4,7 +4,7 @@
 
 .. meta::
    :description: Learn how to convert a BERT-NER model
-                 from Pytorch to the OpenVINO Intermediate Representation.
+                 from PyTorch to the OpenVINO Intermediate Representation.
 
 
 The goal of this article is to present a step-by-step guide on how to convert PyTorch BERT-NER model to OpenVINO IR. First, you need to download the model and convert it to ONNX.

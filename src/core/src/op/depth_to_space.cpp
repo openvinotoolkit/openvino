@@ -12,9 +12,9 @@
 #include <ngraph/ops.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/depth_to_space.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/reference/depth_to_space.hpp"
 
 using namespace ngraph;
 
@@ -62,13 +62,13 @@ bool evaluate_depth_to_space(const HostTensorVector& outputs,
     if (in->get_partial_shape().is_dynamic()) {
         return false;
     }
-    runtime::reference::depth_to_space(in->get_data_ptr<char>(),
-                                       in->get_shape(),
-                                       out->get_data_ptr<char>(),
-                                       out->get_shape(),
-                                       block_size,
-                                       mode,
-                                       elem_size);
+    ov::reference::depth_to_space(in->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  out->get_data_ptr<char>(),
+                                  out->get_shape(),
+                                  block_size,
+                                  mode,
+                                  elem_size);
     return true;
 }
 }  // namespace

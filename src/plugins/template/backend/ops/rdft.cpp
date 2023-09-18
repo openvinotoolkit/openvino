@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/rdft.hpp"
+#include "openvino/reference/rdft.hpp"
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
-#include "ngraph/runtime/reference/fft.hpp"
+#include "openvino/reference/fft.hpp"
 
 namespace rfft_v9 {
 struct InfoForRFFT9 {
@@ -31,7 +31,7 @@ InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<ngraph::H
 
     int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
     auto canonicalized_axes =
-        ngraph::runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, input_rank);
+        ov::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, input_rank);
 
     size_t num_of_axes = result.axes_data.size();
     auto signal_size = get_signal_size(inputs, num_of_axes);
@@ -66,14 +66,14 @@ bool evaluate(const std::shared_ptr<ngraph::op::v9::RDFT>& op,
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> rfft_result(ngraph::shape_size(info.output_shape), 0.0f);
-    ngraph::runtime::reference::rdft(info.input_data,
-                                     info.input_data_shape,
-                                     info.axes_data,
-                                     info.fft_output_shape,
-                                     rfft_result.data());
+    ov::reference::rdft(info.input_data,
+                        info.input_data_shape,
+                        info.axes_data,
+                        info.fft_output_shape,
+                        rfft_result.data());
 
     const auto output_type = op->get_input_element_type(0);
-    ngraph::runtime::reference::fft_postprocessing(outputs, output_type, rfft_result);
+    ov::reference::fft_postprocessing(outputs, output_type, rfft_result);
     return true;
 }
 

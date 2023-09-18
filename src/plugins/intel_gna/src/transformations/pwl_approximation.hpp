@@ -25,13 +25,13 @@ namespace pass {
  * @ingroup ie_transformation_common_api
  * @brief PWLApproximation transformation replaces suitable activation function with pwl
  */
-class PWLApproximation : public ngraph::pass::MatcherPass {
+class PWLApproximation : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PWLApproximation(double max_error_percent);
 };
 
-class PWLApproximationWithFq : public ngraph::pass::MatcherPass {
+class PWLApproximationWithFq : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PWLApproximationWithFq(double max_error_percent);

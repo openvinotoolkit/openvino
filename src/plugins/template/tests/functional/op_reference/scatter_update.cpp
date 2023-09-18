@@ -2,19 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <vector>
 
 #include "base_reference_test.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "gtest/gtest.h"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/scatter_update.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace reference_tests;
 
 namespace reference_tests {
@@ -73,12 +68,12 @@ private:
         const auto indices_type = params.indices.type;
         const auto axis_type = params.axis.type;
 
-        const auto data = std::make_shared<ngraph::op::Parameter>(numeric_type, data_shape);
-        const auto indices = std::make_shared<ngraph::op::Parameter>(indices_type, indices_shape);
-        const auto updates = std::make_shared<ngraph::op::Parameter>(numeric_type, updates_shape);
-        const auto axis = std::make_shared<ngraph::op::Parameter>(axis_type, axis_shape);
-        const auto scatter_update = std::make_shared<op::v3::ScatterUpdate>(data, indices, updates, axis);
-        return std::make_shared<ov::Model>(ngraph::NodeVector {scatter_update}, ngraph::ParameterVector {data, indices, updates, axis});
+        const auto data = std::make_shared<ov::op::v0::Parameter>(numeric_type, data_shape);
+        const auto indices = std::make_shared<ov::op::v0::Parameter>(indices_type, indices_shape);
+        const auto updates = std::make_shared<ov::op::v0::Parameter>(numeric_type, updates_shape);
+        const auto axis = std::make_shared<ov::op::v0::Parameter>(axis_type, axis_shape);
+        const auto scatter_update = std::make_shared<ov::op::v3::ScatterUpdate>(data, indices, updates, axis);
+        return std::make_shared<ov::Model>(ov::NodeVector {scatter_update}, ov::ParameterVector {data, indices, updates, axis});
     }
 };
 
@@ -86,10 +81,10 @@ TEST_P(ReferenceScatterUpdate6LayerTest, ScatterUpdateWithHardcodedRefs) {
     Exec();
 }
 
-template <element::Type_t NUM_ET, element::Type_t INT_ET>
-std::vector<ScatterUpdate3Params> generateScatterUpdate3Params(const element::Type& numeric_type, const element::Type& integer_type) {
-    using N = typename element_type_traits<NUM_ET>::value_type;
-    using I = typename element_type_traits<INT_ET>::value_type;
+template <ov::element::Type_t NUM_ET, ov::element::Type_t INT_ET>
+std::vector<ScatterUpdate3Params> generateScatterUpdate3Params(const ov::element::Type& numeric_type, const ov::element::Type& integer_type) {
+    using N = typename ov::element_type_traits<NUM_ET>::value_type;
+    using I = typename ov::element_type_traits<INT_ET>::value_type;
     std::vector<ScatterUpdate3Params> ScatterUpdateParams {
         Builder {}
             .data({{3, 2, 2, 3}, numeric_type, std::vector<N> {
@@ -769,10 +764,10 @@ Builder {}
     return ScatterUpdateParams;
 }
 
-template <element::Type_t NUM_ET, element::Type_t INT_ET>
-std::vector<ScatterUpdate3Params> generateScatterUpdate3ParamsNegativeAxis(const element::Type& numeric_type, const element::Type& integer_type) {
-    using N = typename element_type_traits<NUM_ET>::value_type;
-    using I = typename element_type_traits<INT_ET>::value_type;
+template <ov::element::Type_t NUM_ET, ov::element::Type_t INT_ET>
+std::vector<ScatterUpdate3Params> generateScatterUpdate3ParamsNegativeAxis(const ov::element::Type& numeric_type, const ov::element::Type& integer_type) {
+    using N = typename ov::element_type_traits<NUM_ET>::value_type;
+    using I = typename ov::element_type_traits<INT_ET>::value_type;
     std::vector<ScatterUpdate3Params> ScatterUpdateParams {
         Builder {}
             .data({{2, 2, 3}, numeric_type, std::vector<N> {0, 0, 0,
@@ -870,72 +865,72 @@ std::vector<ScatterUpdate3Params> generateScatterUpdate3ParamsNegativeAxis(const
 std::vector<ScatterUpdate3Params> generateScatterUpdateCombinedParams() {
     const std::vector<std::vector<ScatterUpdate3Params>> ScatterUpdateTypeParams {
         // f32
-        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i16>(element::f32, element::i16),
-        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i32>(element::f32, element::i32),
-        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i64>(element::f32, element::i64),
-        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::u32>(element::f32, element::u32),
-        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::u64>(element::f32, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::f32, ov::element::Type_t::i16>(ov::element::f32, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::f32, ov::element::Type_t::i32>(ov::element::f32, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::f32, ov::element::Type_t::i64>(ov::element::f32, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::f32, ov::element::Type_t::u32>(ov::element::f32, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::f32, ov::element::Type_t::u64>(ov::element::f32, ov::element::u64),
 
         // f16
-        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::i16>(element::f16, element::i16),
-        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::i32>(element::f16, element::i32),
-        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::i64>(element::f16, element::i64),
-        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::u32>(element::f16, element::u32),
-        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::u64>(element::f16, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::f16, ov::element::Type_t::i16>(ov::element::f16, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::f16, ov::element::Type_t::i32>(ov::element::f16, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::f16, ov::element::Type_t::i64>(ov::element::f16, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::f16, ov::element::Type_t::u32>(ov::element::f16, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::f16, ov::element::Type_t::u64>(ov::element::f16, ov::element::u64),
         // i8
-        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::i16>(element::i8, element::i16),
-        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::i32>(element::i8, element::i32),
-        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::i64>(element::i8, element::i64),
-        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::u32>(element::i8, element::u32),
-        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::u64>(element::i8, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::i8, ov::element::Type_t::i16>(ov::element::i8, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::i8, ov::element::Type_t::i32>(ov::element::i8, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::i8, ov::element::Type_t::i64>(ov::element::i8, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::i8, ov::element::Type_t::u32>(ov::element::i8, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::i8, ov::element::Type_t::u64>(ov::element::i8, ov::element::u64),
         // i16
-        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::i16>(element::i16, element::i16),
-        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::i32>(element::i16, element::i32),
-        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::i64>(element::i16, element::i64),
-        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::u32>(element::i16, element::u32),
-        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::u64>(element::i16, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::i16, ov::element::Type_t::i16>(ov::element::i16, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::i16, ov::element::Type_t::i32>(ov::element::i16, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::i16, ov::element::Type_t::i64>(ov::element::i16, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::i16, ov::element::Type_t::u32>(ov::element::i16, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::i16, ov::element::Type_t::u64>(ov::element::i16, ov::element::u64),
         // i32
-        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::i16>(element::i32, element::i16),
-        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::i32>(element::i32, element::i32),
-        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::i64>(element::i32, element::i64),
-        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::u32>(element::i32, element::u32),
-        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::u64>(element::i32, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::i32, ov::element::Type_t::i16>(ov::element::i32, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::i32, ov::element::Type_t::i32>(ov::element::i32, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::i32, ov::element::Type_t::i64>(ov::element::i32, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::i32, ov::element::Type_t::u32>(ov::element::i32, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::i32, ov::element::Type_t::u64>(ov::element::i32, ov::element::u64),
         // i64
-        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::i16>(element::i64, element::i16),
-        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::i32>(element::i64, element::i32),
-        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::i64>(element::i64, element::i64),
-        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::u32>(element::i64, element::u32),
-        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::u64>(element::i64, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::i64, ov::element::Type_t::i16>(ov::element::i64, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::i64, ov::element::Type_t::i32>(ov::element::i64, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::i64, ov::element::Type_t::i64>(ov::element::i64, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::i64, ov::element::Type_t::u32>(ov::element::i64, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::i64, ov::element::Type_t::u64>(ov::element::i64, ov::element::u64),
         // u8
-        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::i16>(element::u8, element::i16),
-        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::i32>(element::u8, element::i32),
-        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::i64>(element::u8, element::i64),
-        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::u32>(element::u8, element::u32),
-        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::u64>(element::u8, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::u8, ov::element::Type_t::i16>(ov::element::u8, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::u8, ov::element::Type_t::i32>(ov::element::u8, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::u8, ov::element::Type_t::i64>(ov::element::u8, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::u8, ov::element::Type_t::u32>(ov::element::u8, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::u8, ov::element::Type_t::u64>(ov::element::u8, ov::element::u64),
         // u16
-        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::i16>(element::u16, element::i16),
-        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::i32>(element::u16, element::i32),
-        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::i64>(element::u16, element::i64),
-        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::u32>(element::u16, element::u32),
-        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::u64>(element::u16, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::u16, ov::element::Type_t::i16>(ov::element::u16, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::u16, ov::element::Type_t::i32>(ov::element::u16, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::u16, ov::element::Type_t::i64>(ov::element::u16, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::u16, ov::element::Type_t::u32>(ov::element::u16, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::u16, ov::element::Type_t::u64>(ov::element::u16, ov::element::u64),
         // u32
-        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::i16>(element::u32, element::i16),
-        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::i32>(element::u32, element::i32),
-        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::i64>(element::u32, element::i64),
-        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::u32>(element::u32, element::u32),
-        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::u64>(element::u32, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::u32, ov::element::Type_t::i16>(ov::element::u32, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::u32, ov::element::Type_t::i32>(ov::element::u32, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::u32, ov::element::Type_t::i64>(ov::element::u32, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::u32, ov::element::Type_t::u32>(ov::element::u32, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::u32, ov::element::Type_t::u64>(ov::element::u32, ov::element::u64),
         // u64
-        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::i16>(element::u64, element::i16),
-        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::i32>(element::u64, element::i32),
-        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::i64>(element::u64, element::i64),
-        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::u32>(element::u64, element::u32),
-        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::u64>(element::u64, element::u64),
+        generateScatterUpdate3Params<ov::element::Type_t::u64, ov::element::Type_t::i16>(ov::element::u64, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::u64, ov::element::Type_t::i32>(ov::element::u64, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::u64, ov::element::Type_t::i64>(ov::element::u64, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::u64, ov::element::Type_t::u32>(ov::element::u64, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::u64, ov::element::Type_t::u64>(ov::element::u64, ov::element::u64),
         // bf16
-        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::i16>(element::bf16, element::i16),
-        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::i32>(element::bf16, element::i32),
-        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::i64>(element::bf16, element::i64),
-        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::u32>(element::bf16, element::u32),
-        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::u64>(element::bf16, element::u64)};
+        generateScatterUpdate3Params<ov::element::Type_t::bf16, ov::element::Type_t::i16>(ov::element::bf16, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::bf16, ov::element::Type_t::i32>(ov::element::bf16, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::bf16, ov::element::Type_t::i64>(ov::element::bf16, ov::element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::bf16, ov::element::Type_t::u32>(ov::element::bf16, ov::element::u32),
+        generateScatterUpdate3Params<ov::element::Type_t::bf16, ov::element::Type_t::u64>(ov::element::bf16, ov::element::u64)};
     std::vector<ScatterUpdate3Params> combinedParams;
 
     for (const auto& params : ScatterUpdateTypeParams) {
@@ -947,49 +942,49 @@ std::vector<ScatterUpdate3Params> generateScatterUpdateCombinedParams() {
 std::vector<ScatterUpdate3Params> generateScatterUpdateNegativeAxisParams() {
     const std::vector<std::vector<ScatterUpdate3Params>> ScatterUpdateTypeParams {
         // f32
-        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i16>(element::f32, element::i16),
-        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i32>(element::f32, element::i32),
-        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i64>(element::f32, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::f32, ov::element::Type_t::i16>(ov::element::f32, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::f32, ov::element::Type_t::i32>(ov::element::f32, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::f32, ov::element::Type_t::i64>(ov::element::f32, ov::element::i64),
         // f16
-        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::i16>(element::f16, element::i16),
-        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::i32>(element::f16, element::i32),
-        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::i64>(element::f16, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::f16, ov::element::Type_t::i16>(ov::element::f16, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::f16, ov::element::Type_t::i32>(ov::element::f16, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::f16, ov::element::Type_t::i64>(ov::element::f16, ov::element::i64),
         // i8
-        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::i16>(element::i8, element::i16),
-        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::i32>(element::i8, element::i32),
-        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::i64>(element::i8, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::i8, ov::element::Type_t::i16>(ov::element::i8, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::i8, ov::element::Type_t::i32>(ov::element::i8, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::i8, ov::element::Type_t::i64>(ov::element::i8, ov::element::i64),
         // i16
-        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::i16>(element::i16, element::i16),
-        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::i32>(element::i16, element::i32),
-        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::i64>(element::i16, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::i16, ov::element::Type_t::i16>(ov::element::i16, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::i16, ov::element::Type_t::i32>(ov::element::i16, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::i16, ov::element::Type_t::i64>(ov::element::i16, ov::element::i64),
         // i32
-        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::i16>(element::i32, element::i16),
-        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::i32>(element::i32, element::i32),
-        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::i64>(element::i32, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::i32, ov::element::Type_t::i16>(ov::element::i32, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::i32, ov::element::Type_t::i32>(ov::element::i32, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::i32, ov::element::Type_t::i64>(ov::element::i32, ov::element::i64),
         // i64
-        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::i16>(element::i64, element::i16),
-        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::i32>(element::i64, element::i32),
-        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::i64>(element::i64, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::i64, ov::element::Type_t::i16>(ov::element::i64, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::i64, ov::element::Type_t::i32>(ov::element::i64, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::i64, ov::element::Type_t::i64>(ov::element::i64, ov::element::i64),
         // u8
-        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::i16>(element::u8, element::i16),
-        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::i32>(element::u8, element::i32),
-        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::i64>(element::u8, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::u8, ov::element::Type_t::i16>(ov::element::u8, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::u8, ov::element::Type_t::i32>(ov::element::u8, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::u8, ov::element::Type_t::i64>(ov::element::u8, ov::element::i64),
         // u16
-        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::i16>(element::u16, element::i16),
-        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::i32>(element::u16, element::i32),
-        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::i64>(element::u16, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::u16, ov::element::Type_t::i16>(ov::element::u16, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::u16, ov::element::Type_t::i32>(ov::element::u16, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::u16, ov::element::Type_t::i64>(ov::element::u16, ov::element::i64),
         // u32
-        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::i16>(element::u32, element::i16),
-        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::i32>(element::u32, element::i32),
-        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::i64>(element::u32, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::u32, ov::element::Type_t::i16>(ov::element::u32, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::u32, ov::element::Type_t::i32>(ov::element::u32, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::u32, ov::element::Type_t::i64>(ov::element::u32, ov::element::i64),
         // u64
-        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::i16>(element::u64, element::i16),
-        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::i32>(element::u64, element::i32),
-        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::i64>(element::u64, element::i64),
+        generateScatterUpdate3Params<ov::element::Type_t::u64, ov::element::Type_t::i16>(ov::element::u64, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::u64, ov::element::Type_t::i32>(ov::element::u64, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::u64, ov::element::Type_t::i64>(ov::element::u64, ov::element::i64),
         // bf16
-        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::i16>(element::bf16, element::i16),
-        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::i32>(element::bf16, element::i32),
-        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::i64>(element::bf16, element::i64)};
+        generateScatterUpdate3Params<ov::element::Type_t::bf16, ov::element::Type_t::i16>(ov::element::bf16, ov::element::i16),
+        generateScatterUpdate3Params<ov::element::Type_t::bf16, ov::element::Type_t::i32>(ov::element::bf16, ov::element::i32),
+        generateScatterUpdate3Params<ov::element::Type_t::bf16, ov::element::Type_t::i64>(ov::element::bf16, ov::element::i64)};
     std::vector<ScatterUpdate3Params> combinedParams;
 
     for (const auto& params : ScatterUpdateTypeParams) {

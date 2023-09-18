@@ -56,8 +56,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Sinh_With_Hardcoded_Refs, ReferenceSinhLayerTest,
     ::testing::Values(
         Builder {}
-            .input({{11}, element::f16, std::vector<ngraph::float16> {-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
-            .expected({{11}, element::f16, std::vector<ngraph::float16> {-27.28991720f,
+            .input({{11}, element::f16, std::vector<ov::float16> {-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
+            .expected({{11}, element::f16, std::vector<ov::float16> {-27.28991720f,
                             -3.62686041f,
                             -1.17520120f,
                             -0.52109531f,

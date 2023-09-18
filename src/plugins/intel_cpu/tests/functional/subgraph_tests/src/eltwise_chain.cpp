@@ -97,7 +97,7 @@ protected:
                 ngraphInputs.push_back(ngraphParam.back());
             }
         } else {
-            ngraphParam = ngraph::builder::makeDynamicParams(inputPrecisions[0], {inputDynamicShapes.front()});
+            ngraphParam = ov::ParameterVector {std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes.front())};
             for (size_t i = 1; i < inputPrecisions.size(); i++) {
                 std::vector<float> ngraphInput1Data(ngraph::shape_size(targetStaticShapes[0][i]));
                 ngraphInputs.push_back(ngraph::builder::makeConstant(inputPrecisions[i], targetStaticShapes[0][i],

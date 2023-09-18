@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/split.hpp"
+#include "openvino/reference/split.hpp"
 
 #include <numeric>
 #include <split_shape_inference.hpp>
@@ -91,12 +91,12 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
         axis = normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
         OPENVINO_SUPPRESS_DEPRECATED_END
 
-        ngraph::runtime::reference::split(data_tensor->get_data_ptr<char>(),
-                                          data_tensor->get_shape(),
-                                          data_tensor->get_element_type().size(),
-                                          axis,
-                                          m_num_splits,
-                                          outputs_data.data());
+        ov::reference::split(data_tensor->get_data_ptr<char>(),
+                             data_tensor->get_shape(),
+                             data_tensor->get_element_type().size(),
+                             axis,
+                             m_num_splits,
+                             outputs_data.data());
         return true;
     }
     return false;

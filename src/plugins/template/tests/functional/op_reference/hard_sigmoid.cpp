@@ -3,10 +3,10 @@
 //
 
 #include <gtest/gtest.h>
-#include <ngraph/ngraph.hpp>
 
 #include "openvino/op/hard_sigmoid.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -60,8 +60,8 @@ private:
         alphaArray.push_back(alphaData);
         betaArray.push_back(betaData);
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto alpha = ngraph::op::Constant::create(input_type, Shape{}, {alphaData});
-        const auto beta = ngraph::op::Constant::create(input_type, Shape{}, {betaData});
+        const auto alpha = ov::op::v0::Constant::create(input_type, Shape{}, {alphaData});
+        const auto beta = ov::op::v0::Constant::create(input_type, Shape{}, {betaData});
         const auto HardSigmoid = std::make_shared<op::v0::HardSigmoid>(in, alpha, beta);
         return std::make_shared<ov::Model>(NodeVector {HardSigmoid}, ParameterVector {in});
     }

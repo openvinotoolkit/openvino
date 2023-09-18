@@ -4,7 +4,7 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
-#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
+#include "openvino/reference/adaptive_avg_pool.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -72,7 +72,7 @@ void generateTestData(const AdaptiveAvgPoolingParams& p, const format fmt, const
     const auto inShape = tensorToShape(p.inputTensor, fmt);
     const auto outShape = tensorToShape(p.outputTensor, fmt);
 
-    ngraph::runtime::reference::adaptive_avg_pool<float>(random_inputs.data(), out.data(), inShape, outShape);
+    ov::reference::adaptive_avg_pool<float>(random_inputs.data(), out.data(), inShape, outShape);
 
     inputs = getValues<T>(random_inputs);
     outputs = getValues<T>(out);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/roi_align.hpp"
+#include "openvino/reference/roi_align.hpp"
 
 #include "evaluate_node.hpp"
 
@@ -26,20 +26,20 @@ bool evaluate(const std::shared_ptr<ngraph::op::v9::ROIAlign>& op,
         NGRAPH_CHECK(false, "unsupported PoolingMode ");
     }
     }
-    ngraph::runtime::reference::roi_align<T>(inputs[0]->get_data_ptr<const T>(),
-                                             inputs[1]->get_data_ptr<const T>(),
-                                             batch_indices_vec_scaled_up.data(),
-                                             outputs[0]->get_data_ptr<T>(),
-                                             op->get_input_shape(0),
-                                             op->get_input_shape(1),
-                                             op->get_input_shape(2),
-                                             op->get_output_shape(0),
-                                             op->get_pooled_h(),
-                                             op->get_pooled_w(),
-                                             op->get_sampling_ratio(),
-                                             op->get_spatial_scale(),
-                                             m_mode_v3,
-                                             op->get_aligned_mode());
+    ov::reference::roi_align<T>(inputs[0]->get_data_ptr<const T>(),
+                                inputs[1]->get_data_ptr<const T>(),
+                                batch_indices_vec_scaled_up.data(),
+                                outputs[0]->get_data_ptr<T>(),
+                                op->get_input_shape(0),
+                                op->get_input_shape(1),
+                                op->get_input_shape(2),
+                                op->get_output_shape(0),
+                                op->get_pooled_h(),
+                                op->get_pooled_w(),
+                                op->get_sampling_ratio(),
+                                op->get_spatial_scale(),
+                                m_mode_v3,
+                                op->get_aligned_mode());
     return true;
 }
 

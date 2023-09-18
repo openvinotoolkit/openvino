@@ -4,11 +4,10 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "openvino/opsets/opset5.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, rnn_sequence_forward) {
     const size_t batch_size = 8;
@@ -20,7 +19,7 @@ TEST(type_prop, rnn_sequence_forward) {
     const auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
         make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(element::i32, Shape{batch_size});
 
     const auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, input_size});
     const auto R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, hidden_size});
@@ -53,7 +52,7 @@ TEST(type_prop, rnn_sequence_invalid_input) {
 
     auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     auto H_t = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(element::i32, Shape{batch_size});
 
     auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, input_size});
     auto R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, hidden_size});
@@ -144,7 +143,7 @@ TEST(type_prop, rnn_sequence_dynamic_inputs) {
     const auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, seq_length, input_size});
     const auto H_t =
         make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, PartialShape{batch_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{batch_size});
 
     const auto W = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, input_size});
     const auto R = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, hidden_size});
@@ -172,7 +171,7 @@ TEST(type_prop, rnn_sequence_dynamic_batch_size) {
     const auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, seq_length, input_size});
     const auto H_t =
         make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, PartialShape{batch_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{batch_size});
 
     const auto W = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, input_size});
     const auto R = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, hidden_size});
@@ -200,7 +199,7 @@ TEST(type_prop, rnn_sequence_dynamic_input_size) {
     const auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, seq_length, input_size});
     const auto H_t =
         make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, PartialShape{batch_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{batch_size});
 
     const auto W = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, input_size});
     const auto R = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, hidden_size});
@@ -228,7 +227,7 @@ TEST(type_prop, rnn_sequence_dynamic_hidden_size) {
     const auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, seq_length, input_size});
     const auto H_t =
         make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, PartialShape{batch_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{batch_size});
 
     const auto W = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, input_size});
     const auto R = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, hidden_size});
@@ -255,7 +254,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
 
     auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     auto H_t = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(element::i32, Shape{batch_size});
 
     auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, input_size});
     auto R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, hidden_size});
@@ -267,7 +266,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     X = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for H_t tensor.
@@ -275,7 +274,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     H_t = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for W tensor.
@@ -283,7 +282,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     W = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for R tensor.
@@ -291,7 +290,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     R = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for B tensor.
@@ -299,7 +298,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     B = make_shared<opset5::Parameter>(element::f32, PartialShape{});
     ASSERT_THROW(
         const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-        ngraph::CheckFailure)
+        ov::AssertFailure)
         << "RNNSequence node was created with invalid data.";
 }
 
@@ -312,7 +311,7 @@ TEST(type_prop, rnn_sequence_input_dynamic_rank) {
 
     auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, seq_length, input_size});
     auto H_t = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, PartialShape{batch_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{batch_size});
 
     auto W = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, input_size});
     auto R = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, hidden_size});

@@ -31,13 +31,13 @@ void FuseTransposeBrgemmTests::SetUp() {
     size_t transpose_position;
     std::tie(input_shapes, master_shape, transpose_position) = this->GetParam();
 
-    snippets_function = std::make_shared<Transpose0213MatMulLoweredFunction>(input_shapes, transpose_position);
+    snippets_model = std::make_shared<Transpose0213MatMulLoweredFunction>(input_shapes, transpose_position);
 }
 
 TEST_P(FuseTransposeBrgemmTests, FuseTransposeMatmul) {
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape);
-    function = subgraph->body_ptr();
-    function_ref = snippets_function->getLowered();
+    auto subgraph = getLoweredSubgraph(snippets_model->getOriginal(), master_shape);
+    model = subgraph->body_ptr();
+    model_ref = snippets_model->getLowered();
 }
 
 namespace FuseTransposeBrgemmTestsInstantiation {

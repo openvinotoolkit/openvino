@@ -50,7 +50,7 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     using kernel_selector_t = kernel_selector::cum_sum_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::cum_sum_params, kernel_selector::cum_sum_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::cum_sum_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<cum_sum_impl>(*this);

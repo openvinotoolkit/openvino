@@ -11,7 +11,7 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        ov::Shape,                   // Input Shape All shapes are replicated
+        InputShape,                  // Input Shape All shapes are replicated
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
         std::string                  // Target Device

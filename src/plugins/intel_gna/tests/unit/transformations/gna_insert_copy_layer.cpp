@@ -13,7 +13,7 @@
 
 #include "backend/gna_limitations.hpp"
 #include "common/gna_target.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ops/copy.hpp"
 #include "transformations/insert_copy_layer.hpp"

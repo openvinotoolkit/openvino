@@ -85,7 +85,7 @@ protected:
             }
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
         std::shared_ptr<ngraph::opset4::TopK> topk;
         if (inputType == ngraph::helpers::InputLayerType::CONSTANT) {
