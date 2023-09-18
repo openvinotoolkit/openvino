@@ -9,16 +9,16 @@ using namespace ov::auto_plugin::tests;
 
 TEST_F(AutoFuncTests, compiled_with_cache_enabled) { 
     core.set_property(ov::cache_dir(cache_path));
-    core.set_property("MOCK_1", ov::device::id("test")); // device id for cache property distinguish with MOCK_2
-    auto compiled_model = core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
+    core.set_property("MOCK_GPU", ov::device::id("test")); // device id for cache property distinguish with MOCK_CPU
+    auto compiled_model = core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                  ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
-    compiled_model = core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
+    compiled_model = core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                  ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     // can reuse the cache, no extra cache generated
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
-    core.set_property("MOCK_1", ov::device::id("test_regenerate"));
-    compiled_model = core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
+    core.set_property("MOCK_GPU", ov::device::id("test_regenerate"));
+    compiled_model = core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                  ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     // new cache file expected
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 3);
@@ -28,16 +28,16 @@ TEST_F(AutoFuncTests, compiled_with_cache_enabled) {
 TEST_F(AutoFuncTests, compiled_with_cache_enabled_batch_enabled) {
 #ifdef ENABLE_AUTO_BATCH
     core.set_property(ov::cache_dir(cache_path));
-    core.set_property("MOCK_1", ov::device::id("test")); // device id for cache property distinguish with MOCK_2
-    auto compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
+    core.set_property("MOCK_GPU", ov::device::id("test")); // device id for cache property distinguish with MOCK_CPU
+    auto compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                  ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 3);
-    compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
+    compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                  ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     // can reuse the cache, no extra cache generated
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 3);
-    core.set_property("MOCK_1", ov::device::id("test_regenerate"));
-    compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
+    core.set_property("MOCK_GPU", ov::device::id("test_regenerate"));
+    compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                  ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     // new cache file expected
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 5);

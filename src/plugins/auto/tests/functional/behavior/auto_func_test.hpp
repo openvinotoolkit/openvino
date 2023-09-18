@@ -77,7 +77,9 @@ public:
 
 protected:
     void register_plugin_mock_cpu(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin_mock_cpu_compile_slower(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
     void register_plugin_mock_gpu(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin_mock_gpu_compile_slower(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
     std::shared_ptr<ov::Model> model_can_batch;
     std::shared_ptr<ov::Model> model_cannot_batch;
     std::string cache_path;
@@ -101,6 +103,28 @@ private:
                     const ov::AnyMap& properties);
     std::shared_ptr<ov::Model> create_model_with_batch_possible();
     std::shared_ptr<ov::Model> create_model_with_reshape();
+};
+
+class ThreadingTest {
+public:
+    static void runParallel(std::function<void(void)> func,
+                     const unsigned int iterations = 100,
+                     const unsigned int threadsNum = 8) {
+        std::vector<std::thread> threads(threadsNum);
+
+        for (auto & thread : threads) {
+            thread = std::thread([&](){
+                for (unsigned int i = 0; i < iterations; ++i) {
+                    func();
+                }
+            });
+        }
+
+        for (auto & thread : threads) {
+            if (thread.joinable())
+                thread.join();
+        }
+    }
 };
 }  // namespace tests
 }  // namespace auto_plugin

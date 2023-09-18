@@ -39,4 +39,5 @@ ov_add_test_target(
             Auto
 )
 
+target_compile_definitions(${TARGET_NAME} PRIVATE ${COMPILE_DEFINITIONS})
 set_ie_threading_interface_for(${TARGET_NAME})

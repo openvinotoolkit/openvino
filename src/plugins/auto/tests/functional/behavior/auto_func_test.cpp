@@ -3,7 +3,7 @@
 //
 
 #include "auto_func_test.hpp"
-
+#include <chrono>
 #include <memory>
 #include <string>
 
@@ -14,6 +14,7 @@
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -57,8 +58,8 @@ ov::PropertyName RW_property(const std::string& propertyName) {
 
 void ov::auto_plugin::tests::AutoFuncTests::SetUp() {
     if (m_mock_plugins.empty()) {
-        register_plugin_mock_gpu(core, "MOCK_1", {});
-        register_plugin_mock_cpu(core, "MOCK_2", {});
+        register_plugin_mock_cpu(core, "MOCK_CPU", {});
+        register_plugin_mock_gpu(core, "MOCK_GPU", {});
     }
     model_can_batch = create_model_with_batch_possible();
     model_cannot_batch = create_model_with_reshape();
@@ -169,7 +170,6 @@ public:
         } else if (name == ov::execution_devices) {
             return decltype(ov::execution_devices)::value_type({get_plugin()->get_device_name()});
         }
-        std::cout << name << std::endl;
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -251,8 +251,10 @@ public:
             }
             output_tensors.emplace_back(ov::make_tensor(tensor));
         }
-        if (evaludate_flag)
+        if (evaludate_flag) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
             m_model->evaluate(output_tensors, input_tensors);
+        }
     }
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
         OPENVINO_NOT_IMPLEMENTED;
@@ -474,6 +476,139 @@ public:
     }
 };
 
+class MockPluginSupportBatchAndContext : public MockPluginBase {
+public:
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override {
+        OPENVINO_ASSERT(model);
+
+        std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Reshape"};
+
+        ov::SupportedOpsMap res;
+        for (const auto& op : model->get_ordered_ops()) {
+            if (supported_ops.find(op->get_type_info().name) == supported_ops.end())
+                continue;
+            res.emplace(op->get_friendly_name(), get_device_name());
+        }
+        return res;
+    }
+
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+        if (remote_properties.find("CUSTOM_CTX") == remote_properties.end())
+            return std::make_shared<MockRemoteContext>(get_device_name());
+        return std::make_shared<MockCustomRemoteContext>(get_device_name());
+    }
+
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+        std::string device_name = get_device_name();
+        if (remote_properties.find(ov::device::id.name()) != remote_properties.end())
+            device_name = device_name + "." + remote_properties.at(ov::device::id.name()).as<std::string>();
+
+        return std::make_shared<MockRemoteContext>(device_name);
+    }
+
+    void set_property(const ov::AnyMap& properties) override {
+        for (const auto& it : properties) {
+            if (it.first == ov::num_streams.name())
+                num_streams = it.second.as<int32_t>();
+            else if (it.first == ov::enable_profiling.name())
+                m_profiling = it.second.as<bool>();
+            else if (it.first == ov::hint::performance_mode.name())
+                m_perf_hint = it.second.as<ov::hint::PerformanceMode>();
+            else if (it.first == ov::hint::num_requests.name())
+                m_request = it.second.as<uint32_t>();
+            else if (it.first == ov::device::id.name())
+                m_id = it.second.as<std::string>();
+            else if (it.first == ov::cache_dir.name())
+                continue;
+            else
+                OPENVINO_THROW(get_device_name(), " set config: " + it.first);
+        }
+    }
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+        const std::vector<ov::PropertyName> roProperties{
+            RO_property(ov::supported_properties.name()),
+            RO_property(ov::optimal_batch_size.name()),
+            RO_property(ov::device::capabilities.name()),
+            RO_property(ov::device::type.name()),
+            RO_property(ov::device::uuid.name()),
+            RO_property(ov::device::id.name()),
+            RO_property(ov::intel_gpu::memory_statistics.name())
+        };
+        // the whole config is RW before network is loaded.
+        const std::vector<ov::PropertyName> rwProperties{
+            RW_property(ov::num_streams.name()),
+            RW_property(ov::enable_profiling.name()),
+            RW_property(ov::compilation_num_threads.name()),
+            RW_property(ov::hint::performance_mode.name()),
+            RW_property(ov::hint::num_requests.name())
+        };
+        if (name == ov::supported_properties) {
+            std::vector<ov::PropertyName> supportedProperties;
+            supportedProperties.reserve(roProperties.size() + rwProperties.size());
+            supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+            supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+
+            return decltype(ov::supported_properties)::value_type(supportedProperties);
+        } else if (name == ov::hint::num_requests.name()) {
+            return decltype(ov::hint::num_requests)::value_type(1);
+        }  else if (name == ov::hint::performance_mode.name()) {
+            return decltype(ov::hint::performance_mode)::value_type(ov::hint::PerformanceMode::LATENCY);
+        } else if (name == ov::optimal_batch_size.name()) {
+            return decltype(ov::optimal_batch_size)::value_type(4);
+        } else if (name == ov::device::capabilities.name()) {
+            return decltype(ov::device::capabilities)::value_type({"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8", ov::device::capability::EXPORT_IMPORT});
+        } else if (name == ov::device::type.name()) {
+            return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
+        } else if (name == ov::loaded_from_cache.name()) {
+            return false;
+        } else if (name == ov::enable_profiling.name()) {
+            return decltype(ov::enable_profiling)::value_type{false};
+        } else if (name == ov::streams::num.name()) {
+            return decltype(ov::streams::num)::value_type{2};
+        } else if (name == ov::compilation_num_threads.name()) {
+            return decltype(ov::compilation_num_threads)::value_type{4};
+        } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
+            std::vector<std::string> configs;
+            for (const auto& property : rwProperties) {
+                configs.emplace_back(property);
+            }
+            return configs;
+        } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
+            std::vector<std::string> configs;
+            for (const auto& property : roProperties) {
+                configs.emplace_back(property);
+            }
+            return configs;
+        } else if (name == ov::internal::supported_properties) {
+            return decltype(ov::internal::supported_properties)::value_type(
+                {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
+        } else if (ov::internal::caching_properties == name) {
+            std::vector<ov::PropertyName> caching_properties = {ov::device::uuid, ov::device::id};
+            return decltype(ov::internal::caching_properties)::value_type(caching_properties);
+        } else if (name == ov::device::uuid) {
+            ov::device::UUID uuid = {};
+            return decltype(ov::device::uuid)::value_type{uuid};
+        } else if (name == ov::device::id) {
+            return decltype(ov::device::id)::value_type{m_id};
+        } else if (name == ov::loaded_from_cache.name()) {
+            return m_loaded_from_cache;
+        } else if (name == ov::intel_gpu::memory_statistics) {
+            return decltype(ov::intel_gpu::memory_statistics)::value_type{{}};
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+private:
+    int32_t num_streams{0};
+    bool m_profiling = false;
+    bool m_loaded_from_cache{false};
+    ov::hint::PerformanceMode m_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+    uint32_t m_request = 0;
+    std::string m_id;
+};
+
 void ov::auto_plugin::tests::AutoFuncTests::reg_plugin(ov::Core& core,
                                               std::shared_ptr<ov::IPlugin>& plugin,
                                               const std::string& device_name,
@@ -496,237 +631,162 @@ void ov::auto_plugin::tests::AutoFuncTests::reg_plugin(ov::Core& core,
 void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_gpu(ov::Core& core,
                                                                      const std::string& device_name,
                                                                      const ov::AnyMap& properties) {
-    class MockPluginSupportBatchAndContext : public MockPluginBase {
-    public:
-        ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
-                                        const ov::AnyMap& properties) const override {
-            OPENVINO_ASSERT(model);
-
-            std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Reshape"};
-
-            ov::SupportedOpsMap res;
-            for (const auto& op : model->get_ordered_ops()) {
-                if (supported_ops.find(op->get_type_info().name) == supported_ops.end())
-                    continue;
-                res.emplace(op->get_friendly_name(), get_device_name());
-            }
-            return res;
-        }
-
-        ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
-            if (remote_properties.find("CUSTOM_CTX") == remote_properties.end())
-                return std::make_shared<MockRemoteContext>(get_device_name());
-            return std::make_shared<MockCustomRemoteContext>(get_device_name());
-        }
-
-        ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
-            std::string device_name = get_device_name();
-            if (remote_properties.find(ov::device::id.name()) != remote_properties.end())
-                device_name = device_name + "." + remote_properties.at(ov::device::id.name()).as<std::string>();
-
-            return std::make_shared<MockRemoteContext>(device_name);
-        }
-
-        void set_property(const ov::AnyMap& properties) override {
-            for (const auto& it : properties) {
-                if (it.first == ov::num_streams.name())
-                    num_streams = it.second.as<int32_t>();
-                else if (it.first == ov::enable_profiling.name())
-                    m_profiling = it.second.as<bool>();
-                else if (it.first == ov::hint::performance_mode.name())
-                    m_perf_hint = it.second.as<ov::hint::PerformanceMode>();
-                else if (it.first == ov::hint::num_requests.name())
-                    m_request = it.second.as<uint32_t>();
-                else if (it.first == ov::device::id.name())
-                    m_id = it.second.as<std::string>();
-                else if (it.first == ov::cache_dir.name())
-                    continue;
-                else
-                    OPENVINO_THROW(get_device_name(), " set config: " + it.first);
-            }
-        }
-
-        ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
-            const std::vector<ov::PropertyName> roProperties{
-                RO_property(ov::supported_properties.name()),
-                RO_property(ov::optimal_batch_size.name()),
-                RO_property(ov::device::capabilities.name()),
-                RO_property(ov::device::type.name()),
-                RO_property(ov::device::uuid.name()),
-                RO_property(ov::device::id.name())
-            };
-            // the whole config is RW before network is loaded.
-            const std::vector<ov::PropertyName> rwProperties{
-                RW_property(ov::num_streams.name()),
-                RW_property(ov::enable_profiling.name()),
-                RW_property(ov::compilation_num_threads.name()),
-                RW_property(ov::hint::performance_mode.name()),
-                RW_property(ov::hint::num_requests.name())
-            };
-            if (name == ov::supported_properties) {
-                std::vector<ov::PropertyName> supportedProperties;
-                supportedProperties.reserve(roProperties.size() + rwProperties.size());
-                supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
-                supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
-
-                return decltype(ov::supported_properties)::value_type(supportedProperties);
-            } else if (name == ov::hint::num_requests.name()) {
-                return decltype(ov::hint::num_requests)::value_type(1);
-            }  else if (name == ov::hint::performance_mode.name()) {
-                return decltype(ov::hint::performance_mode)::value_type(ov::hint::PerformanceMode::LATENCY);
-            } else if (name == ov::optimal_batch_size.name()) {
-                return decltype(ov::optimal_batch_size)::value_type(4);
-            } else if (name == ov::device::capabilities.name()) {
-                return decltype(ov::device::capabilities)::value_type({"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8", ov::device::capability::EXPORT_IMPORT});
-            } else if (name == ov::device::type.name()) {
-                return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
-            } else if (name == ov::loaded_from_cache.name()) {
-                return false;
-            } else if (name == ov::enable_profiling.name()) {
-                return decltype(ov::enable_profiling)::value_type{false};
-            } else if (name == ov::streams::num.name()) {
-                return decltype(ov::streams::num)::value_type{2};
-            } else if (name == ov::compilation_num_threads.name()) {
-                return decltype(ov::compilation_num_threads)::value_type{4};
-            } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : rwProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
-            } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : roProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
-            } else if (name == ov::internal::supported_properties) {
-                return decltype(ov::internal::supported_properties)::value_type(
-                    {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
-            } else if (ov::internal::caching_properties == name) {
-                std::vector<ov::PropertyName> caching_properties = {ov::device::uuid, ov::device::id};
-                return decltype(ov::internal::caching_properties)::value_type(caching_properties);
-            } else if (name == ov::device::uuid) {
-                ov::device::UUID uuid = {};
-                return decltype(ov::device::uuid)::value_type{uuid};
-            } else if (name == ov::device::id) {
-                return decltype(ov::device::id)::value_type{m_id};
-            } else if (name == ov::loaded_from_cache.name()) {
-                return m_loaded_from_cache;
-            }
-            OPENVINO_NOT_IMPLEMENTED;
-        }
-
-    private:
-        int32_t num_streams{0};
-        bool m_profiling = false;
-        bool m_loaded_from_cache{false};
-        ov::hint::PerformanceMode m_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
-        uint32_t m_request = 0;
-        std::string m_id;
-    };
     std::shared_ptr<ov::IPlugin> base_plugin = std::make_shared<MockPluginSupportBatchAndContext>();
     reg_plugin(core, base_plugin, device_name, properties);
 }
 
+class MockPlugin : public MockPluginBase {
+public:
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override {
+        OPENVINO_ASSERT(model);
+
+        std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Reshape"};
+
+        ov::SupportedOpsMap res;
+        for (const auto& op : model->get_ordered_ops()) {
+            if (supported_ops.find(op->get_type_info().name) == supported_ops.end())
+                continue;
+            res.emplace(op->get_friendly_name(), get_device_name());
+        }
+        return res;
+    }
+
+    void set_property(const ov::AnyMap& properties) override {
+        for (const auto& it : properties) {
+            if (it.first == ov::num_streams.name())
+                num_streams = it.second.as<int32_t>();
+            else if (it.first == ov::enable_profiling.name())
+                m_profiling = it.second.as<bool>();
+            else if (it.first == ov::device::id.name())
+                continue;
+            else if (it.first == ov::cache_dir.name())
+                continue;
+            else
+                OPENVINO_THROW(get_device_name(), " set config: " + it.first);
+        }
+    }
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+        const std::vector<ov::PropertyName> roProperties{
+            RO_property(ov::supported_properties.name()),
+            RO_property(ov::device::uuid.name()),
+            RO_property(ov::device::capabilities.name())
+        };
+        // the whole config is RW before network is loaded.
+        const std::vector<ov::PropertyName> rwProperties{
+            RW_property(ov::num_streams.name()),
+            RW_property(ov::enable_profiling.name()),
+            RW_property(ov::hint::performance_mode.name())
+        };
+        if (name == ov::supported_properties) {
+            std::vector<ov::PropertyName> supportedProperties;
+            supportedProperties.reserve(roProperties.size() + rwProperties.size());
+            supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+            supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+
+            return decltype(ov::supported_properties)::value_type(supportedProperties);
+        } else if (name == ov::loaded_from_cache.name()) {
+            return false;
+        } else if (name == ov::enable_profiling.name()) {
+            return decltype(ov::enable_profiling)::value_type{false};
+        } else if (name == ov::streams::num.name()) {
+            return decltype(ov::streams::num)::value_type{2};
+        } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
+            std::vector<std::string> configs;
+            for (const auto& property : rwProperties) {
+                configs.emplace_back(property);
+            }
+            return configs;
+        } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
+            std::vector<std::string> configs;
+            for (const auto& property : roProperties) {
+                configs.emplace_back(property);
+            }
+            return configs;
+        } else if (name == ov::internal::supported_properties) {
+            return decltype(ov::internal::supported_properties)::value_type(
+                {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
+        } else if (name == ov::device::capabilities) {
+            std::vector<std::string> capabilities;
+            capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+            return decltype(ov::device::capabilities)::value_type(capabilities);
+        } else if (ov::internal::caching_properties == name) {
+            std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
+            return decltype(ov::internal::caching_properties)::value_type(caching_properties);
+        } else if (name == ov::device::uuid) {
+            ov::device::UUID uuid = {};
+            return decltype(ov::device::uuid)::value_type{uuid};
+        } else if (name == ov::loaded_from_cache.name()) {
+            return m_loaded_from_cache;
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+}
+
+private:
+    int32_t num_streams{0};
+    bool m_profiling = false;
+    bool m_loaded_from_cache{false};
+};
+
 void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_cpu(ov::Core& core,
                                                                      const std::string& device_name,
                                                                      const ov::AnyMap& properties) {
-    class MockPlugin : public MockPluginBase {
-    public:
-        ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
-                                        const ov::AnyMap& properties) const override {
-            OPENVINO_ASSERT(model);
-
-            std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Reshape"};
-
-            ov::SupportedOpsMap res;
-            for (const auto& op : model->get_ordered_ops()) {
-                if (supported_ops.find(op->get_type_info().name) == supported_ops.end())
-                    continue;
-                res.emplace(op->get_friendly_name(), get_device_name());
-            }
-            return res;
-        }
-
-        void set_property(const ov::AnyMap& properties) override {
-            for (const auto& it : properties) {
-                if (it.first == ov::num_streams.name())
-                    num_streams = it.second.as<int32_t>();
-                else if (it.first == ov::enable_profiling.name())
-                    m_profiling = it.second.as<bool>();
-                else if (it.first == ov::device::id.name())
-                    continue;
-                else if (it.first == ov::cache_dir.name())
-                    continue;
-                else
-                    OPENVINO_THROW(get_device_name(), " set config: " + it.first);
-            }
-        }
-
-        ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
-            const std::vector<ov::PropertyName> roProperties{
-                RO_property(ov::supported_properties.name()),
-                RO_property(ov::device::uuid.name()),
-                RO_property(ov::device::capabilities.name())
-            };
-            // the whole config is RW before network is loaded.
-            const std::vector<ov::PropertyName> rwProperties{
-                RW_property(ov::num_streams.name()),
-                RW_property(ov::enable_profiling.name()),
-                RW_property(ov::hint::performance_mode.name())
-            };
-            if (name == ov::supported_properties) {
-                std::vector<ov::PropertyName> supportedProperties;
-                supportedProperties.reserve(roProperties.size() + rwProperties.size());
-                supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
-                supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
-
-                return decltype(ov::supported_properties)::value_type(supportedProperties);
-            } else if (name == ov::loaded_from_cache.name()) {
-                return false;
-            } else if (name == ov::enable_profiling.name()) {
-                return decltype(ov::enable_profiling)::value_type{false};
-            } else if (name == ov::streams::num.name()) {
-                return decltype(ov::streams::num)::value_type{2};
-            } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : rwProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
-            } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : roProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
-            } else if (name == ov::internal::supported_properties) {
-                return decltype(ov::internal::supported_properties)::value_type(
-                    {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
-            } else if (name == ov::device::capabilities) {
-                std::vector<std::string> capabilities;
-                capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
-                return decltype(ov::device::capabilities)::value_type(capabilities);
-            } else if (ov::internal::caching_properties == name) {
-                std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
-                return decltype(ov::internal::caching_properties)::value_type(caching_properties);
-            } else if (name == ov::device::uuid) {
-                ov::device::UUID uuid = {};
-                return decltype(ov::device::uuid)::value_type{uuid};
-            } else if (name == ov::loaded_from_cache.name()) {
-                return m_loaded_from_cache;
-            }
-            OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    private:
-        int32_t num_streams{0};
-        bool m_profiling = false;
-        bool m_loaded_from_cache{false};
-    };
-    
     std::shared_ptr<ov::IPlugin> base_plugin = std::make_shared<MockPlugin>();
 
+    reg_plugin(core, base_plugin, device_name, properties);
+}
+
+void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_gpu_compile_slower(ov::Core& core,
+                                                                                    const std::string& device_name,
+                                                                                    const ov::AnyMap& properties){
+    class MockPluginCompileSlower : public MockPluginSupportBatchAndContext {
+        public:
+            std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties) const override {
+                OPENVINO_ASSERT(model);
+                if (!support_model(model, query_model(model, properties)))
+                    OPENVINO_THROW("Unsupported model");
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
+                return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
+            }
+            std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties,
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const override {
+                if (!support_model(model, query_model(model, properties)))
+                    OPENVINO_THROW("Unsupported model");
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
+                return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties, context);
+            }
+    };
+
+    std::shared_ptr<ov::IPlugin> base_plugin = std::make_shared<MockPluginCompileSlower>();
+    reg_plugin(core, base_plugin, device_name, properties);
+}
+
+void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_cpu_compile_slower(ov::Core& core,
+                                                                                    const std::string& device_name,
+                                                                                    const ov::AnyMap& properties){
+    class MockCPUPluginCompileSlower : public MockPlugin {
+        public:
+            std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties) const override {
+                OPENVINO_ASSERT(model);
+                if (!support_model(model, query_model(model, properties)))
+                    OPENVINO_THROW("Unsupported model");
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
+                return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
+            }
+            std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties,
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const override {
+                if (!support_model(model, query_model(model, properties)))
+                    OPENVINO_THROW("Unsupported model");
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
+                return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties, context);
+            }
+    };
+
+    std::shared_ptr<ov::IPlugin> base_plugin = std::make_shared<MockCPUPluginCompileSlower>();
     reg_plugin(core, base_plugin, device_name, properties);
 }

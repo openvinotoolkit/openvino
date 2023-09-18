@@ -3,53 +3,71 @@
 //
 
 #include "auto_func_test.hpp"
-#include <thread>
+#ifdef __GLIBC__
+#include <gnu/libc-version.h>
+#if __GLIBC_MINOR__  >= 34
+    #define ENABLETESTTHREADING
+#endif
+#endif
 
 using namespace ov::auto_plugin::tests;
-class CompileThreadingTest {
-public:
-    static void runParallel(std::function<void(void)> func,
-                     const unsigned int iterations = 100,
-                     const unsigned int threadsNum = 8) {
-        std::vector<std::thread> threads(threadsNum);
 
-        for (auto & thread : threads) {
-            thread = std::thread([&](){
-                for (unsigned int i = 0; i < iterations; ++i) {
-                    func();
-                }
-            });
-        }
-
-        for (auto & thread : threads) {
-            if (thread.joinable())
-                thread.join();
-        }
-    }
-};
-
+#ifdef ENABLETESTTHREADING
 TEST_F(AutoFuncTests, can_compile_with_multiple_devices) {
     ov::CompiledModel compiled_model;
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2")}));
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
-                                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
+    ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU")}));
+    compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
+                                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
 }
 
 TEST_F(AutoFuncTests, threading_test) {
-    CompileThreadingTest::runParallel([&] () {
-        (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2")});
+    ThreadingTest::runParallel([&] () {
+        (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU")});
     }, 10, 10);
-    CompileThreadingTest::runParallel([&] () {
-        (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
+    ThreadingTest::runParallel([&] () {
+        (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                  ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     }, 10, 10);
 }
 
 TEST_F(AutoFuncTests, threading_test_cache_enabled) { 
     core.set_property(ov::cache_dir(cache_path));
-    CompileThreadingTest::runParallel([&] () {
-        (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_1", "MOCK_2"),
+    ThreadingTest::runParallel([&] () {
+        (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                  ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     }, 10, 10);
     core.set_property(ov::cache_dir(""));
 }
+
+TEST_F(AutoFuncTests, threading_test_get_version) {
+    ThreadingTest::runParallel([&] () {
+        auto versions = core.get_versions("AUTO");
+        ASSERT_LE(1u, versions.size());
+    });
+}
+
+
+TEST_F(AutoFuncTests, theading_compiled_with_cpu_help) {
+    ThreadingTest::runParallel([&] () {
+        (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU")});
+    }, 10, 10);
+}
+
+TEST_F(AutoFuncTests, threading_test_hardware_slower) {
+    core.compile_model(model_cannot_batch, "MOCK_CPU");
+    core.compile_model(model_cannot_batch, "MOCK_GPU"); // need to initialize the order of plugins in mock_engine
+    register_plugin_mock_gpu_compile_slower(core, "MOCK_GPU_SLOWER", {});
+    ThreadingTest::runParallel([&] () {
+        (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU_SLOWER", "MOCK_CPU")});
+    }, 10, 10);
+}
+
+TEST_F(AutoFuncTests, threading_test_cpu_help_slower) {
+    core.compile_model(model_cannot_batch, "MOCK_CPU");
+    core.compile_model(model_cannot_batch, "MOCK_GPU"); // need to initialize the order of plugins in mock_engine
+    register_plugin_mock_cpu_compile_slower(core, "MOCK_CPU_SLOWER", {});
+    ThreadingTest::runParallel([&] () {
+        (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU_SLOWER")});
+    }, 10, 10);
+}
+#endif
