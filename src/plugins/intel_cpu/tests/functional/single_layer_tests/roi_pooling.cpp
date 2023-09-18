@@ -160,7 +160,7 @@ protected:
                         break;
                     }
                     case ngraph::element::bf16: {
-                        ov::test::utils::fill_data_roi<ov::element::f16>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
+                        ov::test::utils::fill_data_roi<ov::element::bf16>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
                         break;
                     }
                     default:
