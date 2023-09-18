@@ -136,7 +136,12 @@ function(ov_check_init_files_alignment)
     # check the files in pairs
     list(APPEND init_files
         "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
-        "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py")
+        "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/mo/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/pot/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/openvino_dev/src/openvino/__init__.py")
 
     list(LENGTH init_files init_files_count)
     math(EXPR file_loop_range "${init_files_count}-2")

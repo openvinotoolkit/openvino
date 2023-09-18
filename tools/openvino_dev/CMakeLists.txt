@@ -59,6 +59,8 @@ endforeach()
 function(ov_check_init_files_alignment)
     # check the files in pairs
     list(APPEND init_files
+        "${OpenVINO_SOURCE_DIR}/src/bindings/python/src/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/src/bindings/python/src/compatibility/openvino/__init__.py"
         "${OpenVINO_SOURCE_DIR}/tools/mo/openvino/__init__.py"
         "${OpenVINO_SOURCE_DIR}/tools/pot/openvino/__init__.py"
         "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
@@ -76,6 +78,8 @@ function(ov_check_init_files_alignment)
             RESULT_VARIABLE compare_result
         )
         if(compare_result EQUAL 1)
+            message(STATUS ${file1})
+            message(STATUS ${file2})
             message(FATAL_ERROR "The __init__.py files are misaligned: ${file1} and ${file2}")
         endif()
     endforeach()
