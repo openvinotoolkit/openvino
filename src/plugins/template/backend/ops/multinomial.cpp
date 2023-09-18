@@ -15,7 +15,7 @@ inline void evaluate_internal(const std::shared_ptr<ov::op::v13::Multinomial>& o
     using T1 = typename ov::element_type_traits<INPUT_T>::value_type;
     using T2 = typename ov::element_type_traits<SAMPLES_T>::value_type;
     using T3 = typename ov::element_type_traits<OUTPUT_T>::value_type;
-    ov::reference::multinomial<T1, T2, T3>(inputs[0]->get_data_ptr<const T1>(),
+    ov::reference::multinomial::multinomial<T1, T2, T3>(inputs[0]->get_data_ptr<const T1>(),
                                            op->get_input_shape(0),
                                            inputs[1]->get_data_ptr<const T2>(),
                                            op->get_input_shape(1),

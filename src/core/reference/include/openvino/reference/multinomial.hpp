@@ -18,6 +18,7 @@
 
 namespace ov {
 namespace reference {
+namespace multinomial {
 
 template <typename INPUT_T, typename SAMPLES_T, typename OUTPUT_T>
 void multinomial(const INPUT_T* input,            // either vector or 2d matrix
@@ -151,5 +152,6 @@ void multinomial(const INPUT_T* input,            // either vector or 2d matrix
     free(input_vals);
 
 }
+}  // namespace multinomial
 }  // namespace reference
 }  // namespace ov

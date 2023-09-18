@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base_reference_test.hpp"
 #include "gtest/gtest.h"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/group_normalization.hpp"
+#include "base_reference_test.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/multinomial.hpp"
 
 using namespace std;
 using namespace ov;
@@ -16,7 +16,7 @@ struct MultinomialParams {
     MultinomialParams(const reference_tests::Tensor& probabilities,
                       const reference_tests::Tensor& num_samples,
                       const reference_tests::Tensor& expected_tensor,
-                      ngraph::element::Type_t output_type,
+                      element::Type_t output_type,
                       bool log_probs,
                       bool with_replacement,
                       string name)
@@ -24,16 +24,28 @@ struct MultinomialParams {
           num_samples{num_samples},
           expected_tensor(expected_tensor),
           output_type{output_type},
+          log_probs(log_probs),
+          with_replacement(with_replacement),
           test_case_name{std::move(name)} {}
 
     reference_tests::Tensor probabilities;
     reference_tests::Tensor num_samples;
     reference_tests::Tensor expected_tensor;
 
-    ngraph::element::Type_t output_type;
+    element::Type_t output_type;
     bool log_probs;
     bool with_replacement;
     string test_case_name;
+};
+
+struct Builder : ParamsBuilder<MultinomialParams> {
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, probabilities);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, num_samples);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, expected_tensor);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, output_type);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, log_probs);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, with_replacement);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, test_case_name);
 };
 
 class ReferenceMultinomial : public testing::TestWithParam<MultinomialParams>, public CommonReferenceTest {
@@ -68,6 +80,7 @@ private:
         const auto in_num_samples = make_shared<op::v0::Parameter>(params.num_samples.type, params.num_samples.shape);
         const auto multinomial = make_shared<op::v13::Multinomial>(in_probabilities,
                                                                    in_num_samples,
+                                                                   params.output_type,
                                                                    params.with_replacement,
                                                                    params.log_probs,
                                                                    0,
@@ -84,7 +97,7 @@ vector<MultinomialParams> generateMultinomialParams() {
     const Shape prob_1d_shape{4};
     const Shape num_samples_shape{1};
 
-    reference_tests::Tensor num_samples{num_samples_shape, et, vector<int32_t>{4}};
+    reference_tests::Tensor num_samples{num_samples_shape, element::i32, vector<int32_t>{4}};
 
     reference_tests::Tensor probabilities_2d_no_log{prob_2d_shape,
                                                     et,
@@ -104,14 +117,14 @@ vector<MultinomialParams> generateMultinomialParams() {
     params.emplace_back(probabilities_2d_no_log,
                         num_samples,
                         output_2d_no_log_no_replacement,
-                        vt,
+                        et,
                         false,
                         false,
                         "input_2d");
-    params.emplace_back(probabilities_2d_log, num_samples, output_2d_log_no_replacement, vt, true, false, "input_2d");
+    params.emplace_back(probabilities_2d_log, num_samples, output_2d_log_no_replacement, et, true, false, "input_2d");
     params
-        .emplace_back(probabilities_1d_no_log, num_samples, output_1d_no_log_replacement, vt, false, true, "input_1d");
-    params.emplace_back(probabilities_1d_log, num_samples, output_1d_log_replacement, vt, true, true, "input_1d");
+        .emplace_back(probabilities_1d_no_log, num_samples, output_1d_no_log_replacement, et, false, true, "input_1d");
+    params.emplace_back(probabilities_1d_log, num_samples, output_1d_log_replacement, et, true, true, "input_1d");
     return params;
 }
 

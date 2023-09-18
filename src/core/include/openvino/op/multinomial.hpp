@@ -15,7 +15,7 @@ namespace v13 {
 class OPENVINO_API Multinomial : public Op {
 public:
     OPENVINO_OP("Multinomial", "opset13");
-    Multinomial();
+    Multinomial() = default;
     /// \param input The input tensor to be normalized
     /// \param num_samples The tensor containing samples count. Defines output shape of the network
     /// \param output_type The data type of the output

@@ -3,6 +3,8 @@
 //
 
 #include "openvino/op/multinomial.hpp"
+#include "openvino/reference/multinomial.hpp"
+
 
 #include <cstring>
 
@@ -14,6 +16,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 
 namespace ov {
+
 namespace op {
 namespace multinomial {
 namespace validate {

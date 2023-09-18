@@ -42,7 +42,8 @@ std::vector<TRShape> shape_infer(const Multinomial* op,
     if (input_shape.rank().compatible(1)) {
         ov::optional<ov::PartialShape> out_shape = get_input_const_data_as_shape<TRShape>(op, 1, ta);
         if (out_shape) {
-            result_shape.push_back(std::move((*out_shape)[0]));
+            result_shape = PartialShape{(*out_shape)[0]};
+            //result_shape.push_back(std::move((*out_shape)[0]));
         }
         else if (std::is_same<TRShape, PartialShape>::value) {
             result_shape =
@@ -52,8 +53,9 @@ std::vector<TRShape> shape_infer(const Multinomial* op,
         ov::optional<ov::PartialShape> x_shape = get_input_const_data_as_shape<TRShape>(op, 0, ta);
         ov::optional<ov::PartialShape> num_values_shape = get_input_const_data_as_shape<TRShape>(op, 1, ta);
         if (x_shape && num_values_shape) {
-            result_shape.push_back(std::move((*x_shape)[0]));
-            result_shape.push_back(std::move((*num_values_shape)[0]));
+            result_shape = PartialShape{(*x_shape)[0], (*num_values_shape)[0]};
+            // result_shape.push_back(std::move((*x_shape)[0]));
+            // result_shape.push_back(std::move((*num_values_shape)[0]));
         } else if (std::is_same<TRShape, PartialShape>::value) {
             result_shape = 
                 PartialShape::dynamic(input_shape.rank().is_static() ? 2 : Rank::dynamic());
