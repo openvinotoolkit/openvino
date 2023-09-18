@@ -228,7 +228,7 @@ macro(ov_add_frontend)
 
         # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
-            target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
+            target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
         endif()
 
         # install protobuf if it is not installed yet
