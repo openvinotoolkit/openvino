@@ -40,9 +40,7 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronGeneratePro
     std::vector<float> output_rois(ov::shape_size(output_rois_shape));
     std::vector<float> output_scores(ov::shape_size(output_scores_shape));
 
-    // outputs[0].set_element_type(output_type);
     outputs[0].set_shape(output_rois_shape);
-    // outputs[1].set_element_type(output_type);
     outputs[1].set_shape(output_scores_shape);
 
     ov::reference::experimental_detectron_proposals_single_image(im_info_data.data(),

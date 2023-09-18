@@ -29,11 +29,8 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronDetectionOu
     std::vector<int32_t> output_classes(ov::shape_size(output_classes_shape));
     std::vector<float> output_scores(ov::shape_size(output_scores_shape));
 
-    // outputs[0].set_element_type(output_type);
     outputs[0].set_shape(output_boxes_shape);
-    // outputs[1].set_element_type(ov::element::i32);
     outputs[1].set_shape(output_classes_shape);
-    // outputs[2].set_element_type(output_type);
     outputs[2].set_shape(output_scores_shape);
 
     ov::reference::experimental_detectron_detection_output(boxes_data.data(),

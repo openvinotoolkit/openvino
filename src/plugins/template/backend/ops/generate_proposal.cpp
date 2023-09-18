@@ -53,14 +53,11 @@ bool evaluate(const std::shared_ptr<ov::op::v9::GenerateProposals>& op,
     ov::Shape output_rois_shape = ov::Shape{num_selected, 4};
     ov::Shape output_scores_shape = ov::Shape{num_selected};
 
-    // outputs[0].set_element_type(output_type);
     outputs[0].set_shape(output_rois_shape);
-    // outputs[1].set_element_type(output_type);
     outputs[1].set_shape(output_scores_shape);
 
     const auto& roi_num_type = op->get_output_element_type(2);
     ov::Shape output_roi_num_shape = ov::Shape{im_info_shape[0]};
-    // outputs[2].set_element_type(roi_num_type);
     outputs[2].set_shape(output_roi_num_shape);
 
     ov::reference::generate_proposals_postprocessing(outputs[0].data(),
