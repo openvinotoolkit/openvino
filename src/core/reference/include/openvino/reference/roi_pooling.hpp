@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cmath>
+
 #include "ngraph/shape.hpp"
 
 namespace ov {
