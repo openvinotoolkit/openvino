@@ -52,7 +52,34 @@
         {
             "language": "markdown",
             "source": [
-                "### Load the model\n\nDownloaded models are located in a fixed structure, which indicates a vendor, a model name and a precision. Only a few lines of code are required to run the model. First, create an OpenVINO Runtime object. Then, read the network architecture and model weights from the `.xml` and `.bin` files. Finally, compile the network for the desired device."
+                "## Download the Vocab"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const baseImagesDir = '../../assets/text';\nconst imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/bert-uncased/vocab.txt';\n\nawait downloadFile(imgUrl, 'vocab.txt', baseImagesDir);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/text/vocab.txt'",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Load the model\n\nDownloaded models are located in a fixed structure, which indicates a vendor, a model name and a precision. Only a few lines of code are required to run the model. First, create an OpenVINO Runtime object. Then, read the network architecture and model weights from the `.xml` and `.bin` files. Finally, compile the network for the desired device."
             ],
             "outputs": []
         },
@@ -77,6 +104,10 @@
                                 "=== Model Inputs:",
                                 "input_ids",
                                 "attention_mask",
+                                "token_type_ids",
+                                "position_ids",
+                                "=== Model Outputs:",
+                                "output_s",
                                 "output_e",
                                 ""
                             ]
@@ -102,7 +133,7 @@
         {
             "language": "markdown",
             "source": [
-                "### Preprocessing\n\nThe input size in this case is 384 tokens long. The main input (`input_ids`) to used BERT model consists of two parts: question tokens and context tokens separated by some special tokens. \n\nIf `question + context` are shorter than 384 tokens, padding tokens are added. If `question + context` is longer than 384 tokens, the context must be split into parts and the question with different parts of context must be fed to the network many times. \n\nUse overlapping, so neighbor parts of the context are overlapped by half size of the context part (if the context part equals 300 tokens, neighbor context parts overlap with 150 tokens). You also need to provide the following sequences of integer values: \n\n- `attention_mask` - a sequence of integer values representing the mask of valid values in the input. \n- `token_type_ids` - a sequence of integer values representing the segmentation of `input_ids` into question and context. \n- `position_ids` - a sequence of integer values from 0 to 383 representing the position index for each input token. \n\nFor more information, refer to the **Input** section of [BERT model documentation](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-small-uncased-whole-word-masking-squad-int8-0002#input)."
+                "## Preprocessing\n\nThe input size in this case is 384 tokens long. The main input (`input_ids`) to used BERT model consists of two parts: question tokens and context tokens separated by some special tokens. \n\nIf `question + context` are shorter than 384 tokens, padding tokens are added. If `question + context` is longer than 384 tokens, the context must be split into parts and the question with different parts of context must be fed to the network many times. \n\nUse overlapping, so neighbor parts of the context are overlapped by half size of the context part (if the context part equals 300 tokens, neighbor context parts overlap with 150 tokens). You also need to provide the following sequences of integer values: \n\n- `attention_mask` - a sequence of integer values representing the mask of valid values in the input. \n- `token_type_ids` - a sequence of integer values representing the segmentation of `input_ids` into question and context. \n- `position_ids` - a sequence of integer values from 0 to 383 representing the position index for each input token. \n\nFor more information, refer to the **Input** section of [BERT model documentation](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-small-uncased-whole-word-masking-squad-int8-0002#input)."
             ],
             "outputs": []
         },
@@ -144,7 +175,7 @@
         {
             "language": "markdown",
             "source": [
-                "### Postprocessing\n\nThe results from the network are raw (logits). Use the softmax function to get the probability distribution. Then, find the best answer in the current part of the context (the highest score) and return the score and the context range for the answer."
+                "## Postprocessing\n\nThe results from the network are raw (logits). Use the softmax function to get the probability distribution. Then, find the best answer in the current part of the context (the highest score) and return the score and the context range for the answer."
             ],
             "outputs": []
         },
@@ -165,7 +196,7 @@
         {
             "language": "markdown",
             "source": [
-                "### Main Processing Function\n\nRun question answering on a specific knowledge base (websites) and iterate through the questions. \n"
+                "## Main Processing Function\n\nRun question answering on a specific knowledge base (websites) and iterate through the questions. \n"
             ],
             "outputs": []
         },
@@ -181,7 +212,10 @@
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
                                 "Context: Computational complexity theory is a branch of the theory of computation in theoretical computer science that focuses on classifying computational problems according to their inherent difficulty, and relating those classes to each other. A computational problem is understood to be a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm.",
-                                "Time: 0.052566626s",
+                                "Question: What is the term for a task that generally lends itself to being solved by a computer?",
+                                "Answer: A computational problem",
+                                "Score: 0.5286847737759395",
+                                "Time: 0.057738834s",
                                 ""
                             ]
                         }
