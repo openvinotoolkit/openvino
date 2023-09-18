@@ -14,45 +14,45 @@
 #include "openvino/op/util/op_types.hpp"
 
 namespace ov {
-namespace {
-constexpr size_t max_output_boxes_port = 2;
-constexpr size_t iou_threshold_port = 3;
-constexpr size_t score_threshold_port = 4;
 
-inline bool is_float_type_admissible(const element::Type& t) {
-    return t == element::dynamic || t == element::f32 || t == element::f16 || t == element::bf16;
-}
-}  // namespace
 namespace op {
-namespace nms {
+namespace nms_rotated {
 namespace validate {
 namespace {
 void input_types(const Node* op) {
     NODE_VALIDATION_CHECK(op,
-                          is_float_type_admissible(op->get_input_element_type(0)),
-                          "Expected bf16, fp16 or fp32 as element type for the 'boxes' input.");
+                          op->get_input_element_type(0).is_real(),
+                          "Expected floating point type as element type for the 'boxes' input.");
 
     NODE_VALIDATION_CHECK(op,
-                          is_float_type_admissible(op->get_input_element_type(1)),
-                          "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
+                          op->get_input_element_type(1).is_real(),
+                          "Expected floating point type as element type for the 'scores' input.");
     const auto inputs_size = op->get_input_size();
+
+    if (inputs_size > 2) {
+        NODE_VALIDATION_CHECK(
+            op,
+            op->get_input_element_type(2).is_integral_number(),
+            "Expected integer number type as element type for the 'max_output_boxes_per_class' input.");
+    }
+
     if (inputs_size > 3) {
         NODE_VALIDATION_CHECK(op,
-                              is_float_type_admissible(op->get_input_element_type(3)),
-                              "Expected bf16, fp16 or fp32 as element type for the "
+                              op->get_input_element_type(3).is_real(),
+                              "Expected floating point type as element type for the "
                               "'iou_threshold' input.");
     }
 
     if (inputs_size > 4) {
         NODE_VALIDATION_CHECK(op,
-                              is_float_type_admissible(op->get_input_element_type(4)),
-                              "Expected bf16, fp16 or fp32 as element type for the "
+                              op->get_input_element_type(4).is_real(),
+                              "Expected floating point type as element type for the "
                               "'score_threshold_ps' input.");
     }
 }
 }  // namespace
 }  // namespace validate
-}  // namespace nms
+}  // namespace nms_rotated
 }  // namespace op
 // ------------------------------ v13 ------------------------------
 
@@ -107,7 +107,7 @@ void op::v13::NMSRotated::validate_and_infer_types() {
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
-    nms::validate::input_types(this);
+    nms_rotated::validate::input_types(this);
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
