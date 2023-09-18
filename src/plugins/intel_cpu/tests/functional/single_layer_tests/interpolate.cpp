@@ -214,7 +214,7 @@ protected:
 
         auto simple_post_ops = std::find_if(fusedOps.begin(), fusedOps.end(),
             [](const std::string& ops){
-                return ops.compare("Multiply") == 0 || ops.compare("Add") == 0;
+                return ops.compare("Multiply") == 0;
             });
         if (simple_post_ops != std::end(fusedOps))
             rel_threshold = 3e-2f;
@@ -338,7 +338,6 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         emptyFusingSpec,
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         fusingSwish,
-        fusingAddPerTensor,
         fusingMultiplyPerTensor,
         fusingFakeQuantizePerTensorRelu,
 #endif
@@ -473,7 +472,6 @@ const std::vector<ShapeParams> shapeParams4D_fixed_C = {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 const std::vector<fusingSpecificParams> interpolateFusingParamsSet_fixed_C{
         fusingFakeQuantizePerChannelRelu,
-        fusingAddPerChannel,
         fusingMultiplyPerChannel,
 };
 
