@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/non_max_suppression.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -367,11 +367,11 @@ void non_max_suppression(const float* boxes_data,
 }
 
 void nms_postprocessing(ov::TensorVector& outputs,
-                        const ngraph::element::Type output_type,
+                        const ov::element::Type output_type,
                         const std::vector<int64_t>& selected_indices,
                         const std::vector<float>& selected_scores,
                         int64_t valid_outputs,
-                        const ngraph::element::Type selected_scores_type) {
+                        const ov::element::Type selected_scores_type) {
     // outputs[0].set_element_type(output_type);
     outputs[0].set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
 
@@ -383,13 +383,12 @@ void nms_postprocessing(ov::TensorVector& outputs,
     }
 
     if (num_of_outputs >= 3) {
-        // outputs[2].set_element_type(output_type);
         outputs[2].set_shape(Shape{1});
     }
 
     size_t selected_size = valid_outputs * 3;
 
-    if (output_type == ngraph::element::i64) {
+    if (output_type == ov::element::i64) {
         int64_t* indices_ptr = outputs[0].data<int64_t>();
         memcpy(indices_ptr, selected_indices.data(), selected_size * sizeof(int64_t));
     } else {
@@ -429,7 +428,7 @@ void nms_postprocessing(ov::TensorVector& outputs,
         return;
     }
 
-    if (output_type == ngraph::element::i64) {
+    if (output_type == ov::element::i64) {
         int64_t* valid_outputs_ptr = outputs[2].data<int64_t>();
         *valid_outputs_ptr = valid_outputs;
     } else {
@@ -439,11 +438,11 @@ void nms_postprocessing(ov::TensorVector& outputs,
 }
 
 void nms5_postprocessing(ov::TensorVector& outputs,
-                         const ngraph::element::Type output_type,
+                         const ov::element::Type output_type,
                          const std::vector<int64_t>& selected_indices,
                          const std::vector<float>& selected_scores,
                          int64_t valid_outputs,
-                         const ngraph::element::Type selected_scores_type) {
+                         const ov::element::Type selected_scores_type) {
     nms_postprocessing(outputs, output_type, selected_indices, selected_scores, valid_outputs, selected_scores_type);
 }
 }  // namespace reference

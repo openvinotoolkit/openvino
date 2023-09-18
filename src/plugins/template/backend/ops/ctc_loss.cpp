@@ -8,30 +8,30 @@
 
 namespace ctc_loss_v4 {
 template <
-    ov::element::Type_t t1,
-    ov::element::Type_t t2,
-    typename std::enable_if<!std::is_floating_point<typename ov::element_type_traits<t1>::value_type>::value &&
-                                !std::is_same<typename ov::element_type_traits<t1>::value_type, ov::bfloat16>::value &&
-                                !std::is_same<typename ov::element_type_traits<t1>::value_type, ov::float16>::value,
+    ov::element::Type_t ET1,
+    ov::element::Type_t ET2,
+    typename std::enable_if<!std::is_floating_point<typename ov::element_type_traits<ET1>::value_type>::value &&
+                                !std::is_same<typename ov::element_type_traits<ET1>::value_type, ov::bfloat16>::value &&
+                                !std::is_same<typename ov::element_type_traits<ET1>::value_type, ov::float16>::value,
                             bool>::type = true>
 inline void evaluate(const std::shared_ptr<ov::op::v4::CTCLoss>& op,
                      ov::TensorVector& outputs,
                      const ov::TensorVector& inputs) {
-    OPENVINO_THROW("The data type for logits is expected to be a floating point type. Got:", ov::element::Type(t1));
+    OPENVINO_THROW("The data type for logits is expected to be a floating point type. Got:", ov::element::Type(ET1));
 }
 
 template <
-    ov::element::Type_t t1,
-    ov::element::Type_t t2,
-    typename std::enable_if<std::is_floating_point<typename ov::element_type_traits<t1>::value_type>::value ||
-                                std::is_same<typename ov::element_type_traits<t1>::value_type, ov::bfloat16>::value ||
-                                std::is_same<typename ov::element_type_traits<t1>::value_type, ov::float16>::value,
+    ov::element::Type_t ET1,
+    ov::element::Type_t ET2,
+    typename std::enable_if<std::is_floating_point<typename ov::element_type_traits<ET1>::value_type>::value ||
+                                std::is_same<typename ov::element_type_traits<ET1>::value_type, ov::bfloat16>::value ||
+                                std::is_same<typename ov::element_type_traits<ET1>::value_type, ov::float16>::value,
                             bool>::type = true>
 inline void evaluate(const std::shared_ptr<ov::op::v4::CTCLoss>& op,
                      ov::TensorVector& outputs,
                      const ov::TensorVector& inputs) {
-    using T1 = typename ov::element_type_traits<t1>::value_type;
-    using T2 = typename ov::element_type_traits<t2>::value_type;
+    using T1 = typename ov::element_type_traits<ET1>::value_type;
+    using T2 = typename ov::element_type_traits<ET2>::value_type;
     ov::reference::CTCLoss<T1, T2>(static_cast<T1*>(inputs[0].data()),
                                    inputs[0].get_shape(),
                                    static_cast<T2*>(inputs[1].data()),
