@@ -480,9 +480,7 @@ void Deconvolution::getSupportedDescriptors() {
             config.inConfs.resize(getParentEdges().size());
             config.outConfs.resize(getOriginalOutputsNumber());
 
-            config.inConfs[0].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), inShape));
-            for (size_t i = 1; i < getParentEdges().size(); ++i) {
+            for (size_t i = 0; i < getParentEdges().size(); ++i) {
                 config.inConfs[i].setMemDesc(
                         creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
             }
