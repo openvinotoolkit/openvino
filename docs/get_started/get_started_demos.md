@@ -58,7 +58,7 @@ To install OpenVINO Development Tools, follow the :doc:`instructions for C++ dev
 Build Samples
 +++++++++++++
 
-To build OpenVINO samples, follow the build instructions for your operating system on the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page. The build will take about 5-10 minutes, depending on your system.
+To build OpenVINO samples, follow the build instructions for your operating system on the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page. The build will take about 1-2 minutes, depending on your system.
 
 .. _download-models:
 
