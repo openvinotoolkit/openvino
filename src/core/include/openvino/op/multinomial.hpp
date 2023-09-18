@@ -25,21 +25,22 @@ public:
     /// \param op_seed The seed used in ----
     Multinomial(const Output<Node>& input,
                 const Output<Node>& num_samples,
-                const ngraph::element::Type_t output_type,
+                const ov::element::Type_t output_type,
                 const bool with_replacement,
                 const bool log_probs,
                 const int64_t global_seed,
                 const int64_t op_seed);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-
     void validate_and_infer_types() override;
 
-    ngraph::element::Type_t get_output_type() const {
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    ov::element::Type_t get_output_type() const {
         return m_output_type;
     }
 
-    void set_output_type(ngraph::element::Type_t output_type) {
+    void set_output_type(ov::element::Type_t output_type) {
         m_output_type = output_type;
     }
 
@@ -75,10 +76,10 @@ public:
         m_op_seed = op_seed;
     }
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    using Node::set_output_type;
 
 private:
-    ngraph::element::Type_t m_output_type;
+    ov::element::Type_t m_output_type;
     bool m_with_replacement;
     bool m_log_probs;
     int64_t m_global_seed;
