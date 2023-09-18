@@ -324,6 +324,9 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
                     len(internal_tensor_names) == len(input_model.structured_input_signature[0]):
                 for internal_name, tensor_spec in zip(internal_tensor_names, input_model.structured_input_signature[0]):
                     input_names_map = input_names_map or {}
+                    if not isinstance(tensor_spec, tf.TensorSpec):
+                        input_names_map = None
+                        break
                     input_names_map[internal_name] = tensor_spec.name
             elif len(input_model.structured_input_signature) > 1 and \
                     len(internal_tensor_names) == len(input_model.structured_input_signature[1]):
