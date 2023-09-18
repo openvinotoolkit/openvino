@@ -10,4 +10,4 @@ dependencies    = [
     "sphinx >= 4.5.0",
     "sphinx-sitemap >= 2.2.0"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.7"
