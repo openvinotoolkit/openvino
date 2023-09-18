@@ -16,7 +16,7 @@ namespace subgraph {
 
 class PadFunction {
 public:
-static std::shared_ptr<ngraph::Function> get(
+static std::shared_ptr<ov::Model> get(
     const PartialShape& inputShape,
     const element::Type precisionBeforeDequantization,
     const builder::subgraph::DequantizationOperations& dequantizationBefore,

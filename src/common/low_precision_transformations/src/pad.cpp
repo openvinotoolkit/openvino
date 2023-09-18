@@ -38,17 +38,14 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
 }
 
 namespace {
-    bool hasNegativeIndexes(const std::shared_ptr<ov::op::util::PadBase>& pad) {
+    bool hasPositiveIndexes(const std::shared_ptr<ov::op::util::PadBase>& pad) {
         const auto padsBegin = pad->get_pads_begin();
         const auto padsEnd = pad->get_pads_end();
         auto pred = [](int64_t a) {
-            return a < 0;
+            return a > 0;
         };
-        if (std::any_of(padsBegin.begin(), padsBegin.end(), pred) ||
-            std::any_of(padsEnd.begin(), padsEnd.end(), pred)) {
-            return true;
-        }
-        return false;
+        return std::any_of(padsBegin.begin(), padsBegin.end(), pred) ||
+               std::any_of(padsEnd.begin(), padsEnd.end(), pred);
     }
 } // namespace
 
@@ -67,7 +64,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
 
     auto dequantization = NetworkHelper::getDequantization(pad, defaultPrecisions);
 
-    if (padMode == op::PadMode::CONSTANT && !hasNegativeIndexes(pad)) {
+    if (padMode == op::PadMode::CONSTANT && hasPositiveIndexes(pad)) {
         auto bcastConstant = [&](const std::shared_ptr<ov::opset1::Constant> &constant) {
             size_t padIdx = 0;
             for (size_t i = 0; i < padsBegin.size(); ++i) {
@@ -180,6 +177,9 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
     if (!pad) {
         return false;
     }
+
+    if (!hasPositiveIndexes(pad))
+        return true;
 
     const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.empty()) {
