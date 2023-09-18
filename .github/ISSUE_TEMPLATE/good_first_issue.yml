@@ -27,7 +27,7 @@ body:
   - type: textarea
     id: example_prs
     attributes:
-      label: Exmaple Pull Requests
+      label: Example Pull Requests
       description: |
           Provide example Pull requests, if there are any.
     validations:
