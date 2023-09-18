@@ -6,9 +6,11 @@
 
 
 import logging as log
-import numpy as np
 import sys
 from distutils.version import LooseVersion
+from typing import List, Dict, Union
+
+import numpy as np
 from openvino.runtime import PartialShape, Dimension
 
 
@@ -63,7 +65,7 @@ def get_imported_module_version(imported_module):
     for attr in version_attrs:
         installed_version = getattr(imported_module, attr, None)
         if isinstance(installed_version, str):
-           return installed_version
+            return installed_version
         else:
             installed_version = None
 
@@ -191,10 +193,19 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
             return model(*args)
         input_needs_packing = True
 
+    def are_shapes_defined(shape: Union[List, Dict]):
+        if shape is None:
+            return False
+
+        if isinstance(shape, list):
+            return np.all([shape is not None for shape in input_shapes])
+        elif isinstance(shape, dict):
+            return np.all([shape is not None for name, shape in input_shapes.items()])
+
     if example_input is not None:
         concrete_func = get_concrete_func(tf_function, example_input, input_needs_packing,
                                           "Could not trace the TF model with the following error: {}")
-    elif np.all([shape is not None for name, shape in input_shapes.items()]):
+    elif are_shapes_defined(input_shapes):
         inp = create_example_input_by_user_shapes(input_shapes, input_types)
         concrete_func = get_concrete_func(tf_function, inp, input_needs_packing,
                                           "Could not trace the TF model with the following error: {}")
