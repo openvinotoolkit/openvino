@@ -535,7 +535,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'openvino'
-          submodules: 'recursive'
 
       #
       # Dependencies
