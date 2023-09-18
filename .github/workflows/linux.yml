@@ -614,12 +614,12 @@ jobs:
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:${{ env.INSTALL_TEST_DIR }}:${{ env.INSTALL_DIR }}/python/python3.11:$PYTHONPATH
 
           # TODO: figure out why they need to be reinstalled
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/mo/requirements_mxnet.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/mo/requirements_tf2.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/mo/requirements_dev.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
