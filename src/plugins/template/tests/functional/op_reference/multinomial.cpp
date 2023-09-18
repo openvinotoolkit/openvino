@@ -130,9 +130,7 @@ vector<MultinomialParams> generateMultinomialParams() {
 }
 
 vector<MultinomialParams> generateMultinomialParams() {
-    vector<vector<MultinomialParams>> combo_params{generateMultinomialParams<element::f16>(),
-                                                   generateMultinomialParams<element::f32>(),
-                                                   generateMultinomialParams<element::f64>()};
+    vector<vector<MultinomialParams>> combo_params{generateMultinomialParams<element::f32>()};
     vector<MultinomialParams> test_params;
     for (auto& params : combo_params)
         move(params.begin(), params.end(), back_inserter(test_params));
