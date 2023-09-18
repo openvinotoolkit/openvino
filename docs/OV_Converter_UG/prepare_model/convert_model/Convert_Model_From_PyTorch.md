@@ -6,11 +6,8 @@
    :description: Learn how to convert a model from the
                  PyTorch format to the OpenVINO Model.
 
-This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO Model using the ``openvino.convert_model`` function.
 
-.. note::
-
-   In the examples below the ``openvino.save_model`` function is not used because there are no PyTorch-specific details regarding the usage of this function. In all examples, the converted OpenVINO model can be saved to IR by calling ``ov.save_model(ov_model, 'model.xml')`` as usual.
+To convert a PyTorch model, use the ``openvino.convert_model`` function.
 
 Here is the simplest example of PyTorch model conversion using a model from ``torchvision``:
 
@@ -86,6 +83,10 @@ In practice, the code to evaluate or test the PyTorch model is usually provided 
    print(f"{category_name}: {100 * score:.1f}% (with OpenVINO)")
 
 Check out more examples in :doc:`interactive Python tutorials <tutorials>`.
+
+.. note::
+
+   In the examples above the ``openvino.save_model`` function is not used because there are no PyTorch-specific details regarding the usage of this function. In all examples, the converted OpenVINO model can be saved to IR by calling ``ov.save_model(ov_model, 'model.xml')`` as usual.
 
 Supported Input Parameter Types
 ###############################
