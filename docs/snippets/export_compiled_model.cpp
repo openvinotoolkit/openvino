@@ -1,4 +1,4 @@
-
+#include <fstream>
 #include <openvino/runtime/core.hpp>
 
 int main() {
