@@ -36,8 +36,6 @@ env:
   SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
   LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
   BUILD_DIR: "${{ github.workspace }}\\build"
-  DATA_PATH: "${{ github.workspace }}\\testdata"
-  MODELS_PATH: "${{ github.workspace }}\\testdata"
   OV_TEMP: "${{ github.workspace }}\\openvino_temp"
   PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
   VCVARSPATH: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvarsall.bat"
@@ -53,22 +51,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'openvino'
-          submodules: 'recursive'
+          submodules: 'true'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
-          submodules: 'recursive'
-
-      - name: Clone testdata for C API tests
-        uses: actions/checkout@v4
-        with:
-          repository: 'openvinotoolkit/testdata'
-          path: 'testdata'
-          submodules: 'recursive'
-          lfs: 'true'
 
       #
       # Dependencies
@@ -266,8 +255,6 @@ jobs:
       SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
       LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
       BUILD_DIR: "${{ github.workspace }}\\build"
-      DATA_PATH: "${{ github.workspace }}\\testdata"
-      MODELS_PATH: "${{ github.workspace }}\\testdata"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
 
     steps:
@@ -307,14 +294,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'openvino'
-          submodules: 'recursive'
-
-      - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
-        with:
-          repository: 'openvinotoolkit/openvino_contrib'
-          path: 'openvino_contrib'
-          submodules: 'recursive'
 
       - uses: actions/setup-python@v4
         with:
