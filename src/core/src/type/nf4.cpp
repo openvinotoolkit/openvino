@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Contains logic derived from bitsandbytes 
-// https://github.com/TimDettmers/bitsandbytes/blob/c82f51c0f784d8a43ebcb9cdefbf94e3f3b9c6c3/csrc/kernels.cu#L223 
+// Contains logic derived from bitsandbytes
+// https://github.com/TimDettmers/bitsandbytes/blob/c82f51c0f784d8a43ebcb9cdefbf94e3f3b9c6c3/csrc/kernels.cu#L223
 // implementation.
 // Copyright notice from original source file is as follows.
 
@@ -18,59 +18,64 @@
 
 using namespace ov;
 
-float ConvertNF4::dDequantizeNF4(uint8_t val)
-{
-    static float lookup[16] = {-1.0, -0.6961928009986877, -0.5250730514526367, -0.39491748809814453, -0.28444138169288635, -0.18477343022823334, -0.09105003625154495, 0.0, 0.07958029955625534, 0.16093020141124725, 0.24611230194568634, 0.33791524171829224, 0.44070982933044434, 0.5626170039176941, 0.7229568362236023, 1.0};
+float ConvertNF4::dDequantizeNF4(uint8_t val) {
+    static float lookup[16] = {-1.0,
+                               -0.6961928009986877,
+                               -0.5250730514526367,
+                               -0.39491748809814453,
+                               -0.28444138169288635,
+                               -0.18477343022823334,
+                               -0.09105003625154495,
+                               0.0,
+                               0.07958029955625534,
+                               0.16093020141124725,
+                               0.24611230194568634,
+                               0.33791524171829224,
+                               0.44070982933044434,
+                               0.5626170039176941,
+                               0.7229568362236023,
+                               1.0};
     return lookup[val];
 }
 
-
-uint8_t ConvertNF4::dQuantizeNF4(float x)
-{
-    if(x > 0.03979014977812767f)
-        if(x > 0.3893125355243683f) // 1
-            if(x > 0.6427869200706482f) // 11
-                if(x > 0.8614784181118011f) // 111
+uint8_t ConvertNF4::dQuantizeNF4(float x) {
+    if (x > 0.03979014977812767f)
+        if (x > 0.3893125355243683f)          // 1
+            if (x > 0.6427869200706482f)      // 11
+                if (x > 0.8614784181118011f)  // 111
                     return 0b1111;
                 else
                     return 0b1110;
+            else if (x > 0.5016634166240692f)  // 110
+                return 0b1101;
             else
-                if(x > 0.5016634166240692f) // 110
-                    return 0b1101;
-                else
-                    return 0b1100;
+                return 0b1100;
+        else if (x > 0.2035212516784668f)  // 10
+            if (x > 0.2920137718319893f)   // 101
+                return 0b1011;
+            else
+                return 0b1010;
+        else if (x > 0.1202552504837513f)  // 100
+            return 0b1001;
         else
-            if(x > 0.2035212516784668f) // 10
-                if(x > 0.2920137718319893f) // 101
-                    return 0b1011;
-                else
-                    return 0b1010;
+            return 0b1000;
+    else if (x > -0.33967943489551544f)      // 0
+        if (x > -0.13791173323988914f)       // 01
+            if (x > -0.045525018125772476f)  // 011
+                return 0b0111;
             else
-                if(x > 0.1202552504837513f) // 100
-                    return 0b1001;
-                else
-                    return 0b1000;
+                return 0b0110;
+        else if (x > -0.23460740596055984f)  // 010
+            return 0b0101;
+        else
+            return 0b0100;
+    else if (x > -0.6106329262256622f)  // 00
+        if (x > -0.4599952697753906f)   // 001
+            return 0b0011;
+        else
+            return 0b0010;
+    else if (x > -0.8480964004993439f)  // 000
+        return 0b0001;
     else
-        if(x > -0.33967943489551544f) // 0
-            if(x > -0.13791173323988914f) // 01
-                if(x > -0.045525018125772476f) // 011
-                    return 0b0111;
-                else
-                    return 0b0110;
-            else
-                if(x > -0.23460740596055984f) // 010
-                    return 0b0101;
-                else
-                    return 0b0100;
-        else
-            if(x > -0.6106329262256622f) // 00
-                if(x > -0.4599952697753906f) // 001
-                    return 0b0011;
-                else
-                    return 0b0010;
-            else
-                if(x > -0.8480964004993439f) // 000
-                    return 0b0001;
-                else
-                    return 0b0000;
+        return 0b0000;
 }

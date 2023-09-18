@@ -601,7 +601,8 @@ private:
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4 ||
-                Type == element::Type_t::nf4, bool>::type = true>
+                                          Type == element::Type_t::nf4,
+                                      bool>::type = true>
     void fill_data(const T& value) {
         uint8_t v = value_in_range<Type>(value);
         v &= 0x0F;
@@ -634,8 +635,8 @@ private:
     template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
-              typename std::enable_if<Type != element::Type_t::nf4 && Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4,
+              typename std::enable_if<Type != element::Type_t::nf4 && Type != element::Type_t::u1 &&
+                                          Type != element::Type_t::u4 && Type != element::Type_t::i4,
                                       bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
@@ -665,9 +666,9 @@ private:
     }
 
     template <element::Type_t Type,
-            typename T,
-            typename StorageDataType = fundamental_type_for<Type>,
-            typename std::enable_if<Type == element::Type_t::nf4 && std::is_integral<T>::value, bool>::type = true>
+              typename T,
+              typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type == element::Type_t::nf4 && std::is_integral<T>::value, bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
         size_t i = 0;
@@ -685,10 +686,12 @@ private:
     }
 
     template <element::Type_t Type,
-        typename T,
-        typename StorageDataType = fundamental_type_for<Type>,
-        typename std::enable_if<Type == element::Type_t::nf4 && (std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
-                        std::is_same<T, float16>::value), bool>::type = true>
+              typename T,
+              typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type == element::Type_t::nf4 &&
+                                          (std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
+                                           std::is_same<T, float16>::value),
+                                      bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
         size_t i = 0;
@@ -803,7 +806,9 @@ private:
     }
     template <ov::element::Type_t Type,
               typename ValueT,
-              typename std::enable_if<Type == ov::element::Type_t::u4 || Type == ov::element::Type_t::u4 || Type == ov::element::Type_t::nf4, bool>::type = true>
+              typename std::enable_if<Type == ov::element::Type_t::u4 || Type == ov::element::Type_t::u4 ||
+                                          Type == ov::element::Type_t::nf4,
+                                      bool>::type = true>
     static ov::fundamental_type_for<Type> value_in_range(const ValueT& value) {
         const auto result = ov::fundamental_type_for<Type>(value);
         OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");
