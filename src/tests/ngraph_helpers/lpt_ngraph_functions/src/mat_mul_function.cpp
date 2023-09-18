@@ -282,7 +282,7 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     matMul->set_friendly_name("matMul");
     auto& rtInfo = matMul->get_rt_info();
     rtInfo["Variant::std::string"] = "matMul";
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(matMul, precision);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(matMul, precision);
 
     const std::shared_ptr<ngraph::Node> lastDequantizationAfter = makeDequantization(matMul, resultDequantization);
     lastDequantizationAfter->set_friendly_name("matMul");

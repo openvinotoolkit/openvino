@@ -60,13 +60,13 @@ which means the compiler stage will require additional time to complete the proc
 
 After installation, you can use OpenVINO in your product by running: 
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      find_package(OpenVINO)
+   find_package(OpenVINO)
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      cmake -B [build directory] -S . -DCMAKE_TOOLCHAIN_FILE=[path to vcpkg]/scripts/buildsystems/vcpkg.cmake
+   cmake -B [build directory] -S . -DCMAKE_TOOLCHAIN_FILE=[path to vcpkg]/scripts/buildsystems/vcpkg.cmake
  
 Congratulations! You've just Installed OpenVINO! For some use cases you may still 
 need to install additional components. Check the 

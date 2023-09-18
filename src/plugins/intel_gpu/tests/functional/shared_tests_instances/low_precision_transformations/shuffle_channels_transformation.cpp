@@ -19,7 +19,7 @@ const std::vector<ngraph::PartialShape> inputShapes = {
     { 1, 3, 16, 16 }
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
 };
 

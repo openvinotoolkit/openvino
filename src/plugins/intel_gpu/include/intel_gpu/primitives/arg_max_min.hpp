@@ -27,8 +27,6 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                     values_first(false),
                     stable(false) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs arg_max_min primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

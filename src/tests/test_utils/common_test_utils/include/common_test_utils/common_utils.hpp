@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include "openvino/core/partial_shape.hpp"
-
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <iterator>
 #include <memory>
 #include <ostream>
 #include <set>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <vector>
+
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
 namespace test {

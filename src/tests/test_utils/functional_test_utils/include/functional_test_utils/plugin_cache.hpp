@@ -4,15 +4,14 @@
 
 #pragma once
 
+#include <ie_core.hpp>
 #include <memory>
 #include <mutex>
 #include <string>
 
-#include <ie_core.hpp>
-
 class PluginCache {
 public:
-    std::shared_ptr<InferenceEngine::Core> ie(const std::string &deviceToCheck = std::string());
+    std::shared_ptr<InferenceEngine::Core> ie(const std::string& deviceToCheck = std::string());
 
     static PluginCache& get();
 
