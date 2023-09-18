@@ -41,7 +41,12 @@ SyncInferRequest::SyncInferRequest(
       m_batched_request_wrapper(worker_request),
       m_batch_id(batch_id),
       m_batch_size(num_batch) {
-    share_tensors_with_batched_req(batched_inputs, batched_outputs);
+    if (m_batched_request_wrapper)
+        share_tensors_with_batched_req(batched_inputs, batched_outputs);
+}
+
+size_t SyncInferRequest::get_batch_size() const {
+    return m_batch_size;
 }
 
 void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
