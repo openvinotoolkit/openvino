@@ -18,7 +18,7 @@
 
 using namespace ov;
 
-float ConvertNF4::dDequantizeNF4(uint8_t val) {
+float ConvertNF4::dequantize_nf4(uint8_t val) {
     static float lookup[16] = {-1.0,
                                -0.6961928009986877,
                                -0.5250730514526367,
@@ -38,7 +38,7 @@ float ConvertNF4::dDequantizeNF4(uint8_t val) {
     return lookup[val];
 }
 
-uint8_t ConvertNF4::dQuantizeNF4(float x) {
+uint8_t ConvertNF4::quantize_nf4(float x) {
     if (x > 0.03979014977812767f)
         if (x > 0.3893125355243683f)          // 1
             if (x > 0.6427869200706482f)      // 11

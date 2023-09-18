@@ -23,7 +23,7 @@ public:
 
     template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
     static void pack(uint8_t* dst, T* src, std::size_t idx) {
-        uint8_t val = dQuantizeNF4(static_cast<float>(src[idx]));
+        uint8_t val = quantize_nf4(static_cast<float>(src[idx]));
         const size_t byte_idx = idx / 2;
         const uint8_t bit_shift = 4 * (++idx % 2);
         dst[byte_idx] &= ~(0xF << bit_shift);         // half byte zeroed
@@ -39,9 +39,9 @@ public:
         dst[byte_idx] |= ((val & 0xF) << bit_shift);  // set 1's
     }
 
-    static float dDequantizeNF4(uint8_t val);
+    static float dequantize_nf4(uint8_t val);
 
-    static uint8_t dQuantizeNF4(float x);
+    static uint8_t quantize_nf4(float x);
 };
 
 };  // namespace ov
