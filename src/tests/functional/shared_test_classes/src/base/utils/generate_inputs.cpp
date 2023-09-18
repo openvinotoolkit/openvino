@@ -964,7 +964,6 @@ ov::runtime::Tensor generate(const
 }
 
 namespace comparison {
-
 void fill_tensor(ov::Tensor& tensor) {
     auto data_ptr = static_cast<float*>(tensor.data());
     auto data_ptr_int = static_cast<int*>(tensor.data());
@@ -987,25 +986,27 @@ void fill_tensor(ov::Tensor& tensor) {
         }
     }
 }
+} // namespace comparison
+
 ov::runtime::Tensor generate(const
                              std::shared_ptr<ov::op::v10::IsFinite>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     ov::Tensor tensor(elemType, targetShape);
-    fill_tensor(tensor);
+    comparison::fill_tensor(tensor);
     return tensor;
 }
+
 ov::runtime::Tensor generate(const
                              std::shared_ptr<ov::op::v10::IsNaN>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     ov::Tensor tensor{elemType, targetShape};
-    fill_tensor(tensor);
+    comparison::fill_tensor(tensor);
     return tensor;
 }
-} // namespace comparison
 
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
