@@ -8,9 +8,9 @@
 
 This page provides general instructions on how to run model conversion from a TensorFlow format to the OpenVINO IR format. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 
-.. note:: TensorFlow models can be loaded by `openvino.Core.read_model` or `openvino.Core.compile_model` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
+.. note:: TensorFlow models can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
 
-.. note:: Examples below that convert TensorFlow models from a file, do not require any version of TensorFlow to be installed on the system, except in cases when the `tensorflow` module is imported explicitly.
+.. note:: Examples below that convert TensorFlow models from a file, do not require any version of TensorFlow to be installed on the system, except in cases when the ``tensorflow`` module is imported explicitly.
 
 Converting TensorFlow 2 Models
 ##############################
@@ -238,7 +238,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      model = MyModule(name="simple_module")
      ov_model = ov.convert_model(model, input=[-1])
 
-.. note:: There is a known bug in ``openvino.convert_model`` on using ``tf.Variable`` nodes in the model graph. The results of the conversion of such models are unpredictable. It is recommended to save a model with ``tf.Variable`` into TensorFlow Saved Model format and load it with `openvino.convert_model`.
+.. note:: There is a known bug in ``openvino.convert_model`` on using ``tf.Variable`` nodes in the model graph. The results of the conversion of such models are unpredictable. It is recommended to save a model with ``tf.Variable`` into TensorFlow Saved Model format and load it with ``openvino.convert_model``.
 
 * ``tf.compat.v1.Graph``
 

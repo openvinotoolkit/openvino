@@ -25,21 +25,22 @@
 #        |    result   |
 #        |_____________|
 
-import openvino.runtime as ov
+import openvino as ov
+import openvino.runtime.opset12 as ops
 
 
-data1 = ov.opset8.parameter([1, 3, 2, 2], ov.Type.i64)
+data1 = ops.parameter([1, 3, 2, 2], ov.Type.i64)
 data1.friendly_name = "data1"      # operation name
 data1.output(0).name = "data1_t" # tensor name
-data2 = ov.opset8.parameter([1, 2, 2, 2], ov.Type.i64)
+data2 = ops.parameter([1, 2, 2, 2], ov.Type.i64)
 data2.friendly_name = "data2"      # operation name
 data2.output(0).name = "data2_t"   # tensor name
 
-concat = ov.opset8.concat([data1, data2], 1)
+concat = ops.concat([data1, data2], 1)
 concat.friendly_name = "concat"    # operation name
 concat.output(0).name = "concat_t" # tensor name
 
-result = ov.opset8.result(concat)
+result = ops.result(concat)
 result.friendly_name = "result"    # operation name
 
 model = ov.Model(result, [data1, data2], "model_name")

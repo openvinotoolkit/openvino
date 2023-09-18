@@ -24,7 +24,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

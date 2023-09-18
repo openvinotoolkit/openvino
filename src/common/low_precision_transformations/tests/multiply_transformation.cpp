@@ -11,8 +11,8 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/multiply.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
@@ -55,7 +55,7 @@ public:
 
         actualFunction = MultiplyFunction::get(precision, testParams.actual);
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::MultiplyTransformation, ov::op::v1::Multiply>(testParams.transformationParams);
+        transform.add<ov::pass::low_precision::MultiplyTransformation, ov::op::v1::Multiply>(testParams.transformationParams);
         transform.transform(actualFunction);
 
         referenceFunction = MultiplyFunction::get(precision, testParams.expected);
