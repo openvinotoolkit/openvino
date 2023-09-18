@@ -269,14 +269,14 @@ void InputModel::InputModelTFImpl::load_places() {
                             op_names_with_consumers.end(),
                             std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
         for (const auto& output_name : op_names_without_consumers) {
-        auto output_place = std::make_shared<TensorPlace>(m_input_model,
-                                                          ov::PartialShape({}),
-                                                          ov::element::dynamic,
-                                                          std::vector<std::string>{output_name});
-        m_tensor_places[output_name] = output_place;
-        m_outputs.push_back(output_place);
-        return;
-    }
+            auto output_place = std::make_shared<TensorPlace>(m_input_model,
+                                                              ov::PartialShape({}),
+                                                              ov::element::dynamic,
+                                                              std::vector<std::string>{output_name});
+            m_tensor_places[output_name] = output_place;
+            m_outputs.push_back(output_place);
+            return;
+        }
     }
     for (const auto& output_name : out_names) {
         auto output_place = std::make_shared<TensorPlace>(m_input_model,
@@ -323,7 +323,6 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
     // TODO: implement logic to check direct cycles in the graph
     // and break them
     // probably not only NextIteration can generate cycles
-  //  std::cout << "topologically_sort_op_nodes" << std::endl;
     for (const auto& output_place : m_outputs) {
         FRONT_END_GENERAL_CHECK(output_place->get_names().size() > 0, "TensorPlace must have at least one name.");
         auto output_place_name = output_place->get_names()[0];
@@ -331,14 +330,11 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
         size_t port_idx;
         std::string port_type;
         tensorflow::extract_operation_name_and_port(output_place_name, operation_name, port_idx, port_type);
-        //std::cout << std::endl << "extract_operation_name_and_port " <<  output_place_name << " " << operation_name << " " << std::to_string(port_idx) << " " << std::to_string(m_op_places_map.count(operation_name)) << std::endl;
         FRONT_END_GENERAL_CHECK(m_op_places_map.count(operation_name),
                                 "Custom specified output is incorrect: " + output_place_name);
         auto output_operation_place = m_op_places_map.at(operation_name);
-//std::cout << output_operation_place->get_names()[0] << std::endl;
         ops_to_do.push(output_operation_place);
     }
-  //  std::cout << "topologically_sort_op_nodes end." << std::endl;
 
     // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
     // core/graph_util.hpp

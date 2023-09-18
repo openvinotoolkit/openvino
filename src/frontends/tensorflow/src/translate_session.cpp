@@ -26,25 +26,24 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
                             "of names mismatches the number of operations.");
     std::vector<T> resulted_ops(ops.size(), nullptr);
 
-for (const auto& op : ops) {
+    for (const auto& op : ops) {
         const auto& op_name = op->get_friendly_name();
         auto iter = std::find(names.begin(), names.end(), op_name);
         FRONT_END_GENERAL_CHECK(iter != names.end(),
                                 "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The "
                                 "requested name is not found among operations.");
-}
+    }
 
     size_t ind = 0;
     for (const auto& name : names) {
         for (const auto& op : ops) {
-            if (op->get_friendly_name() == name)
-            {
-            resulted_ops[ind] = op;
-            ind++;
-            break;
+            if (op->get_friendly_name() == name) {
+                resulted_ops[ind] = op;
+                ind++;
+                break;
             }
         }
-     }
+    }
     return resulted_ops;
 };
 
