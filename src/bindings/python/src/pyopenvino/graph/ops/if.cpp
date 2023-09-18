@@ -162,7 +162,9 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :param inputs: list of input descriptions
-            :type inputs: list[]
+            :type inputs: list[Union[openvino.runtime.op.util.MergedInputDescription,
+                                     openvino.runtime.op.util.InvariantInputDescription,
+                                     openvino.runtime.op.util.SliceInputDescription]]
 
             :rtype: None
         )");
@@ -181,7 +183,8 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :param outputs: list of output descriptions
-            :type outputs: list[]
+            :type outputs: list[Union[openvino.runtime.op.util.BodyOutputDescription,
+                                      openvino.runtime.op.util.ConcatOutputDescription]]
 
             :rtype: None
         )");
@@ -205,7 +208,8 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :return: list of output descriptions
-            :rtype: list[]
+            :rtype: list[Union[openvino.runtime.op.util.BodyOutputDescription,
+                              openvino.runtime.op.util.ConcatOutputDescription]]
         )");
 
     cls.def(
@@ -227,7 +231,9 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :return: list of input descriptions
-            :rtype: list[]
+            :rtype: list[Union[openvino.runtime.op.util.MergedInputDescription,
+                               openvino.runtime.op.util.InvariantInputDescription,
+                               openvino.runtime.op.util.SliceInputDescription]]
         )");
 
     cls.def("__repr__", [](const ov::op::v8::If& self) {
