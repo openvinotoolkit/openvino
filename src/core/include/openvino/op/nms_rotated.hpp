@@ -71,6 +71,12 @@ public:
 
     using Node::set_output_type;
 
+    // Temporary evaluate, for testing purpose
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool has_evaluate() const override;
+
 protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
