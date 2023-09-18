@@ -58,4 +58,4 @@ set(opencl_root_hints "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
 
 # installation
 
-ov_install_static_lib(OpenCL gpu)
+ov_install_static_lib(OpenCL ${OV_CPACK_COMP_CORE})

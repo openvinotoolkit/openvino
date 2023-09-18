@@ -91,8 +91,16 @@ add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json ${TUNING_CACHE_PATH}/cache.json)
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json
-        DESTINATION ${OV_CPACK_PLUGINSDIR}
-        COMPONENT gpu)
+if(BUILD_SHARED_LIBS)
+  set(CACHE_JSON_INSTALL_DIR ${OV_CPACK_PLUGINSDIR})
+  set(CACHE_JSON_COMPONENT gpu)
+else()
+  set(CACHE_JSON_INSTALL_DIR ${OV_CPACK_ARCHIVEDIR})
+  set(CACHE_JSON_COMPONENT ${OV_CPACK_COMP_CORE})
+endif()
 
-ov_install_static_lib(${TARGET_NAME} gpu)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json
+        DESTINATION ${CACHE_JSON_INSTALL_DIR}
+        COMPONENT ${CACHE_JSON_COMPONENT})
+
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

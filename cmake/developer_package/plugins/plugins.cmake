@@ -117,6 +117,10 @@ function(ov_add_plugin)
         # install rules
         if(NOT OV_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)
             string(TOLOWER "${OV_PLUGIN_DEVICE_NAME}" install_component)
+            if(NOT BUILD_SHARED_LIBS)
+                # in case of static libs everything is installed to 'core'
+                set(install_component ${OV_CPACK_COMP_CORE})
+            endif()
 
             if(OV_PLUGIN_PSEUDO_DEVICE)
                 set(plugin_hidden HIDDEN)

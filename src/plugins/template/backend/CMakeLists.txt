@@ -51,4 +51,4 @@ openvino_developer_export_targets(COMPONENT core TARGETS interpreter_backend)
 
 # install
 
-ov_install_static_lib(interpreter_backend template)
+ov_install_static_lib(interpreter_backend ${OV_CPACK_COMP_CORE})
