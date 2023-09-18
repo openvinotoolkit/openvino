@@ -6,6 +6,7 @@
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
+#include "shape_util.hpp"
 
 namespace if_op {
 bool call(ov::TensorVector& func_outputs,
@@ -105,8 +106,10 @@ void function(const std::shared_ptr<ov::Model>& function, const ov::TensorVector
     const auto& results = function->get_results();
     outputs.reserve(results.size());
     for (size_t i = 0; i < results.size(); ++i) {
-        ov::Shape res_shape =
-            results[i]->get_output_partial_shape(0).is_static() ? results[i]->get_output_shape(0) : ov::Shape{0};
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        ov::Shape res_shape = results[i]->get_output_partial_shape(0).is_static() ? results[i]->get_output_shape(0)
+                                                                                  : ov::util::make_dynamic_shape();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         outputs.push_back(ov::Tensor(results[i]->get_element_type(), res_shape));
     }
     call(outputs, inputs, function);

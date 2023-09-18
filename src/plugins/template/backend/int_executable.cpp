@@ -14,6 +14,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "perf_counter.hpp"
+#include "shape_util.hpp"
 
 class TemporaryOverrideOutputs {
     std::shared_ptr<ov::Model> model;
@@ -126,10 +127,11 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             auto it = tensor_map.find(tensor);
             auto output = op->output(i);
             if (op::util::is_output(op) || it == tensor_map.end() || !it->second) {
-                host_tensor = ov::Tensor(output.get_element_type(),
-                                         output.get_partial_shape().is_dynamic()
-                                             ? ov::Shape{0, std::numeric_limits<size_t>::max()}
-                                             : output.get_shape());
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                host_tensor = ov::Tensor(
+                    output.get_element_type(),
+                    output.get_partial_shape().is_dynamic() ? ov::util::make_dynamic_shape() : output.get_shape());
+                OPENVINO_SUPPRESS_DEPRECATED_END
             } else {
                 host_tensor = it->second;
             }
