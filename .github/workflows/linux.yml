@@ -804,7 +804,7 @@ jobs:
 
       - name: Save tests execution time
         uses: actions/cache/save@v3
-        if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+        if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
