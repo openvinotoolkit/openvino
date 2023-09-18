@@ -187,7 +187,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                         op->get_input_tensor(0).m_partial_shape =
                             PartialShape::dynamic(output_shape.rank().get_length() + num_dims);
                     }
-                } else if (in0_rank.is_static()) {
+                } else if (in0_rank.is_static() && op->get_input_size() == 1) {
                     // attempt to create second input
                     std::vector<int64_t> in1_data;
                     for (size_t i = 0; i < in0_pshape.size(); i++) {
