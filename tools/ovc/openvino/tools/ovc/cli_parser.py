@@ -132,6 +132,8 @@ def input_to_input_cut_info(input: [dict, tuple, list]):
     :param input: input cut parameters passed by user
     :return: list of InputCutInfo with input cut parameters
     """
+    if input is None:
+        return []
 
     if isinstance(input, (tuple, list)):
         if len(input) == 0:
