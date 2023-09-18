@@ -37,14 +37,13 @@ struct mha : public primitive_base<mha> {
         return true;
     }
 
+    /* We don't have any argument to serialize at this moment. */
     void save(BinaryOutputBuffer& ob) const override {
-        /* UNIMPLEMENTED */
-        OPENVINO_THROW("UNIMPLEMENTED error for MHA fusion on dynamic shape");
+        primitive_base<mha>::save(ob);
     }
 
     void load(BinaryInputBuffer& ib) override {
-        /* UNIMPLEMENTED */
-        OPENVINO_THROW("UNIMPLEMENTED error for MHA fusion on dynamic shape");
+        primitive_base<mha>::load(ib);
     }
 };
 }  // namespace cldnn

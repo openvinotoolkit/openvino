@@ -163,12 +163,9 @@ void test_mha_graph(int f, int N, int d, bool is_caching_test) {
     }
 }
 
-TEST(mha_gpu_fp16, mha_graph_test_f1_N2_d3) {
-    test_mha_graph(1, 2, 3, false);
-}
+TEST(mha_gpu_fp16, mha_graph_test_f1_N2_d3)         {   test_mha_graph(1, 2, 3, false); }
 
-TEST(mha_gpu_fp16, mha_graph_test_f2_N4_d4) {
-    test_mha_graph(2, 4, 4, false);
-}
+TEST(mha_gpu_fp16, mha_graph_test_f1_N2_d3_caching) {   test_mha_graph(1, 2, 3, true); }
 
-/* FIXME: add caching test*/
+TEST(mha_gpu_fp16, mha_graph_test_f2_N4_d4)         {   test_mha_graph(2, 4, 4, false); }
+
