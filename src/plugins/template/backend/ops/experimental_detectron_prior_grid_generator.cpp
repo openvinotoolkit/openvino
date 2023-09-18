@@ -37,9 +37,13 @@ ov::PartialShape infer_output_shape(const ov::TensorVector& inputs, bool flatten
     auto featmap_width = feature_map_shape[3];
 
     if (flatten) {
-        out_shape = ov::PartialShape{featmap_height * featmap_width * num_priors, 4};
+        out_shape =
+            ov::PartialShape{ov::Dimension(static_cast<int64_t>(featmap_height * featmap_width * num_priors)), 4};
     } else {
-        out_shape = ov::PartialShape{featmap_height, featmap_width, num_priors, 4};
+        out_shape = ov::PartialShape{ov::Dimension(static_cast<int64_t>(featmap_height)),
+                                     ov::Dimension(static_cast<int64_t>(featmap_width)),
+                                     ov::Dimension(static_cast<int64_t>(num_priors)),
+                                     4};
     }
 
     return out_shape;
