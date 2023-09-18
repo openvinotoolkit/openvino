@@ -28,7 +28,7 @@ static float rotatedintersectionOverUnion(const RotatedBox& boxI, const RotatedB
         return 0.0f;
     }
 
-    const auto union_area = areaI + areaI - intersection;
+    const auto union_area = areaI + areaJ - intersection;
     return intersection / union_area;
 }
 
