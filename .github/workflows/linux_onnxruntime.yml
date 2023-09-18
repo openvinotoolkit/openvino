@@ -44,16 +44,12 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_DIR: ${{ github.workspace }}/install/openvino
-      DATA_PATH: ${{ github.workspace }}/testdata
-      MODELS_PATH: ${{ github.workspace }}/testdata
-      OV_TEMP: ${{ github.workspace }}/openvino_temp
-      PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
           path: 'openvino'
-          submodules: 'recursive'
+          submodules: 'true'
 
       - name: Clone ONNX Runtime
         run: |
@@ -77,12 +73,6 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo -E ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
-          
-          # Speed up build
-          sudo apt -y --no-install-recommends install unzip
-          wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
-          unzip ninja-linux.zip
-          sudo cp -v ninja /usr/local/bin/
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -95,13 +85,6 @@ jobs:
           key: ${{ github.job }}-linux-onnx-runtime
           restore-keys: |
             ${{ github.job }}-linux-onnx-runtime
-
-      - name: Get tools versions
-        run: |
-          ninja --version || exit 1
-          ccache --version || exit 1
-          python3 --version || exit 1
-          cmake --version || exit 1
 
       #
       # Build
@@ -123,9 +106,9 @@ jobs:
             -DENABLE_PROFILING_ITT=OFF \
             -DENABLE_SAMPLES=OFF \
             -DENABLE_OV_TF_FRONTEND=OFF \
+            -DENABLE_OV_TF_LITE=OFF \
             -DENABLE_OV_PADDLE_FRONTEND=OFF \
             -DENABLE_OV_PYTORCH_FRONTEND=OFF \
-            -DENABLE_OPENVINO_DEBUG=OFF \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
 
