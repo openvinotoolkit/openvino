@@ -17,6 +17,7 @@
 #include <numeric>
 #include <vector>
 
+namespace iou_rotated {
 struct RotatedBox {
     float x_ctr, y_ctr, w, h, a;
 };
@@ -266,3 +267,5 @@ static float rotated_boxes_intersection(const RotatedBox& box1, const RotatedBox
     int num_convex = convex_hull_graham(intersectPts, num, orderedPts, true);
     return polygon_area(orderedPts, num_convex);
 }
+
+}  // namespace iou_rotated

@@ -17,6 +17,7 @@ namespace ov {
 namespace reference {
 namespace nms_rotated {
 
+using namespace iou_rotated;
 namespace {
 
 static float rotatedintersectionOverUnion(const RotatedBox& boxI, const RotatedBox& boxJ) {
