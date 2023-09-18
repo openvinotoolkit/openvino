@@ -32,16 +32,16 @@ inline void evaluate(const std::shared_ptr<ov::op::v4::CTCLoss>& op,
                      const ov::TensorVector& inputs) {
     using T1 = typename ov::element_type_traits<t1>::value_type;
     using T2 = typename ov::element_type_traits<t2>::value_type;
-    ov::reference::CTCLoss<T1, T2>(inputs[0].data<T1>(),
+    ov::reference::CTCLoss<T1, T2>(static_cast<T1*>(inputs[0].data()),
                                    inputs[0].get_shape(),
-                                   inputs[1].data<T2>(),
-                                   inputs[2].data<T2>(),
-                                   inputs[3].data<T2>(),
-                                   inputs[4].data<T2>(),
+                                   static_cast<T2*>(inputs[1].data()),
+                                   static_cast<T2*>(inputs[2].data()),
+                                   static_cast<T2*>(inputs[3].data()),
+                                   static_cast<T2*>(inputs[4].data()),
                                    op->get_preprocess_collapse_repeated(),
                                    op->get_ctc_merge_repeated(),
                                    op->get_unique(),
-                                   outputs[0].data<T1>());
+                                   static_cast<T1*>(outputs[0].data()));
 }
 }  // namespace ctc_loss_v4
 
