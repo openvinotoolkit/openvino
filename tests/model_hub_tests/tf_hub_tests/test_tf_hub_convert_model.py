@@ -5,7 +5,6 @@ import gc
 import os
 import shutil
 
-import numpy as np
 import pytest
 import tensorflow as tf
 import tensorflow_hub as hub
@@ -14,6 +13,7 @@ import tensorflow_text  # do not delete, needed for text models
 from models_hub_common.constants import tf_hub_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
+from tf_hub_tests.utils import type_map
 
 
 class TestTFHubConvertModel(TestConvertModel):
@@ -49,18 +49,6 @@ class TestTFHubConvertModel(TestConvertModel):
             except ValueError:
                 # unknown rank case
                 pass
-            type_map = {
-                tf.float64: np.float64,
-                tf.float32: np.float32,
-                tf.int8: np.int8,
-                tf.int16: np.int16,
-                tf.int32: np.int32,
-                tf.int64: np.int64,
-                tf.uint8: np.uint8,
-                tf.uint16: np.uint16,
-                tf.string: str,
-                tf.bool: bool,
-            }
             if input_info.dtype == tf.resource:
                 # skip inputs corresponding to variables
                 continue
