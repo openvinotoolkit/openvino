@@ -54,6 +54,39 @@ foreach(EXTRAS IN LISTS EXTRAS_LIST)
             ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
 endforeach()
 
+# check __init__.py files alignment
+
+function(ov_check_init_files_alignment)
+    # check the files in pairs
+    list(APPEND init_files
+        "${OpenVINO_SOURCE_DIR}/src/bindings/python/src/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/src/bindings/python/src/compatibility/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/mo/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/pot/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/openvino_dev/src/openvino/__init__.py")
+
+    list(LENGTH init_files init_files_count)
+    math(EXPR file_loop_range "${init_files_count}-2")
+    foreach(init_file_idx RANGE 0 ${file_loop_range})
+        math(EXPR init_file_idx_next "${init_file_idx}+1")
+        list(GET init_files ${init_file_idx} file1)
+        list(GET init_files ${init_file_idx_next} file2)
+
+        execute_process(COMMAND ${CMAKE_COMMAND} -E compare_files ${file1} ${file2}
+            RESULT_VARIABLE compare_result
+        )
+        if(compare_result EQUAL 1)
+            message(STATUS ${file1})
+            message(STATUS ${file2})
+            message(FATAL_ERROR "The __init__.py files are misaligned: ${file1} and ${file2}")
+        endif()
+    endforeach()
+endfunction()
+
+ov_check_init_files_alignment()
+
 # openvino_dev build
 
 if(NOT ENABLE_WHEEL)

@@ -91,6 +91,7 @@ macro(ov_cpack_settings)
         # - 2022.3 is the first release where Debian updated packages are introduced, others 2022.3.X are LTS
         2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
         2023.0.0 2023.0.1 2023.0.2 2023.0.3
+        2023.1.0
         )
 
     #
