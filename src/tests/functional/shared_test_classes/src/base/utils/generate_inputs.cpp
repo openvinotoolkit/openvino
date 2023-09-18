@@ -984,7 +984,6 @@ ov::runtime::Tensor generate(const
     }
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_gen_data.range,
                                                    in_gen_data.start_from, in_gen_data.resolution, in_gen_data.seed);
-
 }
 
 namespace comparison {
