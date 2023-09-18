@@ -234,7 +234,7 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
     size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
     std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
 
-    const uint8_t* data_ptr = inputs[0].data<uint8_t>();
+    const uint8_t* data_ptr = static_cast<uint8_t*>(inputs[0].data());
     uint8_t* padded_data_ptr = padded_input_data.data();
 
     pad_input_data(data_ptr,
