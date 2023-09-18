@@ -13,14 +13,14 @@ namespace lowered {
 namespace pass {
 
 void IBufferPass::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) {
-    // If Buffer has offset We set this offset in the connected MemoryAccess ops
+    // If Buffer has offset, we set this offset in the connected MemoryAccess ops
     // to correctly read and write data because all Buffers have the common data pointer on buffer scratchpad
 
     const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
     OPENVINO_ASSERT(buffer, "Failed to set Buffer offset: IBufferPass expects Buffer op");
     buffer->set_offset(static_cast<int64_t>(offset));
 
-    // Propagate to up: in Store. Buffer can have only one Store
+    // Propagate to up: in MemoryAccess op. Buffer can have only one MemoryAccess op for writing data to memory of the Buffer
     {
         if (buffer->is_intermediate_memory()) {
             OPENVINO_ASSERT(buffer_expr->get_input_port_connectors().size() == 1, "Buffer with intermediate memory must have one parent");
@@ -37,7 +37,7 @@ void IBufferPass::set_buffer_offset(const ExpressionPtr& buffer_expr, const size
             }
         }
     }
-    // Propagate to down: in Load. Buffer can have several Load
+    // Propagate to down: in MemoryAccess op. Buffer can have several MemoryAccess ops that can read data from the Buffer memory
     const auto& buffer_out = buffer_expr->get_output_port_connector(0);
     for (const auto& child_expr_input : buffer_out->get_consumers()) {
         const auto& child_expr = child_expr_input.get_expr();

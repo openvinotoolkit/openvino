@@ -15,7 +15,7 @@ namespace pass {
  * @interface DefineBufferClusters
  * @brief The pass defines buffer clusters. The buffers from one cluster share the
  *        same memory (has the same offset relative to the data pointer of buffer scratchpad).
- *         - If MemoryAccess op or Loop can read and write to the same (inplace behavior), the Buffers should in be in the one cluster.
+ *         - If MemoryAccess op or Loop can read and write to the same (inplace behavior), the Buffers should be in the one cluster.
  *         - If Buffer is in the Loop which read or write from/to the other Buffers, this Buffer can emulate `window` slidings.
  *           It means that Buffer inside can reuse memory of Buffers outside in bounds of full Loop work.
  *           Demonstration:
@@ -71,22 +71,27 @@ private:
     size_t get_cluster_buffer_id(const BufferCluster& cluster) const;
 
     /**
-     * @brief Analyzes Loop: if Loop has Buffer ops on inputs and outputs, can Loop read and write from/to the same memory.
+     * @brief Analyzes Loop: if Loop has Buffer ops on inputs and outputs, Loop can read and write from/to the same memory.
      * @param expr_it iterator of Linear IR which refers to the expression with LoopEnd
      */
     void parse_loop(const LinearIR::constExprIt& expr_it);
     /**
-     * @brief Analyzes full MemoryAccess op: if the op has Buffer ops on I/O, can the op read and write from/to the same memory.
+     * @brief Analyzes full MemoryAccess op: if the op has Buffer ops on I/O, the op can read and write from/to the same memory.
      * @param expr expression with full MemoryAccess op
      */
     void parse_memory_access_op(const ExpressionPtr& expr);
     /**
-     * @brief Gets input and outputs buffers of Loop
-     * @param input_buffers unordered map [Expression -> set of input ports] which represents input Buffers of Loop
-     * @param output_buffers unordered map [Expression -> set of output ports (one)] which represents output Buffers of Loop
+     * @brief Gets input outputs buffers of Loop
      * @param loop_expr expression with LoopEnd op
+     * @return unordered map [Expression -> set of input ports] which represents input Buffers of Loop
      */
-    void get_io_buffers(BufferPorts& input_buffers, BufferPorts& output_buffers, const ExpressionPtr& loop_expr) const;
+    BufferPorts get_input_buffers(const ExpressionPtr& loop_expr) const;
+    /**
+     * @brief Gets output buffers of Loop
+     * @param loop_expr expression with LoopEnd op
+     * @return unordered map [Expression -> set of input ports] which represents output Buffers of Loop
+     */
+    BufferPorts get_output_buffers(const ExpressionPtr& loop_expr) const;
     /**
      * @brief Analyzes nested Loops: unite nested buffer clusters if they can reproduce `window` sliding
      * @param input_buffers unordered map [Expression -> set of input ports] which represents input Buffers of Loop
@@ -106,6 +111,8 @@ private:
      * @param up expression with upper Buffer op
      * @param down expression with lower Buffer op
      * @param loop expression with common LoopEnd op
+     * @param up_idx the reference to port index of upper Buffer op to the Loop
+     * @param down_idx the reference to port index of lower Buffer op to the Loop
      * @return Return True if the Buffers are connected to the same Loop
      */
     static bool are_buffer_neighbours(const ExpressionPtr& up, const ExpressionPtr& down, ExpressionPtr& loop, size_t& up_idx, size_t& down_idx);

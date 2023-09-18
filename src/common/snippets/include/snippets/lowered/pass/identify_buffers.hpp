@@ -99,8 +99,8 @@ private:
                                   std::vector<bool>& adj);
     /**
      * @brief Check if two Buffers are adjacent and cannot have the same ID
-     * @param lhs Pair where first value if Expression with first Buffer and second value is data pointer shift params for its
-     * @param rhs Pair where first value if Expression with second Buffer and second value is data pointer shift params for its
+     * @param lhs Pair where first value is Expression with first Buffer and second value is data pointer shift params for it
+     * @param rhs Pair where first value is Expression with second Buffer and second value is data pointer shift params for it
      * @return Returns True if they are adjacent, otherwise returns False
      */
     static bool are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,

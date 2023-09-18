@@ -43,13 +43,11 @@ size_t DefineBufferClusters::get_cluster_buffer_id(const BufferCluster& cluster)
     return SIZE_MAX;
 }
 
-void DefineBufferClusters::get_io_buffers(BufferPorts& input_buffers, BufferPorts& output_buffers, const ExpressionPtr& loop_expr) const {
-    input_buffers.clear();
-    output_buffers.clear();
+DefineBufferClusters::BufferPorts DefineBufferClusters::get_input_buffers(const ExpressionPtr& loop_expr) const {
+    BufferPorts input_buffers;
 
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
     const auto in_count = loop_end->get_input_num();
-    const auto out_count = loop_end->get_output_num();
     const auto connectors = loop_expr->get_input_port_connectors();
 
     // Input Buffers
@@ -62,8 +60,17 @@ void DefineBufferClusters::get_io_buffers(BufferPorts& input_buffers, BufferPort
         if (!ret)
             input_buffers[source_expr].insert(i);
     }
+    return input_buffers;
+}
 
-    // Output Buffers
+DefineBufferClusters::BufferPorts DefineBufferClusters::get_output_buffers(const ExpressionPtr& loop_expr) const {
+    BufferPorts output_buffers;
+
+    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
+    const auto in_count = loop_end->get_input_num();
+    const auto out_count = loop_end->get_output_num();
+    const auto connectors = loop_expr->get_input_port_connectors();
+
     for (size_t i = in_count; i < in_count + out_count; ++i) {
         for (const auto& consumer : connectors[i]->get_consumers()) {
             auto consumer_expr = consumer.get_expr();
@@ -73,6 +80,7 @@ void DefineBufferClusters::get_io_buffers(BufferPorts& input_buffers, BufferPort
             output_buffers[consumer_expr] = { i };
         }
     }
+    return output_buffers;
 }
 
 void DefineBufferClusters::parse_loop(const LinearIR::constExprIt& expr_it) {
@@ -83,8 +91,8 @@ void DefineBufferClusters::parse_loop(const LinearIR::constExprIt& expr_it) {
     const auto& data_sizes = loop_end->get_element_type_sizes();
 
     // [ Expression -> Port indexes ]
-    BufferPorts input_buffers, output_buffers;
-    get_io_buffers(input_buffers, output_buffers, expr);
+    const auto input_buffers = get_input_buffers(expr);
+    const auto output_buffers = get_output_buffers(expr);
 
     for (const auto& in : input_buffers)
         create_new_cluster(in.first);
