@@ -275,11 +275,20 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-8-cores
+    runs-on: ubuntu-20.04
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          # 'OP' for Opset, 'API' for API
+          - TEST_TYPE: 'OP'
+          - TEST_TYPE: 'API'
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
+      CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts_dir
 
     steps:
       - name: Create Directories
@@ -329,48 +338,43 @@ jobs:
       # Tests
       #
 
-      - name: Run Conformance Tests (OP)
-        run: |
+      - name: Download Expected Failures List
+        uses: actions/cache/restore@v3
+        id: expected_failures_cache
+        with:
+          path: ${{ env.CONFORMANCE_TOOLS_DIR }}
+          key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures
 
-          artifact_dir=${{ env.INSTALL_DIR }}/conformance_artifacts_dir
-          mkdir -p $artifact_dir
+      - name: Check Tools Dir
+        run: ls -laR ${{ env.CONFORMANCE_TOOLS_DIR }}
+
+      - name: Run Conformance Tests
+        run: |
+          mkdir -p ${{ env.CONFORMANCE_ARTIFACTS_DIR }}
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 ${{ env.CONFORMANCE_TOOLS_DIR }}/run_conformance.py -ov=${{ env.INSTALL_DIR }}/tests \
             -d=CPU \
-            -t=OP \
-            -w=$artifact_dir
+            -t=${{ matrix.TEST_TYPE }} \
+            -w=${{ env.CONFORMANCE_ARTIFACTS_DIR }}
 
-          ls -la $artifact_dir
+          ls -la ${{ env.CONFORMANCE_ARTIFACTS_DIR }}
 
-      - name: Run Conformance Tests (API)
-        run: |
+      - name: Upload Expected Failures List
+        # if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+        uses: actions/cache/save@v3
+        with:
+          path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/CPU_logs/logs/fix_priority.csv
+          key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ github.sha }}
 
-          artifact_dir=${{ env.INSTALL_DIR }}/conformance_artifacts_dir_api
-          mkdir -p $artifact_dir
-
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-
-          python3 ${{ env.CONFORMANCE_TOOLS_DIR }}/run_conformance.py -ov=${{ env.INSTALL_DIR }}/tests \
-            -d=CPU \
-            -t=API \
-            -w=$artifact_dir
-
-          ls -la $artifact_dir
-
-      - name: Upload Conformance Artifacts (OP)
+      - name: Upload Conformance Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: conformance_artifacts_op
-          path: ${{ env.INSTALL_DIR }}/conformance_artifacts_dir
-          if-no-files-found: 'error'
-
-      - name: Upload Conformance Artifacts (API)
-        uses: actions/upload-artifact@v3
-        with:
-          name: conformance_artifacts_api
-          path: ${{ env.INSTALL_DIR }}/conformance_artifacts_dir_api
+          name: conformance_artifacts_${{ matrix.TEST_TYPE }}
+          path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}
           if-no-files-found: 'error'
 
 
