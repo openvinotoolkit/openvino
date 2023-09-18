@@ -74,7 +74,7 @@ def main():
 
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
-    compiled_model = core.compile_model(model, device_name)
+    compiled_model = ov.compile_model(model, device_name)
 
 # --------------------------- Step 6. Create infer request and do inference synchronously -----------------------------
     log.info('Starting inference in synchronous mode')

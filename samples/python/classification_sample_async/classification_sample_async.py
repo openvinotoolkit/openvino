@@ -109,7 +109,7 @@ def main() -> int:
 
 # --------------------------- Step 5. Loading model to the device -----------------------------------------------------
     log.info('Loading the model to the plugin')
-    compiled_model = core.compile_model(model, args.device)
+    compiled_model = ov.compile_model(model, args.device)
 
 # --------------------------- Step 6. Create infer request queue ------------------------------------------------------
     log.info('Starting inference in asynchronous mode')

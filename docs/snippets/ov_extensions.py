@@ -3,6 +3,7 @@
 #
 
 import openvino as ov
+from openvino.tools.mo import convert_model
 
 #! [py_frontend_extension_ThresholdedReLU_header]
 import openvino.runtime.opset12 as ops
@@ -28,17 +29,16 @@ core.add_extension(path_to_extension_lib)
 #! [add_extension_lib]
 
 #! [py_frontend_extension_MyRelu]
-from openvino.frontend import OpExtension
-core.add_extension(OpExtension("Relu", "MyRelu"))
+core.add_extension(ov.frontend.OpExtension("Relu", "MyRelu"))
 #! [py_frontend_extension_MyRelu]
 
 #! [py_frontend_extension_ThresholdedReLU]
 def conversion(node):
     input_node = node.get_input(0)
     input_type = input_node.get_element_type()
-    greater = ops.greater(input_node, ops.constant([node.get_attribute("alpha")], input_type))
-    casted = ops.convert(greater, input_type.get_type_name())
-    return ops.multiply(input_node, casted).outputs()
+    greater = ov.runtime.opset8.greater(input_node, ov.runtime.opset8.constant([node.get_attribute("alpha")], input_type))
+    casted = ov.runtime.opset8.convert(greater, input_type.get_type_name())
+    return ov.runtime.opset8.multiply(input_node, casted).outputs()
 
 core.add_extension(ConversionExtension("ThresholdedRelu", conversion))
 #! [py_frontend_extension_ThresholdedReLU]
@@ -46,8 +46,6 @@ core.add_extension(ConversionExtension("ThresholdedRelu", conversion))
 
 #! [py_frontend_extension_aten_hardtanh]
 import torch
-from openvino.frontend import ConversionExtension, NodeContext
-from openvino.tools.mo import convert_model
 
 
 class HardTanh(torch.nn.Module):
@@ -60,14 +58,14 @@ class HardTanh(torch.nn.Module):
         return torch.nn.functional.hardtanh(inp, self.min_val, self.max_val)
 
 
-def convert_hardtanh(node: NodeContext):
+def convert_hardtanh(node: ov.frontend.NodeContext):
     inp = node.get_input(0)
     min_value = node.get_values_from_const_input(1)
     max_value = node.get_values_from_const_input(2)
-    return ops.clamp(inp, min_value, max_value).outputs()
+    return ov.runtime.opset8.clamp(inp, min_value, max_value).outputs()
 
 
 model = HardTanh(min_val=0.1, max_val=2.0)
-hardtanh_ext = ConversionExtension("aten::hardtanh", convert_hardtanh)
+hardtanh_ext = ov.frontend.ConversionExtension("aten::hardtanh", convert_hardtanh)
 ov_model = convert_model(input_model=model, extensions=[hardtanh_ext])
 #! [py_frontend_extension_aten_hardtanh]

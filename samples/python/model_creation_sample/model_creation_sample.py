@@ -9,7 +9,6 @@ from functools import reduce
 
 import numpy as np
 import openvino as ov
-from openvino.runtime import op, opset1, opset8
 
 from data import digits
 
@@ -27,27 +26,27 @@ def create_ngraph_function(model_path: str) -> ov.Model:
 
     # input
     input_shape = [64, 1, 28, 28]
-    param_node = op.Parameter(ov.Type.f32, ov.Shape(input_shape))
+    param_node = ov.op.Parameter(ov.Type.f32, ov.Shape(input_shape))
 
     # convolution 1
     conv_1_kernel_shape, conv_1_kernel_length = shape_and_length([20, 1, 5, 5])
-    conv_1_kernel = op.Constant(ov.Type.f32, ov.Shape(conv_1_kernel_shape), weights[0:conv_1_kernel_length].tolist())
+    conv_1_kernel = ov.op.Constant(ov.Type.f32, ov.Shape(conv_1_kernel_shape), weights[0:conv_1_kernel_length].tolist())
     weights_offset += conv_1_kernel_length
-    conv_1_node = opset8.convolution(param_node, conv_1_kernel, [1, 1], padding_begin, padding_end, [1, 1])
+    conv_1_node = ov.opset8.convolution(param_node, conv_1_kernel, [1, 1], padding_begin, padding_end, [1, 1])
 
     # add 1
     add_1_kernel_shape, add_1_kernel_length = shape_and_length([1, 20, 1, 1])
-    add_1_kernel = op.Constant(ov.Type.f32, ov.Shape(add_1_kernel_shape),
+    add_1_kernel = ov.op.Constant(ov.Type.f32, ov.Shape(add_1_kernel_shape),
                                weights[weights_offset : weights_offset + add_1_kernel_length])
     weights_offset += add_1_kernel_length
-    add_1_node = opset8.add(conv_1_node, add_1_kernel)
+    add_1_node = ov.opset8.add(conv_1_node, add_1_kernel)
 
     # maxpool 1
-    maxpool_1_node = opset1.max_pool(add_1_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
+    maxpool_1_node = ov.opset1.max_pool(add_1_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
 
     # convolution 2
     conv_2_kernel_shape, conv_2_kernel_length = shape_and_length([50, 20, 5, 5])
-    conv_2_kernel = op.Constant(ov.Type.f32, ov.Shape(conv_2_kernel_shape),
+    conv_2_kernel = ov.op.Constant(ov.Type.f32, ov.Shape(conv_2_kernel_shape),
                                 weights[weights_offset : weights_offset + conv_2_kernel_length],
                                 )
     weights_offset += conv_2_kernel_length
@@ -55,14 +54,14 @@ def create_ngraph_function(model_path: str) -> ov.Model:
 
     # add 2
     add_2_kernel_shape, add_2_kernel_length = shape_and_length([1, 50, 1, 1])
-    add_2_kernel = op.Constant(ov.Type.f32, ov.Shape(add_2_kernel_shape),
+    add_2_kernel = ov.op.Constant(ov.Type.f32, ov.Shape(add_2_kernel_shape),
                                weights[weights_offset : weights_offset + add_2_kernel_length],
                                )
     weights_offset += add_2_kernel_length
-    add_2_node = opset8.add(conv_2_node, add_2_kernel)
+    add_2_node = ov.opset8.add(conv_2_node, add_2_kernel)
 
     # maxpool 2
-    maxpool_2_node = opset1.max_pool(add_2_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
+    maxpool_2_node = ov.opset1.max_pool(add_2_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
 
     # reshape 1
     reshape_1_dims, reshape_1_length = shape_and_length([2])
@@ -71,52 +70,52 @@ def create_ngraph_function(model_path: str) -> ov.Model:
         weights[weights_offset : weights_offset + 2 * reshape_1_length],
         dtype=np.int64,
     )
-    reshape_1_kernel = op.Constant(ov.Type.i64, ov.Shape(list(dtype_weights.shape)), dtype_weights)
+    reshape_1_kernel = ov.op.Constant(ov.Type.i64, ov.Shape(list(dtype_weights.shape)), dtype_weights)
     weights_offset += 2 * reshape_1_length
-    reshape_1_node = opset8.reshape(maxpool_2_node, reshape_1_kernel, True)
+    reshape_1_node = ov.opset8.reshape(maxpool_2_node, reshape_1_kernel, True)
 
     # matmul 1
     matmul_1_kernel_shape, matmul_1_kernel_length = shape_and_length([500, 800])
-    matmul_1_kernel = op.Constant(ov.Type.f32, ov.Shape(matmul_1_kernel_shape),
+    matmul_1_kernel = ov.op.Constant(ov.Type.f32, ov.Shape(matmul_1_kernel_shape),
                                   weights[weights_offset : weights_offset + matmul_1_kernel_length],
                                   )
     weights_offset += matmul_1_kernel_length
-    matmul_1_node = opset8.matmul(reshape_1_node, matmul_1_kernel, False, True)
+    matmul_1_node = ov.opset8.matmul(reshape_1_node, matmul_1_kernel, False, True)
 
     # add 3
     add_3_kernel_shape, add_3_kernel_length = shape_and_length([1, 500])
-    add_3_kernel = op.Constant(ov.Type.f32, ov.Shape(add_3_kernel_shape),
+    add_3_kernel = ov.op.Constant(ov.Type.f32, ov.Shape(add_3_kernel_shape),
                                weights[weights_offset : weights_offset + add_3_kernel_length],
                                )
     weights_offset += add_3_kernel_length
-    add_3_node = opset8.add(matmul_1_node, add_3_kernel)
+    add_3_node = ov.opset8.add(matmul_1_node, add_3_kernel)
 
     # ReLU
-    relu_node = opset8.relu(add_3_node)
+    relu_node = ov.opset8.relu(add_3_node)
 
     # reshape 2
-    reshape_2_kernel = op.Constant(ov.Type.i64, ov.Shape(list(dtype_weights.shape)), dtype_weights)
-    reshape_2_node = opset8.reshape(relu_node, reshape_2_kernel, True)
+    reshape_2_kernel = ov.op.Constant(ov.Type.i64, ov.Shape(list(dtype_weights.shape)), dtype_weights)
+    reshape_2_node = ov.opset8.reshape(relu_node, reshape_2_kernel, True)
 
     # matmul 2
     matmul_2_kernel_shape, matmul_2_kernel_length = shape_and_length([10, 500])
-    matmul_2_kernel = op.Constant(ov.Type.f32, ov.Shape(matmul_2_kernel_shape),
+    matmul_2_kernel = ov.op.Constant(ov.Type.f32, ov.Shape(matmul_2_kernel_shape),
                                   weights[weights_offset : weights_offset + matmul_2_kernel_length],
                                   )
     weights_offset += matmul_2_kernel_length
-    matmul_2_node = opset8.matmul(reshape_2_node, matmul_2_kernel, False, True)
+    matmul_2_node = ov.opset8.matmul(reshape_2_node, matmul_2_kernel, False, True)
 
     # add 4
     add_4_kernel_shape, add_4_kernel_length = shape_and_length([1, 10])
-    add_4_kernel = op.Constant(ov.Type.f32, ov.Shape(add_4_kernel_shape),
+    add_4_kernel = ov.op.Constant(ov.Type.f32, ov.Shape(add_4_kernel_shape),
                                weights[weights_offset : weights_offset + add_4_kernel_length],
                                )
     weights_offset += add_4_kernel_length
-    add_4_node = opset8.add(matmul_2_node, add_4_kernel)
+    add_4_node = ov.opset8.add(matmul_2_node, add_4_kernel)
 
     # softmax
     softmax_axis = 1
-    softmax_node = opset8.softmax(add_4_node, softmax_axis)
+    softmax_node = ov.opset8.softmax(add_4_node, softmax_axis)
 
     return ov.Model(softmax_node, [param_node], 'lenet')
 
@@ -163,7 +162,7 @@ def main():
     # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     core = ov.Core()
-    compiled_model = core.compile_model(model, device_name)
+    compiled_model = ov.compile_model(model, device_name)
 
     # ---------------------------Step 5. Prepare input---------------------------------------------------------------------
     n, c, h, w = model.input().shape

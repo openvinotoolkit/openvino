@@ -25,7 +25,7 @@ print(compiled.outputs)
 #! [properties_example]
 
 #! [auto_compilation]
-compiled_model = ov.compile_model(model)
+compiled_model = ov.core().compile_model(model)
 #! [auto_compilation]
 
 #! [tensor_basics]
@@ -143,17 +143,13 @@ assert all(data_done)
 unt8_data = np.ones([100], dtype=np.uint8)
 
 #! [packing_data]
-from openvino.helpers import pack_data
-
-packed_buffer = pack_data(unt8_data, ov.Type.u4)
+packed_buffer = ov.helpers.pack_data(unt8_data, ov.Type.u4)
 # Create tensor with shape in element types
 t = ov.Tensor(packed_buffer, [100], ov.Type.u4)
 #! [packing_data]
 
 #! [unpacking]
-from openvino.helpers import unpack_data
-
-unpacked_data = unpack_data(t.data, t.element_type, t.shape)
+unpacked_data = ov.helpers.unpack_data(t.data, t.element_type, t.shape)
 assert np.array_equal(unpacked_data , unt8_data)
 #! [unpacking]
 

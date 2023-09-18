@@ -31,8 +31,8 @@ def create_model():
     #
     # To construct a model, please follow 
     # https://docs.openvino.ai/latest/openvino_docs_OV_UG_Model_Representation.html
-    data = ov.opset8.parameter([3, 1, 2], ov.Type.f32)
-    res = ov.opset8.result(data)
+    data = ov.runtime.opset8.parameter([3, 1, 2], ov.Type.f32)
+    res = ov.runtime.opset8.result(data)
     return ov.Model([res], [data], "model")
 
 model = create_model()

@@ -18,10 +18,10 @@ validation_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [validation]
 import numpy as np
 import torch
-import openvino
+import openvino as ov
 from sklearn.metrics import accuracy_score
 
-def validate(model: openvino.CompiledModel, 
+def validate(model: ov.CompiledModel, 
              validation_loader: torch.utils.data.DataLoader) -> float:
     predictions = []
     references = []

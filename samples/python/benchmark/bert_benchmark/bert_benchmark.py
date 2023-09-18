@@ -49,7 +49,7 @@ def main():
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
     # Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
     # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device
-    compiled_model = core.compile_model(model, 'CPU', tput)
+    compiled_model = ov.compile_model(model, 'CPU', tput)
     # AsyncInferQueue creates optimal number of InferRequest instances
     ireqs = ov.AsyncInferQueue(compiled_model)
 

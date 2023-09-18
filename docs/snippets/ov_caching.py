@@ -20,7 +20,6 @@ compiled_model = core.compile_model(model=model, device_name=device_name)
 assert compiled_model
 
 # ! [ov:caching:part1]
-core = ov.Core()
 compiled_model = core.compile_model(model=model_path, device_name=device_name)
 # ! [ov:caching:part1]
 
