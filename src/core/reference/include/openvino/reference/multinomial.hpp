@@ -8,8 +8,8 @@
 #include <cstddef>
 #include <ngraph/shape.hpp>
 #include <openvino/reference/broadcast.hpp>
-#include <openvino/reference/copy.hpp>
 #include <openvino/reference/convert.hpp>
+#include <openvino/reference/copy.hpp>
 #include <openvino/reference/cum_sum.hpp>
 #include <openvino/reference/divide.hpp>
 #include <openvino/reference/exp.hpp>
@@ -26,7 +26,7 @@ void multinomial(const INPUT_T* input,            // either vector or 2d matrix
                  const SAMPLES_T* num_samples,    // vector only
                  const Shape& num_samples_shape,  // (n), n<=c (c - count of positive values from input, if input is
                                                   // vector - from whole input, else from each row)
-                 OUTPUT_T* output,          // if input == vector: (n) else: (x, n)
+                 OUTPUT_T* output,                // if input == vector: (n) else: (x, n)
                  const Shape& output_shape,       // (n) or (x, n)
                  const bool with_replacement,
                  const bool log_probs,
@@ -91,7 +91,11 @@ void multinomial(const INPUT_T* input,            // either vector or 2d matrix
               input_shape,
               target_axis_set,
               sizeof(INPUT_T));
-    divide<INPUT_T>(static_cast<INPUT_T*>(cdf), static_cast<INPUT_T*>(max_value_elem_divisor), static_cast<INPUT_T*>(cdf), total_inputs_elements_count, false);
+    divide<INPUT_T>(static_cast<INPUT_T*>(cdf),
+                    static_cast<INPUT_T*>(max_value_elem_divisor),
+                    static_cast<INPUT_T*>(cdf),
+                    total_inputs_elements_count,
+                    false);
 
     // Generate random probability samples
     void* uniform_samples = malloc(sizeof(double) * total_output_elements_count);
@@ -150,7 +154,6 @@ void multinomial(const INPUT_T* input,            // either vector or 2d matrix
     free(max_value_per_channel);
     free(cdf);
     free(input_vals);
-
 }
 }  // namespace multinomial
 }  // namespace reference

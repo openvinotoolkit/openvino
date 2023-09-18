@@ -450,8 +450,8 @@ extern template bool evaluate_node<ov::op::v12::GroupNormalization>(std::shared_
                                                                     const ov::HostTensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
-                                                                    const ov::HostTensorVector& outputs,
-                                                                    const ov::HostTensorVector& inputs);
+                                                             const ov::HostTensorVector& outputs,
+                                                             const ov::HostTensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ngraph::Node> node,
                                                                 const ngraph::HostTensorVector& outputs,

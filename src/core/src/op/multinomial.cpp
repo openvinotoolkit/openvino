@@ -3,17 +3,16 @@
 //
 
 #include "openvino/op/multinomial.hpp"
-#include "openvino/reference/multinomial.hpp"
-
 
 #include <cstring>
 
-#include "itt.hpp"
 #include "bound_evaluate.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/util/op_types.hpp"
+#include "itt.hpp"
 #include "multinomial_shape_inference.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/reference/multinomial.hpp"
 
 namespace ov {
 
@@ -32,17 +31,17 @@ void input_types(const Node* op) {
 }
 }  // namespace
 }  // namespace validate
-}  // namespace nms_rotated
+}  // namespace multinomial
 }  // namespace op
 // ------------------------------ v13 ------------------------------
 
 op::v13::Multinomial::Multinomial(const Output<Node>& input,
-                                    const Output<Node>& num_samples,
-                                    const ov::element::Type_t output_type,
-                                    const bool with_replacement,
-                                    const bool log_probs,
-                                    const int64_t global_seed,
-                                    const int64_t op_seed)
+                                  const Output<Node>& num_samples,
+                                  const ov::element::Type_t output_type,
+                                  const bool with_replacement,
+                                  const bool log_probs,
+                                  const int64_t global_seed,
+                                  const int64_t op_seed)
     : Op({input, num_samples}),
       m_output_type{output_type},
       m_with_replacement{with_replacement},
@@ -58,12 +57,12 @@ std::shared_ptr<Node> op::v13::Multinomial::clone_with_new_inputs(const OutputVe
     NODE_VALIDATION_CHECK(this, new_args.size() == 2, "Number of inputs must be equal to 2");
 
     return std::make_shared<op::v13::Multinomial>(new_args.at(0),
-                                                 new_args.at(1),
-                                                 m_output_type,
-                                                 m_with_replacement,
-                                                 m_log_probs,
-                                                 m_global_seed,
-                                                 m_op_seed);
+                                                  new_args.at(1),
+                                                  m_output_type,
+                                                  m_with_replacement,
+                                                  m_log_probs,
+                                                  m_global_seed,
+                                                  m_op_seed);
 }
 
 bool op::v13::Multinomial::visit_attributes(AttributeVisitor& visitor) {
