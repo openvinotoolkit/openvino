@@ -22,6 +22,12 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/automation/version.txt.in"
 
 if(ENABLE_TESTS)
     install(FILES requirements_dev.txt
+                  requirements_caffe.txt
+                  requirements_kaldi.txt
+                  requirements_mxnet.txt
+                  requirements_onnx.txt
+                  requirements_tf.txt
+                  requirements_tf2.txt
             DESTINATION tests/mo
             COMPONENT tests
             EXCLUDE_FROM_ALL)
