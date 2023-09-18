@@ -189,14 +189,13 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                     }
                 } else if (in0_rank.is_static()) {
                     // attempt to create second input
-                    int64_t num_ones = 0;
                     std::vector<int64_t> in1_data;
                     for (size_t i = 0; i < in0_pshape.size(); i++) {
                         if (in0_pshape[i] == 1) {
                             in1_data.push_back(i);
-                            num_ones++;
                         }
                     }
+                    int64_t num_ones = in1_data.size();
                     if (num_ones == in0_rank.get_length() - output_shape.rank().get_length()) {
                         auto axes = ov::op::v0::Constant::create(element::i64, Shape{in1_data.size()}, in1_data);
                         auto new_squeeze = std::make_shared<ov::op::v0::Squeeze>(op->get_input_source_output(0), axes);
