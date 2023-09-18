@@ -71,6 +71,27 @@ TEST_P(ov_multithreading_test, get_property) {
     ov_core_free(core);
 }
 
+TEST_P(ov_multithreading_test, read_model) {
+    auto device_name = GetParam();
+
+    std::atomic<unsigned int> counter{0u};
+    set_up_networks();
+    run_parallel([&]() {
+        auto value = counter++;
+        ov_core_t* core = nullptr;
+        OV_EXPECT_OK(ov_core_create(&core));
+        EXPECT_NE(nullptr, core);
+        ov_model_t* model = nullptr;
+        std::string model_path = networks[value % networks.size()].first,
+                    bin_path = networks[value % networks.size()].second;
+        OV_EXPECT_OK(ov_core_read_model(core, model_path.c_str(), bin_path.c_str(), &model));
+        EXPECT_NE(nullptr, model);
+        
+        ov_model_free(model);
+        ov_core_free(core);
+    });
+}
+
 TEST_P(ov_multithreading_test, compile_model) {
     auto device_name = GetParam();
 
