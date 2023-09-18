@@ -18,14 +18,13 @@
 Given a list of probabilities x1,x2, ..., xn:
 * If *log_probs* is true:
   * For each probability x, replace it with a value e^x
-* Create a cumulative sum of those probabilities, ie. create an array of values where the ith value is the sum of the probabilities x1, ..., xi
-* Divide the created array by its last (maximum) value to normalize the cumulative probabilities between [0, 1]
-* Randomly generate a sequence of floats in the range range [0,1]
-* For each generated number, assign the class with the lowest index for which the cumulative probability is less or equal the generated value.
-* If *with_replacement* is False (sampling without replacement)
-  * Set the class probability to 0 by adjusting the cumulative sum
-  * Assume class with index i has been selected - then every cdf value starting at i-th index should be lowered by the probability of the selected class
-  * Afterwards, divide the cdf by its last (maximum) value to normalize the cumulative probabilities between [0, 1]
+* Create a CDF ([Cumulative Distribution Function](https://en.wikipedia.org/wiki/Cumulative_distribution_function)) - the cumulative sum of those probabilities, ie. create an array of values where the ith value is the sum of the probabilities x1, ..., xi
+* Divide the created array by its maximum value to normalize the cumulative probabilities between the real values in the range [0, 1]. Since CDF is a sorted, monotonically increasing function, the maximum value is the last value of the array.
+* Randomly generate a sequence of double-precision floating point numbers in the range [0, 1].
+* For each generated number, assign the class with the lowest index for which the cumulative probability is less or equal to the generated value.
+* If *with_replacement* is False (sampling without replacement):
+  * Assume a class with index i has been selected - then every CDF value starting at i-th index should be lowered by the original probability of the selected class. This effectively sets the probability of sampling the given class to 0.
+  * Afterwards, divide the CDF by its last (maximum) value to normalize the cumulative probabilities between the real values in the range [0, 1]
 * Convert the output indices to *output_type*
 * Return output indices
 
@@ -49,7 +48,7 @@ Example 3 - 1D tensor, without replacement
 * CDF of *input* = ``[0.1, 0.6, 1]``
 * Randomly generated floats = ``[0.3, 0.6]``
 * In a loop:
-* For a value of 0.3, class with idx *1* is selected 
+* For a value of 0.3, a class with idx *1* is selected 
 * Therefore, in CDF, for every class starting with idx *1* subtract the probability of class *1* = 0.5
 * CDF = ``[0.1, 0.6 - 0.5, 1.0 - 0.5]`` = ``[0.1, 0.1, 0.5]``
 * Normalize CDF by dividing by last value: CDF = ``[0.2, 0.2, 1.0]``
@@ -71,7 +70,7 @@ Example 3 - 1D tensor, without replacement
   * **Description**: controls whether to sample with replacement (classes can be sampled multiple times).
   * **Range of values**: `true`, `false`
       * ``true`` - class indices can be sampled multiple times.
-      * ``false`` - class indices will not repeat in the output and size of *input*'s ``class_size`` dimension is required to be larger or equal to *num_samples* value. Might affect performance.
+      * ``false`` - class indices will not repeat in the output and the size of *input*'s ``class_size`` dimension is required to be larger or equal to *num_samples* value. Might affect performance.
   * **Type**: `bool`
   * **Required**: *Yes*
 
