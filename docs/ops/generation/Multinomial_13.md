@@ -15,6 +15,7 @@
 
 **Algorithm formulation**:
 
+Note: Notation [a, b] => {x ~ R, a<=x<=b} - range of real numbers between a and b.
 Given a list of probabilities x1,x2, ..., xn:
 * If *log_probs* is true:
   * For each probability x, replace it with a value e^x
