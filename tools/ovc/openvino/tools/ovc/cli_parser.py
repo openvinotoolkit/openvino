@@ -129,19 +129,7 @@ def input_to_input_cut_info(input: [dict, tuple, list]):
     :param input: input cut parameters passed by user
     :return: list of InputCutInfo with input cut parameters
     """
-    if input is None:
-        return []
-    if isinstance(input, str):
-        inputs = []
-        # Split to list of string
-        for input_value in split_inputs(input):
 
-            # Parse string with parameters for single input
-            node_name, shape = parse_input_value(input_value)
-            # pylint: disable=no-member
-            inputs.append(_InputCutInfo(node_name,
-                                        PartialShape(shape) if shape is not None else None))
-        return inputs
     if isinstance(input, (tuple, list)):
         if len(input) == 0:
             return []

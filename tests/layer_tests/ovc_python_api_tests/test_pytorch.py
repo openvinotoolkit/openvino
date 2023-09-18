@@ -1104,7 +1104,15 @@ class ConvertRaises(unittest.TestCase):
         from openvino.tools.ovc import convert_model
         pytorch_model, _, _ = create_pytorch_nn_module_case1('')
 
-        # check that it accepts specified names as is without parsing into 2 different inputs
+        # check that it accepts specified names as is, without parsing into 2 different inputs
+        with self.assertRaisesRegex(Exception, 'No node with name input1,input2'):
+            convert_model(pytorch_model, input='input1,input2')
+
+    def test_incorrect_inputs_3(self):
+        from openvino.tools.ovc import convert_model
+        pytorch_model, _, _ = create_pytorch_nn_module_case1('')
+
+        # check that it accepts specified names as is, without parsing into 2 different inputs
         with self.assertRaisesRegex(Exception, 'No node with name input1\[1, 10\],input2\[2, 100\]'):
             convert_model(pytorch_model, input='input1[1, 10],input2[2, 100]')
 
