@@ -320,6 +320,9 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo -E apt update
+          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
+          
           python3 -m pip install -r ${{ env.CONFORMANCE_TOOLS_DIR }}/requirements.txt
 
       #
@@ -841,7 +844,7 @@ jobs:
 #    env:
 #      INSTALL_DIR: ${{ github.workspace }}/install
 #      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-#      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/run_parallel.py
+#      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
 #      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
 #
 #    steps:
