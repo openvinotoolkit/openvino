@@ -759,16 +759,6 @@ jobs:
         run: |
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: 'openvino'
-          submodules: 'recursive'
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -791,10 +781,14 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
       - name: Install system dependencies
         run: |
           sudo -E apt update
-          sudo -E apt --assume-yes install libpugixml
+          sudo -E apt --assume-yes install libpugixml-dev
 
       - name: Install Python wheels
         run: |
@@ -804,11 +798,11 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/tools/mo/requirements_mxnet.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/tools/mo/requirements_caffe.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/tools/mo/requirements_kaldi.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/tools/mo/requirements_onnx.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/tools/mo/requirements_tf2.txt
 
       - name: Model Optimizer UT
         run: |
