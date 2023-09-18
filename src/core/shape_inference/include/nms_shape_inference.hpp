@@ -60,11 +60,20 @@ void num_boxes(const Node* const op, const std::vector<TShape>& input_shapes) {
 
 template <class TShape>
 void boxes_last_dim(const Node* const op, const std::vector<TShape>& input_shapes) {
-    // NODE_SHAPE_INFER_CHECK(op,
-    //                        input_shapes,
-    //                        input_shapes[0][2].compatible(4),
-    //                        "The last dimension of the 'boxes' input must be equal to 4");
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           input_shapes[0][2].compatible(4),
+                           "The last dimension of the 'boxes' input must be equal to 4");
 }
+
+template <class TShape>
+void boxes_last_dim_rotated(const Node* const op, const std::vector<TShape>& input_shapes) {
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           input_shapes[0][2].compatible(5) || input_shapes[0][2].compatible(8),
+                           "The last dimension of the 'boxes' input must be equal to 5 or 8.");
+}
+
 template <class T>
 void shapes(const Node* op, const std::vector<T>& input_shapes) {
     const auto inputs_size = input_shapes.size();
@@ -202,7 +211,12 @@ std::vector<TRShape> shape_infer(const Node* op,
             selected_boxes *= scores_shape[0].get_max_length();
             selected_boxes *= scores_shape[1].get_max_length();
         }
-        nms::validate::boxes_last_dim(op, input_shapes);
+
+        if (ov::is_type<v13::NMSRotated>(op)) {
+            nms::validate::boxes_last_dim_rotated(op, input_shapes);
+        } else {
+            nms::validate::boxes_last_dim(op, input_shapes);
+        }
     }
 
     auto output_shapes = std::vector<TRShape>(2, out_shape);
