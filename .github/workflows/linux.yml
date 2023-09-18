@@ -382,666 +382,666 @@ jobs:
           if-no-files-found: 'error'
 
 
-#  CXX_Unit_Tests:
-#    needs: Build
-#    defaults:
-#      run:
-#        shell: bash
-#    runs-on: ubuntu-20.04
-#    env:
-#      INSTALL_DIR: ${{ github.workspace }}/install
-#      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-#
-#    steps:
-#      - name: Create Directories
-#        run: |
-#          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-#
-#      #
-#      # Dependencies
-#      #
-#
-#      - name: Install dependencies
-#        run: |
-#          sudo -E apt update
-#          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
-#
-#      - name: Download OpenVINO package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_package
-#          path: ${{ env.INSTALL_DIR }}
-#
-#      - name: Download OpenVINO tests package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_tests
-#          path: ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Extract OpenVINO packages
-#        run: |
-#          pushd ${{ env.INSTALL_DIR }}
-#            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
-#          popd
-#          pushd ${{ env.INSTALL_TEST_DIR }}
-#            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
-#          popd
-#
-#      #
-#      # Tests
-#      #
-#
-#      - name: OpenVINO Core Unit Tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
-#
-#      - name: OpenVINO Inference Functional Tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml
-#
-#      - name: OpenVINO Inference Unit Tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_inference_unit_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceUnit.xml
-#
-#      - name: Low Precision Transformations Tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
-#
-#      - name: OpenVINO Conditional compilation tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_conditional_compilation_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ConditionalCompilation.xml
-#
-#      - name: IR frontend tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
-#
-#      # Disabled in Azure: https://github.com/openvinotoolkit/openvino/blob/master/.ci/azure/linux.yml#L403
-#      # - name: PaddlePaddle frontend tests
-#      #   run: |
-#      #     source ${{ env.INSTALL_DIR }}/setupvars.sh
-#      #     ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* \
-#      #           --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
-#
-#      # Present in the "Build" job as these tests require build directory
-#      # - name: ONNX frontend tests
-#      #   run: |
-#      #     source ${{ env.INSTALL_DIR }}/setupvars.sh
-#      #     ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
-#      #           --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
-#
-#      - name: TensorFlow Common tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_common_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowCommonFrontend.xml
-#
-#      - name: TensorFlow frontend tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
-#
-#      - name: TensorFlow Lite frontend tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
-#
-#      - name: Transformations Tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
-#
-#      - name: Common test utils tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CommonUtilTests.xml
-#
-#      - name: Snippets func tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
-#
-#      - name: CPU plugin unit tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
-#
-#      # Disabled in Azure: https://github.com/openvinotoolkit/openvino/blob/master/.ci/azure/linux.yml#L409
-#      # - name: GNA plugin unit tests
-#      #   run: |
-#      #     source ${{ env.INSTALL_DIR }}/setupvars.sh
-#      #     ${{ env.INSTALL_TEST_DIR }}/ov_gna_unit_tests --gtest_print_time=1 \
-#      #           --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GNAUnitTests.xml
-#
-#      - name: AUTO UT
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_auto_unit_tests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_unit_tests.xml
-#
-#      - name: Template plugin tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 \
-#                --gtest_filter=*smoke* \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
-#
-#      - name: Inference Engine C API tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/InferenceEngineCAPITests --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceEngineCAPITests.xml
-#
-#      - name: OpenVINO C API tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
-#
-#      - name: AutoBatch FuncTests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml
-#
-#      - name: Proxy Plugin Tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
-#
-#      - name: Hetero Unit Tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
-#
-#      - name: Hetero Func Tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
-#
-#      - name: Upload Test Results
-#        uses: actions/upload-artifact@v3
-#        if: ${{ always() }}
-#        with:
-#          name: test-results-cpp
-#          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-#          if-no-files-found: 'error'
+  CXX_Unit_Tests:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-20.04
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
 
-#  Python_Unit_Tests:
-#    needs: Build
-#    defaults:
-#      run:
-#        shell: bash
-#    runs-on: ubuntu-20.04
-#    env:
-#      OPENVINO_REPO: ${{ github.workspace }}/openvino
-#      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
-#      INSTALL_DIR: ${{ github.workspace }}/install
-#      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-#      SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
-#      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
-#      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-#      BUILD_DIR: ${{ github.workspace }}/build
-#      DATA_PATH: ${{ github.workspace }}/testdata
-#      MODELS_PATH: ${{ github.workspace }}/testdata
-#      OV_TEMP: ${{ github.workspace }}/openvino_temp
-#      PYTHON_STATIC_ARGS: -m "not dynamic_library"
-#
-#    steps:
-#      - name: Create Directories
-#        run: |
-#          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Clone OpenVINO
-#        uses: actions/checkout@v4
-#        with:
-#          path: 'openvino'
-#          submodules: 'recursive'
-#
-#      #
-#      # Dependencies
-#      #
-#
-#      - name: Install dependencies
-#        run: |
-#          sudo -E apt update
-#          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
-#
-#      - uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.11'
-#
-#      - name: Install python dependencies
-#        run: |
-#          # For Python API
-#          python3 -m pip install --upgrade pip
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
-#
-#          # For running Python API tests
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-#
-#          # For running ONNX frontend unit tests
-#          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
-#
-#          # For running TensorFlow frontend unit tests
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
-#
-#          # For running Paddle frontend unit tests
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
-#
-#          # For torchvision to OpenVINO preprocessing converter
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
-#
-#      - name: Install MO dependencies
-#        run: |
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
-#
-#      - name: Download OpenVINO package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_package
-#          path: ${{ env.INSTALL_DIR }}
-#
-#      - name: Download OpenVINO tests package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_tests
-#          path: ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Extract OpenVINO packages
-#        run: |
-#          pushd ${{ env.INSTALL_DIR }}
-#            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
-#          popd
-#
-#          pushd ${{ env.INSTALL_TEST_DIR }}
-#            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
-#          popd
-#
-#      - name: Install Python wheels
-#        run: |
-#          python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
-#
-#      - name: nGraph and IE Python Bindings Tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph  ${{ env.PYTHON_STATIC_ARGS }} \
-#            --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
-#            --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_zoo_models.py \
-#            --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_backend.py
-#
-#      - name: Python API 2.0 Tests
-#        run: |
-#          # For python imports to import pybind_mock_frontend
-#          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
-#
-#          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} \
-#            --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
-#            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py \
-#            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_zoo_models.py \
-#            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_backend.py
-#
-#      - name: Python API snippets
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:${{ github.workspace }}/openvino/docs/:$PYTHONPATH
-#          export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
-#
-#          python3 ${{ github.workspace }}/openvino/docs/snippets/main.py
-#
-#      - name: Model Optimizer UT
-#        run: |
-#
-#          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:${{ env.INSTALL_TEST_DIR }}:${{ env.INSTALL_DIR }}/python/python3.11:$PYTHONPATH
-#
-#          # TODO: figure out why they need to be reinstalled
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
-#
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests \
-#              --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
-#
-#      - name: PyTorch Layer Tests
-#        run: |
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
-#        env:
-#          TEST_DEVICE: CPU
-#          TEST_PRECISION: FP16
-#
-#      - name: TensorFlow 1 Layer Tests - TF FE
-#        run: |
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#
-#          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
-#        env:
-#          TEST_DEVICE: CPU
-#          TEST_PRECISION: FP16
-#
-#      - name: TensorFlow 2 Layer Tests - TF FE
-#        run: |
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
-#        env:
-#          TEST_DEVICE: CPU
-#          TEST_PRECISION: FP16
-#
-#      - name: JAX Layer Tests - TF FE
-#        run: |
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#          export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
-#        env:
-#          TEST_DEVICE: CPU
-#
-#      - name: TensorFlow 1 Layer Tests - Legacy FE
-#        run: |
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
-#
-#      - name: TensorFlow 2 Layer Tests - Legacy FE
-#        run: |
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
-#              --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
-#        env:
-#          TEST_DEVICE: CPU
-#          TEST_PRECISION: FP16
-#
-#      - name: TensorFlow Lite Layer Tests - TFL FE
-#        run: |
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
-#        env:
-#          TEST_DEVICE: CPU
-#          TEST_PRECISION: FP16
-#
-#      - name: MO Python API Tests
-#        run: |
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
-#        env:
-#          TEST_DEVICE: CPU
-#          TEST_PRECISION: FP16
-#
-#      - name: Python Frontend tests
-#        run: |
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
-#
-#      - name: Conversion UT
-#        run: |
-#          # For python imports to import pybind_mock_frontend
-#          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
-#
-#      - name: Upload Test Results
-#        uses: actions/upload-artifact@v3
-#        if: ${{ always() }}
-#        with:
-#          name: test-results-python
-#          path: |
-#            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
-#            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-#          if-no-files-found: 'error'
-#
-#  CPU_Functional_Tests:
-#    needs: Build
-#    defaults:
-#      run:
-#        shell: bash
-#    runs-on: ubuntu-20.04-4-cores
-#    env:
-#      INSTALL_DIR: ${{ github.workspace }}/install
-#      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-#      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/run_parallel.py
-#      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
-#
-#    steps:
-#      - name: Create Directories
-#        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Install dependencies
-#        run: |
-#          sudo -E apt update
-#          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
-#
-#      - name: Download OpenVINO package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_package
-#          path: ${{ env.INSTALL_DIR }}
-#
-#      - name: Download OpenVINO tests package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_tests
-#          path: ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Extract OpenVINO packages
-#        run: |
-#          pushd ${{ env.INSTALL_DIR }}
-#            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
-#          popd
-#          pushd ${{ env.INSTALL_TEST_DIR }}
-#            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
-#          popd
-#
-#      - name: Install python dependencies
-#        run: |
-#          python3 -m pip install --upgrade pip
-#          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
-#
-#      - name: Cache Tests Execution Time
-#        id: tests-functional-cpu-cache
-#        uses: actions/cache@v3
-#        with:
-#          path: ${{ env.PARALLEL_TEST_CACHE }}
-#          key: ${{ runner.os }}-tests-functional-cpu-cache
-#
-#      - name: Intel CPU plugin func tests (parallel)
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-#        timeout-minutes: 25
-#
-#      - name: Upload Test Results
-#        uses: actions/upload-artifact@v3
-#        if: ${{ always() }}
-#        with:
-#          name: test-results-functional-cpu
-#          path: |
-#            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-#            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
-#            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
-#            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
-#            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-#            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
-#          if-no-files-found: 'error'
-#
-#  TensorFlow_Hub_Models_Tests:
-#    needs: Build
-#    defaults:
-#      run:
-#        shell: bash
-#    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
-#    env:
-#      INSTALL_DIR: ${{ github.workspace }}/install
-#      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-#      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-#
-#    steps:
-#      - name: Create Directories
-#        run: |
-#          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-#
-#      - uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.11'
-#
-#      - name: Download OpenVINO package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_package
-#          path: ${{ env.INSTALL_DIR }}
-#
-#      - name: Download OpenVINO tests package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_tests
-#          path: ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Extract OpenVINO packages
-#        run: |
-#          pushd ${{ env.INSTALL_DIR }}
-#            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
-#          popd
-#
-#          pushd ${{ env.INSTALL_TEST_DIR }}
-#            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
-#          popd
-#
-#      - name: Install Python wheels
-#        run: |
-#          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
-#
-#      - name: TensorFlow Hub Tests - TF FE
-#        run: |
-#          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
-#
-#          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#
-#          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.html --self-contained-html
-#        env:
-#          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
-#          TEST_DEVICE: CPU
-#
-#      - name: Upload Test Results
-#        uses: actions/upload-artifact@v3
-#        if: ${{ always() }}
-#        with:
-#          name: test-results-tensorflow-hub-models
-#          path: |
-#            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
-#          if-no-files-found: 'error'
-#
-#  PyTorch_Models_Tests:
-#    needs: Build
-#    defaults:
-#      run:
-#        shell: bash
-#    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
-#    env:
-#      INSTALL_DIR: ${{ github.workspace }}/install
-#      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-#      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-#
-#    steps:
-#      - name: Create Directories
-#        run: |
-#          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-#      - uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.11'
-#
-#      - name: Download OpenVINO package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_package
-#          path: ${{ env.INSTALL_DIR }}
-#
-#      - name: Download OpenVINO tests package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_tests
-#          path: ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Extract OpenVINO packages
-#        run: |
-#          pushd ${{ env.INSTALL_DIR }}
-#            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
-#          popd
-#          pushd ${{ env.INSTALL_TEST_DIR }}
-#            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
-#          popd
-#      - name: Install Python wheels
-#        run: |
-#          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
-#      - name: PyTorch Models Tests
-#        run: |
-#          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
-#          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-#          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html
-#        env:
-#          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
-#          TEST_DEVICE: CPU
-#
-#      - name: Upload Test Results
-#        uses: actions/upload-artifact@v3
-#        if: ${{ always() }}
-#        with:
-#          name: test-results-torch-models
-#          path: |
-#            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
-#          if-no-files-found: 'error'
+    steps:
+      - name: Create Directories
+        run: |
+          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+
+      #
+      # Dependencies
+      #
+
+      - name: Install dependencies
+        run: |
+          sudo -E apt update
+          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          popd
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      #
+      # Tests
+      #
+
+      - name: OpenVINO Core Unit Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
+
+      - name: OpenVINO Inference Functional Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml
+
+      - name: OpenVINO Inference Unit Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_inference_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceUnit.xml
+
+      - name: Low Precision Transformations Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
+
+      - name: OpenVINO Conditional compilation tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_conditional_compilation_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ConditionalCompilation.xml
+
+      - name: IR frontend tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
+
+      # Disabled in Azure: https://github.com/openvinotoolkit/openvino/blob/master/.ci/azure/linux.yml#L403
+      # - name: PaddlePaddle frontend tests
+      #   run: |
+      #     source ${{ env.INSTALL_DIR }}/setupvars.sh
+      #     ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* \
+      #           --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
+
+      # Present in the "Build" job as these tests require build directory
+      # - name: ONNX frontend tests
+      #   run: |
+      #     source ${{ env.INSTALL_DIR }}/setupvars.sh
+      #     ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
+      #           --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
+
+      - name: TensorFlow Common tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_common_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowCommonFrontend.xml
+
+      - name: TensorFlow frontend tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
+
+      - name: TensorFlow Lite frontend tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
+
+      - name: Transformations Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
+
+      - name: Common test utils tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CommonUtilTests.xml
+
+      - name: Snippets func tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
+
+      - name: CPU plugin unit tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
+
+      # Disabled in Azure: https://github.com/openvinotoolkit/openvino/blob/master/.ci/azure/linux.yml#L409
+      # - name: GNA plugin unit tests
+      #   run: |
+      #     source ${{ env.INSTALL_DIR }}/setupvars.sh
+      #     ${{ env.INSTALL_TEST_DIR }}/ov_gna_unit_tests --gtest_print_time=1 \
+      #           --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GNAUnitTests.xml
+
+      - name: AUTO UT
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_auto_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_unit_tests.xml
+
+      - name: Template plugin tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 \
+                --gtest_filter=*smoke* \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
+
+      - name: Inference Engine C API tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/InferenceEngineCAPITests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceEngineCAPITests.xml
+
+      - name: OpenVINO C API tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
+
+      - name: AutoBatch FuncTests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml
+
+      - name: Proxy Plugin Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
+
+      - name: Hetero Unit Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
+
+      - name: Hetero Func Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-cpp
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
+
+  Python_Unit_Tests:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-20.04
+    env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
+      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      BUILD_DIR: ${{ github.workspace }}/build
+      DATA_PATH: ${{ github.workspace }}/testdata
+      MODELS_PATH: ${{ github.workspace }}/testdata
+      OV_TEMP: ${{ github.workspace }}/openvino_temp
+      PYTHON_STATIC_ARGS: -m "not dynamic_library"
+
+    steps:
+      - name: Create Directories
+        run: |
+          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
+      #
+      # Dependencies
+      #
+
+      - name: Install dependencies
+        run: |
+          sudo -E apt update
+          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install python dependencies
+        run: |
+          # For Python API
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
+
+          # For running Python API tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+
+          # For running ONNX frontend unit tests
+          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
+
+          # For running TensorFlow frontend unit tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
+
+          # For running Paddle frontend unit tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+
+          # For torchvision to OpenVINO preprocessing converter
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
+
+      - name: Install MO dependencies
+        run: |
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          popd
+
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      - name: Install Python wheels
+        run: |
+          python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
+
+      - name: nGraph and IE Python Bindings Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph  ${{ env.PYTHON_STATIC_ARGS }} \
+            --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
+            --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_zoo_models.py \
+            --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_backend.py
+
+      - name: Python API 2.0 Tests
+        run: |
+          # For python imports to import pybind_mock_frontend
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
+
+          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} \
+            --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
+            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py \
+            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_zoo_models.py \
+            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_backend.py
+
+      - name: Python API snippets
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:${{ github.workspace }}/openvino/docs/:$PYTHONPATH
+          export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
+
+          python3 ${{ github.workspace }}/openvino/docs/snippets/main.py
+
+      - name: Model Optimizer UT
+        run: |
+
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:${{ env.INSTALL_TEST_DIR }}:${{ env.INSTALL_DIR }}/python/python3.11:$PYTHONPATH
+
+          # TODO: figure out why they need to be reinstalled
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
+
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests \
+              --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
+
+      - name: PyTorch Layer Tests
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow 1 Layer Tests - TF FE
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow 2 Layer Tests - TF FE
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: JAX Layer Tests - TF FE
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
+        env:
+          TEST_DEVICE: CPU
+
+      - name: TensorFlow 1 Layer Tests - Legacy FE
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
+
+      - name: TensorFlow 2 Layer Tests - Legacy FE
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
+              --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow Lite Layer Tests - TFL FE
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: MO Python API Tests
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: Python Frontend tests
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
+
+      - name: Conversion UT
+        run: |
+          # For python imports to import pybind_mock_frontend
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-python
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
+
+  CPU_Functional_Tests:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-20.04-4-cores
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/run_parallel.py
+      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
+
+    steps:
+      - name: Create Directories
+        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Install dependencies
+        run: |
+          sudo -E apt update
+          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          popd
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
+
+      - name: Cache Tests Execution Time
+        id: tests-functional-cpu-cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-cache
+
+      - name: Intel CPU plugin func tests (parallel)
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+        timeout-minutes: 25
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-functional-cpu
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
+          if-no-files-found: 'error'
+
+  TensorFlow_Hub_Models_Tests:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+
+    steps:
+      - name: Create Directories
+        run: |
+          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          popd
+
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      - name: Install Python wheels
+        run: |
+          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+
+      - name: TensorFlow Hub Tests - TF FE
+        run: |
+          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
+
+          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.html --self-contained-html
+        env:
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TEST_DEVICE: CPU
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-tensorflow-hub-models
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+          if-no-files-found: 'error'
+
+  PyTorch_Models_Tests:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+
+    steps:
+      - name: Create Directories
+        run: |
+          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          popd
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          popd
+      - name: Install Python wheels
+        run: |
+          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+      - name: PyTorch Models Tests
+        run: |
+          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
+          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html
+        env:
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TEST_DEVICE: CPU
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-torch-models
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+          if-no-files-found: 'error'
