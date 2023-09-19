@@ -187,8 +187,7 @@ def create_pytorch_nn_module_case3(tmp_dir):
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = tuple([sample_input1, sample_input2])
-
-    return pt_model, ref_model, {'input': "[?,3,?,?],[?,3,?,?]",
+    return pt_model, ref_model, {'input': [[-1, 3, -1, -1], [-1, 3, -1, -1]],
                                  'example_input': sample_input}
 
 
