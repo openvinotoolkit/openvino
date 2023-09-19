@@ -213,8 +213,6 @@ ov::pass::VisualizeTree::VisualizeTree(const std::string& file_name, node_modifi
 void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                                                  std::unordered_map<Node*, HeightMap>& height_maps,
                                                  size_t& fake_node_ctr) {
-    static const int const_max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
-
     size_t arg_index = 0;
     for (auto input_value : node->input_values()) {
         auto arg = input_value.get_node_shared_ptr();
@@ -227,7 +225,7 @@ void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                                                 "style=\"dashed\"",
                                                 color,
                                                 std::string("label=\"") + get_node_name(arg) + std::string("\n") +
-                                                    get_constant_value(arg, const_max_elements) + std::string("\"")};
+                                                    get_constant_value(arg) + std::string("\"")};
 
             if (m_node_modifiers && !arg->output(0).get_rt_info().empty()) {
                 m_node_modifiers(*arg, attributes);
@@ -280,13 +278,7 @@ std::string ov::pass::VisualizeTree::add_attributes(std::shared_ptr<Node> node) 
 
 static std::string pretty_partial_shape(const ov::PartialShape& shape) {
     std::stringstream ss;
-
-    if (shape.rank().is_dynamic()) {
-        ss << "?";
-    } else {
-        ss << shape;
-    }
-
+    ss << shape;
     return ss.str();
 }
 
@@ -327,21 +319,11 @@ static std::string pretty_min_max_denormal_value(const std::vector<T>& values) {
 }
 
 template <typename T>
-static std::string pretty_value(const std::vector<T>& values, size_t max_elements, bool allow_obfuscate = false) {
+static std::string pretty_value(const std::vector<T>& values, bool allow_obfuscate = false) {
     std::stringstream ss;
     for (size_t i = 0; i < values.size(); ++i) {
-        if (i < max_elements) {
-            if (i != 0 && i % 8 == 0) {
-                ss << std::endl;
-            }
-        } else {
-            bool all_same = std::all_of(values.begin(), values.end(), [&](const T& el) {
-                return el == values[0];
-            });
-            ss << "..." << (all_same ? " same" : "");
-            break;
-        }
-
+        if (i != 0 && i % 8 == 0)
+            ss << std::endl;
         const auto& value = values[i];
         if (i > 0)
             ss << ", ";
@@ -361,46 +343,46 @@ static std::string pretty_value(const std::vector<T>& values, size_t max_element
     return ss.str();
 }
 
-static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& constant,
-                             size_t max_elements,
-                             bool allow_obfuscate = false) {
+static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& constant, bool allow_obfuscate = false) {
+    static const int max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
     std::stringstream ss;
+    ss << "[ ";
     switch (constant->get_output_element_type(0)) {
     case ov::element::Type_t::undefined:
-        ss << "[ undefined value ]";
-        break;
     case ov::element::Type_t::dynamic:
-        ss << "[ dynamic value ]";
-        break;
     case ov::element::Type_t::u1:
-        ss << "[ u1 value ]";
-        break;
     case ov::element::Type_t::u4:
-        ss << "[ u4 value ]";
-        break;
     case ov::element::Type_t::i4:
-        ss << "[ i4 value ]";
+        ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
     case ov::element::Type_t::bf16:
     case ov::element::Type_t::f16:
     case ov::element::Type_t::f32:
     case ov::element::Type_t::f64:
-        ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements, allow_obfuscate) << "]";
+        ss << pretty_value(constant->cast_vector<double>(max_elements), allow_obfuscate);
         break;
     case ov::element::Type_t::i8:
     case ov::element::Type_t::i16:
     case ov::element::Type_t::i32:
     case ov::element::Type_t::i64:
-        ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements, allow_obfuscate) << "]";
+        ss << pretty_value(constant->cast_vector<int64_t>(max_elements), allow_obfuscate);
         break;
     case ov::element::Type_t::boolean:
     case ov::element::Type_t::u8:
     case ov::element::Type_t::u16:
     case ov::element::Type_t::u32:
     case ov::element::Type_t::u64:
-        ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements, allow_obfuscate) << "]";
+        ss << pretty_value(constant->cast_vector<uint64_t>(max_elements), allow_obfuscate);
         break;
     }
+    const auto num_elements_in_constant = static_cast<int>(shape_size(constant->get_shape()));
+    if (num_elements_in_constant == 0)
+        ss << "empty";
+    else if (max_elements == 0)
+        ss << "suppressed";
+    else if (num_elements_in_constant > max_elements)
+        ss << ", ...";
+    ss << " ]";
     return ss.str();
 }
 
@@ -418,12 +400,9 @@ static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) 
     if (size == 0) {
         label << "empty";
     } else {
-        static const int const_max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
-        label << " lower: "
-              << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), const_max_elements, true) : "NONE");
-        label << " upper: "
-              << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), const_max_elements, true) : "NONE");
-        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label, const_max_elements));
+        label << " lower: " << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), true) : "NONE");
+        label << " upper: " << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), true) : "NONE");
+        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label));
     }
     return label.str();
 }
