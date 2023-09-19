@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/hswish.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/hswish.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -14,7 +15,10 @@ using namespace InferenceEngine;
 namespace {
 struct HSwishParams {
     template <class IT>
-    HSwishParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    HSwishParams(const ov::PartialShape& shape,
+                 const ov::element::Type& iType,
+                 const std::vector<IT>& iValues,
+                 const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
@@ -46,11 +50,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& HSwishected_output_type) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const element::Type& HSwishected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto HSwish = std::make_shared<op::v4::HSwish>(in);
-        return std::make_shared<ov::Model>(NodeVector {HSwish}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector{HSwish}, ParameterVector{in});
     }
 };
 
@@ -58,29 +63,25 @@ TEST_P(ReferenceHSwishLayerTest, CompareWithRefs) {
     Exec();
 }
 
-
 template <element::Type_t IN_ET>
 std::vector<HSwishParams> generateHSwishFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<HSwishParams> hSwishParams {
-        HSwishParams(ov::PartialShape {2, 3},
-                    IN_ET,
-                    std::vector<T>{1.f, 8.f, -8.f, 17.f, -0.5f, -1.f},
-                    std::vector<T>{0.66666667f, 8.f, 0.f, 17.f, -0.20833333f, -0.33333333f}),
-        HSwishParams(ov::PartialShape {2, 2, 1, 2},
-                    IN_ET,
-                    std::vector<T>{0.1f, 0.6f, 20.f, -7.f, -5.3f, 3.5f, -9.f, 11.f},
-                    std::vector<T>{0.05166667f, 0.36f, 20.f, 0.f, 0.f, 3.5f, 0.f, 11.f})
-    };
+    std::vector<HSwishParams> hSwishParams{
+        HSwishParams(ov::PartialShape{2, 3},
+                     IN_ET,
+                     std::vector<T>{1.f, 8.f, -8.f, 17.f, -0.5f, -1.f},
+                     std::vector<T>{0.66666667f, 8.f, 0.f, 17.f, -0.20833333f, -0.33333333f}),
+        HSwishParams(ov::PartialShape{2, 2, 1, 2},
+                     IN_ET,
+                     std::vector<T>{0.1f, 0.6f, 20.f, -7.f, -5.3f, 3.5f, -9.f, 11.f},
+                     std::vector<T>{0.05166667f, 0.36f, 20.f, 0.f, 0.f, 3.5f, 0.f, 11.f})};
     return hSwishParams;
 }
 
 std::vector<HSwishParams> generateHSwishCombinedParams() {
-    const std::vector<std::vector<HSwishParams>> hSwishTypeParams {
-        generateHSwishFloatParams<element::Type_t::f32>(),
-        generateHSwishFloatParams<element::Type_t::f16>()
-        };
+    const std::vector<std::vector<HSwishParams>> hSwishTypeParams{generateHSwishFloatParams<element::Type_t::f32>(),
+                                                                  generateHSwishFloatParams<element::Type_t::f16>()};
     std::vector<HSwishParams> combinedParams;
 
     for (const auto& params : hSwishTypeParams) {
@@ -89,7 +90,9 @@ std::vector<HSwishParams> generateHSwishCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_HSwish_With_Hardcoded_Refs, ReferenceHSwishLayerTest,
-    testing::ValuesIn(generateHSwishCombinedParams()), ReferenceHSwishLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_HSwish_With_Hardcoded_Refs,
+                         ReferenceHSwishLayerTest,
+                         testing::ValuesIn(generateHSwishCombinedParams()),
+                         ReferenceHSwishLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

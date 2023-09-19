@@ -74,13 +74,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Model> CreateFunction(
-        const PartialShape& input_shape,
-        const element::Type& input_type,
-        const std::shared_ptr<ov::op::v0::Constant> indices,
-        const std::shared_ptr<ov::op::v0::Constant> offsets,
-        const std::shared_ptr<ov::op::v0::Constant> default_index,
-        const std::shared_ptr<ov::op::v0::Constant> per_sample_weights) {
+    static std::shared_ptr<ov::Model> CreateFunction(const PartialShape& input_shape,
+                                                     const element::Type& input_type,
+                                                     const std::shared_ptr<ov::op::v0::Constant> indices,
+                                                     const std::shared_ptr<ov::op::v0::Constant> offsets,
+                                                     const std::shared_ptr<ov::op::v0::Constant> default_index,
+                                                     const std::shared_ptr<ov::op::v0::Constant> per_sample_weights) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
 
         if (default_index) {
@@ -121,8 +120,8 @@ INSTANTIATE_TEST_SUITE_P(
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape({3}), std::vector<int32_t>{0, 2, 2}),
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{0}),
             std::make_shared<ov::op::v0::Constant>(element::f32,
-                                                       ov::Shape({4}),
-                                                       std::vector<float>{0.5, 0.5, 0.5, 0.5})),
+                                                   ov::Shape({4}),
+                                                   std::vector<float>{0.5, 0.5, 0.5, 0.5})),
         EmbeddingBagOffsetsSumParams(
             ov::PartialShape{5, 2},
             ov::element::f64,

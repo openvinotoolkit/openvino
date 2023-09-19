@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/asinh.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/asinh.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "base_reference_test.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov;
 
@@ -43,7 +44,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const Shape& shape, const element::Type& type) {
         const auto in = std::make_shared<op::v0::Parameter>(type, shape);
         const auto Asinh = std::make_shared<op::v3::Asinh>(in);
-        return std::make_shared<ov::Model>(NodeVector {Asinh}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector{Asinh}, ParameterVector{in});
     }
 };
 
@@ -54,46 +55,54 @@ TEST_P(ReferenceAsinhLayerTest, AsinhWithHardcodedRefs) {
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Asinh_With_Hardcoded_Refs, ReferenceAsinhLayerTest,
+    smoke_Asinh_With_Hardcoded_Refs,
+    ReferenceAsinhLayerTest,
     ::testing::Values(
-        Builder {}
-            .input({{11}, element::f16, std::vector<ov::float16> {0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f}})
-            .expected({{11}, element::f16, std::vector<ov::float16> {0.00000000f,
-                            0.88137359f,
-                            -0.88137359f,
-                            1.44363548f,
-                            -1.44363548f,
-                            1.81844646f,
-                            -1.81844646f,
-                            2.09471255f,
-                            2.31243834f,
-                            2.99822295f,
-                            5.29834237f}}),
-        Builder {}
-            .input({{11}, element::f32, std::vector<float> {0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f}})
-            .expected({{11}, element::f32, std::vector<float> {0.00000000f,
-                            0.88137359f,
-                            -0.88137359f,
-                            1.44363548f,
-                            -1.44363548f,
-                            1.81844646f,
-                            -1.81844646f,
-                            2.09471255f,
-                            2.31243834f,
-                            2.99822295f,
-                            5.29834237f}}),
-        Builder {}
-            .input({{11}, element::i32, std::vector<int32_t> {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5}})
-            .expected({{11}, element::i32, std::vector<int32_t> {-2, -2, -2, -1, -1, 0, 1, 1, 2, 2, 2}}),
-        Builder {}
-            .input({{11}, element::i64, std::vector<int64_t> {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5}})
-            .expected({{11}, element::i64, std::vector<int64_t> {-2, -2, -2, -1, -1, 0, 1, 1, 2, 2, 2}}),
-        Builder {}
-            .input({{6}, element::u32, std::vector<uint32_t> {0, 1, 2, 3, 4, 5}})
-            .expected({{6}, element::u32, std::vector<uint32_t> {0, 1, 1, 2, 2, 2}}),
-        Builder {}
-            .input({{6}, element::u64, std::vector<uint64_t> {0, 1, 2, 3, 4, 5}})
-            .expected({{6}, element::u64, std::vector<uint64_t> {0, 1, 1, 2, 2, 2}})),
+        Builder{}
+            .input({{11},
+                    element::f16,
+                    std::vector<ov::float16>{0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f}})
+            .expected({{11},
+                       element::f16,
+                       std::vector<ov::float16>{0.00000000f,
+                                                0.88137359f,
+                                                -0.88137359f,
+                                                1.44363548f,
+                                                -1.44363548f,
+                                                1.81844646f,
+                                                -1.81844646f,
+                                                2.09471255f,
+                                                2.31243834f,
+                                                2.99822295f,
+                                                5.29834237f}}),
+        Builder{}
+            .input(
+                {{11}, element::f32, std::vector<float>{0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f}})
+            .expected({{11},
+                       element::f32,
+                       std::vector<float>{0.00000000f,
+                                          0.88137359f,
+                                          -0.88137359f,
+                                          1.44363548f,
+                                          -1.44363548f,
+                                          1.81844646f,
+                                          -1.81844646f,
+                                          2.09471255f,
+                                          2.31243834f,
+                                          2.99822295f,
+                                          5.29834237f}}),
+        Builder{}
+            .input({{11}, element::i32, std::vector<int32_t>{-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5}})
+            .expected({{11}, element::i32, std::vector<int32_t>{-2, -2, -2, -1, -1, 0, 1, 1, 2, 2, 2}}),
+        Builder{}
+            .input({{11}, element::i64, std::vector<int64_t>{-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5}})
+            .expected({{11}, element::i64, std::vector<int64_t>{-2, -2, -2, -1, -1, 0, 1, 1, 2, 2, 2}}),
+        Builder{}
+            .input({{6}, element::u32, std::vector<uint32_t>{0, 1, 2, 3, 4, 5}})
+            .expected({{6}, element::u32, std::vector<uint32_t>{0, 1, 1, 2, 2, 2}}),
+        Builder{}
+            .input({{6}, element::u64, std::vector<uint64_t>{0, 1, 2, 3, 4, 5}})
+            .expected({{6}, element::u64, std::vector<uint64_t>{0, 1, 1, 2, 2, 2}})),
 
     ReferenceAsinhLayerTest::getTestCaseName);
 }  // namespace reference_tests

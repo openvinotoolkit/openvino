@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/region_yolo.hpp"
+
 #include <gtest/gtest.h>
+
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 
-#include "openvino/op/region_yolo.hpp"
 #include "base_reference_test.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -18,20 +20,20 @@ namespace {
 struct RegionYoloParams {
     template <class IT>
     RegionYoloParams(const size_t num,
-                    const size_t coords,
-                    const size_t classes,
-                    const bool do_softmax,
-                    const int axis,
-                    const int end_axis,
-                    const size_t batch,
-                    const size_t channels,
-                    const size_t width,
-                    const size_t height,
-                    const std::vector<int64_t>& mask,
-                    const ov::element::Type& iType,
-                    const std::vector<IT>& iValues,
-                    const std::vector<IT>& oValues,
-                    const std::string& testcaseName = "")
+                     const size_t coords,
+                     const size_t classes,
+                     const bool do_softmax,
+                     const int axis,
+                     const int end_axis,
+                     const size_t batch,
+                     const size_t channels,
+                     const size_t width,
+                     const size_t height,
+                     const std::vector<int64_t>& mask,
+                     const ov::element::Type& iType,
+                     const std::vector<IT>& iValues,
+                     const std::vector<IT>& oValues,
+                     const std::string& testcaseName = "")
         : num(num),
           coords(coords),
           classes(classes),
@@ -48,8 +50,8 @@ struct RegionYoloParams {
           inputData(CreateTensor(iType, iValues)),
           refData(CreateTensor(iType, oValues)),
           testcaseName(testcaseName) {
-              inputShape = Shape{batch, channels, height, width};
-          }
+        inputShape = Shape{batch, channels, height, width};
+    }
 
     size_t num;
     size_t coords;
@@ -107,7 +109,7 @@ private:
                                                                      params.mask,
                                                                      params.axis,
                                                                      params.end_axis);
-        return std::make_shared<ov::Model>(NodeVector {RegionYolo}, ParameterVector {p});
+        return std::make_shared<ov::Model>(NodeVector{RegionYolo}, ParameterVector{p});
     }
 };
 
@@ -119,28 +121,36 @@ template <element::Type_t IN_ET>
 std::vector<RegionYoloParams> generateRegionYoloParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<RegionYoloParams> regionYoloParams {
-        RegionYoloParams(1, 4, 1, false, 1, 3,
-                        1, 8, 2, 2,
-                        std::vector<int64_t>{0},
-                        IN_ET,
-                        std::vector<T>{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.1f, 0.2f, 0.3f,
-                                       0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f,
-                                       0.7f, 0.8f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f},
-                        std::vector<T>{0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f,
-                                       0.1f,     0.2f,     0.3f,     0.4f,     0.5f,     0.6f,     0.7f,     0.8f,
-                                       0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f}),
+    std::vector<RegionYoloParams> regionYoloParams{
+        RegionYoloParams(
+            1,
+            4,
+            1,
+            false,
+            1,
+            3,
+            1,
+            8,
+            2,
+            2,
+            std::vector<int64_t>{0},
+            IN_ET,
+            std::vector<T>{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.1f, 0.2f, 0.3f,
+                           0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f,
+                           0.7f, 0.8f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f},
+            std::vector<T>{0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f,
+                           0.1f,     0.2f,     0.3f,     0.4f,     0.5f,     0.6f,     0.7f,     0.8f,
+                           0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f}),
     };
     return regionYoloParams;
 }
 
 std::vector<RegionYoloParams> generateRegionYoloCombinedParams() {
-    const std::vector<std::vector<RegionYoloParams>> regionYoloTypeParams {
+    const std::vector<std::vector<RegionYoloParams>> regionYoloTypeParams{
         generateRegionYoloParams<element::Type_t::f64>(),
         generateRegionYoloParams<element::Type_t::f32>(),
         generateRegionYoloParams<element::Type_t::f16>(),
-        generateRegionYoloParams<element::Type_t::bf16>()
-        };
+        generateRegionYoloParams<element::Type_t::bf16>()};
     std::vector<RegionYoloParams> combinedParams;
 
     for (const auto& params : regionYoloTypeParams) {
@@ -149,7 +159,9 @@ std::vector<RegionYoloParams> generateRegionYoloCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_RegionYolo_With_Hardcoded_Refs, ReferenceRegionYoloLayerTest,
-    testing::ValuesIn(generateRegionYoloCombinedParams()), ReferenceRegionYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RegionYolo_With_Hardcoded_Refs,
+                         ReferenceRegionYoloLayerTest,
+                         testing::ValuesIn(generateRegionYoloCombinedParams()),
+                         ReferenceRegionYoloLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

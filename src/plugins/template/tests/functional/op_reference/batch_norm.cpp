@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/batch_norm.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/batch_norm.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -78,8 +79,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
-                                                    const element::Type_t& input_type,
-                                                    const float epsilon) {
+                                                 const element::Type_t& input_type,
+                                                 const float epsilon) {
         Shape channel_shape{input_shape.at(1)};
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         auto gamma = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
@@ -103,8 +104,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
-                                                    const element::Type_t& input_type,
-                                                    const float epsilon) {
+                                                 const element::Type_t& input_type,
+                                                 const float epsilon) {
         Shape channel_shape{input_shape.at(1)};
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         auto gamma = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
@@ -130,7 +131,7 @@ std::vector<BatchNormParams> generateParamsForBatchNorm() {
     using T = typename element_type_traits<ET>::value_type;
 
     std::vector<BatchNormParams> params{
-     /*------------- 2d --------------*/
+        /*------------- 2d --------------*/
         BatchNormParams(Shape{2, 3},
                         Shape{2, 3},
                         ET,
@@ -175,7 +176,7 @@ std::vector<BatchNormParams> generateParamsForBatchNorm() {
                         std::vector<T>{0.0, 0.0, 0.0},
                         std::vector<T>{2.0, 6.0, 0.0},
                         0.25),
-     /*------------- 4d --------------*/
+        /*------------- 4d --------------*/
         BatchNormParams(Shape{2, 2, 2, 1},
                         Shape{2, 2, 2, 1},
                         ET,
@@ -201,41 +202,33 @@ std::vector<BatchNormParams> generateParamsForBatchNorm() {
                         std::vector<T>{1.0, 1.0},
                         std::vector<T>{1.0, 1.0},
                         0.001),
-        BatchNormParams(Shape{2, 2, 2, 1},
-                        Shape{2, 2, 2, 1},
-                        ET,
-                        ET,
-                        std::vector<T>{0.54881352f,
-                                       0.71518934f,
-                                       0.60276335f,
-                                       0.54488319f,
-                                       0.42365479f,
-                                       0.64589411f,
-                                       0.4375872f,
-                                       0.89177299f},
-                        std::vector<T>{-0.30327f,
-                                       1.1561f,
-                                       -0.096382f,
-                                       -0.434702f,
-                                       -1.4011f,
-                                       0.548275f,
-                                       -1.06187f,
-                                       1.59295f},
-                        std::vector<T>{1.0, 1.0},
-                        std::vector<T>{0.0f, 0.0f},
-                        std::vector<T>{0.583388f, 0.619252f},
-                        std::vector<T>{0.0119972f, 0.0282681f},
-                        0.001),
+        BatchNormParams(
+            Shape{2, 2, 2, 1},
+            Shape{2, 2, 2, 1},
+            ET,
+            ET,
+            std::vector<T>{0.54881352f,
+                           0.71518934f,
+                           0.60276335f,
+                           0.54488319f,
+                           0.42365479f,
+                           0.64589411f,
+                           0.4375872f,
+                           0.89177299f},
+            std::vector<T>{-0.30327f, 1.1561f, -0.096382f, -0.434702f, -1.4011f, 0.548275f, -1.06187f, 1.59295f},
+            std::vector<T>{1.0, 1.0},
+            std::vector<T>{0.0f, 0.0f},
+            std::vector<T>{0.583388f, 0.619252f},
+            std::vector<T>{0.0119972f, 0.0282681f},
+            0.001),
     };
 
     return params;
 }
 
 std::vector<BatchNormParams> generateCombinedParamsForBatchNorm() {
-    const std::vector<std::vector<BatchNormParams>> allTypeParams{
-        generateParamsForBatchNorm<element::Type_t::f32>(),
-        generateParamsForBatchNorm<element::Type_t::f16>()
-    };
+    const std::vector<std::vector<BatchNormParams>> allTypeParams{generateParamsForBatchNorm<element::Type_t::f32>(),
+                                                                  generateParamsForBatchNorm<element::Type_t::f16>()};
 
     std::vector<BatchNormParams> combinedParams;
 
@@ -246,16 +239,14 @@ std::vector<BatchNormParams> generateCombinedParamsForBatchNorm() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_BatchNorm_With_Hardcoded_Refs,
-    ReferenceBatchNormV0LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForBatchNorm()),
-    ReferenceBatchNormV0LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BatchNorm_With_Hardcoded_Refs,
+                         ReferenceBatchNormV0LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForBatchNorm()),
+                         ReferenceBatchNormV0LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_BatchNorm_With_Hardcoded_Refs,
-    ReferenceBatchNormV5LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForBatchNorm()),
-    ReferenceBatchNormV5LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BatchNorm_With_Hardcoded_Refs,
+                         ReferenceBatchNormV5LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForBatchNorm()),
+                         ReferenceBatchNormV5LayerTest::getTestCaseName);
 
 }  // namespace

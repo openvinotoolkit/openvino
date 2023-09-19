@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/hard_sigmoid.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/hard_sigmoid.hpp"
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 
@@ -14,8 +15,12 @@ using namespace ov;
 namespace {
 struct HardSigmoidParams {
     template <class IT>
-    HardSigmoidParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
-                const float alpha, const float beta)
+    HardSigmoidParams(const ov::PartialShape& shape,
+                      const ov::element::Type& iType,
+                      const std::vector<IT>& iValues,
+                      const std::vector<IT>& oValues,
+                      const float alpha,
+                      const float beta)
         : pshape(shape),
           inType(iType),
           outType(iType),
@@ -53,8 +58,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& expected_output_type, const float alphaData, const float betaData) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type,
+                                                 const float alphaData,
+                                                 const float betaData) {
         std::vector<float> alphaArray;
         std::vector<float> betaArray;
         alphaArray.push_back(alphaData);
@@ -63,7 +71,7 @@ private:
         const auto alpha = ov::op::v0::Constant::create(input_type, Shape{}, {alphaData});
         const auto beta = ov::op::v0::Constant::create(input_type, Shape{}, {betaData});
         const auto HardSigmoid = std::make_shared<op::v0::HardSigmoid>(in, alpha, beta);
-        return std::make_shared<ov::Model>(NodeVector {HardSigmoid}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector{HardSigmoid}, ParameterVector{in});
     }
 };
 
@@ -75,28 +83,26 @@ template <element::Type_t IN_ET>
 std::vector<HardSigmoidParams> generateHardSigmoidFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<HardSigmoidParams> hardSigmoidParams {
-        HardSigmoidParams(ov::PartialShape {3},
-                    IN_ET,
-                    std::vector<T>{-1.0f, 0.0f, 1.0f},
-                    std::vector<T>{0.1f, 0.6f, 1.f},
-                    0.5,
-                    0.6),
-        HardSigmoidParams(ov::PartialShape {2, 5},
-                    IN_ET,
-                    std::vector<T>{-3.0f, -1.0f, 0.0f, 1.0f, 3.0f, 0.5f, -0.2f, 6.0f, 8.0f, 0.1f},
-                    std::vector<T>{0.0f, 0.3f, 0.5f, 0.7f, 1.0f, 0.6f, 0.46f, 1.0f, 1.0f, 0.52f},
-                    0.2,
-                    0.5)
-    };
+    std::vector<HardSigmoidParams> hardSigmoidParams{
+        HardSigmoidParams(ov::PartialShape{3},
+                          IN_ET,
+                          std::vector<T>{-1.0f, 0.0f, 1.0f},
+                          std::vector<T>{0.1f, 0.6f, 1.f},
+                          0.5,
+                          0.6),
+        HardSigmoidParams(ov::PartialShape{2, 5},
+                          IN_ET,
+                          std::vector<T>{-3.0f, -1.0f, 0.0f, 1.0f, 3.0f, 0.5f, -0.2f, 6.0f, 8.0f, 0.1f},
+                          std::vector<T>{0.0f, 0.3f, 0.5f, 0.7f, 1.0f, 0.6f, 0.46f, 1.0f, 1.0f, 0.52f},
+                          0.2,
+                          0.5)};
     return hardSigmoidParams;
 }
 
 std::vector<HardSigmoidParams> generateHardSigmoidCombinedParams() {
-    const std::vector<std::vector<HardSigmoidParams>> hardSigmoidTypeParams {
+    const std::vector<std::vector<HardSigmoidParams>> hardSigmoidTypeParams{
         generateHardSigmoidFloatParams<element::Type_t::f32>(),
-        generateHardSigmoidFloatParams<element::Type_t::f16>()
-        };
+        generateHardSigmoidFloatParams<element::Type_t::f16>()};
     std::vector<HardSigmoidParams> combinedParams;
 
     for (const auto& params : hardSigmoidTypeParams) {
@@ -105,7 +111,9 @@ std::vector<HardSigmoidParams> generateHardSigmoidCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_HardSigmoid_With_Hardcoded_Refs, ReferenceHardSigmoidLayerTest,
-    testing::ValuesIn(generateHardSigmoidCombinedParams()), ReferenceHardSigmoidLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_HardSigmoid_With_Hardcoded_Refs,
+                         ReferenceHardSigmoidLayerTest,
+                         testing::ValuesIn(generateHardSigmoidCombinedParams()),
+                         ReferenceHardSigmoidLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

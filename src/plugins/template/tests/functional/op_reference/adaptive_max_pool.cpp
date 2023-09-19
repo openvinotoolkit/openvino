@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/adaptive_max_pool.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/op/adaptive_max_pool.hpp"
 #include "openvino/op/constant.hpp"
 
 using namespace ov;
@@ -44,7 +45,8 @@ struct AdaptiveMaxPoolParams {
     std::vector<int64_t> m_adaptive_values;
 };
 
-class ReferenceAdaptiveMaxPoolLayerTest : public testing::TestWithParam<AdaptiveMaxPoolParams>, public CommonReferenceTest {
+class ReferenceAdaptiveMaxPoolLayerTest : public testing::TestWithParam<AdaptiveMaxPoolParams>,
+                                          public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -68,9 +70,9 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
-                                                    const element::Type& input_type,
-                                                    const Shape& adaptive_shape,
-                                                    const std::vector<int64_t> adaptive_values) {
+                                                 const element::Type& input_type,
+                                                 const Shape& adaptive_shape,
+                                                 const std::vector<int64_t> adaptive_values) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto out = op::v0::Constant::create<int64_t>(element::Type_t::i64, adaptive_shape, adaptive_values);
         const auto adaptive_max_pool = std::make_shared<op::v8::AdaptiveMaxPool>(in, out);
@@ -93,7 +95,7 @@ std::vector<AdaptiveMaxPoolParams> generateParamsForAdaptiveMaxPoolWithExpectedR
             IN_ET,
             IN_ET,
             std::vector<T>{0,  4,  1, 3, -2, -5, -2, -2, 1, -3, 1,  -3, -4, 0,  -2, 1, -1, -2, 3, -1, -3,
-                          -1, -2, 3, 4, -3, -4, 1,  2,  0, -4, -5, -2, -2, -3, 2,  3, 1,  -5, 2, -4, -2},
+                           -1, -2, 3, 4, -3, -4, 1,  2,  0, -4, -5, -2, -2, -3, 2,  3, 1,  -5, 2, -4, -2},
             std::vector<T>{4,
                            3,
                            -2,
@@ -114,77 +116,69 @@ std::vector<AdaptiveMaxPoolParams> generateParamsForAdaptiveMaxPoolWithExpectedR
                            2,
                            2},
             std::vector<int64_t>{1,
-                           3,
-                           4,
-                           1,
-                           3,
-                           6,
-                           1,
-                           4,
-                           4,
+                                 3,
+                                 4,
+                                 1,
+                                 3,
+                                 6,
+                                 1,
+                                 4,
+                                 4,
 
-                           2,
-                           3,
-                           6,
-                           0,
-                           4,
-                           4,
-                           1,
-                           4,
-                           4},
-                      ov::Shape{1},
+                                 2,
+                                 3,
+                                 6,
+                                 0,
+                                 4,
+                                 4,
+                                 1,
+                                 4,
+                                 4},
+            ov::Shape{1},
             std::vector<int64_t>{3}),
         AdaptiveMaxPoolParams(
             ov::Shape{1, 3, 7, 10},
             ov::Shape{1, 3, 3, 3},
             IN_ET,
             IN_ET,
-            std::vector<T>{0,  -2, -5, -5, 2,  3,  2,  -3, 1,  -2, -4, -1, -1, -1, 2,  -4, 3,  -5, -1, -1, 1,  2,  4,  -2,
-                          -3, -2, 0,  -5, 2,  -4, -1, -4, 4,  2,  1,  -2, 2,  -3, 0,  1,  -3, 3,  -1, 4,  0,  2,  0,  3,
-                           4,  -4, 1,  4,  -1, -5, -2, 4,  -3, 3,  2,  1,  0,  4,  2,  -5, 2,  -5, -2, -1, 4,  2,
+            std::vector<T>{
+                0,  -2, -5, -5, 2,  3,  2,  -3, 1,  -2, -4, -1, -1, -1, 2,  -4, 3,  -5, -1, -1, 1,  2,  4,  -2,
+                -3, -2, 0,  -5, 2,  -4, -1, -4, 4,  2,  1,  -2, 2,  -3, 0,  1,  -3, 3,  -1, 4,  0,  2,  0,  3,
+                4,  -4, 1,  4,  -1, -5, -2, 4,  -3, 3,  2,  1,  0,  4,  2,  -5, 2,  -5, -2, -1, 4,  2,
 
-                           0,  4,  -2, 0,  -5, -3, 4,  -4, -2, -2, 2,  1,  4,  3,  2,  -5, -4, -4, 0,  1,  4,  -4, -3, 3,
-                           3,  4,  -2, -3, -4, -2, 0,  1,  -1, 3,  -2, 2,  0,  -3, -1, -1, 0,  0,  2,  2,  -2, 1,  -3, 1,
-                           2,  4,  3,  -5, -4, 1,  -4, 2,  0,  -2, -5, 2,  -3, -2, -3, -4, 2,  -2, -4, 2,  -4, -3,
+                0,  4,  -2, 0,  -5, -3, 4,  -4, -2, -2, 2,  1,  4,  3,  2,  -5, -4, -4, 0,  1,  4,  -4, -3, 3,
+                3,  4,  -2, -3, -4, -2, 0,  1,  -1, 3,  -2, 2,  0,  -3, -1, -1, 0,  0,  2,  2,  -2, 1,  -3, 1,
+                2,  4,  3,  -5, -4, 1,  -4, 2,  0,  -2, -5, 2,  -3, -2, -3, -4, 2,  -2, -4, 2,  -4, -3,
 
-                           1,  -5, -1, -5, 2,  1,  3,  4,  3,  0,  -5, 4,  -3, -4, -1, 2,  -4, 2,  0,  -5, -3, 0,  2,  -3,
-                          -5, 3,  -2, -1, -5, -4, -5, 0,  -5, -1, -3, 3,  3,  -4, -3, -4, -5, 4,  -1, 1,  -1, -4, 1,  -3,
-                          -4, -1, -2, -3, -5, 2,  2,  -5, 1,  1,  -5, -4, 0,  2,  4,  2,  0,  2,  4,  0,  -5, 2},
-            std::vector<T>{4, 3, 3, 4, 4, 4, 4, 4, 4,
-                           4, 4, 4, 4, 4, 4, 3, 2, 4,
-                           4, 3, 4, 4, 3, 3, 4, 4, 4},
-            std::vector<int64_t>{22, 5, 16, 22, 43, 48, 43, 43, 48,
-                                 1,  6, 6,  20, 25, 49, 50, 43, 49,
-                                 11, 6, 7,  41, 25, 36, 41, 66, 66},
+                1,  -5, -1, -5, 2,  1,  3,  4,  3,  0,  -5, 4,  -3, -4, -1, 2,  -4, 2,  0,  -5, -3, 0,  2,  -3,
+                -5, 3,  -2, -1, -5, -4, -5, 0,  -5, -1, -3, 3,  3,  -4, -3, -4, -5, 4,  -1, 1,  -1, -4, 1,  -3,
+                -4, -1, -2, -3, -5, 2,  2,  -5, 1,  1,  -5, -4, 0,  2,  4,  2,  0,  2,  4,  0,  -5, 2},
+            std::vector<T>{4, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 2, 4, 4, 3, 4, 4, 3, 3, 4, 4, 4},
+            std::vector<int64_t>{22, 5,  16, 22, 43, 48, 43, 43, 48, 1,  6,  6,  20, 25,
+                                 49, 50, 43, 49, 11, 6,  7,  41, 25, 36, 41, 66, 66},
             ov::Shape{2},
             std::vector<int64_t>{3, 3}),
-        AdaptiveMaxPoolParams(
-            ov::Shape{2, 2, 3, 3, 3},
-            ov::Shape{2, 2, 2, 2, 2},
-            IN_ET,
-            IN_ET,
-            std::vector<T>{-5, 1,  -3, -4, 4,  -4, 3,  -3, -1, 0,  0,  -2, -4, 2,
-                            0,  -4, -5, -2, -4, -4, 0,  -2, 3,  -3, 4,  -1, -4,
+        AdaptiveMaxPoolParams(ov::Shape{2, 2, 3, 3, 3},
+                              ov::Shape{2, 2, 2, 2, 2},
+                              IN_ET,
+                              IN_ET,
+                              std::vector<T>{-5, 1,  -3, -4, 4,  -4, 3,  -3, -1, 0,  0,  -2, -4, 2,
+                                             0,  -4, -5, -2, -4, -4, 0,  -2, 3,  -3, 4,  -1, -4,
 
-                           -1, -1, -5, 4,  -1, -2, -3, 0,  4,  -1, -5, -4, 1,  1,
-                            4,  -5, -5, -5, 4,  -3, -3, -3, 4,  0,  -3, -5, 1,
+                                             -1, -1, -5, 4,  -1, -2, -3, 0,  4,  -1, -5, -4, 1,  1,
+                                             4,  -5, -5, -5, 4,  -3, -3, -3, 4,  0,  -3, -5, 1,
 
-                            4,  2,  1,  -5, -5, 1,  0,  -4, -1, 2,  -4, -2, 4,  3,
-                            1,  -3, -3, -2, -4, -3, -3, 3,  -1, 1,  2,  2,  -4,
+                                             4,  2,  1,  -5, -5, 1,  0,  -4, -1, 2,  -4, -2, 4,  3,
+                                             1,  -3, -3, -2, -4, -3, -3, 3,  -1, 1,  2,  2,  -4,
 
-                           -5, -4, 1,  3,  -4, -1, 2,  4,  -5, 0,  1,  -2, 0,  0,
-                           -2, 3,  -2, -5, -3, -5, -2, -1, 3,  -2, 4,  3,  -3},
-            std::vector<T>{4, 4, 4, 4, 3, 3, 4, 3,
-                           4, 4, 4, 4, 4, 4, 4, 4,
-                           4, 3, 4, 3, 4, 3, 4, 3,
-                           3, 1, 4, 4, 3, 3, 4, 3},
-            std::vector<int64_t>{4, 4,  4,  4,  22, 22, 24, 22,
-                                 3, 14, 3,  8,  18, 14, 22, 14,
-                                 0, 13, 12, 13, 12, 13, 12, 13,
-                                 3, 2,  7,  7,  22, 22, 24, 22},
-            ov::Shape{3},
-            std::vector<int64_t>{2, 2, 2})
-    };
+                                             -5, -4, 1,  3,  -4, -1, 2,  4,  -5, 0,  1,  -2, 0,  0,
+                                             -2, 3,  -2, -5, -3, -5, -2, -1, 3,  -2, 4,  3,  -3},
+                              std::vector<T>{4, 4, 4, 4, 3, 3, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
+                                             4, 3, 4, 3, 4, 3, 4, 3, 3, 1, 4, 4, 3, 3, 4, 3},
+                              std::vector<int64_t>{4, 4,  4,  4,  22, 22, 24, 22, 3, 14, 3, 8, 18, 14, 22, 14,
+                                                   0, 13, 12, 13, 12, 13, 12, 13, 3, 2,  7, 7, 22, 22, 24, 22},
+                              ov::Shape{3},
+                              std::vector<int64_t>{2, 2, 2})};
     return params;
 }
 
@@ -208,10 +202,9 @@ std::vector<AdaptiveMaxPoolParams> generateCombinedParamsForAdaptiveMaxPool() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_AdaptiveMaxPool_With_Hardcoded_Refs,
-    ReferenceAdaptiveMaxPoolLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForAdaptiveMaxPool()),
-    ReferenceAdaptiveMaxPoolLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AdaptiveMaxPool_With_Hardcoded_Refs,
+                         ReferenceAdaptiveMaxPoolLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForAdaptiveMaxPool()),
+                         ReferenceAdaptiveMaxPoolLayerTest::getTestCaseName);
 
 }  // namespace

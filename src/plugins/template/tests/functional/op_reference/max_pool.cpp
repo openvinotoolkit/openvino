@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/max_pool.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/max_pool.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;

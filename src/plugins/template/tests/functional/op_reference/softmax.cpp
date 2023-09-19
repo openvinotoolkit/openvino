@@ -2,23 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/softmax.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/softmax.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
 using namespace ov;
 
 #ifdef _MSC_VER
-#   pragma warning(disable : 4756)
-#endif  
+#    pragma warning(disable : 4756)
+#endif
 
 namespace {
 struct SoftmaxParams {
     template <class IT>
-    SoftmaxParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
-                const int64_t axis, const std::string& test_name)
+    SoftmaxParams(const ov::PartialShape& shape,
+                  const ov::element::Type& iType,
+                  const std::vector<IT>& iValues,
+                  const std::vector<IT>& oValues,
+                  const int64_t axis,
+                  const std::string& test_name)
         : axis(axis),
           pshape(shape),
           inType(iType),
@@ -61,11 +66,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& expected_output_type, const int64_t axis) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type,
+                                                 const int64_t axis) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Softmax = std::make_shared<op::v1::Softmax>(in, axis);
-        return std::make_shared<ov::Model>(NodeVector {Softmax}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector{Softmax}, ParameterVector{in});
     }
 };
 
@@ -102,85 +109,83 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
     auto d1_of = expf(1) + expf(4);
     auto d2_of = expf(2) + expf(5);
 
-    std::vector<SoftmaxParams> softmaxParams {
-        SoftmaxParams(ov::PartialShape {2, 2, 3},
-                    IN_ET,
-                    std::vector<T>{-10, -20, -30, -40, -50, -60, -1, -2, -3, -4, -5, -6},
-                    std::vector<T>{expf(-10) / d0,
-                                   expf(-20) / d1,
-                                   expf(-30) / d2,
-                                   expf(-40) / d3,
-                                   expf(-50) / d4,
-                                   expf(-60) / d5,
-                                   expf(-1) / d0,
-                                   expf(-2) / d1,
-                                   expf(-3) / d2,
-                                   expf(-4) / d3,
-                                   expf(-5) / d4,
-                                   expf(-6) / d5},
-                    0,
-                    ""),
-        SoftmaxParams(ov::PartialShape {2, 3},
-                    IN_ET,
-                    std::vector<T>{-10, -20, -30, -40, -50, -60},
-                    std::vector<T>{expf(-10) / d0_a1,
-                                   expf(-20) / d0_a1,
-                                   expf(-30) / d0_a1,
-                                   expf(-40) / d1_a1,
-                                   expf(-50) / d1_a1,
-                                   expf(-60) / d1_a1},
-                    1,
-                    ""),
-        SoftmaxParams(ov::PartialShape {2, 3},
-                    IN_ET,
-                    std::vector<T>{-10, -20, -30, -40, -50, -60},
-                    std::vector<T>{expf(-10) / d0_a0,
-                                   expf(-20) / d1_a0,
-                                   expf(-30) / d2_a0,
-                                   expf(-40) / d0_a0,
-                                   expf(-50) / d1_a0,
-                                   expf(-60) / d2_a0},
-                    0,
-                    "test"),
-        SoftmaxParams(ov::PartialShape {1, 2, 3},
-                    IN_ET,
-                    std::vector<T>{-10, -20, -30, -40, -50, -60},
-                    std::vector<T>{1, 1, 1, 1, 1, 1},
-                    0,
-                    "trivial"),
-        SoftmaxParams(ov::PartialShape {2, 3},
-                    IN_ET,
-                    std::vector<T>{low, 1, 2, 3, 4, 5},
-                    std::vector<T>{expf(low) / d0_uf,
-                                   expf(1) / d1_uf,
-                                   expf(2) / d2_uf,
-                                   expf(3) / d0_uf,
-                                   expf(4) / d1_uf,
-                                   expf(5) / d2_uf},
-                    0,
-                    "underflow"),
-        SoftmaxParams(ov::PartialShape {2, 3},
-                    IN_ET,
-                    std::vector<T>{high, 1, 2, 3, 4, 5},
-                    std::vector<T>{expf(high - high) / d0_of,
-                                   expf(1) / d1_of,
-                                   expf(2) / d2_of,
-                                   expf(3 - high) / d0_of,
-                                   expf(4) / d1_of,
-                                   expf(5) / d2_of},
-                    0,
-                    "overflow")
-    };
+    std::vector<SoftmaxParams> softmaxParams{
+        SoftmaxParams(ov::PartialShape{2, 2, 3},
+                      IN_ET,
+                      std::vector<T>{-10, -20, -30, -40, -50, -60, -1, -2, -3, -4, -5, -6},
+                      std::vector<T>{expf(-10) / d0,
+                                     expf(-20) / d1,
+                                     expf(-30) / d2,
+                                     expf(-40) / d3,
+                                     expf(-50) / d4,
+                                     expf(-60) / d5,
+                                     expf(-1) / d0,
+                                     expf(-2) / d1,
+                                     expf(-3) / d2,
+                                     expf(-4) / d3,
+                                     expf(-5) / d4,
+                                     expf(-6) / d5},
+                      0,
+                      ""),
+        SoftmaxParams(ov::PartialShape{2, 3},
+                      IN_ET,
+                      std::vector<T>{-10, -20, -30, -40, -50, -60},
+                      std::vector<T>{expf(-10) / d0_a1,
+                                     expf(-20) / d0_a1,
+                                     expf(-30) / d0_a1,
+                                     expf(-40) / d1_a1,
+                                     expf(-50) / d1_a1,
+                                     expf(-60) / d1_a1},
+                      1,
+                      ""),
+        SoftmaxParams(ov::PartialShape{2, 3},
+                      IN_ET,
+                      std::vector<T>{-10, -20, -30, -40, -50, -60},
+                      std::vector<T>{expf(-10) / d0_a0,
+                                     expf(-20) / d1_a0,
+                                     expf(-30) / d2_a0,
+                                     expf(-40) / d0_a0,
+                                     expf(-50) / d1_a0,
+                                     expf(-60) / d2_a0},
+                      0,
+                      "test"),
+        SoftmaxParams(ov::PartialShape{1, 2, 3},
+                      IN_ET,
+                      std::vector<T>{-10, -20, -30, -40, -50, -60},
+                      std::vector<T>{1, 1, 1, 1, 1, 1},
+                      0,
+                      "trivial"),
+        SoftmaxParams(ov::PartialShape{2, 3},
+                      IN_ET,
+                      std::vector<T>{low, 1, 2, 3, 4, 5},
+                      std::vector<T>{expf(low) / d0_uf,
+                                     expf(1) / d1_uf,
+                                     expf(2) / d2_uf,
+                                     expf(3) / d0_uf,
+                                     expf(4) / d1_uf,
+                                     expf(5) / d2_uf},
+                      0,
+                      "underflow"),
+        SoftmaxParams(ov::PartialShape{2, 3},
+                      IN_ET,
+                      std::vector<T>{high, 1, 2, 3, 4, 5},
+                      std::vector<T>{expf(high - high) / d0_of,
+                                     expf(1) / d1_of,
+                                     expf(2) / d2_of,
+                                     expf(3 - high) / d0_of,
+                                     expf(4) / d1_of,
+                                     expf(5) / d2_of},
+                      0,
+                      "overflow")};
     return softmaxParams;
 }
 
 std::vector<SoftmaxParams> generateSoftmaxCombinedParams() {
-    const std::vector<std::vector<SoftmaxParams>> softmaxTypeParams {
+    const std::vector<std::vector<SoftmaxParams>> softmaxTypeParams{
         generateSoftmaxFloatParams<element::Type_t::f64>(),
         generateSoftmaxFloatParams<element::Type_t::f32>(),
         generateSoftmaxFloatParams<element::Type_t::f16>(),
-        generateSoftmaxFloatParams<element::Type_t::bf16>()
-    };
+        generateSoftmaxFloatParams<element::Type_t::bf16>()};
     std::vector<SoftmaxParams> combinedParams;
 
     for (const auto& params : softmaxTypeParams) {
@@ -189,7 +194,9 @@ std::vector<SoftmaxParams> generateSoftmaxCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Softmax_With_Hardcoded_Refs, ReferenceSoftmaxLayerTest,
-    testing::ValuesIn(generateSoftmaxCombinedParams()), ReferenceSoftmaxLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Softmax_With_Hardcoded_Refs,
+                         ReferenceSoftmaxLayerTest,
+                         testing::ValuesIn(generateSoftmaxCombinedParams()),
+                         ReferenceSoftmaxLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

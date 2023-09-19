@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/group_conv.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/op/group_conv.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -13,10 +13,17 @@ using namespace ov;
 namespace {
 struct GroupConvolutionParams {
     template <class IT>
-    GroupConvolutionParams(const PartialShape& inputShape, const PartialShape& filterShape, const PartialShape& outputShape,
-                      const element::Type& iType,
-                      const std::vector<IT>& iValues, const std::vector<IT>& filterValues, const std::vector<IT>& oValues,
-                      const Strides& strides, const CoordinateDiff& padBegin, const CoordinateDiff& padEnd, const Strides& dialations)
+    GroupConvolutionParams(const PartialShape& inputShape,
+                           const PartialShape& filterShape,
+                           const PartialShape& outputShape,
+                           const element::Type& iType,
+                           const std::vector<IT>& iValues,
+                           const std::vector<IT>& filterValues,
+                           const std::vector<IT>& oValues,
+                           const Strides& strides,
+                           const CoordinateDiff& padBegin,
+                           const CoordinateDiff& padEnd,
+                           const Strides& dialations)
         : inputShape(inputShape),
           filterShape(filterShape),
           outputShape(outputShape),
@@ -46,7 +53,8 @@ struct GroupConvolutionParams {
     ov::Strides dialations;
 };
 
-class ReferenceGroupConvolutionLayerTest : public testing::TestWithParam<GroupConvolutionParams>, public CommonReferenceTest {
+class ReferenceGroupConvolutionLayerTest : public testing::TestWithParam<GroupConvolutionParams>,
+                                           public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -76,13 +84,13 @@ private:
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
         const auto filter = std::make_shared<op::v0::Parameter>(params.inType, params.filterShape);
         const auto GroupConvolution = std::make_shared<op::v1::GroupConvolution>(in,
-                                                                       filter,
-                                                                       params.strides,
-                                                                       params.padBegin,
-                                                                       params.padEnd,
-                                                                       params.dialations,
-                                                                       auto_pad);
-        return std::make_shared<ov::Model>(NodeVector {GroupConvolution}, ParameterVector {in, filter});
+                                                                                 filter,
+                                                                                 params.strides,
+                                                                                 params.padBegin,
+                                                                                 params.padEnd,
+                                                                                 params.dialations,
+                                                                                 auto_pad);
+        return std::make_shared<ov::Model>(NodeVector{GroupConvolution}, ParameterVector{in, filter});
     }
 };
 
@@ -94,74 +102,77 @@ template <element::Type_t IN_ET>
 std::vector<GroupConvolutionParams> generateGroupConvolutionParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<GroupConvolutionParams> groupConvolutionParams {
-// --------------------- 1D GroupConvolution ------------------------------------------
-        GroupConvolutionParams(PartialShape {1, 1, 6},
-                          PartialShape {1, 1, 1, 3},
-                          PartialShape {1, 1, 4},
-                          IN_ET,
-                          std::vector<T>{1, 3, 3, 0, 1, 2},
-                          std::vector<T>{2, 0, 1},
-                          std::vector<T>{5, 6, 7, 2},
-                          {1},
-                          {0},
-                          {0},
-                          {1}),
-        GroupConvolutionParams(PartialShape {1, 2, 6},
-                          PartialShape {2, 1, 1, 3},
-                          PartialShape {1, 2, 4},
-                          IN_ET,
-                          std::vector<T>{1, 3, 3, 0, 1, 2,
-                                         1, 3, 3, 0, 1, 2},
-                          std::vector<T>{1, 0, 3,
-                                         3, 0, 1},
-                          std::vector<T>{10, 3, 6, 6,
-                                         6, 9, 10, 2},
-                          {1},
-                          {0},
-                          {0},
-                          {1}),
-        GroupConvolutionParams(PartialShape {1, 2, 6},
-                          PartialShape {2, 2, 1, 3},
-                          PartialShape {1, 4, 4},
-                          IN_ET,
-                          std::vector<T>{1, 3, 3, 0, 1, 2,
-                                         -1, -3, -3, 0, 1, 2},
-                          std::vector<T>{1, 0, 3,
-                                         3, 0, 1,
-                                         -3, 0, 1,
-                                         3, 2, -1},
-                          std::vector<T>{
-                                     10, 3, 6, 6,
-                                     6, 9, 10, 2,
-                                     0, 9, 10, 2,
-                                     -6, -15, -10, 0},
-                          {1},
-                          {0},
-                          {0},
-                          {1}),
-        GroupConvolutionParams(PartialShape {2, 2, 6},
-                          PartialShape {2, 1, 1, 3},
-                          PartialShape {2, 2, 4},
-                          IN_ET,
-                          std::vector<T>{
-                                    // -- batch 1 --
-                                    1, 3, 3, 0, 1, 2,
-                                    1, 3, 3, 0, 1, 2,
-                                    // -- batch 2 --
-                                    1, 3, 3, 0, 1, 2,
-                                    1, 3, 3, 0, 1, 2},
-                          std::vector<T>{1, 0, 3,
-                                         3, 0, 1},
-                          std::vector<T>{
-                                     10, 3, 6, 6,
-                                     6, 9, 10, 2,
-                                     10, 3, 6, 6,
-                                     6, 9, 10, 2},
-                          {1},
-                          {0},
-                          {0},
-                          {1}),
+    std::vector<GroupConvolutionParams> groupConvolutionParams{
+        // --------------------- 1D GroupConvolution ------------------------------------------
+        GroupConvolutionParams(PartialShape{1, 1, 6},
+                               PartialShape{1, 1, 1, 3},
+                               PartialShape{1, 1, 4},
+                               IN_ET,
+                               std::vector<T>{1, 3, 3, 0, 1, 2},
+                               std::vector<T>{2, 0, 1},
+                               std::vector<T>{5, 6, 7, 2},
+                               {1},
+                               {0},
+                               {0},
+                               {1}),
+        GroupConvolutionParams(PartialShape{1, 2, 6},
+                               PartialShape{2, 1, 1, 3},
+                               PartialShape{1, 2, 4},
+                               IN_ET,
+                               std::vector<T>{1, 3, 3, 0, 1, 2, 1, 3, 3, 0, 1, 2},
+                               std::vector<T>{1, 0, 3, 3, 0, 1},
+                               std::vector<T>{10, 3, 6, 6, 6, 9, 10, 2},
+                               {1},
+                               {0},
+                               {0},
+                               {1}),
+        GroupConvolutionParams(PartialShape{1, 2, 6},
+                               PartialShape{2, 2, 1, 3},
+                               PartialShape{1, 4, 4},
+                               IN_ET,
+                               std::vector<T>{1, 3, 3, 0, 1, 2, -1, -3, -3, 0, 1, 2},
+                               std::vector<T>{1, 0, 3, 3, 0, 1, -3, 0, 1, 3, 2, -1},
+                               std::vector<T>{10, 3, 6, 6, 6, 9, 10, 2, 0, 9, 10, 2, -6, -15, -10, 0},
+                               {1},
+                               {0},
+                               {0},
+                               {1}),
+        GroupConvolutionParams(PartialShape{2, 2, 6},
+                               PartialShape{2, 1, 1, 3},
+                               PartialShape{2, 2, 4},
+                               IN_ET,
+                               std::vector<T>{// -- batch 1 --
+                                              1,
+                                              3,
+                                              3,
+                                              0,
+                                              1,
+                                              2,
+                                              1,
+                                              3,
+                                              3,
+                                              0,
+                                              1,
+                                              2,
+                                              // -- batch 2 --
+                                              1,
+                                              3,
+                                              3,
+                                              0,
+                                              1,
+                                              2,
+                                              1,
+                                              3,
+                                              3,
+                                              0,
+                                              1,
+                                              2},
+                               std::vector<T>{1, 0, 3, 3, 0, 1},
+                               std::vector<T>{10, 3, 6, 6, 6, 9, 10, 2, 10, 3, 6, 6, 6, 9, 10, 2},
+                               {1},
+                               {0},
+                               {0},
+                               {1}),
     };
     return groupConvolutionParams;
 }
@@ -170,61 +181,72 @@ template <element::Type_t IN_ET>
 std::vector<GroupConvolutionParams> generateGroupConvolutionUintParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<GroupConvolutionParams> groupConvolutionParams {
-// --------------------- 1D GroupConvolution ------------------------------------------
-        GroupConvolutionParams(PartialShape {1, 1, 6},
-                          PartialShape {1, 1, 1, 3},
-                          PartialShape {1, 1, 4},
-                          IN_ET,
-                          std::vector<T>{1, 3, 3, 0, 1, 2},
-                          std::vector<T>{2, 0, 1},
-                          std::vector<T>{5, 6, 7, 2},
-                          {1},
-                          {0},
-                          {0},
-                          {1}),
-        GroupConvolutionParams(PartialShape {1, 2, 6},
-                          PartialShape {2, 1, 1, 3},
-                          PartialShape {1, 2, 4},
-                          IN_ET,
-                          std::vector<T>{1, 3, 3, 0, 1, 2,
-                                         1, 3, 3, 0, 1, 2},
-                          std::vector<T>{1, 0, 3,
-                                         3, 0, 1},
-                          std::vector<T>{10, 3, 6, 6,
-                                         6, 9, 10, 2},
-                          {1},
-                          {0},
-                          {0},
-                          {1}),
-        GroupConvolutionParams(PartialShape {2, 2, 6},
-                          PartialShape {2, 1, 1, 3},
-                          PartialShape {2, 2, 4},
-                          IN_ET,
-                          std::vector<T>{
-                                    // -- batch 1 --
-                                    1, 3, 3, 0, 1, 2,
-                                    1, 3, 3, 0, 1, 2,
-                                    // -- batch 2 --
-                                    1, 3, 3, 0, 1, 2,
-                                    1, 3, 3, 0, 1, 2},
-                          std::vector<T>{1, 0, 3,
-                                         3, 0, 1},
-                          std::vector<T>{
-                                     10, 3, 6, 6,
-                                     6, 9, 10, 2,
-                                     10, 3, 6, 6,
-                                     6, 9, 10, 2},
-                          {1},
-                          {0},
-                          {0},
-                          {1}),
+    std::vector<GroupConvolutionParams> groupConvolutionParams{
+        // --------------------- 1D GroupConvolution ------------------------------------------
+        GroupConvolutionParams(PartialShape{1, 1, 6},
+                               PartialShape{1, 1, 1, 3},
+                               PartialShape{1, 1, 4},
+                               IN_ET,
+                               std::vector<T>{1, 3, 3, 0, 1, 2},
+                               std::vector<T>{2, 0, 1},
+                               std::vector<T>{5, 6, 7, 2},
+                               {1},
+                               {0},
+                               {0},
+                               {1}),
+        GroupConvolutionParams(PartialShape{1, 2, 6},
+                               PartialShape{2, 1, 1, 3},
+                               PartialShape{1, 2, 4},
+                               IN_ET,
+                               std::vector<T>{1, 3, 3, 0, 1, 2, 1, 3, 3, 0, 1, 2},
+                               std::vector<T>{1, 0, 3, 3, 0, 1},
+                               std::vector<T>{10, 3, 6, 6, 6, 9, 10, 2},
+                               {1},
+                               {0},
+                               {0},
+                               {1}),
+        GroupConvolutionParams(PartialShape{2, 2, 6},
+                               PartialShape{2, 1, 1, 3},
+                               PartialShape{2, 2, 4},
+                               IN_ET,
+                               std::vector<T>{// -- batch 1 --
+                                              1,
+                                              3,
+                                              3,
+                                              0,
+                                              1,
+                                              2,
+                                              1,
+                                              3,
+                                              3,
+                                              0,
+                                              1,
+                                              2,
+                                              // -- batch 2 --
+                                              1,
+                                              3,
+                                              3,
+                                              0,
+                                              1,
+                                              2,
+                                              1,
+                                              3,
+                                              3,
+                                              0,
+                                              1,
+                                              2},
+                               std::vector<T>{1, 0, 3, 3, 0, 1},
+                               std::vector<T>{10, 3, 6, 6, 6, 9, 10, 2, 10, 3, 6, 6, 6, 9, 10, 2},
+                               {1},
+                               {0},
+                               {0},
+                               {1}),
     };
     return groupConvolutionParams;
 }
 
 std::vector<GroupConvolutionParams> generateGroupConvolutionCombinedParams() {
-    const std::vector<std::vector<GroupConvolutionParams>> groupConvolutionTypeParams {
+    const std::vector<std::vector<GroupConvolutionParams>> groupConvolutionTypeParams{
         generateGroupConvolutionParams<element::Type_t::f64>(),
         generateGroupConvolutionParams<element::Type_t::f32>(),
         generateGroupConvolutionParams<element::Type_t::f16>(),
@@ -236,8 +258,7 @@ std::vector<GroupConvolutionParams> generateGroupConvolutionCombinedParams() {
         generateGroupConvolutionUintParams<element::Type_t::u64>(),
         generateGroupConvolutionUintParams<element::Type_t::u32>(),
         generateGroupConvolutionUintParams<element::Type_t::u16>(),
-        generateGroupConvolutionUintParams<element::Type_t::u8>()
-        };
+        generateGroupConvolutionUintParams<element::Type_t::u8>()};
     std::vector<GroupConvolutionParams> combinedParams;
 
     for (const auto& params : groupConvolutionTypeParams) {
@@ -246,7 +267,9 @@ std::vector<GroupConvolutionParams> generateGroupConvolutionCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution_With_Hardcoded_Refs, ReferenceGroupConvolutionLayerTest,
-    testing::ValuesIn(generateGroupConvolutionCombinedParams()), ReferenceGroupConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution_With_Hardcoded_Refs,
+                         ReferenceGroupConvolutionLayerTest,
+                         testing::ValuesIn(generateGroupConvolutionCombinedParams()),
+                         ReferenceGroupConvolutionLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

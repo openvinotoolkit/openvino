@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/lrn.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/lrn.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -115,12 +116,12 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
-                                                    const element::Type_t& input_type,
-                                                    const float& alpah,
-                                                    const float& beta,
-                                                    const float& bias,
-                                                    const size_t& size,
-                                                    const std::shared_ptr<op::v0::Constant>& axes) {
+                                                 const element::Type_t& input_type,
+                                                 const float& alpah,
+                                                 const float& beta,
+                                                 const float& bias,
+                                                 const size_t& size,
+                                                 const std::shared_ptr<op::v0::Constant>& axes) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
 
         std::shared_ptr<op::v0::LRN> lrn;
@@ -161,7 +162,10 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.5669467f,
                                  0.7784989f,
                                  0.7720487f},
-                  3, 0.5, 1, 3,
+                  3,
+                  0.5,
+                  1,
+                  3,
                   NULL),
         // lrn_across_h
         LRNParams(Shape{2, 3, 2, 1},
@@ -181,7 +185,10 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.7448453f,
                                  0.6711560f,
                                  0.7382717f},
-                  3, 0.5, 1, 3,
+                  3,
+                  0.5,
+                  1,
+                  3,
                   std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{1}, std::vector<int64_t>{2})),
         // lrn_across_hw
         LRNParams(Shape{2, 3, 2, 1},
@@ -201,7 +208,10 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  1.2813632f,
                                  1.1572751f,
                                  1.2730026f},
-                  3, 0.5, 1, 3,
+                  3,
+                  0.5,
+                  1,
+                  3,
                   std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{2}, std::vector<int64_t>{2, 3})),
         // lrn_across_all_dims
         LRNParams(Shape{2, 3, 2, 1},
@@ -221,7 +231,10 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  2.0256331f,
                                  2.4576957f,
                                  2.7034652f},
-                  3, 0.5, 1, 3,
+                  3,
+                  0.5,
+                  1,
+                  3,
                   std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3})),
         // lrn_across_nw
         LRNParams(Shape{2, 3, 2, 1},
@@ -241,7 +254,10 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  1.6164477f,
                                  1.5877683f,
                                  1.5608464f},
-                  3, 0.5, 1, 3,
+                  3,
+                  0.5,
+                  1,
+                  3,
                   std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{2}, std::vector<int64_t>{0, 3})),
         // lrn_across_empty
         LRNParams(Shape{2, 3, 2, 1},
@@ -261,7 +277,10 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.5761660f,
                                  0.5763904f,
                                  0.5765567f},
-                  3, 0.5, 1, 3,
+                  3,
+                  0.5,
+                  1,
+                  3,
                   std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{0}, std::vector<int64_t>{})),
         // lrn_6D_across_2_axes
         LRNParams(Shape{2, 3, 2, 2, 1, 1},
@@ -273,7 +292,10 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.9149914f, 1.0674900f, 0.7213357f, 0.8115027f, 0.9016696f, 0.9918366f,
                                  0.7656109f, 0.8294119f, 0.8932127f, 0.9570137f, 0.7892218f, 0.8385482f,
                                  0.8878745f, 0.9372009f, 0.8038679f, 0.8440613f, 0.8842546f, 0.9244481f},
-                  3, 0.5, 1, 3,
+                  3,
+                  0.5,
+                  1,
+                  3,
                   std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{2}, std::vector<int64_t>{2, 3})),
         // lrn_2d_across_empty
         LRNParams(Shape{12},
@@ -293,9 +315,12 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.5761660f,
                                  0.5763904f,
                                  0.5765566f},
-                  3, 0.5, 1, 3,
+                  3,
+                  0.5,
+                  1,
+                  3,
                   std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{0}, std::vector<int64_t>{})),
-                                     // lrn_2d_across_empty
+        // lrn_2d_across_empty
         LRNParams(Shape{6, 2},
                   Shape{6, 2},
                   ET,
@@ -324,7 +349,10 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  -0.3425926f,
                                  0.3559732f,
                                  -0.7039225f},
-                  0.0002, 0.5, 2.0, 3,
+                  0.0002,
+                  0.5,
+                  2.0,
+                  3,
                   std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{1}, std::vector<int64_t>{0})),
     };
 
@@ -332,10 +360,8 @@ std::vector<LRNParams> generateParamsForLRN() {
 }
 
 std::vector<LRNParams> generateCombinedParamsForLRN() {
-    const std::vector<std::vector<LRNParams>> allTypeParams{
-        generateParamsForLRN<element::Type_t::f64>(),
-        generateParamsForLRN<element::Type_t::f32>()
-    };
+    const std::vector<std::vector<LRNParams>> allTypeParams{generateParamsForLRN<element::Type_t::f64>(),
+                                                            generateParamsForLRN<element::Type_t::f32>()};
 
     std::vector<LRNParams> combinedParams;
 
@@ -346,10 +372,9 @@ std::vector<LRNParams> generateCombinedParamsForLRN() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LRN_With_Hardcoded_Refs,
-    ReferenceLRNLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForLRN()),
-    ReferenceLRNLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LRN_With_Hardcoded_Refs,
+                         ReferenceLRNLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForLRN()),
+                         ReferenceLRNLayerTest::getTestCaseName);
 
 }  // namespace

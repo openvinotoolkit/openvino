@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/squeeze.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/constant.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -94,7 +95,8 @@ private:
         std::shared_ptr<op::v0::Constant> axes_node = NULL;
         std::shared_ptr<op::v0::Squeeze> squeeze = NULL;
         if (params.m_axes_node) {
-            axes_node = std::make_shared<op::v0::Constant>(params.m_axes_type, params.m_axes_shape, params.m_axes_value.data());
+            axes_node =
+                std::make_shared<op::v0::Constant>(params.m_axes_type, params.m_axes_shape, params.m_axes_value.data());
             squeeze = std::make_shared<op::v0::Squeeze>(in, axes_node);
         } else {
             squeeze = std::make_shared<op::v0::Squeeze>(in);
@@ -120,7 +122,7 @@ std::vector<SqueezeParams> generateParamsForSqueeze() {
                       IO_T,
                       std::vector<T1>{1, 2, 3, 4, 5, 6, 7, 8},
                       std::vector<T1>{1, 2, 3, 4, 5, 6, 7, 8},
-                      Shape {2},
+                      Shape{2},
                       Axes_T,
                       std::vector<T2>{0, 2}),
         SqueezeParams(Shape{1, 4, 1, 1, 2},
@@ -153,8 +155,7 @@ std::vector<SqueezeParams> generateCombinedParamsForSqueeze() {
         generateParamsForSqueeze<element::Type_t::u64, element::Type_t::i64>(),
         generateParamsForSqueeze<element::Type_t::u32, element::Type_t::i64>(),
         generateParamsForSqueeze<element::Type_t::u16, element::Type_t::i64>(),
-        generateParamsForSqueeze<element::Type_t::u8, element::Type_t::i64>()
-    };
+        generateParamsForSqueeze<element::Type_t::u8, element::Type_t::i64>()};
 
     std::vector<SqueezeParams> combinedParams;
 
@@ -165,10 +166,9 @@ std::vector<SqueezeParams> generateCombinedParamsForSqueeze() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Squeeze_With_Hardcoded_Refs,
-    ReferenceSqueezeLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForSqueeze()),
-    ReferenceSqueezeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Squeeze_With_Hardcoded_Refs,
+                         ReferenceSqueezeLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForSqueeze()),
+                         ReferenceSqueezeLayerTest::getTestCaseName);
 
 }  // namespace

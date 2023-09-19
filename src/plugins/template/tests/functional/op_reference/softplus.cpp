@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/softplus.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/softplus.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -13,7 +14,10 @@ using namespace ov;
 namespace {
 struct SoftPlusParams {
     template <class IT>
-    SoftPlusParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    SoftPlusParams(const ov::PartialShape& shape,
+                   const ov::element::Type& iType,
+                   const std::vector<IT>& iValues,
+                   const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
@@ -45,11 +49,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& SoftPlusected_output_type) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const element::Type& SoftPlusected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto SoftPlus = std::make_shared<op::v4::SoftPlus>(in);
-        return std::make_shared<ov::Model>(NodeVector {SoftPlus}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector{SoftPlus}, ParameterVector{in});
     }
 };
 
@@ -61,21 +66,18 @@ template <element::Type_t IN_ET>
 std::vector<SoftPlusParams> generateSoftPlusFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<SoftPlusParams> softPlusParams {
-        SoftPlusParams(ov::PartialShape {4},
-                    IN_ET,
-                    std::vector<T>{-1.0, 0.0, 1.0, 20.0},
-                    std::vector<T>{0.31326166, 0.69314718, 1.3132616, 20.0})
-    };
+    std::vector<SoftPlusParams> softPlusParams{SoftPlusParams(ov::PartialShape{4},
+                                                              IN_ET,
+                                                              std::vector<T>{-1.0, 0.0, 1.0, 20.0},
+                                                              std::vector<T>{0.31326166, 0.69314718, 1.3132616, 20.0})};
     return softPlusParams;
 }
 
 std::vector<SoftPlusParams> generateSoftPlusCombinedParams() {
-    const std::vector<std::vector<SoftPlusParams>> softPlusTypeParams {
+    const std::vector<std::vector<SoftPlusParams>> softPlusTypeParams{
         generateSoftPlusFloatParams<element::Type_t::f32>(),
         generateSoftPlusFloatParams<element::Type_t::f16>(),
-        generateSoftPlusFloatParams<element::Type_t::bf16>()
-        };
+        generateSoftPlusFloatParams<element::Type_t::bf16>()};
     std::vector<SoftPlusParams> combinedParams;
 
     for (const auto& params : softPlusTypeParams) {
@@ -84,7 +86,9 @@ std::vector<SoftPlusParams> generateSoftPlusCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_SoftPlus_With_Hardcoded_Refs, ReferenceSoftPlusLayerTest,
-    testing::ValuesIn(generateSoftPlusCombinedParams()), ReferenceSoftPlusLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SoftPlus_With_Hardcoded_Refs,
+                         ReferenceSoftPlusLayerTest,
+                         testing::ValuesIn(generateSoftPlusCombinedParams()),
+                         ReferenceSoftPlusLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

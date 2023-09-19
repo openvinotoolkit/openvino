@@ -10,6 +10,6 @@ namespace {
 TEST_P(ReferenceConversionLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
-} // namespace
-} // namespace ConversionOpsRefTestDefinitions
-} // namespace reference_tests
+}  // namespace
+}  // namespace ConversionOpsRefTestDefinitions
+}  // namespace reference_tests
