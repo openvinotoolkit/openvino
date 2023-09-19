@@ -36,8 +36,8 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::LoadConvertTruncation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertSaturation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertTruncation, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::BrgemmCopyB, PassThroughShapeInfer),
         //
-        SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCopyB),
         SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCPU),
 };
 #undef SHAPE_INFER_OP_SPECIFIC
