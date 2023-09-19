@@ -41,6 +41,9 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             return false;
         }
 
+        OPENVINO_ASSERT(CommonFakeQuantizeDecomposition::is_supported_fq(fake_quantize_node),
+                        "FQ Decomposition got invalid FakeQuantize node with the name " + fake_quantize_node->get_friendly_name());
+
         Output<Node> data{fake_quantize_node->input_value(0)};
         const Output<Node> input_low{fake_quantize_node->input_value(1)};
         const Output<Node> input_high{fake_quantize_node->input_value(2)};

@@ -22,35 +22,39 @@ namespace snippets {
 namespace pass {
 
 namespace {
-#define VALIDATE(validator, op)    \
-    OPENVINO_ASSERT(validator(op), "Snippets validation of OV body has been failed: " + \
-                                   std::string(op->get_type_name()) + " op " + op->get_friendly_name() + " is not supported");
+#define VALIDATE(op, op_type, validator)    \
+    if (ov::is_type<op_type>(op)) \
+        OPENVINO_ASSERT(validator(op), "Snippets validation of OV body has been failed: " + \
+                                       std::string(op->get_type_name()) + " op " + op->get_friendly_name() + " is not supported");
 
-bool is_support_constant(const std::shared_ptr<const ov::op::v0::Constant>& constant) {
-    const auto consumers = constant->get_output_target_inputs(0);
-    return ov::shape_size(constant->get_output_shape(0)) == 1 ||
-           (consumers.size() == 1 &&
-            (ov::is_type<const ov::op::v1::Transpose>(consumers.begin()->get_node()) ||
-             ov::is_type<const ov::op::v1::Broadcast>(consumers.begin()->get_node()) ||
-             ov::is_type<const ov::op::v3::Broadcast>(consumers.begin()->get_node())));
+bool is_supported_constant(const std::shared_ptr<const ov::Node>& op) {
+    const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(op);
+    const auto consumers = op->get_output_target_inputs(0);
+    return constant &&
+           (ov::shape_size(constant->get_output_shape(0)) == 1 ||
+            (consumers.size() == 1 &&
+             (ov::is_type<const ov::op::v1::Transpose>(consumers.begin()->get_node()) ||
+              ov::is_type<const ov::op::v1::Broadcast>(consumers.begin()->get_node()) ||
+              ov::is_type<const ov::op::v3::Broadcast>(consumers.begin()->get_node()))));
 }
 
-bool is_support_convert(const std::shared_ptr<const ov::op::v0::Convert>& convert) {
-    return ov::is_type<op::ConvertTruncation>(convert) || ov::is_type<op::ConvertSaturation>(convert);
+bool is_supported_convert(const std::shared_ptr<const ov::Node>& op) {
+    return ov::is_type<const op::ConvertTruncation>(op) || ov::is_type<const op::ConvertSaturation>(op);
 }
 
-bool is_supported_matmul(const std::shared_ptr<const ov::op::v0::MatMul>& matmul) {
-    return !matmul->get_transpose_a() && !matmul->get_transpose_b();
+bool is_supported_matmul(const std::shared_ptr<const ov::Node>& op) {
+    const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(op);
+    return matmul && !matmul->get_transpose_a() && !matmul->get_transpose_b();
 }
 
-bool is_support_softmax(const std::shared_ptr<const ov::Node>& softmax) {
-    const auto softmax_rank = softmax->get_input_partial_shape(0).rank();
+bool is_supported_softmax(const std::shared_ptr<const ov::Node>& op) {
+    const auto softmax_rank = op->get_input_partial_shape(0).rank();
     int64_t axis = 0;
-    if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(softmax)) {
+    if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(op)) {
         OPENVINO_SUPPRESS_DEPRECATED_START
         axis = ov::normalize_axis(softmax_v8->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
         OPENVINO_SUPPRESS_DEPRECATED_END
-    } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(softmax)) {
+    } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(op)) {
         axis = softmax_v1->get_axis();
     } else {
         return false;
@@ -58,7 +62,7 @@ bool is_support_softmax(const std::shared_ptr<const ov::Node>& softmax) {
     return axis == softmax_rank.get_length() - 1;
 }
 
-bool is_supported(const std::shared_ptr<const ov::Node>& node) {
+bool is_supported_op(const std::shared_ptr<const ov::Node>& node) {
     return false;
 }
 }  // namespace
@@ -68,19 +72,13 @@ bool Validate::run_on_model(const std::shared_ptr<ov::Model>& m) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::Validate")
 
     for (const auto& op : m->get_ordered_ops()) {
-        if (const auto constant = as_type_ptr<ov::op::v0::Constant>(op)) {
-            VALIDATE(is_support_constant, constant);
-        } else if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(op)) {
-            VALIDATE(is_support_convert, convert);
-        } else if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
-            VALIDATE(is_supported_matmul, matmul);
-        } else if (ov::is_type<ov::op::v8::Softmax>(op) ||
-                   ov::is_type<ov::op::v1::Softmax>(op)) {
-            VALIDATE(is_support_softmax, op);
-        } else if (ov::is_type<ov::op::v0::FakeQuantize>(op) ||
-                   ov::is_type<ov::op::v1::Reshape>(op)) {
-            VALIDATE(is_supported, op);
-        }
+        VALIDATE(op, ov::op::v0::Constant, is_supported_constant)
+        VALIDATE(op, ov::op::v0::Convert, is_supported_convert)
+        VALIDATE(op, ov::op::v0::MatMul, is_supported_matmul)
+        VALIDATE(op, ov::op::v1::Softmax, is_supported_softmax)
+        VALIDATE(op, ov::op::v8::Softmax, is_supported_softmax)
+        VALIDATE(op, ov::op::v0::FakeQuantize, is_supported_op)
+        VALIDATE(op, ov::op::v1::Reshape, is_supported_op);
     }
     return true;
 }
