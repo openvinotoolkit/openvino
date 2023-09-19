@@ -46,7 +46,6 @@ void DFTLayerTest::SetUp() {
     ov::test::utils::DFTOpType op_type;
     std::tie(shapes, model_type, axes, signal_size, op_type, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
-    abs_threshold = 0.02;
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
