@@ -205,11 +205,11 @@ ov_core_read_model_from_memory(const ov_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_read_model_from_memory_with_size(const ov_core_t* core,
-                                         const char* model_str,
-                                         const size_t str_len,
-                                         const ov_tensor_t* weights,
-                                         ov_model_t** model);
+ov_core_read_model_from_memory_buffer(const ov_core_t* core,
+                                      const char* model_str,
+                                      const size_t str_len,
+                                      const ov_tensor_t* weights,
+                                      ov_model_t** model);
 
 /**
  * @brief Creates a compiled model from a source model object.

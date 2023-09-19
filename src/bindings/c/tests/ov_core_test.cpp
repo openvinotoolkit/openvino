@@ -103,7 +103,7 @@ TEST_P(ov_core_test, ov_core_read_model_from_memory) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core_test, ov_core_read_model_from_memory_with_size) {
+TEST_P(ov_core_test, ov_core_read_model_from_memory_buffer_with_size) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -119,11 +119,11 @@ TEST_P(ov_core_test, ov_core_read_model_from_memory_with_size) {
 
     std::vector<uint8_t> xml_content(content_from_file(xml_file_name.c_str(), false));
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model_from_memory_with_size(core,
-                                                          reinterpret_cast<const char*>(xml_content.data()),
-                                                          xml_content.size(),
-                                                          tensor,
-                                                          &model));
+    OV_EXPECT_OK(ov_core_read_model_from_memory_buffer(core,
+                                                       reinterpret_cast<const char*>(xml_content.data()),
+                                                       xml_content.size(),
+                                                       tensor,
+                                                       &model));
     EXPECT_NE(nullptr, model);
 
     ov_shape_free(&shape);
