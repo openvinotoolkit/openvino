@@ -7,17 +7,25 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestMinMax(PytorchLayerTest):
-    def _prepare_input(self, second_input=False):
+    def _prepare_input(self, input_dtype="float32", second_input=False, second_input_dtype="float32"):
         import numpy as np
         if not second_input:
-            return (np.random.randn(1, 3, 10, 10).astype(np.float32),)
-        return (np.random.randn(1, 3, 10, 10).astype(np.float32), np.random.randn(1, 3, 10, 10).astype(np.float32))
+            return (np.random.randn(1, 3, 10, 10).astype(input_dtype),)
+        return (np.random.randn(1, 3, 10, 10).astype(input_dtype), np.random.randn(1, 3, 10, 10).astype(second_input_dtype))
 
-    def create_model(self, op_type, axes, keep_dims, single_input=True):
+    def create_model(self, op_type, axes, keep_dims, single_input=True, dtypes=("float32", "float32")):
         import torch
         op_types = {
             'max': torch.max,
             'min': torch.min
+        }
+
+        dtypes_map = {
+            "float32": torch.float32,
+            "float64": torch.float64,
+            "int32": torch.int32,
+            "int64": torch.int64,
+            "uint8": torch.uint8
         }
 
         op = op_types[op_type]
@@ -41,17 +49,23 @@ class TestMinMax(PytorchLayerTest):
                 return self.op(x, self.axes, self.keep_dims)
 
         class aten_min_max_2args(torch.nn.Module):
-            def __init__(self, op):
+            def __init__(self, op, l_dtype, r_dtype):
                 super(aten_min_max_2args, self).__init__()
                 self.op = op
+                self.l_dtype = l_dtype
+                self.r_dtype = r_dtype
 
             def forward(self, x, y):
-                return self.op(x, y)
+                return self.op(x.to(self.l_dtype), y.to(self.r_dtype))
 
         ref_net = None
         if axes is None and keep_dims is None:
-            model_cls = aten_min_max(
-                op) if single_input else aten_min_max_2args(op)
+            if single_input:
+                model_cls = aten_min_max(op)
+            else:
+                l_dtype = dtypes_map[dtypes[0]]
+                r_dtype = dtypes_map[dtypes[1]]
+                model_cls = aten_min_max_2args(op, l_dtype, r_dtype)
         else:
             model_cls = aten_min_max_3args(op, axes, keep_dims)
 
@@ -66,11 +80,15 @@ class TestMinMax(PytorchLayerTest):
                                       single_input=True), ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("op_type", ['min', 'max'])
+    @pytest.mark.parametrize("second_input_dtype", ["float32", "int32", "float64", "int64", "uint8"])
+    @pytest.mark.parametrize("first_input_dtype", ["float32", "int32", "float64", "int64", "uint8"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_min_max(self, op_type, ie_device, precision, ir_version):
-        self._test(*self.create_model(op_type, None, None, single_input=False),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={"second_input": True})
+    def test_min_max(self, op_type, first_input_dtype, second_input_dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(op_type, None, None, single_input=False, dtypes=(first_input_dtype, second_input_dtype)),
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=
+                   {"second_input": True, "input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype}
+                   )
 
 
 class TestPrimMax(PytorchLayerTest):
