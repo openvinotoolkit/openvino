@@ -22,7 +22,7 @@ void regclass_graph_op_If(py::module m) {
     cls.def(py::init<const ov::Output<ov::Node>&>(),
             py::arg("execution_condition"),
             R"(
-            Constructs If with condition
+            Constructs If with condition.
 
             :param execution_condition: condition node.
             :type execution_condition: openvino.runtime.Output
@@ -41,7 +41,7 @@ void regclass_graph_op_If(py::module m) {
             }),
             py::arg("execution_condition"),
             R"(
-            Constructs If with condition
+            Constructs If with condition.
 
             :param execution_condition: condition node.
             :type execution_condition: openvino.runtime.Node
@@ -88,15 +88,15 @@ void regclass_graph_op_If(py::module m) {
             py::arg("then_parameter"),
             py::arg("else_parameter"),
             R"(
-            Sets new input to the operation associated with parameters of each sub-graphs
+            Sets new input to the operation associated with parameters of each sub-graphs.
 
-            :param value: input to operation
+            :param value: input to operation.
             :type value: openvino.runtime.Output
 
-            :param then_result: parameter for then_body or nullptr
+            :param then_result: parameter for then_body or nullptr.
             :type then_result: openvino.runtime.Node
 
-            :param else_result: parameter for else_body or nullpt
+            :param else_result: parameter for else_body or nullptr.
             :type else_result: openvino.runtime.Node
 
             :rtype: None
@@ -107,15 +107,15 @@ void regclass_graph_op_If(py::module m) {
             py::arg("then_result"),
             py::arg("else_result"),
             R"(
-            Sets new output from the operation associated with results of each sub-graphs
+            Sets new output from the operation associated with results of each sub-graphs.
 
-            :param then_result: result from then_body
+            :param then_result: result from then_body.
             :type then_result: openvino.runtime.Node
 
-            :param else_result: result from else_body
+            :param else_result: result from else_body.
             :type else_result: openvino.runtime.Node
 
-            :return: output from operation
+            :return: output from operation.
             :rtype: openvino.runtime.Output
         )");
 
@@ -123,12 +123,12 @@ void regclass_graph_op_If(py::module m) {
             &ov::op::util::MultiSubGraphOp::get_function,
             py::arg("index"),
             R"(
-            Gets internal sub-graph by index in MultiSubGraphOp
+            Gets internal sub-graph by index in MultiSubGraphOp.
 
-            :param index: sub-graph's index in op
+            :param index: sub-graph's index in op.
             :type index: int
             
-            :return: Model with sub-graph
+            :return: Model with sub-graph.
             :rtype: openvino.Model
         )");
 
@@ -137,12 +137,12 @@ void regclass_graph_op_If(py::module m) {
             py::arg("index"),
             py::arg("func"),
             R"(
-            Adds sub-graph to MultiSubGraphOp
+            Adds sub-graph to MultiSubGraphOp.
 
-            :param index: index of new sub-graph
+            :param index: index of new sub-graph.
             :type index: int
 
-            :param func: func new sub_graph as Model
+            :param func: func new sub_graph as a Model.
             :type func: openvino.Model
 
             :rtype: None
@@ -156,12 +156,12 @@ void regclass_graph_op_If(py::module m) {
         py::arg("index"),
         py::arg("inputs"),
         R"(
-            Sets list with connections between operation inputs and internal sub-graph parameters
+            Sets list with connections between operation inputs and internal sub-graph parameters.
 
-            :param index: index of internal sub-graph
+            :param index: index of internal sub-graph.
             :type index: int
 
-            :param inputs: list of input descriptions
+            :param inputs: list of input descriptions.
             :type inputs: list[Union[openvino.runtime.op.util.MergedInputDescription,
                                      openvino.runtime.op.util.InvariantInputDescription,
                                      openvino.runtime.op.util.SliceInputDescription]]
@@ -177,12 +177,12 @@ void regclass_graph_op_If(py::module m) {
         py::arg("index"),
         py::arg("outputs"),
         R"(
-            Sets list with connections between operation outputs and internal sub-graph parameters
+            Sets list with connections between operation outputs and internal sub-graph parameters.
 
-            :param index: index of internal sub-graph
+            :param index: index of internal sub-graph.
             :type index: int
 
-            :param outputs: list of output descriptions
+            :param outputs: list of output descriptions.
             :type outputs: list[Union[openvino.runtime.op.util.BodyOutputDescription,
                                       openvino.runtime.op.util.ConcatOutputDescription]]
 
@@ -202,12 +202,12 @@ void regclass_graph_op_If(py::module m) {
         },
         py::arg("index"),
         R"(
-            Gets list with connections between operation outputs and internal sub-graph parameters
+            Gets list with connections between operation outputs and internal sub-graph parameters.
 
-            :param index: index of internal sub-graph
+            :param index: index of internal sub-graph.
             :type index: int
 
-            :return: list of output descriptions
+            :return: list of output descriptions.
             :rtype: list[Union[openvino.runtime.op.util.BodyOutputDescription,
                               openvino.runtime.op.util.ConcatOutputDescription]]
         )");
@@ -225,12 +225,12 @@ void regclass_graph_op_If(py::module m) {
         },
         py::arg("index"),
         R"(
-            Gets list with connections between operation inputs and internal sub-graph parameters
+            Gets list with connections between operation inputs and internal sub-graph parameters.
 
-            :param index: index of internal sub-graph
+            :param index: index of internal sub-graph.
             :type index: int
 
-            :return: list of input descriptions
+            :return: list of input descriptions.
             :rtype: list[Union[openvino.runtime.op.util.MergedInputDescription,
                                openvino.runtime.op.util.InvariantInputDescription,
                                openvino.runtime.op.util.SliceInputDescription]]
