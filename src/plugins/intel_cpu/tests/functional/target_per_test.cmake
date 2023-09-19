@@ -19,10 +19,10 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
 
 if(X86_64)
     list(APPEND REQUIRED_OBJECT_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/arm/cpu_test_utils.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64/filter_cpu_info.cpp)
 else()
     list(APPEND REQUIRED_OBJECT_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64/cpu_test_utils.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/arm/filter_cpu_info.cpp)
 endif()
 
   file(GLOB LIST_OF_TEST_FILES ${TEST_DIR}/*.cpp)

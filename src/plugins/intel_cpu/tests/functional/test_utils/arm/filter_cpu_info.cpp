@@ -3,6 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
@@ -24,17 +25,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForArch(const std::vector<CPUSpecifi
     for (auto param : CPUParams) {
         auto selectedTypeStr = std::get<selectedTypeIndex>(param);
 
-        if (selectedTypeStr.find("jit") != std::string::npos)
-            continue;
-        if (selectedTypeStr.find("sse42") != std::string::npos)
-            continue;
-        if (selectedTypeStr.find("avx") != std::string::npos)
-            continue;
-        if (selectedTypeStr.find("avx2") != std::string::npos)
-            continue;
-        if (selectedTypeStr.find("avx512") != std::string::npos)
-            continue;
-        if (selectedTypeStr.find("amx") != std::string::npos)
+        if (selectedTypeStr.find("acl") == std::string::npos &&
+            selectedTypeStr.find("ref") == std::string::npos)
             continue;
 
         resCPUParams.push_back(param);

@@ -42,10 +42,10 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
 
 if(X86_64)
     list(APPEND REQUIRED_OBJECT_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/arm/cpu_test_utils.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64/cpu_test_utils.cpp)
 else()
     list(APPEND REQUIRED_OBJECT_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64/cpu_test_utils.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/arm/cpu_test_utils.cpp)
 endif()
 
   addIeTargetTest(
