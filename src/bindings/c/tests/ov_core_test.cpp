@@ -77,6 +77,7 @@ TEST_P(ov_core_test, ov_core_read_model_no_bin) {
     ov_core_free(core);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST_P(ov_core_test, ov_core_read_model_from_memory) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -102,6 +103,7 @@ TEST_P(ov_core_test, ov_core_read_model_from_memory) {
     ov_model_free(model);
     ov_core_free(core);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 TEST_P(ov_core_test, ov_core_read_model_from_memory_buffer_with_size) {
     ov_core_t* core = nullptr;
