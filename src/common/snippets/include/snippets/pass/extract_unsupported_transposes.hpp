@@ -15,7 +15,7 @@ namespace pass {
  * @brief Moves up unsupported Transposes on Parameter outputs from body
  * @ingroup snippets
  */
-class ExtractUnsupportedTransposes: public SubgraphPass {
+class ExtractUnsupportedTransposes: public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("ExtractUnsupportedTransposes", "0");
     ExtractUnsupportedTransposes() = default;

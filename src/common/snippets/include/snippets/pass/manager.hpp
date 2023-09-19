@@ -13,9 +13,6 @@
 
 namespace ov {
 namespace snippets {
-namespace op {
-class Subgraph;
-} // namespace op
 namespace pass {
 
 /**
@@ -78,14 +75,6 @@ public:
 
     std::shared_ptr<PassBase> register_pass_instance(const PassPosition& pass_id, const std::shared_ptr<PassBase>& pass);
     void register_positioned_passes(const std::vector<PositionedPass>& pos_passes);
-
-    /// \brief      Runs registered transformations on a given Subgraph op
-    ///
-    /// \param      subgraph Input Subgraph op
-    ///
-    /// \return     Returns true if the model was changed by transformations,
-    ///             false otherwise.
-    bool run_passes_on_subgraph(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph);
 
 protected:
     std::shared_ptr<Manager::PassBase> insert_pass_instance(const PassPosition& position, const std::shared_ptr<PassBase>& pass);

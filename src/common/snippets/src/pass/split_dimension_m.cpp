@@ -35,6 +35,7 @@ bool ov::snippets::pass::SplitDimensionM::canBeOptimized(const std::shared_ptr<c
 }
 
 bool ov::snippets::pass::SplitDimensionM::run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SplitDimensionM");
      // To increase parallelism work in 3D cases for MHA pattern,
     // we split 1st dimension (starting from 0th) into 2 new dimensions to get 4D Shapes where
     // - 0th and 1st dimensions are used in parallel scheduling,

@@ -10,7 +10,7 @@
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/extract_constants.hpp"
 #include "snippets/pass/extract_unsupported_transposes.hpp"
-#include "snippets/pass/manager.hpp"
+#include "snippets/pass/subgraph_manager.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/itt.hpp"
 
@@ -35,23 +35,28 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
             return false;
         }
 
+        const auto& body = subgraph->body_ptr();
         const auto is_quantized = subgraph->is_quantized();
         const auto is_domain_sensitive = subgraph->has_domain_sensitive_ops();
 
         // Firstly, we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
-        ov::snippets::pass::Manager manager;
+        ov::pass::Manager manager;
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::TransformConvertToConvertTruncation, true);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::ExplicitTransposeMatMulInputs, is_domain_sensitive);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::CommonFakeQuantizeDecomposition, is_quantized);
-        REGISTER_SNIPPETS_PASS(manager, snippets::pass::SoftmaxReshapeElimination, is_domain_sensitive);
+        REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::SoftmaxReshapeElimination, is_domain_sensitive);
+        manager.run_passes(body);
+
+        ov::snippets::pass::CommonOptimizations::SubgraphManager subgraph_manager;
         // At the moment only non-scalar Constants of FakeQuantize can be inside Subgraph
         // so we can enable ExtractConstants pass for quantized models
-        REGISTER_SNIPPETS_PASS(manager, snippets::pass::ExtractConstants, is_quantized);
-        REGISTER_SNIPPETS_PASS(manager, snippets::pass::ExtractUnsupportedTransposes, is_domain_sensitive);
-        REGISTER_SNIPPETS_PASS(manager, snippets::pass::SplitDimensionM, is_domain_sensitive && config.split_m_dimension, config.concurrency);
+        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractConstants, is_quantized);
+        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractUnsupportedTransposes, is_domain_sensitive);
+        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::SplitDimensionM, is_domain_sensitive && config.split_m_dimension, config.concurrency);
+        subgraph_manager.run_passes(subgraph);
 
-        return manager.run_passes_on_subgraph(subgraph);
+        return true;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::snippets::op::Subgraph>(), matcher_name);

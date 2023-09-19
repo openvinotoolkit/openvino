@@ -4,22 +4,6 @@
 
 #include "snippets/pass/manager.hpp"
 
-#include "snippets/pass/subgraph_pass.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "snippets/itt.hpp"
-
-#include "ngraph/pass/pass.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/util/env_util.hpp"
-#include "openvino/util/log.hpp"
-
-#include <algorithm>
-#include <iomanip>
-#include <iostream>
-#include <memory>
-#include <mutex>
-#include <unordered_map>
 
 namespace ov {
 namespace snippets {
@@ -91,111 +75,6 @@ std::shared_ptr<Manager::PassBase> Manager::insert_pass_instance(const PassPosit
         m_pass_list.insert(insert_pos, std::make_shared<ov::pass::Validate>());
     }
     return pass;
-}
-
-bool Manager::run_passes_on_subgraph(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Manager");
-
-    OPENVINO_ASSERT(subgraph != nullptr, "ov::snippets::pass::Manager got invalid Subgraph op");
-
-    static bool profile_enabled =
-        ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE") || ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
-
-    size_t index = 0;
-    ngraph::stopwatch pass_timer;
-    ngraph::stopwatch overall_timer;
-    overall_timer.start();
-    bool pass_applied = false;
-    bool function_changed = false;
-    bool needs_validate = false;
-    const auto& body = subgraph->body_ptr();
-    for (auto& pass : m_pass_list) {
-        if (m_pass_config->is_disabled(pass->get_type_info())) {
-            OPENVINO_DEBUG << "Pass " << pass->get_name() << " is disabled";
-            continue;
-        }
-
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::pass::itt::domains::SnippetsTransform, ov::pass::perf_counters()[pass->get_type_info()]);
-
-        pass_timer.start();
-
-        if (auto subgraph_pass = std::dynamic_pointer_cast<ov::snippets::pass::SubgraphPass>(pass)) {
-            // This checks is to skip the graph transformation when the graph pass relies on
-            // static shape but the function state is dynamic.
-            if (subgraph_pass->get_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE) && body->is_dynamic()) {
-                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                               << "model is dynamic. Skipping this transformation";
-                continue;
-            }
-
-            pass_applied = subgraph_pass->run_on_subgraph(subgraph);
-        } else if (auto matcher_pass = std::dynamic_pointer_cast<ov::pass::MatcherPass>(pass)) {
-            // This checks is to skip the graph transformation when the graph pass relies on
-            // static shape but the function state is dynamic.
-            if (matcher_pass->get_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE) && body->is_dynamic()) {
-                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                               << "model is dynamic. Skipping this transformation";
-                continue;
-            }
-            // GraphRewrite is a temporary container for MatcherPass to make execution
-            // on on entire ov::Model
-            pass_applied = ov::pass::GraphRewrite(matcher_pass).run_on_model(body);
-        } else if (auto function_pass = std::dynamic_pointer_cast<ov::pass::ModelPass>(pass)) {
-            // This checks is to skip the graph transformation when the graph pass relies on
-            // static shape but the function state is dynamic.
-            if (function_pass->get_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE) && body->is_dynamic()) {
-                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                               << "model is dynamic. Skipping this transformation";
-                continue;
-            }
-
-            if (std::dynamic_pointer_cast<ov::pass::Validate>(pass)) {
-                if (needs_validate) {
-                    function_pass->run_on_model(body);
-                    needs_validate = false;
-                }
-            } else {
-                pass_applied = function_pass->run_on_model(body);
-            }
-        } else if (auto node_pass = std::dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
-            if (node_pass->get_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE) && body->is_dynamic()) {
-                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                               << "model is dynamic. Skipping this transformation";
-                continue;
-            }
-            for (const std::shared_ptr<ov::Node>& n : body->get_ops()) {
-                pass_applied |= node_pass->run_on_node(n);
-            }
-        }
-
-        if (m_visualize) {
-            // visualizations and serializations will be named after the outermost function
-            const size_t num_digits_in_pass_index = 3;
-            std::string index_str = std::to_string(index);
-            index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
-            auto base_filename = subgraph->get_name() + std::string("_") + index_str + std::string("_") + pass->get_name();
-
-            if (m_visualize) {
-                auto file_ext = "svg";
-                ov::pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
-                vt.run_on_model(body);
-            }
-        }
-        index++;
-        pass_timer.stop();
-        if (profile_enabled) {
-            std::cout << std::setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
-        }
-        function_changed = function_changed || pass_applied;
-        needs_validate = pass_applied;
-    }
-    if (profile_enabled) {
-        std::cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    return function_changed;
 }
 
 } // namespace pass

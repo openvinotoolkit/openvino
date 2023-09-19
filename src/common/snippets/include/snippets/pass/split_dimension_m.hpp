@@ -17,7 +17,7 @@ namespace pass {
  *        Note: works only with 3D MHA patterns
  * @ingroup snippets
  */
-class SplitDimensionM: public SubgraphPass {
+class SplitDimensionM: public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("SplitDimensionM", "0");
     SplitDimensionM(size_t concurrency) : m_concurrency(concurrency) {}

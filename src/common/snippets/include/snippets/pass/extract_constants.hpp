@@ -15,7 +15,7 @@ namespace pass {
  * @brief Moves up Constants which aren't scalars from body to Subgraph and replace them with Parameters inside body
  * @ingroup snippets
  */
-class ExtractConstants: public SubgraphPass {
+class ExtractConstants: public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("ExtractConstants", "0");
     ExtractConstants() = default;
