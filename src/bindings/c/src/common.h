@@ -17,7 +17,7 @@
 #define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
     catch (const InferenceEngine::ExceptionType&) {   \
         return ov_status_e::StatusCode;               \
-    }                                                 \
+    }
 
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
     catch (const ov::ExceptionType&) {                \
@@ -42,7 +42,7 @@
     CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
     catch (...) {                                             \
         return ov_status_e::UNKNOW_EXCEPTION;                 \
-    }                                                         \
+    }
 
 #define GET_PROPERTY_FROM_ARGS_LIST                     \
     std::string property_key = va_arg(args_ptr, char*); \
