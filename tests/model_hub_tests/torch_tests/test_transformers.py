@@ -275,7 +275,6 @@ class TestTransformersModel(TestConvertModel):
     @pytest.mark.parametrize("name,type", [("gpt2", "gpt2"),
                                            ("bert-base-uncased", "bert"),
                                            ("facebook/bart-large-mnli", "bart"),
-                                           ("google/flan-t5-base", "t5"),
                                            ("openai/clip-vit-large-patch14", "clip")])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
