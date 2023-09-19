@@ -8,7 +8,7 @@
 #include <transformations/snippets/x64/op/fused_mul_add.hpp>
 #include "snippets/op/scalar.hpp"
 #include "lowering_utils.hpp"
-#include "snippets/pass_manager.hpp"
+#include "snippets/pass/manager.hpp"
 
 namespace ov {
 namespace test {
