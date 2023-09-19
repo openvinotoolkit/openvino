@@ -217,9 +217,6 @@ void ov::template_plugin::Plugin::set_property(const ov::AnyMap& properties) {
 
 // ! [plugin:get_property]
 ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::available_devices,
                                                     ov::supported_properties,
@@ -233,15 +230,12 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
+                                                    ov::hint::num_requests,
+                                                    ov::hint::inference_precision,
+                                                    ov::hint::execution_mode,
+                                                    ov::num_streams,
                                                     ov::template_plugin::disable_transformations};
         return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
     };
     if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
