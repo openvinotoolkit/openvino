@@ -254,13 +254,6 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWMandatoryPr
         }
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::hint::model_priority.name()) != props.end()) {
-        ov::hint::Priority priorities[] = {ov::hint::Priority::LOW , ov::hint::Priority::MEDIUM, ov::hint::Priority::HIGH};
-        for (auto &priority : priorities) {
-            res.push_back({{ov::hint::model_priority(priority)}});
-        }
-    }
-
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::performance_mode.name()) != props.end()) {
         ov::hint::PerformanceMode performance_modes[] = {ov::hint::PerformanceMode::LATENCY,
                 ov::hint::PerformanceMode::THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT};
