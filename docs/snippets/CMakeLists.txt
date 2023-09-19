@@ -5,14 +5,14 @@
 set(TARGET_NAME ie_docs_snippets)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wall)
+    ov_add_compiler_flags(-Wall)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-unused-variable)
+    ov_add_compiler_flags(-Wno-unused-variable)
 endif()
 if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
-    ie_add_compiler_flags(-Wno-unused-but-set-variable)
+    ov_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"

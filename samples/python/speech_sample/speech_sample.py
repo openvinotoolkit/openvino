@@ -9,8 +9,7 @@ from timeit import default_timer
 from typing import Dict
 
 import numpy as np
-from openvino.preprocess import PrePostProcessor
-from openvino.runtime import Core, InferRequest, Layout, Type, set_batch
+import openvino as ov
 
 from arg_parser import parse_args
 from file_options import read_utterance_file, write_utterance_file
@@ -20,7 +19,7 @@ from utils import (GNA_ATOM_FREQUENCY, GNA_CORE_FREQUENCY,
                    set_scale_factors)
 
 
-def do_inference(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
+def do_inference(data: Dict[str, np.ndarray], infer_request: ov.InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
     """Do a synchronous matrix inference."""
     frames_to_infer = {}
     result = {}
@@ -69,7 +68,7 @@ def main():
 
 # --------------------------- Step 1. Initialize OpenVINO Runtime Core ------------------------------------------------
     log.info('Creating OpenVINO Runtime Core')
-    core = Core()
+    core = ov.Core()
 
 # --------------------------- Step 2. Read a model --------------------------------------------------------------------
     if args.model:
@@ -83,19 +82,19 @@ def main():
         if args.layout:
             layouts = get_input_layouts(args.layout, model.inputs)
 
-        ppp = PrePostProcessor(model)
+        ppp = ov.preprocess.PrePostProcessor(model)
 
         for i in range(len(model.inputs)):
-            ppp.input(i).tensor().set_element_type(Type.f32)
+            ppp.input(i).tensor().set_element_type(ov.Type.f32)
 
             input_name = model.input(i).get_any_name()
 
             if args.layout and input_name in layouts.keys():
-                ppp.input(i).tensor().set_layout(Layout(layouts[input_name]))
-                ppp.input(i).model().set_layout(Layout(layouts[input_name]))
+                ppp.input(i).tensor().set_layout(ov.Layout(layouts[input_name]))
+                ppp.input(i).model().set_layout(ov.Layout(layouts[input_name]))
 
         for i in range(len(model.outputs)):
-            ppp.output(i).tensor().set_element_type(Type.f32)
+            ppp.output(i).tensor().set_element_type(ov.Type.f32)
 
         model = ppp.build()
 
@@ -103,7 +102,7 @@ def main():
             batch_size = args.batch_size if args.context_window_left == args.context_window_right == 0 else 1
 
             if any((not _input.node.layout.empty for _input in model.inputs)):
-                set_batch(model, batch_size)
+                ov.set_batch(model, batch_size)
             else:
                 log.warning('Layout is not set for any input, so custom batch size is not set')
 

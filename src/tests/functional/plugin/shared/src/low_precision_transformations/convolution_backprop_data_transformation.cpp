@@ -17,7 +17,7 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
     std::pair<ngraph::PartialShape, bool> inputShape;
     ngraph::Shape outputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionBackpropDataTransformationParam param;
     std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = obj.param;
 
@@ -36,7 +36,7 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, bool> inputShapeAndHandling;
     ngraph::Shape outputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionBackpropDataTransformationParam param;
     std::tie(netPrecision, inputShapeAndHandling, outputShape, targetDevice, params, param) = this->GetParam();
 
