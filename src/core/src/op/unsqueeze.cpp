@@ -52,8 +52,9 @@ bool ov::op::v0::Unsqueeze::evaluate(ov::TensorVector& outputs, const ov::Tensor
         outputs.emplace_back(ov::Tensor(inputs[0].get_element_type(), {0}));
     }
     OPENVINO_ASSERT(outputs.size() == 1);
-    const auto output_shapes = shape_infer(this, std::vector<ov::Shape>{inputs[0].get_shape(), inputs[1].get_shape()});
-    outputs[0].set_shape(output_shapes[0]);
+    const auto output_shapes =
+        shape_infer(this, std::vector<ov::PartialShape>{inputs[0].get_shape(), inputs[1].get_shape()});
+    outputs[0].set_shape(output_shapes[0].to_shape());
     ov::reference::copy(static_cast<const char*>(inputs[0].data()),
                         static_cast<char*>(outputs[0].data()),
                         outputs[0].get_byte_size());
