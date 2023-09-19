@@ -12,7 +12,7 @@
 
    * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
-   * is dedicated to macOS and Linux users.
+   * is dedicated to macOS (both arm64 and x86_64) and Linux (x86_64 only) users.
 
 
 .. tab-set::
