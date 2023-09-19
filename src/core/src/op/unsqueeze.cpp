@@ -45,44 +45,6 @@ std::shared_ptr<ov::Node> ov::op::v0::Unsqueeze::clone_with_new_inputs(const Out
     return std::make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
-namespace ov {
-namespace op {
-namespace unsqueeze {
-
-// The evaluate cannot use shape_infer for output shape calculation as shape inference accepts
-// repeated axis and evaluate not. When shape inference will changed to be compatible with `numpy` then
-// evaluate and inference can use same function to calculate output shape. TODO for next version for this operator.
-namespace {
-bool evaluate_unsqueeze(const Node* node, const ov::Tensor& arg0, const ov::Tensor& arg1, ov::Tensor& out) {
-    const auto& axes_shape = arg1.get_shape();
-    ov::op::v0::check_unsqueeze_axes_rank(node, Rank(axes_shape.size()));
-
-    const auto& data_shape = arg0.get_shape();
-    const auto out_rank = static_cast<int64_t>(data_shape.size() + shape_size(axes_shape));
-
-    // Get axes and normalize
-    auto axes = ov::util::read_index_vector(arg1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::normalize_axes(node, out_rank, axes);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    // Sort in increasing order
-    std::set<int64_t> axes_set(axes.begin(), axes.end());
-    OPENVINO_ASSERT(axes.size() == axes_set.size(), "Axes has duplicate axis.");
-
-    auto out_shape = data_shape;
-    for (int64_t axis : axes_set) {
-        out_shape.insert(out_shape.begin() + axis, 1);
-    }
-    out.set_shape(out_shape);
-    ov::reference::copy(static_cast<const char*>(arg0.data()), static_cast<char*>(out.data()), out.get_byte_size());
-    return true;
-}
-}  // namespace
-}  // namespace unsqueeze
-}  // namespace op
-}  // namespace ov
-
 bool ov::op::v0::Unsqueeze::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Unsqueeze_evaluate);
     OPENVINO_ASSERT(inputs.size() == 2);
@@ -90,7 +52,12 @@ bool ov::op::v0::Unsqueeze::evaluate(ov::TensorVector& outputs, const ov::Tensor
         outputs.emplace_back(ov::Tensor(inputs[0].get_element_type(), {0}));
     }
     OPENVINO_ASSERT(outputs.size() == 1);
-    return unsqueeze::evaluate_unsqueeze(this, inputs[0], inputs[1], outputs[0]);
+    const auto output_shapes = shape_infer(this, std::vector<ov::Shape>{inputs[0].get_shape(), inputs[1].get_shape()});
+    outputs[0].set_shape(output_shapes[0]);
+    ov::reference::copy(static_cast<const char*>(inputs[0].data()),
+                        static_cast<char*>(outputs[0].data()),
+                        outputs[0].get_byte_size());
+    return true;
 }
 
 bool ov::op::v0::Unsqueeze::has_evaluate() const {

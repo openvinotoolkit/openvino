@@ -74,7 +74,7 @@ std::vector<int64_t> ov::util::read_index_vector(const ov::Tensor& tensor) {
             index_vec.push_back(static_cast<int64_t*>(data)[i]);
             break;
         default:
-            OPENVINO_THROW("Unsupported OpenVINO element type.");
+            OPENVINO_THROW("Unsupported OpenVINO element type: ", element_type, ".");
         }
     }
 
