@@ -346,7 +346,10 @@ jobs:
             ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-
 
       - name: Check Tools Dir
-        run: ls -laR ${{ env.CONFORMANCE_TOOLS_DIR }}
+        run: |
+          ls -laR ${{ env.CONFORMANCE_TOOLS_DIR }}
+          echo ""
+          ls -laR ${{ env.CONFORMANCE_ARTIFACTS_DIR }}
 
       - name: Run Conformance Tests
         run: |
