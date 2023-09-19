@@ -70,4 +70,15 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCompiledModelIncorrectDevice,
         ::testing::Values(targetDevice));
 
+const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
+        {ov::hint::model_priority(ov::hint::Priority::HIGH)},
+        {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+        {ov::hint::model_priority(ov::hint::Priority::LOW)},
+        {ov::hint::model_priority(ov::hint::Priority::DEFAULT)}};
+
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory,
+                         OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
+                         ::testing::Combine(::testing::ValuesIn(return_all_possible_device_combination()),
+                                            ::testing::ValuesIn(multiModelPriorityConfigs)));
+
 } // namespace

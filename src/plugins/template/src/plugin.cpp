@@ -233,6 +233,10 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
+                                                    ov::hint::num_requests,
+                                                    ov::hint::inference_precision,
+                                                    ov::hint::execution_mode,
+                                                    ov::num_streams,
                                                     ov::template_plugin::disable_transformations};
         return rw_properties;
     };
