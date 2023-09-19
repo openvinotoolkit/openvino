@@ -558,7 +558,7 @@ void get_num_streams(const int streams,
     streamsConfig._name = "CPUStreamsExecutor";
     streamsConfig._streams = 1;
     streamsConfig._threads = 1;
-    if (proc_type_table[0][MAIN_CORE_PROC] > 0) {
+    if (proc_type_table[0][MAIN_CORE_PROC] > 0 && proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
         streamsConfig._streams_info_table.push_back({1, MAIN_CORE_PROC, 1, 0, 0});
     }
 
