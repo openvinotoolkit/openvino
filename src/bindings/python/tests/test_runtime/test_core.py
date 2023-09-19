@@ -69,24 +69,22 @@ def test_core_class(device):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compile_model(request, tmp_path, device):
+@pytest.mark.parametrize("device_name", [
+    None,
+    "CPU"
+])
+def test_compile_model(request, tmp_path, device_name):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = core.compile_model(model, device)
-    assert isinstance(compiled_model, CompiledModel)
+    compiled_model = None
+    if device_name is None:
+        compiled_model = core.compile_model(model)
+    else:
+        compiled_model = core.compile_model(model, device_name)
 
-
-# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compile_model_without_device(request, tmp_path):
-    core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
-    relu_model = get_relu_model()
-    serialize(relu_model, xml_path, bin_path)
-    model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = core.compile_model(model)
     assert isinstance(compiled_model, CompiledModel)
 
 
