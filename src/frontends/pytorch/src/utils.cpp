@@ -422,9 +422,9 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
         // if div we need to also align float types to highest bitness regardless of scalar
         if (!align_scalars)
             lhs_dst_type = element::f32;
-        rhs_dst_type = element::f32;
+        rhs_dst_type = lhs_type;
     } else if (is_rhs_scalar && !lhs_type.is_real() && rhs_type.is_real()) {
-        lhs_dst_type = element::f32;
+        lhs_dst_type = rhs_type;
         // if div we need to also align float types to highest bitness regardless of scalar
         if (!align_scalars)
             rhs_dst_type = element::f32;
