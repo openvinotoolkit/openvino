@@ -174,7 +174,7 @@ ov_core_read_model_unicode(const ov_core_t* core,
  * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
  * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
- * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format.
+ * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format, string is null-terminated.
  * @param weights Shared pointer to a constant tensor with weights.
  * @param model A pointer to the newly created model.
  * Reading ONNX / PDPD / TF / TFLite models does not support loading weights from the @p weights tensors.
@@ -188,6 +188,28 @@ ov_core_read_model_from_memory(const ov_core_t* core,
                                const char* model_str,
                                const ov_tensor_t* weights,
                                ov_model_t** model);
+
+/**
+ * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats with models string size.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ie_core_t instance.
+ * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format, support model string containing
+ * several null chars.
+ * @param str_len The length of model string.
+ * @param weights Shared pointer to a constant tensor with weights.
+ * @param model A pointer to the newly created model.
+ * Reading ONNX / PDPD / TF / TFLite models does not support loading weights from the @p weights tensors.
+ * @note Created model object shares the weights with the @p weights object.
+ * Thus, do not create @p weights on temporary data that can be freed later, since the model
+ * constant data will point to an invalid memory.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_read_model_from_memory_with_size(const ov_core_t* core,
+                                         const char* model_str,
+                                         const size_t str_len,
+                                         const ov_tensor_t* weights,
+                                         ov_model_t** model);
 
 /**
  * @brief Creates a compiled model from a source model object.
