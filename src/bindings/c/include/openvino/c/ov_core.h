@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "openvino/c/deprecated.h"
 #include "openvino/c/ov_common.h"
 #include "openvino/c/ov_compiled_model.h"
 #include "openvino/c/ov_model.h"
@@ -173,6 +174,7 @@ ov_core_read_model_unicode(const ov_core_t* core,
 /**
  * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
  * @ingroup ov_core_c_api
+ * @deprecated Use ov_core_read_model_from_memory_buffer instead.
  * @param core A pointer to the ie_core_t instance.
  * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format, string is null-terminated.
  * @param weights Shared pointer to a constant tensor with weights.
@@ -184,6 +186,7 @@ ov_core_read_model_unicode(const ov_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
+OPENVINO_DEPRECATED("This API is deprecated and will be replaced by ov_core_read_model_from_memory_buffer")
 ov_core_read_model_from_memory(const ov_core_t* core,
                                const char* model_str,
                                const ov_tensor_t* weights,
