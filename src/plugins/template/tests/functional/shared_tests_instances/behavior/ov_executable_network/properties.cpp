@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
-    {ov::enable_profiling(true)},
+    {ov::enable_profiling(false)},
     {{ov::loaded_from_cache.name(), false}},
     {ov::device::id("0")},
 };
