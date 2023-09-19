@@ -375,6 +375,7 @@ jobs:
           key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ github.sha }}
 
       - name: Upload Conformance Artifacts
+        if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}
