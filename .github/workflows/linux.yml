@@ -340,7 +340,7 @@ jobs:
         uses: actions/cache/restore@v3
         id: expected_failures_cache
         with:
-          path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/expected_failures_cpu.csv
+          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
           key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-
@@ -360,21 +360,21 @@ jobs:
             -d=CPU \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${{ env.CONFORMANCE_ARTIFACTS_DIR }} \
-            -f=${{ env.CONFORMANCE_ARTIFACTS_DIR }}/expected_failures_cpu.csv \
+            -f=${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv \
             ${{ github.ref_name == 'master' && '-u' || '' }}
 
       # Required due to: https://github.com/actions/cache/tree/main/restore#ensuring-proper-restores-and-save-happen-across-the-actions
       - name: Rename Expected Failures List
         # if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
         run: |
-          rm -rf ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/expected_failures_cpu.csv
-          cp ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/CPU_logs/logs/fix_priority.csv ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/expected_failures_cpu.csv
+          rm -rf ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
+          cp ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/CPU_logs/logs/fix_priority.csv ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
 
       - name: Upload Expected Failures List
         # if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
         uses: actions/cache/save@v3
         with:
-          path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/expected_failures_cpu.csv
+          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
           key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ github.sha }}
 
       - name: Upload Conformance Artifacts
