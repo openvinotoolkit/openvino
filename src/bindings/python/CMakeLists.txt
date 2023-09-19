@@ -20,8 +20,17 @@ endif()
 # Settings for FindPython3.cmake
 #
 
-set(Python3_USE_STATIC_LIBS OFF)
-set(Python3_FIND_IMPLEMENTATIONS CPython PyPy)
+if(NOT DEFINED Python3_USE_STATIC_LIBS)
+    set(Python3_USE_STATIC_LIBS OFF)
+endif()
+
+if(NOT DEFINED Python3_FIND_VIRTUALENV)
+    set(Python3_FIND_VIRTUALENV FIRST)
+endif()
+
+if(NOT DEFINED Python3_FIND_IMPLEMENTATIONS)
+    set(Python3_FIND_IMPLEMENTATIONS CPython PyPy)
+endif()
 
 #
 # Check python requirements
@@ -42,7 +51,17 @@ function(ov_check_python_build_conditions)
     endif()
 
     find_package(Python3 ${find_package_mode} COMPONENTS Interpreter Development)
-    if(NOT Python3_Development_FOUND)
+    if(Python3_Development_FOUND)
+        message(STATUS "Python3 executable: ${Python3_EXECUTABLE}")
+        message(STATUS "Python3 version: ${Python3_VERSION}")
+        if(Python3_PyPy_VERSION)
+            message(STATUS "Python3 PyPy version: ${Python3_PyPy_VERSION}")
+        endif()
+        message(STATUS "Python3 interpreter ID: ${Python3_INTERPRETER_ID}")
+        message(STATUS "Python3 SOABI: ${Python3_SOABI}")
+        message(STATUS "Python3 include dirs: ${Python3_INCLUDE_DIRS}")
+        message(STATUS "Python3 libraries: ${Python3_LIBRARIES}")
+    else()
         message(${message_mode} "Python 3.x Interpreter and Development components are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
     endif()
 
