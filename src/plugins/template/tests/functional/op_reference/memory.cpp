@@ -286,7 +286,6 @@ protected:
     void CommonTestSteps(const std::function<void(size_t, ov::InferRequest&)>& custom_step = nullptr) {
         auto params = GetParam();
 
-        const auto& functionParams = function->get_parameters();
         inferRequest.set_tensor(executableNetwork.input(0), params.m_input_data);
         for (size_t i = 0; i < params.m_count_runs; ++i) {
             if (custom_step) {
