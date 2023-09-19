@@ -358,7 +358,7 @@ jobs:
             -t=${{ matrix.TEST_TYPE }} \
             -w=${{ env.CONFORMANCE_ARTIFACTS_DIR }} \
             -f=${{ env.CONFORMANCE_ARTIFACTS_DIR }}/expected_failures_cpu.csv \
-            ${{ github.ref_name == 'master' && '-u' || ''  }}
+            ${{ github.ref_name == 'master' && '-u' || '' }}
 
       # Required due to: https://github.com/actions/cache/tree/main/restore#ensuring-proper-restores-and-save-happen-across-the-actions
       - name: Rename Expected Failures List
