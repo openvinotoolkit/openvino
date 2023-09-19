@@ -151,7 +151,7 @@ TEST_P(InferRequest_IOTensor_Test, can_infer_after_io_realloc) {
     ASSERT_NO_THROW(req.wait());
     ASSERT_NO_THROW(req.get_tensor(output));
 }
-
+namespace {
 auto props = []() {
     return std::vector<ov::AnyMap>{{ov::device::priorities("MOCK_GPU", "MOCK_CPU")},
                                    {ov::device::priorities("MOCK_GPU")},
@@ -170,3 +170,4 @@ INSTANTIATE_TEST_SUITE_P(AutoFuncTestsCumu, InferRequest_IOTensor_Test,
                                 ::testing::Values("MULTI"),
                                 ::testing::ValuesIn(props())),
                          InferRequest_IOTensor_Test::getTestCaseName);
+}

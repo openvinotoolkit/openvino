@@ -5,7 +5,7 @@
 #include "infer_consistency_test.hpp"
 
 using namespace ov::auto_plugin::tests;
-
+namespace {
 auto props = []() {
     return std::vector<ov::AnyMap>{{ov::device::priorities("MOCK_GPU", "MOCK_CPU")},
                                    {ov::device::priorities("MOCK_GPU")},
@@ -23,4 +23,5 @@ INSTANTIATE_TEST_SUITE_P(AutoFuncTests, Consistency_Test,
                                 ::testing::ValuesIn(get_vs_set),
                                 ::testing::ValuesIn(props())),
                          Consistency_Test::getTestCaseName);
+}
 
