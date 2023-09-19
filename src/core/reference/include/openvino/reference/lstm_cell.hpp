@@ -6,6 +6,7 @@
 
 #include <cmath>
 
+#include "openvino/op/lstm_cell.hpp"
 #include "openvino/reference/add.hpp"
 #include "openvino/reference/clamp.hpp"
 #include "openvino/reference/matmul.hpp"
