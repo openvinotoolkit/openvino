@@ -437,9 +437,9 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     }
 
     if (!lhs_dst_type.is_real() && rhs_dst_type.is_real()) {
-        lhs_dst_type = element::f32;
+        lhs_dst_type = rhs_dst_type;
     } else if (lhs_dst_type.is_real() && !rhs_dst_type.is_real()) {
-        rhs_dst_type = element::f32;
+        rhs_dst_type = lhs_dst_type;
     }
     // Align bool to other type
     if (lhs_dst_type == element::boolean) {
