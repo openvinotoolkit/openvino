@@ -63,6 +63,9 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
         auto axis_value = axis[0];
         // normalize `axis` value if it is negative
         if (axis_value < 0) {
+            if (!data.get_partial_shape().rank().is_static()) {
+                return false;
+            }
             axis_value = axis_value + data.get_partial_shape().rank().get_length();
         }
         if (data.get_partial_shape().rank().get_length() < axis_value) {
@@ -74,7 +77,7 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
         }
         auto axis_dim = data.get_partial_shape()[axis_value].get_length();
 
-        auto indices = indices_constant->cast_vector<int32_t>();
+        auto indices = indices_constant->cast_vector<int64_t>();
         // check all the indices are not negative and not out of bound
         for (size_t i = 0; i < indices.size(); i++) {
             if (indices[i] < 0 || indices[i] >= axis_dim) {
