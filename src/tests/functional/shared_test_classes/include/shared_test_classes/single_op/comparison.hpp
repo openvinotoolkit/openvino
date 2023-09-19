@@ -26,10 +26,8 @@ typedef std::tuple<
 
 class ComparisonLayerTest : public testing::WithParamInterface<ComparisonTestParams>,
     virtual public ov::test::SubgraphBaseTest {
-    ngraph::helpers::ComparisonTypes comparison_op_type;
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj);
 };

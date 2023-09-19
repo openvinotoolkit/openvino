@@ -7,22 +7,6 @@ cmake_policy(SET CMP0054 NEW)
 # TODO: fix it, outside of source dir MO cannot find TBB dependency
 set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
-if(ENABLE_SAME_BRANCH_FOR_MODELS)
-    branchName(MODELS_BRANCH)
-else()
-    set(MODELS_BRANCH "master")
-endif()
-
-if(ENABLE_DATA)
-    add_models_repo(${ENABLE_DATA} "data:https://github.com/openvinotoolkit/testdata.git")
-    set(MODELS_PATH "${TEMP}/models/src/data")
-    set(DATA_PATH "${MODELS_PATH}")
-endif()
-
-message(STATUS "MODELS_PATH=" ${MODELS_PATH})
-
-fetch_models_and_validation_set()
-
 ## Intel OMP package
 if(THREADING STREQUAL "OMP")
     reset_deps_cache(OMP)
