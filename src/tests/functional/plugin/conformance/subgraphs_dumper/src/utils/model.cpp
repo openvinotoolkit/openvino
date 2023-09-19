@@ -86,7 +86,7 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
         const auto& model = models[i];
 
         if (ov::util::file_exists(model)) {
-            std::cout << "[ INFO ] [ " << i << "/" << models_size << " ] model will be processed" << std::endl;
+            std::cout << "[ INFO ][ " << i << "/" << models_size << " ] model will be processed" << std::endl;
             ModelCacheStatus model_status = ModelCacheStatus::SUCCEED;
             try {
                 std::shared_ptr<ov::Model> function = core->read_model(model);

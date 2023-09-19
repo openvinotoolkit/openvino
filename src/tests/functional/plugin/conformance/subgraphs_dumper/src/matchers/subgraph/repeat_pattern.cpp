@@ -93,17 +93,22 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
         for (size_t i = 0; i < start_node_idx.size(); ++i) {
             try {
-                auto extracted_pattern = generate_model(nodes[i], checked_ops, extractor_name, is_copy_constants);
+                std::unordered_set<std::string> tmp_checked_ops;
+                auto extracted_pattern = generate_model(nodes[i], tmp_checked_ops, extractor_name, is_copy_constants);
                 auto extracted_model = std::get<0>(extracted_pattern);
-                auto secondary_patterns = extract(std::get<0>(extracted_pattern), is_extract_body);
+                std::list<ExtractedPattern> secondary_patterns;
+                if (nodes[i].size() > 20) {
+                    secondary_patterns = extract(std::get<0>(extracted_pattern), is_extract_body, is_copy_constants);
+                }
                 if (secondary_patterns.size() > 1) {
                     to_cache.insert(to_cache.end(), secondary_patterns.begin(), secondary_patterns.end());
                 } else {
                     to_cache.push_back(extracted_pattern);
                 }
                 nodes[i].clear();
+                checked_ops.insert(tmp_checked_ops.begin(), tmp_checked_ops.end());
             } catch(std::exception& e) {
-                if (std::string(e.what()) != "Incorrect node number to create model") {
+                if (std::string(e.what()).find("Incorrect node number to create model!") == std::string::npos) {
                     std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
                 }
             }

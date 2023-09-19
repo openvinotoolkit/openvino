@@ -44,6 +44,10 @@ SubgraphExtractor::is_subgraph(const std::shared_ptr<ov::Model> &model,
 
     auto model_it = model_to_check_ops.begin(), graph_it = graph_to_check_ops.begin();
     while (model_it != model_to_check_ops.end() && graph_it != graph_to_check_ops.end()) {
+        if (is_node_to_skip(*graph_it)) {
+            ++graph_it;
+            continue;
+        }
         if (m_manager.match(*model_it, *graph_it)) {
             ++graph_it;
         }

@@ -88,6 +88,16 @@ TEST_F(ExtractorsManagerTest, match) {
     ASSERT_FALSE(this->match(test_model_0_1, test_model_1));
 }
 
+TEST_F(ExtractorsManagerTest, is_subgraph) {
+    this->set_extractors(test_map);
+    ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_0_1));
+    ASSERT_TRUE(this->is_subgraph(test_model_0_0, test_model_0_1));
+    ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_1));
+    ASSERT_FALSE(this->is_subgraph(test_model_0_0, test_model_1));
+    ASSERT_NO_THROW(this->is_subgraph(test_model_0_1, test_model_1));
+    ASSERT_FALSE(this->is_subgraph(test_model_0_1, test_model_1));
+}
+
 TEST_F(ExtractorsManagerTest, match_with_in_info) {
     this->set_extractors(test_map);
     std::map<std::string, InputInfo> test_in_info({{"test_parameter_0", InputInfo()}}), test_in_info_1({{"test_parameter_1", InputInfo(1, 2, true)}});

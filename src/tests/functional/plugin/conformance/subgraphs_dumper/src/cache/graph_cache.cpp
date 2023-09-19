@@ -93,7 +93,9 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                     input_info,
                     model_op_cnt,
                     this_op_cnt,
-                    extractor_name);
+                    extractor_name,
+                    {},
+                    true);
                 return;
             }
         }

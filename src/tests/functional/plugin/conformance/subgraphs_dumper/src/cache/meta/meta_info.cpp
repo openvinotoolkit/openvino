@@ -145,9 +145,15 @@ void MetaInfo::update(const std::string& _model_path,
                       size_t _total_op_cnt,
                       size_t _this_op_cnt,
                       const std::string& extractor,
-                      const std::vector<std::string>& ignored_inputs) {
+                      const std::vector<std::string>& ignored_inputs,
+                      bool is_subgraph_of) {
+    bool is_update_in_info = true;
     if (input_info.size() != _input_info.size()) {
-        throw std::runtime_error("Incompatible input info!");
+        if (is_subgraph_of) {
+            is_update_in_info = false;
+        } else {
+            throw std::runtime_error("Incompatible input info!");
+        }
     }
     std::string model_name = get_model_name_by_path(_model_path);
     if (model_info.find(model_name) != model_info.end()) {
@@ -159,18 +165,7 @@ void MetaInfo::update(const std::string& _model_path,
     } else {
         model_info.insert({ model_name, ModelInfo(_model_path, _total_op_cnt) });\
     }
-    for (const auto& in : _input_info) {
-        if (std::find(ignored_inputs.begin(), ignored_inputs.end(), in.first) != ignored_inputs.begin()) {
-            continue;
-        }
-        if (input_info.find(in.first) == input_info.end()) {
-            throw std::runtime_error("Incorrect Input Info!");
-        } else if (input_info[in.first].is_const != in.second.is_const) {
-            throw std::runtime_error("Try to cast parameter to constant!");
-        } else {
-            input_info[in.first] = in.second;
-        }
-    }
+
     // update max and mib abs priority to normilize priorities when serialize
     {
         auto abs_graph_priority = get_abs_graph_priority();
@@ -179,6 +174,21 @@ void MetaInfo::update(const std::string& _model_path,
     }
     if (!extractor.empty()) {
         extractors.insert(extractor);
+    }
+    if (!is_update_in_info) {
+        return;
+    }
+    for (const auto& in : _input_info) {
+        if (std::find(ignored_inputs.begin(), ignored_inputs.end(), in.first) != ignored_inputs.begin()) {
+            continue;
+        }
+        if (input_info.find(in.first) == input_info.end() && !is_subgraph_of) {
+            throw std::runtime_error("Incorrect Input Info!");
+        } else if (input_info[in.first].is_const != in.second.is_const) {
+            throw std::runtime_error("Try to cast parameter to constant!");
+        } else {
+            input_info[in.first] = in.second;
+        }
     }
 }
 
