@@ -1,5 +1,5 @@
 # used in multiple components
-numpy>=1.16.6,<1.26  # Python bindings, frontends
+numpy>=1.16.6,<1.27  # Python bindings, frontends
 
 # pytest
 pytest>=5.0,<7.5
