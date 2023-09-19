@@ -22,7 +22,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
-    {ov::enable_profiling(true)},
+    {ov::enable_profiling(false)},
     {ov::device::id(0)},
 };
 
