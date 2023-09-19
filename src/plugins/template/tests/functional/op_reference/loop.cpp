@@ -153,7 +153,7 @@ struct LoopStaticInputs : public LoopFunctionalBase {
 
         // Body
         std::shared_ptr<ov::Node> Zo = body_params[0];
-        for (int i = 1; i < body_params.size(); ++i) {
+        for (size_t i = 1; i < body_params.size(); ++i) {
             Zo = std::make_shared<ov::opset8::Add>(body_params[i], Zo);
         }
 
@@ -164,7 +164,7 @@ struct LoopStaticInputs : public LoopFunctionalBase {
         loop->set_function(body);
         loop->set_special_body_ports(ov::opset8::Loop::SpecialBodyPorts{-1, 0});
 
-        for (int i = 0; i < body_params.size(); ++i) {
+        for (size_t i = 0; i < body_params.size(); ++i) {
             if (loop_in_type[i] == LOOP_IN_TYPE::INVARIANT) {
                 loop->set_invariant_input(body_params[i], loop_params[i]);
             } else if (loop_in_type[i] == LOOP_IN_TYPE::MERGED) {

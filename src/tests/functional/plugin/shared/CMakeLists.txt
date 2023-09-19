@@ -28,7 +28,6 @@ if(ENABLE_TEMPLATE)
     list(APPEND DEPENDENCIES openvino_template_plugin)
 endif()
 
-# remove once CVS-69781 is fixed
 if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
 endif()
@@ -78,7 +77,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
 endif()
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 

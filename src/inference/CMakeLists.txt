@@ -96,12 +96,12 @@ target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE
 
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::pugixml openvino::itt openvino::util)
 
-set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
+ov_set_threading_interface_for(${TARGET_NAME}_plugin_api)
 
 file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
                                  "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.h")
 
-add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
+ov_add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
@@ -121,7 +121,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-ie_faster_build(${TARGET_NAME}_obj
+ov_build_target_faster(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
 )
 
@@ -152,12 +152,12 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
-ie_mark_target_as_cc(${TARGET_NAME}_obj)
+ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
 # IE is public API => need to mark this library as important for ABI free
 ov_abi_free_target(${TARGET_NAME}_obj)
 
-set_ie_threading_interface_for(${TARGET_NAME}_obj)
+ov_set_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
@@ -169,7 +169,7 @@ target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                                     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
@@ -184,6 +184,7 @@ add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
+
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()

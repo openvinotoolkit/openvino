@@ -22,7 +22,7 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
     ngraph::element::Type netPrecision;
     std::vector<ngraph::PartialShape> inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool oneInputWithSplit;
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, oneInputWithSplit, param) = obj.param;
@@ -39,7 +39,7 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
 void MoveFakeQuantizeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     std::vector<ngraph::PartialShape> inputShapes;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool oneInputWithSplit;
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShapes, targetDevice, params, oneInputWithSplit, param) = this->GetParam();

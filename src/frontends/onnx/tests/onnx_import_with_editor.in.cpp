@@ -16,6 +16,7 @@
 #include "common_test_utils/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/file_util.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "onnx_utils.hpp"
 

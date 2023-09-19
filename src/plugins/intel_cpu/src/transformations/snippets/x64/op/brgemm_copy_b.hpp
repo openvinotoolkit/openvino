@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/op/memory_access.hpp"
+#include <snippets/shape_inference/shape_inference.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -51,6 +52,16 @@ public:
     bool has_evaluate() const override { return false; }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    class ShapeInfer : public snippets::IShapeInferSnippets {
+        std::vector<size_t> m_layout{};
+        size_t m_num_outs = 1;
+        size_t m_N_blk = 64;
+        size_t m_brgemmVNNIFactor = 1;
+    public:
+        explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
+        Result infer(const std::vector<snippets::VectorDimsRef>& input_shapes) override;
+    };
+
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});
     void validate(const ov::PartialShape& pshape, const ov::element::Type& element_type);
@@ -61,6 +72,7 @@ private:
 
     size_t m_K_blk = 0;
     size_t m_N_blk = 0;
+    size_t m_brgemmVNNIFactor = 1;
 };
 
 } // namespace intel_cpu
