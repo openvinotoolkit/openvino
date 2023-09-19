@@ -63,21 +63,6 @@ TSUnaryForward::TSUnaryForward() {
     transpose_sinking(matcher_name, ts_unary_sinking_function);
 }
 
-namespace {
-
-template <typename T>
-NodePtr GetNodeFromPattern(PatternValueMap map, const std::vector<T>& v) {
-    for (auto& item : v) {
-        auto it = map.find(item);
-        if (it != map.end())
-            return it->second.get_node_shared_ptr();
-    }
-
-    return {};
-}
-
-}  // namespace
-
 TSUnaryBackward::TSUnaryBackward() {
     MATCHER_SCOPE(TSUnaryBackwardMultiConsumers);
 
@@ -114,11 +99,7 @@ TSUnaryBackward::TSUnaryBackward() {
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto unary = GetNodeFromPattern(
-            pattern_to_output,
-            ov::NodeVector{unary_with_1_input_label, unary_with_2_inputs_label, unary_with_3_inputs_label});
-        if (!unary)
-            return false;
+        auto unary = transpose->get_input_node_shared_ptr(0);
         if (transformation_callback(unary)) {
             return false;
         }
