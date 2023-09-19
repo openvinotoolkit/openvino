@@ -30,9 +30,6 @@ public:
 
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    ov::test::utils::SequenceTestsMode m_mode;
-    int64_t m_max_seq_len = 0;
 };
 } //  namespace test
 } //  namespace ov
