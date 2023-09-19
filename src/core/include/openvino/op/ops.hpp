@@ -21,6 +21,7 @@
 #include "openvino/op/batch_norm.hpp"
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/binary_convolution.hpp"
+#include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/ceiling.hpp"
