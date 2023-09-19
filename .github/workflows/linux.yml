@@ -366,12 +366,14 @@ jobs:
       # Required due to: https://github.com/actions/cache/tree/main/restore#ensuring-proper-restores-and-save-happen-across-the-actions
       - name: Rename Expected Failures List
         # if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+        if: ${{ always() }}
         run: |
           rm -rf ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
           cp ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/CPU_logs/logs/fix_priority.csv ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
 
       - name: Upload Expected Failures List
         # if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+        if: ${{ always() }}
         uses: actions/cache/save@v3
         with:
           path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
