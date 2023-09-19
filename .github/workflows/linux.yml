@@ -795,6 +795,8 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests \
               --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
+        env:
+          PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
 
       - name: MO Python API Tests
         run: |
