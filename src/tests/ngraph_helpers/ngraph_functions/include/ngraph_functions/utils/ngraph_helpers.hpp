@@ -85,19 +85,11 @@ enum QuantizationGranularity {
     Perchannel
 };
 
+using ov::test::utils::TensorIteratorBody;
 using ov::test::utils::ReductionType;
 using ov::test::utils::DFTOpType;
 using ov::test::utils::InputLayerType;
 using ov::test::utils::PadMode;
-
-
-enum class TensorIteratorBody {
-    RNN,
-    GRU,
-    LSTM,
-    // CNN todo: implement
-};
-
 using ov::test::utils::SequenceTestsMode;
 
 enum class MemoryTransformation {
@@ -168,8 +160,6 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
                                                  const element::Type_t& fromPrecision,
                                                  const element::Type_t& toPrecision,
                                                  const size_t elementsCount);
-
-std::ostream& operator<<(std::ostream& os, TensorIteratorBody type);
 
 std::ostream& operator<<(std::ostream& os, MemoryTransformation type);
 

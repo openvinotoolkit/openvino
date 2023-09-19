@@ -152,6 +152,13 @@ enum class DFTOpType {
     INVERSE
 };
 
+enum class TensorIteratorBody {
+    RNN,
+    GRU,
+    LSTM,
+    // CNN todo: implement
+};
+
 // clang-format on
 
 std::ostream& operator<<(std::ostream& os, const ReductionType& m);
@@ -181,6 +188,8 @@ std::ostream& operator<<(std::ostream& os, ov::op::util::MulticlassNmsBase::Sort
 std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::SortResultType type);
 
 std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::DecayFunction type);
+
+std::ostream& operator<<(std::ostream& os, TensorIteratorBody type);
 
 }  // namespace utils
 }  // namespace test
