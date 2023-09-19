@@ -145,7 +145,7 @@ Step 2: Install OpenVINO Runtime Using the APT Package Manager
    
          .. code-block:: sh
    
-            sudo apt install openvino-2023.1.0
+            sudo apt install openvino-2022.3.1
    
 .. note::
 
@@ -218,7 +218,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
    
       .. code-block:: sh
    
-         sudo apt autoremove openvino-2023.1.0
+         sudo apt autoremove openvino-2022.3.1
 
 
 What's Next?
