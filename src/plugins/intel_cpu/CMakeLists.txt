@@ -46,6 +46,8 @@ else()
 endif()
 ie_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
+set(OV_CPU_WITH_DNNL ON)
+
 add_subdirectory(thirdparty)
 
 if(WIN32)
@@ -56,7 +58,6 @@ if(ENABLE_CPU_DEBUG_CAPS)
     add_definitions(-DCPU_DEBUG_CAPS)
 endif()
 
-set(OV_CPU_WITH_DNNL ON)
 if(OV_CPU_WITH_DNNL)
     add_definitions(-DOV_CPU_WITH_DNNL)
 endif()
@@ -128,6 +129,7 @@ if (ENABLE_MLAS_FOR_CPU)
     add_definitions(-DOV_CPU_WITH_MLAS)
 endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
@@ -140,6 +142,10 @@ cross_compiled_file(${TARGET_NAME}
 
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
+if(OV_CPU_WITH_ACL)
+    target_link_libraries(${TARGET_NAME} PRIVATE arm_compute::arm_compute)
+endif()
+
 ov_set_threading_interface_for(${TARGET_NAME})
 
 # must be called after all target_link_libraries

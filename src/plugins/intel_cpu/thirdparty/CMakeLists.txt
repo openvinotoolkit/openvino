@@ -118,6 +118,10 @@ function(ov_add_onednn)
 
     # install static libraries
     ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
+    if(TARGET arm_compute)
+        # interface target which links with conan's arm_compute::arm_compute
+        ov_install_static_lib(arm_compute ${OV_CPACK_COMP_CORE})
+    endif()
 
     if(DNNL_USE_ACL AND NOT BUILD_SHARED_LIBS)
         # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
@@ -132,9 +136,11 @@ function(ov_add_onednn)
     endif()
 endfunction()
 
+if(OV_CPU_WITH_DNNL)
+    ov_add_onednn()
+endif()
+
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
-
-ov_add_onednn()

@@ -2,7 +2,27 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ARM_COMPUTE_INCLUDE_DIR OR ARM_COMPUTE_LIB_DIR)
+# conan has a recipe 'compute_library'
+find_package(compute_library QUIET CONFIG)
+
+if(compute_library_FOUND)
+    if(NOT TARGET arm_compute)
+        add_library(arm_compute INTERFACE)
+        add_library(arm_compute::arm_compute ALIAS arm_compute)
+        target_link_libraries(arm_compute INTERFACE compute_library::compute_library)
+    endif()
+
+    # for oneDNN integration
+    set(ACL_FOUND ON)
+    set(ACL_LIBRARIES arm_compute::arm_compute)
+
+    foreach(acl_library IN LISTS ACL_LIBRARIES)
+        list(APPEND ACL_INCLUDE_DIRS $<TARGET_PROPERTY:${acl_library},INTERFACE_INCLUDE_DIRECTORIES>)
+    endforeach()
+
+    # required by oneDNN to attempt to parse ACL version - set dummy folder
+    set(ENV{ACL_ROOT_DIR} "${CMAKE_CURRENT_SOURCE_DIR}")
+elseif(ARM_COMPUTE_INCLUDE_DIR OR ARM_COMPUTE_LIB_DIR)
     set(ARM_COMPUTE_INCLUDE_DIR "" CACHE PATH "Path to ARM Compute Library headers" FORCE)
 
     if(NOT ARM_COMPUTE_LIB_DIR)
