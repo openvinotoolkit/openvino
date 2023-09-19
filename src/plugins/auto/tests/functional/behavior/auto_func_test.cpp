@@ -48,11 +48,11 @@ bool support_model(const std::shared_ptr<const ov::Model>& model, const ov::Supp
 
 ov::PropertyName RO_property(const std::string& propertyName) {
     return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
-};
+}
 
 ov::PropertyName RW_property(const std::string& propertyName) {
     return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
-};
+}
 
 }  // namespace
 
@@ -739,7 +739,7 @@ void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_cpu(ov::Core& c
 
 void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_gpu_compile_slower(ov::Core& core,
                                                                                     const std::string& device_name,
-                                                                                    const ov::AnyMap& properties){
+                                                                                    const ov::AnyMap& properties) {
     class MockPluginCompileSlower : public MockPluginSupportBatchAndContext {
         public:
             std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -766,7 +766,7 @@ void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_gpu_compile_slo
 
 void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_cpu_compile_slower(ov::Core& core,
                                                                                     const std::string& device_name,
-                                                                                    const ov::AnyMap& properties){
+                                                                                    const ov::AnyMap& properties) {
     class MockCPUPluginCompileSlower : public MockPlugin {
         public:
             std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,

@@ -16,13 +16,13 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 43793
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
-        
+
         // Not expected behavior
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
-        
+
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",

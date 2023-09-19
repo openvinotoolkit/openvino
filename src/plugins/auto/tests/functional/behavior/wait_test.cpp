@@ -33,7 +33,7 @@ TEST_F(AutoFuncTests, can_wait_without_startasync) {
     ASSERT_NO_THROW(req.wait_for(std::chrono::milliseconds{1}));
 }
 
-TEST_F(AutoFuncTests, can_throw_if_request_busy) { 
+TEST_F(AutoFuncTests, can_throw_if_request_busy) {
     ov::CompiledModel compiled_model;
     ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
@@ -50,7 +50,7 @@ TEST_F(AutoFuncTests, can_throw_if_request_busy) {
     ASSERT_NO_THROW(req.wait());
 }
 
-TEST_F(AutoFuncTests, can_throw_on_get_tensor_if_request_busy) { 
+TEST_F(AutoFuncTests, can_throw_on_get_tensor_if_request_busy) {
     ov::CompiledModel compiled_model;
     ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));

@@ -170,4 +170,4 @@ INSTANTIATE_TEST_SUITE_P(AutoFuncTestsCumu, InferRequest_IOTensor_Test,
                                 ::testing::Values("MULTI"),
                                 ::testing::ValuesIn(props())),
                          InferRequest_IOTensor_Test::getTestCaseName);
-}
+} // namespace

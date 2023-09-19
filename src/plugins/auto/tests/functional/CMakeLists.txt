@@ -33,7 +33,7 @@ ov_add_test_target(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${TEST_COMMON_INCLUDE_DIR}
-        # ADD_CPPLINT
+        ADD_CPPLINT
         LABELS
             Multi
             Auto

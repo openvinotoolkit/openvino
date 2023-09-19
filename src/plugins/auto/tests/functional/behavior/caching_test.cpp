@@ -7,7 +7,7 @@
 
 using namespace ov::auto_plugin::tests;
 
-TEST_F(AutoFuncTests, compiled_with_cache_enabled) { 
+TEST_F(AutoFuncTests, compiled_with_cache_enabled) {
     core.set_property(ov::cache_dir(cache_path));
     core.set_property("MOCK_GPU", ov::device::id("test")); // device id for cache property distinguish with MOCK_CPU
     auto compiled_model = core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),

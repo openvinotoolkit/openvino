@@ -30,7 +30,7 @@ namespace tests {
     catch (...) {                                           \
       FAIL() << "an unknown exception occured" << std::endl;     \
     }                                                       \
-  } while(0);
+  } while (0);
 
 
 class PluginRemoteTensor : public ov::RemoteTensor {

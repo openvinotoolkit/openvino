@@ -86,7 +86,10 @@ TEST_F(AutoFuncTests, can_create_remotetensor_then_infer_with_affinity_2_devices
 
 TEST_F(AutoFuncTests, can_throw_if_oversubsciption_of_inferrequest) {
     ov::CompiledModel compiled_model;
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model_cannot_batch, "MULTI", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"), ov::intel_auto::device_bind_buffer(true)}));
+    ASSERT_NO_THROW(compiled_model = core.compile_model(model_cannot_batch,
+                                                        "MULTI",
+                                                        {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
+                                                        ov::intel_auto::device_bind_buffer(true)}));
     auto optimal_num = compiled_model.get_property(ov::optimal_number_of_infer_requests);
     for (size_t i = 0; i < optimal_num; i++) {
         compiled_model.create_infer_request();

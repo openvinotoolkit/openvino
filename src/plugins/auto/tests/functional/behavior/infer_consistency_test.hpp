@@ -75,7 +75,7 @@ protected:
             }
             for (auto& iter : outputs) {
                 if (!use_get_tensor) {
-                    auto tensor =ov::Tensor(iter.get_element_type(), iter.get_shape());
+                    auto tensor = ov::Tensor(iter.get_element_type(), iter.get_shape());
                     inf_req.set_tensor(iter, tensor);
                 }
             }

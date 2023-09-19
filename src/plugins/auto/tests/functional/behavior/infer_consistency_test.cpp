@@ -23,5 +23,5 @@ INSTANTIATE_TEST_SUITE_P(AutoFuncTests, Consistency_Test,
                                 ::testing::ValuesIn(get_vs_set),
                                 ::testing::ValuesIn(props())),
                          Consistency_Test::getTestCaseName);
-}
+} // namespace
 

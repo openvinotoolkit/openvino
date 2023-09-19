@@ -53,7 +53,7 @@ TEST_F(AutoFuncTests, can_run_3asyncrequests_consistently_from_threads_without_w
     ASSERT_NO_THROW(f3.get());
 }
 
-TEST_F(AutoFuncTests, can_run_3asyncrequests_consistently_with_wait) { 
+TEST_F(AutoFuncTests, can_run_3asyncrequests_consistently_with_wait) {
     ov::CompiledModel compiled_model;
     ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
@@ -71,7 +71,7 @@ TEST_F(AutoFuncTests, can_run_3asyncrequests_consistently_with_wait) {
     ASSERT_NO_THROW(req3.wait());
 }
 
-TEST_F(AutoFuncTests, can_run_3asyncrequests_parallel_with_wait) { 
+TEST_F(AutoFuncTests, can_run_3asyncrequests_parallel_with_wait) {
     ov::CompiledModel compiled_model;
     ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));

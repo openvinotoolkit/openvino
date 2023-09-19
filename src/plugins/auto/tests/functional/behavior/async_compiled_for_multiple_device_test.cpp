@@ -30,7 +30,7 @@ TEST_F(AutoFuncTests, threading_test) {
     }, 10, 10);
 }
 
-TEST_F(AutoFuncTests, threading_test_cache_enabled) { 
+TEST_F(AutoFuncTests, threading_test_cache_enabled) {
     core.set_property(ov::cache_dir(cache_path));
     ThreadingTest::runParallel([&] () {
         (void)core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
