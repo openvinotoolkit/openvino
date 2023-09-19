@@ -255,19 +255,6 @@ TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_OPTIMAL_NUMBER_OF_I
     ASSERT_EXEC_METRIC_SUPPORTED(ov::optimal_number_of_infer_requests);
 }
 
-// TEST_P(OVClassCompiledModelGetPropertyTest, IgnoreEnableMMap) {
-//     if (target_device.find("HETERO:") == 0 || target_device.find("MULTI:") == 0 || target_device.find("AUTO:") == 0 ||
-//         target_device.find("BATCH:") == 0)
-//         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-//     // Load available plugins
-//     ov::Core ie = createCoreWithTemplate();
-
-//     auto compiled_model = ie.compile_model(simpleNetwork, target_device);
-//     // compiled_model.get_available_devices();
-//     OV_ASSERT_NO_THROW(compiled_model.set_property(ov::enable_mmap(false)));
-//     // OV_ASSERT_NO_THROW(compiled_model.set_property(target_device, ov::enable_mmap(false)));
-// }  // namespace behavior
-
 TEST_P(OVCompileModelGetExecutionDeviceTests, CanUseCache) {
     core->set_property(ov::cache_dir("./test_cache"));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
