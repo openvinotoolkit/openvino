@@ -148,6 +148,7 @@ struct InfoForNMSRotated {
     size_t out_shape_size;
     bool sort_result_descending;
     element::Type output_type;
+    bool clockwise = true;
 };
 
 constexpr size_t boxes_port = 0;
@@ -205,6 +206,7 @@ InfoForNMSRotated get_info_for_nms_eval(const op::v13::NMSRotated* nms,
     result.out_shape_size = shape_size(result.out_shape);
     result.sort_result_descending = nms->get_sort_result_descending();
     result.output_type = nms->get_output_type();
+    result.clockwise = nms->get_clockwise();
 
     return result;
 }
@@ -230,7 +232,8 @@ bool op::v13::NMSRotated::evaluate(const HostTensorVector& outputs, const HostTe
                                                     selected_scores.data(),
                                                     info.out_shape,
                                                     &valid_outputs,
-                                                    info.sort_result_descending);
+                                                    info.sort_result_descending,
+                                                    info.clockwise);
 
     auto selected_scores_type = (outputs.size() < 3) ? element::f32 : outputs[1]->get_element_type();
 

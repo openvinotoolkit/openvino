@@ -69,6 +69,13 @@ public:
         m_output_type = output_type;
     }
 
+    bool get_clockwise() const {
+        return m_clockwise;
+    }
+    void set_clockwise(const bool clockwise) {
+        m_clockwise = clockwise;
+    }
+
     using Node::set_output_type;
 
     // Temporary evaluate, for testing purpose

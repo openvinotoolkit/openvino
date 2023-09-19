@@ -30,6 +30,7 @@ struct InfoForNMSRotated {
     size_t out_shape_size;
     bool sort_result_descending;
     element::Type output_type;
+    bool clockwise;
 };
 
 constexpr size_t boxes_port = 0;
@@ -142,11 +143,9 @@ InfoForNMSRotated get_info_for_nms_eval(const std::shared_ptr<op::v13::NMSRotate
     result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
 
     result.out_shape_size = shape_size(result.out_shape);
-
     result.sort_result_descending = nms->get_sort_result_descending();
-
     result.output_type = nms->get_output_type();
-
+    result.clockwise = nms->get_clockwise();
     return result;
 }
 }  // namespace nms_v13
@@ -174,7 +173,8 @@ bool evaluate(const std::shared_ptr<op::v13::NMSRotated>& op,
                                                     selected_scores.data(),
                                                     info.out_shape,
                                                     &valid_outputs,
-                                                    info.sort_result_descending);
+                                                    info.sort_result_descending,
+                                                    info.clockwise);
 
     auto selected_scores_type = (outputs.size() < 3) ? element::f32 : outputs[1]->get_element_type();
 

@@ -96,7 +96,8 @@ void non_max_suppression(const float* boxes_data,
                          float* selected_scores,
                          const Shape& selected_scores_shape,
                          int64_t* valid_outputs,
-                         const bool sort_result_descending) {
+                         const bool sort_result_descending,
+                         const bool clockwise) {
     float scale = 0.0f;
     bool soft_nms = false;
     if (soft_nms_sigma > 0.0f) {
@@ -134,6 +135,9 @@ void non_max_suppression(const float* boxes_data,
 
             for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++) {
                 if (scoresPtr[box_idx] > score_threshold) {
+                    if (!clockwise) {
+                        r->a *= -1;
+                    }
                     candidate_boxes.emplace_back(r[box_idx], box_idx, scoresPtr[box_idx], 0, batch, class_idx);
                 }
             }
