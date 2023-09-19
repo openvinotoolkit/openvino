@@ -316,64 +316,6 @@ std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDe
     return inArgs + "_" + outArgs;
 }
 
-void Reorder::reorderData2(const IMemory &input, const IMemory &output, MultiCachePtr cache) {
-    if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
-        OPENVINO_THROW("Can't reorder data with dynamic shapes");
-
-    if (input.getShape().hasZeroDims() || output.getShape().hasZeroDims()) {
-        return;
-    }
-
-    if (input.getDesc().isCompatible(output.getDesc())) {
-        auto srcPtr = static_cast<uint8_t*>(input.getData());
-        auto dstPtr = static_cast<uint8_t*>(output.getData());
-
-        auto copySize = output.getSize();
-        cpu_memcpy(dstPtr, srcPtr, copySize);
-    } else {
-        dnnl::reorder reorder;
-        std::vector<uint8_t> tmpBuff;
-
-        auto srcMemory = input.getPrimitive();
-        auto dstMemory = output.getPrimitive();
-        auto engine = dstMemory.get_engine();
-        // try directly reorder
-        reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
-        if (!reorder) {
-            // try precision conversion then do the reorder
-            if (output.getDataType() != input.getDataType() && Convert::isSupportedDesc(input.getDesc()) &&
-                Convert::isSupportedDesc(output.getDesc())) {
-                //we probably could not make the reorder because there is no one supporting this precision conversion
-                //lets try to convert data first using cpu_convert
-                auto data = static_cast<const uint8_t *>(input.getData());
-                tmpBuff.resize(input.getSize());
-
-                const auto outPrc = DnnlExtensionUtils::DataTypeToIEPrecision(output.getDataType());
-                cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToIEPrecision(input.getDataType()),
-                            outPrc, input.getSize() / input.getDesc().getPrecision().size());
-
-                auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
-                Memory tmpMem(engine, std::move(tmpDesc), tmpBuff.data());
-
-                srcMemory = tmpMem.getPrimitive();
-                reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
-            }
-            if (!reorder) {
-                OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
-                               input.getDesc().serializeFormat(),
-                               " and ",
-                               output.getDesc().serializeFormat());
-            }
-        }
-        if (reorder) {
-            dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
-            reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
-        } else {
-            OPENVINO_THROW("Could not make onednn reorder.");
-        }
-    }
-}
-
 void Reorder::reorderData(const IMemory& input, const IMemory& output, MultiCachePtr cache) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
         OPENVINO_THROW("Can't reorder data with dynamic shapes");

@@ -62,7 +62,6 @@ public:
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
     static void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache = nullptr);
-    static void reorderData2(const IMemory &input, const IMemory &output, MultiCachePtr cache = nullptr);
 
 private:
     class ReorderExecutor {
@@ -127,9 +126,11 @@ private:
         std::shared_ptr<IntermConverter> post_converter = nullptr;
         DnnlScratchPadPtr scratch_ptr;
 
+        // Input/output memory for dnnl::reorder
         MemoryCPtr dst_blocked;
         MemoryCPtr src_blocked;
 
+        // Original input/output MemoryDesc of Reorder node
         MemoryDescPtr input;
         MemoryDescPtr output;
 
