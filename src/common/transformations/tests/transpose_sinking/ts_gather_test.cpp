@@ -63,6 +63,7 @@ auto wrapper = [](const TestCase& test_case) {
 
 struct GatherForwardArguments {
     OutputVector inputs_to_main;
+    std::function<OutputVector(const vector<size_t>&, const OutputVector&)> create_input_transpose_to_main;
     Output<Node> new_Gather_first_input;
     AxisVector new_transpose_order;
 };
@@ -76,7 +77,7 @@ auto test_forward_gather = [](const GatherForwardArguments& test_arguments) {
     test_case.inputs_to_main = test_arguments.inputs_to_main;
 
     // Test model description:
-    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.preprocess_inputs_to_main = {{test_arguments.create_input_transpose_to_main}, {{0}}};
     test_case.model.main_op = {CREATE_GATHER_FACTORY(Gather)};
     test_case.model.model_template = create_model;
 
@@ -104,24 +105,44 @@ auto test_forward_gather = [](const GatherForwardArguments& test_arguments) {
     return wrapper(test_case);
 };
 
+class SetTransposeWithOrder {
+public:
+    SetTransposeWithOrder(const AxisVector& order) : _order(order) {}
+    OutputVector operator()(const vector<size_t>& idxs, const OutputVector& out_vec) const {
+        return set_transpose_with_order(idxs, out_vec, _order);
+    }
+
+private:
+    const AxisVector _order;
+};
+
 vector<GatherForwardArguments> tests_arguments_fw{
     {{{parameter(f32, {3, 4, 5, 6}), constant<int>(i32, {2}, {0, 2}), constant<int>(i32, {1}, {2})}},
+     set_transpose_for,
      constant<int>(i32, {1}, {1}),
      AxisVector{3, 2, 1, 0}},
     {{parameter(f32, {2, 4}), constant<int>(i32, {}, {0}), constant<int>(i32, {1}, {1})},
+     set_transpose_for,
      constant<int>(i32, {1}, {0}),
      AxisVector{0}},
     {{parameter(f32, {2, 4}), constant<int>(i32, {1}, {0}), constant<int>(i32, {1}, {1})},
+     set_transpose_for,
      constant<int>(i32, {1}, {0}),
      AxisVector{1, 0}},
     {{parameter(f32, {2, 3, 4}), constant<int>(i32, {2, 3}, {0, 1, 0, 1, 0, 1}), constant<int>(i32, {1}, {1})},
+     set_transpose_for,
      constant<int>(i32, {1}, {1}),
-     AxisVector{3, 1, 2, 0}}};
+     AxisVector{3, 1, 2, 0}},
+    {{parameter(f32, {64, 49, 3, 3, 32}), constant<int>(i32, {}, {1}), constant<int>(i32, {}, {0})},
+     SetTransposeWithOrder(AxisVector{2, 0, 3, 1, 4}),
+     constant<int>(i32, {}, {2}),
+     AxisVector{0, 2, 1, 3}}};
 
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_0, TSTestFixture, test_forward_gather(tests_arguments_fw[0]));
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_1, TSTestFixture, test_forward_gather(tests_arguments_fw[1]));
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_2, TSTestFixture, test_forward_gather(tests_arguments_fw[2]));
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_3, TSTestFixture, test_forward_gather(tests_arguments_fw[3]));
+INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_4, TSTestFixture, test_forward_gather(tests_arguments_fw[4]));
 
 struct GatherBackwardArguments {
     OutputVector inputs_to_main;
