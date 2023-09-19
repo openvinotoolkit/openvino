@@ -764,25 +764,6 @@ bool primitive_inst::has_inner_networks() const {
     return (_impl_params->inner_nets.size() > 0);
 }
 
-void primitive_inst::do_runtime_handle_empty_inputs() {
-    if (get_users().size() != 1) return;
-    auto scatter_update_inst = _network.get_primitive(get_users().front()->id());
-    if (!scatter_update_inst->get_node().is_type<scatter_update>() && !scatter_update_inst->get_node().is_type<scatter_nd_update>()
-        && !scatter_update_inst->get_node().is_type<scatter_elements_update>())
-        return;
-    for (auto& dep : scatter_update_inst->_deps) {
-        auto input_shape = dep.first->_impl_params->output_layouts[0].get_partial_shape();
-        if (input_shape.is_dynamic())
-            continue;
-        if (input_shape.get_shape()[0] == 0) {
-            scatter_update_inst->set_can_be_optimized(true);
-            break;
-        } else {
-            scatter_update_inst->set_can_be_optimized(false);
-        }
-    }
-}
-
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
@@ -804,8 +785,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             update_shape_done_by_other = false; // reset
             return ev;
         }
-
-        do_runtime_handle_empty_inputs();
 
         if (!is_valid_fusion()) {
             auto subgraph = get_unfused_subgraph();

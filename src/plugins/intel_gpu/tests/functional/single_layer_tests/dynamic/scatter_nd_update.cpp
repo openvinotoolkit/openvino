@@ -220,28 +220,7 @@ const std::vector<ElementType> constantPrecisions = {
     ElementType::i32,
 };
 
-const std::vector<ScatterUpdateLayerParams> scatterEmptyInput1_2Params = {
-    ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
-            {{-1, 1}, {{ 0, 1 }}},
-            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}}
-        },
-        IndicesValues{ 0 },
-        Scatterupdate_type::ND
-    },
-#if 0 // ScatterELementsUpdate doesn't support dynamic shape yet. Need to enable when it supports.
-    ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
-            {{-1, -1, 14, 14}, {{ 0, 256, 14, 14 }}},
-            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}},
-            {{1}, {{0}}}
-        },
-        IndicesValues{ 0 },
-        Scatterupdate_type::Elements
-    },
-#endif
+const std::vector<ScatterUpdateLayerParams> scatterUpdate_EmptyInput1_2Params = {
     ScatterUpdateLayerParams{
         ScatterUpdateShapes{
             {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
@@ -253,6 +232,32 @@ const std::vector<ScatterUpdateLayerParams> scatterEmptyInput1_2Params = {
         Scatterupdate_type::Basic
     },
 };
+
+const std::vector<ScatterUpdateLayerParams> scatterNDUpdate_EmptyInput1_2Params = {
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
+            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
+            {{-1, 1}, {{ 0, 1 }}},
+            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}}
+        },
+        IndicesValues{ 0 },
+        Scatterupdate_type::ND
+    },
+};
+
+const std::vector<ScatterUpdateLayerParams> scatterElementsUpdate_EmptyInput1_2Params = {
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
+            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
+            {{-1, -1, 14, 14}, {{ 0, 256, 14, 14 }}},
+            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}},
+            {{1}, {{0}}}
+        },
+        IndicesValues{ 0 },
+        Scatterupdate_type::Elements
+    },
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(scatterParams),
@@ -260,9 +265,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_CompareWithRefs_dynamic, ScatterU
         ::testing::ValuesIn(constantPrecisions)),
     ScatterUpdateLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdates_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
     ::testing::Combine(
-        ::testing::ValuesIn(scatterEmptyInput1_2Params),
+        ::testing::ValuesIn(scatterUpdate_EmptyInput1_2Params),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(constantPrecisions)),
+    ScatterUpdateLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(scatterNDUpdate_EmptyInput1_2Params),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(constantPrecisions)),
+    ScatterUpdateLayerGPUTest::getTestCaseName);
+
+// ScatterELementsUpdate doesn't support dynamic shape yet. Need to enable when it supports.
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ScatterElementsUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(scatterElementsUpdate_EmptyInput1_2Params),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(constantPrecisions)),
     ScatterUpdateLayerGPUTest::getTestCaseName);
