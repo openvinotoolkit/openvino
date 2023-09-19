@@ -602,6 +602,16 @@ TEST(constant_folding, const_convert) {
         test_const_convert<element::f32, element::boolean>(in, expected);
     }
     {
+        vector<int64_t> in{1, 2, 3, 4, 5};
+        vector<double> expected{1.0, 2.0, 3.0, 4.0, 5.0};
+        test_const_convert<element::i64, element::f64>(in, expected);
+    }
+    {
+        vector<double> in{1.2, 2.1, 3.3, 4.45, 5.02};
+        vector<int64_t> expected{1, 2, 3, 4, 5};
+        test_const_convert<element::f64, element::i64>(in, expected);
+    }
+    {
         vector<int8_t> in{7, 0, 1, 2, 3, 4, 5, -1, -2, -8};
         vector<float> expected{7, 0, 1, 2, 3, 4, 5, -1, -2, -8};
         test_const_convert<element::i4, element::f32>(in, expected);
