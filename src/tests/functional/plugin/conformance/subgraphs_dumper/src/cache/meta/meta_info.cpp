@@ -50,6 +50,19 @@ double MetaInfo::get_graph_priority() {
     return diff / delta;
 }
 
+inline ov::PartialShape str_to_ov_shape(std::string str) {
+    str = str.replace(str.find('['), 1, "");
+    str = str.replace(str.find(']'), 1, "");
+    std::vector<size_t> shape_vec;
+    auto pos = str.find('.');
+    do {
+        std::string dim_str = str.substr(0, pos);
+        shape_vec.push_back(atoi(dim_str.c_str()));
+        str = str.replace(0, dim_str.length() + 1, "");
+    } while (pos != std::string::npos);
+    return ov::PartialShape{shape_vec};
+}
+
 MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
     pugi::xml_document doc;
     doc.load_file(meta_path.c_str());
@@ -83,6 +96,12 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
                 in_info.ranges.max = input.attribute("max").as_double();
             } else {
                 in_info.ranges.max = DEFAULT_MAX_VALUE;
+            }
+            {
+                auto max_shape_str = std::string(input.attribute("max_shape").value());
+                in_info.max_shape = str_to_ov_shape(max_shape_str);
+                auto min_shape_str = std::string(input.attribute("min_shape").value());
+                in_info.min_shape = str_to_ov_shape(min_shape_str);
             }
             input_info.insert({in_name, in_info});
         }
@@ -136,6 +155,8 @@ void MetaInfo::serialize(const std::string& serialization_path) {
                 input_node.append_attribute("max").set_value(input.second.ranges.max);
             }
             input_node.append_attribute("convert_to_const").set_value(input.second.is_const);
+            input_node.append_attribute("max_shape").set_value(ov::test::utils::partialShape2str({ input.second.max_shape }).c_str());
+            input_node.append_attribute("min_shape").set_value(ov::test::utils::partialShape2str({ input.second.min_shape }).c_str());
         }
         doc.save_file(serialization_path.c_str());
 }
