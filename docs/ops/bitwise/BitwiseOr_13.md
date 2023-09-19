@@ -11,7 +11,7 @@
 
 **Short description**: *BitwiseOr* performs bitwise logical OR operation with two given tensors element-wise, applying multi-directional broadcast rules.
 
-**Detailed description**: Before performing operation, input tensors *a* and *b* are broadcasted if their shapes are different and ``auto_broadcast`` attributes is not ``none``. Broadcasting is performed according to ``auto_broadcast`` value.
+**Detailed description**: Before performing operation, input tensors *a* and *b* are broadcasted if their shapes are different and ``auto_broadcast`` attribute is not ``none``. Broadcasting is performed according to ``auto_broadcast`` value.
 
 After broadcasting input tensors *a* and *b*, *BitwiseOr* performs bitwise logical OR operation for each corresponding element in given tensors, based on following algorithm.
 
