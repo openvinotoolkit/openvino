@@ -16,6 +16,7 @@
 
 // vpux-plugin doesn't link to openvino::core::dev, thus '../dev_api/' is needed
 #include "../dev_api/openvino/op/util/slice_plan.hpp"
+#include "ngraph/deprecated.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {

@@ -89,7 +89,7 @@ Some PaddlePaddle models may require setting ``example_input`` or ``output`` for
 
 * Example of converting ``paddle.fluid.dygraph.layers.Layer`` format model:
 
-  ``example_input`` is required while ``output`` is optional, which accept the following formats:
+  ``example_input`` is required while ``output`` is optional.  ``example_input`` accepts the following formats:
 
   ``list`` with tensor (``paddle.Tensor``) or InputSpec (``paddle.static.input.InputSpec``)
 
