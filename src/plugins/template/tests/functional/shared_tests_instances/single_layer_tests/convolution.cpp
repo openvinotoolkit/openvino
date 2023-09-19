@@ -86,6 +86,7 @@ const auto conv3DParams_ExplicitPadding = ::testing::Combine(::testing::ValuesIn
                                                              ::testing::ValuesIn(dilations3d),
                                                              ::testing::Values(5),
                                                              ::testing::Values(ov::op::PadType::EXPLICIT));
+
 const auto conv3DParams_AutoPadValid = ::testing::Combine(::testing::ValuesIn(kernels3d),
                                                           ::testing::ValuesIn(strides3d),
                                                           ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
