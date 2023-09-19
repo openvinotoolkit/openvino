@@ -19,6 +19,7 @@ from openvino import (
     serialize,
 )
 
+import openvino.properties.hint as hints
 from openvino.runtime import Extension
 from tests.utils.helpers import (
     generate_image,
@@ -67,25 +68,6 @@ def test_core_class(device):
     assert np.allclose(results[list(results)[0]], expected_output)
 
 
-@pytest.mark.parametrize("device_name", [
-    None,
-    "CPU"
-])
-def test_compile_model(request, tmp_path, device_name):
-    core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
-    relu_model = get_relu_model()
-    serialize(relu_model, xml_path, bin_path)
-    model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = None
-    if device_name is None:
-        compiled_model = core.compile_model(model)
-    else:
-        compiled_model = core.compile_model(model, device_name)
-
-    assert isinstance(compiled_model, CompiledModel)
-
-
 @pytest.mark.parametrize("loading_type", [
     None,
     "posixpath",
@@ -97,9 +79,9 @@ def test_compile_model(request, tmp_path, device_name):
 ])
 @pytest.mark.parametrize("config", [
     None,
-    {"PERFORMANCE_HINT": "THROUGHPUT"},  # here I would replace them with actual properties later CC Ana
-    {"PERFORMANCE_HINT": "LATENCY"},
-    {"PERFORMANCE_HINT": "CUMULATIVE_THROUGHPUT"}
+    {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
+    {hints.performance_mode(): hints.PerformanceMode.LATENCY},
+    {hints.performance_mode(): hints.PerformanceMode.CUMULATIVE_THROUGHPUT}
 ])
 def test_compact_api(request, tmp_path, loading_type, device_name, config):
     relu_model = get_relu_model()
