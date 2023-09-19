@@ -650,23 +650,6 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
     }
 }
 
-std::ostream& operator<<(std::ostream& os, TensorIteratorBody type) {
-    switch (type) {
-    case TensorIteratorBody::LSTM:
-        os << "LSTM";
-        break;
-    case TensorIteratorBody::RNN:
-        os << "RNN";
-        break;
-    case TensorIteratorBody::GRU:
-        os << "GRU";
-        break;
-    default:
-        throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
-    }
-    return os;
-}
-
 std::ostream& operator<<(std::ostream& os, MemoryTransformation type) {
     switch (type) {
     case MemoryTransformation::NONE:
