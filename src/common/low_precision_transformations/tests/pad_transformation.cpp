@@ -72,8 +72,6 @@ public:
             precisionAfterActualOp,
             { {}, {}, {} });
 
-        auto actualFunctionReference = actualFunction->clone();
-
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::PadTransformation, ov::op::v1::Pad>(testValues.params);
         transformer.transform(actualFunction);
