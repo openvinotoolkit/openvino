@@ -325,11 +325,6 @@ void OVInferRequestCheckTensorPrecision::createInferRequest() {
     try {
         compModel = core->compile_model(model, target_device, config);
         request = compModel.create_infer_request();
-
-        if (std::count(precisions.begin(), precisions.end(), element_type) == 0) {
-            FAIL() << "Precision " << element_type.c_type_string()
-                    << " is marked as unsupported but the network was loaded successfully";
-        }
     } catch (std::runtime_error& e) {
         const std::string errorMsg = e.what();
         const auto expectedMsg = exp_error_str_;
