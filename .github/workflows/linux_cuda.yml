@@ -49,6 +49,7 @@ jobs:
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_DIR: ${{ github.workspace }}/install_pkg
+      DEBIAN_FRONTEND: 'noninteractive'
     steps:
 
       - name: Install Prerequisites
@@ -105,7 +106,7 @@ jobs:
          apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
          add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
          apt update
-         DEBIAN_FRONTEND=noninteractive apt install -y \
+         apt install -y \
             libcudnn8=8.9.4.*-1+cuda11.8 \
             libcudnn8-dev=8.9.4.*-1+cuda11.8 \
             libcudnn8-samples=8.9.4.*-1+cuda11.8 \
