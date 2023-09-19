@@ -7,7 +7,6 @@
 namespace ov {
 namespace test {
 namespace utils {
-size_t PassRate::rel_k = 1;
 
 PassRate::PassRate(unsigned long p,
                    unsigned long f,
@@ -36,7 +35,7 @@ float PassRate::getPassrate() const {
     if (passed + failed + crashed + hanged == 0) {
         return 0.f;
     } else {
-        return passed * 100.f / (rel_k * (passed + failed + skipped + crashed + hanged));
+        return passed * 100.f / (passed + failed + skipped + crashed + hanged);
     }
 }
 
@@ -44,7 +43,7 @@ double PassRate::getRelPassrate() const {
     if (rel_all == 0) {
         return 100.f;
     } else {
-        return rel_passed * 100.f / (rel_k * rel_all);
+        return rel_passed * rel_all;
     }
 }
 
