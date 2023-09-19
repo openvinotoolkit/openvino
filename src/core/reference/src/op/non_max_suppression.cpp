@@ -372,13 +372,11 @@ void nms_postprocessing(ov::TensorVector& outputs,
                         const std::vector<float>& selected_scores,
                         int64_t valid_outputs,
                         const ov::element::Type selected_scores_type) {
-    // outputs[0].set_element_type(output_type);
     outputs[0].set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
 
     size_t num_of_outputs = outputs.size();
 
     if (num_of_outputs >= 2) {
-        // outputs[1].set_element_type(selected_scores_type);
         outputs[1].set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
     }
 

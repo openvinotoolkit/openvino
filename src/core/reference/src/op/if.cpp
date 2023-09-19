@@ -35,7 +35,6 @@ void if_reference(const std::vector<std::shared_ptr<Model>>& bodies,
                      "Incorrect associating! If has not output with id ",
                      out_descr->m_output_index);
         auto res = outs_from_body[out_descr->m_body_value_index];
-        out[out_descr->m_output_index].set_shape(res.get_shape());
         res.copy_to(out[out_descr->m_output_index]);
     }
 }

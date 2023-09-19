@@ -4,15 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_ngraph_utils.hpp>
-#include <openvino/core/preprocess/pre_post_process.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <shared_test_classes/single_layer/convert_color_i420.hpp>
-#include <shared_test_classes/single_layer/convert_color_nv12.hpp>
 #include <vector>
 
 #include "base_reference_cnn_test.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/single_layer/convert_color_i420.hpp"
+#include "shared_test_classes/single_layer/convert_color_nv12.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;

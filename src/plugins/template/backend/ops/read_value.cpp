@@ -7,7 +7,6 @@
 bool evaluate(const std::shared_ptr<ov::op::v3::ReadValue>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    outputs[0].set_shape(inputs[0].get_shape());
     inputs[0].copy_to(outputs[0]);
     return true;
 }

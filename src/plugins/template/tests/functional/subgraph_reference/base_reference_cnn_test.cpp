@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"

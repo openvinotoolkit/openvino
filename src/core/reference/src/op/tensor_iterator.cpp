@@ -109,7 +109,6 @@ void tensor_iterator(uint64_t num_iterations,
         if (const auto& body_desc = std::dynamic_pointer_cast<op::v0::TensorIterator::BodyOutputDescription>(desc)) {
             // Copy output values from the last iteration
             const auto& res = body_outputs[body_desc->m_body_value_index];
-            out[body_desc->m_output_index].set_shape(res.get_shape());
             res.copy_to(out[body_desc->m_output_index]);
         }
     }
