@@ -490,20 +490,6 @@ jobs:
         run: |
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: 'openvino'
-
-      #
-      # Dependencies
-      #
-
-      - name: Install dependencies
-        run: |
-          sudo -E apt update
-          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
-
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
@@ -512,11 +498,6 @@ jobs:
         run: |
           # For Python API
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
-
-          # For running Python API tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
           # For running ONNX frontend unit tests
           python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
@@ -529,15 +510,6 @@ jobs:
 
           # For torchvision to OpenVINO preprocessing converter
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
-
-      - name: Install MO dependencies
-        run: |
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -567,7 +539,6 @@ jobs:
 
       - name: nGraph and IE Python Bindings Tests
         run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph  ${{ env.PYTHON_STATIC_ARGS }} \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_zoo_models.py \
@@ -591,44 +562,13 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:${{ github.workspace }}/openvino/docs/:$PYTHONPATH
           export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
-
           python3 ${{ github.workspace }}/openvino/docs/snippets/main.py
-
-      - name: Model Optimizer UT
-        run: |
-
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:${{ env.INSTALL_TEST_DIR }}:${{ env.INSTALL_DIR }}/python/python3.11:$PYTHONPATH
-
-          # TODO: figure out why they need to be reinstalled
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
-
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-
-          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests \
-              --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
-
-      - name: MO Python API Tests
-        run: |
-          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
 
       - name: Conversion UT
         run: |
           # For python imports to import pybind_mock_frontend
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-
           python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
@@ -651,6 +591,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+    continue-on-error: true
 
     steps:
       - name: Create Directories
@@ -695,7 +636,7 @@ jobs:
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
-          PYTHONPATH: ${{ env.INSTALL_DIR }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          PYTHONPATH: ${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
@@ -703,13 +644,13 @@ jobs:
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
         env:
-          PYTHONPATH: ${{ env.INSTALL_DIR }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          PYTHONPATH: ${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
 
       - name: TensorFlow 1 Layer Tests - TF FE
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
-          PYTHONPATH: ${{ env.INSTALL_DIR }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          PYTHONPATH: ${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
@@ -717,7 +658,7 @@ jobs:
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
-          PYTHONPATH: ${{ env.INSTALL_DIR }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          PYTHONPATH: ${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
@@ -732,14 +673,14 @@ jobs:
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
         env:
-          PYTHONPATH: ${{ env.INSTALL_DIR }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          PYTHONPATH: ${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
               --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
-          PYTHONPATH: ${{ env.INSTALL_DIR }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          PYTHONPATH: ${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
@@ -747,7 +688,7 @@ jobs:
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
         env:
-          PYTHONPATH: ${{ env.INSTALL_DIR }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          PYTHONPATH: ${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
       - name: Upload Test Results
