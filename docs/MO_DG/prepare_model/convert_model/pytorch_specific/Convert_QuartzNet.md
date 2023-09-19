@@ -4,7 +4,7 @@
 
 .. meta::
    :description: Learn how to convert a QuartzNet model
-                 from Pytorch to the OpenVINO Intermediate Representation.
+                 from PyTorch to the OpenVINO Intermediate Representation.
 
 
 `NeMo project <https://github.com/NVIDIA/NeMo>`__ provides the QuartzNet model.

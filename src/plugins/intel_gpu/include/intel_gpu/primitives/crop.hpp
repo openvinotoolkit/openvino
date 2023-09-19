@@ -46,8 +46,6 @@ struct crop : public primitive_base<crop> {
 
     crop() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs crop primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

@@ -9,10 +9,6 @@ add_definitions(-DIN_OV_CORE_LIBRARY)
 
 set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wmissing-declarations)
-endif()
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -80,7 +76,7 @@ endif()
 
 target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
-ie_faster_build(ngraph_obj
+ov_build_target_faster(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
@@ -97,7 +93,7 @@ ov_abi_free_target(ngraph_obj)
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-add_clang_format_target(ngraph_clang FOR_TARGETS ngraph_obj)
+ov_add_clang_format_target(ngraph_clang FOR_TARGETS ngraph_obj)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph_obj PUBLIC OPENVINO_STATIC_LIBRARY)
