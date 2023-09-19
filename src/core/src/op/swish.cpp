@@ -36,11 +36,6 @@ Swish::Swish(const Output<Node>& arg, const Output<Node>& beta) : Op({arg, beta}
     constructor_validate_and_infer_types();
 }
 
-bool Swish::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v4_Swish_visit_attributes);
-    return true;
-}
-
 void Swish::validate_and_infer_types() {
     OV_OP_SCOPE(v4_Swish_validate_and_infer_types);
 
