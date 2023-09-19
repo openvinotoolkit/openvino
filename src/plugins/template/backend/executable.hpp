@@ -52,11 +52,11 @@ public:
     void validate(const std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs);
 
     /// \brief Query the input Parameters
-    /// \returns an ngraph::op::ParameterVector of all input parameters
+    /// \returns an ov::op::ParameterVector of all input parameters
     const ov::ParameterVector& get_parameters() const;
 
     /// \brief Query the output Results
-    /// \returns an ngraph::ResultVector of all input parameters
+    /// \returns an ov::ResultVector of all input parameters
     const ov::ResultVector& get_results() const;
 
     /// \brief Query the internal model

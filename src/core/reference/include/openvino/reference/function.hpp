@@ -12,6 +12,6 @@
 
 namespace ov {
 namespace reference {
-void function(const std::shared_ptr<Model>& function, const HostTensorVector& inputs, HostTensorVector& outputs);
+void function(const std::shared_ptr<Model>& function, const ov::TensorVector& inputs, ov::TensorVector& outputs);
 }
 }  // namespace ov

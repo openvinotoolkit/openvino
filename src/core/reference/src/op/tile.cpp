@@ -9,8 +9,6 @@
 #include <cstdio>
 #include <numeric>
 
-#include "ngraph/check.hpp"
-
 using namespace ov;
 
 namespace {

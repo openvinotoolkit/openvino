@@ -36,7 +36,7 @@ void non_max_suppression5(const float* boxes_data,
                           int64_t* valid_outputs,
                           const bool sort_result_descending);
 
-void nms5_postprocessing(const HostTensorVector& outputs,
+void nms5_postprocessing(ov::TensorVector& outputs,
                          const ngraph::element::Type output_type,
                          const std::vector<int64_t>& selected_indices,
                          const std::vector<float>& selected_scores,
@@ -58,7 +58,7 @@ void non_max_suppression(const float* boxes_data,
                          int64_t* valid_outputs,
                          const bool sort_result_descending);
 
-void nms_postprocessing(const HostTensorVector& outputs,
+void nms_postprocessing(ov::TensorVector& outputs,
                         const ngraph::element::Type output_type,
                         const std::vector<int64_t>& selected_indices,
                         const std::vector<float>& selected_scores,

@@ -11,6 +11,6 @@
 
 namespace ov {
 namespace reference {
-void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs, const std::string& equation);
+void einsum(ov::TensorVector& outputs, const ov::TensorVector& inputs, const std::string& equation);
 }  // namespace reference
 }  // namespace ov

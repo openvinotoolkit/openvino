@@ -740,7 +740,14 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
             if (!tensor && outputs[i]->get_partial_shape().is_static()) {
                 tensor = ov::Tensor(outputs[i]->get_element_type(), outputs[i]->get_shape());
             }
-            output_values[i] = tensor;
+            if (output_values[i]) {
+                // Copy value to the original tensor
+                output_values[i].set_shape(tensor.get_shape());
+                tensor.copy_to(output_values[i]);
+            } else {
+                // Tensor is not initialized, so create the new tensor
+                output_values[i] = tensor;
+            }
         }
     }
 }

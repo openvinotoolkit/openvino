@@ -35,6 +35,7 @@ endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:${OV_CORE_DEV_API_PATH}>
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
