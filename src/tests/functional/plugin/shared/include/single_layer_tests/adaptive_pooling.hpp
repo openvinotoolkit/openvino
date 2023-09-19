@@ -9,7 +9,7 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(AdaPoolLayerTest, CompareWithRefs) {
-Run();
+    Run();
 }
 
 }  // namespace LayerTestsDefinitions
