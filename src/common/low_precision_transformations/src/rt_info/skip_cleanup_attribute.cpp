@@ -10,11 +10,11 @@
 #include <iterator>
 #include <vector>
 
-using namespace ngraph;
+using namespace ov;
 using namespace ov;
 
 ov::Any SkipCleanupAttribute::create(
-    const std::shared_ptr<ngraph::Node>& node) {
+    const std::shared_ptr<ov::Node>& node) {
     auto& rt = node->get_rt_info();
     return (rt[SkipCleanupAttribute::get_type_info_static()] = SkipCleanupAttribute());
 }

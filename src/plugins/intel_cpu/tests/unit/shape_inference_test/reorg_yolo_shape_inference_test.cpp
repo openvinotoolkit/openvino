@@ -20,7 +20,7 @@ TEST_F(StaticShapeReorgYoloTest, default_ctor_no_args) {
     op->set_strides(3);
 
     input_shapes = ShapeVector{{2, 9, 12, 6}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 81, 4, 2}));
@@ -31,7 +31,7 @@ TEST_F(StaticShapeReorgYoloTest, data_input_is_dynamic_rank) {
     op = make_op(data, 2);
 
     input_shapes = ShapeVector{{2, 12, 12, 24}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 48, 6, 12}));
@@ -42,7 +42,7 @@ TEST_F(StaticShapeReorgYoloTest, data_input_is_static_rank) {
     op = make_op(data, 2);
 
     input_shapes = ShapeVector{{2, 20, 12, 24}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 80, 6, 12}));
@@ -52,7 +52,7 @@ TEST_F(StaticShapeReorgYoloTest, data_shape_not_compatible_rank_4) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     op = make_op(data, 2);
 
-    OV_EXPECT_THROW(shape_inference(op.get(), ShapeVector{{2, 20, 12, 24, 1}}, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), ShapeVector({{2, 20, 12, 24, 1}})),
                     NodeValidationFailure,
                     HasSubstr("[N, C, H, W] input shape is required"));
 }
@@ -61,7 +61,7 @@ TEST_F(StaticShapeReorgYoloTest, h_dim_not_div_by_stride) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     op = make_op(data, 2);
 
-    OV_EXPECT_THROW(shape_inference(op.get(), ShapeVector{{2, 20, 11, 24}}, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), ShapeVector{{2, 20, 11, 24}}),
                     NodeValidationFailure,
                     HasSubstr("H and W should be divisible by stride"));
 }
