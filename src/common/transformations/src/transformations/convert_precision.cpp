@@ -689,6 +689,8 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
     return res;
 }
 
+namespace {
+
 bool update_type(size_t idx,
                  const std::shared_ptr<ov::Node>& node,
                  const precisions_map& precisions,
@@ -703,6 +705,8 @@ bool update_type(size_t idx,
     }
     return false;
 }
+
+}  // namespace
 
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto nms = ov::as_type_ptr<opset8::MatrixNms>(node);
