@@ -176,7 +176,7 @@ static void pad_input_data(const uint8_t* data_ptr,
                            const ov::Shape& input_shape,
                            const ov::Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::CoordinateTransform input_transform(input_shape);
     ov::CoordinateTransform padded_transform(padded_input_shape);
 
@@ -191,7 +191,7 @@ static void pad_input_data(const uint8_t* data_ptr,
         const uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
         memcpy(dst_ptr, src_ptr, type_size);
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 namespace v11 {
