@@ -23,6 +23,7 @@
 #include "gemm_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
+#include "condition_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
 #include "implementation_map.hpp"
