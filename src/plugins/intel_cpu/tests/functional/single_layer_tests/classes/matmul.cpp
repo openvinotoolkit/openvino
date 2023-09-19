@@ -153,4 +153,121 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
 }
 
+namespace MatMul {
+const std::map<std::string, std::string>& emptyAdditionalConfig() {
+    static const std::map<std::string, std::string> emptyAdditionalConfig;
+    return emptyAdditionalConfig;
+}
+
+const std::vector<ShapeRelatedParams>& IS2D_nightly() {
+    static const std::vector<ShapeRelatedParams> IS2D_nightly = {
+        {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, false}},
+        {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, false}},
+
+        {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, false}},
+        {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, true}},
+
+        {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, true}},
+        {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, true}},
+
+        {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, true}},
+        {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, false}},
+
+        {
+            {
+                {{-1, -1}, {{71, 128}, {50, 128}}},
+                {{128, 20}, {{128, 20}, {128, 20}}}
+            },
+            {false, false}
+        },
+        {
+            {
+                {{-1, 59}, {{10, 59}, {15, 59}, {15, 59}}},
+                {{59, 1}, {{59, 1}, {59, 1}, {59, 1}}}
+            },
+            {true, false}
+        },
+        {
+            {
+                {{{0, 120}, 59}, {{5, 59}, {11, 59}, {5, 59}, {10, 59}}},
+                {{59, 120}, {{59, 120}, {59, 120}, {59, 120}, {59, 120}}}
+            },
+            {false, true}
+        },
+    };
+    return IS2D_nightly;
+}
+
+const std::vector<ShapeRelatedParams>& IS2D_smoke() {
+    static const std::vector<ShapeRelatedParams> IS2D_smoke = {
+        {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
+        {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
+
+        {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, false}},
+        {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, true}},
+
+        {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, false}},
+        {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, false}},
+
+        {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
+        {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
+
+        {
+            {
+                {{-1, -1}, {{20, 60}, {20, 60}}},
+                {{60, 120}, {{60, 120}, {60, 120}}}
+            },
+            {false, false}
+        },
+        {
+            {
+                {{{0, 100}, {0, 12}}, {{20, 1}, {14, 1}, {20, 1}, {14, 1}}},
+                {{1, 120}, {{1, 120}, {1, 120}, {1, 120}, {1, 120}}}
+            },
+            {true, true}
+        },
+    };
+    return IS2D_smoke;
+}
+
+const std::vector<ShapeRelatedParams>& IS3D_smoke() {
+    static const std::vector<ShapeRelatedParams> IS3D_smoke = {
+        {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {false, false}},
+        {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {false, true}},
+        // needed by 'IS3D_Brgconv1x1_smoke'
+        {static_shapes_to_test_representation({{1, 1, 120}, {120, 120}}), {false, false}},
+        {static_shapes_to_test_representation({{3, 1, 120}, {120, 120}}), {false, false}},
+
+        {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {true, false}},
+        {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {false, true}},
+
+        {
+            {
+                {{1, 5, 32}, {{1, 5, 32}, {1, 5, 32}}},
+                {{32, 3}, {{32, 3}, {32, 3}}}
+            },
+            {false, true}
+        },
+
+        {static_shapes_to_test_representation({{1, 429}, {1, 429, 1}}), {true, true}},
+        {
+            {
+                {{-1, -1}, {{1, 129}, {2, 129}, {1, 129}, {2, 129}}},
+                {{1, 129, 1}, {{1, 129, 1}, {1, 129, 1}, {1, 129, 1}, {1, 129, 1}}}
+            },
+            {true, true}
+        },
+
+        {
+            {
+                {{{0, 60}, {0, 60}, {0, 60}}, {{1, 3, 14}, {1, 7, 14}}},
+                {{14, 10}, {{14, 10}, {14, 10}}}
+            },
+            {true, true}
+        },
+    };
+    return IS3D_smoke;
+}
+
+} // namespace MatMul
 } // namespace CPULayerTestsDefinitions

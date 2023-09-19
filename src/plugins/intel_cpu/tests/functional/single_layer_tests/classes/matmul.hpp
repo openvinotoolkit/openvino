@@ -56,4 +56,10 @@ protected:
     void SetUp() override;
 };
 
+namespace MatMul {
+   const std::map<std::string, std::string>& emptyAdditionalConfig();
+   const std::vector<ShapeRelatedParams>& IS2D_nightly();
+   const std::vector<ShapeRelatedParams>& IS2D_smoke();
+   const std::vector<ShapeRelatedParams>& IS3D_smoke();
+} // namespace MatMul
 } // namespace CPULayerTestsDefinitions
