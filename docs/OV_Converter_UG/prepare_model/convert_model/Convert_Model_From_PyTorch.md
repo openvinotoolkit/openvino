@@ -40,8 +40,8 @@ The value for the ``example_input`` parameter can be easily derived from knowing
    import torch
    import openvino as ov
 
-   model = torchvision.models.resnet50(pretrained=True)
-   ov_model = ov.convert_model(model, example_input=example_input=torch.rand(1, 3, 224, 224))
+   model = torchvision.models.resnet50(weights='DEFAULT')
+   ov_model = ov.convert_model(model, example_input=torch.rand(1, 3, 224, 224))
 
 In practice, the code to evaluate or test the PyTorch model is usually provided with the model itself and can be used to generate a proper ``example_input`` value. A modified example of using ``resnet50`` model from ``torchvision`` is presented below. It demonstrates how to switch inference in the existing PyTorch application to OpenVINO and how to get value for ``example_input``:
 
