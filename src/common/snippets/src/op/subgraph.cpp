@@ -46,7 +46,7 @@
 
 #include "transformations/utils/utils.hpp"
 
-#include "snippets/pass_manager.hpp"
+#include "snippets/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>

@@ -112,6 +112,7 @@
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 
 // Misc
@@ -676,7 +677,7 @@ void Transformations::MainSnippets(void) {
             const auto is_unsupported_parallel_work_amount =
                 parallel_get_num_threads() / 2 > parallel_work_amount &&
                 static_cast<size_t>(parallel_work_amount) < needed_num_of_threads &&
-                !ov::snippets::pass::CommonOptimizations::CanOptimizeParallelWA(n, tokenization_config.concurrency);
+                !ov::snippets::pass::SplitDimensionM::canBeOptimized(n, tokenization_config.concurrency);
             return is_unsupported_parallel_work_amount;
         };
 #endif // OPENVINO_ARCH_X86_64
