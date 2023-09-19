@@ -6,7 +6,7 @@
 
 #include "ibuffer_pass.hpp"
 
-#include "memory_solver.hpp"
+#include "openvino/runtime/memory_solver.hpp"
 
 namespace ov {
 namespace snippets {
@@ -39,7 +39,7 @@ private:
      * @param buffer_clusters buffer clusters. These clusters can be got using DefineBufferClusters pass
      * @return vector of boxes for MemorySolver
      */
-    std::vector<MemorySolver::Box> init_boxes(const BufferClusters& buffer_clusters);
+    std::vector<ov::MemorySolver::Box> init_boxes(const BufferClusters& buffer_clusters);
 
     size_t& m_buffer_scratchpad_size;
     BufferClusters& m_clusters;

@@ -8,12 +8,15 @@
  */
 #pragma once
 
-#include <ie_common.h>
 #include <stdint.h>
 
 #include <algorithm>
 #include <map>
 #include <vector>
+
+#include "openvino/core/except.hpp"
+
+namespace ov {
 
 /**
  * @brief Helps to solve issue of optimal memory allocation only for particular
@@ -42,7 +45,6 @@
  *  Exec order is predefined.
  */
 
-IE_SUPPRESS_DEPRECATED_START
 class MemorySolver {
 public:
     /** @brief Representation of edge (size and live time)*/
@@ -177,7 +179,7 @@ public:
     int64_t getOffset(int id) const {
         auto res = _offsets.find(id);
         if (res == _offsets.end())
-            IE_THROW() << "There are no box for provided ID";
+            OPENVINO_THROW("There are no box for provided ID");
         return res->second;
     }
 
@@ -218,11 +220,12 @@ private:
                 top_depth--;
             }
             release_at.erase(time);
-            IE_ASSERT(top_depth > 0);
+            OPENVINO_ASSERT(top_depth > 0);
 
             _top_depth = std::max(_top_depth, top_depth);
             _depth = std::max(_depth, depth);
         }
     }
 };
-IE_SUPPRESS_DEPRECATED_END
+
+}  // namespace ov

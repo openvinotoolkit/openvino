@@ -14,11 +14,11 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-std::vector<MemorySolver::Box> SolveBufferMemory::init_boxes(const BufferClusters& buffer_clusters) {
-    std::vector<MemorySolver::Box> boxes;
+std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const BufferClusters& buffer_clusters) {
+    std::vector<ov::MemorySolver::Box> boxes;
     const auto count = static_cast<int>(buffer_clusters.size());
     for (int i = 0; i < count; i++) {
-        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
+        ov::MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
         int64_t box_size = 0;
         for (const auto& buffer_expr : buffer_clusters[i]) {
             int e_start = 0, e_finish = 0;
@@ -68,7 +68,7 @@ bool SolveBufferMemory::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SolveBufferMemory");
 
     const auto boxes = init_boxes(m_clusters);
-    MemorySolver memSolver(boxes);
+    ov::MemorySolver memSolver(boxes);
     m_buffer_scratchpad_size = static_cast<size_t>(memSolver.solve()) * m_alignment;  // alignment in byte
 
     // Set offsets for Buffers

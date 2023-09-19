@@ -20,7 +20,6 @@
 #include "dnnl_extension_utils.h"
 #include "extension_mngr.h"
 #include "ie_ngraph_utils.hpp"
-#include "memory_solver.hpp"
 #include "itt.h"
 #include "infer_request.h"
 #include "nodes/input.h"
@@ -45,6 +44,7 @@
 #include "utils/verbose.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
+#include "openvino/runtime/memory_solver.hpp"
 #include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/op/ops.hpp>
@@ -748,10 +748,10 @@ void Graph::AllocateWithReuse() {
 
     const int64_t alignment = 32;  // 32 bytes
 
-    std::vector<MemorySolver::Box> definedBoxes;
-    std::vector<MemorySolver::Box> undefinedBoxes;
+    std::vector<ov::MemorySolver::Box> definedBoxes;
+    std::vector<ov::MemorySolver::Box> undefinedBoxes;
     for (size_t i = 0; i < remaining_edge_clusters_count; i++) {
-        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
+        ov::MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
         int64_t boxSize = 0;
         for (auto &edge : edge_clusters[i]) {
             int e_start = edge->getParent()->execIndex;
@@ -797,7 +797,7 @@ void Graph::AllocateWithReuse() {
         }
     }
 
-    MemorySolver staticMemSolver(definedBoxes);
+    ov::MemorySolver staticMemSolver(definedBoxes);
     size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(InferenceEngine::SizeVector{total_size})));
@@ -879,9 +879,9 @@ void Graph::AllocateWithReuse() {
             }
         }
 
-        MemorySolver::normalizeBoxes(undefinedBoxes);
+        ov::MemorySolver::normalizeBoxes(undefinedBoxes);
 
-        std::vector<std::vector<MemorySolver::Box>> groups; //groups of nonoverlapping boxes
+        std::vector<std::vector<ov::MemorySolver::Box>> groups; //groups of nonoverlapping boxes
         constexpr bool enableMemReuse = true; // set false to disable mem reuse for debug purposes
         if (enableMemReuse) {
             groups.push_back({undefinedBoxes.front()});

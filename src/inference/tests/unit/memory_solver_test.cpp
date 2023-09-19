@@ -2,38 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "memory_solver.hpp"
+#include "openvino/runtime/memory_solver.hpp"
 
 #include <gtest/gtest.h>
 
 #include <vector>
 
-using Box = MemorySolver::Box;
+using Box = ov::MemorySolver::Box;
 
 TEST(MemSolverTest, CanConstruct) {
     {  // Empty vector<Box>
-        MemorySolver ms(std::vector<Box>{});
+        ov::MemorySolver ms(std::vector<Box>{});
     }
 
     {  // vector with default Box
-        MemorySolver ms(std::vector<Box>{{}});
+        ov::MemorySolver ms(std::vector<Box>{{}});
     }
 
     {  // vector with Box with non-default Box
-        MemorySolver ms(std::vector<Box>{{1, 3, 3}});
+        ov::MemorySolver ms(std::vector<Box>{{1, 3, 3}});
     }
 
     {  // vector with Box with size == 0
-        MemorySolver ms(std::vector<Box>{{0, 0, 0}});
+        ov::MemorySolver ms(std::vector<Box>{{0, 0, 0}});
     }
 
     {  // vector with Box with finish == -1
-        MemorySolver ms(std::vector<Box>{{3, -1, 6}});
+        ov::MemorySolver ms(std::vector<Box>{{3, -1, 6}});
     }
 
     // TODO: enable after implement TODO from memory_solver.hpp#L66
     //    {   // vector with Box with negative values
-    //        MemorySolver ms(std::vector<Box> {{-5, -5, -5, -5}});
+    //        ov::MemorySolver ms(std::vector<Box> {{-5, -5, -5, -5}});
     //    }
 }
 
@@ -51,7 +51,7 @@ TEST(MemSolverTest, GetOffset) {
         {n, ++n, 2, 3},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     ms.solve();
 
     //  The correct answer is [0, 2, 0, 2] or [2, 0, 2, 0].
@@ -74,7 +74,7 @@ TEST(MemSolverTest, GetOffsetThrowException) {
         {n, ++n, 2, id++},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     ms.solve();
 
     EXPECT_THROW(ms.getOffset(100), std::runtime_error);
@@ -93,7 +93,7 @@ TEST(MemSolverTest, LinearAndEven) {
         {n, ++n, 2},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 4);
     EXPECT_EQ(ms.maxDepth(), 4);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -112,7 +112,7 @@ TEST(MemSolverTest, LinearAndNotEven) {
         {n, ++n, 3},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);
     EXPECT_EQ(ms.maxDepth(), 5);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -131,7 +131,7 @@ TEST(MemSolverTest, LinearWithEmptyExecIndexes) {
         {n, n += 2, 3},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);
     EXPECT_EQ(ms.maxDepth(), 5);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -150,7 +150,7 @@ TEST(MemSolverTest, DISABLED_Unefficiency) {
         {2, 3, 2},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);  // currently we have answer 6
     EXPECT_EQ(ms.maxDepth(), 5);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -169,7 +169,7 @@ TEST(MemSolverTest, OverlappingBoxes) {
         {2, 3, 2},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 6);
     EXPECT_EQ(ms.maxDepth(), 6);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -190,7 +190,7 @@ TEST(MemSolverTest, EndOnSeveralBegins) {
         {3, 4, 2},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 6);
     EXPECT_EQ(ms.maxDepth(), 6);
     EXPECT_EQ(ms.maxTopDepth(), 3);
@@ -211,7 +211,7 @@ TEST(MemSolverTest, ToEndBoxes) {
         {3, 4, 2},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 8);
     EXPECT_EQ(ms.maxDepth(), 8);
     EXPECT_EQ(ms.maxTopDepth(), 4);
@@ -232,7 +232,7 @@ TEST(MemSolverTest, LastAndToEndBox) {
         {3, 4, 2},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 6);
     EXPECT_EQ(ms.maxDepth(), 6);
     EXPECT_EQ(ms.maxTopDepth(), 3);
@@ -270,7 +270,7 @@ TEST(MemSolverTest, OptimalAlexnet) {
         boxes.push_back({n, ++n, sh[0] * sh[1] * sh[2]});
 
     // For linear topology bottom score is reachable minRequired == maxDepth
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), ms.maxDepth());
     EXPECT_EQ(ms.maxTopDepth(), 2);
 }
@@ -290,7 +290,7 @@ TEST(MemSolverTest, NoOverlapping) {
         {2, 4, 2, n++},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     ms.solve();
     // TODO: Current algorithm doesn't solve that case. Uncomment check to see inefficiency
     // EXPECT_EQ(ms.solve(), 5);
@@ -322,7 +322,7 @@ TEST(MemSolverTest, BestSolution1) {
         {6, 7, 3, n++},
     };
 
-    MemorySolver ms(boxes);
+    ov::MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);
 
     auto no_overlap = [&](Box box1, Box box2) -> bool {
