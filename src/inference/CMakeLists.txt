@@ -4,11 +4,6 @@
 
 set (TARGET_NAME "inference_engine")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # TODO: Add IMPLEMENT_OPENVINO_API to inference_engine_obj
-    ie_add_compiler_flags(/wd4273)
-endif()
-
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
@@ -130,6 +125,8 @@ ie_faster_build(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
 )
 
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
+
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     IMPLEMENT_INFERENCE_ENGINE_API
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>
@@ -184,6 +181,8 @@ add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
             $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
+target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+
 set_ie_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
@@ -199,8 +198,6 @@ endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
     frontend_common::static inference_engine_transformations openvino::pugixml)
-
-target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES
     EXCLUDE_FROM_ALL ON

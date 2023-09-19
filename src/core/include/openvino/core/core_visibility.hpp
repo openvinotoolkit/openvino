@@ -48,7 +48,7 @@ namespace ov {}  // namespace ov
 #    pragma warning(disable : 4275)
 #endif
 
-#ifdef OPENVINO_STATIC_LIBRARY  // defined if we are building or calling NGRAPH as a static library
+#if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE) // defined if we are building or calling NGRAPH as a static library
 #    define OPENVINO_API
 #    define OPENVINO_API_C(...) __VA_ARGS__
 #else
@@ -59,4 +59,4 @@ namespace ov {}  // namespace ov
 #        define OPENVINO_API        OPENVINO_CORE_IMPORTS
 #        define OPENVINO_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS __VA_ARGS__ OPENVINO_CDECL
 #    endif  // IMPLEMENT_OPENVINO_API
-#endif      // OPENVINO_STATIC_LIBRARY
+#endif      // OPENVINO_STATIC_LIBRARY || USE_STATIC_IE

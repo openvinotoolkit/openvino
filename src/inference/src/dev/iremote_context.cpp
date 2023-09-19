@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/node.hpp"
+
 #include "openvino/runtime/iremote_context.hpp"
 
 #include "openvino/runtime/make_tensor.hpp"

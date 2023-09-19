@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/node.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"

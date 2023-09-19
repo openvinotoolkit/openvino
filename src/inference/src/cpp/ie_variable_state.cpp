@@ -5,6 +5,7 @@
 #include "cpp/ie_memory_state.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/variable_state.hpp"

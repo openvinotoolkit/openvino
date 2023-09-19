@@ -5,6 +5,7 @@
 #include "openvino/runtime/ivariable_state.hpp"
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 
 ov::IVariableState::IVariableState(const std::string& name) : m_name(name) {}
 

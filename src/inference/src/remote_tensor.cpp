@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/node.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
