@@ -37,7 +37,7 @@ env:
   LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
   BUILD_DIR: "${{ github.workspace }}\\build"
   OV_TEMP: "${{ github.workspace }}\\openvino_temp"
-  PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+  PYTHON_STATIC_ARGS: -m "not dynamic_library"
   VCVARSPATH: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvarsall.bat"
 
 jobs:
