@@ -20,8 +20,7 @@ endif()
 # Check python requirements
 #
 
-set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-set(ie_python_req "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/requirements-dev.txt")
+set(ie_build_python_req "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/requirements-dev.txt")
 
 function(ov_check_python_build_conditions)
     # user explicitly specified ENABLE_PYTHON=ON
@@ -81,31 +80,23 @@ function(ov_check_python_build_conditions)
         message(${message_mode} "Python 3.x interpreter is not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
     endif()
 
-    # check pyopenvino requirements to OV 2.0 API
-    ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
-                          RESULT_VAR ov_python_req_FOUND
-                          WARNING_MESSAGE "install python3 -m pip install -r ${ov_python_req} for OV API 2.0 requirements"
-                          MESSAGE_MODE TRACE)
-    # ov_python_req are not mandatory for build
-    set(ov_python_req_FOUND ON)
-
     # check for Cython requirement for build IE API 1.0
-    ov_check_pip_packages(REQUIREMENTS_FILE ${ie_python_req}
-                          RESULT_VAR ie_python_req_FOUND
-                          WARNING_MESSAGE "install python3 -m pip install -r ${ie_python_req} for IE API 1.0 requirements"
+    ov_check_pip_packages(REQUIREMENTS_FILE ${ie_build_python_req}
+                          RESULT_VAR ie_build_python_req_FOUND
+                          WARNING_MESSAGE "install python3 -m pip install -r ${ie_build_python_req} for IE API 1.0 requirements"
                           MESSAGE_MODE TRACE)
 
     # cython can be installed as a debian package, so pip requirements can be unsatisfied
     # so, let's check to find cython anyway
-    if(NOT ie_python_req_FOUND)
+    if(NOT ie_build_python_req_FOUND)
         find_package(Cython QUIET
                      PATHS "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/cmake"
                      NO_CMAKE_FIND_ROOT_PATH
                      NO_DEFAULT_PATH)
         if(CYTHON_VERSION VERSION_GREATER_EQUAL 0.29)
-            set(ie_python_req_FOUND ON)
+            set(ie_build_python_req_FOUND ON)
         else()
-            message(${message_mode} "Python requirements '${ie_python_req}' are missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
+            message(${message_mode} "Python requirements '${ie_build_python_req}' are missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
         endif()
     endif()
 
@@ -116,19 +107,50 @@ function(ov_check_python_build_conditions)
         set(python_debug OFF)
     endif()
 
-    if(PYTHONLIBS_FOUND AND ov_python_req_FOUND AND ie_python_req_FOUND AND NOT python_debug)
+    if(PYTHONLIBS_FOUND AND ie_build_python_req_FOUND AND NOT python_debug)
         set(ENABLE_PYTHON_DEFAULT ON PARENT_SCOPE)
     else()
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)
     endif()
 
     # to disable API 1.0
-    set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
+    set(ie_build_python_req_FOUND ${ie_build_python_req_FOUND} PARENT_SCOPE)
     # set pybind11 minimal version
     set(pybind11_min_version ${pybind11_min_version} PARENT_SCOPE)
 endfunction()
 
 ov_check_python_build_conditions()
+
+# check __init__.py files alignment
+
+function(ov_check_init_files_alignment)
+    # check the files in pairs
+    list(APPEND init_files
+        "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
+        "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/mo/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/pot/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py"
+        "${OpenVINO_SOURCE_DIR}/tools/openvino_dev/src/openvino/__init__.py")
+
+    list(LENGTH init_files init_files_count)
+    math(EXPR file_loop_range "${init_files_count}-2")
+    foreach(init_file_idx RANGE 0 ${file_loop_range})
+        math(EXPR init_file_idx_next "${init_file_idx}+1")
+        list(GET init_files ${init_file_idx} file1)
+        list(GET init_files ${init_file_idx_next} file2)
+
+        execute_process(COMMAND ${CMAKE_COMMAND} -E compare_files ${file1} ${file2}
+            RESULT_VARIABLE compare_result
+        )
+        if(compare_result EQUAL 1)
+            message(FATAL_ERROR "The __init__.py files are misaligned: ${file1} and ${file2}")
+        endif()
+    endforeach()
+endfunction()
+
+ov_check_init_files_alignment()
 
 ie_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
 
@@ -178,7 +200,7 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
-        message(FATAL_ERROR "Python OpenVINO API requirements are not satisfied. Please, install ${ie_python_req} and ${ov_python_req}")
+        message(FATAL_ERROR "Python OpenVINO API requirements are not satisfied. Please, install ${ie_build_python_req}")
     else()
         return()
     endif()
@@ -201,7 +223,7 @@ endif()
 add_subdirectory(src/compatibility/pyngraph)
 add_subdirectory(src/pyopenvino)
 
-if(ie_python_req_FOUND)
+if(ie_build_python_req_FOUND)
     add_subdirectory(src/compatibility/openvino)
 else()
     message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
