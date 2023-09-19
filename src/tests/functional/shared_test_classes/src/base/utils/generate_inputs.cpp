@@ -963,6 +963,51 @@ ov::runtime::Tensor generate(const
     return tensor;
 }
 
+namespace comparison {
+void fill_tensor(ov::Tensor& tensor) {
+    auto data_ptr = static_cast<float*>(tensor.data());
+    auto data_ptr_int = static_cast<int*>(tensor.data());
+    auto range = tensor.get_size();
+    auto start = -static_cast<float>(range) / 2.f;
+    testing::internal::Random random(1);
+    for (size_t i = 0; i < range; i++) {
+        if (i % 7 == 0) {
+            data_ptr[i] = std::numeric_limits<float>::infinity();
+        } else if (i % 7 == 1) {
+            data_ptr[i] = -std::numeric_limits<float>::infinity();
+        } else if (i % 7 == 2) {
+            data_ptr_int[i] = 0x7F800000 + random.Generate(range);
+        } else if (i % 7 == 3) {
+            data_ptr[i] = std::numeric_limits<double>::quiet_NaN();
+        } else if (i % 7 == 5) {
+            data_ptr[i] = -std::numeric_limits<double>::quiet_NaN();
+        } else {
+            data_ptr[i] = start + static_cast<float>(random.Generate(range));
+        }
+    }
+}
+} // namespace comparison
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v10::IsFinite>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    ov::Tensor tensor(elemType, targetShape);
+    comparison::fill_tensor(tensor);
+    return tensor;
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v10::IsNaN>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    ov::Tensor tensor{elemType, targetShape};
+    comparison::fill_tensor(tensor);
+    return tensor;
+}
+
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,
