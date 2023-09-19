@@ -22,11 +22,13 @@ endif()
 if(X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS
     ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/arm
-    ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/arm)
+    ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/arm
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/arm)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/x64)
+         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64)
     # temporary disable all custom tests for ARM
     list(APPEND EXCLUDED_SOURCE_PATHS
         ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "test_utils/filter_cpu_info.hpp"
 #include <string>
 #include "ie_system_conf.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
