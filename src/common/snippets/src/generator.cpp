@@ -12,7 +12,7 @@
 
 #include "snippets/itt.hpp"
 
-// #define SNIPPETS_PERF_COUNT
+#define SNIPPETS_PERF_COUNT
 
 namespace ov {
 namespace snippets {
