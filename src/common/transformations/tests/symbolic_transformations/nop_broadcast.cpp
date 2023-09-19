@@ -21,7 +21,7 @@ using namespace ov::op;
 using namespace std;
 
 namespace {
-void label_shape(ov::PartialShape& shape, size_t start_label = 42) {
+void label_shape(ov::PartialShape& shape) {
     auto table = std::make_shared<ov::TableOfEquivalence>(42);
     auto tracker = ov::DimensionTracker(table);
     tracker.set_up_for_tracking(shape);
