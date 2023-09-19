@@ -4,24 +4,24 @@ on:
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#  push:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#    branches:
-#      - master
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}-linux-cuda
@@ -49,9 +49,6 @@ jobs:
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_DIR: ${{ github.workspace }}/install_pkg
-      DATA_PATH: ${{ github.workspace }}/testdata
-      MODELS_PATH: ${{ github.workspace }}/testdata
-      DEBIAN_FRONTEND: 'noninteractive'
     steps:
 
       - name: Install Prerequisites
@@ -63,14 +60,14 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: 'openvino'
-          submodules: 'recursive'
+          submodules: 'true'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v3
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
-          submodules: 'recursive'
+          submodules: 'true'
 
       - name: Clone testdata for C API tests
         uses: actions/checkout@v3
@@ -78,7 +75,6 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
           submodules: 'recursive'
-          lfs: 'true'
 
       - name: Create Directories
         run: |
@@ -100,11 +96,6 @@ jobs:
           $GITHUB_WORKSPACE/openvino/install_build_dependencies.sh
           
           apt -y --no-install-recommends install unzip wget software-properties-common
-          wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
-          unzip ninja-linux.zip
-          cp -v ninja /usr/local/bin/
-          
-          python3 -m pip install -r $GITHUB_WORKSPACE/openvino/src/bindings/python/requirements.txt
 
       - name: Install CUDA
         run: |
@@ -115,42 +106,13 @@ jobs:
          add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
          apt update
          DEBIAN_FRONTEND=noninteractive apt install -y \
-            gnupg2 \
-            software-properties-common \
             libcudnn8=8.9.4.*-1+cuda11.8 \
             libcudnn8-dev=8.9.4.*-1+cuda11.8 \
             libcudnn8-samples=8.9.4.*-1+cuda11.8 \
-            autoconf \
-            automake \
-            build-essential \
-            ca-certificates \
-            clang-format-9 \
             cuda-runtime-11-8 \
             cuda-11-8 \
-            g++-multilib \
-            gcc-multilib \
-            gstreamer1.0-plugins-base \
-            libavcodec-dev \
-            libavformat-dev \
-            libboost-regex-dev \
-            libcairo2-dev \
             libcutensor1=1.6.1.5-1 \
             libcutensor-dev=1.6.1.5-1 \
-            libglib2.0-dev \
-            libgstreamer1.0-0 \
-            libgtk2.0-dev \
-            libopenblas-dev \
-            libpango1.0-dev \
-            libpng-dev \
-            libssl-dev \
-            libswscale-dev \
-            libtool \
-            libusb-1.0-0-dev \
-            libzstd-dev \
-            pkg-config \
-            shellcheck \
-            unzip \
-            wget \
             cuda-drivers=520.61.05-1
 
       - name: Setup ccache
@@ -185,6 +147,7 @@ jobs:
             -DENABLE_INTEL_GPU=OFF \
             -DENABLE_INTEL_GNA=OFF \
             -DENABLE_OV_TF_FRONTEND=OFF \
+            -DENABLE_OV_TF_LITE=OFF \
             -DENABLE_OV_PADDLE_FRONTEND=OFF \
             -DENABLE_OV_PYTORCH_FRONTEND=OFF \
             -DENABLE_OV_ONNX_FRONTEND=OFF \
