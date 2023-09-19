@@ -43,9 +43,10 @@ class TestTransformersModel(TestConvertModel):
         self.image = Image.open(requests.get(url, stream=True).raw)
 
         self.cache_dir = tempfile.TemporaryDirectory()
+        print(f"Setting temp cache dir: {str(self.cache_dir)}")
         os.environ["HUGGINGFACE_HUB_CACHE"] = str(self.cache_dir)
 
-    def load_model(self, type, name):
+    def load_model(self, name, type):
         mi = model_info(name)
         auto_processor = None
         model = None
@@ -267,6 +268,7 @@ class TestTransformersModel(TestConvertModel):
 
     def teardown_method(self):
         # cleanup tmpdir
+        print(f"Cleaning temp cache dir: {str(self.cache_dir)}")
         self.cache_dir.cleanup()
         super().teardown_method()
 
@@ -277,10 +279,10 @@ class TestTransformersModel(TestConvertModel):
                                            ("openai/clip-vit-large-patch14", "clip")])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
-        self.run(model_name=type, model_link=name, ie_device=ie_device)
+        self.run(model_name=name, model_link=type, ie_device=ie_device)
 
-    @pytest.mark.parametrize("name,type,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models")))
+    @pytest.mark.parametrize("name",
+                             [pytest.param(n, marks=pytest.mark.xfail(reason=r) if m == "xfail" else pytest.mark.skip(reason=r)) if m else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models"))])
     @pytest.mark.nightly
-    def test_convert_model_all_models(self, name, type, mark, reason, ie_device):
-        self.run(model_name=type, model_link=name, ie_device=ie_device)
+    def test_convert_model_all_models(self, name, ie_device):
+        self.run(model_name=name, model_link=None, ie_device=ie_device)
