@@ -35,9 +35,9 @@ static std::vector<std::regex> FROTEND_REGEXP = {
 #ifdef ENABLE_OV_TF_FRONTEND
     std::regex(R"(.*\.pb)"),
 #endif
-#ifdef ENABLE_OV_IR_FRONTEND
+// #ifdef ENABLE_OV_IR_FRONTEND
     std::regex(R"(.*\.xml)"),
-#endif
+// #endif
 #ifdef ENABLE_OV_TF_LITE_FRONTEND
     std::regex(R"(.*\.tflite)"),
 #endif
@@ -69,6 +69,20 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
 
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
                                const std::string& output_dir);
+
+inline bool is_dynamic_model(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (is_dynamic_node(parameter)) {
+            return true;
+        }
+    }
+    for (const auto& result : model->get_results()) {
+        if (is_dynamic_node(result)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 inline ExtractedPattern
 generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
