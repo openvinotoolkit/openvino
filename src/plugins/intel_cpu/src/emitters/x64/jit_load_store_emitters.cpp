@@ -234,6 +234,18 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
             has_xmm_block = true;
         }
 
+        // Cornerstone of partial load is combinaion of vpinsrb/w/d.
+        // As vpinsrb/w/d will not only write(insert) values into vmm, but also read values in vmm to copy from to positions that not in imm mask,
+        // this could introduce RAW false dependency(we actually do not care about values not in imm mask).
+        // To eliminate this false dependency,
+        // 1. For 1/2/3/4 bytes tails, replace vpinsrb/w/d with mov,shl etc instructions that don't read vmm.
+        //    Besides eliminate RAW, these instructions have smaller latency, which also bring better perf, especially for small loop iteration case.
+        // 2. For 8/16 bytes, use vmovq/vmovdqu instructions to load, which also don't read src vmm.
+        // 3. For other size, insert vpxor before vpinsrb/w/d. vpxor and read vmm instructions in previous loop have WAR(write after read) relationship.
+        //    CPU can identify this scenario and assign another physical vector register(register renameing) in next loop to eliminate RAW.
+        if (!one_of(bytes_to_load, 0, 1, 2, 3, 4, 8, 16)) {
+            h->uni_vpxor(vmm, vmm, vmm);
+        }
         if (bytes_to_load >= 8 && bytes_to_load < 16)
             h->uni_vmovq(xmm, addr(start_bytes));
         else if (bytes_to_load == 16)
