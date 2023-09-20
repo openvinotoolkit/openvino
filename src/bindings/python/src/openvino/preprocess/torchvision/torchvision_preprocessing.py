@@ -53,8 +53,8 @@ def _setup_size(size: Any, error_msg: str) -> SequenceType[int]:
 
 
 @_setup_size.register
-def _setup_size_number(size: numbers.Number, error_msg: str) -> SequenceType[int]:
-    return int(size), int(size)
+def _setup_size_number(size: numbers.Number, error_msg: str) -> SequenceType[int]: 
+    return int(size), int(size) # type: ignore
 
 
 @_setup_size.register
@@ -75,7 +75,7 @@ def _NHWC_to_NCHW(input_shape: List) -> List:  # noqa N802
 
 
 @singledispatch
-def _to_list(transform: Callable):
+def _to_list(transform: Callable) -> List:
     raise TypeError(f"Unsupported transform type: {type(transform)}")
 
 
