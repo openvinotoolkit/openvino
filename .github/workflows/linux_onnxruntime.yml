@@ -51,7 +51,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install/openvino
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'true'
@@ -96,7 +96,7 @@ jobs:
       #
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: CMake configure
