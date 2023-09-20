@@ -8,6 +8,7 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/transpose_sinking/ts_binary.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
+#include "transformations/transpose_sinking/ts_cumsum.hpp"
 #include "transformations/transpose_sinking/ts_data_movement.hpp"
 #include "transformations/transpose_sinking/ts_interpolate.hpp"
 #include "transformations/transpose_sinking/ts_reduction.hpp"
@@ -206,6 +207,18 @@ FactoryPtr CreateInterpolateFactory(const std::string& type_name, bool is_refere
     return std::make_shared<InterpolateFactory>(type_name, is_reference);
 }
 
+class CumSumFactory : public IFactory {
+public:
+    explicit CumSumFactory(const std::string& type_name) : IFactory(type_name) {}
+    NodePtr create(const OutputVector& parent_nodes) const override {
+        return std::make_shared<CumSum>(parent_nodes[0], parent_nodes[1]);
+    }
+};
+
+FactoryPtr CreateCumSumFactory(const std::string& type_name) {
+    return std::make_shared<CumSumFactory>(type_name);
+}
+
 class SliceFactory : public IFactory {
 public:
     explicit SliceFactory(const std::string& type_name) : IFactory(type_name) {}
@@ -284,6 +297,9 @@ FactoryPtr CreateFakeQuantizeFactory(const std::string& type_name) {
 
 #undef CREATE_INTERPOLATE_FACTORY
 #define CREATE_INTERPOLATE_FACTORY(type_name, reference_flag) CreateInterpolateFactory(#type_name, reference_flag)
+
+#undef CREATE_CUMSUM_FACTORY
+#define CREATE_CUMSUM_FACTORY(type_name) CreateCumSumFactory(#type_name)
 
 #undef CREATE_SLICE_FACTORY
 #define CREATE_SLICE_FACTORY(type_name) CreateSliceFactory(#type_name)
@@ -760,6 +776,45 @@ auto test_forward_interpolate = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateForward, TSTestFixture, test_forward_interpolate());
+
+auto test_forward_cumsum = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSCumSumForward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {parameter(element::f32, {1, 2, 48, 80}),
+                                constant<int64_t>(element::i64, {}, std::vector<int64_t>{0})};
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = {CREATE_CUMSUM_FACTORY(CumSum)};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(data, out, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_specific_gather_for}, {{1}}};
+    test_case.model_ref.main_op = {CREATE_CUMSUM_FACTORY(CumSum)};
+    test_case.model_ref.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonCumSumForward, TSTestFixture, test_forward_cumsum());
 
 auto test_forward_squeeze = []() {
     TestCase test_case;
@@ -1261,6 +1316,44 @@ auto test_backward_interpolate = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward, TSTestFixture, test_backward_interpolate());
+
+auto test_backward_cumsum = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSCumSumBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {parameter(element::f32, {1, 2, 48, 80}),
+                                constant<int64_t>(element::i64, {}, std::vector<int64_t>{0})};
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_CUMSUM_FACTORY(CumSum)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(data, out, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_specific_gather_for}, {{0}, {1}}};
+    test_case.model_ref.main_op = {CREATE_CUMSUM_FACTORY(CumSum)};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonCumSumBackward, TSTestFixture, test_backward_cumsum());
 
 auto test_backward_unsqueeze = []() {
     TestCase test_case;
