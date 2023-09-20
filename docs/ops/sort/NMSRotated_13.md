@@ -29,8 +29,7 @@ Here ``func(rotated_iou(b_i, b)) = 1 if rotated_iou(b_i, b) <= iou_threshold els
 
 Having two bouding boxes ``B1`` and ``B2`` the following steps are performed to calculate ``rotated_iou(B1, B2)``:
 
-1. If *box_encoding* == *corner* take rotated vertices directly from the first input,
-   else if *box_encoding* == *center* calculate rotated vertices, (x, y) cooridinates of the 4 corners of each box transformed by the corresponding angle in radians according to the direction specified by *clockwise* attribute.
+1. Calculate rotated vertices, (x, y) cooridinates of the 4 corners of each box transformed by the corresponding angle in radians according to the direction specified by *clockwise* attribute.
 2. Find all intersection points between edges of ``B1`` and ``B2``. Add them to the ``intersection_points``.
 3. Find all corners of ``B1`` within area of ``B2``, and all corners of ``B2`` within area of ``B1``. Add them to the ``intersection_points``.
 4. Calculate ``intersection_area`` of the polygon described by ``intersection_points`` (see Sholeace formula).
@@ -42,16 +41,6 @@ This algorithm is applied independently to each class of each batch element. The
 
 **Attributes**:
 
-* *box_encoding*
-
-  * **Description**: *box_encoding* specifies the format of boxes' data encoding.
-  * **Range of values**: "center" or "corner"
-    * *center* - the box data is supplied as ``[x_center, y_center, width, height, angle]``, the coordinates of the center, width (x), height (y) and the angle in radians.
-    * *corner* - the box data is supplied as ``[x0, y0, x1, y1, x2, y2, x3, y3]``, the coordinates of the four corners of the box.
-
-  * **Type**: string
-  * **Default value**: "center"
-  * **Required**: *no*
 
 * *sort_result_descending*
 
@@ -86,7 +75,7 @@ This algorithm is applied independently to each class of each batch element. The
 
 **Inputs**:
 
-*   **1**: ``boxes`` - tensor of type *T* and shape depending on the box encoding. If the ``box_encoding`` attribute is set to *center* the expected boxes shape is ``[num_batches, num_boxes, 5]`` with coordinates of the box center and rotation angle in radians, otherwise the box encoding is *corner* and the shape must be ``[num_batches, num_boxes, 8]`` with four pairs of ``(x, y)`` coordinates defining box corners. **Required.**
+*   **1**: ``boxes`` - tensor of type *T* and shape ``[num_batches, num_boxes, 5]`` with coordinates of the box center and rotation angle in radians. The box data is supplied as ``[x_center, y_center, width, height, angle]``, the coordinates of the center, width (x), height (y) and the angle in radians. **Required.**
 
 *   **2**: ``scores`` - tensor of type *T* and shape ``[num_batches, num_classes, num_boxes]`` with box scores. **Required.**
 
@@ -122,7 +111,7 @@ Plugins which do not support dynamic output tensors produce ``selected_indices``
     :force:
 
     <layer ... type="NMSRotated" ... >
-        <data box_encoding="center" sort_result_descending="true" output_type="i64" clockwise="true"/>
+        <data sort_result_descending="true" output_type="i64" clockwise="true"/>
         <input>
             <port id="0">
                 <dim>3</dim>
