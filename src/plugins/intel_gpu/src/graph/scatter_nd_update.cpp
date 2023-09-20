@@ -70,11 +70,8 @@ void scatter_nd_update_inst::on_execute() {
     auto input1_shape = _impl_params->input_layouts[1].get_partial_shape();
     auto input2_shape = _impl_params->input_layouts[2].get_partial_shape();
 
-    if (!input1_shape.is_dynamic() && !input2_shape.is_dynamic()) {
-        if ((input1_shape.get_shape()[0] == 0) || (input2_shape.get_shape()[0] == 0)) {
-            reuse_input();
-        }
-    }
+    if ((ov::shape_size(input1_shape.to_shape()) == 0) || (ov::shape_size(input2_shape.to_shape()) == 0))
+        reuse_input();
 }
 
 void scatter_nd_update_inst::reuse_input() {
