@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import unittest
-
+import pytest
 
 from openvino.tools.mo.front.mxnet.MXFFTToDFT import MXFFTToDFT
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -151,43 +150,38 @@ ref_converted_ifft_graph_edges = [
     ('abs', 'output'),
 ]
 
+class TestMXFFTToDFTTest():
+    @pytest.mark.parametrize("input_shape",[int64_array([3, 100, 100, 8]), int64_array([5, 60])])
+    def test_fft_replacement(self, input_shape):
+        graph = build_graph(nodes_attrs=fft_graph_node_attrs,
+                            edges=fft_graph_edges,
+                            update_attributes={
+                                'placeholder': {'shape': input_shape}
+                            })
+        graph.stage = 'front'
+        MXFFTToDFT().find_and_replace_pattern(graph)
+        ref_graph = build_graph(nodes_attrs=ref_converted_fft_graph_node_attrs,
+                                edges=ref_converted_fft_graph_edges,
+                                update_attributes={
+                                    'placeholder': {'shape': input_shape}
+                                })
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        assert flag, resp
 
-class MXFFTToDFTTest(unittest.TestCase):
-    def test_fft_replacement(self):
-        test_cases=[int64_array([3, 100, 100, 8]), int64_array([5, 60])]
-        for idx , (input_shape) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=fft_graph_node_attrs,
-                                    edges=fft_graph_edges,
-                                    update_attributes={
-                                        'placeholder': {'shape': input_shape}
-                                    })
-                graph.stage = 'front'
-                MXFFTToDFT().find_and_replace_pattern(graph)
-                ref_graph = build_graph(nodes_attrs=ref_converted_fft_graph_node_attrs,
-                                        edges=ref_converted_fft_graph_edges,
-                                        update_attributes={
-                                            'placeholder': {'shape': input_shape}
-                                        })
-                (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-                self.assertTrue(flag, resp)
-
-    def test_ifft_replacement(self):
-        test_cases=[int64_array([3, 100, 100, 8]), int64_array([5, 60])]
-        for idx, (input_shape) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=fft_graph_node_attrs,
-                                    edges=fft_graph_edges,
-                                    update_attributes={
-                                        'placeholder': {'shape': input_shape},
-                                        'fft': {'is_inverse': True}
-                                    })
-                graph.stage = 'front'
-                MXFFTToDFT().find_and_replace_pattern(graph)
-                ref_graph = build_graph(nodes_attrs=ref_converted_ifft_graph_node_attrs,
-                                        edges=ref_converted_ifft_graph_edges,
-                                        update_attributes={
-                                            'placeholder': {'shape': input_shape}
-                                        })
-                (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-                self.assertTrue(flag, resp)
+    @pytest.mark.parametrize("input_shape",[int64_array([3, 100, 100, 8]), int64_array([5, 60])])
+    def test_ifft_replacement(self, input_shape):
+        graph = build_graph(nodes_attrs=fft_graph_node_attrs,
+                            edges=fft_graph_edges,
+                            update_attributes={
+                                'placeholder': {'shape': input_shape},
+                                'fft': {'is_inverse': True}
+                            })
+        graph.stage = 'front'
+        MXFFTToDFT().find_and_replace_pattern(graph)
+        ref_graph = build_graph(nodes_attrs=ref_converted_ifft_graph_node_attrs,
+                                edges=ref_converted_ifft_graph_edges,
+                                update_attributes={
+                                    'placeholder': {'shape': input_shape}
+                                })
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        assert flag, resp
