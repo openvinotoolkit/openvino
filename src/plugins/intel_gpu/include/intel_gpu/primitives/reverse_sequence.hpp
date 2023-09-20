@@ -15,8 +15,6 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
 
     reverse_sequence() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs reverse_sequence primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

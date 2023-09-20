@@ -11,9 +11,9 @@
    
    Note that the Conda Forge distribution:
 
-   * offers both C++ and Python APIs
+   * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
-   * is dedicated to users of all major OSs: Windows, Linux, macOS.
+   * is dedicated to users of all major OSs: Windows, Linux, macOS and x86_64 / arm64 architectures
 
 
 .. tab-set::
@@ -62,7 +62,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2023.0.1
+      conda install -c conda-forge openvino=2023.1.0
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still 
 need to install additional components. Check the description below, as well as the 
@@ -100,7 +100,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
    
-   conda remove openvino=2023.0.1
+   conda remove openvino=2023.1.0
 
 
 What's Next?

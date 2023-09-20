@@ -10,7 +10,12 @@
 
 .. _troubleshooting guide for install:
 
-This guide provides general troubleshooting steps and solutions to possible issues that can be encountered while installing and configuring OpenVINO™.
+| This guide provides general troubleshooting steps and solutions to possible issues that
+  may be encountered while installing and configuring OpenVINO™. For a comprehensive 
+  database of support topics on OpenVINO, go to:
+| `Support for OpenVINO™ toolkit <https://www.intel.com/content/www/us/en/support/products/96066/software/development-software/openvino-toolkit.html>`__
+
+
 
 .. _install_for_prc:
 

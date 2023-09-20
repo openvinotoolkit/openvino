@@ -95,7 +95,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
 std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getReference(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
     const ngraph::element::Type precisionBeforeOp,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
@@ -106,7 +106,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?
         nullptr :
         makeFakeQuantizeTypeRelaxed(input, precision, fqOnData);
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantizeOnActivations, precisionBeforeOp);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantizeOnActivations, precisionBeforeOp);
     const auto deqBefore = makeDequantization(fakeQuantizeOnActivations, dequantizationBefore);
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution1 = createConvolution(
@@ -126,15 +126,15 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
     const auto deqAfter2 = makeDequantization(convolution2, dequantizationAfter2);
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(NodeVector{ deqAfter1, deqAfter2 }, 1ul);
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, precisionAfterOp);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, precisionAfterOp);
     if (params.updatePrecisions) {
         replace_node(
             convolution1->get_input_node_shared_ptr(1),
-            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution1->get_input_node_shared_ptr(1), element::i8));
+            ov::pass::low_precision::fold<ngraph::opset1::Convert>(convolution1->get_input_node_shared_ptr(1), element::i8));
 
         replace_node(
             convolution2->get_input_node_shared_ptr(1),
-            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution2->get_input_node_shared_ptr(1), element::i8));
+            ov::pass::low_precision::fold<ngraph::opset1::Convert>(convolution2->get_input_node_shared_ptr(1), element::i8));
     }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };

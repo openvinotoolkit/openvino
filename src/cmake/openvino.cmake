@@ -68,7 +68,7 @@ ov_set_threading_interface_for(${TARGET_NAME})
 ov_mark_target_as_cc(${TARGET_NAME})
 
 # must be called after all target_link_libraries
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME} EXTRA ${TBB_IMPORTED_TARGETS})
+ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME} EXTRA ${TBB_IMPORTED_TARGETS})
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
@@ -157,8 +157,11 @@ if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")
 endif()
 if(DNNL_USE_ACL)
-    list(APPEND BUILD_PATH_VARS "FIND_ACL_PATH")
+    list(APPEND BUILD_PATH_VARS "FIND_ACL_PATH;CMAKE_ARCHIVE_OUTPUT_DIRECTORY")
     set(FIND_ACL_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
+endif()
+if(ENABLE_ONEDNN_FOR_GPU)
+    list(APPEND BUILD_PATH_VARS "ONEDNN_GPU_LIB_PATH")
 endif()
 
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
@@ -177,12 +180,10 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
 
 # install tree
 
-if(DNNL_USE_ACL)
-    list(APPEND INSTALL_PATH_VARS "ARM_COMPUTE_LIB_DIR")
-    # remove generator expression at the end, because searching in Release / Debug will be
-    # done by ACLConfig.cmake itself
-    string(REPLACE "$<CONFIG>" "" ARM_COMPUTE_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
-endif()
+list(APPEND INSTALL_PATH_VARS "OPENVINO_LIB_DIR")
+# remove generator expression at the end, because searching in Release / Debug
+# will be done by inside OpenVINOConfig.cmak / ACLConfig.cmake
+string(REPLACE "$<CONFIG>" "" OPENVINO_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
 
 set(IE_INCLUDE_DIR "${OV_CPACK_INCLUDEDIR}/ie")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
