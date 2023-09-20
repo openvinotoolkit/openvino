@@ -348,7 +348,6 @@ jobs:
 
       - name: Run Conformance Tests
         run: |
-
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 ${{ env.CONFORMANCE_TOOLS_DIR }}/run_conformance.py -ov=${{ env.INSTALL_DIR }}/tests \
