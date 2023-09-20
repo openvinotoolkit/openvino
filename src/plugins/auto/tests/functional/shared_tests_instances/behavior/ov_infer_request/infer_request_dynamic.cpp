@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
+
+#include <vector>
 
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<ov::AnyMap> AutoConfigs = {
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}
-};
+const std::vector<ov::AnyMap> AutoConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
 std::shared_ptr<ngraph::Function> getFunction2() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
@@ -36,13 +34,14 @@ std::shared_ptr<ngraph::Function> getFunction2() {
     return std::make_shared<ngraph::Function>(concat, params, "SplitAddConcat");
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
-                        ::testing::Combine(
-                                ::testing::Values(getFunction2()),
-                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
-                                    {{1, 4, 20, 20}, {1, 2, 20, 40}},
-                                    {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoConfigs)),
-                        OVInferRequestDynamicTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Auto_BehaviorTests,
+    OVInferRequestDynamicTests,
+    ::testing::Combine(::testing::Values(getFunction2()),
+                       ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                           {{1, 4, 20, 20}, {1, 2, 20, 40}},
+                           {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
+                       ::testing::Values(ov::test::utils::DEVICE_AUTO),
+                       ::testing::ValuesIn(AutoConfigs)),
+    OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace

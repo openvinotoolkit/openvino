@@ -3,27 +3,24 @@
 //
 #pragma once
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <memory>
 #include <thread>
 
+#include "auto_func_test.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/auto/properties.hpp"
-#include "auto_func_test.hpp"
 
 namespace ov {
 namespace auto_plugin {
 namespace tests {
 
-using test_params = std::tuple<
-        std::string,
-        ov::AnyMap
-        >;
+using test_params = std::tuple<std::string, ov::AnyMap>;
 
-class InferRequest_IOTensor_Test : public AutoFuncTests,
-                      public ::testing::WithParamInterface<test_params> {
+class InferRequest_IOTensor_Test : public AutoFuncTests, public ::testing::WithParamInterface<test_params> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<test_params> obj) {
         std::string target_device;
@@ -32,7 +29,7 @@ public:
         std::ostringstream result;
         result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {
-            for (auto &iter : configuration) {
+            for (auto& iter : configuration) {
                 result << "priority=" << iter.first << "_" << iter.second.as<std::string>();
             }
         }

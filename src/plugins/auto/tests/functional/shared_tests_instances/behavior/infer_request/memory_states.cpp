@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/test_constants.hpp>
 #include "behavior/infer_request/memory_states.hpp"
+
+#include <common_test_utils/test_constants.hpp>
+
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 
@@ -24,4 +26,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          InferRequestVariableStateTest,
                          ::testing::ValuesIn(memoryStateTestCases),
                          InferRequestVariableStateTest::getTestCaseName);
-} // namespace
+}  // namespace

@@ -3,35 +3,33 @@
 //
 #pragma once
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <memory>
 #include <thread>
 
+#include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/auto/properties.hpp"
 
 namespace ov {
 namespace auto_plugin {
 namespace tests {
 
-#define ASSERT_THROW_WITH_MESSAGE(code, expected_exception, expected_message) do { \
-    try {                                                   \
-      { code; }                                             \
-      FAIL() << "no exception occured" << std::endl;             \
-    }                                                       \
-    catch (const expected_exception &e) {                   \
-      EXPECT_THAT(e.what(), testing::HasSubstr(expected_message));   \
-    }                                                       \
-    catch (const std::exception &e) {                       \
-      FAIL() << "an unexpected exception occured: " << e.what() << std::endl; \
-    }                                                       \
-    catch (...) {                                           \
-      FAIL() << "an unknown exception occured" << std::endl;     \
-    }                                                       \
-  } while (0);
-
+#define ASSERT_THROW_WITH_MESSAGE(code, expected_exception, expected_message)       \
+    do {                                                                            \
+        try {                                                                       \
+            { code; }                                                               \
+            FAIL() << "no exception occured" << std::endl;                          \
+        } catch (const expected_exception& e) {                                     \
+            EXPECT_THAT(e.what(), testing::HasSubstr(expected_message));            \
+        } catch (const std::exception& e) {                                         \
+            FAIL() << "an unexpected exception occured: " << e.what() << std::endl; \
+        } catch (...) {                                                             \
+            FAIL() << "an unknown exception occured" << std::endl;                  \
+        }                                                                           \
+    } while (0);
 
 class PluginRemoteTensor : public ov::RemoteTensor {
 public:
@@ -77,9 +75,13 @@ public:
 
 protected:
     void register_plugin_mock_cpu(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
-    void register_plugin_mock_cpu_compile_slower(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin_mock_cpu_compile_slower(ov::Core& core,
+                                                 const std::string& device_name,
+                                                 const ov::AnyMap& properties);
     void register_plugin_mock_gpu(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
-    void register_plugin_mock_gpu_compile_slower(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin_mock_gpu_compile_slower(ov::Core& core,
+                                                 const std::string& device_name,
+                                                 const ov::AnyMap& properties);
     std::shared_ptr<ov::Model> model_can_batch;
     std::shared_ptr<ov::Model> model_cannot_batch;
     std::string cache_path;
@@ -108,19 +110,19 @@ private:
 class ThreadingTest {
 public:
     static void runParallel(std::function<void(void)> func,
-                     const unsigned int iterations = 100,
-                     const unsigned int threadsNum = 8) {
+                            const unsigned int iterations = 100,
+                            const unsigned int threadsNum = 8) {
         std::vector<std::thread> threads(threadsNum);
 
-        for (auto & thread : threads) {
-            thread = std::thread([&](){
+        for (auto& thread : threads) {
+            thread = std::thread([&]() {
                 for (unsigned int i = 0; i < iterations; ++i) {
                     func();
                 }
             });
         }
 
-        for (auto & thread : threads) {
+        for (auto& thread : threads) {
             if (thread.joinable())
                 thread.join();
         }

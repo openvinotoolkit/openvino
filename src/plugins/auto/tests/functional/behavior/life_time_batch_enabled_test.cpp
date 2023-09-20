@@ -3,8 +3,8 @@
 //
 
 #include "auto_func_test.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "common_test_utils/include/common_test_utils/file_utils.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 using namespace ov::auto_plugin::tests;
 
@@ -15,8 +15,10 @@ TEST_F(AutoFuncTests, tensor_life_time_with_batch_model) {
     auto gpu_tensor = gpu_request.get_tensor(input);
     auto gpu_tensor_detail = ov::get_tensor_impl(gpu_tensor);
 
-    auto compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU"),
-                                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
+    auto compiled_model = core.compile_model(
+        model_can_batch,
+        "AUTO",
+        {ov::device::priorities("MOCK_GPU"), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     auto request = compiled_model.create_infer_request();
     auto tensor = request.get_tensor(input);
     auto tensor_detail = ov::get_tensor_impl(gpu_tensor);
@@ -44,8 +46,10 @@ TEST_F(AutoFuncTests, tensor_life_time_with_batch_not_applicable_model) {
     auto gpu_tensor = gpu_request.get_tensor(input);
     auto gpu_tensor_detail = ov::get_tensor_impl(gpu_tensor);
 
-    auto compiled_model = core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_GPU"),
-                                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
+    auto compiled_model = core.compile_model(
+        model_cannot_batch,
+        "AUTO",
+        {ov::device::priorities("MOCK_GPU"), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     auto request = compiled_model.create_infer_request();
     auto tensor = request.get_tensor(input);
     auto tensor_detail = ov::get_tensor_impl(gpu_tensor);

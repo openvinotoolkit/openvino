@@ -2,22 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "auto_func_test.hpp"
 #include <future>
+
+#include "auto_func_test.hpp"
 
 using namespace ov::auto_plugin::tests;
 
 TEST_F(AutoFuncTests, can_run_3syncrequests_consistently_from_threads) {
     ov::CompiledModel compiled_model;
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
-                                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
+    ASSERT_NO_THROW(compiled_model = core.compile_model(
+                        model_can_batch,
+                        "AUTO",
+                        {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
+                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
     ov::InferRequest req1, req2, req3;
     ASSERT_NO_THROW(req1 = compiled_model.create_infer_request());
     ASSERT_NO_THROW(req2 = compiled_model.create_infer_request());
     ASSERT_NO_THROW(req3 = compiled_model.create_infer_request());
-    auto f1 = std::async(std::launch::async, [&] { req1.infer(); });
-    auto f2 = std::async(std::launch::async, [&] { req2.infer(); });
-    auto f3 = std::async(std::launch::async, [&] { req3.infer(); });
+    auto f1 = std::async(std::launch::async, [&] {
+        req1.infer();
+    });
+    auto f2 = std::async(std::launch::async, [&] {
+        req2.infer();
+    });
+    auto f3 = std::async(std::launch::async, [&] {
+        req3.infer();
+    });
 
     f1.wait();
     f2.wait();
@@ -30,8 +40,11 @@ TEST_F(AutoFuncTests, can_run_3syncrequests_consistently_from_threads) {
 
 TEST_F(AutoFuncTests, can_run_3asyncrequests_consistently_from_threads_without_wait) {
     ov::CompiledModel compiled_model;
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
-                                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
+    ASSERT_NO_THROW(compiled_model = core.compile_model(
+                        model_can_batch,
+                        "AUTO",
+                        {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
+                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
     ov::InferRequest req1, req2, req3;
     ASSERT_NO_THROW(req1 = compiled_model.create_infer_request());
     ASSERT_NO_THROW(req2 = compiled_model.create_infer_request());
@@ -40,9 +53,15 @@ TEST_F(AutoFuncTests, can_run_3asyncrequests_consistently_from_threads_without_w
     ASSERT_NO_THROW(req2.infer());
     ASSERT_NO_THROW(req3.infer());
 
-    auto f1 = std::async(std::launch::async, [&] { req1.start_async(); });
-    auto f2 = std::async(std::launch::async, [&] { req2.start_async(); });
-    auto f3 = std::async(std::launch::async, [&] { req3.start_async(); });
+    auto f1 = std::async(std::launch::async, [&] {
+        req1.start_async();
+    });
+    auto f2 = std::async(std::launch::async, [&] {
+        req2.start_async();
+    });
+    auto f3 = std::async(std::launch::async, [&] {
+        req3.start_async();
+    });
 
     f1.wait();
     f2.wait();
@@ -55,8 +74,11 @@ TEST_F(AutoFuncTests, can_run_3asyncrequests_consistently_from_threads_without_w
 
 TEST_F(AutoFuncTests, can_run_3asyncrequests_consistently_with_wait) {
     ov::CompiledModel compiled_model;
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
-                                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
+    ASSERT_NO_THROW(compiled_model = core.compile_model(
+                        model_can_batch,
+                        "AUTO",
+                        {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
+                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
     ov::InferRequest req1, req2, req3;
     ASSERT_NO_THROW(req1 = compiled_model.create_infer_request());
     ASSERT_NO_THROW(req2 = compiled_model.create_infer_request());
@@ -73,8 +95,11 @@ TEST_F(AutoFuncTests, can_run_3asyncrequests_consistently_with_wait) {
 
 TEST_F(AutoFuncTests, can_run_3asyncrequests_parallel_with_wait) {
     ov::CompiledModel compiled_model;
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
-                                                        ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
+    ASSERT_NO_THROW(compiled_model = core.compile_model(
+                        model_can_batch,
+                        "AUTO",
+                        {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
+                         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}));
     ov::InferRequest req1, req2, req3;
     ASSERT_NO_THROW(req1 = compiled_model.create_infer_request());
     ASSERT_NO_THROW(req2 = compiled_model.create_infer_request());

@@ -3,6 +3,7 @@
 //
 
 #include "auto_func_test.hpp"
+
 #include <chrono>
 #include <memory>
 #include <string>
@@ -66,8 +67,8 @@ void ov::auto_plugin::tests::AutoFuncTests::SetUp() {
     auto hash = std::hash<std::string>()(::testing::UnitTest::GetInstance()->current_test_info()->name());
     std::stringstream ss;
     ss << std::this_thread::get_id();
-    cache_path = "threading_test" + std::to_string(hash) + "_"
-                + ss.str() + "_" + ov::test::utils::GetTimestamp() + "_cache";
+    cache_path =
+        "threading_test" + std::to_string(hash) + "_" + ss.str() + "_" + ov::test::utils::GetTimestamp() + "_cache";
 }
 
 void ov::auto_plugin::tests::AutoFuncTests::TearDown() {
@@ -75,7 +76,8 @@ void ov::auto_plugin::tests::AutoFuncTests::TearDown() {
     ov::test::utils::removeDir(cache_path);
 }
 
-ov::Tensor ov::auto_plugin::tests::AutoFuncTests::create_and_fill_tensor(const ov::element::Type& type, const ov::Shape& shape) {
+ov::Tensor ov::auto_plugin::tests::AutoFuncTests::create_and_fill_tensor(const ov::element::Type& type,
+                                                                         const ov::Shape& shape) {
     switch (type) {
     case ov::element::Type_t::i64:
         return create_tensor<ov::element_type_traits<ov::element::Type_t::i64>::value_type>(type, shape);
@@ -124,11 +126,11 @@ public:
           m_config(config),
           m_model(model),
           m_has_context(false) {
-            try {
+        try {
             m_context = plugin->get_default_context(config);
-            } catch (ov::Exception&) {
-            }
-          }
+        } catch (ov::Exception&) {
+        }
+    }
 
     MockCompiledModel(const std::shared_ptr<const ov::Model>& model,
                       const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -252,7 +254,7 @@ public:
             output_tensors.emplace_back(ov::make_tensor(tensor));
         }
         if (evaludate_flag) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));  // add delay for test
             m_model->evaluate(output_tensors, input_tensors);
         }
     }
@@ -294,7 +296,10 @@ class MockRemoteTensor : public ov::IRemoteTensor {
     ov::Shape m_shape;
 
 public:
-    MockRemoteTensor(const std::string& name, const ov::AnyMap& props, const ov::element::Type& type, const ov::Shape& shape)
+    MockRemoteTensor(const std::string& name,
+                     const ov::AnyMap& props,
+                     const ov::element::Type& type,
+                     const ov::Shape& shape)
         : m_properties(props),
           m_dev_name(name),
           m_element_type(type),
@@ -527,23 +532,19 @@ public:
     }
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
-        const std::vector<ov::PropertyName> roProperties{
-            RO_property(ov::supported_properties.name()),
-            RO_property(ov::optimal_batch_size.name()),
-            RO_property(ov::device::capabilities.name()),
-            RO_property(ov::device::type.name()),
-            RO_property(ov::device::uuid.name()),
-            RO_property(ov::device::id.name()),
-            RO_property(ov::intel_gpu::memory_statistics.name())
-        };
+        const std::vector<ov::PropertyName> roProperties{RO_property(ov::supported_properties.name()),
+                                                         RO_property(ov::optimal_batch_size.name()),
+                                                         RO_property(ov::device::capabilities.name()),
+                                                         RO_property(ov::device::type.name()),
+                                                         RO_property(ov::device::uuid.name()),
+                                                         RO_property(ov::device::id.name()),
+                                                         RO_property(ov::intel_gpu::memory_statistics.name())};
         // the whole config is RW before network is loaded.
-        const std::vector<ov::PropertyName> rwProperties{
-            RW_property(ov::num_streams.name()),
-            RW_property(ov::enable_profiling.name()),
-            RW_property(ov::compilation_num_threads.name()),
-            RW_property(ov::hint::performance_mode.name()),
-            RW_property(ov::hint::num_requests.name())
-        };
+        const std::vector<ov::PropertyName> rwProperties{RW_property(ov::num_streams.name()),
+                                                         RW_property(ov::enable_profiling.name()),
+                                                         RW_property(ov::compilation_num_threads.name()),
+                                                         RW_property(ov::hint::performance_mode.name()),
+                                                         RW_property(ov::hint::num_requests.name())};
         if (name == ov::supported_properties) {
             std::vector<ov::PropertyName> supportedProperties;
             supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -553,12 +554,13 @@ public:
             return decltype(ov::supported_properties)::value_type(supportedProperties);
         } else if (name == ov::hint::num_requests.name()) {
             return decltype(ov::hint::num_requests)::value_type(1);
-        }  else if (name == ov::hint::performance_mode.name()) {
+        } else if (name == ov::hint::performance_mode.name()) {
             return decltype(ov::hint::performance_mode)::value_type(ov::hint::PerformanceMode::LATENCY);
         } else if (name == ov::optimal_batch_size.name()) {
             return decltype(ov::optimal_batch_size)::value_type(4);
         } else if (name == ov::device::capabilities.name()) {
-            return decltype(ov::device::capabilities)::value_type({"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8", ov::device::capability::EXPORT_IMPORT});
+            return decltype(ov::device::capabilities)::value_type(
+                {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8", ov::device::capability::EXPORT_IMPORT});
         } else if (name == ov::device::type.name()) {
             return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
         } else if (name == ov::loaded_from_cache.name()) {
@@ -610,9 +612,9 @@ private:
 };
 
 void ov::auto_plugin::tests::AutoFuncTests::reg_plugin(ov::Core& core,
-                                              std::shared_ptr<ov::IPlugin>& plugin,
-                                              const std::string& device_name,
-                                              const ov::AnyMap& properties) {
+                                                       std::shared_ptr<ov::IPlugin>& plugin,
+                                                       const std::string& device_name,
+                                                       const ov::AnyMap& properties) {
     std::string libraryPath = get_mock_engine_path();
     if (!m_so)
         m_so = ov::util::load_shared_object(libraryPath.c_str());
@@ -668,17 +670,13 @@ public:
     }
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
-        const std::vector<ov::PropertyName> roProperties{
-            RO_property(ov::supported_properties.name()),
-            RO_property(ov::device::uuid.name()),
-            RO_property(ov::device::capabilities.name())
-        };
+        const std::vector<ov::PropertyName> roProperties{RO_property(ov::supported_properties.name()),
+                                                         RO_property(ov::device::uuid.name()),
+                                                         RO_property(ov::device::capabilities.name())};
         // the whole config is RW before network is loaded.
-        const std::vector<ov::PropertyName> rwProperties{
-            RW_property(ov::num_streams.name()),
-            RW_property(ov::enable_profiling.name()),
-            RW_property(ov::hint::performance_mode.name())
-        };
+        const std::vector<ov::PropertyName> rwProperties{RW_property(ov::num_streams.name()),
+                                                         RW_property(ov::enable_profiling.name()),
+                                                         RW_property(ov::hint::performance_mode.name())};
         if (name == ov::supported_properties) {
             std::vector<ov::PropertyName> supportedProperties;
             supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -721,7 +719,7 @@ public:
             return m_loaded_from_cache;
         }
         OPENVINO_NOT_IMPLEMENTED;
-}
+    }
 
 private:
     int32_t num_streams{0};
@@ -741,23 +739,23 @@ void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_gpu_compile_slo
                                                                                     const std::string& device_name,
                                                                                     const ov::AnyMap& properties) {
     class MockPluginCompileSlower : public MockPluginSupportBatchAndContext {
-        public:
-            std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties) const override {
-                OPENVINO_ASSERT(model);
-                if (!support_model(model, query_model(model, properties)))
-                    OPENVINO_THROW("Unsupported model");
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
-                return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
-            }
-            std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context) const override {
-                if (!support_model(model, query_model(model, properties)))
-                    OPENVINO_THROW("Unsupported model");
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
-                return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties, context);
-            }
+    public:
+        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties) const override {
+            OPENVINO_ASSERT(model);
+            if (!support_model(model, query_model(model, properties)))
+                OPENVINO_THROW("Unsupported model");
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // add delay for test
+            return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
+        }
+        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context) const override {
+            if (!support_model(model, query_model(model, properties)))
+                OPENVINO_THROW("Unsupported model");
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // add delay for test
+            return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties, context);
+        }
     };
 
     std::shared_ptr<ov::IPlugin> base_plugin = std::make_shared<MockPluginCompileSlower>();
@@ -768,23 +766,23 @@ void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_cpu_compile_slo
                                                                                     const std::string& device_name,
                                                                                     const ov::AnyMap& properties) {
     class MockCPUPluginCompileSlower : public MockPlugin {
-        public:
-            std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties) const override {
-                OPENVINO_ASSERT(model);
-                if (!support_model(model, query_model(model, properties)))
-                    OPENVINO_THROW("Unsupported model");
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
-                return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
-            }
-            std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context) const override {
-                if (!support_model(model, query_model(model, properties)))
-                    OPENVINO_THROW("Unsupported model");
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // add delay for test
-                return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties, context);
-            }
+    public:
+        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties) const override {
+            OPENVINO_ASSERT(model);
+            if (!support_model(model, query_model(model, properties)))
+                OPENVINO_THROW("Unsupported model");
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // add delay for test
+            return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
+        }
+        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context) const override {
+            if (!support_model(model, query_model(model, properties)))
+                OPENVINO_THROW("Unsupported model");
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // add delay for test
+            return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties, context);
+        }
     };
 
     std::shared_ptr<ov::IPlugin> base_plugin = std::make_shared<MockCPUPluginCompileSlower>();

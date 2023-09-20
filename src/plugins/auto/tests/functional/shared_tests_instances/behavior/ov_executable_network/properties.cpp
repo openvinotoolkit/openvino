@@ -3,6 +3,7 @@
 //
 
 #include "behavior/compiled_model/properties.hpp"
+
 #include "ie_system_conf.h"
 #include "openvino/runtime/properties.hpp"
 
@@ -56,8 +57,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                                             ::testing::ValuesIn(multi_properties)),
                          OVClassCompiledModelPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice, OVCompiledModelIncorrectDevice, ::testing::Values("TEMPLATE"));
-
+INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice,
+                         OVCompiledModelIncorrectDevice,
+                         ::testing::Values("TEMPLATE"));
 
 const std::vector<ov::AnyMap> auto_multi_device_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::properties("TEMPLATE", ov::num_streams(4))},
@@ -79,7 +81,6 @@ const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
                             ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))}};
 
-
 const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::device::properties("AUTO",
@@ -95,8 +96,7 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
      ov::device::properties("TEMPLATE",
                             ov::num_streams(4),
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))}
-    };
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))}};
 
 // IE Class Load network
 INSTANTIATE_TEST_SUITE_P(smoke_CPUOVClassCompileModelWithCorrectPropertiesTest,
@@ -124,8 +124,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                                             ::testing::ValuesIn(automultiExeDeviceConfigs)),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
+const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY,
@@ -133,11 +132,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                                             ::testing::ValuesIn(multiDevicePriorityConfigs)),
                          OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY::getTestCaseName);
 
-const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
-        {ov::hint::model_priority(ov::hint::Priority::HIGH)},
-        {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-        {ov::hint::model_priority(ov::hint::Priority::LOW)},
-        {ov::hint::model_priority(ov::hint::Priority::DEFAULT)}};
+const std::vector<ov::AnyMap> multiModelPriorityConfigs = {{ov::hint::model_priority(ov::hint::Priority::HIGH)},
+                                                           {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+                                                           {ov::hint::model_priority(ov::hint::Priority::LOW)},
+                                                           {ov::hint::model_priority(ov::hint::Priority::DEFAULT)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,

@@ -20,8 +20,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Not expected behavior
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
-        R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
-        R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
 
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
@@ -41,29 +39,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         // unsupported metrics
-        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(MAX_BATCH_SIZE).*)",
         R"(.*smoke_AutoOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
-        // supports only '' as device id
-        R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)",
 
         // Issue:
         // New API tensor tests
         R"(.*OVInferRequestCheckTensorPrecision.*type=i4.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*type=u4.*)",
-
-        // [ INFO ] Can't compile network without cache for ..  with precision ..
-        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
-        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
-        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
-        // Issue: 76980
-        R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
-
-        // Issue: 95590
-        R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
-        // Issue: 95607
-        R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
-        R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
 
         // AUTO does not support import / export
         R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)",
@@ -84,8 +66,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
         R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // template plugin doesn't support this case
-        R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)"
-    };
+        R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)"};
 
 #if !defined(OPENVINO_ARCH_X86_64)
     // very time-consuming test

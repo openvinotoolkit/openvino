@@ -3,6 +3,7 @@
 //
 
 #include "io_tensor.hpp"
+
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ov::auto_plugin::tests;
@@ -10,7 +11,8 @@ using namespace ov::auto_plugin::tests;
 void InferRequest_IOTensor_Test::SetUp() {
     AutoFuncTests::SetUp();
     std::tie(target_device, property) = this->GetParam();
-    auto compiled_model = core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU")});
+    auto compiled_model =
+        core.compile_model(model_cannot_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU")});
     input = compiled_model.input();
     output = compiled_model.output();
 }
@@ -155,19 +157,16 @@ namespace {
 auto props = []() {
     return std::vector<ov::AnyMap>{{ov::device::priorities("MOCK_GPU", "MOCK_CPU")},
                                    {ov::device::priorities("MOCK_GPU")},
-                                   {ov::device::priorities("MOCK_CPU", "MOCK_GPU")}
-                                   };
+                                   {ov::device::priorities("MOCK_CPU", "MOCK_GPU")}};
 };
 
-INSTANTIATE_TEST_SUITE_P(AutoFuncTests, InferRequest_IOTensor_Test,
-                         ::testing::Combine(
-                                ::testing::Values("AUTO"),
-                                ::testing::ValuesIn(props())),
+INSTANTIATE_TEST_SUITE_P(AutoFuncTests,
+                         InferRequest_IOTensor_Test,
+                         ::testing::Combine(::testing::Values("AUTO"), ::testing::ValuesIn(props())),
                          InferRequest_IOTensor_Test::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(AutoFuncTestsCumu, InferRequest_IOTensor_Test,
-                         ::testing::Combine(
-                                ::testing::Values("MULTI"),
-                                ::testing::ValuesIn(props())),
+INSTANTIATE_TEST_SUITE_P(AutoFuncTestsCumu,
+                         InferRequest_IOTensor_Test,
+                         ::testing::Combine(::testing::Values("MULTI"), ::testing::ValuesIn(props())),
                          InferRequest_IOTensor_Test::getTestCaseName);
-} // namespace
+}  // namespace

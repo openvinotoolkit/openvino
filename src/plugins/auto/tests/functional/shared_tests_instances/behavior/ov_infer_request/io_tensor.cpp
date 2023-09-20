@@ -2,31 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "behavior/ov_infer_request/io_tensor.hpp"
+
+#include <vector>
 
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<ov::AnyMap> Autoconfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}
-};
+const std::vector<ov::AnyMap> Autoconfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
 const std::vector<ov::AnyMap> emptyConfigs = {{}};
 
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+                         OVInferRequestIOTensorTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(Autoconfigs)),
+                         OVInferRequestIOTensorTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorTest,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(Autoconfigs)),
-                        OVInferRequestIOTensorTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorTest,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(Autoconfigs)),
-                        OVInferRequestIOTensorTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         OVInferRequestIOTensorTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(Autoconfigs)),
+                         OVInferRequestIOTensorTest::getTestCaseName);
 
 std::vector<ov::element::Type> prcs = {
     ov::element::boolean,
@@ -47,31 +44,31 @@ std::vector<ov::element::Type> prcs = {
     ov::element::u64,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(Autoconfigs)),
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+                         OVInferRequestIOTensorSetPrecisionTest,
+                         ::testing::Combine(::testing::ValuesIn(prcs),
+                                            ::testing::Values(ov::test::utils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(Autoconfigs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(Autoconfigs)),
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         OVInferRequestIOTensorSetPrecisionTest,
+                         ::testing::Combine(::testing::ValuesIn(prcs),
+                                            ::testing::Values(ov::test::utils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(Autoconfigs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCheckTensorPrecision,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(Autoconfigs)),
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+                         OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(::testing::ValuesIn(prcs),
+                                            ::testing::Values(ov::test::utils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(Autoconfigs)),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestCheckTensorPrecision,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(Autoconfigs)),
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(::testing::ValuesIn(prcs),
+                                            ::testing::Values(ov::test::utils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(Autoconfigs)),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 }  // namespace

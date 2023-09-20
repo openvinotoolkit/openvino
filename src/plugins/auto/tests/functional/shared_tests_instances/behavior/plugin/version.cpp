@@ -6,11 +6,13 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, VersionTest,
-                                    ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                            VersionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+                         VersionTest,
+                         ::testing::Values(ov::test::utils::DEVICE_MULTI),
+                         VersionTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, VersionTest,
-                                    ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                            VersionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         VersionTest,
+                         ::testing::Values(ov::test::utils::DEVICE_AUTO),
+                         VersionTest::getTestCaseName);
 }  // namespace

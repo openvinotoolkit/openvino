@@ -17,14 +17,15 @@ const std::vector<ov::AnyMap> multi_Auto_properties = {
      ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
+     ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::device_bind_buffer("YES")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::device_bind_buffer("NO")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("YES")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("NO")},
- };
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests,
                          OVPropertiesTests,
@@ -36,14 +37,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests,
 const std::vector<ov::AnyMap> multi_setcore_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-     ov::hint::model_priority(ov::hint::Priority::HIGH)}
-};
+     ov::hint::model_priority(ov::hint::Priority::HIGH)}};
 
 const std::vector<ov::AnyMap> multi_compileModel_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-     ov::hint::model_priority(ov::hint::Priority::MEDIUM)}
-};
+     ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
@@ -61,8 +60,7 @@ const std::vector<ov::AnyMap> auto_setcore_properties = {
      ov::hint::model_priority(ov::hint::Priority::HIGH)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
-     ov::hint::model_priority(ov::hint::Priority::HIGH)}
-};
+     ov::hint::model_priority(ov::hint::Priority::HIGH)}};
 
 const std::vector<ov::AnyMap> auto_compileModel_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
@@ -73,8 +71,7 @@ const std::vector<ov::AnyMap> auto_compileModel_properties = {
      ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-     ov::hint::model_priority(ov::hint::Priority::MEDIUM)}
-};
+     ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
@@ -119,9 +116,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsThrow,
 // IE Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoOVGetMetricPropsTest,
-                         OVGetMetricPropsTest,
-                         ::testing::Values("MULTI", "AUTO"));
+INSTANTIATE_TEST_SUITE_P(smoke_AutoOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("MULTI", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_AutoOVCheckGetSupportedROMetricsPropsTests,
@@ -130,7 +125,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
                            {ov::device::full_name.name()}))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
-
 
 INSTANTIATE_TEST_SUITE_P(
     OVCheckSetSupportedRWMandatoryMetricsPropsTests,
@@ -144,12 +138,10 @@ const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
                          OVClassSetDevicePriorityConfigPropsTest,
-                         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
-                                            ::testing::ValuesIn(multiConfigs)));
-
+                         ::testing::Combine(::testing::Values("MULTI", "AUTO"), ::testing::ValuesIn(multiConfigs)));
 
 const std::vector<ov::AnyMap> auto_properties = {{ov::device::priorities("TEMPLATE")},
-                                                  {ov::device::priorities("TEMPLATE(1)")}};
+                                                 {ov::device::priorities("TEMPLATE(1)")}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests,
                          OVPropertiesTests,
