@@ -13,6 +13,7 @@
 #include "transformations/common_optimizations/enable_shapeof_constant_folding.hpp"
 #include "transformations/transpose_sinking/ts_binary.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
+#include "transformations/transpose_sinking/ts_cumsum.hpp"
 #include "transformations/transpose_sinking/ts_data_movement.hpp"
 #include "transformations/transpose_sinking/ts_fuse.hpp"
 #include "transformations/transpose_sinking/ts_gather.hpp"
@@ -43,6 +44,7 @@ TSGeneralForward::TSGeneralForward() {
     add_matcher<TSSliceForward>();
     add_matcher<TSGatherForward>();
     add_matcher<TSShapeOfForward>();
+    add_matcher<TSCumSumForward>();
     add_matcher<TSFuse>();
 }
 
@@ -59,6 +61,7 @@ TSGeneralBackward::TSGeneralBackward() {
     add_matcher<TSInterpolateBackward>();
     add_matcher<TSSliceBackward>();
     add_matcher<TSGatherBackward>();
+    add_matcher<TSCumSumBackward>();
     add_matcher<TSFuse>();
 }
 
