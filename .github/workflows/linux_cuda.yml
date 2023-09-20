@@ -70,13 +70,6 @@ jobs:
           path: 'openvino_contrib'
           submodules: 'true'
 
-      - name: Clone testdata for C API tests
-        uses: actions/checkout@v3
-        with:
-          repository: 'openvinotoolkit/testdata'
-          path: 'testdata'
-          submodules: 'recursive'
-
       - name: Create Directories
         run: |
           mkdir -p $GITHUB_WORKSPACE/build
