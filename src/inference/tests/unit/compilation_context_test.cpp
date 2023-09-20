@@ -189,8 +189,7 @@ TEST(NetworkContext, HashWithPrimitivesPriority) {
     op3["PrimitivesPriority"] = "testPriority";
 
     ASSERT_NE(ModelCache::compute_hash(net1, {}), ModelCache::compute_hash(net2, {}));
-
-    ASSERT_EQ(ModelCache::compute_hash(net2, {}), ModelCache::compute_hash(net3, {}));
+    ASSERT_NE(ModelCache::compute_hash(net2, {}), ModelCache::compute_hash(net3, {}));
 }
 
 TEST(NetworkContext, HashWithFusedNames) {

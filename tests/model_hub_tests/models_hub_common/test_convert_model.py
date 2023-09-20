@@ -99,7 +99,7 @@ class TestConvertModel:
         fw_outputs = self.infer_fw_model(fw_model, inputs)
         print("Infer ov::Model")
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
-        print("Compare TensorFlow and OpenVINO results")
+        print("Compare framework and OpenVINO results")
         self.compare_results(fw_outputs, ov_outputs)
 
     def run(self, model_name, model_link, ie_device):
