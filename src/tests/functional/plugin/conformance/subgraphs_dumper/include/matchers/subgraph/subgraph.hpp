@@ -20,7 +20,10 @@ namespace subgraph_dumper {
 
 class SubgraphExtractor {
 public:
+    // { is_subgraph, model, subgraph, matched_ops{ model_op_name, graph_op_name }}
+    using IsSubgraphTuple = std::tuple<bool, std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>, std::map<std::string, std::string>>;
     using Ptr = std::shared_ptr<SubgraphExtractor>;
+
     SubgraphExtractor() {
         MatchersManager::MatchersMap matchers = {
             { "generic_single_op", SingleOpMatcher::Ptr(new SingleOpMatcher) },
@@ -31,8 +34,8 @@ public:
 
     bool match(const std::shared_ptr<ov::Model> &model,
                const std::shared_ptr<ov::Model> &ref_model) const;
-    bool is_subgraph(const std::shared_ptr<ov::Model> &model,
-                     const std::shared_ptr<ov::Model> &ref_model) const;
+    IsSubgraphTuple is_subgraph(const std::shared_ptr<ov::Model> &model,
+                                const std::shared_ptr<ov::Model> &ref_model) const;
 
     virtual std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
                                                 bool is_extract_body = true,

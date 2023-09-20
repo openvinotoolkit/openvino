@@ -170,12 +170,15 @@ TEST_F(SubgraphExtractorTest, extract) {
 }
 
 TEST_F(SubgraphExtractorTest, is_subgraph) {
+    auto is_subgraph = this->is_subgraph(test_model_0_0, test_model_0_0);
     ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_0_0));
-    ASSERT_TRUE(this->is_subgraph(test_model_0_0, test_model_0_0));
+    ASSERT_TRUE(std::get<0>(is_subgraph));
     ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_1));
-    ASSERT_FALSE(this->is_subgraph(test_model_0_0, test_model_1));
+    is_subgraph = this->is_subgraph(test_model_0_0, test_model_1);
+    ASSERT_FALSE(std::get<0>(is_subgraph));
     ASSERT_NO_THROW(this->is_subgraph(test_model_0_1, test_model_1));
-    ASSERT_FALSE(this->is_subgraph(test_model_0_1, test_model_1));
+    is_subgraph = this->is_subgraph(test_model_0_1, test_model_1);
+    ASSERT_FALSE(std::get<0>(is_subgraph));
     {
         std::shared_ptr<ov::op::v0::Parameter> test_parameter =
             std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
@@ -187,12 +190,19 @@ TEST_F(SubgraphExtractorTest, is_subgraph) {
             std::make_shared<ov::op::v0::Result>(test_abs_1);
         auto big_model_0 = std::make_shared<ov::Model>(ov::ResultVector{test_res},
                                                         ov::ParameterVector{test_parameter});
+        is_subgraph = this->is_subgraph(test_model_0_0, big_model_0);
         ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, big_model_0));
-        ASSERT_TRUE(this->is_subgraph(test_model_0_0, big_model_0));
+        ASSERT_TRUE(std::get<0>(is_subgraph));
+        ASSERT_EQ(std::get<1>(is_subgraph), big_model_0);
+        ASSERT_EQ(std::get<2>(is_subgraph), test_model_0_0);
+
+        is_subgraph = this->is_subgraph(test_model_0_1, big_model_0);
         ASSERT_NO_THROW(this->is_subgraph(test_model_0_1, big_model_0));
-        ASSERT_TRUE(this->is_subgraph(test_model_0_1, big_model_0));
+        ASSERT_TRUE(std::get<0>(is_subgraph));
+        ASSERT_EQ(std::get<1>(is_subgraph), big_model_0);
+        ASSERT_EQ(std::get<2>(is_subgraph), test_model_0_1);
         ASSERT_NO_THROW(this->is_subgraph(test_model_1, big_model_0));
-        ASSERT_FALSE(this->is_subgraph(test_model_1, big_model_0));
+        ASSERT_FALSE(std::get<0>(this->is_subgraph(test_model_1, big_model_0)));
     }
 }
 

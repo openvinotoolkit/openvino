@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <tuple>
 #include "matchers/subgraph/subgraph.hpp"
 
 using namespace ov::tools::subgraph_dumper;
@@ -33,25 +34,43 @@ SubgraphExtractor::match(const std::shared_ptr<ov::Model> &model,
     return false;
 }
 
-bool
+inline SubgraphExtractor::IsSubgraphTuple prepare_is_subgraph_result(bool is_subgraph,
+                                                                     const std::shared_ptr<ov::Model>& graph,
+                                                                     const std::shared_ptr<ov::Model>& subgraph,
+                                                                     const std::map<std::string, std::string>& matched_ops) {
+    return is_subgraph ?
+           std::make_tuple(is_subgraph, graph, subgraph, matched_ops) :
+           std::make_tuple(is_subgraph, nullptr, nullptr, std::map<std::string, std::string>());
+}
+
+SubgraphExtractor::IsSubgraphTuple
 SubgraphExtractor::is_subgraph(const std::shared_ptr<ov::Model> &model,
                                const std::shared_ptr<ov::Model> &ref_model) const {
     std::vector<std::shared_ptr<ov::Node>> ordered_ops = model->get_ordered_ops(),
                                            ref_ordered_ops = ref_model->get_ordered_ops();
     bool is_model = ordered_ops.size() > ref_ordered_ops.size();
-    auto model_to_check_ops = is_model ? ordered_ops : ref_ordered_ops;
-    auto graph_to_check_ops = is_model ? ref_ordered_ops : ordered_ops;
-
-    auto model_it = model_to_check_ops.begin(), graph_it = graph_to_check_ops.begin();
-    while (model_it != model_to_check_ops.end() && graph_it != graph_to_check_ops.end()) {
-        if (is_node_to_skip(*graph_it)) {
-            ++graph_it;
-            continue;
-        }
-        if (m_manager.match(*model_it, *graph_it)) {
-            ++graph_it;
-        }
-        ++model_it;
+    ov::NodeVector graph_to_check_ops, subgraph_to_check_ops;
+    std::shared_ptr<ov::Model> graph = nullptr, subgraph = nullptr;
+    if (is_model) {
+        graph_to_check_ops = ordered_ops;
+        subgraph_to_check_ops = ref_ordered_ops;
+        graph = model;
+        subgraph = ref_model;
+    } else {
+        graph_to_check_ops = ref_ordered_ops;
+        subgraph_to_check_ops = ordered_ops;
+        graph = ref_model;
+        subgraph = model;
     }
-    return graph_it == graph_to_check_ops.end();
+    std::map<std::string, std::string> matched_op_names;
+
+    auto graph_it = graph_to_check_ops.begin(), subgraph_it = subgraph_to_check_ops.begin();
+    while (graph_it != graph_to_check_ops.end() && subgraph_it != subgraph_to_check_ops.end()) {
+        if (m_manager.match(*graph_it, *subgraph_it)) {
+            matched_op_names.insert({ (*graph_it)->get_friendly_name(), (*subgraph_it)->get_friendly_name()});
+            ++subgraph_it;
+        }
+        ++graph_it;
+    }
+    return prepare_is_subgraph_result(subgraph_it == subgraph_to_check_ops.end(), graph, subgraph, matched_op_names);
 }

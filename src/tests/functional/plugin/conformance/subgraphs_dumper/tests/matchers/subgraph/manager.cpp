@@ -91,11 +91,12 @@ TEST_F(ExtractorsManagerTest, match) {
 TEST_F(ExtractorsManagerTest, is_subgraph) {
     this->set_extractors(test_map);
     ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_0_1));
-    ASSERT_TRUE(this->is_subgraph(test_model_0_0, test_model_0_1));
+    auto is_subgraph = this->is_subgraph(test_model_0_0, test_model_0_1);
+    ASSERT_TRUE(std::get<0>(is_subgraph));
     ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_1));
-    ASSERT_FALSE(this->is_subgraph(test_model_0_0, test_model_1));
+    ASSERT_FALSE(std::get<0>(this->is_subgraph(test_model_0_0, test_model_1)));
     ASSERT_NO_THROW(this->is_subgraph(test_model_0_1, test_model_1));
-    ASSERT_FALSE(this->is_subgraph(test_model_0_1, test_model_1));
+    ASSERT_FALSE(std::get<0>(this->is_subgraph(test_model_0_1, test_model_1)));
 }
 
 TEST_F(ExtractorsManagerTest, match_with_in_info) {
@@ -118,6 +119,14 @@ TEST_F(ExtractorsManagerTest, align_input_info) {
     std::map<std::string, InputInfo> test_in_info({{"test_parameter_0", InputInfo()}}), test_in_info_ref({{"test_parameter_1", InputInfo()}});
     ASSERT_NE(test_in_info, test_in_info_ref);
     ASSERT_NO_THROW(this->align_input_info(test_model_0_0, test_model_0_1, test_in_info, test_in_info_ref));
+    auto c = this->align_input_info(test_model_0_0, test_model_0_1, test_in_info, test_in_info_ref);
+    ASSERT_EQ(c, test_in_info_ref);
+}
+
+TEST_F(ExtractorsManagerTest, align_input_info_for_subgraphs) {
+    std::map<std::string, InputInfo> test_in_info({{"test_parameter_0", InputInfo()}}), test_in_info_ref({{"test_parameter_1", InputInfo()}});
+    ASSERT_NE(test_in_info, test_in_info_ref);
+    ASSERT_NO_THROW(this->align_input_info(test_model_0_0, test_model_0_1, test_in_info, test_in_info_ref, {{"test_parameter_0", "test_parameter_1"}}));
     auto c = this->align_input_info(test_model_0_0, test_model_0_1, test_in_info, test_in_info_ref);
     ASSERT_EQ(c, test_in_info_ref);
 }

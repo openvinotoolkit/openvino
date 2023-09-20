@@ -60,6 +60,8 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
     }
 
     auto graph_name = extracted_model->get_friendly_name();
+    auto this_op_cnt = extracted_model->get_ops().size() -
+        extracted_model->get_parameters().size() - extracted_model->get_results().size();
     std::string serialized_model_path = "";
     for (const auto& extractor : m_manager.get_extractors()) {
         auto tmp_serialized_model_path = ov::util::path_join({ m_serialization_dir, m_cache_subdir, extractor.first, graph_name + ".xml" });
@@ -71,8 +73,6 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 
     std::shared_ptr<ov::Model> model_to_update = nullptr;
     // if cached model was serialized
-    auto this_op_cnt = extracted_model->get_ops().size() -
-        extracted_model->get_parameters().size() - extracted_model->get_results().size();
     if (!serialized_model_path.empty()) {
         std::cout << "[ GRAPH CACHE ][ INFO ] Reading cached model: " << serialized_model_path << std::endl;
         auto bin_path = ov::test::utils::replaceExt(serialized_model_path, ".bin");
@@ -83,29 +83,41 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
         ov::test::utils::removeFile(serialized_model_path);
         ov::test::utils::removeFile(bin_path);
         ov::test::utils::removeFile(meta_path);
+
         m_graph_cache.insert({ cached_model, cached_meta });
         m_graph_cache_bytesize += cached_model->get_graph_size();
-        model_to_update = cached_model;
-        input_info = m_manager.align_input_info(extracted_model, model_to_update,
-                                                input_info, cached_meta.get_input_info());
+
+        if (m_manager.match(extracted_model, cached_model,
+                            input_info, cached_meta.get_input_info())) {
+            model_to_update = cached_model;
+        }
     } else {
         for (const auto& cached_model : m_graph_cache) {
             if (m_manager.match(extracted_model, cached_model.first,
                                 input_info, cached_model.second.get_input_info())) {
                 model_to_update = cached_model.first;
                 break;
-            }
-            // continue in case that extracted model is part of other subgraph
-            if (m_manager.is_subgraph(extracted_model, cached_model.first)) {
-                m_graph_cache[cached_model.first].update(
-                    model_path,
-                    input_info,
-                    model_op_cnt,
-                    this_op_cnt,
-                    extractor_name,
-                    {},
-                    true);
-                return;
+            } else {
+                auto is_subgraph = m_manager.is_subgraph(extracted_model, cached_model.first,
+                                                         input_info, cached_model.second.get_input_info());
+                // in case if one model is subgraph of other to update model meta info and remove subgraph from cache
+                if (std::get<0>(is_subgraph)) {
+                    std::shared_ptr<ov::Model> graph, subgraph;
+                    std::map<std::string, InputInfo> graph_in_info, subgraph_in_info;
+                    std::tie(std::ignore, graph, subgraph, graph_in_info, subgraph_in_info) = is_subgraph;
+                    if (subgraph == cached_model.first) {
+                        auto meta = m_graph_cache[subgraph];
+                        meta.set_input_info(graph_in_info);
+                        m_graph_cache.erase(subgraph);
+                        m_graph_cache.insert({graph, meta});
+                    }
+                    m_graph_cache[cached_model.first].update(model_path,
+                                                             subgraph_in_info,
+                                                             model_op_cnt,
+                                                             this_op_cnt,
+                                                             extractor_name);
+                    return;
+                }
             }
         }
     }

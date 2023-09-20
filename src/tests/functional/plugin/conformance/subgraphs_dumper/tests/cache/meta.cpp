@@ -137,7 +137,7 @@ TEST_F(MetaInfoFuncTest, update) {
     ASSERT_EQ(test_meta.get_input_info().at("test_in_0").max_shape, ov::PartialShape({50}));
     ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 1, 2, "test_extractor_1"));
     ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2));
-    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2, 4, "test", {}, true));
+    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2, 4, "test"));
 }
 
 TEST_F(MetaInfoFuncTest, serialize) {
