@@ -115,7 +115,7 @@ This document provides description and default values for CMake options that can
 * `SELECTIVE_BUILD` enables [[Conditional compilation|ConditionalCompilation]] feature.
     * `OFF` is default.
 * `ENABLE_MLAS_FOR_CPU` enables MLAS library for CPU plugin
-    * `ON` is default for x86 and AARCH64 platforms
+    * `ON` is default for x86_64 and AARCH64 platforms
     * Affects only OpenVINO CPU plugin
 
 ## Building with OpenCV
