@@ -243,7 +243,7 @@ TEST(type_prop, slice_v8_basic_param_inputs_default_axes_labels_prop) {
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label, 14, ov::no_label, 16, 17, 18));
+                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label, ov::no_label, ov::no_label, 16, 17, 18));
 }
 
 TEST(type_prop, slice_v8_sss_param_inputs_mixed_neg_const_axes) {

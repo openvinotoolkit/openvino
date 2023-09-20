@@ -147,7 +147,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         REGISTER_PASS(manager, Validate)
     }
     REGISTER_PASS(manager, ConvertQuantizeDequantize)
-    REGISTER_PASS(manager, SimplifyShapeOfSubGraph)
+    REGISTER_PASS(manager, SimplifyShapeOfSubGraph, m_use_shapes)
 
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();

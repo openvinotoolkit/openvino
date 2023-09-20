@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -31,6 +32,7 @@ public:
     void set_table_of_equivalence(ov::Dimension& d) const;
     static const std::shared_ptr<TableOfEquivalence>& get_table_of_equivalence(const ov::Dimension& d);
 
+    void set_up_for_tracking(ov::PartialShape& shape);
     void set_up_for_tracking(ov::Dimension& d);
     void set_up_for_tracking(ov::Dimension& d, label_t label) const;
     static void reset_tracking_info(ov::Dimension& d);

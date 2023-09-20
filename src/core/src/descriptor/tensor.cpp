@@ -6,6 +6,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
@@ -46,6 +47,8 @@ void ov::descriptor::Tensor::set_element_type(const element::Type& element_type)
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 void ov::descriptor::Tensor::invalidate_values() {
+    if (ov::skip_invalidation(*this))
+        return;
     m_upper_value = {};
     m_lower_value = {};
     m_value_label.clear();
