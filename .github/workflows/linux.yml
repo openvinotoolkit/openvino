@@ -346,12 +346,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-
 
-      - name: Check Tools Dir
-        run: |
-          ls -laR ${{ env.CONFORMANCE_TOOLS_DIR }}
-          echo ""
-          ls -laR ${{ env.CONFORMANCE_ARTIFACTS_DIR }}
-
       - name: Run Conformance Tests
         run: |
 
