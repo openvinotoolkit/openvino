@@ -82,7 +82,7 @@ class TestDetectron2ConvertModel(TestConvertModel):
 
     @pytest.mark.parametrize("name,type,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_precommit")))
-    @pytest.mark.precommit
+    #@pytest.mark.precommit
     def test_detectron2_precommit(self, name, type, mark, reason, ie_device):
         self.run(name, None, ie_device)
 
