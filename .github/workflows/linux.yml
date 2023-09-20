@@ -840,7 +840,7 @@ jobs:
         with:
           name: test-list-dump
           path: |
-            ${INSTALL_TEST_DIR}/test_list_dump.lst
+            ${{ env.INSTALL_TEST_DIR }}/test_list_dump.lst
 
       - name: Intel CPU plugin func tests (parallel)
         run: |
