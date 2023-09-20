@@ -41,6 +41,8 @@ enum impl_desc_type {
     sparse = 1<<25,
     //mlas backend
     mlas = 1<<26,
+    //ggml backend
+    ggml = 1<<27,
 
     // real types
     ref_any             = ref  | any,

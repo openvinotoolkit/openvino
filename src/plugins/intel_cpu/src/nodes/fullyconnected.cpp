@@ -345,6 +345,10 @@ void FullyConnected::createPrimitive() {
         return;
     }
 #endif
+#ifdef OV_CPU_WITH_GGML
+    Node::createPrimitive();
+    return;
+#endif
     setPostOps(attr, outDims);
     attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
     Node::createPrimitive();
@@ -368,6 +372,9 @@ void FullyConnected::prepareParams() {
     NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+#ifdef OV_CPU_WITH_GGML
+    return;
+#endif
 #ifdef OV_CPU_WITH_MLAS
     // M should be normalized and updated
     if (useMlas) {
@@ -519,6 +526,10 @@ void FullyConnected::executeGGML() {
     const auto src0MemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     const auto src1MemPtr = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
     const auto biasMemPtr = withBiases ? getParentEdgeAt(BIAS_ID)->getMemoryPtr() : nullptr;
+
+    N = src1MemPtr->getStaticDims()[0];
+    K = src1MemPtr->getStaticDims()[1];
+    M = dstMemPtr->getStaticDims()[0];
 
     ggml_mul_mat(M,
                  N,
@@ -817,6 +828,22 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                 {LayoutType::ncsp, dataPrecision}},
                 {{LayoutType::ncsp, dataPrecision}},
                 impl_desc_type::gemm_mlas);
+        }
+        return;
+    }
+    if (useGgml) {
+        auto dataPrecision = getOriginalInputPrecisionAtPort(0);
+        if (withBiases) {
+            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                            {LayoutType::ncsp, dataPrecision},
+                            {LayoutType::ncsp, dataPrecision}},
+                            {{LayoutType::ncsp, dataPrecision}},
+                            impl_desc_type::ggml);
+        } else {
+            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                {LayoutType::ncsp, dataPrecision}},
+                {{LayoutType::ncsp, dataPrecision}},
+                impl_desc_type::ggml);
         }
         return;
     }

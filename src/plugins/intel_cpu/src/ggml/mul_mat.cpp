@@ -31,8 +31,8 @@ void ggml_mul_mat(const int64_t M,
         return;
     }
 
-    struct ggml_tensor* ggml_A = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, M, N);
-    struct ggml_tensor* ggml_B = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, N, K);
+    struct ggml_tensor* ggml_A = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, K, M);
+    struct ggml_tensor* ggml_B = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, K, N);
 
     memcpy(ggml_A->data, A_ptr, ggml_nbytes(ggml_A));
     memcpy(ggml_B->data, B_ptr, ggml_nbytes(ggml_B));

@@ -30,6 +30,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
         SEARCH_WORD(gemm);
     SEARCH_WORD(blas);
     SEARCH_WORD(mlas);
+    SEARCH_WORD(ggml);
     SEARCH_WORD(sse42);
     SEARCH_WORD_2(sse41, sse42);
     SEARCH_WORD(avx2);
