@@ -90,7 +90,7 @@ Example 3 - 1D tensor, without replacement
   * **Range of values**: non-negative integers
   * **Type**: `unsigned int 64-bit`
   * **Default value**: 0
-  * **Required**: *Yes*
+  * **Required**: *No*
 
 * ``op_seed``
 
@@ -98,7 +98,7 @@ Example 3 - 1D tensor, without replacement
   * **Range of values**: non-negative integers
   * **Type**: `unsigned int 64-bit`
   * **Default value**: 0
-  * **Required**: *Yes*
+  * **Required**: *No*
 
 **Inputs**:
 
