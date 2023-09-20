@@ -72,8 +72,8 @@ def parse_arguments():
     parser.add_argument("-sm", "--special_mode", help=special_mode_help, type=str, required=False, default="")
     parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=bool, required=False, default=False)
     parser.add_argument("-f", "--expected_failures", help=expected_failures_help, type=str, required=False, default="")
-    parser.add_argument("-u", "--expected_failures_update", help=expected_failures_update_help, type=bool,
-                        required=False, default=False, action='store_true')
+    parser.add_argument("-u", "--expected_failures_update", help=expected_failures_update_help, required=False,
+                        default=False, action='store_true')
     parser.add_argument("--cache_path", help=cache_path_help, type=str, required=False, default="")
 
     return parser.parse_args()
