@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "base_reference_test.hpp"
 #include "openvino/op/add.hpp"
+
+#include <gtest/gtest.h>
+
+#include "base_reference_test.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -57,9 +59,9 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                    const PartialShape& input_shape2,
-                                                    const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+                                                 const PartialShape& input_shape2,
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto add = std::make_shared<op::v1::Add>(in1, in2);
@@ -88,9 +90,9 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                    const PartialShape& input_shape2,
-                                                    const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+                                                 const PartialShape& input_shape2,
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         auto add = std::make_shared<op::v1::Add>(in1, in2);
@@ -146,31 +148,27 @@ template <element::Type_t IN_ET>
 std::vector<AddParams> generateParamsForAddInPlace() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<AddParams> params{
-        AddParams(ov::PartialShape{2, 2},
-                  ov::PartialShape{2, 2},
-                  IN_ET,
-                  std::vector<T>{1, 2, 3, 4},
-                  std::vector<T>{5, 6, 7, 8},
-                  std::vector<T>{48, 64, 80, 96})
-    };
+    std::vector<AddParams> params{AddParams(ov::PartialShape{2, 2},
+                                            ov::PartialShape{2, 2},
+                                            IN_ET,
+                                            std::vector<T>{1, 2, 3, 4},
+                                            std::vector<T>{5, 6, 7, 8},
+                                            std::vector<T>{48, 64, 80, 96})};
     return params;
 }
 
 std::vector<AddParams> generateCombinedParamsForAdd() {
-    const std::vector<std::vector<AddParams>> allTypeParams{
-        generateParamsForAdd<element::Type_t::f32>(),
-        generateParamsForAdd<element::Type_t::f16>(),
-        generateParamsForAdd<element::Type_t::bf16>(),
-        generateParamsForAdd<element::Type_t::i64>(),
-        generateParamsForAdd<element::Type_t::i32>(),
-        generateParamsForAdd<element::Type_t::i16>(),
-        generateParamsForAdd<element::Type_t::i8>(),
-        generateParamsForAdd<element::Type_t::u64>(),
-        generateParamsForAdd<element::Type_t::u32>(),
-        generateParamsForAdd<element::Type_t::u16>(),
-        generateParamsForAdd<element::Type_t::u8>()
-    };
+    const std::vector<std::vector<AddParams>> allTypeParams{generateParamsForAdd<element::Type_t::f32>(),
+                                                            generateParamsForAdd<element::Type_t::f16>(),
+                                                            generateParamsForAdd<element::Type_t::bf16>(),
+                                                            generateParamsForAdd<element::Type_t::i64>(),
+                                                            generateParamsForAdd<element::Type_t::i32>(),
+                                                            generateParamsForAdd<element::Type_t::i16>(),
+                                                            generateParamsForAdd<element::Type_t::i8>(),
+                                                            generateParamsForAdd<element::Type_t::u64>(),
+                                                            generateParamsForAdd<element::Type_t::u32>(),
+                                                            generateParamsForAdd<element::Type_t::u16>(),
+                                                            generateParamsForAdd<element::Type_t::u8>()};
 
     std::vector<AddParams> combinedParams;
 
@@ -182,19 +180,17 @@ std::vector<AddParams> generateCombinedParamsForAdd() {
 }
 
 std::vector<AddParams> generateCombinedParamsForAddInPlace() {
-    const std::vector<std::vector<AddParams>> allTypeParams{
-        generateParamsForAddInPlace<element::Type_t::f32>(),
-        generateParamsForAddInPlace<element::Type_t::f16>(),
-        generateParamsForAddInPlace<element::Type_t::bf16>(),
-        generateParamsForAddInPlace<element::Type_t::i64>(),
-        generateParamsForAddInPlace<element::Type_t::i32>(),
-        generateParamsForAddInPlace<element::Type_t::i16>(),
-        generateParamsForAddInPlace<element::Type_t::i8>(),
-        generateParamsForAddInPlace<element::Type_t::u64>(),
-        generateParamsForAddInPlace<element::Type_t::u32>(),
-        generateParamsForAddInPlace<element::Type_t::u16>(),
-        generateParamsForAddInPlace<element::Type_t::u8>()
-    };
+    const std::vector<std::vector<AddParams>> allTypeParams{generateParamsForAddInPlace<element::Type_t::f32>(),
+                                                            generateParamsForAddInPlace<element::Type_t::f16>(),
+                                                            generateParamsForAddInPlace<element::Type_t::bf16>(),
+                                                            generateParamsForAddInPlace<element::Type_t::i64>(),
+                                                            generateParamsForAddInPlace<element::Type_t::i32>(),
+                                                            generateParamsForAddInPlace<element::Type_t::i16>(),
+                                                            generateParamsForAddInPlace<element::Type_t::i8>(),
+                                                            generateParamsForAddInPlace<element::Type_t::u64>(),
+                                                            generateParamsForAddInPlace<element::Type_t::u32>(),
+                                                            generateParamsForAddInPlace<element::Type_t::u16>(),
+                                                            generateParamsForAddInPlace<element::Type_t::u8>()};
 
     std::vector<AddParams> combinedParams;
 
@@ -205,16 +201,14 @@ std::vector<AddParams> generateCombinedParamsForAddInPlace() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Add_With_Hardcoded_Refs,
-    ReferenceAddLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForAdd()),
-    ReferenceAddLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Add_With_Hardcoded_Refs,
+                         ReferenceAddLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForAdd()),
+                         ReferenceAddLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Add_In_Place_With_Hardcoded_Refs,
-    ReferenceAddInPlaceLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForAddInPlace()),
-    ReferenceAddLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Add_In_Place_With_Hardcoded_Refs,
+                         ReferenceAddInPlaceLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForAddInPlace()),
+                         ReferenceAddLayerTest::getTestCaseName);
 
 }  // namespace
