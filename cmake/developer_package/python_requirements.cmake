@@ -42,7 +42,6 @@ function(ov_check_pip_package)
     # quote '3.x' with \'3.x\'
     string(REPLACE "'" "\\'" REQ "${ARG_REQUIREMENT}")
 
-    find_host_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
         execute_process(
             COMMAND ${Python3_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require('${REQ}')"
@@ -98,7 +97,6 @@ function(ov_check_pip_packages)
         message(SEND_ERROR "Unexpected parameters have passed to the function: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
 
-    find_host_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
         execute_process(
             COMMAND ${Python3_EXECUTABLE} -c "
