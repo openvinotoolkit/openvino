@@ -51,7 +51,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install/openvino
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'openvino'
           submodules: 'true'
