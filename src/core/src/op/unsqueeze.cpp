@@ -9,10 +9,8 @@
 #include <set>
 
 #include "bound_evaluate.hpp"
-#include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/reference/copy.hpp"
 #include "unsqueeze_shape_inference.hpp"
 
 ov::op::v0::Unsqueeze::Unsqueeze(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& axes)
@@ -58,9 +56,7 @@ bool ov::op::v0::Unsqueeze::evaluate(ov::TensorVector& outputs, const ov::Tensor
                                    .front()
                                    .to_shape();
     outputs[0].set_shape(output_shape);
-    ov::reference::copy(static_cast<const char*>(inputs[0].data()),
-                        static_cast<char*>(outputs[0].data()),
-                        outputs[0].get_byte_size());
+    std::memcpy(outputs[0].data(), inputs[0].data(), outputs[0].get_byte_size());
     return true;
 }
 
