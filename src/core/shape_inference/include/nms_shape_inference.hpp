@@ -70,8 +70,8 @@ template <class TShape>
 void boxes_last_dim_rotated(const Node* const op, const std::vector<TShape>& input_shapes) {
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           input_shapes[0][2].compatible(5) || input_shapes[0][2].compatible(8),
-                           "The last dimension of the 'boxes' input must be equal to 5 or 8.");
+                           input_shapes[0][2].compatible(5),
+                           "The last dimension of the 'boxes' input must be equal to 5.");
 }
 
 template <class T>
