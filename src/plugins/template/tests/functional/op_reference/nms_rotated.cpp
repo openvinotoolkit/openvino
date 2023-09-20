@@ -283,6 +283,21 @@ std::vector<NMSRotatedParams> generateParams() {
             .boxes(reference_tests::Tensor(
                 ET,
                 {1, 2, 5},
+                std::vector<T>{/*0*/ 9.0, 32, 2.0, 4.0, 0.0, /*1*/ 6.0, 34.0, 4.0, 8.0, -0.7854}))
+            .scores(reference_tests::Tensor(ET, {1, 1, 2}, std::vector<T>{0.8, 0.7}))
+            .maxOutputBoxesPerClass(reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{5000}))
+            .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.1f}))
+            .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .clockwise(false)
+            .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
+            .expectedSelectedScores(reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.8}))
+            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
+            .testcaseName("NMSRotated_new_rotation_negative_ccw_reorder"),
+        Builder{}
+            .boxes(reference_tests::Tensor(
+                ET,
+                {1, 2, 5},
                 std::vector<T>{/*0*/ 6.0, 34.0, 4.0, 8.0, 0.7854, /*1*/ 9.0, 32, 2.0, 4.0, 0.0}))
             .scores(reference_tests::Tensor(ET, {1, 1, 2}, std::vector<T>{0.8, 0.7}))
             .maxOutputBoxesPerClass(reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{5000}))

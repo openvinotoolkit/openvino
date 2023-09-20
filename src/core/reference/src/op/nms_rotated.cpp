@@ -136,7 +136,7 @@ void non_max_suppression(const float* boxes_data,
             for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++) {
                 if (scoresPtr[box_idx] > score_threshold) {
                     if (!clockwise) {
-                        r->a *= -1;
+                        r[box_idx].a *= -1;
                     }
                     candidate_boxes.emplace_back(r[box_idx], box_idx, scoresPtr[box_idx], 0, batch, class_idx);
                 }
