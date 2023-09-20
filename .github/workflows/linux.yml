@@ -931,6 +931,10 @@ jobs:
           python3 -m pip cache purge
           echo "Available storage:"
           df -h
+          cd ~/.cache
+          du -h -d0 * | sort -h
+          cd /tmp
+          du -h -d0 * | sort -h
       - name: PyTorch Models Tests
         run: |
           export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -952,3 +956,7 @@ jobs:
         run:  |
           echo "Available storage:"
           df -h
+          cd ~/.cache
+          du -h -d0 * | sort -h
+          cd /tmp
+          du -h -d0 * | sort -h
