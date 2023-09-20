@@ -61,9 +61,9 @@ public:
      * @ingroup snippets
      */
     struct Config {
-        Config(size_t concurrency = 1, bool split_m_dimension = true, bool enable_transpose_on_output = true)
+        Config(size_t concurrency = 1, bool split_m_dimension = true, bool enable_transpose_on_output = true, std::set<size_t> transpose_ranks = {3, 4})
             : concurrency(concurrency), split_m_dimension(split_m_dimension),
-              mha_token_enable_transpose_on_output(enable_transpose_on_output) {}
+              mha_token_enable_transpose_on_output(enable_transpose_on_output), supported_transpose_ranks(std::move(transpose_ranks)) {}
 
         size_t concurrency = 1;
         // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
@@ -72,6 +72,8 @@ public:
         // Otherwise, it may be fused into Subgraph if possible
         // TODO [111813]: Remove please when the ticket 111813 is implemented
         bool mha_token_enable_transpose_on_output = true;
+        // Set of supported Transpose shape ranks for tokenization in MHATokenization pass
+        std::set<size_t> supported_transpose_ranks = { 3, 4 };
     };
 
     OPENVINO_RTTI("SnippetsTokenization", "0");

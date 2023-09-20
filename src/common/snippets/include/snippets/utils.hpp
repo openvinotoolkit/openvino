@@ -55,6 +55,11 @@ constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
+template <typename T, typename U>
+inline T div_up(const T a, const U b) {
+    return static_cast<T>((a + b - 1) / b);
+}
+
 VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& layout);
 VectorDims get_planar_vdims(const snippets::lowered::PortDescriptorPtr& port_desc);
 VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);

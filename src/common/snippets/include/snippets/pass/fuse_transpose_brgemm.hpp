@@ -26,10 +26,9 @@ class FuseTransposeBrgemm: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FuseTransposeBrgemm", "0");
     FuseTransposeBrgemm();
-    static const std::set<std::vector<int>> supported_cases;
 
-private:
-    static bool is_supported_transpose(const Output<Node>& transpose_port);
+    static bool is_supported_transpose(const Output<Node>& transpose_out);
+    static bool is_supported_transpose_order(const std::vector<int32_t>& order);
 };
 
 }  // namespace pass

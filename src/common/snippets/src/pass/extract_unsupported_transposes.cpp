@@ -5,8 +5,7 @@
 #include "snippets/pass/extract_unsupported_transposes.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "snippets/pass/transpose_decomposition.hpp"
-#include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/itt.hpp"
 
 
@@ -38,8 +37,9 @@ bool ov::snippets::pass::ExtractUnsupportedTransposes::run_on_subgraph(const std
         const auto transpose_child = *(transpose->get_output_target_inputs(0).begin());
         const auto is_brgemm_case = ov::is_type<opset1::MatMul>(transpose_child.get_node()->shared_from_this());
         // If Transpose is supported (can be decomposed or fused into Brgemm), skip
-        if ((is_brgemm_case && FuseTransposeBrgemm::supported_cases.count(order_value) != 0) ||
-            (TransposeDecomposition::supported_cases.count(order_value) != 0))
+        // [116568]: It should be covered by TransposeDecomposition::is_supported or FuseTransposeBrgemm::is_supported
+        if ((is_brgemm_case && TokenizeMHASnippets::get_fusion_transpose_order(order_value.size()) == order_value) ||
+            (TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) == order_value))
             continue;
 
         // If the transpose isn't supported - we have to extract it from Subgraph
