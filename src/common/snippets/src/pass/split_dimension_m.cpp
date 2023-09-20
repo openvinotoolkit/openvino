@@ -144,6 +144,7 @@ void ov::snippets::pass::SplitDimensionM::reshape_subgraph(const std::shared_ptr
                                                            const ov::Shape& shape, size_t batch_m_dim, size_t new_m_dim) {
     const auto& body = subgraph->body_ptr();
     const auto& parameters = body->get_parameters();
+    const auto& results = body->get_results();
     const auto ops = body->get_ordered_ops();
     const auto m_dim = get_dim_M(shape);
 
@@ -162,25 +163,59 @@ void ov::snippets::pass::SplitDimensionM::reshape_subgraph(const std::shared_ptr
         reshaped_params.insert(param);
     };
 
-    auto get_updated_shape = [&](const ov::Shape& shape, bool split_m_dim) {
-        const auto current_m_dim = get_dim_M(shape);
+    auto get_updated_shape = [&](const ov::Shape& shape, size_t m_index, bool split_m_dim) {
+        const auto current_m_dim = shape[m_index];
         OPENVINO_ASSERT(!split_m_dim || current_m_dim == 1 || current_m_dim == m_dim, "Incorrect shape for splitting!");
         ov::Shape new_shape = shape;
         if ((split_m_dim && current_m_dim == 1) || !split_m_dim) {
-            new_shape.insert((new_shape.rbegin() + 2).base(), 1);
+            new_shape.insert(new_shape.begin() + m_index, 1);
         } else {
-            new_shape.insert((new_shape.rbegin() + 2).base(), batch_m_dim);
-            *(new_shape.rbegin() + 1) = new_m_dim;
+            new_shape[m_index] = new_m_dim;
+            new_shape.insert(new_shape.begin() + m_index, batch_m_dim);
         }
         OPENVINO_ASSERT(ov::shape_size(new_shape) == ov::shape_size(shape), "Incorrect shape splitting!");
         return new_shape;
+    };
+
+    auto get_updated_order = [](const std::vector<int32_t>& order, int m_index) {
+        std::vector<int32_t> new_order(order.size() + 1, 0);
+        size_t shift_idx = 0;
+        for (size_t i = 0; i < order.size(); ++i) {
+            if (order[i] < m_index) {
+                new_order[i + shift_idx] = order[i];
+            } else if (order[i] == m_index) {
+                new_order[i + shift_idx++] = order[i];
+                new_order[i + shift_idx] = order[i] + 1;
+            } else {
+                new_order[i + shift_idx] = order[i] + 1;
+            }
+        }
+        return new_order;
+    };
+
+    auto reshape_transpose = [&](const std::shared_ptr<ov::Node>& transpose, bool is_input) -> size_t {
+        const auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        OPENVINO_ASSERT(order_constant != nullptr, "Transpose must have Constant order");
+        const auto order = order_constant->cast_vector<int32_t>();
+        const auto m_index = is_input ? order[order.size() - 2] : order.size() - 2;  // Index of M dimension in the previous order
+        const auto new_order = get_updated_order(order, static_cast<int>(m_index));
+        transpose->set_argument(1, std::make_shared<ov::op::v0::Constant>(order_constant->get_element_type(), ov::Shape{new_order.size()}, new_order));
+        return m_index;
     };
 
     auto reshape_parameter = [&](const std::shared_ptr<ov::Node>& node, bool split_m_dim = true) {
         const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(node);
         if (!param || reshaped_params.count(param) > 0)
             return;
-        insert_reshape(param, get_updated_shape(param->get_partial_shape().get_shape(), split_m_dim));
+
+        const auto shape = param->get_partial_shape().get_shape();
+        const auto consumers = param->get_output_target_inputs(0);
+        const auto shared_consumer = consumers.begin()->get_node()->shared_from_this();
+        auto m_index = shape.size() - 2;
+        if (ov::is_type<ov::op::v1::Transpose>(shared_consumer)) {
+            m_index = reshape_transpose(shared_consumer, true);
+        }
+        insert_reshape(param, get_updated_shape(shape, m_index, split_m_dim));
     };
 
     auto update_matmul_second_branch = [&](const std::shared_ptr<ov::op::v0::MatMul>& node) {
@@ -210,7 +245,7 @@ void ov::snippets::pass::SplitDimensionM::reshape_subgraph(const std::shared_ptr
             // Broadcast is tokenized only between MatMuls -> Split M dimension
             const auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
             OPENVINO_ASSERT(shape_const, "SplitDimensionM expects Broadcast with Constant output shape");
-            const auto new_shape = get_updated_shape(shape_const->cast_vector<size_t>(), true);
+            const auto new_shape = get_updated_shape(shape_const->cast_vector<size_t>(), broadcast->get_output_shape(0).size() - 2, true);
             broadcast->set_argument(1, std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(), ov::Shape{new_shape.size()}, new_shape));
         }
     }
@@ -219,6 +254,14 @@ void ov::snippets::pass::SplitDimensionM::reshape_subgraph(const std::shared_ptr
     for (const auto& param : parameters) {
         if (reshaped_params.count(param) == 0)
             reshape_parameter(param, true);
+    }
+
+    // Update Transpose order on Result
+    for (const auto& res : results) {
+        const auto parent = res->get_input_node_shared_ptr(0);
+        if (ov::is_type<ov::op::v1::Transpose>(parent)) {
+            reshape_transpose(parent, false);
+        }
     }
 
     // Return the previous shape on outputs
