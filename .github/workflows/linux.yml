@@ -829,6 +829,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-tests-functional-cpu-stamp
 
+      - name: List tests
+        run: |
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_list_tests >> ${INSTALL_TEST_DIR}/test_list_dump.lst
+
+      - name: Upload List of the tests
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-list-dump
+          path: |
+            ${INSTALL_TEST_DIR}/test_list_dump.lst
+
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${INSTALL_DIR}/setupvars.sh
