@@ -44,7 +44,7 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
    ```sh
    -DENABLE_PYTHON=ON \
    -DPYTHON_EXECUTABLE=/usr/bin/python3.8 \
-   -DPYTHON_LIBRARY=/usr/lib/arm-linux-gnueabihf/libpython3.8m.so \
+   -DPYTHON_LIBRARY=/usr/lib/arm-linux-gnueabihf/libpython3.8.so \
    -DPYTHON_INCLUDE_DIR=/usr/include/python3.8
    ```
 
