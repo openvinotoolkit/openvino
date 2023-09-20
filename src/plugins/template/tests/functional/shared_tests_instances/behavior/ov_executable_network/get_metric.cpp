@@ -4,7 +4,6 @@
 
 #include "behavior/compiled_model/properties.hpp"
 #include "behavior/compiled_model/properties_hetero.hpp"
-
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/core.hpp"
 
@@ -71,4 +70,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroCompiledModelGetMetricTest,
 //////////////////////////////////////////////////////////////////////////////////////////
 
 }  // namespace
-
