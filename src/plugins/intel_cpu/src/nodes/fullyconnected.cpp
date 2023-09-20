@@ -35,6 +35,10 @@
 #include "mlas/sgemm.hpp"
 #endif
 
+#ifdef OV_CPU_WITH_GGML
+#include "ggml/mul_mat.hpp"
+#endif
+
 using namespace dnnl;
 using namespace InferenceEngine;
 
@@ -267,6 +271,9 @@ void FullyConnected::getSupportedDescriptors() {
         useMlas = useMlas && isByChannel;
     }
 #endif
+#if defined(OV_CPU_WITH_GGML)
+    useGgml = true;
+#endif
 #ifdef CPU_DEBUG_CAPS
     // Select Sgemm type by ENV MLAS/ONEDNN, MLAS is used by default
     if (getenv("OV_CPU_FC_EXEC_TYPE")) {
@@ -276,6 +283,7 @@ void FullyConnected::getSupportedDescriptors() {
     }
 #endif
     if (useMlas) return;
+    if (useGgml) return;
 
     for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
         auto in_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
@@ -505,6 +513,23 @@ void FullyConnected::prepareParams() {
     }
 }
 
+#ifdef OV_CPU_WITH_GGML
+void FullyConnected::executeGGML() {
+    const auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto src0MemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    const auto src1MemPtr = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
+    const auto biasMemPtr = withBiases ? getParentEdgeAt(BIAS_ID)->getMemoryPtr() : nullptr;
+
+    ggml_mul_mat(M,
+                 N,
+                 K,
+                 reinterpret_cast<float*>(src0MemPtr->getData()),
+                 reinterpret_cast<float*>(src1MemPtr->getData()),
+                 reinterpret_cast<float*>(dstMemPtr->getData()),
+                 withBiases ? reinterpret_cast<float*>(biasMemPtr->getData()) : nullptr);
+}
+#endif
+
 #ifdef OV_CPU_WITH_MLAS
 void FullyConnected::executeMLAS() {
     const auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -535,6 +560,12 @@ void FullyConnected::execute(dnnl::stream strm) {
 #ifdef OV_CPU_WITH_MLAS
     if (useMlas) {
         executeMLAS();
+        return;
+    }
+#endif
+#ifdef OV_CPU_WITH_GGML
+    if (useGgml) {
+        executeGGML();
         return;
     }
 #endif

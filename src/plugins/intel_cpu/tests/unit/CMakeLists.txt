@@ -31,6 +31,12 @@ else()
     set(MLAS_LIBRARY "mlas")
 endif()
 
+if (NOT ENABLE_GGML_FOR_CPU)
+    set(GGML_LIBRARY "")
+else()
+    set(GGML_LIBRARY "ggml")
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -61,6 +67,7 @@ addIeTargetTest(
             snippetsNgraphFunctions
             snippets_test_utils
             ${MLAS_LIBRARY}
+            ${GGML_LIBRARY}
         ADD_CPPLINT
         LABELS
             CPU

@@ -137,4 +137,9 @@ if(ENABLE_MLAS_FOR_CPU)
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
 
+if(ENABLE_GGML_FOR_CPU)
+    add_subdirectory(ggml)
+    ov_install_static_lib(ggml ${OV_CPACK_COMP_CORE})
+endif()
+
 ov_add_onednn()

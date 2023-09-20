@@ -111,9 +111,11 @@ private:
     bool useSparseWeightsDecompression();
     VectorDims expectedBiasDims {};
     bool useMlas = false;
+    bool useGgml = false;
 #ifdef OV_CPU_WITH_MLAS
     int64_t M, N, K;
     MemoryPtr mlasPackedPtr = nullptr;
+    void executeGGML();
     void executeMLAS();
     void prepackMLASWeight();
 #endif

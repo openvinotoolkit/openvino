@@ -46,6 +46,8 @@ else()
 endif()
 ie_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
+ie_dependent_option(ENABLE_GGML_FOR_CPU "Enable GGML for OpenVINO CPU Plugin" ON "ARM OR AARCH64" OFF)
+
 add_subdirectory(thirdparty)
 
 if(WIN32)
@@ -95,6 +97,11 @@ if (NOT ENABLE_MLAS_FOR_CPU)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
 endif()
 
+if (NOT ENABLE_GGML_FOR_CPU)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/ggml/*)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/ggml/*)
+endif()
+
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
 list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
 list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
@@ -126,6 +133,11 @@ if (ENABLE_MLAS_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE mlas)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
     add_definitions(-DOV_CPU_WITH_MLAS)
+endif()
+if (ENABLE_GGML_FOR_CPU)
+    target_link_libraries(${TARGET_NAME} PRIVATE ggml)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:ggml,INCLUDE_DIRECTORIES>)
+    add_definitions(-DOV_CPU_WITH_GGML)
 endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 # Cross compiled function
