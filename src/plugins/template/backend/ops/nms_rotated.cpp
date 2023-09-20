@@ -2,21 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// clang-format off
-#include "evaluates_map.hpp"
-#include "evaluate_node.hpp"
-#include "openvino/reference/non_max_suppression.hpp"
 #include "openvino/reference/nms_rotated.hpp"
 
+#include "evaluate_node.hpp"
+#include "evaluates_map.hpp"
 #include "openvino/op/nms_rotated.hpp"
-
-// clang-format on
+#include "openvino/reference/non_max_suppression.hpp"
 
 using namespace ov;
 
 namespace nms_v13 {
-using v13BoxEncoding = op::v13::NMSRotated::BoxEncodingType;
-// using namespace nms_rotated;
+
 struct InfoForNMSRotated {
     int64_t max_output_boxes_per_class;
     float iou_threshold;
@@ -57,65 +53,8 @@ PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<Host
     return result;
 }
 
-// Normalize to single interpretation
-void normalize_corner(float* boxes, const Shape& boxes_shape) {
-    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
-    for (size_t i = 0; i < total_num_of_boxes; ++i) {
-        float* current_box = boxes + 4 * i;
-
-        float y1 = current_box[0];
-        float x1 = current_box[1];
-        float y2 = current_box[2];
-        float x2 = current_box[3];
-
-        float ymin = std::min(y1, y2);
-        float ymax = std::max(y1, y2);
-        float xmin = std::min(x1, x2);
-        float xmax = std::max(x1, x2);
-
-        current_box[0] = ymin;
-        current_box[1] = xmin;
-        current_box[2] = ymax;
-        current_box[3] = xmax;
-    }
-}
-
-void normalize_center(float* boxes, const Shape& boxes_shape) {
-    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
-    for (size_t i = 0; i < total_num_of_boxes; ++i) {
-        float* current_box = boxes + 4 * i;
-
-        float x_center = current_box[0];
-        float y_center = current_box[1];
-        float width = current_box[2];
-        float height = current_box[3];
-
-        float y1 = y_center - height / 2.0;
-        float x1 = x_center - width / 2.0;
-        float y2 = y_center + height / 2.0;
-        float x2 = x_center + width / 2.0;
-
-        current_box[0] = y1;
-        current_box[1] = x1;
-        current_box[2] = y2;
-        current_box[3] = x2;
-    }
-}
-
-//
-void normalize_box_encoding(float* boxes, const Shape& boxes_shape, const v13BoxEncoding box_encoding) {
-    if (box_encoding == v13BoxEncoding::CORNER) {
-        normalize_corner(boxes, boxes_shape);
-    } else {
-        normalize_center(boxes, boxes_shape);
-    }
-}
-
-std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes,
-                                      const Shape& boxes_shape,
-                                      const v13BoxEncoding box_encoding) {
+std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes, const Shape& boxes_shape) {
     auto result = get_floats(boxes, boxes_shape);
-    // normalize_box_encoding(result.data(), boxes_shape, box_encoding);
     return result;
 }
 
@@ -131,7 +70,7 @@ InfoForNMSRotated get_info_for_nms_eval(const std::shared_ptr<op::v13::NMSRotate
     result.max_output_boxes_per_class = inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
     result.iou_threshold = inputs.size() > 3 ? get_floats(inputs[3], Shape({}))[0] : 0.0f;
     result.score_threshold = inputs.size() > 4 ? get_floats(inputs[4], Shape({}))[0] : 0.0f;
-    result.soft_nms_sigma = inputs.size() > 5 ? get_floats(inputs[5], Shape({}))[0] : 0.0f;
+    result.soft_nms_sigma = 0.0f;
 
     auto selected_indices_shape = infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
     result.out_shape = selected_indices_shape.to_shape();
@@ -139,7 +78,7 @@ InfoForNMSRotated get_info_for_nms_eval(const std::shared_ptr<op::v13::NMSRotate
     result.boxes_shape = inputs[boxes_port]->get_shape();
     result.scores_shape = inputs[scores_port]->get_shape();
 
-    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms->get_box_encoding());
+    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape);
     result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
 
     result.out_shape_size = shape_size(result.out_shape);

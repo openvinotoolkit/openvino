@@ -62,12 +62,10 @@ op::v13::NMSRotated::NMSRotated(const Output<Node>& boxes,
                                 const Output<Node>& max_output_boxes_per_class,
                                 const Output<Node>& iou_threshold,
                                 const Output<Node>& score_threshold,
-                                const op::v13::NMSRotated::BoxEncodingType box_encoding,
                                 const bool sort_result_descending,
                                 const element::Type& output_type,
                                 const bool clockwise)
     : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
-      m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending},
       m_output_type{output_type},
       m_clockwise{clockwise} {
@@ -84,7 +82,6 @@ std::shared_ptr<Node> op::v13::NMSRotated::clone_with_new_inputs(const OutputVec
                                                  new_args.at(2),
                                                  new_args.at(3),
                                                  new_args.at(4),
-                                                 m_box_encoding,
                                                  m_sort_result_descending,
                                                  m_output_type,
                                                  m_clockwise);
@@ -92,7 +89,6 @@ std::shared_ptr<Node> op::v13::NMSRotated::clone_with_new_inputs(const OutputVec
 
 bool op::v13::NMSRotated::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v13_NMSRotated_visit_attributes);
-    visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("clockwise", m_clockwise);
@@ -118,23 +114,9 @@ void op::v13::NMSRotated::validate_and_infer_types() {
     set_output_type(2, m_output_type, output_shapes[2]);
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v13::NMSRotated::BoxEncodingType& type) {
-    return s << as_string(type);
-}
-
-template <>
-NGRAPH_API EnumNames<op::v13::NMSRotated::BoxEncodingType>& EnumNames<op::v13::NMSRotated::BoxEncodingType>::get() {
-    static auto enum_names =
-        EnumNames<op::v13::NMSRotated::BoxEncodingType>("op::v13::NMSRotated::BoxEncodingType",
-                                                        {{"corner", op::v13::NMSRotated::BoxEncodingType::CORNER},
-                                                         {"center", op::v13::NMSRotated::BoxEncodingType::CENTER}});
-    return enum_names;
-}
-
 // Temporary evaluate, for testing purpose
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
-using v13BoxEncoding = op::v13::NMSRotated::BoxEncodingType;
 struct InfoForNMSRotated {
     int64_t max_output_boxes_per_class;
     float iou_threshold;
@@ -175,11 +157,8 @@ PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<Host
     return result;
 }
 
-std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes,
-                                      const Shape& boxes_shape,
-                                      const v13BoxEncoding box_encoding) {
+std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes, const Shape& boxes_shape) {
     auto result = host_tensor_2_vector<float>(boxes);
-    // normalize_box_encoding(result.data(), boxes_shape, box_encoding);
     return result;
 }
 
@@ -201,7 +180,7 @@ InfoForNMSRotated get_info_for_nms_eval(const op::v13::NMSRotated* nms,
     result.out_shape = selected_indices_shape.to_shape();
     result.boxes_shape = inputs[boxes_port]->get_shape();
     result.scores_shape = inputs[scores_port]->get_shape();
-    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms->get_box_encoding());
+    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape);
     result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
     result.out_shape_size = shape_size(result.out_shape);
     result.sort_result_descending = nms->get_sort_result_descending();

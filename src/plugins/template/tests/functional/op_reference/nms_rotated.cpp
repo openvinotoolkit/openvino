@@ -19,7 +19,6 @@ struct NMSRotatedParams {
     reference_tests::Tensor iouThreshold;
     reference_tests::Tensor scoreThreshold;
     reference_tests::Tensor softNmsSigma;
-    opset13::NMSRotated::BoxEncodingType boxEncoding;
     bool clockwise = true;
     reference_tests::Tensor expectedSelectedIndices;
     reference_tests::Tensor expectedSelectedScores;
@@ -34,7 +33,6 @@ struct Builder : ParamsBuilder<NMSRotatedParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, iouThreshold);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, scoreThreshold);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, softNmsSigma);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, boxEncoding);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, clockwise);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, expectedSelectedIndices);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, expectedSelectedScores);
@@ -91,7 +89,6 @@ private:
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               params.boxEncoding,
                                                                false,
                                                                params.expectedSelectedIndices.type,
                                                                params.clockwise);
@@ -131,7 +128,6 @@ private:
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               params.boxEncoding,
                                                                false,
                                                                params.expectedSelectedIndices.type,
                                                                params.clockwise);
@@ -167,7 +163,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(reference_tests::Tensor(
                 ET_IND,
                 {3, 3},
@@ -188,7 +183,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.3f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
             .expectedSelectedScores(
                 reference_tests::Tensor(ET_TH, {2, 3}, std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.65}))
@@ -204,7 +198,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 0, 0, 0, 1}))
             .expectedSelectedScores(
                 reference_tests::Tensor(ET_TH, {2, 3}, std::vector<T_TH>{0.0, 0.0, 0.8, 0.0, 0.0, 0.8}))
@@ -220,7 +213,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.1f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
             .expectedSelectedScores(reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.8}))
             .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
@@ -235,7 +227,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.1f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 1}))
             .expectedSelectedScores(reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.8}))
             .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
@@ -250,7 +241,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(reference_tests::Tensor(
                 ET_IND,
                 {1, 3},
@@ -268,7 +258,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.1f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .clockwise(true)
             .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 0, 0, 0, 1}))
             .expectedSelectedScores(
@@ -285,7 +274,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.1f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .clockwise(false)
             .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
             .expectedSelectedScores(reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.8}))
@@ -301,7 +289,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.1f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .clockwise(false)
             .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 0, 0, 0, 1}))
             .expectedSelectedScores(
@@ -318,7 +305,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.1f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .clockwise(true)
             .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
             .expectedSelectedScores(reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.8}))
@@ -334,7 +320,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 1}))
             .expectedSelectedScores(reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.9}))
             .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
@@ -351,7 +336,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(reference_tests::Tensor(
                 ET_IND,
                 {3, 3},
@@ -373,7 +357,6 @@ std::vector<NMSRotatedParams> generateParams() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(
                 reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0, 0, 0, 5}))
             .expectedSelectedScores(
@@ -421,7 +404,6 @@ std::vector<NMSRotatedParams> generateParamsWithoutConstants() {
             .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
             .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
             .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
-            .boxEncoding(opset13::NMSRotated::BoxEncodingType::CENTER)
             .expectedSelectedIndices(
                 reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0, 0, 0, 5}))
             .expectedSelectedScores(
