@@ -14,14 +14,14 @@ ov::reference::custom_evaluate_function evaluate =
     const auto& parameters = function->get_parameters();
     const auto& parametersNumber = parameters.size();
     const auto& inputsNumber = inputs.size();
-    NGRAPH_CHECK(parametersNumber == inputsNumber,
-                 "Got function (",
-                 function->get_friendly_name(),
-                 ") with ",
-                 parametersNumber,
-                 " parameters, but ",
-                 inputsNumber,
-                 " input blobs");
+    OPENVINO_ASSERT(parametersNumber == inputsNumber,
+                    "Got function (",
+                    function->get_friendly_name(),
+                    ") with ",
+                    parametersNumber,
+                    " parameters, but ",
+                    inputsNumber,
+                    " input blobs");
 
     const auto& results = function->get_results();
     outputs.reserve(results.size());
