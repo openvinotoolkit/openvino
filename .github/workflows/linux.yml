@@ -289,6 +289,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
       CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts_dir
+      TEST_DEVICE: 'CPU'
 
     steps:
 
@@ -340,10 +341,10 @@ jobs:
         uses: actions/cache/restore@v3
         id: expected_failures_cache
         with:
-          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
-          key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ github.sha }}
+          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
+          key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-
+            ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-
 
       - name: Check Tools Dir
         run: |
@@ -357,31 +358,33 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 ${{ env.CONFORMANCE_TOOLS_DIR }}/run_conformance.py -ov=${{ env.INSTALL_DIR }}/tests \
-            -d=CPU \
+            -d=${{ env.TEST_DEVICE }} \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${{ env.CONFORMANCE_ARTIFACTS_DIR }} \
-            -f=${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv \
+            -f=${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv \
             ${{ github.ref_name == 'master' && '-u' || '' }}
 
       # Required due to: https://github.com/actions/cache/tree/main/restore#ensuring-proper-restores-and-save-happen-across-the-actions
       - name: Rename Expected Failures List
         # if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+        if: ${{ always() }}
         run: |
-          rm -rf ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
-          cp ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/CPU_logs/logs/fix_priority.csv ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
+          rm -rf ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
+          cp ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/${{ env.TEST_DEVICE }}_logs/logs/fix_priority.csv ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
 
       - name: Upload Expected Failures List
         # if: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+        if: ${{ always() }}
         uses: actions/cache/save@v3
         with:
-          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_cpu.csv
-          key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ github.sha }}
+          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
+          key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-${{ github.sha }}
 
       - name: Upload Conformance Artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: conformance_artifacts_${{ matrix.TEST_TYPE }}
+          name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}
           if-no-files-found: 'error'
 
