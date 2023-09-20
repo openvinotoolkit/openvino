@@ -194,7 +194,6 @@ jobs:
         -DPYTHON_MODULE_EXTENSION=$(aarch64-linux-gnu-python3-config --extension-suffix) \
         -DPYBIND11_PYTHON_EXECUTABLE_LAST=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/bin/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
         -DPython3_EXECUTABLE=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/bin/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
-        -DPython3_INCLUDE_DIR=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/include/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
         -DENABLE_TESTS=ON \
         -DENABLE_SYSTEM_TBB=ON \
         -DENABLE_SYSTEM_PROTOBUF=ON \
