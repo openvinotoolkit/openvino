@@ -11,7 +11,7 @@
 
 **Short description**: *Multinomial* operation generates a sequence of class indices sampled from Multinomial distribution.
 
-**Detailed description**: *Multinomial* operation generates a sequence of class indices sampled from a Multinomial distribution. In this context, the *input* values represent the probabilities associated with each class within the Multinomial distribution. When performing the operation, it randomly selects a class based on these probabilities. Subsequently, the index of the chosen class in the *input* array is appended to the *output* sequence in the corresponding batch.
+**Detailed description**: *Multinomial* operation generates a sequence of class indices sampled from a Multinomial distribution. In this context, the *probs* values represent the probabilities associated with each class within the Multinomial distribution. When performing the operation, it randomly selects a class based on these probabilities. Subsequently, the index of the chosen class in the *probs* array is appended to the *output* sequence in the corresponding batch.
 
 **Algorithm formulation**:
 
@@ -31,22 +31,22 @@ Given a list of probabilities x1,x2, ..., xn:
 
 **Example computations**:
 Example 1 - 1D tensor
-* Let *input* = ``[0.1, 0.5, 0.4]``, *num_samples* = 5, *log_probs* = false, *replacement* = true
-* CDF of *input* = ``[0.1, 0.1 + 0.5, 0.1 + 0.5 + 0.4]`` = ``[0.1, 0.6, 1]``
+* Let *probs* = ``[0.1, 0.5, 0.4]``, *num_samples* = 5, *log_probs* = false, *replacement* = true
+* CDF of *probs* = ``[0.1, 0.1 + 0.5, 0.1 + 0.5 + 0.4]`` = ``[0.1, 0.6, 1]``
 * Randomly generated floats = ``[0.2, 0.4, 0.6, 0.8, 1]``
 * Assigned classes = ``[1, 1, 1, 2, 2]``
 
 Example 2 - 2D tensor, log probabilities
-* Let *input* = ``[[-1, 1, 2], [50, 1, 21]]``, *num_samples* = 10, *log_probs* = true, *replacement* = true
-* Exponentiated *input* = ``[[0.36, 2.71, 7.38], [5184705528587072464087.45, 2.71, 1318815734.48]] 
-* CDF of *input*, per batch = ``[[0.36, 3.07, 10.45], [5184705528587072464087.45, 5184705528587072464090.16, 5184705528588391279824.64]]``
+* Let *probs* = ``[[-1, 1, 2], [50, 1, 21]]``, *num_samples* = 10, *log_probs* = true, *replacement* = true
+* Exponentiated *probs* = ``[[0.36, 2.71, 7.38], [5184705528587072464087.45, 2.71, 1318815734.48]] 
+* CDF of *probs*, per batch = ``[[0.36, 3.07, 10.45], [5184705528587072464087.45, 5184705528587072464090.16, 5184705528588391279824.64]]``
 * Normalized CDF = ``[[0.03, 0.29, 1], [1, 0, 0]]``
 * Randomly generated floats = ``[[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1], [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]``
 * Assigned classes = ``[[1, 1, 2, 2, 2, 2, 2, 2, 2, 2], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]``
 
 Example 3 - 1D tensor, without replacement
-* Let *input* = ``[0.1, 0.5, 0.4]``, *num_samples* = 2, *log_probs* = false, *replacement* = false
-* CDF of *input* = ``[0.1, 0.6, 1]``
+* Let *probs* = ``[0.1, 0.5, 0.4]``, *num_samples* = 2, *log_probs* = false, *replacement* = false
+* CDF of *probs* = ``[0.1, 0.6, 1]``
 * Randomly generated floats = ``[0.3, 0.6]``
 * In a loop:
 * For a value of 0.3, a class with idx *1* is selected 
@@ -71,7 +71,7 @@ Example 3 - 1D tensor, without replacement
   * **Description**: controls whether to sample with replacement (classes can be sampled multiple times).
   * **Range of values**: `true`, `false`
       * ``true`` - class indices can be sampled multiple times.
-      * ``false`` - class indices will not repeat in the output and the size of *input*'s ``class_size`` dimension is required to be larger or equal to *num_samples* value. Might affect performance.
+      * ``false`` - class indices will not repeat in the output and the size of *probs*' ``class_size`` dimension is required to be larger or equal to *num_samples* value. Might affect performance.
   * **Type**: `bool`
   * **Required**: *Yes*
 
@@ -102,13 +102,13 @@ Example 3 - 1D tensor, without replacement
 
 **Inputs**:
 
-*   **1**: ``input`` - 1D or 2D tensor of type `T_IN` and shape `[class_size]` or `[batch_size, class_size]` with probabilities. Allowed values depend on the *log_probs* attribute. The values are internally normalized to have values in the range of `[0, 1]` with the sum of all probabilities in the given batch equal to 1. **Required.**
+*   **1**: ``probs`` - 1D or 2D tensor of type `T_IN` and shape `[class_size]` or `[batch_size, class_size]` with probabilities. Allowed values depend on the *log_probs* attribute. The values are internally normalized to have values in the range of `[0, 1]` with the sum of all probabilities in the given batch equal to 1. **Required.**
 
 *   **2**: ``num_samples`` - scalar or 1D tensor with 1 element of type `T_SAMPLES` specifying the number of samples to draw from Multinomial distribution. **Required.**
 
 **Outputs**:
 
-* **1**:  ``output`` A tensor with type specified by the attribute *output_type* and shape depending on the rank of *input*, either ``[num_samples]`` for one-dimensional *input* or ``[batch_size, num_samples]`` for the two-dimensional one.
+* **1**:  ``output`` A tensor with type specified by the attribute *output_type* and shape depending on the rank of *probs*, either ``[num_samples]`` for one-dimensional *probs* or ``[batch_size, num_samples]`` for the two-dimensional one.
 
 **Types**
 
