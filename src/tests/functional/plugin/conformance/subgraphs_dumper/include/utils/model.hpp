@@ -142,7 +142,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                             if (cloned_node_map.count(orig_in_node_name)) {
                                 auto orig_in_node = cloned_node_map[orig_in_node_name];
                                 auto cloned_in_node_name = cloned_in_node->get_friendly_name();
-                                ov::replace_output_update_name(cloned_in_node->get_default_output(), orig_in_node->output(out_idx));
+                                ov::replace_output_update_name(cloned_in_node->output(out_idx), orig_in_node->output(out_idx));
                                 if (ov::op::util::is_parameter(orig_in_node)) {
                                     auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(orig_in_node);
                                     model_parameters.push_back(param);
