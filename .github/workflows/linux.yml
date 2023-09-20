@@ -57,7 +57,7 @@ jobs:
       CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_Release
       CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
       CCACHE_MAXSIZE: 50G
-      TEST_USER_NAME: "ga_runner"
+
     steps:
       - name: Install git
         run: |
@@ -519,19 +519,8 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
       OV_TEMP: ${{ github.workspace }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
-      TEST_USER_NAME: "ga_runner"
 
     steps:
-      - name: Create test user
-        run: |
-          export USER_UID=1000
-          export USER_GID=$USER_UID
-          groupadd --gid $USER_GID ${{ env.TEST_USER_NAME }}
-          useradd --uid $USER_UID --gid $USER_GID -m ${{ env.TEST_USER_NAME }}
-          apt-get update && apt-get install -y sudo
-          echo ${{ env.TEST_USER_NAME }} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${{ env.TEST_USER_NAME }}
-          chmod 0440 /etc/sudoers.d/${{ env.TEST_USER_NAME }}
-
       - name: Create Directories
         run: |
           mkdir -p ${{ env.INSTALL_DIR }}
@@ -830,7 +819,7 @@ jobs:
       - name: Install python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@v3
