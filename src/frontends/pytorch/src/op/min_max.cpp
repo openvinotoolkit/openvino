@@ -33,6 +33,7 @@ OutputVector translate_max(const NodeContext& context) {
     // torch.max(input, other)
     if (context.input_is_none(2)) {
         auto y = context.get_input(1);
+        align_eltwise_input_types(context, x, y, true);
         return {context.mark_node(std::make_shared<v1::Maximum>(x, y))};
     }
     // torch.max(input, dim, keepdim), returns values and indicies
@@ -62,6 +63,7 @@ OutputVector translate_min(const NodeContext& context) {
     // torch.min(input, other)
     if (context.input_is_none(2)) {
         auto y = context.get_input(1);
+        align_eltwise_input_types(context, x, y, true);
         return {context.mark_node(std::make_shared<v1::Minimum>(x, y))};
     }
     // torch.min(input, dim, keepdim), returns values and indicies

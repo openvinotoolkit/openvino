@@ -25,7 +25,8 @@ class PytorchLayerTest:
         "int64": Type.i64,
         "int16": Type.i16,
         "int8": Type.i8,
-        "uint8": Type.u8
+        "uint8": Type.u8,
+        "float16": Type.f16
     }
 
     @staticmethod
@@ -120,8 +121,8 @@ class PytorchLayerTest:
                         continue
                     assert ov_type == fw_type, f"dtype validation failed: {ov_type} != {fw_type}"
                     continue
-                assert torch.tensor(np.array(
-                    ov_tensor)).dtype == fw_tensor.dtype, f"dtype validation failed: {torch.tensor(np.array(ov_tensor)).dtype} != {fw_tensor.dtype}"
+                ov_tensor_fw_format =  torch.tensor(np.array(ov_tensor))
+                assert ov_tensor_fw_format.dtype == fw_tensor.dtype, f"dtype validation failed: {ov_tensor_fw_format.dtype} != {fw_tensor.dtype}"
 
             # Compare Ie results with Framework results
             fw_eps = custom_eps if precision == 'FP32' else 5e-2
