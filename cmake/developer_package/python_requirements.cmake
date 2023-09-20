@@ -42,19 +42,22 @@ function(ov_check_pip_package)
     # quote '3.x' with \'3.x\'
     string(REPLACE "'" "\\'" REQ "${ARG_REQUIREMENT}")
 
+    find_host_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
         execute_process(
             COMMAND ${Python3_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require('${REQ}')"
             RESULT_VARIABLE EXIT_CODE
             OUTPUT_VARIABLE OUTPUT_TEXT
             ERROR_VARIABLE ERROR_TEXT)
+    else()
+        set(EXIT_CODE 1)
     endif()
 
-    if(NOT EXIT_CODE EQUAL 0)
+    if(EXIT_CODE EQUAL 0)
+        set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
+    else()
         set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
         message(${ARG_MESSAGE_MODE} "Python module '${REQ}' is missed, ${ARG_WARNING_MESSAGE}")
-    else()
-        set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -95,6 +98,7 @@ function(ov_check_pip_packages)
         message(SEND_ERROR "Unexpected parameters have passed to the function: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
 
+    find_host_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
         execute_process(
             COMMAND ${Python3_EXECUTABLE} -c "
@@ -105,12 +109,14 @@ check_python_requirements('${ARG_REQUIREMENTS_FILE}') ;
             RESULT_VARIABLE EXIT_CODE
             OUTPUT_VARIABLE OUTPUT_TEXT
             ERROR_VARIABLE ERROR_TEXT)
+    else()
+        set(EXIT_CODE 1)
     endif()
 
-    if(NOT EXIT_CODE EQUAL 0)
+    if(EXIT_CODE EQUAL 0)
+        set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
+    else()
         set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
         message(${ARG_MESSAGE_MODE} "Python requirement file ${ARG_REQUIREMENTS_FILE} is not installed, ${ARG_WARNING_MESSAGE}")
-    else()
-        set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
     endif()
 endfunction()

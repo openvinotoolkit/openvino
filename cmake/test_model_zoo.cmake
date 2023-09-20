@@ -22,6 +22,7 @@ function(ov_model_convert SRC DST OUT)
 
     if(onnx_FOUND)
         file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
+        find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
     endif()
 
     foreach(in_file IN LISTS prototxt_models xml_models bin_models onnx_models data_models)
