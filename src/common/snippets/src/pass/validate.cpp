@@ -32,10 +32,12 @@ bool is_supported_constant(const std::shared_ptr<const ov::Node>& op) {
     const auto consumers = op->get_output_target_inputs(0);
     return constant &&
            (ov::shape_size(constant->get_output_shape(0)) == 1 ||
-            (consumers.size() == 1 &&
-             (ov::is_type<const ov::op::v1::Transpose>(consumers.begin()->get_node()) ||
-              ov::is_type<const ov::op::v1::Broadcast>(consumers.begin()->get_node()) ||
-              ov::is_type<const ov::op::v3::Broadcast>(consumers.begin()->get_node()))));
+            std::all_of(consumers.cbegin(), consumers.cend(),
+                        [](const ov::Input<ov::Node>& in) {
+                            return ov::is_type<const ov::op::v1::Transpose>(in.get_node()) ||
+                                   ov::is_type<const ov::op::v1::Broadcast>(in.get_node()) ||
+                                   ov::is_type<const ov::op::v3::Broadcast>(in.get_node());
+                        }));
 }
 
 bool is_supported_convert(const std::shared_ptr<const ov::Node>& op) {
