@@ -4,15 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <openvino/core/preprocess/pre_post_process.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <vector>
 
-#include "../op_reference/base_reference_test.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "base_reference_test.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
