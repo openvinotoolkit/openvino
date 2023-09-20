@@ -57,9 +57,7 @@ Supported configurations:
       ```
   2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options:
      ```sh
-     -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe" ^
-     -DPython3_LIBRARY="C:\Program Files\Python11\libs\python11.lib" ^
-     -DPython3_INCLUDE_DIR="C:\Program Files\Python11\include"
+     -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
      ```
   3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
      ```sh

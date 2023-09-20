@@ -192,8 +192,6 @@ jobs:
         -DENABLE_PYTHON=ON \
         -DENABLE_WHEEL=ON \
         -DPYTHON_MODULE_EXTENSION=$(aarch64-linux-gnu-python3-config --extension-suffix) \
-        -DPython3_LIBRARY=/usr/lib/aarch64-linux-gnu/libc-2.31.so \
-        -DPython3_INCLUDE_DIR=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/include/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
         -DENABLE_TESTS=ON \
         -DENABLE_SYSTEM_TBB=ON \
         -DENABLE_SYSTEM_PROTOBUF=ON \

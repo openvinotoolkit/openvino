@@ -167,8 +167,6 @@ jobs:
         -DBUILD_nvidia_plugin=OFF ^
         -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" ^
         -DPython3_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.11.2\x64\python.exe" ^
-        -DPython3_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.11.2\x64\include" ^
-        -DPython3_LIBRARY="C:\hostedtoolcache\windows\Python\3.11.2\x64\libs\python311.lib" ^
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
