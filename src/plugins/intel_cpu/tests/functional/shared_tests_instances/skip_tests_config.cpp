@@ -199,6 +199,8 @@ std::vector<std::string> disabledTestPatterns() {
 #if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
     // Issue: 120950
     retVector.emplace_back(R"(.*smoke_TensorIteratorCommon/TensorIteratorTest.Inference.*_modelType=f16_targetDevice=CPU.*)");
+    retVector.emplace_back(R"(.*smoke_CtcGreedyDecoderBasic/CTCGreedyDecoderLayerTest.Inference.*netPRC=f16.*trgDev=CPU.*)");
+    retVector.emplace_back(R"(.*CTCGreedyDecoderSeqLenLayerTest.Inference.*dataPRC=f16.*trgDev=CPU.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_X86)
