@@ -642,7 +642,7 @@ void Transformations::MainSnippets(void) {
             const auto is_unsupported_parallel_work_amount =
                 parallel_get_num_threads() / 2 > parallel_work_amount &&
                 static_cast<size_t>(parallel_work_amount) < needed_num_of_threads &&
-                !ov::snippets::pass::SplitDimensionM::canBeOptimized(n, tokenization_config.concurrency);
+                !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.concurrency);
             return is_unsupported_parallel_work_amount;
         };
 #endif // OPENVINO_ARCH_X86_64
