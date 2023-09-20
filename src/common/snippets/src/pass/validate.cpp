@@ -25,7 +25,8 @@ namespace {
 #define VALIDATE(op, op_type, validator)    \
     if (ov::is_type<op_type>(op)) \
         OPENVINO_ASSERT(validator(op), "Snippets validation of OV body has been failed: " + \
-                                       std::string(op->get_type_name()) + " op " + op->get_friendly_name() + " is not supported");
+                        std::string(op->get_type_name()) + " op " + op->get_friendly_name() + " is not supported"); \
+    else
 
 bool is_supported_constant(const std::shared_ptr<const ov::Node>& op) {
     const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(op);
