@@ -10,16 +10,16 @@
 
 **Category**: *Sorting and maximization*
 
-**Short description**: *NMSRotated* performs non maximum suppression of the rotated boxes with predicted scores.
+**Short description**: *NMSRotated* performs non-maximum suppression of the rotated boxes with predicted scores.
 
-**Detailed description**: *NMSRotated* performs regular non maximum suppression, but the value of IoU is calculated for bounding boxes rotated by corresponding angle.
+**Detailed description**: *NMSRotated* performs regular non-maximum suppression, but the value of IoU is calculated for bounding boxes rotated by the corresponding angle.
 
 The general algorithm is described below:
 
 1.  Let ``B = [b_0,...,b_n]`` be the list of initial detection boxes, ``S = [s_0,...,s_N]`` be  the list of corresponding scores.
 2.  Let ``D = []`` be an initial collection of resulting boxes.
 3.  If ``B`` is empty then go to step 8.
-4.  Take the box with highest score. Suppose that it is the box ``b`` with the score ``s``.
+4.  Take the box with the highest score. Suppose that it is the box ``b`` with the score ``s``.
 5.  Delete ``b`` from ``B``.
 6.  If the score ``s`` is greater or equal than ``score_threshold``  then add ``b`` to ``D`` else go to step 8.
 7.  For each input box ``b_i`` from ``B`` and the corresponding score ``s_i``, set ``s_i = s_i * func(rotated_iou(b_i, b))`` and go to step 3.
@@ -29,7 +29,7 @@ Here ``func(rotated_iou(b_i, b)) = 1 if rotated_iou(b_i, b) <= iou_threshold els
 
 Having two bouding boxes ``B1`` and ``B2`` the following steps are performed to calculate ``rotated_iou(B1, B2)``:
 
-1. Calculate rotated vertices, (x, y) cooridinates of the 4 corners of each box transformed by the corresponding angle in radians according to the direction specified by *clockwise* attribute.
+1. Calculate rotated vertices, (x, y) coordinates of the 4 corners of each box transformed by the corresponding angle in radians according to the direction specified by the *clockwise* attribute.
 2. Find all intersection points between edges of ``B1`` and ``B2``. Add them to the ``intersection_points``.
 3. Find all corners of ``B1`` within area of ``B2``, and all corners of ``B2`` within area of ``B1``. Add them to the ``intersection_points``.
 4. Calculate ``intersection_area`` of the polygon described by ``intersection_points`` (see Sholeace formula).
@@ -66,8 +66,8 @@ This algorithm is applied independently to each class of each batch element. The
   * **Description**: the direction of angle
   * **Range of values**: true of false
 
-    * *true* - positive value of angle is clockwise.
-    * *false* - positive value of angle is counter clockwise.
+    * *true* - positive value of the angle is clockwise.
+    * *false* - positive value of the angle is counterclockwise.
   * **Type**: boolean
   * **Default value**: true
   * **Required**: *no*
@@ -79,7 +79,7 @@ This algorithm is applied independently to each class of each batch element. The
 
 *   **2**: ``scores`` - tensor of type *T* and shape ``[num_batches, num_classes, num_boxes]`` with box scores. **Required.**
 
-*   **3**: ``max_output_boxes_per_class`` - scalar or 1D tensor with 1 element of type *T_MAX_BOXES* specifying maximum number of boxes to be selected per class. **Required.**
+*   **3**: ``max_output_boxes_per_class`` - scalar or 1D tensor with 1 element of type *T_MAX_BOXES* specifying the maximum number of boxes to be selected per class. **Required.**
 
 *   **4**: ``iou_threshold`` - scalar or 1D tensor with 1 element of type *T_THRESHOLDS* specifying intersection over union threshold. **Required.**
 
@@ -94,7 +94,7 @@ This algorithm is applied independently to each class of each batch element. The
 
 *   **3**: ``valid_outputs`` - 1D tensor with 1 element of type *output_type* representing the total number of selected boxes.
 
-Plugins which do not support dynamic output tensors produce ``selected_indices`` and ``selected_scores`` tensors of shape ``[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]`` which is an upper bound for the number of possible selected boxes. Output tensor elements following the really selected boxes are filled with value -1.
+Plugins that do not support dynamic output tensors produce ``selected_indices`` and ``selected_scores`` tensors of shape ``[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]`` which is an upper bound for the number of possible selected boxes. Output tensor elements following the really selected boxes are filled with value -1.
 
 **Types**
 
