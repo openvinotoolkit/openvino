@@ -831,6 +831,7 @@ jobs:
 
       - name: List tests
         run: |
+          source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_list_tests >> ${INSTALL_TEST_DIR}/test_list_dump.lst
 
       - name: Upload List of the tests
