@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/avg_pool.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/op/avg_pool.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -15,18 +16,18 @@ namespace {
 struct AvgPoolParams {
     template <class IT>
     AvgPoolParams(const Shape& input_shape,
-              const Shape& output_shape,
-              const element::Type& input_type,
-              const element::Type& ouput_type,
-              const std::vector<IT>& input_values,
-              const std::vector<IT>& output_values,
-              const Strides& strides,
-              const Shape& pads_begin,
-              const Shape& pads_end,
-              const Shape& kernel,
-              const bool exclude_pad,
-              const op::RoundingType& rounding_type,
-              const op::PadType& pad_type)
+                  const Shape& output_shape,
+                  const element::Type& input_type,
+                  const element::Type& ouput_type,
+                  const std::vector<IT>& input_values,
+                  const std::vector<IT>& output_values,
+                  const Strides& strides,
+                  const Shape& pads_begin,
+                  const Shape& pads_end,
+                  const Shape& kernel,
+                  const bool exclude_pad,
+                  const op::RoundingType& rounding_type,
+                  const op::PadType& pad_type)
         : m_input_shape(input_shape),
           m_output_shape(output_shape),
           m_input_type(input_type),
@@ -88,14 +89,14 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
-                                                    const element::Type& input_type,
-                                                    const Strides& strides,
-                                                    const Shape& pads_begin,
-                                                    const Shape& pads_end,
-                                                    const Shape& kernel,
-                                                    const bool exclude_pad,
-                                                    const op::RoundingType rounding_type,
-                                                    const op::PadType pad_type) {
+                                                 const element::Type& input_type,
+                                                 const Strides& strides,
+                                                 const Shape& pads_begin,
+                                                 const Shape& pads_end,
+                                                 const Shape& kernel,
+                                                 const bool exclude_pad,
+                                                 const op::RoundingType rounding_type,
+                                                 const op::PadType pad_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto avgPool = std::make_shared<op::v1::AvgPool>(in,
                                                                strides,
@@ -113,8 +114,8 @@ TEST_P(ReferenceAvgPoolLayerTest, AvgPoolWithHardcodedRefs) {
     Exec();
 }
 
-template<typename T>
-std::vector<T> getContinuousIncreasingValue(size_t elementSize,  float step) {
+template <typename T>
+std::vector<T> getContinuousIncreasingValue(size_t elementSize, float step) {
     std::vector<T> a(elementSize);
     std::iota(std::begin(a), std::end(a), step);
     return a;
@@ -247,11 +248,9 @@ std::vector<AvgPoolParams> generateParamsForAvgPool() {
 }
 
 std::vector<AvgPoolParams> generateCombinedParamsForAvgPool() {
-    const std::vector<std::vector<AvgPoolParams>> allTypeParams{
-        generateParamsForAvgPool<element::Type_t::f32>(),
-        generateParamsForAvgPool<element::Type_t::f16>(),
-        generateParamsForAvgPool<element::Type_t::bf16>()
-    };
+    const std::vector<std::vector<AvgPoolParams>> allTypeParams{generateParamsForAvgPool<element::Type_t::f32>(),
+                                                                generateParamsForAvgPool<element::Type_t::f16>(),
+                                                                generateParamsForAvgPool<element::Type_t::bf16>()};
 
     std::vector<AvgPoolParams> combinedParams;
 
@@ -262,10 +261,9 @@ std::vector<AvgPoolParams> generateCombinedParamsForAvgPool() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_AvgPool_With_Hardcoded_Refs,
-    ReferenceAvgPoolLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForAvgPool()),
-    ReferenceAvgPoolLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_With_Hardcoded_Refs,
+                         ReferenceAvgPoolLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForAvgPool()),
+                         ReferenceAvgPoolLayerTest::getTestCaseName);
 
 }  // namespace

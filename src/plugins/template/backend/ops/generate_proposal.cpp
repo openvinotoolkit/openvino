@@ -7,10 +7,10 @@
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
 
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v9::GenerateProposals>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
+template <ov::element::Type_t ET>
+bool evaluate(const std::shared_ptr<ov::op::v9::GenerateProposals>& op,
+              ov::TensorVector& outputs,
+              const ov::TensorVector& inputs) {
     const auto& attrs = op->get_attrs();
 
     if (attrs.post_nms_count < 0) {
@@ -21,10 +21,10 @@ bool evaluate(const std::shared_ptr<ngraph::op::v9::GenerateProposals>& op,
 
     const auto& output_type = op->get_input_element_type(0);
 
-    const auto& im_info_shape = inputs[0]->get_shape();
-    const auto& anchors_shape = inputs[1]->get_shape();
-    const auto& deltas_shape = inputs[2]->get_shape();
-    const auto& scores_shape = inputs[3]->get_shape();
+    const auto& im_info_shape = inputs[0].get_shape();
+    const auto& anchors_shape = inputs[1].get_shape();
+    const auto& deltas_shape = inputs[2].get_shape();
+    const auto& scores_shape = inputs[3].get_shape();
 
     const auto im_info_data = get_floats(inputs[0], im_info_shape);
     const auto anchors_data = get_floats(inputs[1], anchors_shape);
@@ -50,22 +50,19 @@ bool evaluate(const std::shared_ptr<ngraph::op::v9::GenerateProposals>& op,
 
     size_t num_selected = static_cast<size_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
 
-    ngraph::Shape output_rois_shape = ngraph::Shape{num_selected, 4};
-    ngraph::Shape output_scores_shape = ngraph::Shape{num_selected};
+    ov::Shape output_rois_shape = ov::Shape{num_selected, 4};
+    ov::Shape output_scores_shape = ov::Shape{num_selected};
 
-    outputs[0]->set_element_type(output_type);
-    outputs[0]->set_shape(output_rois_shape);
-    outputs[1]->set_element_type(output_type);
-    outputs[1]->set_shape(output_scores_shape);
+    outputs[0].set_shape(output_rois_shape);
+    outputs[1].set_shape(output_scores_shape);
 
     const auto& roi_num_type = op->get_output_element_type(2);
-    ngraph::Shape output_roi_num_shape = ngraph::Shape{im_info_shape[0]};
-    outputs[2]->set_element_type(roi_num_type);
-    outputs[2]->set_shape(output_roi_num_shape);
+    ov::Shape output_roi_num_shape = ov::Shape{im_info_shape[0]};
+    outputs[2].set_shape(output_roi_num_shape);
 
-    ov::reference::generate_proposals_postprocessing(outputs[0]->get_data_ptr(),
-                                                     outputs[1]->get_data_ptr(),
-                                                     outputs[2]->get_data_ptr(),
+    ov::reference::generate_proposals_postprocessing(outputs[0].data(),
+                                                     outputs[1].data(),
+                                                     outputs[2].data(),
                                                      output_type,
                                                      roi_num_type,
                                                      output_rois,
@@ -78,80 +75,47 @@ bool evaluate(const std::shared_ptr<ngraph::op::v9::GenerateProposals>& op,
 }
 
 template <>
-bool evaluate_node<ngraph::op::v9::GenerateProposals>(std::shared_ptr<ngraph::Node> node,
-                                                      const ngraph::HostTensorVector& outputs,
-                                                      const ngraph::HostTensorVector& inputs) {
+bool evaluate_node<ov::op::v9::GenerateProposals>(std::shared_ptr<ov::Node> node,
+                                                  ov::TensorVector& outputs,
+                                                  const ov::TensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
-    if (ov::is_type<ngraph::op::v1::Select>(node) || ov::is_type<ngraph::op::util::BinaryElementwiseComparison>(node))
+    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
         element_type = node->get_input_element_type(1);
 
     switch (element_type) {
-    case ngraph::element::Type_t::boolean:
-        return evaluate<ngraph::element::Type_t::boolean>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                          outputs,
-                                                          inputs);
-    case ngraph::element::Type_t::bf16:
-        return evaluate<ngraph::element::Type_t::bf16>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                       outputs,
-                                                       inputs);
-    case ngraph::element::Type_t::f16:
-        return evaluate<ngraph::element::Type_t::f16>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::f64:
-        return evaluate<ngraph::element::Type_t::f64>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::f32:
-        return evaluate<ngraph::element::Type_t::f32>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::i4:
-        return evaluate<ngraph::element::Type_t::i4>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                     outputs,
-                                                     inputs);
-    case ngraph::element::Type_t::i8:
-        return evaluate<ngraph::element::Type_t::i8>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                     outputs,
-                                                     inputs);
-    case ngraph::element::Type_t::i16:
-        return evaluate<ngraph::element::Type_t::i16>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::i32:
-        return evaluate<ngraph::element::Type_t::i32>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::i64:
-        return evaluate<ngraph::element::Type_t::i64>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::u1:
-        return evaluate<ngraph::element::Type_t::u1>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                     outputs,
-                                                     inputs);
-    case ngraph::element::Type_t::u4:
-        return evaluate<ngraph::element::Type_t::u4>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                     outputs,
-                                                     inputs);
-    case ngraph::element::Type_t::u8:
-        return evaluate<ngraph::element::Type_t::u8>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                     outputs,
-                                                     inputs);
-    case ngraph::element::Type_t::u16:
-        return evaluate<ngraph::element::Type_t::u16>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::u32:
-        return evaluate<ngraph::element::Type_t::u32>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::u64:
-        return evaluate<ngraph::element::Type_t::u64>(ov::as_type_ptr<ngraph::op::v9::GenerateProposals>(node),
-                                                      outputs,
-                                                      inputs);
+    case ov::element::boolean:
+        return evaluate<ov::element::boolean>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::bf16:
+        return evaluate<ov::element::bf16>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::f16:
+        return evaluate<ov::element::f16>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::f64:
+        return evaluate<ov::element::f64>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::f32:
+        return evaluate<ov::element::f32>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::i4:
+        return evaluate<ov::element::i4>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::i8:
+        return evaluate<ov::element::i8>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::i16:
+        return evaluate<ov::element::i16>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::i32:
+        return evaluate<ov::element::i32>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::i64:
+        return evaluate<ov::element::i64>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::u1:
+        return evaluate<ov::element::u1>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::u4:
+        return evaluate<ov::element::u4>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::u8:
+        return evaluate<ov::element::u8>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::u16:
+        return evaluate<ov::element::u16>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::u32:
+        return evaluate<ov::element::u32>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
+    case ov::element::u64:
+        return evaluate<ov::element::u64>(ov::as_type_ptr<ov::op::v9::GenerateProposals>(node), outputs, inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                       std::string("in evaluate_node()"));
+        OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
     }
 }
