@@ -931,7 +931,6 @@ jobs:
           python3 -m pip cache purge
           echo "Available storage:"
           df -h
-          du -h -d0 /tmp/tmp* || true
           du -h -d0 ~/.cache ~/*
       - name: PyTorch Models Tests
         run: |
@@ -945,7 +944,6 @@ jobs:
         run:  |
           echo "Available storage:"
           df -h
-          du -h -d0 /tmp/tmp* || true
           du -h -d0 ~/.cache ~/*
 
       - name: Upload Test Results

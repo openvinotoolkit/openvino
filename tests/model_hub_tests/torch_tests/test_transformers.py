@@ -272,9 +272,10 @@ class TestTransformersModel(TestConvertModel):
         self.cache_dir.cleanup()
         super().teardown_method()
 
-    @pytest.mark.parametrize("name,type", [("gpt2", "gpt2"),
-                                           ("bert-base-uncased", "bert"),
+    @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
                                            ("facebook/bart-large-mnli", "bart"),
+                                           ("google/flan-t5-base","t5"),
+                                           ("gpt2", "gpt2"),
                                            ("openai/clip-vit-large-patch14", "clip")])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
