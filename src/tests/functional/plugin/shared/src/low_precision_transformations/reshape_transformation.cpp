@@ -9,7 +9,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ov_models/reshape_function.hpp"
+#include "ov_lpt_models/reshape.hpp"
 
 namespace LayerTestsDefinitions {
 

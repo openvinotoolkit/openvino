@@ -5,8 +5,8 @@
 #include <memory>
 #include <vector>
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {

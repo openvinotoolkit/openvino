@@ -3,8 +3,8 @@
 #
 
 add_subdirectory(ov_models)
-add_subdirectory(lpt_ov_models)
+add_subdirectory(ov_lpt_models)
 
 if(TARGET openvino::snippets)
-    add_subdirectory(snippets_ov_models)
+    add_subdirectory(ov_snippets_models)
 endif()

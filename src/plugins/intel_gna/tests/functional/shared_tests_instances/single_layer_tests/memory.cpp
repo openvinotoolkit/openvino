@@ -6,9 +6,9 @@
 
 #include <vector>
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;

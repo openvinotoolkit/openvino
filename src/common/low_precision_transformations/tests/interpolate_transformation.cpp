@@ -16,9 +16,9 @@
 #include "low_precision/interpolate.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ov_models/interpolate_function.hpp"
+#include "ov_lpt_models/interpolate.hpp"
 
 using namespace testing;
 using namespace ov::pass;

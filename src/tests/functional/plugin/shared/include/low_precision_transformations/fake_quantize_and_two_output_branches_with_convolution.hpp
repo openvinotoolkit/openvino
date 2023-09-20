@@ -8,9 +8,9 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
-#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
-#include "lpt_ov_models/fake_quantize_and_two_output_branches_with_convolution_function.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/fake_quantize_and_two_output_branches_with_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 class FakeQuantizeAndTwoOutputBranchesWithConvolution {

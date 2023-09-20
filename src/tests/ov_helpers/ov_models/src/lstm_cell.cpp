@@ -5,8 +5,8 @@
 #include <memory>
 #include <vector>
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {

@@ -16,7 +16,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/pass/convert_prc.hpp"
-#include "lpt_ov_models/group_convolution_function.hpp"
+#include "ov_lpt_models/group_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj) {

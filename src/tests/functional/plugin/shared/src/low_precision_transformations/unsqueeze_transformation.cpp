@@ -13,7 +13,7 @@
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/unsqueeze_transformation.hpp"
 #include "ov_models/subgraph_builders.hpp"
-#include "lpt_ov_models/unsqueeze_function.hpp"
+#include "ov_lpt_models/unsqueeze.hpp"
 
 namespace LayerTestsDefinitions {
 

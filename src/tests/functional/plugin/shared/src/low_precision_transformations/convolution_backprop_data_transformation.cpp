@@ -8,7 +8,7 @@
 #include <vector>
 #include <string>
 
-#include "lpt_ov_models/convolution_backprop_data_function.hpp"
+#include "ov_lpt_models/convolution_backprop_data.hpp"
 
 namespace LayerTestsDefinitions {
 

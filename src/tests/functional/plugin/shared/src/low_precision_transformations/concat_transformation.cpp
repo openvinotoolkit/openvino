@@ -12,7 +12,7 @@
 
 #include <transformations/init_node_info.hpp>
 #include "ov_models/subgraph_builders.hpp"
-#include "lpt_ov_models/concat_function.hpp"
+#include "ov_lpt_models/concat.hpp"
 
 namespace LayerTestsDefinitions {
 

@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ov_models/interpolate_function.hpp"
+#include "ov_lpt_models/interpolate.hpp"
 
 namespace LayerTestsDefinitions {
 

@@ -14,10 +14,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ov_models/common/add.hpp"
-#include "lpt_ov_models/common/dequantization_operations.hpp"
-#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
-#include "lpt_ov_models/fuse_fake_quantize_function.hpp"
+#include "ov_lpt_models/common/add.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/fuse_fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {

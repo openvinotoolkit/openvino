@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "ie_common.h"
-#include "ov_models/builders.hpp"
 #include "openvino/op/matmul.hpp"
+#include "ov_models/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 using namespace ov;

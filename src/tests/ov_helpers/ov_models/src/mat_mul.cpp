@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/matmul.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {

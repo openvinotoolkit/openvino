@@ -4,8 +4,8 @@
 
 #include "openvino/op/scatter_elements_update.hpp"
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/constant.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {

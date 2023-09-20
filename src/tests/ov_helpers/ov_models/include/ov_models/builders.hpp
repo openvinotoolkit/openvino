@@ -21,7 +21,6 @@
 // TODO: Temporary solution to fix compilation of plugin tests
 
 #include "common_test_utils/test_enums.hpp"
-#include "ov_models/utils/data_utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -30,6 +29,7 @@
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/detection_output.hpp"
 #include "openvino/op/space_to_depth.hpp"
+#include "ov_models/utils/data_utils.hpp"
 
 namespace ngraph {
 namespace builder {

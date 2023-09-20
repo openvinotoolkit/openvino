@@ -4,7 +4,6 @@
 
 #include "ov_models/subgraph_builders.hpp"
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
@@ -26,6 +25,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {

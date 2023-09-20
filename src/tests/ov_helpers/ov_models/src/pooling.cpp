@@ -5,9 +5,9 @@
 #include <memory>
 #include <vector>
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {

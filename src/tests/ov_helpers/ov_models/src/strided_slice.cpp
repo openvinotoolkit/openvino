@@ -4,8 +4,8 @@
 
 #include "openvino/op/strided_slice.hpp"
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/slice.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {

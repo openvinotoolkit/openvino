@@ -26,7 +26,7 @@
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <ngraph/op/depth_to_space.hpp>
 
-#include "lpt_ov_models/depth_to_space_function.hpp"
+#include "ov_lpt_models/depth_to_space.hpp"
 
 using namespace ngraph::opset1;
 

@@ -8,10 +8,10 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
-#include "lpt_ov_models/common/builders.hpp"
-#include "lpt_ov_models/common/dequantization_operations.hpp"
-#include "lpt_ov_models/common/fake_quantize_on_data.hpp"
-#include "lpt_ov_models/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 using namespace testing;
 using namespace ov::pass;

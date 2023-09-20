@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {

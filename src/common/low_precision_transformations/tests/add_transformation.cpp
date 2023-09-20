@@ -14,8 +14,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ov_models/add_function.hpp"
-#include "lpt_ov_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/add.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {

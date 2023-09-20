@@ -17,7 +17,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/builders.hpp"
 
-#include "lpt_ov_models/mat_mul_function.hpp"
+#include "ov_lpt_models/mat_mul.hpp"
 
 namespace LayerTestsDefinitions {
 

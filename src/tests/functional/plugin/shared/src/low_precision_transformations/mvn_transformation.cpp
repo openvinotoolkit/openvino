@@ -17,7 +17,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
-#include "lpt_ov_models/mvn_function.hpp"
+#include "ov_lpt_models/mvn.hpp"
 
 namespace LayerTestsDefinitions {
 
