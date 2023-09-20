@@ -25,7 +25,7 @@ std::string MatMulWithOptimizedConstantFq::getTestCaseName(
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
 
     std::tie(netPrecision, shapes, targetDevice, param) = obj.param;
@@ -44,7 +44,7 @@ void MatMulWithOptimizedConstantFq::SetUp() {
 
     ngraph::element::Type precision;
     std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
     std::tie(precision, shapes, targetDevice, param) = this->GetParam();
 

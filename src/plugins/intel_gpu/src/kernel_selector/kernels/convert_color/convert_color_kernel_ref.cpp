@@ -19,8 +19,8 @@ ParamsKey ConvertColorKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
 
     k.EnableInputLayout(DataLayout::nv12);
-    k.EnableInputLayout(DataLayout::byxf);
-    k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
 
     k.EnableDifferentTypes();
     k.EnableTensorOffset();

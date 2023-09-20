@@ -34,7 +34,8 @@ Generator::LoweringResult Generator::generate(lowered::LinearIR& linear_ir, cons
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     auto loops2DKernel = std::make_shared<op::Kernel>(linear_ir);
     loops2DKernel->compile_params = compile_params;
-    std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernel);
+    auto loops2DKernelExpr = linear_ir.create_expression(loops2DKernel, std::vector<lowered::PortConnectorPtr>{});
+    std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernelExpr);
 
     kernel->emit_code({}, {});
 

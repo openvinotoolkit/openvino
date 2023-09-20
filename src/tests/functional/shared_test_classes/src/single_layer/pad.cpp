@@ -46,7 +46,7 @@ void PadLayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-    auto pad = ngraph::builder::makePad(paramOuts[0], padsBegin, padsEnd, argPadValue, padMode);
+    auto pad = CreatePadOp(paramOuts[0], padsBegin, padsEnd, argPadValue, padMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
     function = std::make_shared<ngraph::Function>(results, params, "pad");
 }

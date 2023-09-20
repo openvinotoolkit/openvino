@@ -17,7 +17,7 @@ struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
     using kernel_selector_t = kernel_selector::reshape_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::reshape_params, kernel_selector::reshape_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reshape_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reshape_impl>(*this);

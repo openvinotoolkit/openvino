@@ -9,7 +9,6 @@
 #include "common_test_utils/all_close.hpp"
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/test_tools.hpp"
-#include "ngraph/file_util.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -29,7 +28,7 @@ public:
         OPENVINO_ASSERT(input_pshape.compatible(shape),
                         "Provided input shape ",
                         shape,
-                        " is not compatible with nGraph function's expected input shape ",
+                        " is not compatible with OpenVINO model's expected input shape ",
                         input_pshape,
                         " for input ",
                         m_input_index);

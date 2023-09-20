@@ -33,7 +33,7 @@ void MultiplyWithOneParentTransformation::SetUp() {
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     MultiplyWithOneParentTransformationValues values;
     std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
 

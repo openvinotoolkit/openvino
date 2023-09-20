@@ -9,12 +9,12 @@
 #pragma once
 
 #include "emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov {
 namespace snippets {
-
-typedef std::pair<std::function<std::shared_ptr<Emitter>(const std::shared_ptr<ov::Node>&)>,
-        std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>&)>> jitters_value;
+typedef std::pair<std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)>,
+        std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)>> jitters_value;
 
 /**
  * @interface TargetMachine
@@ -46,30 +46,14 @@ public:
      * @brief called by generator to all the emitter for a target machine
      * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
      */
-    std::function<std::shared_ptr<Emitter>(const std::shared_ptr<Node>)> get(const ov::DiscreteTypeInfo& type) const {
-        auto jitter = jitters.find(type);
-        if (jitter == jitters.end()) {
-            OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
-        }
-        return jitter->second.first;
-    }
-
-    std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>&)>
-    get_supported_precisions(const ov::DiscreteTypeInfo type) const {
-        auto jitter = jitters.find(type);
-        if (jitter == jitters.end()) {
-            OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
-        }
-        return jitter->second.second;
-    }
+    std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> get(const ov::DiscreteTypeInfo& type) const;
+    std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)> get_supported_precisions(const ov::DiscreteTypeInfo& type) const;
 
     /**
      * @brief checks if emitter for a specific operation is supported
      * @return true, if supported
      */
-    bool has(const ov::DiscreteTypeInfo type) const {
-        return jitters.find(type) != jitters.end();
-    }
+    bool has(const ov::DiscreteTypeInfo& type) const;
     virtual ~TargetMachine() = default;
 
 protected:
