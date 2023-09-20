@@ -24,6 +24,7 @@
 #include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/transpose_sinking/ts_split.hpp"
 #include "transformations/transpose_sinking/ts_squeeze.hpp"
+#include "transformations/transpose_sinking/ts_tile.hpp"
 #include "transformations/transpose_sinking/ts_unary.hpp"
 #include "transformations/transpose_sinking/ts_unsqueeze.hpp"
 #include "transformations/utils/utils.hpp"
@@ -45,6 +46,7 @@ TSGeneralForward::TSGeneralForward() {
     add_matcher<TSGatherForward>();
     add_matcher<TSShapeOfForward>();
     add_matcher<TSCumSumForward>();
+    add_matcher<TSTileForward>();
     add_matcher<TSFuse>();
 }
 
@@ -62,6 +64,7 @@ TSGeneralBackward::TSGeneralBackward() {
     add_matcher<TSSliceBackward>();
     add_matcher<TSGatherBackward>();
     add_matcher<TSCumSumBackward>();
+    add_matcher<TSTileBackward>();
     add_matcher<TSFuse>();
 }
 
