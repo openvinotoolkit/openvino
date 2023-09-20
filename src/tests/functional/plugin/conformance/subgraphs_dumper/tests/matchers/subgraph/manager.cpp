@@ -100,7 +100,7 @@ TEST_F(ExtractorsManagerTest, is_subgraph) {
 
 TEST_F(ExtractorsManagerTest, match_with_in_info) {
     this->set_extractors(test_map);
-    std::map<std::string, InputInfo> test_in_info({{"test_parameter_0", InputInfo()}}), test_in_info_1({{"test_parameter_1", InputInfo(1, 2, true)}});
+    std::map<std::string, InputInfo> test_in_info({{"test_parameter_0", InputInfo()}}), test_in_info_1({{"test_parameter_1", InputInfo({}, 1, 2, true)}});
     ASSERT_NO_THROW(this->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info));
     ASSERT_TRUE(this->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info));
     ASSERT_NO_THROW(this->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_1));

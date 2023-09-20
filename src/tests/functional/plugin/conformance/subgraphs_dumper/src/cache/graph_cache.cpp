@@ -26,22 +26,31 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
                               bool from_cache) {
     std::cout << "[ INFO ][ GRAPH CACHE ] Processing model: " << model_meta_data << std::endl;
     auto model_total_op = model->get_ops().size() - model->get_output_size() - model->inputs().size();
-    // todo: not copy constants in case model bytesize > 16GB
-    bool is_not_large_model = model->get_graph_size() >> 34 == 0;
-    auto extracted_patterns = m_manager.extract(model, extract_body, is_not_large_model);
-    if (extracted_patterns.empty()) {
-        return;
+    if (from_cache) {
+        auto meta_path = ov::test::utils::replaceExt(model_meta_data, "meta");
+        auto meta = MetaInfo::read_meta_from_file(meta_path);
+        m_graph_cache.insert({ model, meta });
+        m_graph_cache_bytesize += model->get_graph_size();
+    } else {
+        // todo: not copy constants in case model bytesize > 16GB
+        bool is_not_large_model = model->get_graph_size() >> 34 == 0;
+        auto extracted_patterns = m_manager.extract(model, extract_body, is_not_large_model);
+        if (extracted_patterns.empty()) {
+            return;
+        }
+        while (!extracted_patterns.empty()) {
+            auto it = *extracted_patterns.begin();
+            update_cache(std::get<0>(it), model_meta_data, std::get<1>(it), std::get<2>(it), model_total_op);
+            extracted_patterns.pop_front();
+        }
     }
-    while (!extracted_patterns.empty()) {
-        auto it = *extracted_patterns.begin();
-        update_cache(std::get<0>(it), model_meta_data, std::get<1>(it), std::get<2>(it), model_total_op);
-        extracted_patterns.pop_front();
-    }
-    return;
 }
 
-void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model, const std::string& model_path,
-                              std::map<std::string, InputInfo>& input_info, const std::string& extractor_name, size_t model_op_cnt, bool from_cache) {
+void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
+                              const std::string& model_path,
+                              std::map<std::string, InputInfo>& input_info,
+                              const std::string& extractor_name,
+                              size_t model_op_cnt) {
     // todo: check the number 8GB
     if (m_graph_cache_bytesize >> 33 > 0) {
         std::cout << "[ GRAPH CACHE ][ WARNING ] Cache size > 8 GB. Serialize graph cache" << std::endl;
@@ -102,13 +111,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
     }
 
     if (model_to_update == nullptr) {
-        MetaInfo meta;
-        if (from_cache) {
-            auto meta_path = ov::test::utils::replaceExt(model_path, "meta");
-            meta = MetaInfo::read_meta_from_file(meta_path);
-        } else {
-            meta = MetaInfo(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);
-        }
+        MetaInfo meta = MetaInfo(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);
         m_graph_cache.insert({ extracted_model, meta });
         m_graph_cache_bytesize += extracted_model->get_graph_size();
         return;

@@ -56,9 +56,11 @@ protected:
         m_cache_subdir = "subgraph";
     }
 
-    void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_path,
-                      std::map<std::string, InputInfo>& input_info, const std::string& extractor_name,
-                      size_t model_op_cnt, bool from_cache = false);
+    void update_cache(const std::shared_ptr<ov::Model>& model,
+                      const std::string& model_path,
+                      std::map<std::string, InputInfo>& input_info,
+                      const std::string& extractor_name,
+                      size_t model_op_cnt);
 };
 
 }  // namespace subgraph_dumper

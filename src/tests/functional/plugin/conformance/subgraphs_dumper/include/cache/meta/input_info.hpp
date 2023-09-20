@@ -52,19 +52,21 @@ struct InputInfo {
               min_shape(shape) {}
 
     bool operator==(const InputInfo& input_info_ref) const {
-        return this->is_const == input_info_ref.is_const && this->ranges == input_info_ref.ranges;
+        return this->is_const == input_info_ref.is_const &&
+               this->ranges == input_info_ref.ranges &&
+               this->max_shape == input_info_ref.max_shape &&
+               this->min_shape == input_info_ref.min_shape;
     }
 
-    InputInfo operator=(const InputInfo& input_info) const {
-        InputInfo result(*this);
-        result.ranges = input_info.ranges;
-        if (ov::shape_size(result.max_shape.get_max_shape()) < ov::shape_size(input_info.max_shape.get_max_shape())) {
-            result.max_shape = input_info.max_shape;
+    InputInfo operator=(const InputInfo& input_info) {
+        this->ranges = input_info.ranges;
+        if (ov::shape_size(this->max_shape.get_max_shape()) < ov::shape_size(input_info.max_shape.get_max_shape())) {
+            this->max_shape = input_info.max_shape;
         }
-        if (ov::shape_size(result.min_shape.get_min_shape()) > ov::shape_size(input_info.min_shape.get_min_shape())) {
-            result.min_shape = input_info.min_shape;
+        if (ov::shape_size(this->min_shape.get_min_shape()) > ov::shape_size(input_info.min_shape.get_min_shape())) {
+            this->min_shape = input_info.min_shape;
         }
-        return result;
+        return *this;
     }
 };
 

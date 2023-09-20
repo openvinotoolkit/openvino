@@ -53,9 +53,11 @@ double MetaInfo::get_graph_priority() {
 inline ov::PartialShape str_to_ov_shape(std::string str) {
     str = str.replace(str.find('['), 1, "");
     str = str.replace(str.find(']'), 1, "");
+
     std::vector<size_t> shape_vec;
-    auto pos = str.find('.');
+    size_t pos = 0;
     do {
+        pos = str.find('.');
         std::string dim_str = str.substr(0, pos);
         shape_vec.push_back(atoi(dim_str.c_str()));
         str = str.replace(0, dim_str.length() + 1, "");
