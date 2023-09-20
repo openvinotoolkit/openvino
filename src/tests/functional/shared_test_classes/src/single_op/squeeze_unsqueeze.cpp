@@ -43,7 +43,7 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     ov::test::utils::SqueezeOpType op_type;
     std::tie(shape_item, op_type, model_type, targetDevice) = GetParam();
     std::tie(input_shapes, axes) = shape_item;
-    
+
     init_input_shapes(input_shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

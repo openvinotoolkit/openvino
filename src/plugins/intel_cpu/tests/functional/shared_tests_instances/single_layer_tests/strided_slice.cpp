@@ -143,12 +143,12 @@ auto ss_test_cases = [](const std::vector<RawParams>& raw_test_cases) {
         for (const auto& raw_case : raw_test_cases)
                 cases.push_back(ov::test::StridedSliceSpecificParams{
                                 ov::test::static_shapes_to_test_representation(raw_case.input_shape),
-                                raw_case.begin, 
-                                raw_case.end, 
-                                raw_case.strides, 
+                                raw_case.begin,
+                                raw_case.end,
+                                raw_case.strides,
                                 raw_case.begin_mask,
-                                raw_case.end_mask, 
-                                raw_case.new_axis_mask, 
+                                raw_case.end_mask,
+                                raw_case.new_axis_mask,
                                 raw_case.shrink_axis_mask,
                                 raw_case.ellipsis_axis_mask});
         return cases;
@@ -159,8 +159,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Combine(
             ::testing::ValuesIn(ss_test_cases),
             ::testing::Values(ov::element::f32),
-            ::testing::Values(ov::test::utils::DEVICE_CPU)
-        ),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
         StridedSliceLayerTest::getTestCaseName);
 
 }  // namespace

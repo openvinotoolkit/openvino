@@ -34,7 +34,7 @@ auto combined_empty_axes = ov::test::utils::combineParams(raw_empty_axes);
 auto prepare_cases = [](const std::vector<std::pair<std::vector<ov::Shape>, std::vector<int>>>& raw_axes) {
         std::vector<std::pair<std::vector<ov::test::InputShape>, std::vector<int>>> cases;
         for (const auto& raw_case : raw_axes)
-                cases.emplace_back(ov::test::static_shapes_to_test_representation(raw_case.first), 
+                cases.emplace_back(ov::test::static_shapes_to_test_representation(raw_case.first),
                                    raw_case.second);
         return cases;
 };
@@ -63,7 +63,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
 INSTANTIATE_TEST_SUITE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(empty_axes),
-                                ::testing::Values( ov::test::utils::SqueezeOpType::SQUEEZE),
+                                ::testing::Values(ov::test::utils::SqueezeOpType::SQUEEZE),
                                 ::testing::ValuesIn(model_types),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
