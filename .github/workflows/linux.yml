@@ -942,3 +942,8 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'
+
+      - name: Available storage after tests
+        run:  |
+          echo "Available storage:"
+          df -h
