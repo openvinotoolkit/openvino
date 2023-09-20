@@ -23,17 +23,19 @@ namespace multinomial {
 template <typename INPUT_T, typename SAMPLES_T, typename OUTPUT_T>
 void multinomial(const INPUT_T* input,            // either vector or 2d matrix
                  const Shape& input_shape,        // either (x) or (x,y)
-                 const SAMPLES_T* num_samples,    // vector only
-                 const Shape& num_samples_shape,  // (n), n<=c (c - count of positive values from input, if input is
-                                                  // vector - from whole input, else from each row)
-                 OUTPUT_T* output,                // if input == vector: (n) else: (x, n)
-                 const Shape& output_shape,       // (n) or (x, n)
+                 const SAMPLES_T* num_samples,    // one-element scalar / vector only with value n
+                                                  // with n<=c (c - count of positive values from input 
+                                                  // if input is a vector - from whole array
+                                                  // otherwise from each channel)
+                 const Shape& num_samples_shape,  // (1) 
+                 OUTPUT_T* output,                // either vector or 2d matrix
+                 const Shape& output_shape,       // (n) if input == vector else (x, n)
                  const bool with_replacement,
                  const bool log_probs,
                  const int64_t global_seed = 0,
                  const int64_t op_seed = 0,
-                 const bool validate_args = false  // validate input_shape, num_samples_shape, output_shape, !log_probs
-                                                   // => sum per channel == 1, non-zero elements count >= num_samples
+                 const bool validate_args = false  // validate !log_probs => sum per channel == 1,
+                                                   // non-zero elements count >= num_samples
 ) {
     Shape deduced_output_shape;
     if (input_shape.size() > 1) {

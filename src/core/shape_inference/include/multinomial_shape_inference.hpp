@@ -29,33 +29,25 @@ std::vector<TRShape> shape_infer(const Multinomial* op,
                            num_samples_shape.compatible(TRShape{}) || num_samples_shape.compatible(TRShape{1}),
                            "Number of samples must be a scalar or one element 1D tensor.");
 
-    if (const auto& num_samples_value = get_input_const_data_as<TRShape, int64_t>(op, 1, ta)) {
+    const auto& num_samples_value = get_input_const_data_as<TRShape, int64_t>(op, 1, ta);
+    ov::Dimension num_samples_dim;
+    if (num_samples_value) {
         NODE_VALIDATION_CHECK(op,
                               num_samples_value->front() >= 0,
                               "Number of samples must be non-negative. Got number of samples: ",
                               num_samples_value->front());
+        num_samples_dim = ov::Dimension(num_samples_value->front());
+    } else {
+        num_samples_dim = ov::Dimension::dynamic();
     }
 
     auto output_shapes = std::vector<TRShape>(1);
     auto& result_shape = output_shapes[0];
     if (input_shape.rank().compatible(1)) {
-        ov::optional<ov::PartialShape> out_shape = get_input_const_data_as_shape<TRShape>(op, 1, ta);
-        if (out_shape) {
-            result_shape = PartialShape{(*out_shape)[0]};
-            // result_shape.push_back(std::move((*out_shape)[0]));
-        } else if (std::is_same<TRShape, PartialShape>::value) {
-            result_shape = PartialShape::dynamic(num_samples_shape.rank().is_static() ? 1 : Rank::dynamic());
-        }
+        result_shape = ov::PartialShape({num_samples_dim});
     } else if (input_shape.rank().compatible(2)) {
-        ov::optional<ov::PartialShape> x_shape = get_input_const_data_as_shape<TRShape>(op, 0, ta);
-        ov::optional<ov::PartialShape> num_values_shape = get_input_const_data_as_shape<TRShape>(op, 1, ta);
-        if (x_shape && num_values_shape) {
-            result_shape = PartialShape{(*x_shape)[0], (*num_values_shape)[0]};
-            // result_shape.push_back(std::move((*x_shape)[0]));
-            // result_shape.push_back(std::move((*num_values_shape)[0]));
-        } else if (std::is_same<TRShape, PartialShape>::value) {
-            result_shape = PartialShape::dynamic(input_shape.rank().is_static() ? 2 : Rank::dynamic());
-        }
+        ov::Dimension input_dim(input_shape[0]);
+        result_shape = ov::PartialShape({input_dim, num_samples_dim});
     }
 
     return output_shapes;
