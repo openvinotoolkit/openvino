@@ -27,14 +27,23 @@ struct BranchNodes {
 };
 
 BranchNodes makeBranch(const MultiplyBranch& branch) {
-    const std::shared_ptr<Node> parent = branch.constant.empty() ?
+    std::shared_ptr<Node> parent = branch.constant.empty() ?
         std::make_shared<ngraph::opset1::Parameter>(branch.input_precision, branch.inputShape) :
         std::dynamic_pointer_cast<Node>(std::make_shared<ngraph::opset1::Constant>(
             branch.constant.outPrecision,
             branch.constant.shape,
             branch.constant.values));
 
+    if (!branch.fake_quantize.empty()) {
+        if ((parent->get_output_element_type(0) != element::f32) &&
+            (parent->get_output_element_type(0) != element::f16)) {
+            throw std::runtime_error("unexpected precision before FakeQuantize");
+        }
+        parent = makeFakeQuantize(parent, parent->get_output_element_type(0), branch.fake_quantize);
+    }
+
     const auto dequantization = makeDequantization(parent, branch.dequantization);
+
     return {parent, dequantization};
 }
 } // namespace multiply_function

@@ -20,13 +20,19 @@ public:
     MultiplyBranch(const PartialShape& inputShape,
                    const ngraph::builder::subgraph::Constant& constant,
                    const ngraph::element::Type& input_precision,
-                   const ngraph::builder::subgraph::DequantizationOperations& dequantization)
-                   : inputShape(inputShape), constant(constant), input_precision(input_precision), dequantization(dequantization) {}
+                   const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+                   const ngraph::builder::subgraph::FakeQuantizeOnData& fake_quantize)
+                   : inputShape(inputShape),
+                     constant(constant),
+                     input_precision(input_precision),
+                     dequantization(dequantization),
+                     fake_quantize(fake_quantize) {}
 
     PartialShape inputShape;
     ngraph::builder::subgraph::Constant constant;
     ngraph::element::Type input_precision;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
+    ngraph::builder::subgraph::FakeQuantizeOnData fake_quantize;
 };
 
 class MultiplyValues {

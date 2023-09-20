@@ -22,7 +22,8 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 
-MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {
+MultiplyTransformation::MultiplyTransformation(const Params& params) :
+    WeightableLayerTransformation(params, CanBeTransformedParams(false, false, false, true)) {
     MATCHER_SCOPE(MultiplyTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
 
@@ -44,36 +45,21 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
         return false;
     }
 
+    multiply = NetworkHelper::separateInStandaloneBranch(multiply, defaultPrecisions);
+    decomposeFakeQuantizeForWeightsPath(multiply);
+
     NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 0));
     NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 1));
 
-    multiply = NetworkHelper::separateInStandaloneBranch(multiply, defaultPrecisions);
-    auto newMultiply = multiply;
+    const auto dequantization1 = NetworkHelper::getDequantization(multiply, defaultPrecisions, 0);
+    const auto dequantization2 = NetworkHelper::getDequantization(multiply, defaultPrecisions, 1);
 
-    auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
-        auto fakeQuantizeOnWeights = ov::as_type_ptr<ov::opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
-        if (fakeQuantizeOnWeights != nullptr) {
-            auto result = NetworkHelper::fold_fake_quantize(fakeQuantizeOnWeights);
-            if (ov::is_type<ov::opset1::Constant>(result)) {
-                replace_node(fakeQuantizeOnWeights, result);
-            }
-        }
-    };
-
-    fold_fake_quantizes(multiply, 0ul);
-    fold_fake_quantizes(multiply, 1ul);
-
-    const auto dequantization1 = NetworkHelper::foldDequantization(multiply, 0, defaultPrecisions);
-    const auto dequantization2 = NetworkHelper::foldDequantization(multiply, 1, defaultPrecisions);
     if ((dequantization1.multiplyConstant == nullptr) && (dequantization2.multiplyConstant == nullptr)) {
         return false;
     }
 
-    // before: Y = (SC1 * (X1 - SH1)) * (SC2 * (X2 - SH2))
-    // after : Y = (SC1' * X1` * X2`) , where :
-    //         X1` = X1 - SH1
-    //         X2` = X2 - SH2
-    //         SC1' = SC1 * SC2
+    // before: y = (deq_scales1 * (x1 - zero_point1)) * (deq_scales2 * (x2 - zero_point2))
+    // after : y = deq_scales1 * deq_scales2 * (x1 - zero_point1) * (x2 - zero_point2)
 
     if ((dequantization1.empty() && (ov::is_type<ov::opset1::Constant>(dequantization1.data.get_node()))) ||
         (dequantization2.empty() && (ov::is_type<ov::opset1::Constant>(dequantization2.data.get_node())))) {
@@ -86,19 +72,22 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
             return false;
         }
 
-        const Output<Node> in1 = dequantization1.empty() ?
-            new_scales_values :
-            dequantization1.subtract == nullptr ?
-                dequantization1.data :
-                NetworkHelper::optimizeSubtract(dequantization1.subtract);
+        const auto create_input = [&new_scales_values](const FakeQuantizeDequantization& dequantization) -> Output<Node> {
+            if (dequantization.empty()) {
+                return new_scales_values;
+            }
 
-        const Output<Node> in2 = dequantization2.empty() ?
-            new_scales_values :
-            dequantization2.subtract == nullptr ?
-                dequantization2.data :
-                NetworkHelper::optimizeSubtract(dequantization2.subtract);
+            if (dequantization.subtract == nullptr) {
+                return dequantization.data;
+            }
 
-        auto const new_multiply = (in1.get_element_type() == multiply->get_output_element_type(0)) &&
+            const auto subtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
+            return subtract == nullptr ? dequantization.data : subtract;
+        };
+        const Output<Node> in1 = create_input(dequantization1);
+        const Output<Node> in2 = create_input(dequantization2);
+
+        const auto new_multiply = (in1.get_element_type() == multiply->get_output_element_type(0)) &&
                                   (in2.get_element_type() == multiply->get_output_element_type(0)) ?
             std::make_shared<ov::opset1::Multiply>(in1, in2) :
             std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
@@ -136,8 +125,6 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
             ov::op::TemporaryReplaceOutputType(in1, deqPrecision).get(),
             ov::op::TemporaryReplaceOutputType(in2, deqPrecision).get());
 
-    NetworkHelper::copyInfo(multiply, newMultiply);
-
     auto new_scales = (new_multiply->get_output_element_type(0) == multiply->get_output_element_type(0)) &&
                       (new_scales_values->get_output_element_type(0) == multiply->get_output_element_type(0)) ?
         std::make_shared<ov::opset1::Multiply>(new_multiply, new_scales_values) :
@@ -146,27 +133,16 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
             multiply->get_output_element_type(0));
 
     replace_node(multiply, new_scales);
-    updateOutput(context, new_scales, multiply);
+    const auto was_updated = updateOutput(context, new_scales, multiply);
+    NetworkHelper::copyInfo(multiply, new_multiply, !was_updated);
 
     return true;
 }
 
-bool MultiplyTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, defaultPrecisions, 0ul);
-    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, defaultPrecisions, 1ul);
-
-    if (dequantization1.data.get_node() == nullptr || dequantization2.data.get_node() == nullptr) {
-        return false;
-    }
-
-    const bool nonConstantData = !ov::is_type<ov::opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
-                                 !ov::is_type<ov::opset1::Constant>(dequantization2.data.get_node_shared_ptr());
-
-    if (((dequantization1.empty() || dequantization2.empty()) && nonConstantData)) {
-        return false;
-    }
-
-    return EltwiseBaseTransformation::canBeTransformed(context, layer);
+size_t MultiplyTransformation::getInputChannels(const std::shared_ptr<ov::Node> op) const {
+    const auto channels = op->get_input_partial_shape(1)[1];
+    assert(channels.is_static());
+    return channels.get_length();
 }
 
 } // namespace low_precision

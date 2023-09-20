@@ -32,15 +32,23 @@ public:
     ngraph::builder::subgraph::Constant constant;
     ngraph::element::Type input_precision;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
+    ngraph::builder::subgraph::FakeQuantizeOnData fake_quantize;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MultiplyBranch& branch) {
-    if (branch.constant.empty()) {
+    if (branch.input_precision != element::undefined) {
         out << "_input=" << branch.input_precision;
-    } else {
+    }
+    if (!branch.constant.empty()) {
         out << "_constant=" << branch.constant;
     }
-    return out << "_" << branch.dequantization;
+    if (!branch.dequantization.empty()) {
+        out << "_dequantization=" << branch.dequantization;
+    }
+    if (!branch.fake_quantize.empty()) {
+        out << "_fake_quantize=" << branch.constant;
+    }
+    return out;
 }
 
 class MultiplyValues {
@@ -105,24 +113,20 @@ public:
         const auto to_multiply_values = [&input_shapes, &input_precisions](const MultiplyValues& values) {
             return ngraph::builder::subgraph::MultiplyValues(
                 ngraph::builder::subgraph::MultiplyBranch(
-                    input_shapes.first, values.branch1.constant, input_precisions.first, values.branch1.dequantization),
+                    input_shapes.first, values.branch1.constant, input_precisions.first, values.branch1.dequantization, values.branch1.fake_quantize),
                 ngraph::builder::subgraph::MultiplyBranch(
-                    input_shapes.second, values.branch2.constant, input_precisions.second, values.branch2.dequantization),
+                    input_shapes.second, values.branch2.constant, input_precisions.second, values.branch2.dequantization, values.branch2.fake_quantize),
                 ngraph::builder::subgraph::DequantizationOperations(values.after_dequantization));
         };
 
-        actualFunction = MultiplyFunction::get(
-            model_precision,
-            to_multiply_values(testParams.actual));
+        actualFunction = MultiplyFunction::get(model_precision, to_multiply_values(testParams.actual));
 
         SimpleLowPrecisionTransformer transform({}, {}, AttributeParameters(), true);
         transform.add<ov::pass::low_precision::MultiplyTransformation, ov::op::v1::Multiply>(testParams.transformationParams);
         transform.cleanup->get_pass_config()->disable<ov::pass::low_precision::MultiplyToGroupConvolutionTransformation>();
         transform.transform(actualFunction);
 
-        referenceFunction = MultiplyFunction::get(
-            model_precision,
-            to_multiply_values(testParams.expected));
+        referenceFunction = MultiplyFunction::get(model_precision, to_multiply_values(testParams.expected));
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
@@ -163,21 +167,20 @@ private:
     // low precision has to be defined by tests parameters
     static void update_input_precisions(const std::pair<ov::element::Type, ov::element::Type>& input_precisions,
                                         MultiplyTransformationTestValues& test_values) {
-        const auto update_values = [](const std::pair<ov::element::Type, ov::element::Type>& input_precisions,
-                                      MultiplyValues& values) {
-            const auto update_branch = [&input_precisions](MultiplyBranch& branch) {
+        const auto update_values = [](const std::pair<ov::element::Type, ov::element::Type>& input_precisions, MultiplyValues& values) {
+            const auto update_branch = [](const ov::element::Type& input_precision, MultiplyBranch& branch) {
                 if (branch.input_precision == MultiplyTransformationTestValues::input_precision) {
-                    branch.input_precision = input_precisions.first;
+                    branch.input_precision = input_precision;
                 }
 
                 if (!branch.constant.empty() &&
                     (branch.constant.outPrecision == MultiplyTransformationTestValues::input_precision)) {
-                    branch.constant.outPrecision = input_precisions.first;
+                    branch.constant.outPrecision = input_precision;
                 }
             };
 
-            update_branch(values.branch1);
-            update_branch(values.branch2);
+            update_branch(input_precisions.first, values.branch1);
+            update_branch(input_precisions.second, values.branch2);
         };
 
         update_values(input_precisions, test_values.actual);
@@ -198,6 +201,79 @@ const std::vector<ov::element::Type> model_precisions = {
     ov::element::f16
 };
 
+const std::vector<std::pair<PartialShape, PartialShape>> input_shapes = {
+        {{ 1, 3, 8, 16 }, { 1, 3, 8, 16 }},
+        {{ 1, 3, 8, 16 }, { 1, 3, 1, 1 }},
+        {{ 1, 3, 1, 1 }, { 1, 3, 8, 16 }},
+        {
+            { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+            { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
+        },
+        {
+            { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+            { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
+        }
+};
+
+namespace multiply_channel_fq {
+    const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
+        { ov::element::u8, ov::element::f32 },
+        { ov::element::u8, ov::element::f16 },
+        { ov::element::i8, ov::element::f32 },
+        { ov::element::i8, ov::element::f16 }
+    };
+
+    const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
+        {
+            LayerTransformation::createParamsU8I8(),
+            {
+                {
+                    {},
+                    MultiplyTransformationTestValues::input_precision,
+                    {ov::element::f32, { 2.f }, { 10.f }}
+                },
+                {
+                    {{ 0.f, 1.27f, 2.55f }, MultiplyTransformationTestValues::input_precision, ov::Shape{1, 3, 1, 1}}, // Constant as input,
+                    {},
+                    {},
+                    {
+                        256,
+                        ov::Shape{1, 3, 1, 1},
+                        {0.f, 0.f, 0.f},
+                        {2.55f, 2.55f, 2.55f},
+                        {0.f, 0.f, 0.f},
+                        {2.55f, 2.55f, 2.55f},
+                        MultiplyTransformationTestValues::input_precision
+                    } // FakeQuantize
+                },
+            },
+            {
+                {
+                    {},
+                    MultiplyTransformationTestValues::input_precision,
+                    {{}, {{2.f}, ov::element::f32}, {}}
+                },
+                {
+                    {{ 0, 127, 255 }, ov::element::u8, ov::Shape{1, 3, 1, 1}}, // Constant as input,
+                    {},
+                    {}
+                },
+                {{}, {}, {{0.1f, 0.1f, 0.1f}}}
+            },
+        },
+    };
+
+    INSTANTIATE_TEST_SUITE_P(
+        smoke_LPT,
+        MultiplyTransformation,
+        ::testing::Combine(
+            ::testing::ValuesIn(model_precisions),
+            ::testing::ValuesIn(input_shapes),
+            ::testing::ValuesIn(input_precisions),
+            ::testing::ValuesIn(multiplyTransformationTestValues)),
+        MultiplyTransformation::getTestCaseName);
+} // namespace multiply_channel_fq
+
 const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
     { ov::element::u8, ov::element::u8 },
     { ov::element::i8, ov::element::i8 },
@@ -207,21 +283,7 @@ const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisi
     { ov::element::f16, ov::element::f16 },
 };
 
-namespace broadcast_no {
-const std::vector<std::pair<PartialShape, PartialShape>> input_shapes = {
-    {{ 1, 3, 8, 16 }, { 1, 3, 8, 16 }},
-    {{ 1, 3, 8, 16 }, { 1, 3, 1, 1 }},
-    {{ 1, 3, 1, 1 }, { 1, 3, 8, 16 }},
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
-    },
-    {
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
-    }
-};
-
+namespace multiply_channel {
 const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
     {
         LayerTransformation::createParamsU8I8(),
@@ -273,10 +335,11 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
                 {{}, {{2.f}, ov::element::f32}, {}}
             },
             {
-                {{ 280.f, 350.f, 420.f }, ov::element::f32, ov::Shape{1, 3, 1, 1}}, // Constant as input,
+                {{ 7.f, 8.f, 9.f }, MultiplyTransformationTestValues::input_precision, ov::Shape{1, 3, 1, 1}}, // Constant as input,
                 {},
-                {}
-            }
+                {{}, {{3.f}, ov::element::f32}, {}}
+            },
+            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
         }
     },
 
@@ -296,15 +359,16 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
         },
         {
             {
-                {{ 280.f, 350.f, 420.f }, ov::element::f32, ov::Shape{1, 3, 1, 1}}, // Constant as input,
+                {{ 7.f, 8.f, 9.f }, MultiplyTransformationTestValues::input_precision, ov::Shape{1, 3, 1, 1}}, // Constant as input,
                 {},
-                {}
+                {{}, {{3.f}, ov::element::f32}, {}}
             },
             {
                 {},
                 MultiplyTransformationTestValues::input_precision,
                 {{}, {{2.f}, ov::element::f32}, {}}
-            }
+            },
+            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
         }
     },
 
@@ -434,7 +498,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(input_precisions),
         ::testing::ValuesIn(multiplyTransformationTestValues)),
     MultiplyTransformation::getTestCaseName);
-} // namespace broadcast_no
+} // namespace multiply_channel
 
 namespace broadcast_right {
 const std::vector<std::pair<PartialShape, PartialShape>> input_shapes = {
