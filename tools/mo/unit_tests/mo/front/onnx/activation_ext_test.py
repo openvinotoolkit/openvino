@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
-
 import numpy as np
 import onnx
+import pytest
 
 import openvino.tools.mo.front.onnx.activation_ext as extractors
 from openvino.tools.mo.ops.activation_ops import Elu
@@ -14,7 +13,7 @@ from unit_tests.utils.extractors import PB
 from unit_tests.utils.graph import build_graph
 
 
-class ActivationOpsONNXExtractorTest(unittest.TestCase):
+class TestActivationOpsONNXExtractorTest():
     @staticmethod
     def _create_node(op_name: str):
         pb = onnx.helper.make_node(op_name, ["X"], ["Y"])
@@ -35,26 +34,25 @@ class ActivationOpsONNXExtractorTest(unittest.TestCase):
             status = out[key] == ref[key]
             if type(status) in [list, np.ndarray]:
                 status = np.all(status)
-            self.assertTrue(status, 'Mismatch for field {}, observed: {}, expected: {}'.format(key, out[key], ref[key]))
+            assert status, f"Mismatch for field {key}, observed: {out[key]}, expected: {ref[key]}"
 
     @staticmethod
     def _extract(op_name):
         node = __class__._create_node(op_name)
         getattr(extractors, op_name + 'Extractor').extract(node)
         return node.graph.node[node.id]
-    def test_default(self):
-        test_cases= ['Abs', 'Acos', 'Asin', 'Atan', 'Acosh', 'Asinh', 'Atanh', 'Cos', 'Cosh', 'Erf', 'Exp', 'Floor', 'Log', 'Not', 'Sigmoid', 'Sin',
-                'Sinh', 'Tan', 'Tanh']
-        for idx, (op_name) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                ref = self._base_attrs(op_name)
-                if ref['op'] == 'Not':
-                    ref['op'] = 'LogicalNot'
-                out = self._extract(op_name)
-                self._match(out, ref)
+
+    @pytest.mark.parametrize("op_name",['Abs', 'Acos', 'Asin', 'Atan', 'Acosh', 'Asinh', 'Atanh', 'Cos', 'Cosh', 'Erf', 'Exp', 'Floor', 'Log', 'Not', 'Sigmoid', 'Sin',
+                'Sinh', 'Tan', 'Tanh'])
+    def test_default(self, op_name):
+        ref = self._base_attrs(op_name)
+        if ref['op'] == 'Not':
+            ref['op'] = 'LogicalNot'
+        out = self._extract(op_name)
+        self._match(out, ref)
 
 
-class TestEluONNXExt(unittest.TestCase):
+class TestEluONNXExt():
     @staticmethod
     def _create_elu_node(alpha=1.0):
         pb = onnx.helper.make_node(
@@ -70,18 +68,16 @@ class TestEluONNXExt(unittest.TestCase):
     def setUpClass(cls):
         Op.registered_ops['Elu'] = Elu
 
-    def test_elu_ext(self):
-        test_cases=[1.0, 2.0, 3.0]
-        for idx, (alpha) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                node = self._create_elu_node(alpha)
-                extractors.EluExtractor.extract(node)
+    @pytest.mark.parametrize("alpha",[1.0, 2.0, 3.0])
+    def test_elu_ext(self, alpha):
+        node = self._create_elu_node(alpha)
+        extractors.EluExtractor.extract(node)
 
-                exp_res = {
-                    'type': 'Elu',
-                    'alpha': alpha,
-                    'infer': Elu.infer
-                }
+        exp_res = {
+            'type': 'Elu',
+            'alpha': alpha,
+            'infer': Elu.infer
+        }
 
-                for key in exp_res.keys():
-                    self.assertEqual(node[key], exp_res[key])
+        for key in exp_res.keys():
+            assert node[key] == exp_res[key]
