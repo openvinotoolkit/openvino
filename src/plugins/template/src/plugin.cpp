@@ -29,7 +29,7 @@ ov::template_plugin::Plugin::Plugin() {
     // TODO: fill with actual device name, backend engine
     set_device_name("TEMPLATE");
 
-    // create ngraph backend which performs inference using ngraph reference implementations
+    // create backend which performs inference using openvino reference implementations
     m_backend = ov::runtime::Backend::create();
 
     // create default stream executor with a given name
@@ -177,9 +177,9 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
             // 1. It is needed to apply all transformations as it is done in compile_model
             transform_model(model);
         },
-        [&](std::shared_ptr<ngraph::Node> node) {
+        [&](std::shared_ptr<ov::Node> node) {
             // 2. Сheck whether node is supported
-            ngraph::OpSet op_super_set;
+            ov::OpSet op_super_set;
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) op_super_set.insert<NAMESPACE::NAME>();
         // clang-format off
 #include "openvino/opsets/opset1_tbl.hpp"
