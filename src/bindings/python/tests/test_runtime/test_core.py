@@ -88,12 +88,12 @@ def test_compile_model(request, tmp_path, device_name):
     assert isinstance(compiled_model, CompiledModel)
 
 
-@pytest.fixture
+@pytest.fixture()
 def get_model():
     return get_relu_model()
 
 
-@pytest.fixture
+@pytest.fixture()
 def get_model_path(request, tmp_path):
     xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
     serialize(get_relu_model(), xml_path)
