@@ -29,20 +29,26 @@ bool isfinite(T x) {
     return std::isfinite(static_cast<float>(x));
 }
 
-///
-/// \brief      Performs one element summation based on Kahan algorithm to
-/// significantly reduce
-///             the numerical error.
-///
-/// \param[in]  elem            Element to add into the accumulator.
-/// \param      compensation    Variable that accumulates the error.
-/// \param      sum             Result of compensated summation.
-///
+/**
+ * @brief Performs one element summation based on Kahan algorithm to significantly reduce (integral types).
+ *
+ * @param in        Value to add with previous value of summation.
+ * @param prev_sum  Previous value of summation (accumulator).
+ * @return Compensate sum.
+ */
 template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 constexpr T kahan_summation(const T in, const T prev_sum, T&) {
     return in + prev_sum;
 }
 
+/**
+ * @brief Performs one element summation based on Kahan algorithm to significantly reduce (floating point types).
+ *
+ * @param in            Value to add with previous value of summation.
+ * @param prev_sum      Previous value of summation (accumulator).
+ * @param compensation  Accumulates the summation error.
+ * @return Compensate sum.
+ */
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T kahan_summation(const T in, const T prev_sum, T& compensation) {
     if (isfinite(in) && isfinite(prev_sum)) {
