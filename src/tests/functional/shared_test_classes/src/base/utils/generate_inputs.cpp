@@ -1064,12 +1064,12 @@ void fill_tensor(ov::Tensor& tensor, ColorFormat format) {
 }
 } // namespace color_conversion
 
-
 ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v8::I420toRGB>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    if (node->inputs().size() > 1)
+    auto b_dim = static_cast<int>(targetShape[1] * 2 / (3 * targetShape[2]));
+    if (node->inputs().size() > 1 || b_dim < 2)
         return generate(std::static_pointer_cast<ov::Node>(node), port, elemType, targetShape);
     ov::Tensor tensor(elemType, targetShape);
     color_conversion::fill_tensor(tensor, color_conversion::ColorFormat::i420);
@@ -1081,7 +1081,8 @@ ov::runtime::Tensor generate(const
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    if (node->inputs().size() > 1)
+    auto b_dim = static_cast<int>(targetShape[1] * 2 / (3 * targetShape[2]));
+    if (node->inputs().size() > 1 || b_dim < 2)
         return generate(std::static_pointer_cast<ov::Node>(node), port, elemType, targetShape);
     ov::Tensor tensor(elemType, targetShape);
     color_conversion::fill_tensor(tensor, color_conversion::ColorFormat::i420);
@@ -1094,7 +1095,8 @@ ov::runtime::Tensor generate(const
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    if (node->inputs().size() > 1)
+    auto b_dim = static_cast<int>(targetShape[1] * 2 / (3 * targetShape[2]));
+    if (node->inputs().size() > 1 || b_dim < 2)
         return generate(std::static_pointer_cast<ov::Node>(node), port, elemType, targetShape);
     ov::Tensor tensor(elemType, targetShape);
     color_conversion::fill_tensor(tensor, color_conversion::ColorFormat::nv12);
@@ -1106,7 +1108,8 @@ ov::runtime::Tensor generate(const
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    if (node->inputs().size() > 1)
+    auto b_dim = static_cast<int>(targetShape[1] * 2 / (3 * targetShape[2]));
+    if (node->inputs().size() > 1 || b_dim < 2)
         return generate(std::static_pointer_cast<ov::Node>(node), port, elemType, targetShape);
     ov::Tensor tensor(elemType, targetShape);
     color_conversion::fill_tensor(tensor, color_conversion::ColorFormat::nv12);
@@ -1120,7 +1123,6 @@ ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   const ov::Shape& targetShape) {
     return generate(ngraph::as_type_ptr<T>(node), port, elemType, targetShape);
 }
-
 } // namespace
 
 InputsMap getInputMap() {

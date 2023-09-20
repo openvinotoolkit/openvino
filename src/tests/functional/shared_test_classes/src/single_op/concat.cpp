@@ -48,8 +48,8 @@ void ConcatLayerTest::SetUp() {
     }
 
     auto concat = std::make_shared<ov::op::v0::Concat>(params_nodes, axis);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
-    function = std::make_shared<ov::Model>(results, params, "concat");
+    auto result = std::make_shared<ov::op::v0::Result>(concat);
+    function = std::make_shared<ov::Model>(result, params, "concat");
 }
 }  // namespace test
 }  // namespace ov

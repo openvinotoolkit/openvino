@@ -30,11 +30,6 @@ const std::vector<ov::element::Type> types = {
     ov::element::f16,
     ov::element::f32,
     ov::element::f64,
-    // not supported
-    // ov::element::boolean,
-    // ov::element::u4,
-    // ov::element::i4,
-    // ov::element::u1,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest,

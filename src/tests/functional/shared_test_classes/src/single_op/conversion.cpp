@@ -11,15 +11,16 @@ std::map<ov::test::utils::ConversionTypes, std::string> conversionNames = {
     {ov::test::utils::ConversionTypes::CONVERT, "Convert"},
     {ov::test::utils::ConversionTypes::CONVERT_LIKE, "ConvertLike"}};
 }
+
 std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<ConversionParamsTuple>& obj) {
-    ov::test::utils::ConversionTypes conversionOpType;
-    ov::element::Type input_type, target_type;
+    ov::test::utils::ConversionTypes conversion_type;
+    ov::element::Type input_type, convert_type;
     std::string device_name;
     std::vector<InputShape> shapes;
-    std::tie(conversionOpType, shapes, input_type, target_type, device_name) =
+    std::tie(conversion_type, shapes, input_type, convert_type, device_name) =
         obj.param;
     std::ostringstream result;
-    result << "conversionOpType=" << conversionNames[conversionOpType] << "_";
+    result << "conversionOpType=" << conversionNames[conversion_type] << "_";
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
         result << ov::test::utils::partialShape2str({shapes[i].first}) << (i < shapes.size() - 1lu ? "_" : "");
@@ -33,16 +34,16 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
         result << "}_";
     }
     result << "inputPRC=" << input_type.get_type_name() << "_";
-    result << "targetPRC=" << target_type.get_type_name() << "_";
+    result << "targetPRC=" << convert_type.get_type_name() << "_";
     result << "trgDev=" << device_name;
     return result.str();
 }
 
 void ConversionLayerTest::SetUp() {
     ov::test::utils::ConversionTypes conversion_type;
-    ov::element::Type input_type, target_type;
+    ov::element::Type input_type, convert_type;
     std::vector<InputShape> shapes;
-    std::tie(conversion_type, shapes, input_type, target_type, targetDevice) = GetParam();
+    std::tie(conversion_type, shapes, input_type, convert_type, targetDevice) = GetParam();
     init_input_shapes(shapes);
 
     ov::ParameterVector params;
@@ -52,9 +53,9 @@ void ConversionLayerTest::SetUp() {
 
     std::shared_ptr<ov::Node> conversion;
     if (conversion_type == ov::test::utils::ConversionTypes::CONVERT) {
-        conversion = std::make_shared<ov::op::v0::Convert>(params.front(), target_type);
+        conversion = std::make_shared<ov::op::v0::Convert>(params.front(), convert_type);
     } else /*CONVERT_LIKE*/ {
-        auto like = std::make_shared<ov::op::v0::Constant>(target_type, ov::Shape{1});
+        auto like = std::make_shared<ov::op::v0::Constant>(convert_type, ov::Shape{1});
         conversion = std::make_shared<ov::op::v1::ConvertLike>(params.front(), like);
     }
 

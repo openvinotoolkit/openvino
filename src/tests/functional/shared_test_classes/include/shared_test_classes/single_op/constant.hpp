@@ -13,7 +13,7 @@
 namespace ov {
 namespace test {
 using constantParamsTuple = typename std::tuple<
-    ov::Shape,     // Constant data shape
+    ov::Shape,                   // Constant data shape
     ov::element::Type,           // Constant data precision
     std::vector<std::string>,    // Constant elements
     std::string>;                // Device name

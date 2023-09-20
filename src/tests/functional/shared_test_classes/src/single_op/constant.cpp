@@ -19,14 +19,15 @@ std::string ConstantLayerTest::getTestCaseName(
     ov::Shape shape;
     ov::element::Type model_type;
     std::vector<std::string> data_elements;
-    std::string targetName;
+    std::string target_device;
 
-    std::tie(shape, model_type, data_elements, targetName) = obj.param;
+    std::tie(shape, model_type, data_elements, target_device) = obj.param;
 
     std::ostringstream result;
     result << "TS={" << ov::test::utils::vec2str(shape) << "}_";
     result << "dataPRC=" << model_type.get_type_name() << "_";
     result << "dataValue=" << ov::test::utils::vec2str(getElements<5>(data_elements)) << "_";
+    result << "targetDevice=" << target_device << "_";
     return result.str();
 }
 
@@ -40,7 +41,7 @@ void ConstantLayerTest::SetUp() {
     auto constant = ov::op::v0::Constant::create(model_type, shape, data_elements);
     auto result = std::make_shared<ov::op::v0::Result>(constant);
 
-    function = std::make_shared<ngraph::Function>(result, ngraph::ParameterVector{}, "constant");
+    function = std::make_shared<ov::Model>(result, ov::ParameterVector{}, "constant");
 }
 }  // namespace test
 }  // namespace ov

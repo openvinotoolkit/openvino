@@ -11,7 +11,7 @@ namespace {
 using ov::test::ConvertColorNV12LayerTest;
 
 const std::vector<ov::Shape> in_shapes = {
-    {1, 20, 10, 1}
+    {1, 10, 10, 1}
 };
 
 auto generate_input_static_shapes = [] (const std::vector<ov::Shape>& original_shapes, bool single_plane) {
@@ -56,12 +56,12 @@ const auto test_case_values_not_single_plain = ::testing::Combine(
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12SinglePlain,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_1Plain,
                          ConvertColorNV12LayerTest,
                          test_case_values_single_plain,
                         ConvertColorNV12LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12NotSinglePlain,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_3Plains,
                          ConvertColorNV12LayerTest,
                          test_case_values_not_single_plain,
                          ConvertColorNV12LayerTest::getTestCaseName);

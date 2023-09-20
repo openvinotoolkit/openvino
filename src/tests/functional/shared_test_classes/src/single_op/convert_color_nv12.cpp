@@ -30,7 +30,7 @@ std::string ConvertColorNV12LayerTest::getTestCaseName(const testing::TestParamI
         }
         result << "}_";
     }
-    result << "netPRC=" << type.c_type_string() << "_";
+    result << "modelType=" << type.c_type_string() << "_";
     result << "convRGB=" << conversion << "_";
     result << "single_plane=" << single_plane << "_";
     result << "targetDevice=" << device_name;

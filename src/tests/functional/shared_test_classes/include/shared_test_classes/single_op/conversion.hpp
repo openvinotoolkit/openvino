@@ -13,9 +13,9 @@
 namespace ov {
 namespace test {
 using ConversionParamsTuple = typename std::tuple<ov::test::utils::ConversionTypes,  // Convertion op type
-                                                  std::vector<InputShape>,  // Input1 shapes
-                                                  ov::element::Type,        // Input1 precision
-                                                  ov::element::Type,        // Input2 precision
+                                                  std::vector<InputShape>,           // Input shapes
+                                                  ov::element::Type,                 // Input type
+                                                  ov::element::Type,                 // Convert type
                                                   std::string>;                      // Device name
 
 class ConversionLayerTest : public testing::WithParamInterface<ConversionParamsTuple>,
