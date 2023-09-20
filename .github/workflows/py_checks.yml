@@ -24,10 +24,8 @@ jobs:
   linters:
     runs-on: ubuntu-20.04
     steps:
-      - name: Code checkout
+      - name: Clone OpenVINO
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Setup Python
         uses: actions/setup-python@v4
