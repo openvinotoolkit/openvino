@@ -499,7 +499,15 @@ class TestParallelRunner:
                     interapted_tests.append(test_name)
                 log_file.close()
         test_list_runtime = set(self.__get_test_list_by_runtime())
+        logger.info(f"Excluded tests:")
+        [logger.info(f"{test}") for test in self._excluded_tests]
+        logger.info(f"Tests list expected:")
+        [logger.info(f"{test}") for test in test_list_runtime]
+        logger.info(f"Tests list actual")
+        [logger.info(f"{test}") for test in test_names]
         not_runned_tests = test_list_runtime.difference(test_names).difference(self._excluded_tests)
+        logger.info(f"Not runned tests:")
+        [logger.info(f"{test}") for test in not_runned_tests]
         interapted_tests = set(interapted_tests).difference(self._excluded_tests)
         return list(not_runned_tests), list(interapted_tests)
 
