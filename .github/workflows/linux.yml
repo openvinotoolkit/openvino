@@ -931,8 +931,7 @@ jobs:
           python3 -m pip cache purge
           echo "Available storage:"
           df -h
-          cd /
-          sudo du -h -d1 * | sort -h
+          sudo du -h -d1 / > ${{ env.INSTALL_TEST_DIR }}/du_before.txt
       - name: PyTorch Models Tests
         run: |
           export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -941,6 +940,12 @@ jobs:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
 
+      - name: Available storage after tests
+        run:  |
+          echo "Available storage:"
+          df -h
+          sudo du -h -d1 / > ${{ env.INSTALL_TEST_DIR }}/du_after.txt
+
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
@@ -948,11 +953,6 @@ jobs:
           name: test-results-torch-models
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/du_before.txt
+            ${{ env.INSTALL_TEST_DIR }}/du_after.txt
           if-no-files-found: 'error'
-
-      - name: Available storage after tests
-        run:  |
-          echo "Available storage:"
-          df -h
-          cd /
-          sudo du -h -d1 * | sort -h
