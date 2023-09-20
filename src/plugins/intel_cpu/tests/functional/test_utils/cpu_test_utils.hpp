@@ -84,13 +84,6 @@ namespace CPUTestUtils {
         ldgo = abcd,
     } cpu_memory_format_t;
 
-    using CPUSpecificParams =  std::tuple<
-        std::vector<cpu_memory_format_t>, // input memomry format
-        std::vector<cpu_memory_format_t>, // output memory format
-        std::vector<std::string>,         // priority
-        std::string                       // selected primitive type
-    >;
-
     enum class nodeType {
         convolution,
         convolutionBackpropData,
