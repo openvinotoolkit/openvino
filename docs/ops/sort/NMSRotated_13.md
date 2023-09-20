@@ -75,7 +75,7 @@ This algorithm is applied independently to each class of each batch element. The
 
 **Inputs**:
 
-*   **1**: ``boxes`` - tensor of type *T* and shape ``[num_batches, num_boxes, 5]`` with coordinates of the box center and rotation angle in radians. The box data is supplied as ``[x_center, y_center, width, height, angle]``, the coordinates of the center, width (x), height (y) and the angle in radians. **Required.**
+*   **1**: ``boxes`` - tensor of type *T* and shape ``[num_batches, num_boxes, 5]``. The box data is supplied as ``[x_center, y_center, width, height, angle]``, the coordinates of the center, width (x), height (y) and the angle in radians. **Required.**
 
 *   **2**: ``scores`` - tensor of type *T* and shape ``[num_batches, num_classes, num_boxes]`` with box scores. **Required.**
 
