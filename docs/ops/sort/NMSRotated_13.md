@@ -50,7 +50,8 @@ This algorithm is applied independently to each class of each batch element. The
     * *corner* - the box data is supplied as ``[x0, y0, x1, y1, x2, y2, x3, y3]``, the coordinates of the four corners of the box.
 
   * **Type**: string
-  * **Required**: *yes*
+  * **Default value**: "center"
+  * **Required**: *no*
 
 * *sort_result_descending*
 
@@ -60,14 +61,16 @@ This algorithm is applied independently to each class of each batch element. The
     * *true* - sort selected boxes across batches.
     * *false* - do not sort selected boxes across batches (boxes are sorted per class).
   * **Type**: boolean
-  * **Required**: *yes*
+  * **Default value**: true
+  * **Required**: *no*
 
 * *output_type*
 
   * **Description**: the output tensor type
   * **Range of values**: "i64" or "i32"
   * **Type**: string
-  * **Required**: *yes*
+  * **Default value**: "i64"
+  * **Required**: *no*
 
 * *clockwise*
 
@@ -77,7 +80,8 @@ This algorithm is applied independently to each class of each batch element. The
     * *true* - positive value of angle is clockwise.
     * *false* - positive value of angle is counter clockwise.
   * **Type**: boolean
-  * **Required**: *yes*
+  * **Default value**: true
+  * **Required**: *no*
 
 
 **Inputs**:
