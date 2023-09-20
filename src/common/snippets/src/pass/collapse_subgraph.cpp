@@ -188,7 +188,7 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [&n](descriptor::Tensor& t) -> bool {
         // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
         //  So i32 is supported exclusively for transposes and broadcast
-        return TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0 ||
+        return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
                 (t.get_element_type() == ov::element::i32 &&
                         (ov::is_type<const opset1::Transpose>(n) ||
                          ov::is_type<const opset1::Broadcast>(n)));
@@ -227,8 +227,11 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 }
 } // namespace
 
-const std::set<ov::element::Type> ov::snippets::pass::TokenizeSnippets::supported_element_types =
+const std::set<ov::element::Type> ov::snippets::pass::TokenizeSnippets::get_supported_element_types() {
+    static const std::set<ov::element::Type> supported_element_types =
         { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+    return supported_element_types;
+}
 
 bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
     return
