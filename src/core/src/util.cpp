@@ -21,65 +21,8 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/core/util.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
-
-std::vector<int64_t> ov::util::read_index_vector(const ov::Tensor& tensor) {
-    std::vector<int64_t> index_vec;
-    auto element_type = tensor.get_element_type();
-
-    auto data = tensor.data();
-    for (size_t i = 0; i < tensor.get_size(); i++) {
-        switch (element_type) {
-        case ov::element::boolean:
-            index_vec.push_back(static_cast<int64_t>(static_cast<char*>(data)[i]));
-            break;
-        case ov::element::bf16:
-            index_vec.push_back(static_cast<int64_t>(static_cast<ov::bfloat16*>(data)[i]));
-            break;
-        case ov::element::f16:
-            index_vec.push_back(static_cast<int64_t>(static_cast<ov::float16*>(data)[i]));
-            break;
-        case ov::element::f32:
-            index_vec.push_back(static_cast<int64_t>(static_cast<float*>(data)[i]));
-            break;
-        case ov::element::f64:
-            index_vec.push_back(static_cast<int64_t>(static_cast<double*>(data)[i]));
-            break;
-        case ov::element::i8:
-            index_vec.push_back(static_cast<int64_t>(static_cast<int8_t*>(data)[i]));
-            break;
-        case ov::element::i16:
-            index_vec.push_back(static_cast<int64_t>(static_cast<int16_t*>(data)[i]));
-            break;
-        case ov::element::i32:
-            index_vec.push_back(static_cast<int64_t>(static_cast<int32_t*>(data)[i]));
-            break;
-        case ov::element::i64:
-            index_vec.push_back(static_cast<int64_t*>(data)[i]);
-            break;
-        case ov::element::u8:
-            index_vec.push_back(static_cast<int64_t>(static_cast<uint8_t*>(data)[i]));
-            break;
-        case ov::element::u16:
-            index_vec.push_back(static_cast<int64_t>(static_cast<uint16_t*>(data)[i]));
-            break;
-        case ov::element::u32:
-            index_vec.push_back(static_cast<int64_t>(static_cast<uint32_t*>(data)[i]));
-            break;
-        case ov::element::u64:
-            index_vec.push_back(static_cast<int64_t*>(data)[i]);
-            break;
-        default:
-            OPENVINO_THROW("Unsupported OpenVINO element type: ", element_type, ".");
-        }
-    }
-
-    return index_vec;
-}
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;

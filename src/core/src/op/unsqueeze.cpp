@@ -11,7 +11,6 @@
 #include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/core/util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/reference/copy.hpp"
 #include "unsqueeze_shape_inference.hpp"
@@ -50,11 +49,15 @@ bool ov::op::v0::Unsqueeze::evaluate(ov::TensorVector& outputs, const ov::Tensor
     OPENVINO_ASSERT(inputs.size() == 2);
     if (outputs.empty()) {
         outputs.emplace_back(ov::Tensor(inputs[0].get_element_type(), {0}));
+    } else {
+        OPENVINO_ASSERT(outputs.size() == 1);
     }
-    OPENVINO_ASSERT(outputs.size() == 1);
-    const auto output_shapes =
-        shape_infer(this, std::vector<ov::PartialShape>{inputs[0].get_shape(), inputs[1].get_shape()});
-    outputs[0].set_shape(output_shapes[0].to_shape());
+    const auto& output_shape = shape_infer(this,
+                                           std::vector<ov::PartialShape>{inputs[0].get_shape(), inputs[1].get_shape()},
+                                           make_tensor_accessor(inputs))
+                                   .front()
+                                   .to_shape();
+    outputs[0].set_shape(output_shape);
     ov::reference::copy(static_cast<const char*>(inputs[0].data()),
                         static_cast<char*>(outputs[0].data()),
                         outputs[0].get_byte_size());
