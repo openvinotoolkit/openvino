@@ -38,15 +38,21 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 namespace precision_set {
-    const std::vector<element::Type> int8_support  = {
+    static const std::vector<element::Type>& get_int8_support() {
+        static const std::vector<element::Type> int8_support = {
             ov::element::u8,  ov::element::i8
-    };
-    const std::vector<element::Type> int8_int16_int32_support = {
+        };
+        return int8_support;
+    }
+    static const std::vector<element::Type>& get_int8_int16_int32_support() {
+        static const std::vector<element::Type> int8_int16_int32_support = {
             ov::element::u8,  ov::element::i8,
             ov::element::u16, ov::element::i16,
             ov::element::u32, ov::element::i32
-    };
-}
+        };
+        return int8_int16_int32_support;
+    }
+} // namespace precision_set
 enum levels : size_t {
     int4 = 16,
     int4_narrow_range = 15,
@@ -312,7 +318,7 @@ public:
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
     static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
@@ -326,7 +332,7 @@ public:
     static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
 
     static bool isAsymmetricQuantization(const std::shared_ptr<const Node>& node,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
