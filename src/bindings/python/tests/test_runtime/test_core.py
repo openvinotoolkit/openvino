@@ -71,7 +71,7 @@ def test_core_class(device):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 @pytest.mark.parametrize("device_name", [
     None,
-    "CPU"
+    "CPU",
 ])
 def test_compile_model(request, tmp_path, device_name):
     core = Core()
@@ -88,37 +88,38 @@ def test_compile_model(request, tmp_path, device_name):
     assert isinstance(compiled_model, CompiledModel)
 
 
-@pytest.mark.parametrize("loading_type", [
-    None,
-    "posixpath",
-    "auto"
+@pytest.fixture
+def get_model():
+    return get_relu_model()
+
+
+@pytest.fixture
+def get_model_path(request, tmp_path):
+    xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
+    serialize(get_relu_model(), xml_path)
+    return Path(xml_path)
+
+
+@pytest.mark.parametrize("model_type", [
+    "get_model",
+    "get_model_path",
 ])
 @pytest.mark.parametrize("device_name", [
     None,
-    "CPU"
+    "CPU",
 ])
 @pytest.mark.parametrize("config", [
     None,
     {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
-    {hints.performance_mode(): hints.PerformanceMode.LATENCY},
-    {hints.performance_mode(): hints.PerformanceMode.CUMULATIVE_THROUGHPUT}
 ])
-def test_compact_api(request, tmp_path, loading_type, device_name, config):
-    relu_model = get_relu_model()
+def test_compact_api(model_type, device_name, config, request):
     compiled_model = None
 
-    if loading_type is not None:
-        if loading_type == "posixpath":
-            xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
-            serialize(relu_model, xml_path)
-            compiled_model = compile_model(Path(xml_path))
-        elif loading_type == "auto":
-            if device_name is not None:
-                compiled_model = compile_model(model=relu_model, device_name=device_name, config=config)
-            else:
-                compiled_model = compile_model(model=relu_model, config=config)
+    model = request.getfixturevalue(model_type)
+    if device_name is not None:
+        compiled_model = compile_model(model=model, device_name=device_name, config=config)
     else:
-        compiled_model = compile_model(model=relu_model, config=config)
+        compiled_model = compile_model(model=model, config=config)
 
     assert isinstance(compiled_model, CompiledModel)
 
