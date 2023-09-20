@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 3.13)
+cmake_minimum_required (VERSION 3.18.2)
 
 project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
@@ -38,8 +38,6 @@ endif()
 
 set(ie_build_python_req "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/requirements-dev.txt")
 
-set(PYBIND11_FINDPYTHON ON CACHE BOOL "Use FindPython3.cmake" FORCE)
-
 function(ov_check_python_build_conditions)
     # user explicitly specified ENABLE_PYTHON=ON
     if(ENABLE_PYTHON)
@@ -50,8 +48,8 @@ function(ov_check_python_build_conditions)
         set(message_mode WARNING)
     endif()
 
-    find_package(Python3 ${find_package_mode} COMPONENTS Interpreter Development)
-    if(Python3_Development_FOUND)
+    find_package(Python3 ${find_package_mode} COMPONENTS Interpreter Development.Module)
+    if(Python3_Development.Module_FOUND)
         message(STATUS "Python3 executable: ${Python3_EXECUTABLE}")
         message(STATUS "Python3 version: ${Python3_VERSION}")
         if(Python3_PyPy_VERSION)
@@ -62,7 +60,7 @@ function(ov_check_python_build_conditions)
         message(STATUS "Python3 include dirs: ${Python3_INCLUDE_DIRS}")
         message(STATUS "Python3 libraries: ${Python3_LIBRARIES}")
     else()
-        message(${message_mode} "Python 3.x Interpreter and Development components are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
+        message(${message_mode} "Python 3.x Interpreter and Development.Module components are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
     endif()
 
     # check for Cython requirement for build IE API 1.0
@@ -100,8 +98,6 @@ function(ov_check_python_build_conditions)
 
     # to disable API 1.0
     set(ie_build_python_req_FOUND ${ie_build_python_req_FOUND} PARENT_SCOPE)
-    # set pybind11 minimal version
-    set(pybind11_min_version ${pybind11_min_version} PARENT_SCOPE)
 endfunction()
 
 ov_check_python_build_conditions()
@@ -205,6 +201,7 @@ else()
     set(pybind11_min_version 2.8.0)
 endif()
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
