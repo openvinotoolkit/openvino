@@ -28,7 +28,7 @@ std::vector<std::vector<ov::Shape>> inShapesStatic = {
 };
 
 std::vector<std::vector<ov::test::InputShape>> inShapesDynamic = {
-    {{{ngraph::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}}, {{ngraph::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
+    {{{ov::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}}, {{ov::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
 };
 
 std::vector<ov::test::ElementType> netPrecisions = {
@@ -37,13 +37,13 @@ std::vector<ov::test::ElementType> netPrecisions = {
     ov::element::i32,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-    ngraph::helpers::InputLayerType::CONSTANT,
-    ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::test::utils::InputLayerType> secondaryInputTypes = {
+    ov::test::utils::InputLayerType::CONSTANT,
+    ov::test::utils::InputLayerType::PARAMETER,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypesDynamic = {
-    ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::test::utils::InputLayerType> secondaryInputTypesDynamic = {
+    ov::test::utils::InputLayerType::PARAMETER,
 };
 
 std::vector<ov::test::utils::OpType> opTypes = {
@@ -55,19 +55,19 @@ std::vector<ov::test::utils::OpType> opTypesDynamic = {
     ov::test::utils::OpType::VECTOR,
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {ngraph::helpers::EltwiseTypes::ADD,
-                                                             ngraph::helpers::EltwiseTypes::MULTIPLY,
-                                                             ngraph::helpers::EltwiseTypes::SUBTRACT,
-                                                             ngraph::helpers::EltwiseTypes::DIVIDE,
-                                                             ngraph::helpers::EltwiseTypes::FLOOR_MOD,
-                                                             ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
-                                                             ngraph::helpers::EltwiseTypes::POWER,
-                                                             ngraph::helpers::EltwiseTypes::MOD};
+std::vector<ov::test::utils::EltwiseTypes> eltwiseOpTypes = {ov::test::utils::EltwiseTypes::ADD,
+                                                             ov::test::utils::EltwiseTypes::MULTIPLY,
+                                                             ov::test::utils::EltwiseTypes::SUBTRACT,
+                                                             ov::test::utils::EltwiseTypes::DIVIDE,
+                                                             ov::test::utils::EltwiseTypes::FLOOR_MOD,
+                                                             ov::test::utils::EltwiseTypes::SQUARED_DIFF,
+                                                             ov::test::utils::EltwiseTypes::POWER,
+                                                             ov::test::utils::EltwiseTypes::MOD};
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDynamic = {
-    ngraph::helpers::EltwiseTypes::ADD,
-    ngraph::helpers::EltwiseTypes::MULTIPLY,
-    ngraph::helpers::EltwiseTypes::SUBTRACT,
+std::vector<ov::test::utils::EltwiseTypes> eltwiseOpTypesDynamic = {
+    ov::test::utils::EltwiseTypes::ADD,
+    ov::test::utils::EltwiseTypes::MULTIPLY,
+    ov::test::utils::EltwiseTypes::SUBTRACT,
 };
 
 ov::test::Config additional_config = {};
@@ -108,9 +108,9 @@ std::vector<std::vector<ov::Shape>> inShapesSingleThread = {
     {{2, 1, 2, 1, 2, 2}},
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
-    ngraph::helpers::EltwiseTypes::ADD,
-    ngraph::helpers::EltwiseTypes::POWER,
+std::vector<ov::test::utils::EltwiseTypes> eltwiseOpTypesSingleThread = {
+    ov::test::utils::EltwiseTypes::ADD,
+    ov::test::utils::EltwiseTypes::POWER,
 };
 
 ov::AnyMap additional_config_single_thread = {{"CPU_THREADS_NUM", "1"}};
