@@ -1,93 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
-
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "single_layer_tests/classes/softmax.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace ngraph::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
-
-struct SoftMaxConfig {
-    ov::test::InputShape inputShape;
-    size_t axis;
-};
-
-typedef std::tuple<ElementType,    // netPrecision
-                   SoftMaxConfig,  // softmaxTestConfig
-                   std::string,    // targetDevice
-                   CPUSpecificParams>
-    softmaxCPUTestParams;
-
-class SoftMaxLayerCPUTest : public testing::WithParamInterface<softmaxCPUTestParams>,
-                            virtual public SubgraphBaseTest,
-                            public CPUTestsBase {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<softmaxCPUTestParams>& obj) {
-        CPUSpecificParams cpuParams;
-        ElementType inType;
-        SoftMaxConfig config;
-        std::string targetDevice;
-        std::tie(inType, config, targetDevice, cpuParams) = obj.param;
-
-        std::ostringstream result;
-        result << "netPRC=" << inType << "_";
-        result << "IS=" << ov::test::utils::partialShape2str({config.inputShape.first}) << "_";
-        result << "TS=";
-        for (const auto& shape : config.inputShape.second) {
-            result << "(";
-            result << ov::test::utils::vec2str(shape);
-            result << ")_";
-        }
-        result << "axis=" << config.axis << "_";
-        result << "trgDev=" << targetDevice;
-        result << CPUTestsBase::getTestCaseName(cpuParams);
-
-        return result.str();
-    }
-
-protected:
-    void SetUp() override {
-        ElementType inType;
-        SoftMaxConfig config;
-        CPUSpecificParams cpuParams;
-        std::tie(inType, config, targetDevice, cpuParams) = this->GetParam();
-
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        if (selectedType.empty()) {
-            selectedType = getPrimitiveType();
-        }
-
-        if (inType == ElementType::bf16) {
-            rel_threshold = 2e-2f;
-        }
-        selectedType = makeSelectedTypeStr(selectedType, inType);
-        init_input_shapes({config.inputShape});
-        ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
-        }
-        const auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-
-        const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), config.axis);
-
-        function = makeNgraphFunction(inType, params, softMax, "SoftMax");
-    }
-};
-
-TEST_P(SoftMaxLayerCPUTest, CompareWithRefs) {
-    run();
-    CheckPluginRelatedResults(compiledModel, "Softmax");
-}
-
-namespace {
-// not optimized cpu spec
+namespace SoftMax {
 const auto notOptimizedCPUSpec = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 
 const std::vector<SoftMaxConfig> optimizedConfigsFP32 = {
@@ -222,6 +146,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU,
                          SoftMaxLayerCPUTest,
                          UnsupportedParams,
                          SoftMaxLayerCPUTest::getTestCaseName);
-
-}  // namespace
-}  // namespace CPULayerTestsDefinitions
+} // namespace SoftMax
+} // namespace CPULayerTestsDefinitions
