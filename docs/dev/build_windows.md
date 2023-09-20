@@ -55,7 +55,7 @@ Supported configurations:
       ```sh
       pip install -r <openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
       ```
-  2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options:
+  2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```sh
      -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
      ```
