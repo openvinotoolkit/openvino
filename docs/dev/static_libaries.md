@@ -135,7 +135,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE=<openvino source dir>/cmake/toolchains/mt.runtime.w
 
 * The enabled and tested capabilities of OpenVINO Runtime in a static build:
     * OpenVINO common runtime - work with `ov::Model`, perform model loading on particular device
-    * CPU and GNA inference plugins (**GPU and MYRIAD are not enabled**)
+    * CPU and GNA inference plugins (**GPU is not enabled**)
     * MULTI, HETERO, AUTO, and BATCH inference modes
     * IR, ONNX, PDPD, and TF frontends to read `ov::Model`
 * Static build support for building static libraries only for OpenVINO Runtime libraries. All other third-party prebuilt dependencies remain in the same format:
