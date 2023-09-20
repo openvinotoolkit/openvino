@@ -53,7 +53,7 @@ def _setup_size(size: Any, error_msg: str) -> SequenceType[int]:
 
 
 @_setup_size.register
-def _setup_size_number(size: numbers.Number, error_msg: str) -> SequenceType[int]: 
+def _setup_size_number(size: numbers.Number, error_msg: str) -> SequenceType[int]:
     return int(size), int(size)  # type: ignore
 
 
