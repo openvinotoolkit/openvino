@@ -51,7 +51,7 @@ OPENVINO_API Shape reduce(const Shape& input, const AxisSet& axes);
 OPENVINO_API Shape reduce(const Shape& input, const AxisSet& axes, const bool keep_dims);
 
 /**
-  * @brief Creates reduced vector from input by removing elements.
+ * @brief Creates reduced vector from input by removing elements.
  *
  * @param input  Input vector for reduce calculation.
  * @param axes   Reduction axes.
@@ -77,6 +77,6 @@ OPENVINO_API Shape reduce_keep_dims(const Shape& input, const AxisSet& axes);
  *
  * @return Result shape from inputs with applied broadcast specification.
  */
-Shape get_broadcast_shape(const Shape& first, const Shape& second, const op::AutoBroadcastSpec& broadcast_spec);
+Shape get_broadcast_shape(const Shape& first, const Shape& second, const ov::op::AutoBroadcastSpec& broadcast_spec);
 }  // namespace util
 }  // namespace ov

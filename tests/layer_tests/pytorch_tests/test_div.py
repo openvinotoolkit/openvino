@@ -98,6 +98,12 @@ class TestDivTypes(PytorchLayerTest):
                               [torch.float32, torch.int32],
                               [torch.float32, torch.int64],
                               [torch.float32, torch.float64],
+                              [torch.float16, torch.uint8],
+                              [torch.uint8, torch.float16],
+                              [torch.float16, torch.int32],
+                              [torch.int32, torch.float16],
+                              [torch.float16, torch.int64],
+                              [torch.int64, torch.float16]
                               ])
     @pytest.mark.parametrize(("lhs_shape", "rhs_shape"), [([2, 3], [2, 3]),
                                                           ([2, 3], []),
