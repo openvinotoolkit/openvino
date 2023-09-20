@@ -89,7 +89,7 @@ find_package( Cython REQUIRED
               NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
+find_package(Python3 REQUIRED COMPONENTS Interpreter ${python3_development_component})
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
