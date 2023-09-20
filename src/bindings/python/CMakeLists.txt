@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 3.18.2)
+cmake_minimum_required (VERSION 3.13)
 
 project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
@@ -68,6 +68,14 @@ function(ov_check_python_build_conditions)
         message(${message_mode} "Python 3.x Interpreter and Development.Module components are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
     endif()
 
+    set(cmake_min_ver 3.18.2)
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL cmake_min_ver)
+        set(python3_suitable_cmake_version ON)
+    else()
+        message(${message_mode} "Python3 cmake module requires cmake ${cmake_min_ver}. Python API is disabled")
+        set(python3_suitable_cmake_version OFF)
+    endif()
+
     # check for Cython requirement for build IE API 1.0
     ov_check_pip_packages(REQUIREMENTS_FILE ${ie_build_python_req}
                           RESULT_VAR ie_build_python_req_FOUND
@@ -95,7 +103,8 @@ function(ov_check_python_build_conditions)
         set(python_debug OFF)
     endif()
 
-    if(Python3_Development.Module_FOUND AND ie_build_python_req_FOUND AND NOT python_debug)
+    if(Python3_Development.Module_FOUND AND ie_build_python_req_FOUND AND
+        NOT python_debug AND python3_suitable_cmake_version)
         set(ENABLE_PYTHON_DEFAULT ON PARENT_SCOPE)
     else()
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)
