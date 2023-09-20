@@ -16,7 +16,7 @@ namespace reference {
 /**
  * @brief Reference implementation of Ceiling operator (integral types).
  *
- * @param arg     Input pointer to data.
+ * @param arg    Input pointer to data.
  * @param out    Output pointer to results.
  * @param count  Number of elements in input buffer.
  */
@@ -26,15 +26,15 @@ void ceiling(const T* arg, T* out, const size_t count) {
 }
 
 /**
- * @brief Reference implementation of Ceiling operator (floating types).
+ * @brief Reference implementation of Ceiling operator (floating point types).
  *
- * @param arg     Input pointer to data.
+ * @param arg    Input pointer to data.
  * @param out    Output pointer to results.
  * @param count  Number of elements in input buffer.
  */
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 void ceiling(const T* arg, T* out, const size_t count) {
-    std::transform(arg, std::next(arg, count), out, [](T v) {
+    std::transform(arg, std::next(arg, count), out, [](const T v) {
         return std::ceil(v);
     });
 }
