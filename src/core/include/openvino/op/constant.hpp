@@ -696,13 +696,16 @@ private:
         auto p = get_data_ptr_nc<Type>();
         size_t i = 0;
         for (; i < source.size() / 2; i++) {
-            const auto v1 = value_in_range<Type>(ConvertNF4::quantize_nf4(source[i * 2])) & 0x0F;
-            const auto v2 = value_in_range<Type>(ConvertNF4::quantize_nf4(source[i * 2 + 1])) & 0x0F;
+            const auto idx1 = ConvertNF4::quantize_nf4(static_cast<float>(source[i * 2]));
+            const auto idx2 = ConvertNF4::quantize_nf4(static_cast<float>(source[i * 2 + 1]));
+            const auto v1 = value_in_range<Type>(idx1) & 0x0F;
+            const auto v2 = value_in_range<Type>(idx2) & 0x0F;
             const auto v = (v1 << 4) | v2;
             p[i] = static_cast<StorageDataType>(v);
         }
         if (source.size() % 2) {
-            const auto v1 = value_in_range<Type>(ConvertNF4::quantize_nf4(source[i * 2])) & 0x0F;
+            const auto idx1 = ConvertNF4::quantize_nf4(static_cast<float>(source[i * 2]));
+            const auto v1 = value_in_range<Type>(idx1) & 0x0F;
             const auto v = v1 << 4;
             p[i] = static_cast<StorageDataType>(v);
         }
