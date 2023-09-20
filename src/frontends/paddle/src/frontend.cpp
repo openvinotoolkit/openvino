@@ -135,19 +135,27 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
     return true;
 }
 
-std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_stream) {
+std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_stream, std::stringstream& ext_stream2) {
     if (variant.is<std::istream*>()) {
         return variant.as<std::istream*>();
+    } else if (variant.is<std::shared_ptr<ngraph::runtime::AlignedBuffer>>()) {
+        auto& aligned_weights_buffer = variant.as<std::shared_ptr<ngraph::runtime::AlignedBuffer>>();
+        auto filesize = aligned_weights_buffer->size();
+        auto buf_ptr = aligned_weights_buffer->get_ptr<char>();
+        ext_stream2.write(buf_ptr, filesize);
+        FRONT_END_INITIALIZATION_CHECK(ext_stream2 && ext_stream2.good(), "[dbg] Cannot open model file.");
+        return &ext_stream2;
     } else if (variant.is<std::string>()) {
         const auto& model_path = variant.as<std::string>();
         ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
-    }
+    } 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variant.is<std::wstring>()) {
         const auto& model_path = variant.as<std::wstring>();
         ext_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
     }
 #endif
+
     FRONT_END_INITIALIZATION_CHECK(ext_stream && ext_stream.is_open(), "Cannot open model file.");
     return &ext_stream;
 }
@@ -422,10 +430,10 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     } else if (variants.size() == 2 + extra_variants_num) {
         // The case when .pdmodel and .pdparams files are provided
-        std::ifstream model_stream;
-        std::ifstream weights_stream;
-        std::istream* p_model_stream = paddle::variant_to_stream_ptr(variants[0], model_stream);
-        std::istream* p_weights_stream = paddle::variant_to_stream_ptr(variants[1], weights_stream);
+        std::ifstream model_stream, weights_stream;
+        std::stringstream model_stream2, weights_stream2;
+        std::istream* p_model_stream = paddle::variant_to_stream_ptr(variants[0], model_stream, model_stream2);
+        std::istream* p_weights_stream = paddle::variant_to_stream_ptr(variants[1], weights_stream, weights_stream2);
         if (p_model_stream && p_weights_stream) {
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
                                                 m_telemetry);
