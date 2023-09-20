@@ -49,7 +49,7 @@ public:
         const auto& param = obj.param;
         std::ostringstream result;
         result << "BitwiseType=" << param.opType << "_";
-        for (size_t i =0; i< param.inputs.size(); i++) {
+        for (size_t i = 0; i < param.inputs.size(); i++) {
             const auto input = param.inputs[i];
             result << "inpt_shape" << i << "=" << input.shape << "_";
             result << "inpt_type" << i << "=" << input.type << "_";
@@ -59,7 +59,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Model> CreateFunction(BitwiseTypes op_type, const std::vector<reference_tests::Tensor>& inputs) {
+    static std::shared_ptr<ov::Model> CreateFunction(BitwiseTypes op_type,
+                                                     const std::vector<reference_tests::Tensor>& inputs) {
         ov::ParameterVector params_vec;
         for (auto& input : inputs) {
             params_vec.push_back(std::make_shared<op::v0::Parameter>(input.type, input.shape));
@@ -86,8 +87,8 @@ private:
         default: {
             throw std::runtime_error("Incorrect type of Bitwise operation");
         }
-    }
-        return std::make_shared<ov::Model>(ov::NodeVector {bitwise_op}, ov::ParameterVector {params_vec});
+        }
+        return std::make_shared<ov::Model>(ov::NodeVector{bitwise_op}, ov::ParameterVector{params_vec});
     }
 };
 }  // namespace BitwiseOpsRefTestDefinitions
