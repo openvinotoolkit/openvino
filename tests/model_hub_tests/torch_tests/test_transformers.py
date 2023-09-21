@@ -282,7 +282,7 @@ class TestTransformersModel(TestConvertModel):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.skip()) if m is None or m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models"))])
+                             [pytest.param(n, marks=pytest.mark.xfail(reason=r) if m == "xfail" else pytest.mark.skip(reason=r)) if m else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models"))])
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(model_name=name, model_link=None, ie_device=ie_device)
