@@ -138,7 +138,7 @@ jobs:
       - name: CMake CC ON
         run: |
           & "${{ env.VCVARSPATH }}" x64 && cmake -G "Visual Studio 17 2022" `
-            -DVERBOSE_BUILD=ON `
+            -DCMAKE_VERBOSE_MAKEFILE=ON `
             -DENABLE_CPPLINT=OFF `
             -DENABLE_GAPI_PREPROCESSING=OFF `
             -DENABLE_PROFILING_ITT=OFF `
