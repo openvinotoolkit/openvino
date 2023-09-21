@@ -84,6 +84,13 @@ inline bool is_dynamic_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
+inline std::string get_model_type(const std::shared_ptr<ov::Model>& model) {
+    if (is_dynamic_model(model)) {
+        return "dynamic";
+    }
+    return "static";
+}
+
 inline ExtractedPattern
 generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                std::unordered_set<std::string>& checked_ops,

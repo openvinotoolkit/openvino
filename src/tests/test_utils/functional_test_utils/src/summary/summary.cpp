@@ -43,7 +43,7 @@ double PassRate::getRelPassrate() const {
     if (rel_all == 0) {
         return 100.f;
     } else {
-        return rel_passed * rel_all;
+        return rel_passed * 100.f / rel_all;
     }
 }
 

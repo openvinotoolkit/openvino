@@ -137,6 +137,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
     core = Core()
     models = in_dir_path.rglob("*.xml")
     models = sorted(models)
+    model_prefix = os.path.commonprefix(models)
     for model_path in models:
         bin_path = model_path.with_suffix(BIN_EXTENSION)
         meta_path = model_path.with_suffix(META_EXTENSION)
@@ -156,6 +157,14 @@ def create_hash(in_dir_path: Path, operations=dict()):
                     if is_report_op(op_name):
                         if not op_name in operations.keys():
                             operations.update({op_name: TestStructure()})
+                        # add op/subgraphs, dynamic/static and extractor_name to hash
+                        model_dir, _ = os.path.split(model_path)
+                        model_dir = str(model_dir).replace(model_prefix, "")
+                        if op_name in model_dir:
+                            model_dir = model_dir[:model_dir.find(op_name):]
+                        model_dir = model_dir.replace(os.path.sep, "_")
+                        str_to_hash += model_dir
+                        # upgrade expected rel passrates files
                         if "static" in str(model_path):
                             operations[op_name].static += rel_weight
                         elif "dynamic" in str(model_path):
@@ -170,8 +179,11 @@ def create_hash(in_dir_path: Path, operations=dict()):
                 logger.error(f"Impossible to create hash for {model_path}")
 
             try:
-                input_info = ET.parse(meta_path).getroot().find("input_info")
-                str_to_hash += ET.tostring(input_info).decode('utf8').replace('\t', '')
+                # check only parameters/constant structures
+                for input in ET.parse(meta_path).getroot().find("input_info"):
+                    for attrib in input.attrib:
+                        if attrib == "convert_to_const":
+                            str_to_hash += ET.tostring(input.attrib.get(attrib)).decode('utf8')
             except:
                 logger.error(f"Impossible to add input_info to hash for {model_path}")
 

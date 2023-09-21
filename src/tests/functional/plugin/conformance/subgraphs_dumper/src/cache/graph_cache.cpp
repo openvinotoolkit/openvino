@@ -13,6 +13,7 @@
 
 #include "cache/graph_cache.hpp"
 #include "utils/node.hpp"
+#include "utils/model.hpp"
 
 namespace ov {
 namespace tools {
@@ -141,7 +142,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 
 void GraphCache::serialize_cache() {
     for (const auto& cache_item : m_graph_cache) {
-        auto rel_dir = ov::util::path_join({ m_cache_subdir, cache_item.second.get_any_extractor() });
+        auto rel_dir = ov::util::path_join({ m_cache_subdir, get_model_type(cache_item.first), cache_item.second.get_any_extractor() });
         serialize_model(cache_item, rel_dir);
     }
     m_graph_cache.clear();
