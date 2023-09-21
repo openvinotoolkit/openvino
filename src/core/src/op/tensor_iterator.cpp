@@ -4,6 +4,8 @@
 
 #include "openvino/op/tensor_iterator.hpp"
 
+#include <stack>
+
 #include "itt.hpp"
 
 namespace ov {
