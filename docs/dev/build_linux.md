@@ -72,7 +72,7 @@ You can use the following additional build options:
      ```sh
      pip install -r requirements-dev.txt
      ```
-  2. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options:
+  2. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```
      -DPython3_EXECUTABLE=/usr/bin/python3.8
      ```

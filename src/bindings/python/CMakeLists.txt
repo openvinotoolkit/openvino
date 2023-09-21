@@ -39,6 +39,12 @@ if(NOT DEFINED Python3_FIND_IMPLEMENTATIONS)
     set(Python3_FIND_IMPLEMENTATIONS CPython PyPy)
 endif()
 
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
+    set(python3_development_component Development.Module)
+else()
+    set(python3_development_component Development)
+endif()
+
 #
 # Check python requirements
 #
@@ -55,8 +61,8 @@ function(ov_check_python_build_conditions)
         set(message_mode WARNING)
     endif()
 
-    find_package(Python3 ${find_package_mode} COMPONENTS Interpreter Development.Module)
-    if(Python3_Development.Module_FOUND)
+    find_package(Python3 ${find_package_mode} COMPONENTS Interpreter ${python3_development_component})
+    if(Python3_Development.Module_FOUND OR Python3_Development_FOUND)
         message(STATUS "Python3 executable: ${Python3_EXECUTABLE}")
         message(STATUS "Python3 version: ${Python3_VERSION}")
         if(Python3_PyPy_VERSION)
@@ -73,14 +79,6 @@ function(ov_check_python_build_conditions)
         message(STATUS "Python3 libraries: ${Python3_LIBRARIES}")
     else()
         message(${message_mode} "Python 3.x Interpreter and Development.Module components are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
-    endif()
-
-    set(cmake_min_ver 3.18.2)
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL cmake_min_ver)
-        set(python3_suitable_cmake_version ON)
-    else()
-        message(${message_mode} "Python3 cmake module requires cmake ${cmake_min_ver}. Python API is disabled")
-        set(python3_suitable_cmake_version OFF)
     endif()
 
     # check for Cython requirement for build IE API 1.0
@@ -110,8 +108,8 @@ function(ov_check_python_build_conditions)
         set(python_debug OFF)
     endif()
 
-    if(Python3_Development.Module_FOUND AND ie_build_python_req_FOUND AND
-        NOT python_debug AND python3_suitable_cmake_version)
+    if((Python3_Development.Module_FOUND OR Python3_Development_FOUND) AND
+        ie_build_python_req_FOUND AND NOT python_debug)
         set(ENABLE_PYTHON_DEFAULT ON PARENT_SCOPE)
     else()
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)
@@ -202,7 +200,7 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
-        message(FATAL_ERROR "Python OpenVINO API requirements are not satisfied. Please, install ${ie_build_python_req}")
+        message(FATAL_ERROR "Python OpenVINO API build requirements are not satisfied. Please, install ${ie_build_python_req}")
     else()
         return()
     endif()
@@ -222,7 +220,7 @@ else()
     set(pybind11_min_version 2.8.0)
 endif()
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
+find_package(Python3 REQUIRED COMPONENTS Interpreter ${python3_development_component})
 find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)

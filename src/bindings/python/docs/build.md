@@ -48,7 +48,7 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
     pip install -r src/bindings/python/wheel/requirements-dev.txt
     ```
 
-6. Add following flags to the main `cmake` command to use specific virtual environment:
+6. Add following flags to the main `cmake` command to use specific virtual environment (requires cmake 3.16 and higher):
     ```shell
     -DPython3_EXECUTABLE=/home/user/.pyenv/versions/3.10.7/bin/python
     ```

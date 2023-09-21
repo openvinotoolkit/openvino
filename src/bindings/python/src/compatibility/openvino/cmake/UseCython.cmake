@@ -89,7 +89,7 @@ find_package( Cython REQUIRED
               NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
+find_package(Python3 REQUIRED COMPONENTS Interpreter ${python3_development_component})
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
@@ -285,15 +285,11 @@ function( cython_add_module _name )
   endforeach()
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
   python3_add_library ( ${_name} MODULE ${generated_file} ${other_module_sources} )
-  if(PYTHON_MODULE_EXTENSION)
-    # Python3_SOABI is not defined during cross-compilation or on Windows
-    if (Python3_SOABI AND NOT PYTHON_MODULE_EXTENSION MATCHES "^\.${Python3_SOABI}\.[a-z]+$")
-      message(FATAL_ERROR "Python3_SOABI (${Python3_SOABI}) and PYTHON_MODULE_EXTENSION (${PYTHON_MODULE_EXTENSION}) are not matching")
-    endif()
-    set_target_properties(${_name} PROPERTIES PREFIX "" SUFFIX "${PYTHON_MODULE_EXTENSION}")
-  else()
-    message(FATAL_ERROR "Internal error: PYTHON_MODULE_EXTENSION is not defined by pybind11")
+  # Python3_SOABI is not defined during cross-compilation
+  if (Python3_SOABI AND NOT PYTHON_MODULE_EXTENSION MATCHES "^\.${Python3_SOABI}\.[a-z]+$")
+    message(FATAL_ERROR "Python3_SOABI (${Python3_SOABI}) and PYTHON_MODULE_EXTENSION (${PYTHON_MODULE_EXTENSION}) are not matching")
   endif()
+  pybind11_extension( ${_name} )
   if( APPLE )
     set_target_properties( ${_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
   else()

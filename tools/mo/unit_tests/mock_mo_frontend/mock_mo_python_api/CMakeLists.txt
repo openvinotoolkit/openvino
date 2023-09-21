@@ -39,7 +39,13 @@ if(NOT pybind11_FOUND)
                     EXCLUDE_FROM_ALL)
 endif()
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
+    set(python3_development_component Development.Module)
+else()
+    set(python3_development_component Development)
+endif()
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter ${python3_development_component})
 pybind11_add_module(${PYBIND_FE_NAME} MODULE NO_EXTRAS ${PYBIND_FE_SRC})
 
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE openvino::runtime)
