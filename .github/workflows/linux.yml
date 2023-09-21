@@ -56,7 +56,7 @@ jobs:
       MODELS_PATH: /__w/openvino/openvino/testdata
       OV_TEMP: /__w/openvino/openvino/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_Release
+      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
     steps:
