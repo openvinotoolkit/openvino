@@ -949,7 +949,7 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initOriginal() const {
 
     std::shared_ptr<ov::Node> matmul0_in1 = param1;
     if (!m_order.empty()) {
-        const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{m_order.size()}, m_order);
+        const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i32, ov::Shape{m_order.size()}, m_order);
         matmul0_in1 = std::make_shared<ov::op::v1::Transpose>(param1, transposeConst);
     }
 
@@ -967,23 +967,20 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
     const auto data2 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
     ngraph::ParameterVector ngraphParam = {data0, data1, data2};
 
-    bool is_supported = ((m_transposed_b && m_order == std::vector<int64_t>{0, 2, 1, 3}) ||
-                         (!m_transposed_b && m_order == std::vector<int64_t>{0, 2, 3, 1}));
+    const auto rank = input_shapes[1].size();
+    std::vector<int64_t> transpose_order = m_order;
+    if (m_transposed_b) {
+        if (transpose_order.empty()) {
+            transpose_order.resize(rank);
+            std::iota(transpose_order.begin(), transpose_order.end(), 0);
+        }
+         std::swap(transpose_order[rank - 1], transpose_order[rank - 2]);
+    }
 
     std::shared_ptr<ov::Node> in1 = data1;
-    if (!m_order.empty() && !is_supported) {
-        const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{m_order.size()}, m_order);
+    if (!m_is_supported) {
+        const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i32, ov::Shape{rank}, transpose_order);
         in1 = std::make_shared<ov::op::v1::Transpose>(in1, transposeConst);
-    }
-    if (m_transposed_b) {
-        if (m_order != std::vector<int64_t>{0, 2, 1, 3}) {
-            const auto rank = input_shapes[1].size();
-            std::vector<int32_t> transpose_order(rank, 0);
-            std::iota(transpose_order.begin(), transpose_order.end(), 0);
-            std::swap(transpose_order[rank - 1], transpose_order[rank - 2]);
-            const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i32, ov::Shape{transpose_order.size()}, transpose_order);
-            in1 = std::make_shared<ov::op::v1::Transpose>(in1, transposeConst);
-        }
     }
 
     const auto param0 = std::make_shared<ngraph::opset1::Parameter>(precision, data0->get_shape());
@@ -991,8 +988,8 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
     const auto param2 = std::make_shared<ngraph::opset1::Parameter>(precision, data2->get_shape());
 
     std::shared_ptr<ov::Node> matmul0_in1 = param1;
-    if (!m_order.empty() && is_supported) {
-        const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i32, ov::Shape{m_order.size()}, m_order);
+    if (m_is_supported) {
+        const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i32, ov::Shape{rank}, transpose_order);
         matmul0_in1 = std::make_shared<ov::op::v1::Transpose>(param1, transposeConst);
     }
 

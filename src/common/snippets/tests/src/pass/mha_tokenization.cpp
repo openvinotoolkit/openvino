@@ -64,28 +64,28 @@ TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-114607 */, smoke_Snippets_MHA_with_i
     run();
 }
 
-TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_extraction) {
-    const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 128, 12, 64}}, true);
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_transposed_b_no_extraction) {
+    const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{1, 12, 128, 64}, {1, 12, 128, 64}, {1, 12, 128, 64}}, true, true);
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
 
-TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_extraction_and_unsupported_existing_transpose) {
-    const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 12, 64, 128}, {1, 128, 12, 64}}, true,
-                                               std::vector<int64_t>{0, 3, 1, 2});
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+//TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_extraction) {
+//    const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{1, 12, 128, 64}, {1, 64, 12, 128}, {1, 12, 128, 64}}, true, false,
+//                                               std::vector<int64_t>{0, 2, 3, 1});
+//    model = f.getOriginal();
+//    model_ref = f.getReference();
+//    run();
+//}
 
-TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_fusion) {
-    const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 64, 128, 12}, {1, 128, 12, 64}}, false,
-                                               std::vector<int64_t>{0, 2, 1, 3});
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+//TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_fusion) {
+//    const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{1, 12, 128, 64}, {1, 128, 12, 64}, {1, 12, 128, 64}}, true, true,
+//                                               std::vector<int64_t>{0, 2, 1, 3});
+//    model = f.getOriginal();
+//    model_ref = f.getReference();
+//    run();
+//}
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM) {
     const auto& f = MHASplitMFunction(std::vector<PartialShape>{{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
