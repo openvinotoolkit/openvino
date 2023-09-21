@@ -183,7 +183,9 @@ jobs:
       echo "CC=aarch64-linux-gnu-gcc-10" >> $(BUILD_OPENVINO)/linux_arm64
       echo "CXX=aarch64-linux-gnu-g++-10" >> $(BUILD_OPENVINO)/linux_arm64
       # install ARM Compute explicitly
-      conan create $(CONAN_CENTER_INDEX_REPO_DIR)/recipes/compute_library/all --version 23.08 -b missing
+      conan create $(CONAN_CENTER_INDEX_REPO_DIR)/recipes/compute_library/all \
+        --version 23.08 -b missing -pr:h $(BUILD_OPENVINO)/linux_arm64 \
+        -s:h arch=armv8 -s:h compiler.cppstd=gnu17
       # install OpenVINO dependencies
       conan install $(OPENVINO_REPO_DIR)/conanfile.txt \
         -pr:h $(BUILD_OPENVINO)/linux_arm64 \

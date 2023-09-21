@@ -14,7 +14,7 @@ onnx/1.14.1
 nlohmann_json/[>=3.1.1]
 pybind11/[>=2.10.1]
 flatbuffers/[>=22.9.24]
-compute_library/23.08
+compute_library/23.02.1
 
 [tool_requires]
 cmake/[>=3.20]

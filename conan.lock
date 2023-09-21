@@ -18,7 +18,7 @@
         "hwloc/2.9.2#1c63e2eccac57048ae226e6c946ebf0e%1688677682.002",
         "gflags/2.2.2#48d1262ffac8d30c3224befb8275a533%1676224985.343",
         "flatbuffers/23.5.26#b153646f6546daab4c7326970b6cd89c%1685838458.449",
-        "compute_library/23.08#6942370724cbbaf7848925eef9ffdf0c%1695152537.14029",
+        "compute_library/23.02.1#ab2dda7d4824191068f45b43b226477d%1695334505.049299",
         "ade/0.1.2c#8c03c130df6dc35186b38ba73a40a71d%1694253992.577"
     ],
     "build_requires": [

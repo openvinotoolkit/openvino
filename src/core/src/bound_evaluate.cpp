@@ -7,6 +7,7 @@
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "shape_util.hpp"
 #include "tensor_conversion_util.hpp"
@@ -112,9 +113,16 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
                     }
                 }
 
-                if (node->evaluate_label(output_labels))
-                    for (size_t i = 0; i < outputs.size(); ++i)
-                        node->get_output_tensor(i).set_value_label(output_labels[i]);
+                bool labels_evaluated = node->evaluate_label(output_labels);
+                for (size_t i = 0; i < outputs.size(); ++i) {
+                    auto& out_tensor = node->get_output_tensor(i);
+                    if (!out_tensor.get_value_label().empty())
+                        continue;
+                    if (labels_evaluated)
+                        out_tensor.set_value_label(output_labels[i]);
+                    if (outputs[i])
+                        ov::populate_tensor_with_missing_labels(out_tensor);
+                }
 
                 for (const auto& input : input_values) {
                     auto& tensor = input.get_tensor();
@@ -329,8 +337,11 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
                     out_tensor.set_upper_value(outputs_upper[i]);
                 }
 
+                if (!out_tensor.get_value_label().empty())
+                    continue;
                 if (labels_evaluated)
-                    node->get_output_tensor(i).set_value_label(output_labels[i]);
+                    out_tensor.set_value_label(output_labels[i]);
+                ov::populate_tensor_with_missing_labels(node->get_output_tensor(i));
             }
             for (const auto& input : node->input_values()) {
                 auto& tensor = input.get_tensor();
