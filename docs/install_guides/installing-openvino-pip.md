@@ -13,7 +13,7 @@
    
    * offers the Python API only
    * does not offer support for GNA and NPU inference
-   * is dedicated to users of all major OSs: Windows, Linux, macOS
+   * is dedicated to users of all major OSs: Windows, Linux, macOS and x86_64 / arm64 architectures
 
 .. tab-set::
 

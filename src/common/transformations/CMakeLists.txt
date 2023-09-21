@@ -20,7 +20,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
-ie_faster_build(${TARGET_NAME}_obj
+ov_build_target_faster(${TARGET_NAME}_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )
@@ -30,7 +30,7 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::reference openvino::i
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                                      "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 ov_mark_target_as_cc(${TARGET_NAME}_obj)
 

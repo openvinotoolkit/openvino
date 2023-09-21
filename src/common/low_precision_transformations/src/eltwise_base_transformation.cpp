@@ -12,9 +12,9 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
 bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) {
     const auto rank = shape.rank();
