@@ -421,11 +421,8 @@ std::vector<NMSRotatedParams> generateParams() {
 
 std::vector<NMSRotatedParams> generateCombinedParams() {
     const std::vector<std::vector<NMSRotatedParams>> generatedParams{
-        // generateParams<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        // generateParams<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        // generateParams<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        // generateParams<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
-        // generateParams<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
+        generateParams<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
         generateParams<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
     };
     std::vector<NMSRotatedParams> combinedParams;
@@ -467,16 +464,14 @@ std::vector<NMSRotatedParams> generateParamsWithoutConstants() {
 
 std::vector<NMSRotatedParams> generateCombinedParamsWithoutConstants() {
     const std::vector<std::vector<NMSRotatedParams>> generatedParams{
-        // generateParamsWithoutConstants<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32,
-        // element::Type_t::i32>(),
-        // generateParamsWithoutConstants<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32,
-        // element::Type_t::i32>(),
-        // generateParamsWithoutConstants<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32,
-        // element::Type_t::i32>(),
-        // generateParamsWithoutConstants<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32,
-        // element::Type_t::i64>(),
-        // generateParamsWithoutConstants<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32,
-        // element::Type_t::i64>(),
+        generateParamsWithoutConstants<element::Type_t::f32,
+                                       element::Type_t::i32,
+                                       element::Type_t::f32,
+                                       element::Type_t::i32>(),
+        generateParamsWithoutConstants<element::Type_t::f16,
+                                       element::Type_t::i32,
+                                       element::Type_t::f32,
+                                       element::Type_t::i64>(),
         generateParamsWithoutConstants<element::Type_t::f32,
                                        element::Type_t::i32,
                                        element::Type_t::f32,

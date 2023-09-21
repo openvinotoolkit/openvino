@@ -115,7 +115,7 @@ template <>
 bool evaluate_node<op::v13::NMSRotated>(std::shared_ptr<Node> node,
                                         ov::TensorVector& outputs,
                                         const ov::TensorVector& inputs) {
-    switch (node->get_output_element_type(0)) {
+    switch (node->get_output_element_type(1)) {
     case element::Type_t::bf16:
         return evaluate<element::Type_t::bf16>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
     case element::Type_t::f16:
@@ -125,7 +125,7 @@ bool evaluate_node<op::v13::NMSRotated>(std::shared_ptr<Node> node,
     case element::Type_t::f32:
         return evaluate<element::Type_t::f32>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_output_element_type(0).get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }
