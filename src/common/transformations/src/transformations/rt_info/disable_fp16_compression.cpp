@@ -9,7 +9,7 @@ static const std::string& get_postponed_fp16_compression_tag() {
     static const std::string postponed_fp16_compression_tag("postponed_fp16_compression");
     return postponed_fp16_compression_tag;
 }
-}
+}  // namespace
 
 void ov::disable_fp16_compression(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
