@@ -38,14 +38,13 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
         return false;
 
     const auto idx = reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
-    const auto C =
-        std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(shape_source),
-                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {idx}),
-                                             ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+    const auto C = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(shape_source),
+                                                        ov::op::v0::Constant::create(ov::element::i64, {1}, {idx}),
+                                                        ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
     const auto N = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    const auto pattern_vector =
-        reshape_is_A_input ? (matmul->get_transpose_a() ? ov::OutputVector({C, N}) : ov::OutputVector({N, C}))
-                           : (matmul->get_transpose_b() ? ov::OutputVector({N, C}) : ov::OutputVector({C, N}));
+    const auto pattern_vector = reshape_is_A_input
+                                    ? (matmul->get_transpose_a() ? ov::OutputVector({C, N}) : ov::OutputVector({N, C}))
+                                    : (matmul->get_transpose_b() ? ov::OutputVector({N, C}) : ov::OutputVector({C, N}));
     const auto new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(pattern_vector, 0);
 
     auto reshape_pattern = pattern_to_output.at(reshape_pattern_label).get_node_shared_ptr();
