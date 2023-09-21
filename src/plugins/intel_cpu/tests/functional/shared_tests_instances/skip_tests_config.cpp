@@ -190,7 +190,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
         // Issue: 117837
         R"(.*smoke_4D_out_of_range/GatherInPlaceLayerTestCPU.*_indices=\(\-15\).*)",
+        // Issue: 120222
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=1_axis=3_.*_modelType=f16_trgDev=CPU.*)",
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=7_axis=3_.*_modelType=f16_trgDev=CPU.*)",
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=18_.*_modelType=f16_trgDev=CPU.*)",
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
     };
+#if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
+    // Issue: 120950
+    retVector.emplace_back(R"(.*smoke_TensorIteratorCommon/TensorIteratorTest.Inference.*_modelType=f16_targetDevice=CPU.*)");
+    retVector.emplace_back(R"(.*smoke_CtcGreedyDecoderBasic/CTCGreedyDecoderLayerTest.Inference.*netPRC=f16.*trgDev=CPU.*)");
+    retVector.emplace_back(R"(.*CTCGreedyDecoderSeqLenLayerTest.Inference.*dataPRC=f16.*trgDev=CPU.*)");
+#endif
 
 #if defined(OPENVINO_ARCH_X86)
     retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");

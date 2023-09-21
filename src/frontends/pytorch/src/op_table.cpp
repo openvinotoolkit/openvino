@@ -110,6 +110,7 @@ OP_CONVERTER(translate_nms);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
 OP_CONVERTER(translate_numel);
+OP_CONVERTER(translate_one_hot);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_or);
@@ -133,7 +134,6 @@ OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
-OP_CONVERTER(translate_repeat);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
@@ -165,6 +165,7 @@ OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
+OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_upsample_bicubic2d);
@@ -371,6 +372,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::nonzero", op::translate_nonzero},
         {"aten::norm", op::translate_norm},
         {"aten::numel", op::translate_numel},
+        {"aten::one_hot", op::translate_one_hot},
         {"aten::ones", op::translate_ones},
         {"aten::ones_like", op::translate_ones_like},
         {"aten::outer", op::translate_outer},
@@ -391,7 +393,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
         {"aten::remainder", op::translate_remainder},
-        {"aten::repeat", op::translate_repeat},
+        {"aten::repeat", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Tile>>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
@@ -478,6 +480,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::requires_grad", op::return_false_scalar},
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"prim::TupleIndex", op::translate_tuple_index},
         {"quantized::add", op::translate_quantized_add},
         {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::cat", op::translate_quantized_cat},

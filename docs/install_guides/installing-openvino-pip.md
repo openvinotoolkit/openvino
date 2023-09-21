@@ -13,7 +13,7 @@
    
    * offers the Python API only
    * does not offer support for GNA and NPU inference
-   * is dedicated to users of all major OSs: Windows, Linux, macOS
+   * is dedicated to users of all major OSs: Windows, Linux, macOS and x86_64 / arm64 architectures
 
 .. tab-set::
 
@@ -22,7 +22,7 @@
 
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
-      | 'PyPi OpenVINO page <https://pypi.org/project/openvino/>`__
+      | `PyPi OpenVINO page <https://pypi.org/project/openvino/>`__
    
    
    .. tab-item:: Processor Notes

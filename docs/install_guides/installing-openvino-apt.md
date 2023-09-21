@@ -10,10 +10,9 @@
    
    Note that the APT distribution:
 
-   * offers both C++ and Python APIs
+   * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
    * additionally includes code samples 
-   * is dedicated to Linux users.
 
 
 .. tab-set::
@@ -35,7 +34,7 @@
    
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
       * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
-      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
+      * `Python 3.8 - 3.11, 64-bit <https://www.python.org/downloads/>`__
    
 
 Installing OpenVINO Runtime
@@ -146,7 +145,7 @@ Step 2: Install OpenVINO Runtime Using the APT Package Manager
    
          .. code-block:: sh
    
-            sudo apt install openvino-2023.0.0
+            sudo apt install openvino-2023.1.0
    
 .. note::
 
@@ -188,6 +187,11 @@ For C++ and C, just run the ``build_samples.sh`` script:
    
          /usr/share/openvino/samples/c/build_samples.sh
 
+Python samples can run as following:
+
+.. code-block:: sh
+
+   python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
 
 Uninstalling OpenVINO Runtime
 #######################################
@@ -214,7 +218,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
    
       .. code-block:: sh
    
-         sudo apt autoremove openvino-2023.0.0
+         sudo apt autoremove openvino-2023.1.0
 
 
 What's Next?

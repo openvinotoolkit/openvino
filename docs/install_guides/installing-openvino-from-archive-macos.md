@@ -11,28 +11,9 @@
    
    Note that the Archive distribution:
    
-   * offers both C++ and Python APIs
+   * offers both C/C++ and Python APIs
    * additionally includes code samples 
    * is dedicated to users of all major OSs: Windows, Linux, macOS
-   * may offer different hardware support under different operating systems
-     (see the drop-down below for more details)
-     
-   .. dropdown:: Inference Options
-
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Operating System     CPU    GPU    GNA    NPU    AUTO      Auto-batch     HETERO    MULTI  
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
-       Debian9 armhf         V     n/a    n/a    n/a     V            V            V        n/a   
-       Debian9 arm64         V     n/a    n/a    n/a     V            V            V        n/a   
-       CentOS7 x86_64        V      V      V     n/a     V            V            V         V    
-       Ubuntu18 x86_64       V      V      V     n/a     V            V            V         V    
-       Ubuntu20 x86_64       V      V      V      V      V            V            V         V    
-       Ubuntu22 x86_64       V      V      V      V      V            V            V         V    
-       RHEL8 x86_64          V      V      V     n/a     V            V            V         V    
-       Windows x86_64        V      V      V      V      V            V            V         V    
-       MacOS x86_64          V     n/a    n/a    n/a     V            V            V        n/a   
-       MacOS arm64           V     n/a    n/a    n/a     V            V            V        n/a   
-      ===================  =====  =====  =====  =====  ========  =============  ========  ========
 
 
 .. tab-set::
@@ -47,7 +28,7 @@
       :sync: software-requirements
    
       * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
-      * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
+      * `Python 3.8 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.8 - 3.11). Install and add to path.
       * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
       * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -79,7 +60,7 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.1/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
 
@@ -88,18 +69,18 @@ Step 1: Install OpenVINO Core Components
    
          .. code-block:: sh
    
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/macos/m_openvino_toolkit_macos_10_15_2023.0.1.11005.fa1c41994f3_x86_64.tgz --output openvino_2023.0.1.tgz
-            tar -xf openvino_2023.0.1.tgz
-            sudo mv m_openvino_toolkit_macos_10_15_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.1/macos/m_openvino_toolkit_macos_10_15_2023.1.0.12185.47b736f63ed_x86_64.tgz --output openvino_2023.1.0.tgz
+            tar -xf openvino_2023.1.0.tgz
+            sudo mv m_openvino_toolkit_macos_10_15_2023.1.0.12185.47b736f63ed_x86_64 /opt/intel/openvino_2023.1.0
    
       .. tab-item:: ARM, 64-bit
          :sync: arm-64
    
          .. code-block:: sh
    
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/macos/m_openvino_toolkit_macos_11_0_2023.0.1.11005.fa1c41994f3_arm64.tgz --output openvino_2023.0.1.tgz
-            tar -xf openvino_2023.0.1.tgz
-            sudo mv m_openvino_toolkit_macos_11_0_2023.0.1.11005.fa1c41994f3_arm64 /opt/intel/openvino_2023.0.1
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.1/macos/m_openvino_toolkit_macos_11_0_2023.1.0.12185.47b736f63ed_arm64.tgz --output openvino_2023.1.0.tgz
+            tar -xf openvino_2023.1.0.tgz
+            sudo mv m_openvino_toolkit_macos_11_0_2023.1.0.12185.47b736f63ed_arm64 /opt/intel/openvino_2023.1.0
 
 5. (Optional) Install *numpy* Python Library:
 
@@ -107,18 +88,18 @@ Step 1: Install OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2023.0.1/python`` folder:
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2023.1.0/python`` folder:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2023.0.1
+      cd /opt/intel/openvino_2023.1.0
       python3 -m pip install -r ./python/requirements.txt
 
 6. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
-      sudo ln -s /opt/intel/openvino_2023.0.1 /opt/intel/openvino_2023 
+      sudo ln -s /opt/intel/openvino_2023.1.0 /opt/intel/openvino_2023 
 
 
    .. note::
@@ -126,10 +107,15 @@ Step 1: Install OpenVINO Core Components
       If you have already installed a previous release of OpenVINO 2023, a symbolic link to the ``openvino_2023`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2023``, and then re-run the command above.
 
 
-Congratulations, you have finished the installation! The ``/opt/intel/openvino_2023`` folder now contains 
-the core components for OpenVINO. If you used a different path in Step 2, for example, ``/home/<USER>/intel/``, 
-OpenVINO is now in ``/home/<USER>/intel/openvino_2023``. The path to the ``openvino_2023`` directory is 
-also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
+Congratulations, you have finished the installation! For some use cases you may still 
+need to install additional components. Check the description below, as well as the 
+:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+to see if your case needs any of them.
+
+The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO. 
+If you used a different path in Step 2, for example, ``/home/<USER>/intel/``, 
+OpenVINO is now in ``/home/<USER>/intel/openvino_2023``. The path to the ``openvino_2023`` 
+directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
 
 
 Step 2: Configure the Environment
