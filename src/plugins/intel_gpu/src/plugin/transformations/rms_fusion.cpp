@@ -43,8 +43,8 @@ RMSFusion::RMSFusion() {
     auto sqrt = wrap_type<ov::op::v0::Sqrt>({add_eps});
 
     // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto const_1 = wrap_type<ov::op::v0::Constant>();
-    auto div = wrap_type<ov::op::v1::Divide>({const_1, sqrt});
+    auto const_minus_1 = wrap_type<ov::op::v0::Constant>();
+    auto div = wrap_type<ov::op::v1::Power>({sqrt, const_minus_1});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div});
@@ -88,7 +88,7 @@ RMSFusion::RMSFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul2);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul2, "RMSFusion");
     this->register_matcher(m, callback);
 }
 
