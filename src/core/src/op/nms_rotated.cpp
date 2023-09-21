@@ -112,6 +112,27 @@ void op::v13::NMSRotated::validate_and_infer_types() {
     set_output_type(2, m_output_type, output_shapes[2]);
 }
 
+bool op::v13::NMSRotated::get_sort_result_descending() const {
+    return m_sort_result_descending;
+}
+void op::v13::NMSRotated::set_sort_result_descending(const bool sort_result_descending) {
+    m_sort_result_descending = sort_result_descending;
+}
+
+element::Type op::v13::NMSRotated::get_output_type_attr() const {
+    return m_output_type;
+}
+void op::v13::NMSRotated::set_output_type_attr(const element::Type& output_type) {
+    m_output_type = output_type;
+}
+
+bool op::v13::NMSRotated::get_clockwise() const {
+    return m_clockwise;
+}
+void op::v13::NMSRotated::set_clockwise(const bool clockwise) {
+    m_clockwise = clockwise;
+}
+
 // Temporary evaluate, for testing purpose
 namespace {
 struct InfoForNMSRotated {

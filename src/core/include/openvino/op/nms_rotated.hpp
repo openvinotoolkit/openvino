@@ -45,26 +45,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    bool get_sort_result_descending() const {
-        return m_sort_result_descending;
-    }
-    void set_sort_result_descending(const bool sort_result_descending) {
-        m_sort_result_descending = sort_result_descending;
-    }
+    bool get_sort_result_descending() const;
+    void set_sort_result_descending(const bool sort_result_descending);
 
-    element::Type get_output_type_attr() const {
-        return m_output_type;
-    }
-    void set_output_type_attr(const element::Type& output_type) {
-        m_output_type = output_type;
-    }
+    element::Type get_output_type_attr() const;
+    void set_output_type_attr(const element::Type& output_type);
 
-    bool get_clockwise() const {
-        return m_clockwise;
-    }
-    void set_clockwise(const bool clockwise) {
-        m_clockwise = clockwise;
-    }
+    bool get_clockwise() const;
+    void set_clockwise(const bool clockwise);
 
     // Temporary evaluate, for testing purpose
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
