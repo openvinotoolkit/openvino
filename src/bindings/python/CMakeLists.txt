@@ -2,7 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 3.13)
+if(WIN32)
+    # 3.16: FindPython3.cmake can find Python via -DPython3_EXECUTABLE
+    # 3.18: FindPython3.cmake can find Python automatically from virtualenv
+    cmake_minimum_required(VERSION 3.18)
+else()
+    # 3.13: default choice
+    cmake_minimum_required(VERSION 3.13)
+endif()
 
 project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 

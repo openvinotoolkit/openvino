@@ -10,11 +10,17 @@ if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
     cmake_minimum_required(VERSION 3.18)
 else()
     if(CPACK_GENERATOR STREQUAL "DEB")
-        # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
+        # 3.20: we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
         cmake_minimum_required(VERSION 3.20)
     else()
-        # default choice
-        cmake_minimum_required(VERSION 3.13)
+        if(WIN32)
+            # 3.16: FindPython3.cmake can find Python via -DPython3_EXECUTABLE
+            # 3.18: FindPython3.cmake can find Python automatically from virtualenv
+            cmake_minimum_required(VERSION 3.18)
+        else()
+            # 3.13: default choice
+            cmake_minimum_required(VERSION 3.13)
+        endif()
     endif()
 endif()
 
