@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-  :description: Learn about Multinomial-13 - a generation operation, that creates a sequence of indices of sampled classes from Multinomial distribution.
+  :description: Learn about Multinomial-13 - a generation operation, that creates a sequence of indices of classes sampled from Multinomial distribution.
 
 **Versioned name**: *Multinomial-13*
 
