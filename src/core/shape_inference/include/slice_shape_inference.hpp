@@ -136,7 +136,8 @@ std::vector<TRShape> shape_infer(const Slice* op,
             }
 
             auto& last_dim = out[out.size() - 1];
-            if (std::is_same<DimType, ov::Dimension>::value && (last_dim == input_dim)) {
+            if (std::is_same<DimType, ov::Dimension>::value &&
+                (last_dim == input_dim && last_dim != Dimension::dynamic())) {
                 // for equal ov::Dimension do merge to get input label (always success)
                 DimType::merge(last_dim, last_dim, input_dim);
             }
