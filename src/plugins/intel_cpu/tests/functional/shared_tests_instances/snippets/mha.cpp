@@ -4,6 +4,7 @@
 
 #include "snippets/mha.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
@@ -15,12 +16,17 @@ namespace snippets {
 
 namespace {
 
-const std::vector<std::vector<ov::PartialShape>> inputShapes = {
+const std::vector<std::vector<ov::PartialShape>> inputShapes_4D = {
         {{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
         {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 16, 1, 1}, {1, 128, 16, 64}},
         {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 1, 1, 128}, {1, 128, 16, 64}},
         {{2, 68, 6, 92}, {2, 68, 6, 92}, {1, 1, 68, 68}, {2, 68, 6, 92}},
         {{1, 58, 16, 34}, {1, 58, 16, 34}, {1, 1, 1, 58}, {1, 58, 16, 34}},
+};
+
+const std::vector<std::vector<ov::PartialShape>> inputShapes_3D = {
+        {{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
+        {{68, 6, 92}, {68, 6, 92}, {1, 68, 68}, { 68, 6, 92}},
 };
 
 static inline bool is_bf16_supported() {
@@ -40,24 +46,74 @@ static inline std::vector<std::vector<element::Type>> precision_bf16(size_t coun
     return prc;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHA,
+static std::map<std::string, std::string> get_split_dim_m_config() {
+    return std::map<std::string, std::string>{
+        { 
+          InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+          InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK
+        },
+     };
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D, MHA,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapes),
+                                 ::testing::ValuesIn(inputShapes_4D),
                                  ::testing::ValuesIn(precision_f32(4)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({false, true}),
+                                 ::testing::Values(0),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D, MHA,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapes_3D),
+                                 ::testing::ValuesIn(precision_f32(4)),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::ValuesIn({false, true}),
+                                 ::testing::Values(0),
+                                 ::testing::Values(1),
+                                 ::testing::Values(1),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
+                         MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_SplitDimensionM, MHA,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 128, 8, 64}, {1, 128, 8, 64}, {1, 8, 1, 1}, {1, 128, 8, 64}}),
+                                 ::testing::ValuesIn(precision_f32(4)),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(true),
+                                 ::testing::Values(16),
+                                 ::testing::Values(6), // Subgraph + 4 Reshapes on inputs and 1 Reshape on output
+                                 ::testing::Values(1),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(get_split_dim_m_config())),
+                         MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D_SplitDimensionM, MHA,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{384, 8, 64}, {384, 8, 64}, {1, 384, 384}, {384, 8, 64}}),
+                                 ::testing::ValuesIn(precision_f32(4)),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(true),
+                                 ::testing::Values(12),
+                                 ::testing::Values(6), // Subgraph + 4 Reshapes on inputs and 1 Reshape on output
+                                 ::testing::Values(1),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(get_split_dim_m_config())),
+                         MHA::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16, MHA,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapes),
+                                 ::testing::ValuesIn(inputShapes_4D),
                                  ::testing::ValuesIn(precision_bf16(4)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({false, true}),
+                                 ::testing::Values(0),
                                  ::testing::Values(7), // MHA + 5 Converts + 1 Transpose on output
                                  ::testing::Values(6), // MHA + 5 Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -71,6 +127,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAMulAdd, MHAMulAdd,
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({false}),  // Need to support True for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -92,6 +149,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHASelect,
                                  ::testing::ValuesIn(precision_f32(6)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false),  // Need to support True for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(2), // Less + MHA
                                  ::testing::Values(2),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -113,6 +171,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeOnInputs_4D, MHAWOTranspos
                                  ::testing::Values(std::vector<ov::element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(true),  // Need to support False for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -125,6 +184,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose_4D, MHAWOTranspose,
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -137,10 +197,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose_3D, MHAWOTranspose,
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
+                         MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose_3D_SplitDimensionM, MHAWOTranspose,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{4, 512, 39}, {4, 39, 512}, {4, 512, 39}}),
+                                 ::testing::ValuesIn(precision_f32(3)),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(8),
+                                 ::testing::Values(5),
+                                 ::testing::Values(1),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(get_split_dim_m_config())),
                          MHA::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeBF16_4D, MHAWOTranspose,
@@ -149,6 +223,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeBF16_4D, MHAWOTranspose,
                                  ::testing::ValuesIn(precision_bf16(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -161,6 +236,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeBF16_3D, MHAWOTranspose,
                                  ::testing::ValuesIn(precision_bf16(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -173,6 +249,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeEnforceBF16_4D, MHAWOTrans
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::bf16),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -185,6 +262,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeEnforceBF16_3D, MHAWOTrans
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::bf16),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -193,14 +271,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeEnforceBF16_3D, MHAWOTrans
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAINT8MatMul, MHAINT8MatMul,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(std::vector<std::vector<ov::PartialShape>>(inputShapes.begin(), inputShapes.begin() + 2)),
+                                 ::testing::ValuesIn(std::vector<std::vector<ov::PartialShape>>(inputShapes_4D.begin(), inputShapes_4D.begin() + 2)),
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false), // The graph doesn't contain Multiply
+                                 ::testing::Values(0),
                                  ::testing::Values(6),     // FQx3 on inputs + MHA + Transpose on output + Deq Mul
                                  ::testing::Values(5),     // FQx3 on inputs + MHA + Deq Mul
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
+                         MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAINT8MatMul_SplitDimensionM, MHAINT8MatMul,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 128, 8, 64}, {1, 128, 8, 64}, {1, 8, 1, 1}, {1, 128, 8, 64}}),
+                                 ::testing::Values(std::vector<element::Type>{}),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(false), // The graph doesn't contain Multiply
+                                 ::testing::Values(18),
+                                 ::testing::Values(11),     // FQx3 on inputs + MHA + Transpose on output + Deq Mul + 5 Reshapes
+                                 ::testing::Values(5),     // FQx3 on inputs + MHA + Deq Mul
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(get_split_dim_m_config())),
                          MHA::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAQuantMatMul0, MHAQuantMatMul0,
@@ -209,6 +301,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAQuantMatMul0, MHAQuantMatMul0,
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false), // The graph doesn't contain Multiply
+                                 ::testing::Values(0),
                                  ::testing::Values(8),     // FQ on input + MHA + Transpose on output + 4 Reshapes + Deq Mul
                                  ::testing::Values(3),     // FQ on input + MHA + Deq Mul
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -217,10 +310,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAQuantMatMul0, MHAQuantMatMul0,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFQAfterMatMul, MHAFQAfterMatMul,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapes),
+                                 ::testing::ValuesIn(inputShapes_4D),
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false), // The graph doesn't contain Multiply
+                                 ::testing::Values(0),
                                  ::testing::Values(3),     // MHA + Transpose on output + Deq Mul
                                  ::testing::Values(2),     // MHA + Deq Mul
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -233,6 +327,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFQ, MHAFQ,
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false), // The graph doesn't contain Multiply
+                                 ::testing::Values(0),
                                  ::testing::Values(7),     // Transposex2 + Subgraphsx5
                                  ::testing::Values(5),     // MHA + Deq Mul on output + Deqs on inputs + 2 xFQ on inputs
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -249,6 +344,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHATransposedB, MHATransposedB,
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -270,6 +366,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWithExtractedReshape, MHAWithExtracte
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}), // False is not supported for graph builder in tests
+                                 ::testing::Values(0),
                                  ::testing::Values(3), // Extracted Add + Extracted Reshape + MHA
                                  ::testing::Values(2), // Extracted Add + MHA
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),

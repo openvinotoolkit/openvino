@@ -16,6 +16,7 @@ typedef std::tuple<
         std::vector<ov::element::Type>,    // Input Element types
         ov::element::Type,                 // Inference precision
         bool,                              // With Multiply
+        size_t,                            // Thread count
         size_t,                            // Expected num nodes
         size_t,                            // Expected num subgraphs
         std::string,                       // Target Device
@@ -30,10 +31,12 @@ public:
 protected:
     void SetUp() override;
 
+    void compile_model() override;
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph();
 
     bool m_with_mul = false;
+    size_t m_thread_count;
     std::vector<ov::element::Type> m_input_types;
 };
 
