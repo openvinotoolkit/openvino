@@ -1,14 +1,14 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import os
+import pytest
 import torch
-import tempfile
 from huggingface_hub import model_info
 from models_hub_common.test_convert_model import TestConvertModel
 from openvino import convert_model
-from models_hub_common.utils import get_models_list
+from models_hub_common.utils import get_models_list, cleanup_dir
+from models_hub_common.constants import hf_hub_cache_dir
 
 
 def flattenize_tuples(list_input):
@@ -37,14 +37,9 @@ class TestTransformersModel(TestConvertModel):
     def setup_class(self):
         from PIL import Image
         import requests
-        import os
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
-
-        self.cache_dir = tempfile.TemporaryDirectory()
-        print(f"Setting temp cache dir: {str(self.cache_dir)}")
-        os.environ["HUGGINGFACE_HUB_CACHE"] = str(self.cache_dir)
 
     def load_model(self, name, type):
         mi = model_info(name)
@@ -267,9 +262,8 @@ class TestTransformersModel(TestConvertModel):
         return flattenize_outputs(fw_outputs)
 
     def teardown_method(self):
-        # cleanup tmpdir
-        print(f"Cleaning temp cache dir: {str(self.cache_dir)}")
-        self.cache_dir.cleanup()
+        # remove all downloaded files from cache
+        cleanup_dir(hf_hub_cache_dir)
         super().teardown_method()
 
     @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
