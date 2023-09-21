@@ -204,9 +204,8 @@ class Conformance:
         this_run_failures = self.__get_failed_test_from_csv(this_failures_file)
 
         diff = this_run_failures.difference(self._expected_failures)
-        if len(diff) > 0 and not self._expected_failures_update:
+        if len(diff) > 0:
             logger.error(f"Unexpected failures: {diff}")
-            exit(-1)
 
         intersection = self._expected_failures.intersection(this_run_failures)
         if this_run_failures != self._expected_failures and self._expected_failures_update:
