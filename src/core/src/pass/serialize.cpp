@@ -53,9 +53,9 @@ struct Edge {
 // discrepancies discovered, translations needs to be added here.
 static const std::unordered_map<std::string, std::string>& get_translate_type_name_translator() {
     static const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Constant", "Const"},
-                                                                                     {"PRelu", "PReLU"},
-                                                                                     {"Relu", "ReLU"},
-                                                                                     {"Softmax", "SoftMax"}};
+                                                                                                {"PRelu", "PReLU"},
+                                                                                                {"Relu", "ReLU"},
+                                                                                                {"Softmax", "SoftMax"}};
     return translate_type_name_translator;
 }
 
