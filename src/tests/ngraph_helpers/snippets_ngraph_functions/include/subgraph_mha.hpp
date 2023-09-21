@@ -45,7 +45,6 @@ class MHAFunction : public SnippetsFunctionBase {
 public:
     explicit MHAFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions, bool with_mul = true)
         : SnippetsFunctionBase(inputShapes), with_mul(with_mul), precisions(precisions) {
-        OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
     }
 protected:
@@ -54,6 +53,19 @@ protected:
 
     bool with_mul = true;
     std::vector<ov::element::Type> precisions;
+};
+
+class MHASplitMFunction : public MHAFunction {
+public:
+    explicit MHASplitMFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
+                                       const std::vector<Shape>& reshapes, bool with_mul = true)
+            : MHAFunction(inputShapes, precisions, with_mul), reshapes(reshapes) {
+        OPENVINO_ASSERT(reshapes.size() == 5, "Got invalid number of Reshape shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initReference() const override;
+
+    std::vector<ov::Shape> reshapes;
 };
 
 /* Graph:
