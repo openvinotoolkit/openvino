@@ -134,7 +134,6 @@ OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
-OP_CONVERTER(translate_repeat);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
