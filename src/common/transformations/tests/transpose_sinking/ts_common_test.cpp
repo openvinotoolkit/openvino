@@ -856,7 +856,7 @@ auto test_forward_tile = []() {
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
             auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
-            auto transpose = make_shared<Gather>(data, out, axis);
+            auto transpose = make_shared<Gather>(out, data, axis);
             result[idx] = transpose;
         }
         return result;
@@ -1434,7 +1434,7 @@ auto test_backward_tile = []() {
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
             auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
-            auto transpose = make_shared<Gather>(data, out, axis);
+            auto transpose = make_shared<Gather>(out, data, axis);
             result[idx] = transpose;
         }
         return result;
