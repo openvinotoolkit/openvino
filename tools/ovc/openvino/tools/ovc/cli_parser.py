@@ -37,7 +37,7 @@ def is_shape_type(value):
         return True
     return False
 
-def single_input_to_input_cut_info(input: [tuple, list, PartialShape, Type, type]):
+def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
     """
     Parses parameters of single input to InputCutInfo.
     :param input: input cut parameters of single input

@@ -269,6 +269,9 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
     def are_shapes_defined(shape: Union[List, Dict]):
         if shape is None:
             return False
+        assert hasattr(shape, '__len__')
+        if len(shape) == 0:
+            return False
 
         if isinstance(shape, list):
             return np.all([shape is not None for shape in input_shapes])
