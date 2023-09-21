@@ -173,6 +173,32 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             }
         }
 
+        if (auto broadcast_tensors = cast_fw_node(input_node, "aten::broadcast_tensors")) {
+            auto tensors = cast_fw_node(broadcast_tensors->input_value(0).get_node_shared_ptr(), "prim::ListConstruct");
+            if (!tensors) {
+                add_exception_to_fw_node(input_node,
+                                         "aten::broadcast_tensors: only prim::ListConstruct supported as input.");
+                return false;
+            }
+            auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
+            Output<Node> final_shape_t = zero;
+            for (auto input : tensors->inputs()) {
+                auto tensor_shape = std::make_shared<opset10::ShapeOf>(input.get_source_output());
+                auto zero_broadcasted =
+                    std::make_shared<opset10::Broadcast>(zero, tensor_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+                final_shape_t = std::make_shared<opset10::Add>(final_shape_t, zero_broadcasted);
+            }
+            auto final_shape = std::make_shared<opset10::ShapeOf>(final_shape_t, element::i32);
+            OutputVector outputs;
+            for (auto input : tensors->inputs()) {
+                outputs.push_back(std::make_shared<opset10::Broadcast>(input.get_source_output(),
+                                                                       final_shape,
+                                                                       ov::op::BroadcastType::BIDIRECTIONAL));
+            }
+            replace_node(list_unpack, outputs);
+            return true;
+        }
+
         if (auto unbind = cast_fw_node(input_node, "aten::unbind")) {
             const auto input = unbind->get_input_source_output(0);
             const auto axis = unbind->get_input_source_output(1);
