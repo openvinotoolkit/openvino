@@ -286,7 +286,7 @@ function( cython_add_module _name )
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
   python3_add_library ( ${_name} MODULE ${generated_file} ${other_module_sources} )
   # Python3_SOABI is not defined during cross-compilation
-  if (Python3_SOABI AND NOT PYTHON_MODULE_EXTENSION MATCHES "^\.${Python3_SOABI}\.[a-z]+$")
+  if (Python3_SOABI AND NOT PYTHON_MODULE_EXTENSION MATCHES "^\.${Python3_SOABI}.+$")
     message(FATAL_ERROR "Python3_SOABI (${Python3_SOABI}) and PYTHON_MODULE_EXTENSION (${PYTHON_MODULE_EXTENSION}) are not matching")
   endif()
   pybind11_extension( ${_name} )
