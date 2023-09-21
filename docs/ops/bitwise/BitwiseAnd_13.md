@@ -17,7 +17,7 @@ After broadcasting input tensors *a* and *b*, *BitwiseAnd* performs a bitwise lo
 
 For ``boolean`` type tensors, BitwiseAnd is equivalent to :doc:`LogicalAnd <openvino_docs_ops_logical_LogicalAnd_1>`.
 
-If tensor is of ``any supported integer`` type, for each element of tensor:
+If tensor is of ``any supported integer`` type, for each element of the tensor:
 
 1.  Convert values from input tensors to their binary representation according to the input tensor datatype.
 2.  Perform a logical AND on each bit in the binary representation of values from *a* and *b*, where value ``0`` represents ``false`` and value ``1`` represents ``true``.
