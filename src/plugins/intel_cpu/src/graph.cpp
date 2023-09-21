@@ -1256,17 +1256,16 @@ public:
         auto startCounter = m_prepareCounter.load();
 
         #pragma omp parallel
-        #pragma omp single
+        #pragma omp sections
         {
-            #pragma omp task
+            #pragma omp section
             {
                 updateDynParams(startCounter, stopIndx);
             }
-            #pragma omp task
+            #pragma omp section
             {
                 updateShapes(startCounter, stopIndx);
             }
-            #pragma omp taskwait
         }
     }
 };
