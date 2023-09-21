@@ -69,7 +69,7 @@ InfoForNMSRotated get_info_for_nms_eval(const std::shared_ptr<op::v13::NMSRotate
 
     result.out_shape_size = shape_size(result.out_shape);
     result.sort_result_descending = nms->get_sort_result_descending();
-    result.output_type = nms->get_output_type();
+    result.output_type = nms->get_output_type_attr();
     result.clockwise = nms->get_clockwise();
     return result;
 }

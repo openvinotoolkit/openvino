@@ -52,10 +52,10 @@ public:
         m_sort_result_descending = sort_result_descending;
     }
 
-    element::Type get_output_type() const {
+    element::Type get_output_type_attr() const {
         return m_output_type;
     }
-    void set_output_type(const element::Type& output_type) {
+    void set_output_type_attr(const element::Type& output_type) {
         m_output_type = output_type;
     }
 
@@ -65,8 +65,6 @@ public:
     void set_clockwise(const bool clockwise) {
         m_clockwise = clockwise;
     }
-
-    using Node::set_output_type;
 
     // Temporary evaluate, for testing purpose
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
