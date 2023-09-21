@@ -4,16 +4,10 @@
 
 #include "openvino/op/nms_rotated.hpp"
 
-#include <cstring>
-
-#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "nms_shape_inference.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/reference/nms_rotated.hpp"
-#include "shape_infer_type_utils.hpp"
 
 namespace ov {
 
@@ -131,115 +125,6 @@ bool op::v13::NMSRotated::get_clockwise() const {
 }
 void op::v13::NMSRotated::set_clockwise(const bool clockwise) {
     m_clockwise = clockwise;
-}
-
-// Temporary evaluate, for testing purpose
-namespace {
-struct InfoForNMSRotated {
-    int64_t max_output_boxes_per_class;
-    float iou_threshold;
-    float score_threshold;
-    float soft_nms_sigma;
-    Shape out_shape;
-    Shape boxes_shape;
-    Shape scores_shape;
-    std::vector<float> boxes_data;
-    std::vector<float> scores_data;
-    size_t out_shape_size;
-    bool sort_result_descending;
-    element::Type output_type;
-    bool clockwise = true;
-};
-
-constexpr size_t boxes_port = 0;
-constexpr size_t scores_port = 1;
-
-ov::PartialShape infer_selected_indices_shape(const ov::TensorVector& inputs, size_t max_output_boxes_per_class) {
-    const auto boxes_ps = inputs[boxes_port].get_shape();
-    const auto scores_ps = inputs[scores_port].get_shape();
-
-    // NonMaxSuppression produces triplets
-    // that have the following format: [batch_index, class_index, box_index]
-    ov::PartialShape result = {ov::Dimension::dynamic(), 3};
-
-    if (boxes_ps.size() > 0 && scores_ps.size() > 0) {
-        const auto num_boxes_boxes = boxes_ps[1];
-        const auto num_boxes = num_boxes_boxes;
-        const auto num_classes = scores_ps[1];
-
-        result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0];
-    }
-    return result;
-}
-InfoForNMSRotated get_info_for_nms_eval(const op::v13::NMSRotated* nms, const ov::TensorVector& inputs) {
-    InfoForNMSRotated result;
-
-    result.max_output_boxes_per_class = inputs.size() > 2 ? get_tensor_data_as<int64_t>(inputs[2])[0] : 0;
-    result.iou_threshold = inputs.size() > 3 ? get_tensor_data_as<float>(inputs[3])[0] : 0.0f;
-    result.score_threshold = inputs.size() > 4 ? get_tensor_data_as<float>(inputs[4])[0] : 0.0f;
-    result.soft_nms_sigma = 0.0f;
-
-    auto selected_indices_shape = infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
-    result.out_shape = selected_indices_shape.to_shape();
-    result.boxes_shape = inputs[boxes_port].get_shape();
-    result.scores_shape = inputs[scores_port].get_shape();
-    result.boxes_data = get_tensor_data_as<float>(inputs[boxes_port]);
-    result.scores_data = get_tensor_data_as<float>(inputs[scores_port]);
-    result.out_shape_size = shape_size(result.out_shape);
-    result.sort_result_descending = nms->get_sort_result_descending();
-    result.output_type = nms->get_output_type_attr();
-    result.clockwise = nms->get_clockwise();
-
-    return result;
-}
-}  // namespace
-
-bool op::v13::NMSRotated::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    auto info = get_info_for_nms_eval(this, inputs);
-
-    std::vector<int64_t> selected_indices(info.out_shape_size);
-    std::vector<float> selected_scores(info.out_shape_size);
-    int64_t valid_outputs = 0;
-
-    ov::reference::nms_rotated::non_max_suppression(info.boxes_data.data(),
-                                                    info.boxes_shape,
-                                                    info.scores_data.data(),
-                                                    info.scores_shape,
-                                                    info.max_output_boxes_per_class,
-                                                    info.iou_threshold,
-                                                    info.score_threshold,
-                                                    info.soft_nms_sigma,
-                                                    selected_indices.data(),
-                                                    info.out_shape,
-                                                    selected_scores.data(),
-                                                    info.out_shape,
-                                                    &valid_outputs,
-                                                    info.sort_result_descending,
-                                                    info.clockwise);
-
-    auto selected_scores_type = (outputs.size() < 2) ? element::f32 : outputs[1].get_element_type();
-
-    ov::reference::nms_rotated::nms_postprocessing(outputs,
-                                                   info.output_type,
-                                                   selected_indices,
-                                                   selected_scores,
-                                                   valid_outputs,
-                                                   selected_scores_type);
-    return true;
-}
-
-bool op::v13::NMSRotated::has_evaluate() const {
-    OV_OP_SCOPE(v3_nms_rotated_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case ov::element::bf16:
-    case ov::element::f16:
-    case ov::element::f32:
-    case ov::element::f64:
-        return true;
-    default:
-        break;
-    }
-    return false;
 }
 
 }  // namespace ov

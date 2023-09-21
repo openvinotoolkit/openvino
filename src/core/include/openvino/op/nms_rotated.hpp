@@ -53,10 +53,6 @@ public:
     bool get_clockwise() const;
     void set_clockwise(const bool clockwise);
 
-    // Temporary evaluate, for testing purpose
-    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
-    bool has_evaluate() const override;
-
 protected:
     bool m_sort_result_descending = true;
     ov::element::Type m_output_type = ov::element::i64;
