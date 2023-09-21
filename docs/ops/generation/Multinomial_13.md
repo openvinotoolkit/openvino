@@ -112,7 +112,7 @@ Example 3 - 1D tensor, without replacement
 
 **Types**
 
-* **T_IN**: 32-bit floating point numbers.
+* **T_IN**: any supported floating-point type.
 * **T_SAMPLES**: 32-bit or 64-bit integers.
 
 
