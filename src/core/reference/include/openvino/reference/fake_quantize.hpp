@@ -12,13 +12,12 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace fake_quantize_details {
 template <typename T>
@@ -158,11 +157,11 @@ void fake_quantize(const T* const arg,
 
         for (const Coordinate& output_coord : output_transform) {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
-            const Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
-            const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
-            const Coordinate arg3_coord = reduce(output_coord, arg3_squeezed_axes, false);
-            const Coordinate arg4_coord = reduce(output_coord, arg4_squeezed_axes, false);
+            const Coordinate arg0_coord = ngraph::reduce(output_coord, arg0_squeezed_axes, false);
+            const Coordinate arg1_coord = ngraph::reduce(output_coord, arg1_squeezed_axes, false);
+            const Coordinate arg2_coord = ngraph::reduce(output_coord, arg2_squeezed_axes, false);
+            const Coordinate arg3_coord = ngraph::reduce(output_coord, arg3_squeezed_axes, false);
+            const Coordinate arg4_coord = ngraph::reduce(output_coord, arg4_squeezed_axes, false);
             OPENVINO_SUPPRESS_DEPRECATED_END
 
             const size_t arg0_idx =
@@ -187,5 +186,4 @@ void fake_quantize(const T* const arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

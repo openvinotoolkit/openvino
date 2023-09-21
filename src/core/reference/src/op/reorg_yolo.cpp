@@ -10,10 +10,7 @@
 
 #include "ngraph/shape.hpp"
 
-using namespace ngraph;
-
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void reorg_yolo(const char* arg, char* out, const Shape& in_shape, int64_t stride, const size_t elem_size) {
     // [N, C, H, W]
@@ -57,5 +54,4 @@ void reorg_yolo(const char* arg, char* out, const Shape& in_shape, int64_t strid
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

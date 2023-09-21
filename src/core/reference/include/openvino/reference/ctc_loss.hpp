@@ -6,10 +6,11 @@
 
 #include <math.h>
 
+#include <unordered_set>
+
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 void CTCLoss(const T* logits,
@@ -162,5 +163,4 @@ void CTCLoss(const T* logits,
     }  // for (size_t b = 0; b < batchNum; b++)
 }  // CTCLoss
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

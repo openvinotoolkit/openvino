@@ -13,13 +13,12 @@
 #include <map>
 
 #include "interpolate_pil.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "transpose.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
 using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
@@ -831,5 +830,4 @@ void interpolate(T* input_data,
     evaluator(reinterpret_cast<T*>(padded_data_ptr), padded_input_shape, scales, axes, out, out_shape);
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

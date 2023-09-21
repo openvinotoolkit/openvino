@@ -1,9 +1,11 @@
 Stable Diffusion v2.1 using Optimum-Intel OpenVINO
 ==================================================
 
-.. _top:
+
 
 |image0|
+
+.. _top:
 
 **Table of contents**:
 
@@ -53,7 +55,7 @@ in this notebook is
 `helenai/stabilityai-stable-diffusion-2-1-base-ov <https://huggingface.co/helenai/stabilityai-stable-diffusion-2-1-base-ov>`__.
 Let’s download the pre-converted model Stable Diffusion 2.1
 `Intermediate Representation Format
-(IR) <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
+(IR) <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_IR_and_opsets.html>`__
 
 Showing Info Available Devices `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

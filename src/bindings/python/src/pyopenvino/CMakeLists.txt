@@ -105,8 +105,8 @@ if(OpenVINO_SOURCE_DIR)
 endif()
 
 if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
-    ie_python_minimal_api(${PROJECT_NAME})
-    add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
+    ov_python_minimal_api(${PROJECT_NAME})
+    ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
                            HIDDEN)

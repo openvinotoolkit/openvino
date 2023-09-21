@@ -13,7 +13,7 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreatePadOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Pad>& op) {
+static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::util::PadBase>& op, bool allow_negative_pad) {
     validate_inputs_count(op, {3, 4});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -56,18 +56,27 @@ static void CreatePadOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Pad
         non_constant_input_mask |= cldnn::border::PAD_NON_CONST_INPUT::VALUE;
     }
 
-    auto tilePrim = cldnn::border(layerName,
+    const auto borderPrim = cldnn::border(layerName,
                                   non_constant_inputs,
                                   non_constant_input_mask,
                                   pads_begin,
                                   pads_end,
                                   op->get_pad_mode(),
-                                  pad_value);
+                                  pad_value,
+                                  allow_negative_pad);
+    p.add_primitive(*op, borderPrim);
+}
 
-    p.add_primitive(*op, tilePrim);
+static void CreatePadOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Pad>& op) {
+    CreatePadOpInternal(p, op, false);
+}
+
+static void CreatePadOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v12::Pad>& op) {
+    CreatePadOpInternal(p, op, true);
 }
 
 REGISTER_FACTORY_IMPL(v1, Pad);
+REGISTER_FACTORY_IMPL(v12, Pad);
 
 }  // namespace intel_gpu
 }  // namespace ov

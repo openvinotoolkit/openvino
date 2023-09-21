@@ -6,10 +6,10 @@
 
 #include <memory>
 #include <vector>
-#include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -17,7 +17,7 @@ class LP_TRANSFORMATIONS_API PullTransposeThroughDequantization;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -28,8 +28,8 @@ class LP_TRANSFORMATIONS_API PullTransposeThroughDequantization;
  * [PullTransposeThroughDequantization](@ref openvino_docs_OV_UG_lpt_PullTransposeThroughDequantization) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::PullTransposeThroughDequantization : public ov::pass::MatcherPass {
+class ov::pass::low_precision::PullTransposeThroughDequantization : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PullTransposeThroughDequantization", "0");
-    PullTransposeThroughDequantization(const std::vector<ngraph::element::Type>& inputPrecisions = {});
+    PullTransposeThroughDequantization(const std::vector<ov::element::Type>& inputPrecisions = {});
 };

@@ -172,7 +172,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getReferenceWith
     input1->set_friendly_name("input1");
 
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
-    low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize1, precisionBeforeOp);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize1, precisionBeforeOp);
     fakeQuantize1->set_friendly_name("fakeQuantize1");
     const auto deqBefore1 = makeDequantization(fakeQuantize1, dequantizationBefore);
 
@@ -180,7 +180,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getReferenceWith
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
-    low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionBeforeOp);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionBeforeOp);
     fakeQuantize2->set_friendly_name("fakeQuantize2");
     const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore);
 
@@ -188,7 +188,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getReferenceWith
     input3->set_friendly_name("input3");
 
     const auto fakeQuantize3 = makeFakeQuantizeTypeRelaxed(input3, precision, fqOnData3);
-    low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize3, precisionBeforeOp);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize3, precisionBeforeOp);
     fakeQuantize3->set_friendly_name("fakeQuantize3");
     const auto deqBefore3 = makeDequantization(fakeQuantize3, dequantizationBefore);
 

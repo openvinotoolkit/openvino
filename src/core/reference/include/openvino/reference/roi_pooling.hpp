@@ -4,10 +4,12 @@
 
 #pragma once
 
+#include <cmath>
+#include <limits>
+
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void roi_pooling(const T* feature_maps,
@@ -183,7 +185,4 @@ void roi_pooling(const T* feature_maps,
     }
 }
 }  // namespace reference
-
-}  // namespace runtime
-
-}  // namespace ngraph
+}  // namespace ov

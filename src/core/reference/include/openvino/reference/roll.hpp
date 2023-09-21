@@ -16,11 +16,10 @@
 
 #pragma once
 
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 size_t shift_pos(size_t pos_in_spanned_data, size_t dim_shift, size_t spanned_shape_size, size_t dim_size) {
     size_t pos = pos_in_spanned_data / spanned_shape_size % dim_size;
@@ -74,5 +73,4 @@ void roll(const char* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

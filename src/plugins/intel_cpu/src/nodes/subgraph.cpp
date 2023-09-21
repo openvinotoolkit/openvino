@@ -9,13 +9,10 @@
 #include <vector>
 #include <algorithm>
 #include <array>
-#include <tuple>
 
-#include <dnnl_debug.h>
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -31,6 +28,7 @@
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
+#include "transformations/snippets/x64/shape_inference.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
 #include "shape_inference/custom/subgraph.hpp"
@@ -142,7 +140,7 @@ snippets::op::Subgraph::BlockedShapeVector getBlockedShapes(const std::vector<st
 }
 } // namespace
 
-Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         : Node(op, context, SnippetShapeInferFactory(op)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
@@ -694,37 +692,43 @@ bool Snippet::SnippetJitExecutor::optimizeExecDomain(std::vector<VectorDims>& in
 }
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {
-    ov::pass::Manager pre_dialect;
-    pre_dialect.register_pass<ConvertToSwishCPU>();
+    using Manager = snippets::pass::Manager;
+    using PassPosition = snippets::pass::Manager::PassPosition;
+    using Place = snippets::pass::Manager::PassPosition::Place;
+    std::vector<Manager::PositionedPass> backend_passes;
+
+#define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
+            backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
+
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), ConvertToSwishCPU);
     if (enforceBF16 && snippet_for_generation->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
-        // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
-        CPU_REGISTER_PASS_X64(pre_dialect, ov::snippets::pass::MatMulToBrgemm);
-        CPU_REGISTER_PASS_X64(pre_dialect, pass::EnforcePrecision, element::f32, element::bf16);
+        // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
+        SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), ov::snippets::pass::MatMulToBrgemm);
+        SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), pass::EnforcePrecision, element::f32, element::bf16);
     }
 
-    ov::pass::Manager post_dialect;
-    CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::BrgemmToBrgemmCPU);
-    CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
 
-    ov::pass::Manager post_precision;
-    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
-    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineEnd), ov::intel_cpu::pass::RemoveConverts);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineEnd), ov::intel_cpu::pass::MulAddToFMA);
+
+#undef SNIPPETS_REGISTER_PASS
 
     ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking);
 
     ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
-
-    schedule = snippet_for_generation->generate(
-        pre_dialect,
-        post_dialect,
-        post_precision,
-        control_flow_markup_pipeline,
-        control_flow_pipeline,
-        reinterpret_cast<const void*>(jcp));
+    // Todo: We don't need shape infer factory now, since shape infer will be done through validate_and_infer_types
+    //  pass std::make_shared<snippets::CPUShapeInferSnippetsFactory>() instead of nullptr, when shape infer is performed on LIR
+    schedule = snippet_for_generation->generate(backend_passes,
+                                                control_flow_markup_pipeline,
+                                                control_flow_pipeline,
+                                                nullptr,
+                                                reinterpret_cast<const void*>(jcp));
 }
 
 bool Snippet::SnippetJitExecutor::schedule_created() {

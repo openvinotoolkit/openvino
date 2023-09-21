@@ -73,6 +73,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Mish", CreatorFunction(translate_unary_op<opset8::Mish>)},
         {"Neg", CreatorFunction(translate_unary_op<opset8::Negative>)},
         {"Relu", CreatorFunction(translate_unary_op<opset8::Relu>)},
+        {"Selu", CreatorFunction(translate_selu_op)},
         {"Sigmoid", CreatorFunction(translate_unary_op<opset8::Sigmoid>)},
         {"Sin", CreatorFunction(translate_unary_op<opset8::Sin>)},
         {"Sinh", CreatorFunction(translate_unary_op<opset8::Sinh>)},

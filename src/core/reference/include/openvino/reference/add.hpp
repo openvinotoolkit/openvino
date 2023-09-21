@@ -6,11 +6,10 @@
 
 #include <cstddef>
 
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/autobroadcast_binop.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void add(const T* arg0, const T* arg1, T* out, size_t count) {
@@ -31,5 +30,4 @@ void add(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

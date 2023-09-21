@@ -1,7 +1,7 @@
 Named entity recognition with OpenVINO™
 =======================================
 
-.. _top:
+
 
 The Named Entity Recognition(NER) is a natural language processing
 method that involves the detecting of key information in the
@@ -26,6 +26,8 @@ the previous three groups. The model is sensitive to capital letters.
 To simplify the user experience, the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum>`__ library is used to
 convert the model to OpenVINO™ IR format and quantize it.
+
+.. _top:
 
 **Table of contents**:
 
@@ -437,9 +439,9 @@ text.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. parsed-literal::
