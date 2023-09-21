@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/slice.hpp"
 #include "variadic_split_shape_inference.hpp"
 
 using namespace std;
@@ -62,14 +62,14 @@ inline bool evaluate(const HostTensorPtr& in,
     const auto has_nonzero_dims = std::none_of(output_shape.begin(), output_shape.end(), ov::cmp::Equal<size_t>(0));
 
     if (has_nonzero_dims) {
-        runtime::reference::slice(in->get_data_ptr<const char>(),
-                                  out->get_data_ptr<char>(),
-                                  in->get_shape(),
-                                  lower_bounds,
-                                  upper_bounds,
-                                  Strides(lower_bounds.size(), 1),
-                                  out->get_shape(),
-                                  in->get_element_type().size());
+        ov::reference::slice(in->get_data_ptr<const char>(),
+                             out->get_data_ptr<char>(),
+                             in->get_shape(),
+                             lower_bounds,
+                             upper_bounds,
+                             Strides(lower_bounds.size(), 1),
+                             out->get_shape(),
+                             in->get_element_type().size());
         return true;
     }
     return false;

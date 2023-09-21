@@ -11,7 +11,8 @@
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
-#include "ngraph/runtime/reference/loop.hpp"
+#include "openvino/reference/loop.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -347,18 +348,16 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v5::Loop::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
-    ngraph::runtime::reference::loop(m_bodies[0],
-                                     m_output_descriptions[0],
-                                     m_input_descriptions[0],
-                                     m_special_body_ports,
-                                     outputs,
-                                     inputs);
+    ov::reference::loop(m_bodies[0],
+                        m_output_descriptions[0],
+                        m_input_descriptions[0],
+                        m_special_body_ports,
+                        outputs,
+                        inputs);
     return true;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v5::Loop::has_evaluate() const {
     OV_OP_SCOPE(v5_Loop_has_evaluate);

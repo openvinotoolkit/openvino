@@ -154,12 +154,13 @@ template <OutputVector (*T)(const NodeContext&), size_t in_idx = 0, size_t out_i
 OutputVector quantizable_op(const NodeContext& context) {
     auto translation_res = T(context);
     FRONT_END_OP_CONVERSION_CHECK(translation_res.size() > out_idx, "Not enough outputs to apply quantization.");
-    if (const auto quantized_pt_node = cast_quantized_fw_node(context.get_input(in_idx).get_node_shared_ptr())) {
-        return {context.mark_node(std::make_shared<QuantizedPtNode>(quantized_pt_node->get_type(),
-                                                                    translation_res[out_idx],
-                                                                    quantized_pt_node->get_scale(),
-                                                                    quantized_pt_node->get_zero_point(),
-                                                                    quantized_pt_node->get_dtype()))};
+    auto target_input = context.get_input(in_idx);
+    if (const auto quantized_pt_node = cast_quantized_fw_node(target_input.get_node_shared_ptr())) {
+        return {quantize(context,
+                         translation_res[out_idx],
+                         quantized_pt_node->get_scale(),
+                         quantized_pt_node->get_zero_point(),
+                         target_input)};
     }
     return translation_res;
 }

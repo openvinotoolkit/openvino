@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/embeddingbag_packedsum.hpp"
+
+#include <gtest/gtest.h>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 TEST(type_prop, ebps_default_ctor) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2, 6});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2, 6});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
 
     auto op = make_shared<op::v3::EmbeddingBagPackedSum>();
     op->set_arguments(OutputVector{emb_table, indices, per_sample_weights});
@@ -30,8 +32,8 @@ TEST(type_prop, ebps_labeled_interval_dims_2in) {
     auto ind_shape = PartialShape{{6, 8}, 4};
     set_shape_labels(ind_shape, 20);
 
-    auto emb_table = make_shared<op::Parameter>(element::f32, emb_shape);
-    auto indices = make_shared<op::Parameter>(element::i64, ind_shape);
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, emb_shape);
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, ind_shape);
 
     auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -47,9 +49,9 @@ TEST(type_prop, ebps_labeled_interval_dims_3in) {
     auto sample_shape = PartialShape{{4, 8}, 4};
     set_shape_labels(sample_shape, 30);
 
-    auto emb_table = make_shared<op::Parameter>(element::f32, emb_shape);
-    auto indices = make_shared<op::Parameter>(element::i64, ind_shape);
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, sample_shape);
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, emb_shape);
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, ind_shape);
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, sample_shape);
 
     auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -58,9 +60,9 @@ TEST(type_prop, ebps_labeled_interval_dims_3in) {
 }
 
 TEST(type_prop, ebps) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
 
     auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
     EXPECT_TRUE(ebps->get_output_partial_shape(0).same_scheme(PartialShape{3, 2}));
@@ -70,10 +72,10 @@ TEST(type_prop, ebps) {
 }
 
 TEST(type_prop, ebps_dynamic_emb_table) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, PartialShape{5, Dimension::dynamic()});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{5, Dimension::dynamic()});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
 
@@ -81,9 +83,9 @@ TEST(type_prop, ebps_dynamic_emb_table) {
 }
 
 TEST(type_prop, ebps_dynamic_indices) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic(), 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{Dimension::dynamic(), 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
 
     auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
 
@@ -91,9 +93,9 @@ TEST(type_prop, ebps_dynamic_indices) {
 }
 
 TEST(type_prop, ebps_dynamic_emb_table_indices) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, PartialShape{5, Dimension::dynamic()});
-    auto indices = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic(), 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{5, Dimension::dynamic()});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{Dimension::dynamic(), 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
 
     auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
 
@@ -102,9 +104,9 @@ TEST(type_prop, ebps_dynamic_emb_table_indices) {
 }
 
 TEST(type_prop, ebps_fail_indices_element_type) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::f32, Shape{3, 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
 
     try {
         auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
@@ -117,9 +119,9 @@ TEST(type_prop, ebps_fail_indices_element_type) {
 }
 
 TEST(type_prop, ebps_fail_mismatch_element_type) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::i64, Shape{3, 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 4});
 
     try {
         auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
@@ -134,9 +136,9 @@ TEST(type_prop, ebps_fail_mismatch_element_type) {
 }
 
 TEST(type_prop, ebps_fail_mismatch_shape) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4, 3});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 3});
 
     try {
         auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
@@ -149,9 +151,9 @@ TEST(type_prop, ebps_fail_mismatch_shape) {
 }
 
 TEST(type_prop, ebps_fail_indices_1d) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
 
     try {
         auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
@@ -164,9 +166,9 @@ TEST(type_prop, ebps_fail_indices_1d) {
 }
 
 TEST(type_prop, ebps_fail_emb_table_0d) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
 
     OV_EXPECT_THROW(auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights),
                     NodeValidationFailure,
@@ -174,9 +176,9 @@ TEST(type_prop, ebps_fail_emb_table_0d) {
 }
 
 TEST(type_prop, ebps_fail_per_sample_weights_1d) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
 
     try {
         auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
@@ -189,8 +191,8 @@ TEST(type_prop, ebps_fail_per_sample_weights_1d) {
 }
 
 TEST(type_prop, ebps_2_args_api) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 4});
 
     auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices);
     EXPECT_TRUE(ebps->get_output_partial_shape(0).same_scheme(PartialShape{3, 2}));
@@ -199,8 +201,8 @@ TEST(type_prop, ebps_2_args_api) {
 }
 
 TEST(type_prop, ebps_fail_indices_element_type_2_args_api) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
 
     try {
         auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices);

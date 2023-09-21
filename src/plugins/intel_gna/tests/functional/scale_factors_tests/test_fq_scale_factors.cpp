@@ -90,7 +90,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const ngraph::Shape shape = {1, 1, 128};
-        auto params = ngraph::builder::makeParams(ngPrc, {shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
         std::shared_ptr<ov::Node> test_node = params[0];
         switch (m_non_func_layer) {
         case NonFunctionalLayer::RESHAPE:

@@ -6,11 +6,11 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/scatter_update.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -78,15 +78,15 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
         return false;
     }
 
-    ngraph::runtime::reference::scatter_update(data->get_data_ptr<char>(),
-                                               indices_casted_vector.data(),
-                                               updates->get_data_ptr<char>(),
-                                               axis_val,
-                                               out->get_data_ptr<char>(),
-                                               elem_size,
-                                               data->get_shape(),
-                                               indices->get_shape(),
-                                               updates->get_shape());
+    ov::reference::scatter_update(data->get_data_ptr<char>(),
+                                  indices_casted_vector.data(),
+                                  updates->get_data_ptr<char>(),
+                                  axis_val,
+                                  out->get_data_ptr<char>(),
+                                  elem_size,
+                                  data->get_shape(),
+                                  indices->get_shape(),
+                                  updates->get_shape());
 
     return true;
 }

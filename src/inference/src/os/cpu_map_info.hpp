@@ -148,7 +148,8 @@ void parse_processor_info_win(const char* base_ptr,
 
 #if defined(__APPLE__)
 /**
- * @brief      Parse processors infomation on Linux
+ * @brief      Parse processors infomation on MacOS
+ * @param[in]  system_info_table cpus information for this platform.
  * @param[out] _processors total number for processors in system.
  * @param[out] _numa_nodes total number for sockets in system
  * @param[out] _sockets total number for sockets in system
@@ -156,7 +157,8 @@ void parse_processor_info_win(const char* base_ptr,
  * @param[out] _proc_type_table summary table of number of processors per type
  * @return
  */
-int parse_processor_info_macos(int& _processors,
+int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t>>& system_info_table,
+                               int& _processors,
                                int& _numa_nodes,
                                int& _sockets,
                                int& _cores,

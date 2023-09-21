@@ -40,7 +40,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
 
     selectedType = ".*_I8";
 
-    auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShapes});
+    ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShapes))};
     const auto fq = ngraph::builder::makeFakeQuantize(
         inputParams[0],
         ov::element::f32,

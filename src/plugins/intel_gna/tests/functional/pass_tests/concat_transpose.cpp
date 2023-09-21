@@ -65,8 +65,10 @@ protected:
     void init_test_model() {
         std::vector<std::vector<size_t>> input_shapes = {{10, 1}};
 
-        auto params = ngraph::builder::makeParams(m_net_type, input_shapes);
-
+        ov::ParameterVector params;
+        for (auto&& shape : input_shapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(m_net_type, ov::Shape(shape)));
+        }
         std::vector<size_t> shape_1 = {10, 128};
         std::vector<size_t> shape_2 = {10, 192};
         std::vector<size_t> shape_3 = {10, 256};

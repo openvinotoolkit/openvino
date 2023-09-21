@@ -2,30 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/coordinate.hpp"
+
 #include <memory>
-#include <ngraph/coordinate_transform.hpp>
 #include <numeric>
 #include <string>
 
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 using namespace std;
-using namespace ngraph;
-NGRAPH_SUPPRESS_DEPRECATED_START
+using namespace ov;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(coordinate, shape0d) {
-    auto ct = CoordinateTransform({});
+    auto ct = ov::CoordinateTransform({});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 1);
     auto it = ct.begin();
-    EXPECT_EQ(*it++, Coordinate({}));
+    EXPECT_EQ(*it++, ov::Coordinate({}));
     EXPECT_TRUE(it == ct.end());
 }
 
 TEST(coordinate, shape1d) {
-    auto ct = CoordinateTransform({3});
+    auto ct = ov::CoordinateTransform({3});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 3);
     auto it = ct.begin();
     EXPECT_EQ(*it++, Coordinate({0}));
@@ -35,7 +36,7 @@ TEST(coordinate, shape1d) {
 }
 
 TEST(coordinate, shape2d) {
-    auto ct = CoordinateTransform({2, 3});
+    auto ct = ov::CoordinateTransform({2, 3});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 6);
     auto it = ct.begin();
     EXPECT_EQ(*it++, Coordinate({0, 0}));
@@ -48,7 +49,7 @@ TEST(coordinate, shape2d) {
 }
 
 TEST(coordinate, shape3d) {
-    auto ct = CoordinateTransform({2, 3, 4});
+    auto ct = ov::CoordinateTransform({2, 3, 4});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 24);
     auto it = ct.begin();
     EXPECT_EQ(*it++, Coordinate({0, 0, 0}));
@@ -79,20 +80,10 @@ TEST(coordinate, shape3d) {
 }
 
 TEST(coordinate, zero_sized_axis) {
-    auto ct = CoordinateTransform({2, 0, 4});
+    auto ct = ov::CoordinateTransform({2, 0, 4});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 0);
     auto it = ct.begin();
     EXPECT_TRUE(it == ct.end());
-}
-
-TEST(DISABLED_coordinate, random) {
-    auto ct = CoordinateTransform({2, 3, 4});
-    ASSERT_EQ(shape_size(ct.get_target_shape()), 24);
-    auto it = ct.begin();
-    it += 5;
-    EXPECT_EQ(*it, Coordinate({0, 1, 1}));
-    it += -2;
-    EXPECT_EQ(*it, Coordinate({0, 1, 1}));
 }
 
 TEST(coordinate, corner) {
@@ -106,14 +97,14 @@ TEST(coordinate, corner) {
     CoordinateDiff target_padding_above = CoordinateDiff(source_shape.size(), 0);
     Strides source_dilation_strides = Strides(source_shape.size(), 1);
 
-    auto ct = CoordinateTransform(source_shape,
-                                  source_start_corner,
-                                  source_end_corner,
-                                  source_strides,
-                                  source_axis_order,
-                                  target_padding_below,
-                                  target_padding_above,
-                                  source_dilation_strides);
+    auto ct = ov::CoordinateTransform(source_shape,
+                                      source_start_corner,
+                                      source_end_corner,
+                                      source_strides,
+                                      source_axis_order,
+                                      target_padding_below,
+                                      target_padding_above,
+                                      source_dilation_strides);
 
     ASSERT_EQ(shape_size(ct.get_target_shape()), 9);
     auto it = ct.begin();
@@ -140,14 +131,14 @@ TEST(coordinate, strides) {
     CoordinateDiff target_padding_above = CoordinateDiff(source_shape.size(), 0);
     Strides source_dilation_strides = Strides(source_shape.size(), 1);
 
-    auto ct = CoordinateTransform(source_shape,
-                                  source_start_corner,
-                                  source_end_corner,
-                                  source_strides,
-                                  source_axis_order,
-                                  target_padding_below,
-                                  target_padding_above,
-                                  source_dilation_strides);
+    auto ct = ov::CoordinateTransform(source_shape,
+                                      source_start_corner,
+                                      source_end_corner,
+                                      source_strides,
+                                      source_axis_order,
+                                      target_padding_below,
+                                      target_padding_above,
+                                      source_dilation_strides);
 
     ASSERT_EQ(shape_size(ct.get_target_shape()), 20);
     auto it = ct.begin();
@@ -184,14 +175,14 @@ TEST(coordinate, axis_order) {
     CoordinateDiff target_padding_above = CoordinateDiff(source_shape.size(), 0);
     Strides source_dilation_strides = Strides(source_shape.size(), 1);
 
-    auto ct = CoordinateTransform(source_shape,
-                                  source_start_corner,
-                                  source_end_corner,
-                                  source_strides,
-                                  source_axis_order,
-                                  target_padding_below,
-                                  target_padding_above,
-                                  source_dilation_strides);
+    auto ct = ov::CoordinateTransform(source_shape,
+                                      source_start_corner,
+                                      source_end_corner,
+                                      source_strides,
+                                      source_axis_order,
+                                      target_padding_below,
+                                      target_padding_above,
+                                      source_dilation_strides);
 
     ASSERT_EQ(shape_size(ct.get_target_shape()), 24);
     auto it = ct.begin();
@@ -220,95 +211,4 @@ TEST(coordinate, axis_order) {
     EXPECT_EQ(ct.to_source_coordinate(*it++), Coordinate({1, 1, 3}));
     EXPECT_EQ(ct.to_source_coordinate(*it++), Coordinate({2, 1, 3}));
     EXPECT_TRUE(it == ct.end());
-}
-
-TEST(DISABLED_coordinate, padding) {
-    Shape source_shape{10, 10};
-    Coordinate source_start_corner = Coordinate{0, 0};
-    Coordinate source_end_corner{source_shape};
-    Strides source_strides = Strides(source_shape.size(), 1);
-    AxisVector source_axis_order(source_shape.size());
-    iota(source_axis_order.begin(), source_axis_order.end(), 0);
-    CoordinateDiff target_padding_below = CoordinateDiff(source_shape.size(), 0);
-    CoordinateDiff target_padding_above = CoordinateDiff(source_shape.size(), 0);
-    Strides source_dilation_strides = Strides(source_shape.size(), 1);
-
-    auto ct = CoordinateTransform(source_shape,
-                                  source_start_corner,
-                                  source_end_corner,
-                                  source_strides,
-                                  source_axis_order,
-                                  target_padding_below,
-                                  target_padding_above,
-                                  source_dilation_strides);
-
-    // for (const Coordinate& c : ct)
-    // {
-    //     cout << c << ", " << ct.to_source_coordinate(c) << endl;
-    // }
-
-    ASSERT_EQ(shape_size(ct.get_target_shape()), 24);
-    auto it = ct.begin();
-
-    EXPECT_TRUE(it == ct.end());
-}
-
-TEST(DISABLED_coordinate, dilation) {
-    Shape source_shape{10, 10};
-    Coordinate source_start_corner = Coordinate{0, 0};
-    Coordinate source_end_corner{source_shape};
-    Strides source_strides = Strides(source_shape.size(), 1);
-    AxisVector source_axis_order(source_shape.size());
-    iota(source_axis_order.begin(), source_axis_order.end(), 0);
-    CoordinateDiff target_padding_below = CoordinateDiff(source_shape.size(), 0);
-    CoordinateDiff target_padding_above = CoordinateDiff(source_shape.size(), 0);
-    Strides source_dilation_strides = Strides(source_shape.size(), 1);
-
-    auto ct = CoordinateTransform(source_shape,
-                                  source_start_corner,
-                                  source_end_corner,
-                                  source_strides,
-                                  source_axis_order,
-                                  target_padding_below,
-                                  target_padding_above,
-                                  source_dilation_strides);
-
-    // for (const Coordinate& c : ct)
-    // {
-    //     cout << ct.to_source_coordinate(c) << endl;
-    // }
-
-    ASSERT_EQ(shape_size(ct.get_target_shape()), 24);
-    auto it = ct.begin();
-
-    EXPECT_TRUE(it == ct.end());
-}
-
-TEST(benchmark, coordinate) {
-    Shape source_shape{128, 3, 2000, 1000};
-    Coordinate source_start_corner = Coordinate{0, 0, 0, 0};
-    Coordinate source_end_corner{source_shape};
-    Strides source_strides = Strides(source_shape.size(), 1);
-    AxisVector source_axis_order(source_shape.size());
-    iota(source_axis_order.begin(), source_axis_order.end(), 0);
-    CoordinateDiff target_padding_below = CoordinateDiff(source_shape.size(), 0);
-    CoordinateDiff target_padding_above = CoordinateDiff(source_shape.size(), 0);
-    Strides source_dilation_strides = Strides(source_shape.size(), 1);
-
-    stopwatch timer;
-    timer.start();
-    auto ct = CoordinateTransform(source_shape,
-                                  source_start_corner,
-                                  source_end_corner,
-                                  source_strides,
-                                  source_axis_order,
-                                  target_padding_below,
-                                  target_padding_above,
-                                  source_dilation_strides);
-
-    for (const Coordinate& c : ct) {
-        (void)c;
-    }
-    timer.stop();
-    cout << "time: " << timer.get_milliseconds() << endl;
 }

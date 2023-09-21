@@ -34,10 +34,9 @@ std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
 }
 std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() const {
     // todo: implement conversion between std::vector<size_t> and std::vector<Shape>
-    auto input_params = ngraph::builder::makeParams(precision,
-                                                    {input_shapes[0].get_shape(),
-                                                     input_shapes[1].get_shape(),
-                                                     input_shapes[2].get_shape()});
+    ov::ParameterVector input_params{std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[0]),
+                                     std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[1]),
+                                     std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[2])};
     auto load_or_broadcastload = [&](size_t i) -> std::shared_ptr<Node> {
         // user specified that no broadcasting is required
         if (broadcast_shapes[i].empty()) {

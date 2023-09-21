@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include "openvino/core/partial_shape.hpp"
-
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <iterator>
 #include <memory>
 #include <ostream>
 #include <set>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <vector>
+
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
 namespace test {
@@ -195,12 +195,3 @@ size_t getVmRSSInKB();
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
-
-// openvino_contrib and NPU repo use CommonTestUtils::
-// so we need to add these names to CommonTestUtils namespace
-namespace CommonTestUtils {
-using ov::test::utils::vec2str;
-using ov::test::utils::combineParams;
-using ov::test::utils::OpType;
-using ov::test::utils::GetTimestamp;
-} // namespace CommonTestUtils

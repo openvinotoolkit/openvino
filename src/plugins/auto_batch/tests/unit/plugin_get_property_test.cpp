@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 #include "mock_common.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 
 using ::testing::_;
 using ::testing::AnyNumber;

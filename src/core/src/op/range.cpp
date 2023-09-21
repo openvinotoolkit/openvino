@@ -10,8 +10,8 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/reference/range.hpp"
 #include "range_shape_inference.hpp"
 
 using namespace std;
@@ -170,7 +170,7 @@ bool evaluate(const HostTensorPtr& out,
     }
     ov::Shape out_shape = ov::Shape({static_cast<size_t>(out_size)});
     out->set_shape(out_shape);
-    runtime::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
+    ov::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
     return true;
 }
 

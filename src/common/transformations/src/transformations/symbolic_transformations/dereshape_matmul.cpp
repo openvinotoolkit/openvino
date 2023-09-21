@@ -16,6 +16,8 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov::symbol::util;
+
 bool concat_predicate(ov::Output<ov::Node> output) {
     auto output_pshape = output.get_partial_shape();
     if (output_pshape.rank().is_dynamic() || output_pshape.size() <= 2)

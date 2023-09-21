@@ -150,8 +150,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
          ((latencyThreadingMode == Config::LatencyThreadingMode::PER_PLATFORM) || (proc_type_table.size() == 1))) ||
         ((input_streams_changed == true) && (input_streams == 1))) {
         n_streams = 1;
-        if ((proc_type_table.size() == 1) && (model_prefer_threads > 0) &&
-            ((input_threads == 0) || (input_threads == 0))) {
+        if ((proc_type_table.size() == 1) && (input_threads == 0) && (model_prefer_threads > 0)) {
             stream_info[NUMBER_OF_STREAMS] = n_streams;
             if ((model_prefer_threads == proc_type_table[0][MAIN_CORE_PROC]) &&
                 (proc_type_table[0][MAIN_CORE_PROC] > 0)) {
@@ -258,7 +257,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                         n_threads_per_stream = static_cast<int>(n_threads / n_streams);
                     }
                 } else {
-                    while (n_streams * 2 <= n_threads_per_stream) {
+                    while ((n_streams * 2 <= n_threads_per_stream) && (n_threads_per_stream > 1)) {
                         n_threads_per_stream = static_cast<int>(n_threads_per_stream / 2);
                         n_streams = static_cast<int>(n_threads / n_threads_per_stream);
                     }

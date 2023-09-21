@@ -6,8 +6,8 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/greater_eq.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/greater_eq.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -20,12 +20,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::greater_eq(arg0->get_data_ptr<ET>(),
-                                   arg1->get_data_ptr<ET>(),
-                                   out->get_data_ptr<element::Type_t::boolean>(),
-                                   arg0->get_shape(),
-                                   arg1->get_shape(),
-                                   broadcast_spec);
+    ov::reference::greater_eq(arg0->get_data_ptr<ET>(),
+                              arg1->get_data_ptr<ET>(),
+                              out->get_data_ptr<element::Type_t::boolean>(),
+                              arg0->get_shape(),
+                              arg1->get_shape(),
+                              broadcast_spec);
     return true;
 }
 

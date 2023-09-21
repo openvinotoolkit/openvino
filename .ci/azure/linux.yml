@@ -34,12 +34,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 variables:
   - group: github
 
@@ -83,7 +77,6 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
@@ -215,13 +208,6 @@ jobs:
       echo TargetBranch: $(System.PullRequest.TargetBranch)
       echo SourceBranch: $(Build.SourceBranch)
     displayName: 'System info'
-
-
-    # Should be after 'Install dependencies' because Git lfs is not installed
-  - checkout: testdata
-    clean: 'true'
-    lfs: 'true'
-    path: testdata
 
   - task: CMake@1
     inputs:
@@ -368,6 +354,9 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVProxyTests.xml
     displayName: 'OV Proxy Plugin Tests'
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroUnitTests.xml
+    displayName: 'OV Hetero Unit Tests'
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
     displayName: 'OV Hetero Func Tests'
 
@@ -452,7 +441,7 @@ jobs:
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py
     displayName: 'Python API 2.0 Tests'
-  
+
   # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       python3 -m pytest -sv $(REPO_DIR)/src/frontends/onnx/tests $(PYTHON_STATIC_ARGS) \
@@ -524,6 +513,15 @@ jobs:
       PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
       TEST_DEVICE: CPU
     displayName: 'TensorFlow 2 Layer Tests - TF FE'
+
+  - script: |
+      set -e
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/jax_tests/ -m precommit --junitxml=$(INSTALL_TEST_DIR)/TEST-jax.xmlTEST
+    env:
+      PYTHONPATH: $(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
+    displayName: 'JAX Layer Tests - TF FE'
 
   - script: |
       set -e

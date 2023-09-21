@@ -5,6 +5,7 @@
 #pragma once
 
 #include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/manager.hpp>
 #include <openvino/pass/pass.hpp>
 #include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
@@ -24,7 +25,14 @@ class TRANSFORMATIONS_API LabelResolvingThroughSelect;
 class ov::pass::SymbolicOptimizations : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SymbolicOptimizations", "0");
+    explicit SymbolicOptimizations(bool full_run = true);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+    std::shared_ptr<ov::pass::Manager> get_manager() {
+        return m_manager;
+    };
+
+private:
+    std::shared_ptr<ov::pass::Manager> m_manager;
 };
 
 /**
@@ -42,6 +50,7 @@ private:
     std::shared_ptr<ov::TableOfEquivalence> m_te;
 };
 
+// TODO: add description and order
 class ov::pass::LabelResolvingThroughSelect : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("LabelResolvingThroughSelect", "0");

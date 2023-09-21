@@ -11,31 +11,40 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 
+using namespace ov::symbol::util;
+
 ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
     MATCHER_SCOPE(ChainedMaximumOptimization);
-    auto first_input = pattern::any_input();
-    auto second_input = pattern::any_input();
-    auto third_input = pattern::any_input();
-    auto upper_maximum = pattern::wrap_type<op::v1::Maximum>({first_input, second_input});
-    auto lower_maximum = pattern::wrap_type<op::v1::Maximum>({upper_maximum, third_input});
+    auto A_input = pattern::any_input();
+    auto B_input = pattern::any_input();
+    auto C_input = pattern::any_input();
+    auto first_maximum = pattern::wrap_type<op::v1::Maximum>({A_input, B_input});
+    auto maximum = pattern::wrap_type<op::v1::Maximum>({first_maximum, C_input});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& vm = m.get_pattern_value_map();
-        auto get_labels = [&](const std::shared_ptr<Node>& node_label) {
-            return vm.at(node_label).get_tensor().get_value_label();
-        };
 
-        auto output_to_replace = vm.at(upper_maximum);
-        if (are_unique_and_equal_labels(get_labels(first_input), get_labels(third_input))) {
-            // optimized graph is Maximum(second_input, third_input)
-            return ov::replace_output_update_name(output_to_replace, vm.at(second_input));
-        } else if (are_unique_and_equal_labels(get_labels(second_input), get_labels(third_input))) {
-            // optimized graph is Maximum(first_input, third_input)
-            return ov::replace_output_update_name(output_to_replace, vm.at(first_input));
+        auto A = vm.at(A_input), B = vm.at(B_input), C = vm.at(C_input);
+        auto output_to_replace = vm.at(first_maximum);
+
+        ov::TensorLabel A_labels, B_labels, C_labels;
+        bool A_read = get_labels(A, A_labels);
+        bool B_read = get_labels(B, B_labels);
+        bool C_read = get_labels(C, C_labels);
+
+        if (!A_read && !B_read && !C_read)
+            return false;
+
+        if (are_unique_and_equal_labels(A_labels, C_labels)) {
+            // Matched Maximum(Maximum(A, B), C) with A == C -> Maximum(B, C)
+            return ov::replace_output_update_name(output_to_replace, B);
+        } else if (are_unique_and_equal_labels(B_labels, C_labels)) {
+            // Matched Maximum(Maximum(A, B), C) with B == C -> Maximum(A, C)
+            return ov::replace_output_update_name(output_to_replace, A);
         }
         return false;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(lower_maximum, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(maximum, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

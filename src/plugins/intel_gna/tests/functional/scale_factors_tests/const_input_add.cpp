@@ -65,7 +65,7 @@ protected:
         std::tie(inputMin, inputMax) = inputRange;
 
         ngraph::Shape shape = {1, 72};
-        auto params = ngraph::builder::makeParams(ngPrc, {shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
 
         auto constant =
             ngraph::builder::makeConstant<float>(ngPrc, shape, {}, true, constRange.second, constRange.first);

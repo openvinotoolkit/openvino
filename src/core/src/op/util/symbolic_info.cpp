@@ -49,8 +49,12 @@ std::shared_ptr<ov::TableOfEquivalence> ov::table_of_equivalence(const std::shar
 void ov::populate_tensor_with_missing_labels(ov::descriptor::Tensor& tensor) {
     if (auto table = ov::table_of_equivalence(tensor)) {
         auto label_values = tensor.get_value_label();
-        if (label_values.empty())
-            label_values.resize(ov::shape_size(tensor.get_shape()), ov::no_label);
+        if (label_values.empty()) {
+            const auto& pshape = tensor.get_partial_shape();
+            if (pshape.is_dynamic())
+                return;
+            label_values.resize(ov::shape_size(pshape.to_shape()), ov::no_label);
+        }
         for (auto& label : label_values)
             if (label == ov::no_label)
                 label = table->get_next_label();

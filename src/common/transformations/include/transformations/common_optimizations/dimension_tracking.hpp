@@ -5,9 +5,10 @@
 #pragma once
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
+
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
 
 using P2Btype = std::unordered_map<std::shared_ptr<ov::opset1::Parameter>, std::unordered_set<ov::label_t>>;
 
@@ -44,8 +45,10 @@ void mark_layout_independent_batch(const std::shared_ptr<ov::opset1::Parameter>&
                                    P2Btype& map);
 void mark_with_unique_dimension_labels(const std::shared_ptr<Model>& m, const ov::DimensionTracker& dt);
 void restore_original_dimensions(
+    const std::shared_ptr<ov::Model>& model,
     const std::map<std::shared_ptr<ov::opset1::Parameter>, ov::PartialShape>& parameter_to_shape,
-    bool leave_batch_dynamic = true);
+    bool leave_batch_dynamic = true,
+    bool clear_labels = false);
 bool check_batch_tracks_through_all_the_nodes(const std::shared_ptr<ov::Model>& m);
 P2Btype find_batch(const std::shared_ptr<ov::Model>& m);
 bool detach_detection_output(const std::shared_ptr<ov::Model>& f);

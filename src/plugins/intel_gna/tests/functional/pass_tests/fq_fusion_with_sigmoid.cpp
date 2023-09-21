@@ -32,7 +32,7 @@ protected:
         configuration.insert(config.begin(), config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto input = ngraph::builder::makeParams(ngPrc, {{1, inputSize}});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
         auto constant = ngraph::builder::makeConstant(ngPrc, {1, inputSize}, std::vector<size_t>{1});
         auto mul1 = ngraph::builder::makeEltwise(input[0], constant, ngraph::helpers::EltwiseTypes::ADD);
         auto sigmoid1 = std::make_shared<ngraph::opset1::Sigmoid>(mul1);

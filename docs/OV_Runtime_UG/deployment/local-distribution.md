@@ -137,6 +137,7 @@ OpenVINO Runtime uses frontend libraries dynamically to read models in different
 - ``openvino_tensorflow_lite_frontend`` is used to read the TensorFlow Lite file format.
 - ``openvino_onnx_frontend`` is used to read the ONNX file format.
 - ``openvino_paddle_frontend`` is used to read the Paddle file format.
+- ``openvino_pytorch_frontend`` is used to convert PyTorch model via ``openvino.convert_model`` API.
 
 Depending on the model format types that are used in the application in `ov::Core::read_model <classov_1_1Core.html#doxid-classov-1-1-core-1ae0576a95f841c3a6f5e46e4802716981>`__, select the appropriate libraries.
 

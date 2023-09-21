@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief This is a header file for the Inference Engine plugin C++ API
+ * @brief This is a header file for the OpenVINO plugin C++ API
  *
  * @file plugin.hpp
  */

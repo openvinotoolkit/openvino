@@ -14,6 +14,7 @@
 #include <transformations/common_optimizations/dimension_tracking.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/shared_ops_optimization.hpp>
+#include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/symbolic_transformations/chained_maximum.hpp>
 #include <transformations/symbolic_transformations/dereshape_matmul.hpp>
 #include <transformations/symbolic_transformations/label_optimization.hpp>
@@ -23,8 +24,11 @@
 #include "itt.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
-#include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 
+using namespace ov::pass;
+using namespace ov::symbol::util;
+
+namespace {
 void symbolic_set_up_for_shape(ov::DimensionTracker& dt, ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
         return;
@@ -83,6 +87,7 @@ void special_case_range_label_propagation(const std::shared_ptr<ov::Node>& node)
         ov::DimensionTracker::set_label(output_shape[0], add_in0_label);
     node->set_output_type(0, node->get_output_element_type(0), output_shape);
 }
+}  // namespace
 
 ov::pass::SymbolicPropagation::SymbolicPropagation() {
     m_te = std::make_shared<ov::TableOfEquivalence>();
@@ -96,16 +101,16 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
     ov::DimensionTracker dt(te);
 
     for (const auto& op : m->get_ordered_ops()) {
+        // since we disable invalidation with the following two lines, we have to invalidate manually here
         op->invalidate_values();
         for (auto& output : op->outputs())
             ov::set_up_symbolic_info(output, te);
+        op->revalidate_and_infer_types();
         // Recursively apply transformation for sub-graph based operations
         if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op))
             for (const auto& sub_graph : multi_subgraph_op->get_functions())
                 if (sub_graph)
                     run_on_model(sub_graph);
-
-        op->validate_and_infer_types();
 
         // additional label propagation rules must be triggered here
         special_case_range_label_propagation(op);
@@ -176,35 +181,35 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
     register_matcher(m, matcher_pass_callback);
 }
 
+ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
+    m_manager = std::make_shared<pass::Manager>();
+    m_manager->set_per_pass_validation(false);
+
+#define REGISTER_SYMBOLIC(region, ...) m_manager->register_pass<region>(__VA_ARGS__);
+
+    REGISTER_SYMBOLIC(SymbolicPropagation)
+    if (full_run) {
+        // symbolic based transformations allowing for better static dimension propagation
+        REGISTER_SYMBOLIC(ChainedMaximumOptimization)
+        REGISTER_SYMBOLIC(NopBroadcast)
+        // regular transformations which are needed right now since they clean up unnecessary operations
+        REGISTER_SYMBOLIC(NopElimination)        // Broadcast (Tile) Ones + Remove Slice Before GatherElements
+        REGISTER_SYMBOLIC(SharedOpOptimization)  // Shared GatherElements
+    }
+    // transformations which use labels for optimizations
+    REGISTER_SYMBOLIC(ApplyTableOfEquivalence)
+    if (full_run) {
+        REGISTER_SYMBOLIC(OptimizeLabelsUsedAsValues)  // reduce shape sub-graphs
+        REGISTER_SYMBOLIC(LabelResolvingThroughSelect)  // helps to figure out that broadcasting didn't happen through Select op
+        REGISTER_SYMBOLIC(DeReshapeMatMul)
+        REGISTER_SYMBOLIC(NopElimination)
+        REGISTER_SYMBOLIC(SimplifyShapeOfSubGraph)
+    }
+}
+
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
-    //    std::cout << "# nodes before: " << m->get_ops().size();
-    ov::pass::Manager manager(get_pass_config());
-    manager.set_per_pass_validation(false);
-
-    REGISTER_PASS(manager, SymbolicPropagation)
-
-    // symbolic based transformations allowing for better static dimension propagation
-    REGISTER_PASS(manager, ChainedMaximumOptimization)
-    REGISTER_PASS(manager, NopBroadcast)
-
-    // regular transformations which are needed right now since they are
-    REGISTER_PASS(manager, NopElimination)        // Broadcast (Tile) Ones + Remove Slice Before GatherElements
-    REGISTER_PASS(manager, SharedOpOptimization)  // Shared GatherElements
-
-    // transformations which use labels for optimizations
-    REGISTER_PASS(manager, ApplyTableOfEquivalence)
-    REGISTER_PASS(manager, OptimizeLabelsUsedAsValues)
-    REGISTER_PASS(manager,
-                  LabelResolvingThroughSelect)  // helps to figure out that broadcasting didn't happen through Select op
-
-    REGISTER_PASS(manager, DeReshapeMatMul)
-
-    REGISTER_PASS(manager, NopElimination)
-    REGISTER_PASS(manager, SimplifyShapeOfSubGraph)
-
-    manager.run_passes(m);
+    m_manager->run_passes(m);
     ov::remove_symbolic_info(m);
-    //    std::cout << " after: " << m->get_ops().size() << std::endl;
     return true;
 }

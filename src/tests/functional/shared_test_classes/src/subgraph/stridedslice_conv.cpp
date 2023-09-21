@@ -58,7 +58,7 @@ void SliceConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto ss = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, 0, 0, 64}, std::vector<int64_t>{1, 1, 1, 128},
                                                 std::vector<int64_t>{1, 1, 1, 1}, ngPrc, std::vector<int64_t>{1, 1, 1, 0},
                                                 std::vector<int64_t>{1, 1, 1, 0}, std::vector<int64_t>{0, 0, 0, 0},

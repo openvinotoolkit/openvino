@@ -31,6 +31,10 @@ TSConcatForward::TSConcatForward() {
             return false;
         }
 
+        if (transformation_callback(concat_node)) {
+            return false;
+        }
+
         auto concat_axis = concat_node->get_concatenation_axis();
         if (concat_axis < 0) {
             return false;

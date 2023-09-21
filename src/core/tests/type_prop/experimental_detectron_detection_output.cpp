@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock.h>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "gmock/gmock.h"
 #include "openvino/opsets/opset11.hpp"
 
 using namespace ov;

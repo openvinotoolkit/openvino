@@ -41,7 +41,7 @@ public:
         std::tie(supportedInputShapes, isFC, inType, outType, cpuParams) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(supportedInputShapes) << "_";
+        result << "IS=" << ov::test::utils::vec2str(supportedInputShapes) << "_";
         result << (isFC ? "FullyConnected" : "MatMul") << "_";
         result << "InputType=" << inType << "_";
         result << "OutputType=" << outType << "_";
@@ -56,13 +56,13 @@ protected:
     ElementType inType;
     ElementType outType;
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         SizeVector inShapes;
         CPUSpecificParams cpuParams;
         std::tie(inShapes, isFC, inType, outType, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         const auto ngPrec = element::f32;
-        auto inputParams = builder::makeParams(ngPrec, {inShapes});
+        ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(inShapes))};
 
         std::shared_ptr<Node> fq1;
         std::shared_ptr<Node> matMul;

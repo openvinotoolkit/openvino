@@ -3,9 +3,9 @@
 //
 #pragma once
 
+#include "fft_common_validation.hpp"
 #include "openvino/core/axis_vector.hpp"
 #include "openvino/op/irdft.hpp"
-#include "rfft_common_validation.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -26,11 +26,10 @@ std::vector<TRShape> shape_infer(const IRDFT* op,
     auto axes = get_input_const_data_as<TRShape, int64_t>(op, 1, ta);
     auto axes_are_known = static_cast<bool>(axes);
 
-    util::rfft_common_validation::shape_validation(op,
-                                                   input_shapes,
-                                                   *axes,
-                                                   axes_are_known,
-                                                   util::rfft_common_validation::RFFTKind::Inverse);
+    util::fft_common_validation::shape_validation(op,
+                                                  input_shapes,
+                                                  axes.get(),
+                                                  util::fft_common_validation::FFTKind::ComplexInput);
 
     if (input_shape.rank().is_dynamic()) {
         output_shape = ov::PartialShape::dynamic();

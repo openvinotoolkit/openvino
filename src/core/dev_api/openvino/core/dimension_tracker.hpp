@@ -36,6 +36,7 @@ public:
     void set_up_for_tracking(ov::Dimension& d);
     void set_up_for_tracking(ov::Dimension& d, label_t label) const;
     static void reset_tracking_info(ov::Dimension& d);
+
 private:
     std::shared_ptr<TableOfEquivalence> m_table_of_equivalence;
 };
@@ -46,13 +47,14 @@ using ValTable = std::unordered_map<label_t, ov::Dimension>;
 
 class OPENVINO_API TableOfEquivalence {
 public:
-    explicit TableOfEquivalence(label_t label = 1) : current_label(label) {};
+    explicit TableOfEquivalence(label_t label = 1) : current_label(label){};
     void set_as_equal(const ov::Dimension& lhs, const ov::Dimension& rhs);
     bool are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs);
 
     const EqTable& get_equivalence_table() const;
     const ValTable& get_value_equivalence_table() const;
     label_t get_next_label();
+
 private:
     label_t current_label;
     EqTable dimension_table_of_equivalence;

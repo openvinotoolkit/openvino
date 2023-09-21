@@ -40,7 +40,7 @@ void GatherElementsLayerTest::SetUp() {
     auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
-    auto params = ngraph::builder::makeParams(ngDPrc, {dataShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto gather = std::dynamic_pointer_cast<ngraph::op::v6::GatherElements>(

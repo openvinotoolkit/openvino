@@ -22,6 +22,7 @@ OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_all);
+OP_CONVERTER(translate_and);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argsort);
@@ -109,8 +110,10 @@ OP_CONVERTER(translate_nms);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
 OP_CONVERTER(translate_numel);
+OP_CONVERTER(translate_one_hot);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
+OP_CONVERTER(translate_or);
 OP_CONVERTER(translate_outer);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pairwise_distance);
@@ -131,7 +134,6 @@ OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
-OP_CONVERTER(translate_repeat);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
@@ -202,11 +204,11 @@ OP_CONVERTER(translate_transpose_fx);
 // Supported ops for TorchScript
 const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
-        {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
+        {"aten::__and__", op::translate_and},
         {"aten::__derive_index", op::translate_derive_index},
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
-        {"aten::__or__", op::translate_1to1_match_2_inputs<opset10::LogicalOr>},
+        {"aten::__or__", op::translate_or},
         {"aten::__range_length", op::translate_range_length},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
@@ -369,12 +371,14 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::nonzero", op::translate_nonzero},
         {"aten::norm", op::translate_norm},
         {"aten::numel", op::translate_numel},
+        {"aten::one_hot", op::translate_one_hot},
         {"aten::ones", op::translate_ones},
         {"aten::ones_like", op::translate_ones_like},
         {"aten::outer", op::translate_outer},
         {"aten::pad", op::translate_pad},
         {"aten::pairwise_distance", op::translate_pairwise_distance},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
+        {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::pow", op::translate_pow},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
@@ -388,7 +392,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
         {"aten::remainder", op::translate_remainder},
-        {"aten::repeat", op::translate_repeat},
+        {"aten::repeat", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Tile>>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
@@ -424,6 +428,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::inplace_op<op::translate_sub>},
         {"aten::sum", op::translate_sum},
+        {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
         {"aten::t_", op::inplace_op<op::translate_t>},
         {"aten::tan", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>},
@@ -431,6 +436,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::tanh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tanh>},
         {"aten::tanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tanh>>},
         {"aten::tensor", op::translate_as_tensor},
+        {"aten::tile", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::to", op::translate_to},
         {"aten::topk", op::translate_topk},
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},

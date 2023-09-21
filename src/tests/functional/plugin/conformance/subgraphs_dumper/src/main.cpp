@@ -7,6 +7,11 @@
 #include "cache/graph_cache.hpp"
 #include "utils/model.hpp"
 
+#include "openvino/util/file_util.hpp"
+
+#include "common_test_utils/file_utils.hpp"
+
+
 using namespace ov::tools::subgraph_dumper;
 
 int main(int argc, char *argv[]) {
@@ -48,34 +53,41 @@ int main(int argc, char *argv[]) {
 
     for (auto& cache : caches) {
         cache->set_serialization_dir(FLAGS_output_folder);
-    }
-    // Upload previously cached graphs to cache
-    if (!FLAGS_local_cache.empty()) {
-        auto cached_ops = find_models(local_cache_dirs);
-        // todo: add normal caching with meta info reading
-        auto this_cache_model_status = cache_models(caches, cached_ops.first, FLAGS_extract_body);
-        auto not_read_model = cached_ops.second;
-        for (auto& model_status : cache_model_status) {
-            auto& key = model_status.first;
-            auto& value = model_status.second;
-            if (not_read_model.first == key) {
-                value.insert(value.end(), not_read_model.second.begin(), not_read_model.second.end());
+        // Upload previously cached graphs to cache
+        if (!FLAGS_local_cache.empty()) {
+            std::vector<std::string> tmp_paths;
+            for (auto& dir : local_cache_dirs) {
+                tmp_paths.push_back(ov::util::path_join({dir, cache->m_cache_subdir}));
             }
-            if (this_cache_model_status.count(key)) {
-                value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
-            }
-        }
-    }
-    {
-        auto this_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
-        for (auto& model_status : cache_model_status) {
-            auto& key = model_status.first;
-            auto& value = model_status.second;
-            if (this_cache_model_status.count(key)) {
-                value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+            auto cached_ops = find_models(tmp_paths, FLAGS_path_regex);
+            auto this_cache_model_status = cache_models(cache, cached_ops.first, FLAGS_extract_body, true);
+            auto not_read_model = cached_ops.second;
+            for (auto& model_status : cache_model_status) {
+                auto& key = model_status.first;
+                auto& value = model_status.second;
+                if (not_read_model.first == key) {
+                    value.insert(value.end(), not_read_model.second.begin(), not_read_model.second.end());
+                }
+                if (this_cache_model_status.count(key)) {
+                    value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+                }
             }
         }
+        {
+            auto this_cache_model_status = cache_models(cache, models, FLAGS_extract_body);
+            for (auto& model_status : cache_model_status) {
+                auto& key = model_status.first;
+                auto& value = model_status.second;
+                if (this_cache_model_status.count(key)) {
+                    value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+                }
+            }
+        }
+
+        cache->serialize_cache();
+        cache->reset_cache();
     }
+
     save_model_status_to_file(cache_model_status, FLAGS_output_folder);
     return cache_model_status[ModelCacheStatus::NOT_FULLY_CACHED].empty() && cache_model_status[ModelCacheStatus::NOT_READ].empty();
 }

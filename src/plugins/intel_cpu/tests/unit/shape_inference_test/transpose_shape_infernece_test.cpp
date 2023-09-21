@@ -68,9 +68,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 /** \brief Check shape_infer for transpose on static shapes. */
 TEST_P(StaticShapeInferenceTest, transpose_static) {
-    auto output_shapes = std::vector<StaticShape>{StaticShape{}};
-
-    shape_inference(transpose.get(), {input_shape, transpose_order}, output_shapes);
+    auto output_shapes = shape_inference(transpose.get(), {input_shape, transpose_order});
 
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], exp_shape);
 }
@@ -81,9 +79,7 @@ TEST(StaticShapeInferenceTest, transpose_input_shape_dim_dynamic) {
     const auto order = std::vector<size_t>{1, 2, 0};
     const auto transpose = make_transpose(input_shape, order);
 
-    auto output_shapes = std::vector<StaticShape>{StaticShape{}};
-
-    shape_inference(transpose.get(), {StaticShape{2, 6, 3}, order}, output_shapes);
+    auto output_shapes = shape_inference(transpose.get(), {StaticShape{2, 6, 3}, order});
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({6, 3, 2}));
 }
 
@@ -95,13 +91,12 @@ TEST(StaticShapeInferenceTest, transpose_order_in_constant_map) {
 
     const auto transpose = std::make_shared<op::v1::Transpose>(input, order);
 
-    const auto axes_order = std::vector<size_t>{1, 2, 0, 3};
-    const auto axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes_order.size()}, axes_order);
-    const auto const_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_map = {{1, const_tensor}};
+    auto axes_order = std::vector<int64_t>{1, 2, 0, 3};
+    const auto const_tensor = ov::Tensor(element::i64, ov::Shape{axes_order.size()}, axes_order.data());
+    const std::unordered_map<size_t, ov::Tensor> const_map = {{1, const_tensor}};
 
     auto output_shapes = std::vector<StaticShape>{StaticShape{}};
-    shape_inference(transpose.get(), {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map);
+    output_shapes = shape_inference(transpose.get(), {StaticShape({2, 4, 6, 8}), StaticShape()}, const_map);
 
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({4, 6, 2, 8}));
 }

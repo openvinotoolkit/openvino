@@ -6,21 +6,13 @@
 
 #include <memory>
 
-#include "any_copy.hpp"
 #include "check_network_batchable.hpp"
 #include "compilation_context.hpp"
-#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
-#include "file_utils.h"
-#include "ie_network_reader.hpp"
-#include "ie_ngraph_utils.hpp"
-#include "iplugin_wrapper.hpp"
+#include "dev/iplugin_wrapper.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/pass/constant_folding.hpp"
+#include "model_reader.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/op_extension.hpp"
@@ -30,6 +22,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -39,11 +32,11 @@
 #include "openvino/util/shared_object.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
+#include "xml_parse_utils.h"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
 #endif
-#include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
 
@@ -607,7 +600,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         // Add registered extensions to new plugin
         allowNotImplemented([&]() {
-            for (const auto& ext : extensions) {
+            auto old_extensions = ov::legacy_convert::convert_extension(extensions);
+            for (const auto& ext : old_extensions) {
                 plugin.add_extension(ext);
             }
         });
@@ -749,7 +743,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
-    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(device_name));
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
@@ -782,7 +776,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
-    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
@@ -838,19 +832,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                auto cnnNetwork = ReadNetwork(model_path, std::string());
-                return compile_model_and_cache(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
+                auto model = read_model(model_path, std::string{});
+                return compile_model_and_cache(model, plugin, parsed._config, {}, cacheContent);
             });
     } else if (cacheManager) {
         // this code path is enabled for AUTO / MULTI / BATCH devices which don't support
         // import / export explicitly, but can redirect this functionality to actual HW plugin
         compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {
-        auto cnnNetwork = ReadNetwork(model_path, std::string());
-        compiled_model = compile_model_with_preprocess(plugin,
-                                                       cnnNetwork.getFunction(),
-                                                       ov::SoPtr<ov::IRemoteContext>{},
-                                                       parsed._config);
+        auto model = read_model(model_path, std::string());
+        compiled_model = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
     }
     return compiled_model;
 }
@@ -874,8 +865,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                auto cnnNetwork = read_model(model_str, weights);
-                return compile_model_and_cache(cnnNetwork,
+                auto model = read_model(model_str, weights);
+                return compile_model_and_cache(model,
                                                plugin,
                                                parsed._config,
                                                ov::SoPtr<ov::IRemoteContext>{},
@@ -1104,8 +1095,9 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
             const auto disabled = batch_mode->second.as<std::string>() == CONFIG_VALUE(NO);
             // virtual plugins like AUTO/MULTI will need the config
             // e.g. to deduce the #requests correctly
+            // proxy plugin should also keep the config
             // otherwise, no need for this config key in the rest of loading
-            if (!is_virtual_device(deviceName))
+            if (!is_virtual_device(deviceName) && !is_proxy_device(deviceName))
                 config.erase(batch_mode);
             if (disabled)
                 return model;
@@ -1373,15 +1365,15 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         });
     }
 }
-void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const {
-    for (const auto& ext : extensions) {
-        ov_extensions.emplace_back(ext);
+void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& exts) const {
+    for (const auto& ext : exts) {
+        extensions.emplace_back(ext);
         auto ext_obj = ext;
         if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext_obj))
             ext_obj = so_ext->extension();
         if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_obj)) {
             for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
-                ov_extensions.emplace_back(attached_ext);
+                extensions.emplace_back(attached_ext);
             }
         }
     }
@@ -1390,10 +1382,6 @@ void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& 
 void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
     std::lock_guard<std::mutex> lock(get_mutex());
     add_extensions_unsafe(extensions);
-}
-
-const std::vector<InferenceEngine::IExtensionPtr>& ov::CoreImpl::GetExtensions() const {
-    return extensions;
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const std::string& device_name) const {
@@ -1552,7 +1540,8 @@ void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& exte
             plugin.second.add_extension(extension);
         });
     }
-    extensions.emplace_back(extension);
+    for (const auto& ext : ov::legacy_convert::convert_extension({extension}))
+        extensions.emplace_back(ext);
 }
 
 void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
@@ -1650,16 +1639,12 @@ void ov::CoreImpl::add_mutex(const std::string& dev_name) {
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath, const std::string& binPath) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
-    return ReadNetwork(modelPath, binPath).getFunction();
+    return ov::util::read_model(modelPath, binPath, extensions, coreConfig.get_enable_mmap());
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     const ov::Tensor& weights,
                                                     bool frontendMode) const {
-    InferenceEngine::Blob::Ptr blob;
-    if (weights) {
-        blob = tensor_to_blob(get_tensor_impl(weights));
-    }
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-    return ReadNetwork(model, blob, frontendMode).getFunction();
+    return ov::util::read_model(model, weights, extensions, frontendMode);
 }

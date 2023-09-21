@@ -2,20 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/nop_elimination.hpp"
+
 #include <functional>
 #include <memory>
-#include <ngraph/log.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/util.hpp>
 #include <numeric>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/util/pad_base.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -36,9 +31,13 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
-#include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
+#include "openvino/util/util.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -270,8 +269,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     // eliminate redundant squeeze->unsqueeze
     if (squeeze) {
         const auto& data_shape = squeeze->input_value(0).get_partial_shape();
-        if (ngraph::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
-                                      unsqueeze->input_value(1).get_node_shared_ptr())) {
+        if (ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
+                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
             return replace_output_update_name(unsqueeze->output(0), squeeze->input_value(0));
         }
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
@@ -477,8 +476,8 @@ pass::EliminateSqueeze::EliminateSqueeze() {
             } else {
                 data_shape = input->input(0).get_partial_shape();
             }
-            if (ngraph::compare_constants(unsqueeze->input_value(1).get_node_shared_ptr(),
-                                          squeeze->input_value(1).get_node_shared_ptr())) {
+            if (ov::compare_constants(unsqueeze->input_value(1).get_node_shared_ptr(),
+                                      squeeze->input_value(1).get_node_shared_ptr())) {
                 return replace_output_update_name(squeeze->output(0), unsqueeze->input_value(0));
             }
             if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
@@ -834,8 +833,8 @@ ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
 
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
-    auto first_label =
-        pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze, op::util::GatherBase>(pattern::rank_equals(0));
+    auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze, op::v1::StridedSlice, op::util::GatherBase>(
+        pattern::rank_equals(0));
     auto other_input_label = pattern::any_input(pattern::rank_equals(0));
     auto binary_op_label = pattern::wrap_type<op::util::BinaryElementwiseArithmetic,
                                               op::util::BinaryElementwiseComparison,
@@ -891,7 +890,6 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateSqueeze)
         ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
         ADD_MATCHER_FOR_THIS(PrepareShapeOpsForEliminationAroundBE)
-        ADD_MATCHER_FOR_THIS(EliminateGatherUnsqueeze)
         ADD_MATCHER_FOR_THIS(EliminateBroadcast)
         ADD_MATCHER_FOR_THIS(EliminateNopBroadcast)
         ADD_MATCHER_FOR_THIS(NopSliceBeforeGatherElements)

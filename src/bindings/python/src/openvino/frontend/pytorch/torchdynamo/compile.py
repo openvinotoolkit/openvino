@@ -49,6 +49,7 @@ def cache_root_path():
     return cache_root
 
 def get_device():
+    core = Core()
     device = "CPU"
 
     if os.getenv("OPENVINO_TORCH_BACKEND_DEVICE") is not None:

@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertBroadcastToTiles: public ngraph::pass::MatcherPass {
+class ConvertBroadcastToTiles: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertBroadcastToTiles", "0");
     ConvertBroadcastToTiles();

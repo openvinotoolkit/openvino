@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/system_conf.hpp"
+
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/graph/program.hpp"
-
-#include <ie_system_conf.h>
 
 #include "auto_tuner.h"
 #include "layout_optimizer.h"
@@ -105,12 +105,12 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 
 static void adjust_num_cores(ov::threading::IStreamsExecutor::Config& config) {
-    if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
+    if (ov::get_available_cores_types().size() == 1) {
         return;
     }
 
-    const auto total_num_cores = InferenceEngine::getNumberOfLogicalCPUCores();
-    const auto total_num_big_cores = InferenceEngine::getNumberOfLogicalCPUCores(true);
+    const auto total_num_cores = ov::get_number_of_logical_cpu_cores();
+    const auto total_num_big_cores = ov::get_number_of_logical_cpu_cores(true);
     const auto total_num_little_cores = total_num_cores - total_num_big_cores;
     auto core_type = config._threadPreferredCoreType;
 
@@ -579,11 +579,6 @@ void program::pre_optimize_graph(bool is_internal) {
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
 
     apply_opt_pass<remove_redundant_reorders>(lo, optimize_data);
-
-    if (!is_internal) {
-        // ToDo remove hidden dependencies from propagate_constants pass
-        apply_opt_pass<propagate_constants>();
-    }
 
     // try to fuse buffers (i.e. depth_concat in bfyx format) after padding calculations
     if (optimize_data) {

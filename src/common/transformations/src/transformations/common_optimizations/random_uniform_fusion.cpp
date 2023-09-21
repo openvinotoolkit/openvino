@@ -5,33 +5,33 @@
 #include "transformations/common_optimizations/random_uniform_fusion.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
     const auto data_pattern = pass::pattern::any_input();
     const auto ru_min_input_pattern = pass::pattern::any_input();
     const auto ru_max_input_pattern = pass::pattern::any_input();
-    const auto random_uniform_pattern = ngraph::pattern::wrap_type<ov::op::v8::RandomUniform>(
+    const auto random_uniform_pattern = ov::pass::pattern::wrap_type<ov::op::v8::RandomUniform>(
         {data_pattern, ru_min_input_pattern, ru_max_input_pattern},
         pattern::consumers_count(1));
-    const auto const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
-    const auto convert_pattern = ngraph::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
+    const auto convert_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
     const auto random_uniform_or_convert_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{random_uniform_pattern, convert_pattern});
 
-    const auto mul_add_pattern = ngraph::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>(
+    const auto mul_add_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>(
         {random_uniform_or_convert_pattern, const_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -59,13 +59,13 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         auto new_const = ov::op::v0::Constant::create(ru->get_out_type(), Shape{}, value);
 
         const auto& mul_add = pattern_map.at(mul_add_pattern);
-        const auto mul_add_ptr = std::dynamic_pointer_cast<ngraph::Node>(mul_add.get_node_shared_ptr());
+        const auto mul_add_ptr = std::dynamic_pointer_cast<ov::Node>(mul_add.get_node_shared_ptr());
         const auto new_mul_add1 = mul_add_ptr->clone_with_new_inputs({ru->input_value(1), new_const});
         const auto new_mul_add2 = mul_add_ptr->clone_with_new_inputs({ru->input_value(2), new_const});
 
         OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto& folded_const1 = ngraph::get_constant_from_source(new_mul_add1);
-        const auto& folded_const2 = ngraph::get_constant_from_source(new_mul_add2);
+        const auto& folded_const1 = ov::get_constant_from_source(new_mul_add1);
+        const auto& folded_const2 = ov::get_constant_from_source(new_mul_add2);
         OPENVINO_SUPPRESS_DEPRECATED_END
 
         const auto new_ru = ru->clone_with_new_inputs(
@@ -82,16 +82,16 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
             copy_runtime_info({ru, cvt, mul_add.get_node_shared_ptr()},
                               {new_mul_add1, new_mul_add2, new_ru, new_ru_conv});
             new_ru_conv->set_friendly_name(m.get_match_root()->get_friendly_name());
-            ngraph::replace_node(m.get_match_root(), new_ru_conv);
+            ov::replace_node(m.get_match_root(), new_ru_conv);
         } else {
             copy_runtime_info({ru, mul_add.get_node_shared_ptr()}, {new_mul_add1, new_mul_add2, new_ru});
             new_ru->set_friendly_name(m.get_match_root()->get_friendly_name());
-            ngraph::replace_node(m.get_match_root(), new_ru);
+            ov::replace_node(m.get_match_root(), new_ru);
         }
 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_add_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_add_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

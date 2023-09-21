@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
+
 #include <gtest/gtest.h>
 
-#include <ngraph/opsets/opset8.hpp>
-#include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 using AlignEltwiseInputRanksParams = std::tuple<PartialShape, Shape, Shape, bool>;
 
@@ -26,36 +26,39 @@ TEST_P(AlignEltwiseInputRanksTestP, FusionTest) {
 
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
-        auto add = std::make_shared<opset8::Add>(data, op::Constant::create(element::f32, const_shape, {3}));
-        auto less = std::make_shared<opset8::Less>(data, op::Constant::create(element::f32, const_shape, {5}));
+        auto add = std::make_shared<opset8::Add>(data, op::v0::Constant::create(element::f32, const_shape, {3}));
+        auto less = std::make_shared<opset8::Less>(data, op::v0::Constant::create(element::f32, const_shape, {5}));
         auto sqr_diff =
-            std::make_shared<opset8::SquaredDifference>(data, op::Constant::create(element::f32, const_shape, {5}));
+            std::make_shared<opset8::SquaredDifference>(data, op::v0::Constant::create(element::f32, const_shape, {5}));
         auto convert = std::make_shared<opset8::Convert>(data, element::boolean);
         auto logical_or =
-            std::make_shared<opset8::LogicalOr>(convert, op::Constant::create(element::boolean, const_shape, {false}));
-        auto low = op::Constant::create(element::f32, const_shape, {0});
-        auto high = op::Constant::create(element::f32, const_shape, {20});
+            std::make_shared<opset8::LogicalOr>(convert,
+                                                op::v0::Constant::create(element::boolean, const_shape, {false}));
+        auto low = op::v0::Constant::create(element::f32, const_shape, {0});
+        auto high = op::v0::Constant::create(element::f32, const_shape, {20});
         auto fq = std::make_shared<opset8::FakeQuantize>(add, low, high, low, high, 256);
-        function = std::make_shared<Function>(NodeVector{less, logical_or, fq}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{less, logical_or, fq}, ParameterVector{data});
 
         manager.register_pass<ov::pass::AlignEltwiseInputRanks>();
     }
 
     if (can_align) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
-        auto add = std::make_shared<opset8::Add>(data, op::Constant::create(element::f32, expected_const_shape, {3}));
-        auto less = std::make_shared<opset8::Less>(data, op::Constant::create(element::f32, expected_const_shape, {5}));
-        auto sqr_diff =
-            std::make_shared<opset8::SquaredDifference>(data,
-                                                        op::Constant::create(element::f32, expected_const_shape, {5}));
+        auto add =
+            std::make_shared<opset8::Add>(data, op::v0::Constant::create(element::f32, expected_const_shape, {3}));
+        auto less =
+            std::make_shared<opset8::Less>(data, op::v0::Constant::create(element::f32, expected_const_shape, {5}));
+        auto sqr_diff = std::make_shared<opset8::SquaredDifference>(
+            data,
+            op::v0::Constant::create(element::f32, expected_const_shape, {5}));
         auto convert = std::make_shared<opset8::Convert>(data, element::boolean);
-        auto logical_or =
-            std::make_shared<opset8::LogicalOr>(convert,
-                                                op::Constant::create(element::boolean, expected_const_shape, {false}));
-        auto low = op::Constant::create(element::f32, expected_const_shape, {0});
-        auto high = op::Constant::create(element::f32, expected_const_shape, {20});
+        auto logical_or = std::make_shared<opset8::LogicalOr>(
+            convert,
+            op::v0::Constant::create(element::boolean, expected_const_shape, {false}));
+        auto low = op::v0::Constant::create(element::f32, expected_const_shape, {0});
+        auto high = op::v0::Constant::create(element::f32, expected_const_shape, {20});
         auto fq = std::make_shared<opset8::FakeQuantize>(add, low, high, low, high, 256);
-        function_ref = std::make_shared<Function>(NodeVector{less, logical_or, fq}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{less, logical_or, fq}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -83,11 +86,11 @@ class AlignEltwiseInputRanksTestF : public TransformationTestsF {};
 
 TEST_F(AlignEltwiseInputRanksTestF, NegativeFakeQuantizeWithScalarFirstInput) {
     {
-        auto data = op::Constant::create(element::f32, Shape{}, {10});
-        auto low = op::Constant::create(element::f32, Shape{1}, {0});
-        auto high = op::Constant::create(element::f32, Shape{1}, {20});
+        auto data = op::v0::Constant::create(element::f32, Shape{}, {10});
+        auto low = op::v0::Constant::create(element::f32, Shape{1}, {0});
+        auto high = op::v0::Constant::create(element::f32, Shape{1}, {20});
         auto fq = std::make_shared<opset8::FakeQuantize>(data, low, high, low, high, 256);
-        function = std::make_shared<Function>(fq->outputs());
+        model = std::make_shared<Model>(fq->outputs());
 
         manager.register_pass<ov::pass::AlignEltwiseInputRanks>();
     }

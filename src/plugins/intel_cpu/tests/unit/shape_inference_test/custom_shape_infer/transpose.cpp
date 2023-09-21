@@ -28,8 +28,8 @@ public:
         StaticShape tmp_exp_shape;
         std::tie(tmp_input_shapes, tmp_transpose_order, tmp_exp_shape) = obj.param;
         std::ostringstream result;
-        result << "input_shapes(" << CommonTestUtils::vec2str(tmp_input_shapes) << ")_";
-        result << "order(" << CommonTestUtils::vec2str(tmp_transpose_order) << ")_";
+        result << "input_shapes(" << ov::test::utils::vec2str(tmp_input_shapes) << ")_";
+        result << "order(" << ov::test::utils::vec2str(tmp_transpose_order) << ")_";
         result << "exp_shape(" << tmp_exp_shape << ")";
         return result.str();
     }
@@ -79,9 +79,9 @@ TEST_P(TransposeCpuShapeInferenceThrowExceptionTest, shape_inference_in_const_ma
     const auto order = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     auto op = make_op(arg, order);
 
-    const auto axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{transpose_order.size()}, transpose_order);
-    const auto const_tensor = std::make_shared<ov::HostTensor>(axes);
-    const std::map<size_t, ov::HostTensorPtr> const_map = {{1, const_tensor}};
+    const auto const_tensor = transpose_order.empty() ? ov::Tensor(element::i64, ov::Shape{transpose_order.size()})
+                                                      : ov::Tensor(element::i64, ov::Shape{transpose_order.size()}, transpose_order.data());
+    const std::unordered_map<size_t, ov::Tensor> const_map = {{1, const_tensor}};
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_map),
                     ov::Exception,
@@ -99,4 +99,3 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

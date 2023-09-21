@@ -4,21 +4,16 @@
 
 #pragma once
 
+#include <transformations_visibility.hpp>
+
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-bool get_labels(const ov::PartialShape& shape, ov::TensorLabel& labels);
-bool get_labels(const ov::Output<ov::Node>& output, ov::TensorLabel& labels);
-
-bool are_unique_and_equal_labels(const ov::TensorLabel& lhs, const ov::TensorLabel& rhs);
-
 bool labels_eq_or_eq_static_dims(const ov::Dimension& lhs, const ov::Dimension& rhs);
 
 bool last_two_dims_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs);
-
-bool equalize_two_last_dims(const ov::PartialShape& from, ov::PartialShape& to);
 
 bool reshape_keeps_last_two_dims(const std::shared_ptr<ov::Node>& op);
 
@@ -26,21 +21,32 @@ bool batches_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs,
 
 bool batches_are_equal(const std::shared_ptr<ov::Node>& op_0, const std::shared_ptr<ov::Node>& op_1);
 
-int64_t get_idx_of_label_in_source(const ov::Output<ov::Node>& source, const ov::label_t& label);
+namespace ov {
+namespace symbol {
+namespace util {
+/// \brief Collects labels from shape. Labels of static dimensions are guaranteed to be ov::no_labels
+///
+/// \param shape    Shape object to collect labels from
+/// \param labels   TensorLabel object to collect labels to
+///
+/// \return Status of collecting the labels (false if rank is static else true)
+TRANSFORMATIONS_API bool get_labels(const ov::PartialShape& shape, ov::TensorLabel& labels);
 
-std::shared_ptr<ov::Node> get_node_representing_label_from_source_by_idx(const ov::Output<ov::Node>& source,
-                                                                         const ov::element::Type& et,
-                                                                         const ov::Shape& shape,
-                                                                         const int64_t& idx);
+/// \brief Collects labels from tensor of Output object
+///
+/// \param output   Output object to collect labels from
+/// \param labels   TensorLabel object to collect labels to
+///
+/// \return Status of collecting the labels (false if tensor has no labels else true)
+TRANSFORMATIONS_API bool get_labels(const ov::Output<ov::Node>& output, ov::TensorLabel& labels);
 
-std::shared_ptr<ov::Node> get_node_representing_label_from_source_by_label(const ov::Output<ov::Node>& source,
-                                                                           const ov::element::Type& et,
-                                                                           const ov::Shape& shape,
-                                                                           const ov::label_t& label);
-
-void optimize_value_usage(ov::Output<ov::Node>& output,
-                          std::unordered_map<ov::label_t, ov::Output<ov::Node>>& label_shape_source,
-                          std::unordered_map<ov::label_t, ov::Output<ov::Node>>& label_value_source);
-
-void save_shape_sources(const ov::Output<ov::Node>& output,
-                        std::unordered_map<ov::label_t, ov::Output<ov::Node>>& label_shape_source);
+/// \brief Compares
+///
+/// \param lhs   TensorLabel object to compare
+/// \param rhs   TensorLabel object to compare
+///
+/// \return true if labels are unique and equal between lhs and rhs else false
+TRANSFORMATIONS_API bool are_unique_and_equal_labels(const ov::TensorLabel& lhs, const ov::TensorLabel& rhs);
+}  // namespace util
+}  // namespace symbol
+}  // namespace ov

@@ -19,7 +19,7 @@ class ConvertPReLUToReLUIE;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertPReLUToReLUIE : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertPReLUToReLUIE : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertPReLUToReLUIE", "0");
     ConvertPReLUToReLUIE();

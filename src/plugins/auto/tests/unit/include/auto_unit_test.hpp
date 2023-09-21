@@ -11,7 +11,7 @@
 #include "gmock_plugin.hpp"
 #include "mock_common.hpp"
 #include <common_test_utils/test_constants.hpp>
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 using ::testing::MatcherCast;
 using ::testing::AllOf;
@@ -84,7 +84,7 @@ protected:
 // for auto unit tests which can covered by mock core, or need to test with gmock icore
 class AutoTest : public BaseTest {
 public:
-    std::shared_ptr<NiceMock<MockICore >>           core;
+    std::shared_ptr<NiceMock<ov::MockICore>>           core;
     AutoTest();
     ~AutoTest();
 };

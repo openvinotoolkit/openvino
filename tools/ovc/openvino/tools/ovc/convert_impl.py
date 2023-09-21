@@ -5,11 +5,11 @@ import argparse
 import datetime
 import logging as log
 import os
-import pathlib
 import sys
 import traceback
 from collections import OrderedDict
 from pathlib import Path
+from typing import Iterable, Callable
 
 try:
     import openvino_telemetry as tm
@@ -39,6 +39,7 @@ from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_fronten
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
+import re
 
 try:
     from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
@@ -76,20 +77,43 @@ def print_argv(argv: argparse.Namespace):
     print('\n'.join(lines), flush=True)
 
 
+def check_iterable(iterable: Iterable, func: Callable):
+    for element in iterable:
+        if not func(element):
+            return False
+    return True
+
+
 def arguments_post_parsing(argv: argparse.Namespace):
     # TODO: This function looks similar to another one. Check for code duplicates.
     log.debug("Model Conversion API started")
     if not argv.is_python_api_used:
         log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
 
-    if argv.verbose:
+    if is_verbose(argv):
         print_argv(argv)
 
     params_parsing(argv)
-    argv.output = argv.output.split(',') if isinstance(argv.output, (str, pathlib.Path)) else argv.output
-
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
+    if not hasattr(argv, 'output') or argv.output is None:
+        return argv
+
+    if argv.is_python_api_used:
+        error_msg = f"output '{argv.output}' is incorrect, it should be string or a list/tuple of strings"
+        assert isinstance(argv.output, (str, list, tuple)), error_msg
+        if isinstance(argv.output, list):
+            assert check_iterable(argv.output, lambda x: isinstance(x, str)), error_msg
+        else:
+            argv.output = [argv.output]
+    else:
+        assert isinstance(argv.output, str)
+
+        error_msg = f"output '{argv.output}' is incorrect, output names should not be empty or contain spaces"
+        processed_output = re.split(r'\s*,\s*', argv.output.strip())
+        assert check_iterable(processed_output, lambda x: x.find(' ') == -1), error_msg
+        assert check_iterable(processed_output, lambda x: len(x) > 0), error_msg
+        argv.output = processed_output
     return argv
 
 
@@ -342,7 +366,7 @@ def params_parsing(argv: argparse.Namespace):
                     data_type_list.append(inp.type)
         argv.placeholder_shapes = shape_list if shape_list else None
         argv.placeholder_data_types = data_type_list if data_type_list else {}
-    if argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
+    if hasattr(argv, "framework") and argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
         extract_input_info_from_example(argv, inputs)
 
 

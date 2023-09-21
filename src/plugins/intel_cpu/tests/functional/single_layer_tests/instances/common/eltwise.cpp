@@ -27,7 +27,8 @@ const auto params_4D = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder, EltwiseLayerCPUTest, params_4D, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -43,7 +44,8 @@ const auto params_4D_emptyCPUSpec = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::Values(emptyCPUSpec),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_emptyCPUSpec, EltwiseLayerCPUTest, params_4D_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -59,7 +61,8 @@ const auto params_5D = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder, EltwiseLayerCPUTest, params_5D, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -75,7 +78,8 @@ const auto params_5D_emptyCPUSpec = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::Values(emptyCPUSpec),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D, EltwiseLayerCPUTest, params_5D_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -91,7 +95,8 @@ const auto params_4D_1D_constant_mode = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Constant_mode())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Constant, EltwiseLayerCPUTest, params_4D_1D_constant_mode, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -107,7 +112,8 @@ const auto params_4D_1D_parameter_mode = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Parameter_mode())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Parameter, EltwiseLayerCPUTest, params_4D_1D_parameter_mode, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -123,7 +129,8 @@ const auto params_5D_1D_constant = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_constant())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Constant, EltwiseLayerCPUTest, params_5D_1D_constant, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -139,7 +146,8 @@ const auto params_5D_1D_parameter = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_parameter())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Parameter, EltwiseLayerCPUTest, params_5D_1D_parameter, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -155,7 +163,8 @@ const auto params_4D_dyn_const = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_dyn_const, EltwiseLayerCPUTest, params_4D_dyn_const, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -171,7 +180,8 @@ const auto params_4D_dyn_param = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_4D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -187,7 +197,8 @@ const auto params_5D_dyn_const = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_const, EltwiseLayerCPUTest, params_5D_dyn_const, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -203,7 +214,8 @@ const auto params_5D_dyn_param = ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D())),
-        ::testing::Values(emptyFusingSpec));
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_5D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 

@@ -5,8 +5,12 @@
 <link href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
 
+<script type="module" src="https://static.cloud.coveo.com/atomic/v2/atomic.esm.js"></script> 
+<link rel="stylesheet" href="https://static.cloud.coveo.com/atomic/v2/themes/coveo.css">
+
 <link rel="stylesheet" href="{{ pathto('_static/css/viewer.min.css', 1) }}" type="text/css" />
 <link rel="stylesheet" href="{{ pathto('_static/css/custom.css', 1) }}" type="text/css" />
+<link rel="stylesheet" href="{{ pathto('_static/css/coveo_custom.css', 1) }}" type="text/css" />
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
@@ -28,4 +32,3 @@
 </div>
 <script src="{{ pathto('_static/js/hide_banner.js', 1) }}"></script>
 {% endblock %}
-

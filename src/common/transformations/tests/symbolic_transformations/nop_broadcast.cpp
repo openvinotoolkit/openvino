@@ -13,7 +13,7 @@
 #include <openvino/op/relu.hpp>
 #include <openvino/op/shape_of.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 
 using namespace ov;
@@ -21,14 +21,14 @@ using namespace ov::op;
 using namespace std;
 
 namespace {
-void label_shape(ov::PartialShape& shape, size_t start_label = 42) {
+void label_shape(ov::PartialShape& shape) {
     auto table = std::make_shared<ov::TableOfEquivalence>(42);
     auto tracker = ov::DimensionTracker(table);
     tracker.set_up_for_tracking(shape);
 }
 }  // namespace
 
-TEST_F(TransformationTestsF, NopBroadcast1) {
+TEST_F(TransformationTestsF, NopBroadcastOpset1) {
     {
         auto shape = PartialShape::dynamic(4);
         label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
@@ -59,7 +59,7 @@ TEST_F(TransformationTestsF, NopBroadcast1) {
     }
 }
 
-TEST_F(TransformationTestsF, NopBroadcast3) {
+TEST_F(TransformationTestsF, NopBroadcastOpset3) {
     {
         auto shape = PartialShape::dynamic(4);
         label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45

@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <itt.hpp>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
-#include <transformations/smart_reshape/strided_slice_squeeze.hpp>
+#include "transformations/smart_reshape/strided_slice_squeeze.hpp"
 
+#include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations_visibility.hpp"
 
 ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(StridedSliceSqueeze);
-    auto ss_label = ngraph::pattern::wrap_type<ov::op::v1::StridedSlice>(pattern::consumers_count(1));
-    auto squeeze_label =
-        ngraph::pattern::wrap_type<ov::op::v0::Squeeze>({ss_label, ngraph::pattern::wrap_type<ov::op::v0::Constant>()});
+    auto ss_label = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>(pattern::consumers_count(1));
+    auto squeeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze>(
+        {ss_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
         const auto& squeeze = m.get_match_root();
@@ -112,16 +112,16 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
 
         return replace_output_update_name(squeeze->output(0), new_slice->output(squeeze->input_value(0).get_index()));
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label /*, matcher_name */);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(squeeze_label /*, matcher_name */);
     register_matcher(m, callback);
 }
 ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(SqueezeStridedSlice);
-    auto squeeze_label = ngraph::pattern::wrap_type<ov::op::v0::Squeeze>(
-        {pattern::any_input(), ngraph::pattern::wrap_type<ov::op::v0::Constant>()},
+    auto squeeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze>(
+        {pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
         pattern::consumers_count(1));
-    auto ss_label = ngraph::pattern::wrap_type<ov::op::v1::StridedSlice>(
+    auto ss_label = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>(
         {squeeze_label, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
@@ -196,7 +196,7 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         copy_runtime_info(slice, new_slice);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(ss_label /*, matcher_name */);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(ss_label /*, matcher_name */);
     register_matcher(m, callback);
 }
 
@@ -215,8 +215,8 @@ bool squeezes_perform_the_same(std::shared_ptr<ov::op::v0::Squeeze> lhs, std::sh
     const auto r_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(rhs->get_input_node_shared_ptr(1));
     if (l_axes && r_axes) {
         OPENVINO_SUPPRESS_DEPRECATED_START
-        return ngraph::normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
-               ngraph::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
+        return ov::normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
+               ov::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
@@ -224,12 +224,12 @@ bool squeezes_perform_the_same(std::shared_ptr<ov::op::v0::Squeeze> lhs, std::sh
 
 }  // namespace
 
-bool ov::pass::SharedSqueeze::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::SharedSqueeze::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
 
     bool graph_rewritten = false;
 
-    std::map<ngraph::Output<Node>, std::vector<std::shared_ptr<ov::op::v0::Squeeze>>> source_to_squeeze;
+    std::map<ov::Output<Node>, std::vector<std::shared_ptr<ov::op::v0::Squeeze>>> source_to_squeeze;
     for (const auto& node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
