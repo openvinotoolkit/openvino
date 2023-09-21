@@ -201,6 +201,8 @@ void Reorder::prepareParams() {
     const auto&  childDesc = dstMemPtr->getDescPtr();
 
 #if defined(OV_CPU_ARM_ENABLE_FP16)
+    // @todo current oneDNN v3.2 lacks optimized jit implementation for fp16 reorders.
+    // Use transpose executor as a temporary WA.
     if (everyone_is(Precision::FP16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
         ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
          (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
