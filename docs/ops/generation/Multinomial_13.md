@@ -15,12 +15,13 @@
 
 **Algorithm formulation**:
 
-Note: Notation [a, b] => {x ~ R, a<=x<=b} - range of real numbers between a and b.
+Note: Notation [a, b] => {x ~ R, a <= x <= b } - range of real numbers between a and b.
+
 Given a list of probabilities x1,x2, ..., xn:
 * If *log_probs* is true:
   * For each probability x, replace it with a value e^x
-* Create a CDF ([Cumulative Distribution Function](https://en.wikipedia.org/wiki/Cumulative_distribution_function)) - the cumulative sum of those probabilities, ie. create an array of values where the ith value is the sum of the probabilities x1, ..., xi
-* Divide the created array by its maximum value to normalize the cumulative probabilities between the real values in the range [0, 1]. Since CDF is a sorted, monotonically increasing function, the maximum value is the last value of the array.
+* Create an array - discrete CDF ([Cumulative Distribution Function](https://en.wikipedia.org/wiki/Cumulative_distribution_function)) - the cumulative sum of those probabilities, ie. create an array of values where the ith value is the sum of the probabilities x1, ..., xi
+* Divide the created array by its maximum value to normalize the cumulative probabilities between the real values in the range [0, 1]. This array is, by definition of CDF, sorted in ascending order, hence the maximum value is the last value of the array.
 * Randomly generate a sequence of double-precision floating point numbers in the range [0, 1].
 * For each generated number, assign the class with the lowest index for which the cumulative probability is less or equal to the generated value.
 * If *with_replacement* is False (sampling without replacement):
