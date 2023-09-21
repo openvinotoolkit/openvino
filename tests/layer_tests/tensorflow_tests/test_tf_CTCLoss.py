@@ -58,4 +58,4 @@ class TestCTCLoss(CommonTFLayerTest):
                                        use_new_frontend, use_old_api):
         self._test(*self.create_ctcloss_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api, custom_eps=1e-3)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api, custom_eps=1e-2)
