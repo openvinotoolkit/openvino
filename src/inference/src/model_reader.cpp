@@ -39,8 +39,8 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         const auto outputs = model->outputs();
         for (size_t i = 0; i < outputs.size(); ++i) {
             if (!frontendMode) {
-                const auto ngraph_type = outputs[i].get_element_type();
-                const auto legacy_type = InferenceEngine::details::toLegacyType(ngraph_type, false);
+                const auto ov_type = outputs[i].get_element_type();
+                const auto legacy_type = InferenceEngine::details::toLegacyType(ov_type, false);
                 prepost.output(i).tensor().set_element_type(legacy_type);
             }
             for (const auto& name : outputs[i].get_names()) {

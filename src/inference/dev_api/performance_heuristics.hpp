@@ -1,12 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include <cfloat>
 
-#include "ngraph/ngraph.hpp"
+#include <cfloat>
+#include <memory>
+
+#include "openvino/core/model.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 struct MemBandwidthPressure {
@@ -24,7 +25,7 @@ struct MemBandwidthPressure {
 };
 
 static MemBandwidthPressure MemBandwidthPressureTolerance(
-    const std::shared_ptr<ngraph::Function> nGraphFunc,
+    const std::shared_ptr<ov::Model> model,
     const float cache_size,
     const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
@@ -32,16 +33,16 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
     auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
         return (cache_size / (size_data_moved * datatype_size));
     };
-    auto isLowPrecision = [&](ngraph::element::Type type) -> bool {
-        return (type == ngraph::element::i8) || (type == ngraph::element::u8);
+    auto isLowPrecision = [&](ov::element::Type type) -> bool {
+        return (type == ov::element::i8) || (type == ov::element::u8);
     };
-    auto isHalfPrecision = [&](ngraph::element::Type type) -> bool {
-        return (type == ngraph::element::bf16) || (type == ngraph::element::f16);
+    auto isHalfPrecision = [&](ov::element::Type type) -> bool {
+        return (type == ov::element::bf16) || (type == ov::element::f16);
     };
 
     float worst_case = MemBandwidthPressure::UNKNOWN;
-    // Traverse nGraph Function in topological order
-    for (auto& node : nGraphFunc->get_ordered_ops()) {
+    // Traverse OpenVINO Model in topological order
+    for (auto& node : model->get_ordered_ops()) {
         const auto node_name = node->get_type_info().name;
         if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name) &&
             std::strcmp("ConvolutionBackpropData", node_name)) {

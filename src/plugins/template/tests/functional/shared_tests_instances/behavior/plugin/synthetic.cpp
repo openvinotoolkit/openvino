@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(HeteroTests::HeteroSyntheticTest::_randomMajorNodeFunctions)),
     HeteroSyntheticTest::getTestCaseName);
 
-static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> dynamicBuilders = {
+static std::vector<std::function<std::shared_ptr<ov::Model>()>> dynamicBuilders = {
     [] {
         return ngraph::builder::subgraph::makeConvPoolReluNonZero();
     },

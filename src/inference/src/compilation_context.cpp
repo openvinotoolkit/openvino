@@ -16,7 +16,6 @@
 #include "details/ie_exception.hpp"
 #include "file_utils.h"
 #include "itt.hpp"
-#include "ngraph/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
