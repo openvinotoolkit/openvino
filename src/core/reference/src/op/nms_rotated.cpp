@@ -9,9 +9,6 @@
 #include <queue>
 #include <vector>
 
-#include "ngraph/op/non_max_suppression.hpp"
-#include "ngraph/shape.hpp"
-
 namespace ov {
 namespace reference {
 namespace nms_rotated {
@@ -19,7 +16,7 @@ namespace nms_rotated {
 using namespace iou_rotated;
 namespace {
 
-static float rotatedintersectionOverUnion(const RotatedBox& boxI, const RotatedBox& boxJ) {
+static float rotated_intersection_over_union(const RotatedBox& boxI, const RotatedBox& boxJ) {
     const auto intersection = rotated_boxes_intersection(boxI, boxJ);
     const auto areaI = boxI.w * boxI.h;
     const auto areaJ = boxJ.w * boxJ.h;
@@ -97,6 +94,8 @@ void non_max_suppression(const float* boxes_data,
                          int64_t* valid_outputs,
                          const bool sort_result_descending,
                          const bool clockwise) {
+    // The code for softsigma is kept to simplify unification with NMS code,
+    // but for NMSRotated softsigma is not supported (always 0.0);
     float scale = 0.0f;
     bool soft_nms = false;
     if (soft_nms_sigma > 0.0f) {
@@ -134,6 +133,7 @@ void non_max_suppression(const float* boxes_data,
 
             for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++) {
                 if (scoresPtr[box_idx] > score_threshold) {
+                    // Convert counterclockwise to clockwise
                     if (!clockwise) {
                         r[box_idx].a *= -1;
                     }
@@ -157,7 +157,8 @@ void non_max_suppression(const float* boxes_data,
                 bool should_hard_suppress = false;
                 for (int64_t j = static_cast<int64_t>(selected.size()) - 1; j >= next_candidate.suppress_begin_index;
                      --j) {
-                    float iou = rotatedintersectionOverUnion(next_candidate.box, selected[j].box);
+                    // The main difference between NMS and NMSRotated is the calculation of iou for rotated boxes
+                    float iou = rotated_intersection_over_union(next_candidate.box, selected[j].box);
                     next_candidate.score *= get_score_scale(iou);
 
                     if ((iou > iou_threshold) && !soft_nms) {

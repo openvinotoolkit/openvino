@@ -11,7 +11,7 @@
 
 using namespace ov;
 
-namespace nms_v13 {
+namespace {
 
 struct InfoForNMSRotated {
     int64_t max_output_boxes_per_class;
@@ -36,7 +36,7 @@ ov::PartialShape infer_selected_indices_shape(const ov::TensorVector& inputs, si
     const auto boxes_ps = inputs[boxes_port].get_shape();
     const auto scores_ps = inputs[scores_port].get_shape();
 
-    // NonMaxSuppression produces triplets
+    // NMSRotated produces triplets
     // that have the following format: [batch_index, class_index, box_index]
     ov::PartialShape result = {ov::Dimension::dynamic(), 3};
 
@@ -73,13 +73,12 @@ InfoForNMSRotated get_info_for_nms_eval(const std::shared_ptr<op::v13::NMSRotate
     result.clockwise = nms->get_clockwise();
     return result;
 }
-}  // namespace nms_v13
-
+}  // namespace
 template <element::Type_t ET>
 bool evaluate(const std::shared_ptr<op::v13::NMSRotated>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    auto info = nms_v13::get_info_for_nms_eval(op, inputs);
+    auto info = get_info_for_nms_eval(op, inputs);
 
     std::vector<int64_t> selected_indices(info.out_shape_size);
     std::vector<float> selected_scores(info.out_shape_size);
@@ -116,13 +115,8 @@ template <>
 bool evaluate_node<op::v13::NMSRotated>(std::shared_ptr<Node> node,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    auto element_type = node->get_output_element_type(0);
-    if (ov::is_type<op::v1::Select>(node) || ov::is_type<op::util::BinaryElementwiseComparison>(node))
-        element_type = node->get_input_element_type(1);
 
-    switch (element_type) {
-    case element::Type_t::boolean:
-        return evaluate<element::Type_t::boolean>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
+    switch (node->get_output_element_type(0)) {
     case element::Type_t::bf16:
         return evaluate<element::Type_t::bf16>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
     case element::Type_t::f16:
@@ -131,28 +125,6 @@ bool evaluate_node<op::v13::NMSRotated>(std::shared_ptr<Node> node,
         return evaluate<element::Type_t::f64>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
     case element::Type_t::f32:
         return evaluate<element::Type_t::f32>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::i4:
-        return evaluate<element::Type_t::i4>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::i8:
-        return evaluate<element::Type_t::i8>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::i16:
-        return evaluate<element::Type_t::i16>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::i32:
-        return evaluate<element::Type_t::i32>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::i64:
-        return evaluate<element::Type_t::i64>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::u1:
-        return evaluate<element::Type_t::u1>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::u4:
-        return evaluate<element::Type_t::u4>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::u8:
-        return evaluate<element::Type_t::u8>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::u16:
-        return evaluate<element::Type_t::u16>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::u32:
-        return evaluate<element::Type_t::u32>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
-    case element::Type_t::u64:
-        return evaluate<element::Type_t::u64>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
     default:
         OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));

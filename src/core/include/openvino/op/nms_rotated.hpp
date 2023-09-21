@@ -28,7 +28,7 @@ public:
     /// \param score_threshold Node containing minimum score threshold
     /// \param sort_result_descending Specifies whether it is necessary to sort selected
     /// boxes across batches
-    /// \param output_type Specifies the output tensor type
+    /// \param output_type Specifies the output type of the first and third output
     /// \param clockwise Specifies the direction of the rotation
     NMSRotated(const Output<Node>& boxes,
                const Output<Node>& scores,
