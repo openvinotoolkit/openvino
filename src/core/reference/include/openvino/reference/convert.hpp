@@ -94,7 +94,7 @@ void lp_convert(const TI* arg, TO* out, size_t count, element::Type_t src_type, 
         } else if (dst_type == element::nf4) {
             ConvertNF4::pack(output, input, i);
         } else if (src_type == element::nf4) {
-            out[i] = ConvertNF4::dequantize_nf4(detail::get_value<uint8_t, TI>(input, i, src_type));
+            out[i] = static_cast<TO>(ConvertNF4::dequantize_nf4(detail::get_value<uint8_t, TI>(input, i, src_type)));
         } else {
             out[i] = detail::get_value<TO, TI>(input, i, src_type);
         }
