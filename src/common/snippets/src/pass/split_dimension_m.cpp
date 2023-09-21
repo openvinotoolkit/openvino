@@ -306,6 +306,9 @@ bool ov::snippets::pass::SplitDimensionM::run_on_subgraph(const std::shared_ptr<
         return false;
 
     if (const auto matmul0 = get_matmul(subgraph)) {
+        if (!can_be_optimized(matmul0, m_concurrency))
+            return false;
+
         const auto mm_shape = matmul0->get_shape();
 
         size_t batch_m_dim, new_m_dim;
