@@ -19,14 +19,12 @@ def get_models_list(file_name: str):
             mark = None
             reason = None
             assert len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
-                "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(
-                    model_info)
+                "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(model_info)
             if len(model_info.split(',')) == 2:
                 model_name, model_link = model_info.split(',')
             elif len(model_info.split(',')) == 4:
                 model_name, model_link, mark, reason = model_info.split(',')
-                assert mark in [
-                    "skip", "xfail"], "Incorrect failure mark for model info {}".format(model_info)
+                assert mark in ["skip", "xfail"], "Incorrect failure mark for model info {}".format(model_info)
             models.append((model_name, model_link, mark, reason))
 
     return models
@@ -36,8 +34,7 @@ def compare_two_tensors(ov_res, fw_res, eps):
     is_ok = True
     if not np.allclose(ov_res, fw_res, atol=eps, rtol=eps, equal_nan=True):
         is_ok = False
-        max_diff = np.abs(ov_res.astype(np.float32) -
-                          fw_res.astype(np.float32)).max()
+        max_diff = np.abs(ov_res.astype(np.float32) - fw_res.astype(np.float32)).max()
         print("Max diff is {}".format(max_diff))
     else:
         print("Accuracy validation successful!\n")
