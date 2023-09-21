@@ -3,13 +3,14 @@
 @sphinxdirective
 
 .. meta::
-  :description: Check the list of available operation sets fully supported in 
+  :description: Check the list of available operation sets fully supported in
                 specific versions of OpenVINO™ toolkit.
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
+   openvino_docs_ops_opset13
    openvino_docs_ops_opset12
    openvino_docs_ops_opset11
    openvino_docs_ops_opset10
@@ -33,6 +34,8 @@ This topic provides a complete list of available sets of operations supported in
 
     * - OpenVINO™ Version
       - Actual Operations Set
+    * - 2023.2
+      - :doc:`opset13 <openvino_docs_ops_opset13>`
     * - 2023.1
       - :doc:`opset12 <openvino_docs_ops_opset12>`
     * - 2023.0
