@@ -51,7 +51,7 @@ struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
     using kernel_selector_t = kernel_selector::multiclass_nms_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::multiclass_nms_params, kernel_selector::multiclass_nms_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::multiclass_nms_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<multiclass_nms_impl>(*this);

@@ -18,6 +18,7 @@
 #include "common_test_utils/test_case.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
+#include "ngraph/file_util.hpp"
 #include "common_test_utils/test_control.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START

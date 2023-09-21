@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/scatter_elements_update.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/scatter_elements_update.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -31,15 +32,12 @@ struct ScatterElementsUpdateParams {
 };
 
 class ReferenceScatterElementsUpdateLayerTest : public testing::TestWithParam<ScatterElementsUpdateParams>,
-                                       public CommonReferenceTest {
+                                                public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {params.input.data,
-                     params.indices.data,
-                     params.updates.data,
-                     params.axis.data};
+        inputData = {params.input.data, params.indices.data, params.updates.data, params.axis.data};
         refOutData = {params.expected.data};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ScatterElementsUpdateParams>& obj) {
@@ -55,6 +53,7 @@ public:
         result << "_axis_pr=" << param.axis.type;
         return result.str();
     }
+
 private:
     static std::shared_ptr<Model> CreateFunction(const ScatterElementsUpdateParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.input.type, params.input.shape);
@@ -76,17 +75,19 @@ std::vector<ScatterElementsUpdateParams> generateScatterParams() {
     using T_INT = typename element_type_traits<ET_IND>::value_type;
     std::vector<ScatterElementsUpdateParams> scatterParams{
         // axis = 0
-        ScatterElementsUpdateParams(reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{1, 2, 3, 4}),         // input
-                                    reference_tests::Tensor({2, 2}, element::Type(ET_IND), std::vector<T_INT>{1, 1, 0, 0}), // indices
-                                    reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{10, 20, 30, 40}),     // updates
-                                    reference_tests::Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{0}),             // axis
-                                    reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{30, 40, 10, 20})),    // expected
+        ScatterElementsUpdateParams(
+            reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{1, 2, 3, 4}),          // input
+            reference_tests::Tensor({2, 2}, element::Type(ET_IND), std::vector<T_INT>{1, 1, 0, 0}),  // indices
+            reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{10, 20, 30, 40}),      // updates
+            reference_tests::Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{0}),              // axis
+            reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{30, 40, 10, 20})),     // expected
         // axis = 1
-        ScatterElementsUpdateParams(reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{1, 2}),         // input
-                                    reference_tests::Tensor({2, 1}, element::Type(ET_IND), std::vector<T_INT>{0, 0}), // indices
-                                    reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20}),       // updates
-                                    reference_tests::Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{1}),       // axis
-                                    reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20})),      // expected
+        ScatterElementsUpdateParams(
+            reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{1, 2}),          // input
+            reference_tests::Tensor({2, 1}, element::Type(ET_IND), std::vector<T_INT>{0, 0}),  // indices
+            reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20}),        // updates
+            reference_tests::Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{1}),        // axis
+            reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20})),       // expected
     };
     return scatterParams;
 }
@@ -167,4 +168,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScatterEltsUpdate_With_Hardcoded_Refs,
                          ReferenceScatterElementsUpdateLayerTest,
                          ::testing::ValuesIn(generateScatterCombinedParams()),
                          ReferenceScatterElementsUpdateLayerTest::getTestCaseName);
-} // namespace
+}  // namespace

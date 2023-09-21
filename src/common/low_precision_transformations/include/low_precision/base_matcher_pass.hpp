@@ -3,11 +3,11 @@
 //
 
 #pragma once
-#include <ngraph/node.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "rt_info/attribute_parameters.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -15,9 +15,9 @@ class LP_TRANSFORMATIONS_API BaseMatcherPass;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::BaseMatcherPass : public ov::pass::MatcherPass {
+class LP_TRANSFORMATIONS_API ov::pass::low_precision::BaseMatcherPass : public ov::pass::MatcherPass {
 public:
     BaseMatcherPass(const AttributeParameters& params = AttributeParameters());
     AttributeParameters params;

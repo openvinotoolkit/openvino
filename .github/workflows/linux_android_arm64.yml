@@ -55,7 +55,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'openvino'
-          submodules: 'recursive'
+
+      - name: Init submodules for non vcpkg dependencies
+        run: |
+          pushd ${{ env.OPENVINO_REPO }}
+            git submodule update --init -- ${{ env.OPENVINO_REPO }}/src/plugins
+            git submodule update --init -- ${{ env.OPENVINO_REPO }}/thirdparty/gtest
+            git submodule update --init -- ${{ env.OPENVINO_REPO }}/thirdparty/open_model_zoo
+          popd
 
       - name: Clone VCPKG
         uses: actions/checkout@v4
@@ -63,12 +70,6 @@ jobs:
           repository: 'microsoft/vcpkg'
           path: 'vcpkg'
           fetch-depth: '0'
-          submodules: 'recursive'
-
-      - name: Create Directories
-        run: |
-          mkdir -p ${{ env.BUILD_DIR }}
-          mkdir -p ${{ env.INSTALL_DIR }}
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v4
@@ -118,13 +119,6 @@ jobs:
           restore-keys: |
             ${{ github.job }}-linux-android-arm64
 
-      - name: Get tools versions
-        run: |
-          ninja --version
-          ccache --version
-          python3 --version
-          cmake --version
-
       #
       # Build
       #
@@ -163,8 +157,6 @@ jobs:
             -DENABLE_TESTS=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
-            -DCMAKE_C_LINKER_LAUNCHER=ccache \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
 
