@@ -6,9 +6,9 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/reference/xor.hpp"
-#include "shape_util.hpp"
 
 namespace ov {
 namespace op {

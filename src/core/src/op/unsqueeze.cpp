@@ -85,7 +85,7 @@ bool evaluate_unsqueeze(const Node* node,
 
     // Sort in increasing order
     std::set<int64_t> axes_set(axes.begin(), axes.end());
-    NGRAPH_CHECK(axes.size() == axes_set.size(), "Axes has duplicate axis.");
+    OPENVINO_ASSERT(axes.size() == axes_set.size(), "Axes has duplicate axis.");
 
     auto out_shape = data_shape;
     for (int64_t axis : axes_set) {
@@ -107,8 +107,8 @@ bool evaluate_unsqueeze(const Node* node,
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Unsqueeze_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 2));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return unsqueeze::evaluate_unsqueeze(this, inputs[0], inputs[1], outputs[0]);
 }

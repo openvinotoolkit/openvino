@@ -106,9 +106,9 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
     for (std::string input_subscript; std::getline(input, input_subscript, ',');) {
         bool local_is_ellipsis_met = false;
         // check that input subscript contains only alphabetic letter or ellipsis
-        NGRAPH_CHECK(is_subscript_correct(input_subscript, local_is_ellipsis_met),
-                     "Input subscript of Einsum equation must consist of either only "
-                     "alphabetic letters or alphabetic letters with one ellipsis.");
+        OPENVINO_ASSERT(is_subscript_correct(input_subscript, local_is_ellipsis_met),
+                        "Input subscript of Einsum equation must consist of either only "
+                        "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // mark that ellipsis is met at least in one input subscript
         if (local_is_ellipsis_met) {
@@ -137,14 +137,14 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
         bool output_is_ellipsis_met = false;
 
         // check that the output subscript has the correct format
-        NGRAPH_CHECK(is_subscript_correct(output_subscript, output_is_ellipsis_met),
-                     "Output subscript of Einsum equation must consist of either only "
-                     "alphabetic letters or alphabetic letters with one ellipsis.");
+        OPENVINO_ASSERT(is_subscript_correct(output_subscript, output_is_ellipsis_met),
+                        "Output subscript of Einsum equation must consist of either only "
+                        "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
-        NGRAPH_CHECK(is_ellipsis_met == output_is_ellipsis_met,
-                     "Output subscript of Einsum equation must contain one ellipsis if "
-                     "ellipsis is met in any input subscript.");
+        OPENVINO_ASSERT(is_ellipsis_met == output_is_ellipsis_met,
+                        "Output subscript of Einsum equation must contain one ellipsis if "
+                        "ellipsis is met in any input subscript.");
     }
 }
 
@@ -162,7 +162,7 @@ std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subsc
             // make additional increment since ellipsis consists of three dots.
             ch_idx += 2;
         } else {
-            NGRAPH_CHECK(false, "Einsum equation has invalid label.");
+            OPENVINO_ASSERT(false, "Einsum equation has invalid label.");
         }
     }
 

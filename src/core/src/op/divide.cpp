@@ -87,14 +87,14 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
     // for positive arg2 divide will have limits [low/up , up/low]
     // for negative arg2 limits for divide will be [up/low, low/up]
     // for arg2 range with both positive and negative values, divide can give any result [-inf, inf]
-    NGRAPH_CHECK(node, output_values.size() == 1);
+    OPENVINO_ASSERT(node, output_values.size() == 1);
     const auto& input1 = node->input_value(0);
     const auto& input2 = node->input_value(1);
 
     // broadcast shapes to allocate tensors of correct size for operations with both inputs
     PartialShape input_shape = input1.get_partial_shape();
-    NGRAPH_CHECK(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
-                 "Argument shapes in divide operation are inconsistent.");
+    OPENVINO_ASSERT(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
+                    "Argument shapes in divide operation are inconsistent.");
 
     auto input1_low = ov::evaluate_lower_bound(input1);
     if (!input1_low)
