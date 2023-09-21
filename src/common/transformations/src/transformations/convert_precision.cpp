@@ -201,6 +201,8 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     }
 
     for (const auto& param : f->get_parameters()) {
+        if (skip_precision_sensitive && fp16_compression_is_disabled(param) && has_fp16_compression)
+            continue;
         is_changed |= fuse_type_to_parameter(param, precisions, convert_input_output_precision);
     }
 
