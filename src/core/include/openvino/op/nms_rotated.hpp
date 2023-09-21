@@ -18,8 +18,7 @@ public:
 
     NMSRotated() = default;
 
-    /// \brief Constructs a NMSRotated operation with default value in the last.
-    ///        input.
+    /// \brief Constructs a NMSRotated operation.
     ///
     /// \param boxes Node containing the box coordinates
     /// \param scores Node containing the box scores
