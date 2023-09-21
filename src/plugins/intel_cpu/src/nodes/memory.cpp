@@ -31,11 +31,6 @@ MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
 
 bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-
         if (!one_of(op->get_type_info(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
@@ -83,16 +78,16 @@ void MemoryOutput::execute(dnnl::stream strm)  {
 
     auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
     IE_ASSERT(inputMemoryNode != nullptr);
+
     inputMemoryNode->storeState(srcMemory);
+}
+
+void MemoryOutput::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
 }
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-
         if (!one_of(op->get_type_info(),
                 ngraph::op::v3::ReadValue::get_type_info_static(),
                 ngraph::op::v6::ReadValue::get_type_info_static())) {
@@ -119,7 +114,17 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
 void MemoryInput::createPrimitive() {
     Input::createPrimitive();
 
-    dataStore = std::make_shared<Memory>(getEngine(), getChildEdgeAt(0)->getMemory().getDesc());
+    const auto &_desc = getChildEdgeAt(0)->getMemory().getDesc();
+    auto _shape = _desc.getShape();
+    VectorDims dims = _shape.getDims();
+    if (_shape.isDynamic()) {
+        // create zero-dims shape if it is dynamic.. FIXME: how about inital_state?
+        for (auto& d : dims) {
+            if (d == Shape::UNDEFINED_DIM) d = 0;
+        }
+    }
+    auto desc = _desc.cloneWithNewDims(dims);
+    dataStore = std::make_shared<Memory>(getEngine(), desc);
 
     // default memory state is zero filled
     if (dataStore->getDesc().hasDefinedMaxSize())
@@ -158,6 +163,13 @@ MemoryPtr MemoryInput::getStore() {
 }
 
 void MemoryInput::storeState(const IMemory &new_state) {
+    //redefine storage memory before copy to it
+    const auto &_desc = new_state.getDesc();
+    auto _shape = _desc.getShape();
+    VectorDims dims = _shape.getStaticDims();
+    auto desc = _desc.cloneWithNewDims(dims);
+    dataStore = std::make_shared<Memory>(getEngine(), desc);
+
     // TODO: Should be next one call:
     //           dataStore.load(new_state, false);
     //       But because of performance reason we use simple manual copy

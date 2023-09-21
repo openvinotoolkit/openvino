@@ -68,6 +68,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {}
     void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool created() const override {
         return getType() == Type::MemoryOutput;
     }
@@ -76,6 +77,8 @@ public:
         inputNode = node;
     }
 
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
  private:
     /**
      * @brief keeps reference to input sibling node
@@ -97,6 +100,7 @@ public:
         return true;
     }
     void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); };
 
     void createPrimitive() override;
 

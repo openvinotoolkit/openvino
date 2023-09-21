@@ -103,6 +103,7 @@ private:
     void push_states();
     void pull_states();
     void redefine_memory_for_input_nodes();
+    void redefineMemoryForVariableNodes();
 
     void update_external_tensor_ptrs();
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
