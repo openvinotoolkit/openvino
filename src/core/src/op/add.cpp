@@ -39,12 +39,6 @@ Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcast
     constructor_validate_and_infer_types();
 }
 
-bool Add::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_Add_visit_attributes);
-    BinaryElementwiseArithmetic::visit_attributes(visitor);
-    return true;
-}
-
 std::shared_ptr<Node> Add::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_Add_clone_with_new_inputs);
     check_new_args_count(this, new_args);
