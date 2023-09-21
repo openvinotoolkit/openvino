@@ -43,15 +43,23 @@ Output<Node> prepare_source(const NodeContext& context, Output<Node> src, Output
     auto src_input_dtype = context.mark_node(std::make_shared<v1::ConvertLike>(src_pruned, input));
     return src_input_dtype;
 };
-const std::unordered_map<std::string, v12::ScatterElementsUpdate::Reduction> TORCH_REDUCTION_TO_OV{
-    {"add", v12::ScatterElementsUpdate::Reduction::SUM},
-    {"multiply", v12::ScatterElementsUpdate::Reduction::PROD},
-    {"sum", v12::ScatterElementsUpdate::Reduction::SUM},
-    {"prod", v12::ScatterElementsUpdate::Reduction::PROD},
-    {"mean", v12::ScatterElementsUpdate::Reduction::MEAN},
-    {"amax", v12::ScatterElementsUpdate::Reduction::MAX},
-    {"amin", v12::ScatterElementsUpdate::Reduction::MIN}};
 
+const v12::ScatterElementsUpdate::Reduction get_reduction_mode(std::string pt_reduce_mode) {
+    static const std::unordered_map<std::string, v12::ScatterElementsUpdate::Reduction> TORCH_REDUCTION_TO_OV{
+        {"add", v12::ScatterElementsUpdate::Reduction::SUM},
+        {"multiply", v12::ScatterElementsUpdate::Reduction::PROD},
+        {"sum", v12::ScatterElementsUpdate::Reduction::SUM},
+        {"prod", v12::ScatterElementsUpdate::Reduction::PROD},
+        {"mean", v12::ScatterElementsUpdate::Reduction::MEAN},
+        {"amax", v12::ScatterElementsUpdate::Reduction::MAX},
+        {"amin", v12::ScatterElementsUpdate::Reduction::MIN}};
+
+    FRONT_END_OP_CONVERSION_CHECK(TORCH_REDUCTION_TO_OV.count(pt_reduce_mode),
+                                  "Unknown reduction mode: ",
+                                  pt_reduce_mode);
+    auto reduction = TORCH_REDUCTION_TO_OV.at(pt_reduce_mode);
+    return reduction;
+}
 };  // namespace
 
 OutputVector translate_scatter(const NodeContext& context) {
@@ -81,16 +89,13 @@ OutputVector translate_scatter(const NodeContext& context) {
     // 5 argument can be reduction represened as string or out represented as Tensor
     if (input_num > 4 && !context.input_is_none(4) && context.get_input_type(4).is<type::Str>()) {
         auto reduce_mode = context.const_input<std::string>(4);
-        FRONT_END_OP_CONVERSION_CHECK(TORCH_REDUCTION_TO_OV.count(reduce_mode),
-                                      "Unknown reduction mode: ",
-                                      reduce_mode);
-        reduction = TORCH_REDUCTION_TO_OV.at(reduce_mode);
+        reduction = get_reduction_mode(reduce_mode);
     }
 
     auto src_input_dtype = prepare_source(context, src, index, input);
     auto res =
         context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input, index, src_input_dtype, dim, reduction));
-    if (input_num == 6 || (input_num == 5 && reduction == v12::ScatterElementsUpdate::Reduction::NONE)) {
+    if (input_num == 6 || (input_num == 5 && !context.get_input_type(4).is<type::Str>())) {
         context.mutate_input(input_num - 1, res);
     }
     return {res};
@@ -111,8 +116,7 @@ OutputVector translate_scatter_reduce(const NodeContext& context) {
     auto index = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), element::i32));
     auto src = context.get_input(3);
     auto reduce_mode = context.const_input<std::string>(4);
-    FRONT_END_OP_CONVERSION_CHECK(TORCH_REDUCTION_TO_OV.count(reduce_mode), "Unknown reduction mode: ", reduce_mode);
-    auto reduction = TORCH_REDUCTION_TO_OV.at(reduce_mode);
+    auto reduction = get_reduction_mode(reduce_mode);
     auto include_self = context.const_input<bool>(5);
     auto src_input_dtype = prepare_source(context, src, index, input);
     auto scatter_result = context.mark_node(
