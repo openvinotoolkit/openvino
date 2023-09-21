@@ -24,7 +24,7 @@ bool evaluate(const std::shared_ptr<ov::op::v9::ROIAlign>& op,
         break;
     }
     default: {
-        NGRAPH_CHECK(false, "unsupported PoolingMode ");
+        OPENVINO_THROW("unsupported PoolingMode ");
     }
     }
     ov::reference::roi_align<T>(inputs[0].data<const T>(),
