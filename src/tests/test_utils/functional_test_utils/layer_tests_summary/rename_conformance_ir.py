@@ -162,6 +162,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
                         model_dir = str(model_dir).replace(model_prefix, "")
                         if op_name in model_dir:
                             model_dir = model_dir[:model_dir.find(op_name):]
+                        model_dir = model_dir[:-1:]
                         model_dir = model_dir.replace(os.path.sep, "_")
                         str_to_hash += model_dir
                         # upgrade expected rel passrates files
@@ -183,7 +184,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
                 for input in ET.parse(meta_path).getroot().find("input_info"):
                     for attrib in input.attrib:
                         if attrib == "convert_to_const":
-                            str_to_hash += ET.tostring(input.attrib.get(attrib)).decode('utf8')
+                            str_to_hash += input.attrib.get(attrib)
             except:
                 logger.error(f"Impossible to add input_info to hash for {model_path}")
 
