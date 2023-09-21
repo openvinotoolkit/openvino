@@ -393,7 +393,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
         {"aten::remainder", op::translate_remainder},
-        {"aten::repeat", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Tile>>},
+        {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
