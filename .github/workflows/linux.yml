@@ -46,8 +46,6 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       BUILD_DIR: ${{ github.workspace }}/build
-      DATA_PATH: ${{ github.workspace }}/testdata
-      MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
     steps:
@@ -55,22 +53,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'openvino'
-          submodules: 'recursive'
+          submodules: 'true'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
-          submodules: 'recursive'
-
-      - name: Clone testdata for C API tests
-        uses: actions/checkout@v4
-        with:
-          repository: 'openvinotoolkit/testdata'
-          path: 'testdata'
-          submodules: 'recursive'
-          lfs: 'true'
 
       #
       # Dependencies
@@ -493,8 +482,6 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       BUILD_DIR: ${{ github.workspace }}/build
-      DATA_PATH: ${{ github.workspace }}/testdata
-      MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
 
@@ -507,7 +494,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'openvino'
-          submodules: 'recursive'
 
       #
       # Dependencies
@@ -599,7 +585,7 @@ jobs:
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_zoo_models.py \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_backend.py
-      
+
       - name: Python API snippets
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
@@ -788,18 +774,26 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/requirements.txt
 
-      - name: Cache Tests Execution Time
-        id: tests-functional-cpu-cache
-        uses: actions/cache@v3
+      - name: Restore tests execution time
+        uses: actions/cache/restore@v3
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-cache
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tests-functional-cpu-stamp
 
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 25
+
+      - name: Save tests execution time
+        uses: actions/cache/save@v3
+        if: github.ref_name == 'master'
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -893,6 +887,13 @@ jobs:
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
+      - name: Maximize build space
+        run:  |
+          sudo rm -rf /usr/local/lib/android # will release about 10 GB if you don't need Android
+          sudo rm -rf /usr/share/dotnet # will release about 20GB if you don't need .NET
+          sudo rm -rf /opt/ghc
+          echo "Available storage:"
+          df -h
       - name: Create Directories
         run: |
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
@@ -923,14 +924,27 @@ jobs:
       - name: Install Python wheels
         run: |
           python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
-      - name: PyTorch Models Tests
+      - name: Install requirements
         run: |
           python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
+          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements_secondary.txt
+          python3 -m pip cache purge
+          echo "Available storage:"
+          df -h
+          du -h -d0 ~/.cache ~/*
+      - name: PyTorch Models Tests
+        run: |
           export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
+
+      - name: Available storage after tests
+        run:  |
+          echo "Available storage:"
+          df -h
+          du -h -d0 ~/.cache ~/*
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3

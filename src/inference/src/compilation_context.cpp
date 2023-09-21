@@ -16,9 +16,7 @@
 #include "details/ie_exception.hpp"
 #include "file_utils.h"
 #include "itt.hpp"
-#include "ngraph/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/fix_rt_info.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -86,7 +84,6 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
     uint64_t seed = 0;
     // 1. Calculate hash on function
     ov::pass::Manager m;
-    m.register_pass<ov::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
     m.run_passes(std::const_pointer_cast<ov::Model>(model));
 

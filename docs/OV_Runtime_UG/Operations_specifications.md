@@ -127,6 +127,7 @@
    Multinomial-13 <openvino_docs_ops_generation_Multinomial_13>
    Multiply-1 <openvino_docs_ops_arithmetic_Multiply_1>
    Negative-1 <openvino_docs_ops_arithmetic_Negative_1>
+   NMSRotated-13 <openvino_docs_ops_sort_NMSRotated_13>
    NonMaxSuppression-1 <openvino_docs_ops_sort_NonMaxSuppression_1>
    NonMaxSuppression-3 <openvino_docs_ops_sort_NonMaxSuppression_3>
    NonMaxSuppression-4 <openvino_docs_ops_sort_NonMaxSuppression_4>

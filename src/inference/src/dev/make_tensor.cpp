@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "ie_blob.h"
-#include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -188,6 +187,8 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) override {
+        if (m_shape == new_shape)
+            return;
         auto old_byte_size = get_byte_size();
         m_shape = std::move(new_shape);
         if (get_byte_size() > old_byte_size) {

@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-  :description: Check the list of available operation sets fully supported in 
+  :description: Check the list of available operation sets fully supported in
                 specific versions of OpenVINO™ toolkit.
 
 .. toctree::
