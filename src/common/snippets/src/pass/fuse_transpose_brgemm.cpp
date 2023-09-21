@@ -17,9 +17,21 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
-const std::set<std::vector<int>> FuseTransposeBrgemm::supported_cases = {{0, 3, 1, 2, 4}, {0, 2, 1, 3}, {2, 0, 1, 3}, {1, 0, 2}};
+bool FuseTransposeBrgemm::is_supported_transpose(const std::shared_ptr<const ov::op::v1::Transpose>& transpose) {
+    if (!transpose)
+        return false;
+    const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+    if (!order)
+        return false;
+    return is_supported_transpose_order(order->cast_vector<int32_t>());
+}
 
-bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_port) {
+bool FuseTransposeBrgemm::is_supported_transpose_order(const std::vector<int32_t>& order) {
+    const auto size = order.size();
+    return order.size() > 0 && order.back() == (size - 1);
+}
+
+bool FuseTransposeBrgemm::is_supported_match_transpose(const Output<Node>& transpose_port) {
     const auto transpose_node = transpose_port.get_node_shared_ptr();
     // it's safe to do so because of the patterns we used. alternatively we can do it through pattern_values_map
     const auto& constant = as_type_ptr<ov::opset1::Constant>(transpose_node->get_input_node_shared_ptr(1));
@@ -34,13 +46,13 @@ bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_p
     //  to calc them non-default way is to set Parameter rt_info field. This limitation can be removed if
     //  the rt_info is properly propagated to the corresponding parameter
     return is_type<ov::opset1::Parameter>(transpose_node->get_input_node_shared_ptr(0)) &&
-           supported_cases.count(transpose_order) != 0;
+           is_supported_transpose_order(transpose_order);
 }
 
 FuseTransposeBrgemm::FuseTransposeBrgemm() {
     MATCHER_SCOPE(FuseTransposeBrgemm);
     auto constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), constant}, is_supported_transpose);
+    auto transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), constant}, is_supported_match_transpose);
     auto transpose_matcher = std::make_shared<ov::pass::pattern::Matcher>(transpose);
 
     // Pattern 0: Transpose on 0-th input of MatMul

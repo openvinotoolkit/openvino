@@ -14,7 +14,21 @@ namespace snippets {
 namespace pass {
 using namespace lowered;
 
-const std::set<std::vector<int>> TransposeDecomposition::supported_cases = {{0, 3, 1, 4, 2}, {0, 2, 3, 1}, {2, 0, 3, 1}, {1, 2, 0}};
+bool TransposeDecomposition::is_supported_transpose(const std::shared_ptr<const ov::op::v1::Transpose>& transpose) {
+    if (!transpose)
+        return false;
+    const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+    if (!order)
+        return false;
+    return is_supported_transpose_order(order->cast_vector<int32_t>());
+}
+
+bool TransposeDecomposition::is_supported_transpose_order(const std::vector<int32_t>& order) {
+    const auto size = order.size();
+    if (size > 0)
+        return order.back() != (size - 1);
+    return true;
+}
 
 TransposeDecomposition::TransposeDecomposition() {
     MATCHER_SCOPE(TransposeDecomposition);
@@ -36,13 +50,17 @@ TransposeDecomposition::TransposeDecomposition() {
         if (transformation_callback(transpose) || transpose->is_dynamic())
             return false;
 
-        auto order_value = order->cast_vector<int>();
-        if (supported_cases.count(order_value) == 0)
+        if (!is_supported_transpose(transpose))
             return false;
 
-        // number of elements that can be processed on every iteration. For 0,1,2,3 -> 0,2,3,1 we can guarantee only scalar access
+        // number of elements that can be processed on every iteration.
+        // since we have check `order_value.back() != (size - 1)` in `is_supported_transpose_order` we garantee that process only scalar value
         const auto subtensor = std::vector<size_t>{1};
-        const auto& layout = order->cast_vector<size_t>();
+        auto layout = order->cast_vector<size_t>();
+        if (layout.empty()) {
+            layout.resize(transpose->get_output_partial_shape(0).size(), 0);
+            std::iota(layout.rbegin(), layout.rend(), 0);
+        }
 
         // todo: LoadReshape used here is essentially Load + an easy way to maintain correct shape propagation
         //  fix this in future and develop a more consistent shape propagation approach.

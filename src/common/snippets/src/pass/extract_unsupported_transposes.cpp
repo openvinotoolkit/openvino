@@ -38,8 +38,8 @@ bool ov::snippets::pass::ExtractUnsupportedTransposes::run_on_subgraph(const std
         const auto transpose_child = *(transpose->get_output_target_inputs(0).begin());
         const auto is_brgemm_case = ov::is_type<opset1::MatMul>(transpose_child.get_node()->shared_from_this());
         // If Transpose is supported (can be decomposed or fused into Brgemm), skip
-        if ((is_brgemm_case && FuseTransposeBrgemm::supported_cases.count(order_value) != 0) ||
-            (TransposeDecomposition::supported_cases.count(order_value) != 0))
+        if ((TransposeDecomposition::is_supported_transpose_order(order_value)) ||
+            (is_brgemm_case && FuseTransposeBrgemm::is_supported_transpose_order(order_value)))
             continue;
 
         // If the transpose isn't supported - we have to extract it from Subgraph

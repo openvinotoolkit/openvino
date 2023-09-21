@@ -32,6 +32,25 @@ auto is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) -> bool
     return is_intermediate_op(node) && ov::snippets::pass::TokenizeSnippets::AppropriateForSubgraph(node);
 }
 
+std::vector<int64_t> rescale_order(std::vector<int64_t> default_order, size_t rank) {
+    OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
+    auto order = std::vector<int64_t>(rank);
+    std::iota(order.begin(), order.end(), 0);
+    const auto diff = rank - default_order.size();
+    for (size_t i = 0; i < default_order.size(); ++i) {
+        order[diff + i] = default_order[i] + diff;
+    }
+    return order;
+}
+std::vector<int64_t> get_fusion_order(size_t rank) {
+    OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
+    return rescale_order({1, 0, 2}, rank);
+}
+std::vector<int64_t> get_decomposed_order(size_t rank) {
+    OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
+    return rescale_order({1, 2, 0}, rank);
+}
+
 auto is_valid_transpose(const std::shared_ptr<ov::opset1::Transpose>& node, std::vector<int64_t> expected_order) -> bool {
     auto valid_transpose_order = [expected_order](const std::shared_ptr<ov::Node>& node) -> bool {
         const auto transpose_pattern = ov::as_type_ptr<ov::opset1::Constant>(node);
@@ -43,7 +62,7 @@ auto is_valid_transpose(const std::shared_ptr<ov::opset1::Transpose>& node, std:
         return is_supported_tensor(t) && ov::snippets::pass::TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0;
     };
 
-    return node && node->get_output_target_inputs(0).size() == 1 && node->get_shape().size() == 4 &&
+    return node && node->get_output_target_inputs(0).size() == 1 &&
            valid_transpose_order(node->get_input_node_shared_ptr(1)) && is_supported_transpose_tensor(node->get_input_tensor(0));
 }
 
@@ -257,6 +276,8 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         ordered_ops.push_back(matmul0);
 
+        const auto pattern_rank = matmul0->get_output_partial_shape(0).size();
+
         auto interm_op = matmul0->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
         // Add supported operations which are between MatMul0 and Softmax to ordered_ops
         if (!update_intermediate_supported_ops(interm_op, ordered_ops, hidden_virtual_ports_count, potential_body_params_count))
@@ -391,9 +412,9 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         const auto transpose1 = ov::as_type_ptr<ov::opset1::Transpose>(parent);
         const auto transpose0 = ov::as_type_ptr<ov::opset1::Transpose>(matmul0->get_input_node_shared_ptr(0));
         const auto transpose2 = ov::as_type_ptr<ov::opset1::Transpose>(matmul1->get_input_node_shared_ptr(1));
-        tokenize_transpose(transpose1, is_transposed_b_0, {0, 2, 3, 1}, ordered_ops.begin());
-        tokenize_transpose(transpose0, matmul0->get_transpose_a(), {0, 2, 1, 3}, ordered_ops.begin());
-        tokenize_transpose(transpose2, matmul1->get_transpose_b(), {0, 2, 1, 3}, ordered_ops.end());
+        tokenize_transpose(transpose1, is_transposed_b_0, get_decomposed_order(pattern_rank), ordered_ops.begin());
+        tokenize_transpose(transpose0, matmul0->get_transpose_a(), get_fusion_order(pattern_rank), ordered_ops.begin());
+        tokenize_transpose(transpose2, matmul1->get_transpose_b(), get_fusion_order(pattern_rank), ordered_ops.end());
         ordered_ops.push_back(matmul1);
 
         bool are_ops_after_matmul1 = false;
@@ -427,7 +448,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         //    Transpose3
         if (!are_ops_after_matmul1) {
             auto transpose3 = config.mha_token_enable_transpose_on_output ? ov::as_type_ptr<ov::opset1::Transpose>(child) : nullptr;
-            if (is_valid_transpose(transpose3, {0, 2, 1, 3}) &&
+            if (is_valid_transpose(transpose3, get_fusion_order(pattern_rank)) &&
                 transpose3->get_input_element_type(0) == matmul1_out_type) {  // To avoid Convert between MatMul1 and Transpose3
                 ordered_ops.push_back(transpose3);
             }

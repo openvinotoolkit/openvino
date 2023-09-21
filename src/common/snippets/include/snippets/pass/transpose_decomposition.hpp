@@ -7,6 +7,8 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
+#include "openvino/op/transpose.hpp"
+
 namespace ov {
 namespace snippets {
 namespace pass {
@@ -20,7 +22,9 @@ class TransposeDecomposition: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TransposeDecomposition", "0");
     TransposeDecomposition();
-    static const std::set<std::vector<int>> supported_cases;
+
+    static bool is_supported_transpose(const std::shared_ptr<const ov::op::v1::Transpose>& transpose);
+    static bool is_supported_transpose_order(const std::vector<int32_t>& order);
 };
 
 }  // namespace pass
