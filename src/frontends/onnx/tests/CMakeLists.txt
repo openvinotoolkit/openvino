@@ -19,7 +19,6 @@ add_compile_definitions(
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
 if (ENABLE_INTEL_CPU)
-    message(STATUS "ONNX frontend test: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
@@ -29,7 +28,6 @@ if (ENABLE_INTEL_CPU)
 endif()
 
 if (ENABLE_INTEL_GPU)
-    message(STATUS "ONNX frontend test: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
@@ -39,7 +37,6 @@ if (ENABLE_INTEL_GPU)
 endif()
 
 if (ENABLE_TEMPLATE)
-    message(STATUS "ONNX frontend test: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
         list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_plugin)
