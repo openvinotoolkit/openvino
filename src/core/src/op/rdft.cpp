@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/rdft.hpp"
+#include "openvino/op/rdft.hpp"
 
 #include <memory>
 
 #include "itt.hpp"
 #include "rdft_shape_inference.hpp"
-
-using namespace std;
 
 ov::op::v9::RDFT::RDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();

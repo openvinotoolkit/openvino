@@ -2,20 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/if.hpp"
+#include "openvino/op/if.hpp"
 
 #include <algorithm>
 #include <iterator>
-#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/factory.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/op/util/multi_subgraph_base.hpp"
-#include "ngraph/specialize_function.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/reference/if.hpp"
-
-using namespace std;
 
 ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 
@@ -180,7 +176,7 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
     OV_OP_SCOPE(v8_If_clone_with_new_inputs);
 
     check_new_args_count(this, new_args);
-    auto op = make_shared<op::v8::If>();
+    auto op = std::make_shared<op::v8::If>();
     NGRAPH_CHECK(op.get(), op != nullptr, "Cannot clone ", description(), " operation with name ", get_friendly_name());
 
     op->set_arguments(new_args);

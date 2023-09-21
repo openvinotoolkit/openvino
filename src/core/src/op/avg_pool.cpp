@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/avg_pool.hpp"
+
 #include "avg_pool_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/op/avg_pool.hpp"
 
 // *** AvgPool OP SET 1 ***
 ov::op::v1::AvgPool::AvgPool(const Output<Node>& arg,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/einsum.hpp"
+#include "openvino/op/einsum.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -11,11 +11,9 @@
 
 #include "einsum_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 namespace {
 
 /// \brief      Check that a subscript contains only alphabetic letters or
@@ -205,13 +203,14 @@ bool op::v7::Einsum::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v7_Einsum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v7::Einsum>(new_args, m_equation);
+    return std::make_shared<v7::Einsum>(new_args, m_equation);
 }
 
 void op::v7::Einsum::set_equation(std::string equation) {
     remove_whitespaces(equation);
     m_equation = std::move(equation);
 }
+}  // namespace ov

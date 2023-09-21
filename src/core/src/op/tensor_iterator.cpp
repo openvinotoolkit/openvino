@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/tensor_iterator.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 #include "itt.hpp"
-#include "ngraph/factory.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/specialize_function.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor) {
@@ -189,7 +184,7 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
 
 std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
-    auto op = make_shared<op::v0::TensorIterator>();
+    auto op = std::make_shared<op::v0::TensorIterator>();
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions.size());
 
@@ -205,3 +200,4 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
     op->validate_and_infer_types();
     return op;
 }
+}  // namespace ov

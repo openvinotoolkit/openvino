@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/irdft.hpp"
+#include "openvino/op/irdft.hpp"
 
 #include <memory>
 
 #include "irdft_shape_inference.hpp"
 #include "itt.hpp"
-
-using namespace std;
 
 ov::op::v9::IRDFT::IRDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();

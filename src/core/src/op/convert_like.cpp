@@ -41,7 +41,7 @@ bool ConvertLike::constant_fold(OutputVector& output_values, const OutputVector&
     }
 
     if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(input_values[0].get_node_shared_ptr())) {
-        auto convert = make_shared<ov::op::v0::Convert>(input_values[0], input_values[1].get_element_type());
+        auto convert = std::make_shared<ov::op::v0::Convert>(input_values[0], input_values[1].get_element_type());
         return convert->constant_fold(output_values, OutputVector{data_const});
     }
     return false;

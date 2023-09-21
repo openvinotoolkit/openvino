@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/gru_cell.hpp"
+#include "openvino/op/gru_cell.hpp"
 
 #include <cmath>
 
 #include "gru_cell_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
 
 op::v3::GRUCell::GRUCell() : m_linear_before_reset(false) {
     m_activations = {"sigmoid", "tanh"};
@@ -143,3 +140,4 @@ shared_ptr<Node> op::v3::GRUCell::clone_with_new_inputs(const OutputVector& new_
         OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
+}  // namespace ov
