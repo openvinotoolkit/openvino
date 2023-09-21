@@ -180,10 +180,11 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                                          "aten::broadcast_tensors: only prim::ListConstruct supported as input.");
                 return false;
             }
-            Output<Node> final_shape_t = opset10::Constant::create(element::f32, Shape{}, {0});
+            Output<Node> final_shape_t = opset10::Constant::create(element::i32, Shape{}, {0});
             for (auto input : tensors->inputs()) {
-                auto tensor = rg.make<opset10::Convert>(input.get_source_output(), element::f32);
-                final_shape_t = rg.make<opset10::Add>(final_shape_t, tensor);
+                auto tensor_shape = rg.make<opset10::ShapeOf>(input.get_source_output(), element::i32);
+                final_shape_t =
+                    rg.make<opset10::Broadcast>(final_shape_t, tensor_shape, ov::op::BroadcastType::BIDIRECTIONAL);
             }
             auto final_shape = rg.make<opset10::ShapeOf>(final_shape_t, element::i32);
             OutputVector outputs;
