@@ -4,11 +4,11 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestLogicalOp(PytorchLayerTest):
 
-    def _prepare_input(self, out, unary):
-        x = np.random.randint(0, 2, (1, 10)).astype(bool)
+    def _prepare_input(self, out, unary, first_dtype, second_dtype):
+        x = np.random.randint(1, 5, (1, 10)).astype(first_dtype)
         if unary:
             return (x, ) if not out else (x, np.zeros_like(x).astype(bool))
-        y = np.random.randint(0, 2, (1, 10)).astype(bool)
+        y = np.random.randint(1, 5, (1, 10)).astype(second_dtype)
         if not out:
             return x, y
         return x, y, np.zeros_like(x).astype(bool)
@@ -54,7 +54,11 @@ class TestLogicalOp(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("op_type", ["and", "or", "not", "xor"])
+    @pytest.mark.parametrize("first_dtype", ["bool", "int32", 'int8', 'float32'])
+    @pytest.mark.parametrize("second_dtype", ["bool", "int32", 'int8', 'float32'])
     @pytest.mark.parametrize("out", [True, False])
-    def test_and_tensor(self, op_type, out, ie_device, precision, ir_version):
+    def test_logical(self, op_type, out, first_dtype, second_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, out),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={"out": out, "unary": op_type == "not"})
+                   ie_device, precision, ir_version, 
+                   kwargs_to_prepare_input={"out": out, "unary": op_type == "not", 
+                                            "first_dtype": first_dtype, "second_dtype": second_dtype})
