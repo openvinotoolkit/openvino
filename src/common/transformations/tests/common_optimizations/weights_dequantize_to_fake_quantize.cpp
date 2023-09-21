@@ -21,6 +21,8 @@ using namespace testing;
 enum class ZPType { INT8_T, FLOAT };
 
 union FloatInt8Union {
+    FloatInt8Union(int8_t val) : int8_val{val} {}
+    FloatInt8Union(float val) : float_val{val} {}
     int8_t int8_val;
     float float_val;
 };
@@ -119,24 +121,19 @@ TEST_P(TranslateNewWeightFormatToOldOne, ReshapeMatMul) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+// clang-format off
 INSTANTIATE_TEST_SUITE_P(
     NGraph,
     TranslateNewWeightFormatToOldOne,
     testing::Combine(
         testing::Values(
-            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::FLOAT, {.float_val = 1}, 2, (-128 - 1) * 2, (127 - 1) * 2, 256},
-            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::FLOAT, {.float_val = 1}, 2, (-127 - 1) * 2, (127 - 1) * 2, 255},
-            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::FLOAT, {.float_val = 0}, 2, (-128 - 0) * 2, (127 - 0) * 2, 256},
-            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::FLOAT, {.float_val = 0}, 2, (-127 - 0) * 2, (127 - 0) * 2, 255},
-            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::INT8_T, {.int8_val = 1}, 2, (-128 - 1) * 2, (127 - 1) * 2, 256},
-            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::INT8_T, {.int8_val = 1}, 2, (-127 - 1) * 2, (127 - 1) * 2, 255},
-            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::INT8_T, {.int8_val = 0}, 2, (-128 - 0) * 2, (127 - 0) * 2, 256},
-            FQ_as_Mul_Sub_dequantize{-127,
-                                     127,
-                                     ZPType::INT8_T,
-                                     {.int8_val = 0},
-                                     2,
-                                     (-127 - 0) * 2,
-                                     (127 - 0) * 2,
-                                     255}),
+            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::FLOAT, 1.0f, 2, (-128 - 1) * 2, (127 - 1) * 2, 256},
+            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::FLOAT, 1.0f, 2, (-127 - 1) * 2, (127 - 1) * 2, 255},
+            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::FLOAT, 0.0f, 2, (-128 - 0) * 2, (127 - 0) * 2, 256},
+            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::FLOAT, 0.0f, 2, (-127 - 0) * 2, (127 - 0) * 2, 255},
+            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::INT8_T, (int8_t)1, 2, (-128 - 1) * 2, (127 - 1) * 2, 256},
+            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::INT8_T, (int8_t)1, 2, (-127 - 1) * 2, (127 - 1) * 2, 255},
+            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::INT8_T, (int8_t)0, 2, (-128 - 0) * 2, (127 - 0) * 2, 256},
+            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::INT8_T, (int8_t)0, 2, (-127 - 0) * 2, (127 - 0) * 2, 255}),
         testing::Values(element::f32, element::f16)));
+// clang-format on
