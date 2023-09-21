@@ -622,15 +622,15 @@ jobs:
       - name: Python API 2.0 Tests
         run: |
           # For python imports to import pybind_mock_frontend
-          export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
           source ${INSTALL_DIR}/setupvars.sh
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py \
             --ignore=${INSTALL_TEST_DIR/pyopenvino/tests/test_onnx/test_zoo_models.py \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_onnx/test_backend.py
+        env:
+          PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
+          LD_LIBRARY_PATH: ${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
 
       - name: Python API snippets
         run: |
@@ -841,7 +841,7 @@ jobs:
 
       - name: Save tests execution time
         uses: actions/cache/save@v3
-        if: github.ref_name == 'master'
+        # if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -852,11 +852,11 @@ jobs:
         with:
           name: test-results-functional-cpu
           path: |
+            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
             ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
           if-no-files-found: 'error'
 
   Python_Unit_Tests-Model_Optimizer_UT:
@@ -943,8 +943,8 @@ jobs:
         with:
           name: test-results-python
           path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'
 
   TensorFlow_Hub_Models_Tests:
