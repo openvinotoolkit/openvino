@@ -51,7 +51,7 @@ struct Edge {
 // convention. Most of them are the same, but there are exceptions, e.g
 // Constant (OpenVINO Model name) and Const (IR name). If there will be more
 // discrepancies discovered, translations needs to be added here.
-static const std::unordered_map<std::string, std::string>& get_translate_type_name_translator() {
+const std::unordered_map<std::string, std::string>& get_translate_type_name_translator() {
     static const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Constant", "Const"},
                                                                                                 {"PRelu", "PReLU"},
                                                                                                 {"Relu", "ReLU"},

@@ -5,7 +5,7 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 namespace {
-static const std::string& get_postponed_fp16_compression_tag() {
+const std::string& get_postponed_fp16_compression_tag() {
     static const std::string postponed_fp16_compression_tag("postponed_fp16_compression");
     return postponed_fp16_compression_tag;
 }
