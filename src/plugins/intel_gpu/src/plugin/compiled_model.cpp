@@ -35,7 +35,7 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
     if (config.get_property(ov::internal::exclusive_async_requests)) {
         //exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
-    } else if (config.get_property(ov::num_streams) > 1) {
+    } else {
         if (config.get_property(ov::hint::enable_cpu_pinning)) {
             auto executorConfig =
                 ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
@@ -53,9 +53,6 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
         }
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
-    } else {
-        return std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
     }
 }
 }  // namespace
