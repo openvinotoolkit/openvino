@@ -14,7 +14,9 @@ ParamsKey RMSKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -26,16 +28,17 @@ ParamsKey RMSKernelRef::GetSupportedKey() const {
 JitConstants RMSKernelRef::GetJitConstants(const rms_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstants({MakeJitConstant("EPSILON", params.epsilon)});
+    jit.AddConstant(MakeJitConstant("EPSILON", params.epsilon));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     return jit;
 }
 
 CommonDispatchData RMSKernelRef::SetDefault(const rms_params& params) const {
     CommonDispatchData dispatchData;
-
-    dispatchData.gws = {1, 1, 1};
-    dispatchData.lws = dispatchData.gws;
+    const auto& output = params.outputs[0];
+    dispatchData.gws = {output.Batch().v, output.Feature().v, 1};
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
 }
@@ -84,6 +87,19 @@ KernelsData RMSKernelRef::GetKernelsData(const Params& params, const optional_pa
 
 KernelsPriority RMSKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
+
+Datatype RMSKernelRef::GetAccumulatorType(const rms_params& params) const {
+    const auto& input_dt = params.inputs[0].GetDType();
+
+    switch (input_dt) {
+        case Datatype::F32:
+        case Datatype::F16:
+            return Datatype::F32;
+        case Datatype::INT8: return Datatype::INT32;
+        case Datatype::UINT8: return Datatype::INT32;
+        default: return Datatype::F32;
+    }
 }
 
 bool RMSKernelRef::Validate(const Params& params, const optional_params& options) const {

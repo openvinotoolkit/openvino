@@ -42,12 +42,22 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
 namespace detail {
 
 attach_rms_impl::attach_rms_impl() {
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i32
+    };
+
+    auto formats = {
+        format::bfyx,
+        format::bfzyx
+    };
+
     implementation_map<rms>::add(impl_types::ocl,
                                  shape_types::any,
-                                 typed_primitive_impl_ocl<rms>::create<rms_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-    });
+                                 typed_primitive_impl_ocl<rms>::create<rms_impl>,
+                                 types,
+                                 formats);
 }
 
 }  // namespace detail

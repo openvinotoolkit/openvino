@@ -34,6 +34,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
+    Datatype GetAccumulatorType(const rms_params& params) const;
     bool Validate(const Params&, const optional_params&) const override;
 };
 }  // namespace kernel_selector
