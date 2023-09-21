@@ -69,8 +69,6 @@ pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
 
             brgemm_copy_b->set_k_block_size(copy_b_block_size_k);
             brgemm_copy_b->set_n_block_size(copy_b_block_size_n);
-            // validation must be called to update N_rounded value
-            brgemm_copy_b->validate_and_infer_types();
         }
 
         return false;

@@ -82,19 +82,23 @@ void BrgemmCopyB::validate_and_infer_types() {
 void BrgemmCopyB::validate(const ov::PartialShape& planar_pshape, const ov::element::Type& element_type) {
     OPENVINO_ASSERT(one_of(element_type, element::bf16, element::i8),
                     "BrgemmCopyB doesn't support element type" + element_type.get_type_name());
-    OPENVINO_ASSERT(planar_pshape.is_static(), "BrgemmCopyB doesn't support dynamic shapes");
-    const auto shape = planar_pshape.get_shape();
-    const auto& N = *shape.rbegin();
-    const auto& K = *(shape.rbegin() + 1);
-
-    m_N_rounded = rnd_up(N, m_N_blk);
-    m_K_rounded = rnd_up(K, m_brgemmVNNIFactor);
 }
 
 void intel_cpu::BrgemmCopyB::compute_block_size_values(const size_t blk_size_k, const size_t blk_size_n) {
     const auto& input_shape = snippets::utils::get_planar_pshape(input(0)).get_shape();
     m_K_blk = blk_size_k != 0 ? blk_size_k : *(input_shape.rbegin() + 1);
     m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape.rbegin();
+}
+
+ov::Shape intel_cpu::BrgemmCopyB::get_data_repacking_shape(const ov::PartialShape& planar_shape) const {
+    const size_t N = planar_shape.rbegin()->get_length();
+    const size_t K = (planar_shape.rbegin() + 1)->get_length();
+    return ov::Shape{rnd_up(K, m_brgemmVNNIFactor), rnd_up(N, m_N_blk)};
+}
+
+ov::Shape intel_cpu::BrgemmCopyB::get_compensation_shape(const ov::PartialShape& planar_shape) const {
+    const size_t N = planar_shape.rbegin()->get_length();
+    return ov::Shape{rnd_up(N, m_N_blk)};
 }
 
 std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -106,8 +110,6 @@ std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const Output
                                                is_with_compensations() ? get_output_port_descriptor(1) : PortDescriptor{},
                                                snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                                m_K_blk, m_N_blk);
-    clone->set_k_rounded(m_K_rounded);
-    clone->set_n_rounded(m_K_rounded);
     return clone;
 }
 

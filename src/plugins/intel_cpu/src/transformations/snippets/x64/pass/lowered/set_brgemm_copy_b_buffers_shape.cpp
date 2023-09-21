@@ -6,6 +6,7 @@
 
 #include "set_brgemm_copy_b_buffers_shape.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
@@ -24,13 +25,12 @@ bool ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape::run(snippets::lowered::Lin
     for (const auto& expr : linear_ir) {
         if (auto copy_b = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node())) {
             const auto buffer = get_buffer_from_output(expr, 0);
-            ov::Shape allocation_shape{copy_b->get_k_rounded(), copy_b->get_n_rounded()};
-            buffer->set_allocation_shape(allocation_shape);
-
+            const auto& out_desc = expr->get_output_port_descriptor(0);
+            const auto planar_pshape = ov::PartialShape(ov::snippets::utils::get_planar_vdims(out_desc->get_shape(), out_desc->get_layout()));
+            buffer->set_allocation_shape(copy_b->get_data_repacking_shape(planar_pshape));
             if (copy_b->is_with_compensations()) {
                 const auto compensations_buffer = get_buffer_from_output(expr, 1);
-                ov::Shape compensations_allocation_shape{copy_b->get_n_rounded()};
-                compensations_buffer->set_allocation_shape(compensations_allocation_shape);
+                compensations_buffer->set_allocation_shape(copy_b->get_compensation_shape(planar_pshape));
             }
             modified = true;
         }
