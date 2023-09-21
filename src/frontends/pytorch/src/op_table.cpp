@@ -144,6 +144,7 @@ OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_scatter);
+OP_CONVERTER(translate_scatter_reduce);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
@@ -404,6 +405,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::scaled_dot_product_attention", op::translate_scaled_dot_product_attention},
         {"aten::scatter", op::translate_scatter},
         {"aten::scatter_", op::inplace_op<op::translate_scatter>},
+        {"aten::scatter_reduce", op::translate_scatter_reduce},
+        {"aten::scatter_reduce_", op::inplace_op<op::translate_scatter_reduce>},
         {"aten::select", op::quantizable_op<op::translate_select>},
         {"aten::selu", op::translate_selu},
         {"aten::selu_", op::inplace_op<op::translate_selu>},
