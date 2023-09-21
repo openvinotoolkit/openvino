@@ -6,7 +6,7 @@ import os
 import urllib.request as ur
 from argparse import ArgumentParser
 from pathlib import Path
-from shutil import copytree, rmtree
+from shutil import copytree, rmtree, copyfile
 from subprocess import Popen
 from urllib.parse import urlparse
 
@@ -212,8 +212,7 @@ class Conformance:
         if this_run_failures != self._expected_failures and self._expected_failures_update:
             logger.info(f"Expected failures file {self._expected_failures} will be updated!!!")
             os.remove(self._expected_failures_file)
-            this_failures_file = Path(this_failures_file)
-            this_failures_file.rename(self._expected_failures_file)
+            copyfile(this_failures_file, self._expected_failures_file)
 
     def __run_conformance(self):
         conformance_path = None
