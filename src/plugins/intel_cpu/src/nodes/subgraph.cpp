@@ -517,9 +517,10 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(const SnippetAttrs& attrs, bool 
         snippet_for_generation = std::make_shared<ov::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
         ov::copy_runtime_info(snippetAttrs.snippet, snippet_for_generation);
         snippet_for_generation->set_friendly_name(snippetAttrs.snippet->get_friendly_name());
-        auto host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
-            dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
 #if defined(OPENVINO_ARCH_X86_64)
+        auto host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)
+                            ? dnnl::impl::cpu::x64::avx512_core
+                            : dnnl::impl::cpu::x64::avx2;
         snippet_for_generation->set_generator(std::make_shared<CPUGenerator>(host_isa));
 #else
         IE_THROW(NotImplemented) << "CPU plugin: code-generation is not supported on non-x64 platforms";
