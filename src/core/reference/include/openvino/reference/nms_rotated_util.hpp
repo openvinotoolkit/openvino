@@ -246,7 +246,7 @@ static inline float polygon_area(const Point (&q)[24], const int& m) {
         area += fabs(cross_2d(q[i] - q[0], q[i + 1] - q[0]));
     }
 
-    return area / 2.0;
+    return area / 2.0f;
 }
 
 static inline float rotated_boxes_intersection(const RotatedBox& box1, const RotatedBox& box2) {
