@@ -23,11 +23,6 @@ void ConvertLike::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(1), get_input_partial_shape(0));
 }
 
-bool ConvertLike::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_ConvertLike_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<Node> ConvertLike::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_ConvertLike_clone_with_new_inputs);
     check_new_args_count(this, new_args);

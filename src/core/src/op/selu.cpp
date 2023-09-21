@@ -39,11 +39,6 @@ void op::v0::Selu::validate_and_infer_types() {
     set_output_type(0, result_et, get_input_partial_shape(0));
 }
 
-bool op::v0::Selu::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Selu_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<Node> op::v0::Selu::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Selu_clone_with_new_inputs);
     check_new_args_count(this, new_args);

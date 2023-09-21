@@ -18,11 +18,6 @@ ov::op::v9::RDFT::RDFT(const Output<Node>& data, const Output<Node>& axes, const
     constructor_validate_and_infer_types();
 }
 
-bool ov::op::v9::RDFT::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v9_RDFT_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<ov::Node> ov::op::v9::RDFT::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v9_RDFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);

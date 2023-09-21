@@ -18,11 +18,6 @@ ov::op::v9::IRDFT::IRDFT(const Output<Node>& data, const Output<Node>& axes, con
     constructor_validate_and_infer_types();
 }
 
-bool ov::op::v9::IRDFT::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v9_IRDFT_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<ov::Node> ov::op::v9::IRDFT::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v9_IRDFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);

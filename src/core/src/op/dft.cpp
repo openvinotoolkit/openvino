@@ -31,11 +31,6 @@ op::v7::DFT::DFT(const Output<Node>& data, const Output<Node>& axes, const Outpu
     constructor_validate_and_infer_types();
 }
 
-bool op::v7::DFT::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v7_DFT_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<Node> op::v7::DFT::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v7_DFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);

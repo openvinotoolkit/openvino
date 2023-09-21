@@ -16,11 +16,6 @@ op::v0::HardSigmoid::HardSigmoid(const Output<Node>& data, const Output<Node>& a
     constructor_validate_and_infer_types();
 }
 
-bool op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_HardSigmoid_visit_attributes);
-    return true;
-}
-
 void op::v0::HardSigmoid::validate_and_infer_types() {
     OV_OP_SCOPE(v0_HardSigmoid_validate_and_infer_types);
     const auto& alpha_pshape = get_input_partial_shape(1);
