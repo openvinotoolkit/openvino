@@ -10,6 +10,6 @@ namespace {
 TEST_P(ReferenceComparisonLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
-} // namespace
-} //  namespace ComparisonOpsRefTestDefinitions
-} //  namespace reference_tests
+}  // namespace
+}  //  namespace ComparisonOpsRefTestDefinitions
+}  //  namespace reference_tests
