@@ -336,10 +336,10 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, MultiCach
 
         auto src = std::make_shared<Memory>(engine, input.getDescPtr(), input.getData(), false);
         auto dst = std::make_shared<Memory>(engine, output.getDescPtr(), output.getData(), false);
-        auto executor = std::make_shared<ReorderExecutor>(engine, cache, src, dst, src_permutation);
-        executor->prepareParams(engine, cache, src, dst);
+        ReorderExecutor executor(engine, cache, src, dst, src_permutation);
+        executor.prepareParams(engine, cache, src, dst);
         dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
-        if (!executor->exec(loc_stream)) {
+        if (!executor.exec(loc_stream)) {
             OPENVINO_THROW("Reorder failed because could not make onednn reorder!");
         }
     }
@@ -414,9 +414,17 @@ Reorder::ReorderExecutor::ReorderExecutor(const dnnl::engine& engine,
     }
 
     need_reorder = true;
-    const auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src_prc);
-    const auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst_prc);
-
+    dnnl::memory::data_type src_data_type, dst_data_type;
+    try {
+        src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src_prc);
+    } catch (ov::Exception&) {
+        src_data_type = memory::data_type::undef;
+    }
+    try {
+        dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst_prc);
+    } catch (ov::Exception&) {
+        dst_data_type = memory::data_type::undef;
+    }
     // dnnl::memory::data_type doesn't support this precision
     if (src_data_type == dnnl::memory::data_type::undef && dst_data_type == dnnl::memory::data_type::undef) {
         OPENVINO_THROW("Reorder doesn't support: ", src_prc, " -> ", dst_prc);

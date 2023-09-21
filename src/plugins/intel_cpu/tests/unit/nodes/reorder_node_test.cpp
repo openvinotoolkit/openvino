@@ -27,8 +27,21 @@ inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
                          const InferenceEngine::Precision& prescision) {
     auto srcData = inputMemory.getData();
     auto dstData = outputMemory.getData();
-    auto mdInput = inputMemory.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    auto mdOutput = outputMemory.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    dnnl::memory::desc mdInput, mdOutput;
+    try {
+        mdInput = inputMemory.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    } catch (ov::Exception&) {
+        // Handle unsupported dnnl data type, such as FP64, I64
+        auto descPtr = inputMemory.getDescPtr()->cloneWithNewPrecision(InferenceEngine::Precision::UNSPECIFIED);
+        mdInput = MemoryDescUtils::convertToDnnlMemoryDesc(descPtr)->getDnnlDesc();
+    }
+    try {
+        mdOutput = outputMemory.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    } catch (ov::Exception&) {
+        // Handle unsupported dnnl data type, such as FP64, I64
+        auto descPtr = outputMemory.getDescPtr()->cloneWithNewPrecision(InferenceEngine::Precision::UNSPECIFIED);
+        mdOutput = MemoryDescUtils::convertToDnnlMemoryDesc(descPtr)->getDnnlDesc();
+    }
 
     const dnnl::impl::memory_desc_wrapper mdwInput(mdInput.get());
     const dnnl::impl::memory_desc_wrapper mdwOutput(mdOutput.get());
@@ -94,7 +107,14 @@ inline std::string layoutName(const LayoutType& layout) {
 }
 
 inline void fillData(const ov::intel_cpu::IMemory& inputMemory, const InferenceEngine::Precision& prec) {
-    ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.getDescWithType<DnnlMemoryDesc>();
+    ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput;
+    try {
+        dnnlMdInput = inputMemory.getDescWithType<DnnlMemoryDesc>();
+    } catch (ov::Exception&) {
+        // Handle unsupported dnnl data type, such as FP64, I64
+        auto descPtr = inputMemory.getDescPtr()->cloneWithNewPrecision(InferenceEngine::Precision::UNSPECIFIED);
+        dnnlMdInput = MemoryDescUtils::convertToDnnlMemoryDesc(descPtr);
+    }
     const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().get()};
     auto elemNum = mdInput.nelems();
     auto inputReorderData = inputMemory.getData();
