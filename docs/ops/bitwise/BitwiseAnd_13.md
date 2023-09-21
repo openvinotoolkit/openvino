@@ -9,19 +9,19 @@
 
 **Category**: *Bitwise binary*
 
-**Short description**: *BitwiseAnd* performs bitwise logical AND operation with two given tensors element-wise, applying multi-directional broadcast rules.
+**Short description**: *BitwiseAnd* performs a bitwise logical AND operation with two given tensors element-wise, applying multi-directional broadcast rules.
 
-**Detailed description**: Before performing operation, input tensors *a* and *b* are broadcasted if their shapes are different and ``auto_broadcast`` attribute is not ``none``. Broadcasting is performed according to ``auto_broadcast`` value.
+**Detailed description**: Before performing the operation, input tensors *a* and *b* are broadcasted if their shapes are different and the ``auto_broadcast`` attribute is not ``none``. Broadcasting is performed according to the ``auto_broadcast`` value.
 
-After broadcasting input tensors *a* and *b*, *BitwiseAnd* performs bitwise logical AND operation for each corresponding element in given tensors, based on following algorithm.
+After broadcasting input tensors *a* and *b*, *BitwiseAnd* performs a bitwise logical AND operation for each corresponding element in the given tensors, based on the following algorithm.
 
 For ``boolean`` type tensors, BitwiseAnd is equivalent to :doc:`LogicalAnd <openvino_docs_ops_logical_LogicalAnd_1>`.
 
 If tensor is of ``any supported integer`` type, for each element of tensor:
 
-1.  Convert values from input tensors to binary representation according to input tensor datatype,
-2.  Perform logical AND on each bit in binary representation of values from *a* and *b*, where value ``0`` represents ``false`` and value ``1`` represents ``true``,
-3.  Convert results of AND in binary representation to input datatype.
+1.  Convert values from input tensors to their binary representation according to the input tensor datatype.
+2.  Perform a logical AND on each bit in the binary representation of values from *a* and *b*, where value ``0`` represents ``false`` and value ``1`` represents ``true``.
+3.  Convert the results of AND in binary representation to the input datatype.
 
 Example 1 - *BitwiseAnd* output for boolean tensor:
 
@@ -31,7 +31,7 @@ Example 1 - *BitwiseAnd* output for boolean tensor:
     # For given boolean inputs:
     a = [True, False, False]
     b = [True, True, False]
-    # Perform logical AND operation same like in LogicalAnd operator:
+    # Perform logical AND operation same as in LogicalAnd operator:
     output = [True, False, False]
 
 Example 2 - *BitwiseAnd* output for uint8 tensor:
@@ -42,7 +42,7 @@ Example 2 - *BitwiseAnd* output for uint8 tensor:
     # For given uint8 inputs:
     a = [21, 120]
     b = [3, 37]
-    # Create binary representation of uint8:
+    # Create a binary representation of uint8:
     # binary a: [00010101, 01111000]
     # binary b: [00000011, 00100101]
     # Perform bitwise AND of corresponding elements in a and b:
@@ -54,7 +54,7 @@ Example 2 - *BitwiseAnd* output for uint8 tensor:
 
 * *auto_broadcast*
 
-  * **Description**: specifies rules used for auto-broadcasting of input tensors.
+  * **Description**: specifies the rules used for auto-broadcasting of input tensors.
   * **Range of values**:
 
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
@@ -72,7 +72,7 @@ Example 2 - *BitwiseAnd* output for uint8 tensor:
 
 **Outputs**
 
-* **1**: The result of element-wise *BitwiseAnd* operation. A tensor of type *T* and the same shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise *BitwiseAnd* operation. A tensor of type *T* and the same shape equal to the broadcasted shape of two inputs.
 
 **Types**
 

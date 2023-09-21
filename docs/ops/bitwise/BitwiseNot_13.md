@@ -9,17 +9,17 @@
 
 **Category**: *Bitwise unary*
 
-**Short description**: *BitwiseNot* performs bitwise logical negation operation with given tensor element-wise.
+**Short description**: *BitwiseNot* performs a bitwise logical negation operation with given tensor element-wise.
 
-**Detailed description**: *BitwiseNot* performs bitwise logical negation operation for each element in given tensor, based on the following algorithm.
+**Detailed description**: *BitwiseNot* performs a bitwise logical negation operation for each element in the given tensor, based on the following algorithm.
 
 For ``boolean`` type tensors, BitwiseNot is equivalent to :doc:`LogicalNot <openvino_docs_ops_logical_LogicalNot_1>`.
 
-If tensor is of ``any supported integer`` type, for each element of tensor:
+If tensor is of ``any supported integer`` type, for each element of the tensor:
 
-1.  Convert value from input tensor to binary representation according to input tensor datatype,
-2.  Perform logical negation on each bit in binary representation, where value ``0`` represents ``false`` and value ``1`` represents ``true``,
-3.  Convert back binary representation to input datatype.
+1.  Convert the value from the input tensor to binary representation according to the input tensor datatype.
+2.  Perform a logical negation on each bit in the binary representation, where value ``0`` represents ``false`` and value ``1`` represents ``true``.
+3.  Convert back the binary representation to the input datatype.
 
 Example 1 - *BitwiseNot* output for boolean tensor:
 
@@ -28,7 +28,7 @@ Example 1 - *BitwiseNot* output for boolean tensor:
 
     # For given boolean input:
     input = [True, False]
-    # Perform logical negation operation same like in LogicalNot operator:
+    # Perform logical negation operation same as in LogicalNot operator:
     output = [False, True]
 
 Example 2 - *BitwiseNot* output for uint8 tensor:
@@ -38,7 +38,7 @@ Example 2 - *BitwiseNot* output for uint8 tensor:
 
     # For given uint8 input:
     input = [1, 3]
-    # Create binary representation of uint8:
+    # Create a binary representation of uint8:
     # [00000001, 00000011]
     # Perform bitwise negation:
     # [11111110, 11111100]
@@ -53,7 +53,7 @@ Example 2 - *BitwiseNot* output for uint8 tensor:
 
 **Outputs**
 
-* **1**: The result of bitwise logical negation operation. A tensor of type *T* and the same shape as input tensor.
+* **1**: The result of bitwise logical negation operation. A tensor of type *T* and the same shape as the input tensor.
 
 **Types**
 
