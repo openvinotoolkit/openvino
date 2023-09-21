@@ -4,20 +4,7 @@
 
 #pragma once
 
-#include <algorithm>
-#include <array>
-#include <cassert>
-#include <cmath>
-#include <cstddef>
-#include <functional>
-#include <map>
-#include <vector>
-
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/shape_util.hpp"
-#include "nms_rotated_util.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/non_max_suppression.hpp"
 
 namespace ov {

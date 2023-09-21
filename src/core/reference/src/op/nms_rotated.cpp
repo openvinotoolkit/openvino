@@ -9,6 +9,8 @@
 #include <queue>
 #include <vector>
 
+#include "openvino/reference/nms_rotated_util.hpp"
+
 namespace ov {
 namespace reference {
 namespace nms_rotated {

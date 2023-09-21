@@ -188,9 +188,7 @@ std::vector<NMSRotatedParams> generateParams() {
                 {2, 3},
                 std::vector<T_IND>{0, 0, 3, 0, 0, 1}))  // batch 0, class 0, box_id (sorted max score first)
             .expectedSelectedScores(
-                reference_tests::Tensor(ET_TH,
-                                        {2, 3},
-                                        std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7}))
+                reference_tests::Tensor(ET_TH, {2, 3}, std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7}))
             .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{2}))
             .testcaseName("NMSRotated_new_rotation_basic_max_out_2"),
         Builder{}
@@ -208,9 +206,7 @@ std::vector<NMSRotatedParams> generateParams() {
                 {2, 3},
                 std::vector<T_IND>{0, 0, 3, 0, 0, 1}))  // batch 0, class 0, box_id (sorted max score first)
             .expectedSelectedScores(
-                reference_tests::Tensor(ET_TH,
-                                        {2, 3},
-                                        std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7}))
+                reference_tests::Tensor(ET_TH, {2, 3}, std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7}))
             .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{2}))
             .testcaseName("NMSRotated_new_rotation_basic_score_tresh"),
         Builder{}

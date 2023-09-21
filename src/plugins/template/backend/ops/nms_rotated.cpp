@@ -113,9 +113,8 @@ bool evaluate(const std::shared_ptr<op::v13::NMSRotated>& op,
 
 template <>
 bool evaluate_node<op::v13::NMSRotated>(std::shared_ptr<Node> node,
-              ov::TensorVector& outputs,
-              const ov::TensorVector& inputs) {
-
+                                        ov::TensorVector& outputs,
+                                        const ov::TensorVector& inputs) {
     switch (node->get_output_element_type(0)) {
     case element::Type_t::bf16:
         return evaluate<element::Type_t::bf16>(ov::as_type_ptr<op::v13::NMSRotated>(node), outputs, inputs);
