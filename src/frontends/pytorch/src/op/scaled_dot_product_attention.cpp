@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define USE_COMPOSED_OP
+
+#ifndef USE_COMPOSED_OP
+
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -22,6 +26,13 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+
+#else
+
+#include "openvino/op/scaled_dot_product_attention.hpp"
+
+#endif
+
 #include "utils.hpp"
 
 namespace ov {
@@ -31,6 +42,9 @@ namespace op {
 
 using namespace ov::op;
 
+
+
+
 OutputVector translate_scaled_dot_product_attention(const NodeContext& context) {
     // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
     // dropout_p=0., bool is_causal=False)
@@ -38,6 +52,10 @@ OutputVector translate_scaled_dot_product_attention(const NodeContext& context) 
     auto query = context.get_input(0);
     auto key = context.get_input(1);
     auto value = context.get_input(2);
+
+    #ifndef USE_COMPOSED_OP
+
+    std::cerr << "[ DEBUG ] ScaledDotProductAttention was decomposed in PyTorch frontend\n";
     auto q_shape = context.mark_node(std::make_shared<v3::ShapeOf>(query, element::i32));
     auto k_shape = context.mark_node(std::make_shared<v3::ShapeOf>(key, element::i32));
     auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
@@ -101,6 +119,15 @@ OutputVector translate_scaled_dot_product_attention(const NodeContext& context) 
     }
     scaled_atten = context.mark_node(std::make_shared<v8::Softmax>(scaled_atten, -1));
     return {context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value))};
+
+    #else
+
+    std::cerr << "[ DEBUG ] ScaledDotProductAttention was kept as a single operation in PyTorch frontend\n";
+    auto is_causal = context.const_input<bool>(5);
+    auto node = std::make_shared<v12::ScaledDotProductAttention>(query, key, value, is_causal, !context.input_is_none(3) ? context.get_input(3) : Output<Node>());
+    return {context.mark_node(node)};
+
+    #endif
 };
 
 }  // namespace op
