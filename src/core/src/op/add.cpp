@@ -7,7 +7,7 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/reference/add.hpp"
-#include "shape_util.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
@@ -50,7 +50,7 @@ bool Add::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) co
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2);
 
-    outputs[0].set_shape(ov::util::get_broadcast_shape(inputs[0].get_shape(), inputs[1].get_shape(), get_autob()));
+    outputs[0].set_shape(infer_broadcast_shape(this, inputs[0].get_shape(), inputs[1].get_shape()));
     using namespace ov::element;
     return IfTypeOf<bf16, f16, f32, i8, i16, i32, i64, u8, u16, u32, u64>::apply<add::Evaluate>(
         inputs[0].get_element_type(),
