@@ -196,7 +196,6 @@ void loop(const std::shared_ptr<Model>& func,
         for (const auto& desc : out_descs) {
             if (const auto& body_desc = std::dynamic_pointer_cast<op::v5::Loop::BodyOutputDescription>(desc)) {
                 const auto& res = body_outputs[body_desc->m_body_value_index];
-                out[body_desc->m_output_index].set_shape(res.get_shape());
                 res.copy_to(out[body_desc->m_output_index]);
             }
         }
