@@ -887,6 +887,13 @@ jobs:
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
+      - name: Maximize build space
+        run:  |
+          sudo rm -rf /usr/local/lib/android # will release about 10 GB if you don't need Android
+          sudo rm -rf /usr/share/dotnet # will release about 20GB if you don't need .NET
+          sudo rm -rf /opt/ghc
+          echo "Available storage:"
+          df -h
       - name: Create Directories
         run: |
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
@@ -917,15 +924,27 @@ jobs:
       - name: Install Python wheels
         run: |
           python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
-      - name: PyTorch Models Tests
+      - name: Install requirements
         run: |
           python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
           python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements_secondary.txt
+          python3 -m pip cache purge
+          echo "Available storage:"
+          df -h
+          du -h -d0 ~/.cache ~/*
+      - name: PyTorch Models Tests
+        run: |
           export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
+
+      - name: Available storage after tests
+        run:  |
+          echo "Available storage:"
+          df -h
+          du -h -d0 ~/.cache ~/*
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3

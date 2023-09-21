@@ -78,7 +78,7 @@ class TestConvertModel:
             for i in range(len(ov_outputs)):
                 cur_fw_res = fw_outputs[i]
                 cur_ov_res = ov_outputs[i]
-                print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
+                print(f"fw_res: {cur_fw_res};\n ov_res: {cur_ov_res}")
                 is_ok = compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
         assert is_ok, "Accuracy validation failed"
 
