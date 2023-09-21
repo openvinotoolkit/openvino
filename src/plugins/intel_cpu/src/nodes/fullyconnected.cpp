@@ -527,16 +527,28 @@ void FullyConnected::executeGGML() {
     const auto src1MemPtr = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
     const auto biasMemPtr = withBiases ? getParentEdgeAt(BIAS_ID)->getMemoryPtr() : nullptr;
 
-    N = src1MemPtr->getStaticDims()[0];
-    K = src1MemPtr->getStaticDims()[1];
-    M = dstMemPtr->getStaticDims()[0];
+    float* src0 = reinterpret_cast<float*>(src0MemPtr->getData());
+    float* src1 = reinterpret_cast<float*>(src1MemPtr->getData());
+    float* dst = reinterpret_cast<float*>(dstMemPtr->getData());
 
-    ggml_mul_mat(M,
-                 N,
-                 K,
-                 reinterpret_cast<float*>(src0MemPtr->getData()),
-                 reinterpret_cast<float*>(src1MemPtr->getData()),
-                 reinterpret_cast<float*>(dstMemPtr->getData()),
+    //std::cout << "src0_dims: " << src0MemPtr->getStaticDims().size() << std::endl;
+    //std::cout << "src1_dims: " << src1MemPtr->getStaticDims().size() << std::endl;
+    //std::cout << "dst_dims: " << dstMemPtr->getStaticDims().size() << std::endl;
+
+    //FIXME: bias support
+    if (withBiases) {
+        std::cout << "ERROR: bias is not supported by ggml yet" << std::endl;
+        return;
+    }
+
+    ggml_mul_mat((dstMemPtr->getStaticDims().size() == 3) ?
+                    dstMemPtr->getStaticDims()[0] * dstMemPtr->getStaticDims()[1] :
+                    dstMemPtr->getStaticDims()[0],//M
+                 src1MemPtr->getStaticDims()[0],//N
+                 src1MemPtr->getStaticDims()[1],//K
+                 src0,
+                 src1,
+                 dst,
                  withBiases ? reinterpret_cast<float*>(biasMemPtr->getData()) : nullptr);
 }
 #endif

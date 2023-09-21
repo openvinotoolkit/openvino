@@ -5,11 +5,31 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "ggml/ggml.h"
 
 namespace ov {
 namespace intel_cpu {
+
+static void print_elements(const char* label, const struct ggml_tensor * t) {
+    if (!t) {
+        printf("%s: %s = null\n", __func__, label);
+        return;
+    }
+    const int nelements = ggml_nelements(t);
+    printf("%s: %s = [", __func__, label);
+    for (int k = 0; k < nelements; ++k) {
+        if (k > 0) { printf(", "); }
+        printf("%.5f", ggml_get_f32_1d(t, k));
+    }
+    printf("] shape: [");
+    for (int k = 0; k < t->n_dims; ++k) {
+        if (k > 0) { printf(", "); }
+        printf("%d", static_cast<int>(t->ne[k]));
+    }
+    printf("]\n");
+}
 
 void ggml_mul_mat(const int64_t M,
                   const int64_t N,
@@ -27,7 +47,7 @@ void ggml_mul_mat(const int64_t M,
     struct ggml_context* ctx = ggml_init(params);
 
     if (!ctx) {
-        fprintf(stderr, "%s: ggml_init() failed\n", __func__);
+        printf("%s: ggml_init() failed\n", __func__);
         return;
     }
 
@@ -41,8 +61,12 @@ void ggml_mul_mat(const int64_t M,
     struct ggml_cgraph ggml_graph = ggml_build_forward(ggml_dst);
     ggml_graph_compute_with_ctx(ctx, &ggml_graph, /*n_threads = */1);
 
+    //print_elements("ggml_A", ggml_A);
+    //print_elements("ggml_B", ggml_B);
+    //print_elements("ggml_dst", ggml_dst);
     float* dst = reinterpret_cast<float*>(ggml_dst->data);
-    memcpy(dst_ptr, dst, M * N);
+    memcpy(dst_ptr, dst, ggml_nbytes(ggml_dst));
+    ggml_free(ctx);
 }
 
 }  // namespace intel_cpu
