@@ -102,12 +102,14 @@ INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
  * @brief Defines Snippets tokenization mode
  *      @param ENABLE - default pipeline
  *      @param IGNORE_CALLBACK - disable the Snippets markup transformation and tokenization callback
+ *      @param IGNORE_SPLIT_DIMENSION_M - expand IGNORE_CALLBACK - disable the Snippets optimization "SplitDimensionM" as well
  *      @param DISABLE - turn off the Snippets
  * @ingroup ie_dev_api_plugin_api
  */
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(SNIPPETS_MODE);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(ENABLE);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(IGNORE_CALLBACK);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(IGNORE_SPLIT_DIMENSION_M);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(DISABLE);
 
 }  // namespace PluginConfigInternalParams

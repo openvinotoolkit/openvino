@@ -222,6 +222,8 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, Mode
                 snippetsMode = SnippetsMode::Enable;
             else if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
                 snippetsMode = SnippetsMode::IgnoreCallback;
+            else if (val == PluginConfigInternalParams::IGNORE_SPLIT_DIMENSION_M)
+                snippetsMode = SnippetsMode::IgnoreSplitDimensionM;
             else if (val == PluginConfigInternalParams::DISABLE)
                 snippetsMode = SnippetsMode::Disable;
             else

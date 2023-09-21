@@ -36,6 +36,7 @@ struct Config {
     enum SnippetsMode {
         Enable,
         IgnoreCallback,
+        IgnoreSplitDimensionM,
         Disable,
     };
 

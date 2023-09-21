@@ -579,10 +579,12 @@ void Transformations::MainSnippets(void) {
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
     tokenization_config.mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
-    tokenization_config.concurrency = parallel_get_num_threads();
+    tokenization_config.concurrency = config.streamExecutorConfig._threadsPerStream;
+    if (tokenization_config.concurrency == 0)
+        tokenization_config.concurrency = parallel_get_max_threads();
     // The optimization "SplitDimensionM" depends on target machine (thread count).
-    // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
-    tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreCallback;
+    // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreSplitDimensionM
+    tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreSplitDimensionM;
 
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
@@ -597,7 +599,7 @@ void Transformations::MainSnippets(void) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
     }
 
-    if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
+    if (snippetsMode == Config::SnippetsMode::Enable) {
 #if defined(OPENVINO_ARCH_X86_64)
         auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
             const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
@@ -635,13 +637,9 @@ void Transformations::MainSnippets(void) {
         };
         auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
             const auto parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
-            // Heuristic values:
-            //    parallelism work amount - not enough work amount for parallelism
-            // TODO: The heuristic will be removed after parallelism support on JIT level
-            const auto needed_num_of_threads = 12lu;
+            const auto thread_count = tokenization_config.concurrency;
             const auto is_unsupported_parallel_work_amount =
-                parallel_get_num_threads() / 2 > parallel_work_amount &&
-                static_cast<size_t>(parallel_work_amount) < needed_num_of_threads &&
+                parallel_work_amount < thread_count &&
                 !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.concurrency);
             return is_unsupported_parallel_work_amount;
         };
