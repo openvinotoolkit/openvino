@@ -109,6 +109,7 @@ OP_CONVERTER(translate_new_zeros);
 OP_CONVERTER(translate_nms);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
+OP_CONVERTER(translate_not);
 OP_CONVERTER(translate_numel);
 OP_CONVERTER(translate_one_hot);
 OP_CONVERTER(translate_ones);
@@ -185,6 +186,7 @@ OP_CONVERTER(translate_quantized_cat);
 OP_CONVERTER(translate_quantized_convnd);
 OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
+OP_CONVERTER(translate_xor);
 // Torch FX Translations
 OP_CONVERTER(translate_arange_fx);
 OP_CONVERTER(translate_batch_norm_fx);
@@ -340,6 +342,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::linspace", op::translate_linspace},
         {"aten::log", op::translate_log},
         {"aten::log_", op::inplace_op<op::translate_log>},
+        {"aten::logical_and", op::translate_and},
+        {"aten::logical_or", op::translate_or},
+        {"aten::logical_not", op::translate_not},
+        {"aten::logical_xor", op::translate_xor},
         {"aten::log_softmax", op::translate_log_softmax},
         {"aten::log2", op::translate_log2},
         {"aten::log2_", op::inplace_op<op::translate_log2>},
