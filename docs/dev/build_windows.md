@@ -25,29 +25,17 @@ Supported configurations:
     ```sh
     git clone https://github.com/openvinotoolkit/openvino.git
     cd openvino
-    git submodule update --init --recursive
-    ```
-   (Extra for WoA) To build on Windows on ARM with ARM plugin:
-    ```sh
-    git clone https://github.com/openvinotoolkit/openvino_contrib.git
-    cd openvino_contrib
-    git submodule update --init --recursive
+    git submodule update --init
     ```
 
 2. Create build directory:
     ```sh
     mkdir build && cd build
     ```
-3. In the `build` directory, run `cmake` to fetch project dependencies and generate a Visual Studio solution.
+3. In the `build` directory, run `cmake` to fetch project dependencies and generate a Visual Studio solution:
 
-   On Windows x86 64-bits:
     ```sh
-    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release <openvino>
-    ```
-    
-   On Windows on ARM for ARM64 architecture:
-    ```sh
-    cmake -G "Visual Studio 16 2019" -DOPENVINO_EXTRA_MODULES=<openvino_contrib>/modules/arm_plugin -DCMAKE_BUILD_TYPE=Release <openvino>
+    cmake -G "Visual Studio 17 2022" <openvino>
     ```
     
    > **HINT**: **Generating PDB Files and Debugging Your Build** <br>
@@ -62,16 +50,8 @@ Supported configurations:
 
 ### Additional Build Options
 
-- Internal JIT GEMM implementation is used by default.
-
-- Threading Building Blocks (TBB) is used by default. To build Inference Engine with OpenMP threading, set the `-DTHREADING=OMP` option.
-
-- Required versions of TBB and OpenCV packages are downloaded automatically by the CMake-based script. If you want to use the automatically-downloaded packages but you have already installed TBB or OpenCV packages configured in your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` environment variables before running the `cmake` command; otherwise they won'tnbe downloaded and the build may fail if incompatible versions were installed.
-
-- If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](./cmake_options_for_custom_compilation.md#Building-with-custom-OpenCV) section for details.
-
 - To build the OpenVINO Runtime Python API:
-  1. First, install all additional packages (e.g., cython and opencv) listed in the file:
+  1. First, install all additional packages (e.g., cython) listed in the file:
       ```sh
       pip install -r <openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
       ```
@@ -95,15 +75,12 @@ Supported configurations:
      pip install build/wheel/openvino-2023.0.0-9612-cp11-cp11-win_arm64.whl
      ```
 
-- OpenVINO runtime compilation options:
-  `-DENABLE_OV_ONNX_FRONTEND=ON` enables the building of the ONNX importer.
-
 ### Building OpenVINO with Ninja* Build System
 
 ```sh
 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat"
 cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . --config Release
+ninja .
 ```
 
 ## See also
