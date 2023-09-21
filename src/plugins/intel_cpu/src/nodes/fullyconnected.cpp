@@ -1017,6 +1017,8 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         widthInConv = srcDims[inRank - 2];
         K = srcDims[inRank - 1];
         N = weightDims[0];
+        // Disable Conv1x1 when weight size >= 16M to avoid different weight layout when having different input activation shapes.
+        // As a consuquence, peak memory consumption in LLM can be decreased.
         if (weightMemPtr->getSize() >= (16 * 1 << 20))
             retVal = false;
         if (!(widthInConv >= 2 && widthInConv <= 3136 &&
