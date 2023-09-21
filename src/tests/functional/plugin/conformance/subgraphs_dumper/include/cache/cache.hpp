@@ -31,6 +31,7 @@ public:
 protected:
     size_t m_serialization_timeout = 60;
     std::string m_serialization_dir = ".";
+    static size_t mem_size;
 
     ICache() = default;
 

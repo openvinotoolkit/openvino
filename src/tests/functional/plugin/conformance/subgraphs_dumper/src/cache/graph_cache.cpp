@@ -33,8 +33,23 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
         m_graph_cache.insert({ model, meta });
         m_graph_cache_bytesize += model->get_graph_size();
     } else {
-        // todo: not copy constants in case model bytesize > 16GB
-        bool is_not_large_model = model->get_graph_size() >> 34 == 0;
+        // const won't be cloned in case model takes > 50% RAM
+        auto model_bytesize = model->get_graph_size();
+        if (model_bytesize > mem_size) {
+            auto mem_size_gb = mem_size;
+            mem_size_gb <<= 30;
+            std::cout << "[ WARNING ] Model " << model_meta_data << " bytesize is " << model_bytesize <<
+            "is larger than RAM size: " << mem_size_gb << ". Model will be skipped!" << std::endl;
+            return;
+        }
+        // check that Free RAM memory is enough. Serialize in other case
+        if (m_graph_cache_bytesize + 2 * model_bytesize > mem_size) {
+            std::cout << "[ GRAPH CACHE ][ WARNING ] There are not enought RAM memory! Serialize graph cache" << std::endl;
+            serialize_cache();
+            m_graph_cache_bytesize = 0;
+        }
+        // make sure model bytesize takes less than hal RAM
+        bool is_not_large_model =  mem_size / 2 < m_graph_cache_bytesize;
         auto extracted_patterns = m_manager.extract(model, extract_body, is_not_large_model);
         if (extracted_patterns.empty()) {
             return;
@@ -52,14 +67,6 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                               std::map<std::string, InputInfo>& input_info,
                               const std::string& extractor_name,
                               size_t model_op_cnt) {
-    // todo: check the number 8GB
-    if (m_graph_cache_bytesize >> 33 > 0) {
-        std::cout << "[ GRAPH CACHE ][ WARNING ] Cache size > 8 GB. Serialize graph cache" << std::endl;
-        serialize_cache();
-        // m_graph_cache.clear();
-        m_graph_cache_bytesize = 0;
-    }
-
     auto graph_name = extracted_model->get_friendly_name();
     auto this_op_cnt = extracted_model->get_ops().size() -
         extracted_model->get_parameters().size() - extracted_model->get_results().size();
