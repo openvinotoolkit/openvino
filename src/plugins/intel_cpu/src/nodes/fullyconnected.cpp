@@ -473,6 +473,19 @@ void FullyConnected::prepareParams() {
         }
 
         if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+#ifdef CPU_DEBUG_CAPS
+            // execPtr expects different weight layout.
+            if (prevExecPtr) {
+                const Shape weiShape{getParentEdgesAtPort(1)[0]->getMemoryPtr()->getStaticDims()};
+                DEBUG_LOG("##", getName(), " weight desc is not compatible with previous inner product execPtr!");
+                DEBUG_LOG("#", static_cast<float>(execPtr->getWeightDesc()->getMaxMemSize()) / static_cast<float>(1<<20),
+                           "#", weiShape.toString(),
+                          "#", prevExecPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1," : "FullyConnnect,",
+                          "#", execPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1," : "FullyConnnect,",
+                          "#", *prevExecPtr->getWeightDesc(),
+                          "#", *execPtr->getWeightDesc());
+            }
+#endif
             if (weightsNonTransposed) {
                 primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc(), makeTransposedWeightDescriptor())->getPrimitive();
             } else {
@@ -1004,7 +1017,10 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         widthInConv = srcDims[inRank - 2];
         K = srcDims[inRank - 1];
         N = weightDims[0];
-
+        // Disable Conv1x1 when weight size >= 16M to avoid different weight layout when having different input activation shapes.
+        // As a consuquence, peak memory consumption in LLM can be decreased.
+        if (weightMemPtr->getSize() >= (16 * 1 << 20))
+            retVal = false;
         if (!(widthInConv >= 2 && widthInConv <= 3136 &&
               K >= 96 && K <= 4096 &&
               N >= 96 && N <= K * 4))
