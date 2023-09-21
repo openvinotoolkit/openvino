@@ -10,6 +10,7 @@
 
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
 
 using namespace ov;
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -17,7 +18,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 void reference::strided_slice(const char* arg,
                               char* out,
                               const Shape& arg_shape,
-                              const ngraph::SlicePlan& sp,
+                              const op::util::SlicePlan& sp,
                               size_t elem_type) {
     auto hasZeroDims = [](const ov::Shape& shape) -> bool {
         return std::any_of(shape.begin(), shape.end(), [](const size_t& dim) {
