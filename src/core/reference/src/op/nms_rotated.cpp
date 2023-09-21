@@ -11,7 +11,6 @@
 
 #include "ngraph/op/non_max_suppression.hpp"
 #include "ngraph/shape.hpp"
-#include "openvino/reference/non_max_suppression.hpp"
 
 namespace ov {
 namespace reference {
@@ -216,79 +215,6 @@ void non_max_suppression(const float* boxes_data,
     for (; idx < max_num_of_selected_indices; idx++) {
         selected_indices_ptr[idx] = selected_index_filler;
         selected_scores_ptr[idx] = selected_score_filler;
-    }
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-void nms_postprocessing(const HostTensorVector& outputs,
-                        const ngraph::element::Type output_type,
-                        const std::vector<int64_t>& selected_indices,
-                        const std::vector<float>& selected_scores,
-                        int64_t valid_outputs,
-                        const ngraph::element::Type selected_scores_type) {
-    outputs[0]->set_element_type(output_type);
-    outputs[0]->set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
-
-    size_t num_of_outputs = outputs.size();
-
-    if (num_of_outputs >= 2) {
-        outputs[1]->set_element_type(selected_scores_type);
-        outputs[1]->set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
-    }
-
-    if (num_of_outputs >= 3) {
-        outputs[2]->set_element_type(output_type);
-        outputs[2]->set_shape(Shape{1});
-    }
-
-    size_t selected_size = valid_outputs * 3;
-
-    if (output_type == ngraph::element::i64) {
-        int64_t* indices_ptr = outputs[0]->get_data_ptr<int64_t>();
-        memcpy(indices_ptr, selected_indices.data(), selected_size * sizeof(int64_t));
-    } else {
-        int32_t* indices_ptr = outputs[0]->get_data_ptr<int32_t>();
-        for (size_t i = 0; i < selected_size; ++i) {
-            indices_ptr[i] = static_cast<int32_t>(selected_indices[i]);
-        }
-    }
-
-    if (num_of_outputs < 2) {
-        return;
-    }
-
-    size_t selected_scores_size = selected_scores.size();
-
-    switch (selected_scores_type) {
-    case element::Type_t::bf16: {
-        bfloat16* scores_ptr = outputs[1]->get_data_ptr<bfloat16>();
-        for (size_t i = 0; i < selected_scores_size; ++i) {
-            scores_ptr[i] = bfloat16(selected_scores[i]);
-        }
-    } break;
-    case element::Type_t::f16: {
-        float16* scores_ptr = outputs[1]->get_data_ptr<float16>();
-        for (size_t i = 0; i < selected_scores_size; ++i) {
-            scores_ptr[i] = float16(selected_scores[i]);
-        }
-    } break;
-    case element::Type_t::f32: {
-        float* scores_ptr = outputs[1]->get_data_ptr<float>();
-        memcpy(scores_ptr, selected_scores.data(), selected_size * sizeof(float));
-    } break;
-    default:;
-    }
-
-    if (num_of_outputs < 3) {
-        return;
-    }
-
-    if (output_type == ngraph::element::i64) {
-        int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
-        *valid_outputs_ptr = valid_outputs;
-    } else {
-        int32_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int32_t>();
-        *valid_outputs_ptr = static_cast<int32_t>(valid_outputs);
     }
 }
 }  // namespace nms_rotated

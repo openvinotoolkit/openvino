@@ -69,9 +69,7 @@ public:
     using Node::set_output_type;
 
     // Temporary evaluate, for testing purpose
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 protected:

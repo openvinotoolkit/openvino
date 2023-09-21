@@ -32,39 +32,26 @@ struct InfoForNMSRotated {
 constexpr size_t boxes_port = 0;
 constexpr size_t scores_port = 1;
 
-PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
-                                          int64_t max_output_boxes_per_class) {
-    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
-    const auto scores_ps = inputs[scores_port]->get_partial_shape();
+ov::PartialShape infer_selected_indices_shape(const ov::TensorVector& inputs, size_t max_output_boxes_per_class) {
+    const auto boxes_ps = inputs[boxes_port].get_shape();
+    const auto scores_ps = inputs[scores_port].get_shape();
 
-    // NMSRotated produces triplets
+    // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
-    PartialShape result = {Dimension::dynamic(), 3};
+    ov::PartialShape result = {ov::Dimension::dynamic(), 3};
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
+    if (boxes_ps.size() > 0 && scores_ps.size() > 0) {
         const auto num_boxes_boxes = boxes_ps[1];
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
-            const auto num_boxes = num_boxes_boxes.get_length();
-            const auto num_classes = scores_ps[1].get_length();
+        const auto num_boxes = num_boxes_boxes;
+        const auto num_classes = scores_ps[1];
 
-            result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length();
-        }
+        result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0];
     }
     return result;
 }
 
-std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes, const Shape& boxes_shape) {
-    auto result = get_floats(boxes, boxes_shape);
-    return result;
-}
-
-std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores, const Shape& scores_shape) {
-    auto result = get_floats(scores, scores_shape);
-    return result;
-}
-
 InfoForNMSRotated get_info_for_nms_eval(const std::shared_ptr<op::v13::NMSRotated>& nms,
-                                        const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+                                        const ov::TensorVector& inputs) {
     InfoForNMSRotated result;
 
     result.max_output_boxes_per_class = inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
@@ -75,11 +62,10 @@ InfoForNMSRotated get_info_for_nms_eval(const std::shared_ptr<op::v13::NMSRotate
     auto selected_indices_shape = infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
     result.out_shape = selected_indices_shape.to_shape();
 
-    result.boxes_shape = inputs[boxes_port]->get_shape();
-    result.scores_shape = inputs[scores_port]->get_shape();
-
-    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape);
-    result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
+    result.boxes_shape = inputs[boxes_port].get_shape();
+    result.scores_shape = inputs[scores_port].get_shape();
+    result.boxes_data = get_floats(inputs[boxes_port], result.boxes_shape);
+    result.scores_data = get_floats(inputs[scores_port], result.scores_shape);
 
     result.out_shape_size = shape_size(result.out_shape);
     result.sort_result_descending = nms->get_sort_result_descending();
@@ -91,8 +77,8 @@ InfoForNMSRotated get_info_for_nms_eval(const std::shared_ptr<op::v13::NMSRotate
 
 template <element::Type_t ET>
 bool evaluate(const std::shared_ptr<op::v13::NMSRotated>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
+              ov::TensorVector& outputs,
+              const ov::TensorVector& inputs) {
     auto info = nms_v13::get_info_for_nms_eval(op, inputs);
 
     std::vector<int64_t> selected_indices(info.out_shape_size);
@@ -115,7 +101,7 @@ bool evaluate(const std::shared_ptr<op::v13::NMSRotated>& op,
                                                     info.sort_result_descending,
                                                     info.clockwise);
 
-    auto selected_scores_type = (outputs.size() < 3) ? element::f32 : outputs[1]->get_element_type();
+    auto selected_scores_type = (outputs.size() < 2) ? element::f32 : outputs[1].get_element_type();
 
     ov::reference::nms_rotated::nms_postprocessing(outputs,
                                                    info.output_type,
@@ -128,8 +114,8 @@ bool evaluate(const std::shared_ptr<op::v13::NMSRotated>& op,
 
 template <>
 bool evaluate_node<op::v13::NMSRotated>(std::shared_ptr<Node> node,
-                                        const ngraph::HostTensorVector& outputs,
-                                        const ngraph::HostTensorVector& inputs) {
+              ov::TensorVector& outputs,
+              const ov::TensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
     if (ov::is_type<op::v1::Select>(node) || ov::is_type<op::util::BinaryElementwiseComparison>(node))
         element_type = node->get_input_element_type(1);

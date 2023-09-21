@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <functional>
 #include <map>
-#include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 
 #include "ngraph/node.hpp"
@@ -19,6 +18,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 #include "nms_rotated_util.hpp"
+#include "openvino/reference/non_max_suppression.hpp"
 
 namespace ov {
 namespace reference {
@@ -40,12 +40,8 @@ void non_max_suppression(const float* boxes_data,
                          const bool sort_result_descending,
                          const bool clockwise = true);
 
-void nms_postprocessing(const HostTensorVector& outputs,
-                        const ngraph::element::Type output_type,
-                        const std::vector<int64_t>& selected_indices,
-                        const std::vector<float>& selected_scores,
-                        int64_t valid_outputs,
-                        const ngraph::element::Type selected_scores_type);
+using ov::reference::nms_postprocessing;
+
 }  // namespace nms_rotated
 
 }  // namespace reference
