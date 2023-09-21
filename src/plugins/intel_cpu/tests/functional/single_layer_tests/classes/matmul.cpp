@@ -159,6 +159,21 @@ const std::map<std::string, std::string>& emptyAdditionalConfig() {
     return emptyAdditionalConfig;
 }
 
+const std::vector<CPUSpecificParams>& filterSpecificParams() {
+    static const std::vector<CPUSpecificParams> specificParams = {
+        CPUSpecificParams{{}, {}, {"acl"}, "acl"},
+        CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"}};
+    return specificParams;
+}
+
+const std::vector<ElementType>& netPRCs() {
+    static const std::vector<ElementType> netPRCs {
+        ElementType::f32,
+        ElementType::bf16
+    };
+    return netPRCs;
+}
+
 const std::vector<ShapeRelatedParams>& IS2D_nightly() {
     static const std::vector<ShapeRelatedParams> IS2D_nightly = {
         {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, false}},

@@ -57,7 +57,9 @@ protected:
 };
 
 namespace MatMul {
+   const std::vector<ElementType>& netPRCs();
    const std::map<std::string, std::string>& emptyAdditionalConfig();
+   const std::vector<CPUSpecificParams>& filterSpecificParams();
    const std::vector<ShapeRelatedParams>& IS2D_nightly();
    const std::vector<ShapeRelatedParams>& IS2D_smoke();
    const std::vector<ShapeRelatedParams>& IS3D_smoke();
