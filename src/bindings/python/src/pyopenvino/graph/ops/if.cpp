@@ -19,10 +19,6 @@ void regclass_graph_op_If(py::module m) {
     py::class_<ov::op::v8::If, std::shared_ptr<ov::op::v8::If>, ov::Node> cls(m, "if_op");
     cls.doc() = "openvino.impl.op.If wraps ov::op::v0::If";
     cls.def(py::init<>());
-    cls.def(py::init([](const std::shared_ptr<ov::op::v8::If>& other) {
-            return other;
-        }),
-        py::arg("other"));
     cls.def(py::init<const ov::Output<ov::Node>&>(),
             py::arg("execution_condition"),
             R"(
@@ -123,8 +119,11 @@ void regclass_graph_op_If(py::module m) {
             :rtype: openvino.runtime.Output
         )");
 
-    cls.def("get_function",
-            &ov::op::util::MultiSubGraphOp::get_function,
+    cls.def("get_function", [](ov::op::v8::If& self, size_t index) {
+        auto model = self.get_function(index);
+
+        return py::module::import("openvino.runtime").attr("Model")(model);
+    },
             py::arg("index"),
             R"(
             Gets internal sub-graph by index in MultiSubGraphOp.

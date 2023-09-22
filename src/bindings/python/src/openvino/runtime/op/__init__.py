@@ -22,7 +22,6 @@ Constant.get_data = lambda self: np.array(self, copy=True)
 
 from openvino._pyopenvino.op import assign
 from openvino._pyopenvino.op import Parameter
+from openvino._pyopenvino.op import if_op
 from openvino._pyopenvino.op import loop
 from openvino._pyopenvino.op import tensor_iterator
-
-from openvino.runtime.op.op import if_op
