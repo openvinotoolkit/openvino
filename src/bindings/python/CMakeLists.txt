@@ -388,11 +388,11 @@ if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     install(FILES constraints.txt
-        DESTINATION tests/bindings/python/
+        DESTINATION tests/bindings/python
         COMPONENT tests
         EXCLUDE_FROM_ALL)
     install(FILES src/openvino/preprocess/torchvision/requirements.txt
-        DESTINATION tests/python/preprocess/torchvision/requirements.txt
+        DESTINATION tests/python/preprocess/torchvision
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 endif()
