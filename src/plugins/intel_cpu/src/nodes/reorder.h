@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "nodes/executors/transpose.hpp"
 #include <utils/general_utils.h>
 
 namespace ov {
@@ -155,6 +156,10 @@ private:
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
     void createReorderExecutor(const ov::intel_cpu::MemoryCPtr &src, const ov::intel_cpu::MemoryCPtr &dst);
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    void prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr childDesc);
+    TransposeExecutorPtr transposeExecutor;
+#endif
 };
 
 }   // namespace node
