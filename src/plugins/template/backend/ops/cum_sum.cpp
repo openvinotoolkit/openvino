@@ -15,7 +15,7 @@ inline void evaluate(const std::shared_ptr<ov::op::v0::CumSum>& op,
     using T1 = typename ov::element_type_traits<t1>::value_type;
     using T2 = typename ov::element_type_traits<t2>::value_type;
     ov::reference::cumsum<T1, T2>(inputs[0].data<T1>(),
-                                  inputs[1].data<T2>(),
+                                  *inputs[1].data<T2>(),
                                   outputs[0].data<T1>(),
                                   inputs[0].get_shape(),
                                   op->is_exclusive(),
