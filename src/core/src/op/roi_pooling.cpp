@@ -15,7 +15,7 @@ ROIPooling::ROIPooling(const Output<Node>& input,
                        const Output<Node>& coords,
                        const ov::Shape& output_size,
                        const float spatial_scale,
-                       const string& method)
+                       const std::string& method)
     : Op({input, coords}),
       m_output_size(output_size),
       m_spatial_scale(spatial_scale),
