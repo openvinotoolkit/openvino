@@ -10,6 +10,11 @@
 namespace ov {
 namespace pass {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief This transformation enables constfoldability for ShapeOf nodes that was
+ * disabled by DisableShapeOfConstantFolding.
+ */
 class TRANSFORMATIONS_API EnableShapeOfConstantFolding : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EnableShapeOfConstantFolding", "0");
