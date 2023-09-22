@@ -17,7 +17,7 @@ namespace reference {
 using namespace iou_rotated;
 namespace {
 
-static float rotated_intersection_over_union(const RotatedBox& boxI, const RotatedBox& boxJ) {
+float rotated_intersection_over_union(const RotatedBox& boxI, const RotatedBox& boxJ) {
     const auto intersection = rotated_boxes_intersection(boxI, boxJ);
     const auto areaI = boxI.w * boxI.h;
     const auto areaJ = boxJ.w * boxJ.h;
