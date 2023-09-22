@@ -11,12 +11,14 @@
 
 **Short description**: *Multinomial* operation generates a sequence of class indices sampled from the multinomial distribution based on the input class probabilities.
 
-**Detailed description**: *Multinomial* operation generates a sequence of class indices sampled from the multinomial distribution. In this context, the *probs* values represent the probabilities associated with each class within the multinomial distribution. When performing the operation, it randomly selects a class based on these probabilities. Subsequently, the index of the chosen class in the *probs* array is appended to the *output* sequence in the corresponding batch.
+**Detailed description**: *Multinomial* operation generates a sequence of class indices sampled from the multinomial distribution. In this context, the *probs* values represent the probabilities associated with each class within the multinomial distribution. When executing this operation, it randomly selects a class based on these probabilities. Subsequently, the index of the chosen class in the *probs* array is appended to the *output* sequence in the corresponding batch.
 
 **Algorithm formulation**:
 
-Note: Notation 
+Note: The following notation
+
 $$[a, b] => \{ x \in \mathbb{R},  a <= x <= b \} $$
+
 denotes a range of real numbers between a and b.
 
 Given a list of probabilities x1, x2, ..., xn:
