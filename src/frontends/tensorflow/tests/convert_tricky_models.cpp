@@ -664,7 +664,8 @@ TEST_F(FrontEndConversionWithReferenceTestsF, NonMaxSuppressionWithNamedOutputs)
         selected_scores = make_shared<Convert>(selected_scores, i32);
 
         // compute the third output - valid_outputs
-        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2));
+        auto squeeze_axes = make_shared<Constant>(i64, Shape{1}, 0);
+        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2), squeeze_axes);
 
         // make post-processing before the concatenation
         auto const_minus_one = make_shared<Constant>(i32, Shape{1}, -1);
