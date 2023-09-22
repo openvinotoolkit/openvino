@@ -40,7 +40,7 @@ else()
 endif()
 
 if (TARGET openvino::snippets)
-    list(APPEND LINK_LIBRARIES_PRIVATE snippets_ov_models)
+    list(APPEND LINK_LIBRARIES_PRIVATE ov_snippets_models)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()
@@ -65,7 +65,7 @@ addIeTarget(
                 common_test_utils
                 func_test_utils
                 ov_models
-                lpt_ov_models
+                ov_lpt_models
                 sharedTestClasses
             PRIVATE
                 ${LINK_LIBRARIES_PRIVATE}

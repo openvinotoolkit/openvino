@@ -17,7 +17,7 @@ ov_add_test_target(
         gmock
         func_test_utils
         sharedTestClasses
-        lpt_ov_models
+        ov_lpt_models
         inference_engine_legacy
     ADD_CLANG_FORMAT
     INCLUDES

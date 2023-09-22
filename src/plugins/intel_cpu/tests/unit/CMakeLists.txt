@@ -58,7 +58,7 @@ addIeTargetTest(
             inference_engine_s
             unit_test_utils
             ov_models
-            snippets_ov_models
+            ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
         ADD_CPPLINT
