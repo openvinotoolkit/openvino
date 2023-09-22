@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
-
 import numpy as np
 import onnx
+import pytest
 
 from openvino.tools.mo.front.onnx.squeeze_ext import SqueezeFrontExtractor
 from openvino.tools.mo.ops.op import Op
@@ -12,7 +11,7 @@ from openvino.tools.mo.ops.squeeze import Squeeze
 from unit_tests.utils.extractors import PB
 
 
-class TestSqueezeONNXExt(unittest.TestCase):
+class TestSqueezeONNXExt():
     @staticmethod
     def _create_squeeze_node(axes):
         if axes is None:
@@ -36,20 +35,18 @@ class TestSqueezeONNXExt(unittest.TestCase):
     def setUpClass(cls):
         Op.registered_ops['Squeeze'] = Squeeze
 
-    def test_squeeze_ext(self):
-        test_cases=[[0, 1, 2, 3], [1], None]
-        for idx, (axes) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                node = self._create_squeeze_node(axes)
-                SqueezeFrontExtractor.extract(node)
+    @pytest.mark.parametrize("axes",[[0, 1, 2, 3], [1], None])
+    def test_squeeze_ext(self, axes):
+        node = self._create_squeeze_node(axes)
+        SqueezeFrontExtractor.extract(node)
 
-                exp_res = {
-                    'type': 'Squeeze',
-                    'squeeze_dims': axes,
-                }
+        exp_res = {
+            'type': 'Squeeze',
+            'squeeze_dims': axes,
+        }
 
-                for key in exp_res.keys():
-                    if type(node[key]) in [list, np.ndarray]:
-                        self.assertTrue(np.array_equal(np.array(node[key]), np.array(exp_res[key])))
-                    else:
-                        self.assertEqual(node[key], exp_res[key])
+        for key in exp_res.keys():
+            if type(node[key]) in [list, np.ndarray]:
+                assert np.array_equal(np.array(node[key]), np.array(exp_res[key]))
+            else:
+                assert node[key] ==  exp_res[key]
