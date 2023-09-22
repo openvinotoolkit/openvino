@@ -162,6 +162,11 @@ install(TARGETS ov_onnx_frontend_tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
+install(FILES requirements.txt
+        DESTINATION tests/python/frontends/onnx
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
 # process models
 add_dependencies(ov_onnx_frontend_tests test_model_zoo)
 

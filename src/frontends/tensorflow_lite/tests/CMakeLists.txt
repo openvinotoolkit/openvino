@@ -11,8 +11,8 @@ ov_add_test_target(
             tensorflow_lite_test_models
             tensorflow_lite_fe_standalone_build_test
         LINK_LIBRARIES
-            gtest_main_manifest 
-            frontend_shared_test_classes 
+            gtest_main_manifest
+            frontend_shared_test_classes
             openvino_tensorflow_lite_frontend
         ADD_CLANG_FORMAT
         LABELS
@@ -73,3 +73,9 @@ get_target_property(TENSORFLOW_LITE_FRONTEND_SRC_DIR openvino_tensorflow_lite_fr
 
 add_subdirectory(standalone_build)
 add_dependencies(${TARGET_NAME} tensorflow_lite_fe_standalone_build_test)
+
+
+install(FILES requirements.txt
+        DESTINATION tests/python/frontends/tensorflow_lite
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)

@@ -531,7 +531,8 @@ jobs:
       - name: Install python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install --force-reinstall -r  ${{ env.INSTALL_TEST_DIR }}/constraints.txt
+          # For running ONNX frontend unit tests
+          python3 -m pip install --force-reinstall -r ${{ env.INSTALL_TEST_DIR }}/python/frontends/onnxs/requirements.txt
 
       - name: Install Python wheels
         run: |
@@ -549,7 +550,6 @@ jobs:
         if: always()
         run: |
           # For python imports to import pybind_mock_frontend
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py \
@@ -563,7 +563,6 @@ jobs:
         if: always()
         run: |
           # For python imports to import pybind_mock_frontend
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
           python3 -m pytest -s ${{ env.INSTALL_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
         env:
           PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}
@@ -585,7 +584,6 @@ jobs:
         shell: bash
     runs-on: ubuntu-20.04
     env:
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
 

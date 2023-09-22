@@ -36,7 +36,7 @@ endif()
 
 if(NOT EXIT_CODE EQUAL 0)
     set(paddlepaddle_FOUND OFF)
-    message(WARNING "Python requirement file ${PADDLE_REQ} is not installed, PaddlePaddle testing models weren't generated, 
+    message(WARNING "Python requirement file ${PADDLE_REQ} is not installed, PaddlePaddle testing models weren't generated,
                      some tests will fail due models not found")
 else()
     set(paddlepaddle_FOUND ON)
@@ -94,5 +94,10 @@ endif()
 if(ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
+
+install(FILES requirements.txt
+        DESTINATION tests/python/frontends/paddle
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 add_subdirectory(standalone_build)
