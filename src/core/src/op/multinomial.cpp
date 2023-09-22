@@ -16,58 +16,27 @@
 
 namespace ov {
 
-namespace op {
-namespace multinomial {
-namespace validate {
-namespace {
-void input_types(const Node* op) {
-    NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(0).is_real(),
-                          "Expected floating point type as element type for the 'input' input.");
-
-    NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(1).is_integral_number(),
-                          "Expected integer type as element type for the 'num_samples' input.");
-}
-}  // namespace
-}  // namespace validate
-}  // namespace multinomial
-}  // namespace op
 // ------------------------------ v13 ------------------------------
 
-op::v13::Multinomial::Multinomial(const Output<Node>& input,
+op::v13::Multinomial::Multinomial(const Output<Node>& probs,
                                   const Output<Node>& num_samples,
-                                  const ov::element::Type_t output_type,
+                                  const ov::element::Type_t convert_type,
                                   const bool with_replacement,
                                   const bool log_probs,
-                                  const int64_t global_seed,
-                                  const int64_t op_seed)
+                                  const uint64_t global_seed,
+                                  const uint64_t op_seed)
     : Op({input, num_samples}),
-      m_output_type{output_type},
-      m_with_replacement{with_replacement},
+      m_convert_type(convert_type),
+      m_with_replacement(with_replacement),
       m_log_probs(log_probs),
       m_global_seed(global_seed),
       m_op_seed(op_seed) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::v13::Multinomial::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(v13_Multinomial_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    NODE_VALIDATION_CHECK(this, new_args.size() == 2, "Number of inputs must be equal to 2");
-
-    return std::make_shared<op::v13::Multinomial>(new_args.at(0),
-                                                  new_args.at(1),
-                                                  m_output_type,
-                                                  m_with_replacement,
-                                                  m_log_probs,
-                                                  m_global_seed,
-                                                  m_op_seed);
-}
-
 bool op::v13::Multinomial::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v13_Multinomial_visit_attributes);
-    visitor.on_attribute("output_type", m_output_type);
+    visitor.on_attribute("convert_type", m_convert_type);
     visitor.on_attribute("with_replacement", m_with_replacement);
     visitor.on_attribute("log_probs", m_log_probs);
     visitor.on_attribute("global_seed", m_global_seed);
@@ -86,6 +55,77 @@ void op::v13::Multinomial::validate_and_infer_types() {
 
     multinomial::validate::input_types(this);
 
-    set_output_type(0, m_output_type, output_shapes[0]);
+    set_output_type(0, m_convert_type, output_shapes[0]);
 }
+
+std::shared_ptr<Node> op::v13::Multinomial::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v13_Multinomial_clone_with_new_inputs);
+    check_new_args_count<OutputVector>(this, new_args);
+
+    return std::make_shared<op::v13::Multinomial>(new_args.at(0),
+                                                  new_args.at(1),
+                                                  m_convert_type,
+                                                  m_with_replacement,
+                                                  m_log_probs,
+                                                  m_global_seed,
+                                                  m_op_seed);
+}
+
+ov::element::Type_t op::v13::Multinomial::get_convert_type() const {
+    return m_convert_type;
+}
+
+bool op::v13::Multinomial::get_with_replacement() const {
+    return m_with_replacement;
+}
+
+bool op::v13::Multinomial::get_log_probs() const {
+    return m_log_probs;
+}
+
+uint64_t op::v13::Multinomial::get_global_seed() const {
+    return m_global_seed;
+}
+
+uint64_t op::v13::Multinomial::get_op_seed() const {
+    return m_op_seed;
+}
+
+void op::v13::Multinomial::set_convert_type(const ov::element::Type_t convert_type) {
+    m_convert_type = convert_type;
+}
+
+void op::v13::Multinomial::set_with_replacement(const bool with_replacement) {
+    m_with_replacement = with_replacement;
+}
+
+void op::v13::Multinomial::set_log_probs(const bool log_probs) {
+    m_log_probs = log_probs;
+}
+
+void op::v13::Multinomial::set_global_seed(const uint64_t global_seed) {
+    m_global_seed = global_seed;
+}
+
+void op::v13::Multinomial::set_op_seed(const uint64_t op_seed) {
+    m_op_seed = op_seed;
+}
+
+namespace op {
+namespace multinomial {
+namespace validate {
+namespace {
+void input_types(const Node* op) {
+    NODE_VALIDATION_CHECK(op,
+                          op->get_input_element_type(0).is_real(),
+                          "Expected floating point type as element type for the 'input' input.");
+
+    NODE_VALIDATION_CHECK(op,
+                          op->get_input_element_type(1).is_integral_number(),
+                          "Expected integer type as element type for the 'num_samples' input.");
+}
+}  // namespace
+}  // namespace validate
+}  // namespace multinomial
+}  // namespace op
 }  // namespace ov

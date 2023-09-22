@@ -8,19 +8,15 @@
 #include "gtest/gtest.h"
 #include "openvino/op/parameter.hpp"
 
-using namespace std;
-using namespace ov;
-using namespace reference_tests;
-
 namespace {
 struct MultinomialParams {
     MultinomialParams(const reference_tests::Tensor& probabilities,
                       const reference_tests::Tensor& num_samples,
                       const reference_tests::Tensor& expected_tensor,
-                      element::Type_t output_type,
+                      ov::element::Type_t output_type,
                       bool log_probs,
                       bool with_replacement,
-                      string name)
+                      std::string name)
         : probabilities{probabilities},
           num_samples{num_samples},
           expected_tensor(expected_tensor),
@@ -33,13 +29,13 @@ struct MultinomialParams {
     reference_tests::Tensor num_samples;
     reference_tests::Tensor expected_tensor;
 
-    element::Type_t output_type;
+    ov::element::Type_t output_type;
     bool log_probs;
     bool with_replacement;
-    string test_case_name;
+    std::string test_case_name;
 };
 
-struct Builder : ParamsBuilder<MultinomialParams> {
+struct Builder : reference_tests::ParamsBuilder<MultinomialParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, probabilities);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, num_samples);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, expected_tensor);
@@ -49,7 +45,7 @@ struct Builder : ParamsBuilder<MultinomialParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, test_case_name);
 };
 
-class ReferenceMultinomial : public testing::TestWithParam<MultinomialParams>, public CommonReferenceTest {
+class ReferenceMultinomial : public testing::TestWithParam<MultinomialParams>, public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
         const auto& params = GetParam();
@@ -58,7 +54,7 @@ public:
         refOutData = {params.expected_tensor.data};
     }
 
-    static string getTestCaseName(const testing::TestParamInfo<MultinomialParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MultinomialParams>& obj) {
         std::ostringstream name;
         name << obj.param.test_case_name;
         name << "_input_type_";
@@ -75,28 +71,28 @@ public:
     }
 
 private:
-    static shared_ptr<Model> CreateFunction(const MultinomialParams& params) {
+    static std::shared_ptr<ov::Model> CreateFunction(const MultinomialParams& params) {
         const auto in_probabilities =
-            make_shared<op::v0::Parameter>(params.probabilities.type, params.probabilities.shape);
-        const auto in_num_samples = make_shared<op::v0::Parameter>(params.num_samples.type, params.num_samples.shape);
-        const auto multinomial = make_shared<op::v13::Multinomial>(in_probabilities,
+            std::make_shared<ov::op::v0::Parameter>(params.probabilities.type, params.probabilities.shape);
+        const auto in_num_samples = std::make_shared<ov::op::v0::Parameter>(params.num_samples.type, params.num_samples.shape);
+        const auto multinomial = std::make_shared<ov::op::v13::Multinomial>(in_probabilities,
                                                                    in_num_samples,
                                                                    params.output_type,
                                                                    params.with_replacement,
                                                                    params.log_probs,
                                                                    0,
                                                                    0);
-        return make_shared<Model>(NodeVector{multinomial}, ParameterVector{in_probabilities, in_num_samples});
+        return std::make_shared<ov::Model>(ov::NodeVector{multinomial}, ov::ParameterVector{in_probabilities, in_num_samples});
     }
 };
 
-template <element::Type_t et>
-vector<MultinomialParams> generateMultinomialParams() {
+template <ov::element::Type_t et>
+std::vector<MultinomialParams> generateMultinomialParams() {
     using vt = typename element_type_traits<et>::value_type;
 
-    const Shape prob_2d_shape{2, 4};
-    const Shape prob_1d_shape{4};
-    const Shape num_samples_shape{1};
+    const ov::ov::Shape prob_2d_shape{2, 4};
+    const ov::Shape prob_1d_shape{4};
+    const ov::Shape num_samples_shape{1};
 
     reference_tests::Tensor num_samples{num_samples_shape, element::i32, vector<int32_t>{4}};
 
@@ -113,7 +109,7 @@ vector<MultinomialParams> generateMultinomialParams() {
     reference_tests::Tensor output_1d_no_log_replacement{prob_1d_shape, et, vector<vt>{3, 3, 3, 3}};
     reference_tests::Tensor output_1d_log_replacement{prob_1d_shape, et, vector<vt>{2, 2, 2, 2}};
 
-    vector<MultinomialParams> params;
+    std::vector<MultinomialParams> params;
     // probabilities, num_samples, output, out_type, log_probs, with_replacement, name
     params.emplace_back(probabilities_2d_no_log,
                         num_samples,
@@ -129,11 +125,11 @@ vector<MultinomialParams> generateMultinomialParams() {
     return params;
 }
 
-vector<MultinomialParams> generateMultinomialParams() {
-    vector<vector<MultinomialParams>> combo_params{generateMultinomialParams<element::f32>()};
-    vector<MultinomialParams> test_params;
+std::vector<MultinomialParams> generateMultinomialParams() {
+    std::vector<std::vector<MultinomialParams>> combo_params{generateMultinomialParams<ov::element::f32>()};
+    std::vector<MultinomialParams> test_params;
     for (auto& params : combo_params)
-        move(params.begin(), params.end(), back_inserter(test_params));
+        std::move(params.begin(), params.end(), std::back_inserter(test_params));
     return test_params;
 }
 }  // namespace

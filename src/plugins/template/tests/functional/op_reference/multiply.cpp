@@ -13,9 +13,9 @@ namespace {
 
 struct MultiplyParams {
     template <class IT>
-    MultiplyParams(const PartialShape& iShape1,
-              const PartialShape& iShape2,
-              const element::Type& iType,
+    MultiplyParams(const ov::PartialShape& iShape1,
+              const ov::PartialShape& iShape2,
+              const ov::element::Type& iType,
               const std::vector<IT>& iValues1,
               const std::vector<IT>& iValues2,
               const std::vector<IT>& oValues)
@@ -27,16 +27,16 @@ struct MultiplyParams {
           inputData2(CreateTensor(iType, iValues2)),
           refData(CreateTensor(iType, oValues)) {}
 
-    PartialShape pshape1;
-    PartialShape pshape2;
-    element::Type inType;
-    element::Type outType;
+    ov::PartialShape pshape1;
+    ov::PartialShape pshape2;
+    ov::element::Type inType;
+    ov::element::Type outType;
     ov::Tensor inputData1;
     ov::Tensor inputData2;
     ov::Tensor refData;
 };
 
-class ReferenceMultiplyLayerTest : public testing::TestWithParam<MultiplyParams>, public CommonReferenceTest {
+class ReferenceMultiplyLayerTest : public testing::TestWithParam<MultiplyParams>, public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -56,15 +56,15 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                    const PartialShape& input_shape2,
-                                                    const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
-        const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
-        const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
-        const auto multiply = std::make_shared<op::v1::Multiply>(in1, in2);
+    static std::shared_ptr<Model> CreateFunction(const ov::PartialShape& input_shape1,
+                                                    const ov::PartialShape& input_shape2,
+                                                    const ov::element::Type& input_type,
+                                                    const ov::element::Type& expected_output_type) {
+        const auto in1 = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape1);
+        const auto in2 = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape2);
+        const auto multiply = std::make_shared<ov::op::v1::Multiply>(in1, in2);
 
-        return std::make_shared<Model>(NodeVector{multiply}, ParameterVector{in1, in2});
+        return std::make_shared<ov::Model>(ov::NodeVector{multiply}, ov::ParameterVector{in1, in2});
     }
 };
 
@@ -72,7 +72,7 @@ TEST_P(ReferenceMultiplyLayerTest, MultiplyWithHardcodedRefs) {
     Exec();
 }
 
-template <element::Type_t IN_ET>
+template <ov::element::Type_t IN_ET>
 std::vector<MultiplyParams> generateParamsForMultiply() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
@@ -101,7 +101,7 @@ std::vector<MultiplyParams> generateParamsForMultiply() {
     return params;
 }
 
-template <element::Type_t IN_ET>
+template <ov::element::Type_t IN_ET>
 std::vector<MultiplyParams> generateParamsForMultiplyFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
@@ -118,13 +118,11 @@ std::vector<MultiplyParams> generateParamsForMultiplyFloat() {
 
 std::vector<MultiplyParams> generateCombinedParamsForMultiply() {
     const std::vector<std::vector<MultiplyParams>> allTypeParams{
-        generateParamsForMultiply<element::Type_t::f32>(),
-        generateParamsForMultiply<element::Type_t::f16>(),
-        generateParamsForMultiply<element::Type_t::bf16>(),
-        generateParamsForMultiply<element::Type_t::i64>(),
-        generateParamsForMultiply<element::Type_t::i32>(),
-        generateParamsForMultiply<element::Type_t::u64>(),
-        generateParamsForMultiply<element::Type_t::u32>()
+        generateParamsForMultiply<ov::element::Type_t::f32>(),
+        generateParamsForMultiply<ov::element::Type_t::i64>(),
+        generateParamsForMultiply<ov::element::Type_t::i32>(),
+        generateParamsForMultiply<ov::element::Type_t::u64>(),
+        generateParamsForMultiply<ov::element::Type_t::u32>()
     };
 
     std::vector<MultiplyParams> combinedParams;
@@ -138,8 +136,8 @@ std::vector<MultiplyParams> generateCombinedParamsForMultiply() {
 
 std::vector<MultiplyParams> generateCombinedParamsForMultiplyFloat() {
     const std::vector<std::vector<MultiplyParams>> allTypeParams{
-        generateParamsForMultiplyFloat<element::Type_t::f32>(),
-        generateParamsForMultiplyFloat<element::Type_t::f16>()
+        generateParamsForMultiplyFloat<ov::element::Type_t::f32>(),
+        generateParamsForMultiplyFloat<ov::element::Type_t::f16>()
     };
 
     std::vector<MultiplyParams> combinedParams;

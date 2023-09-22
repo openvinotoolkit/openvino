@@ -9,81 +9,54 @@
 namespace ov {
 namespace op {
 namespace v13 {
-/// \brief Multinomial operation over the input tensor.
+/// \brief Multinomial operation creates a sequence of indices of classes sampled from the multinomial distribution.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Multinomial : public Op {
 public:
     OPENVINO_OP("Multinomial", "opset13");
     Multinomial() = default;
-    /// \param input The input tensor to be normalized
-    /// \param num_samples The tensor containing samples count. Defines output shape of the network
-    /// \param output_type The data type of the output
-    /// \param with_replacement Determines sampling with replacement
-    /// \param log_probs Determines whether the input contains probabilities or log probabilities
-    /// \param global_seed The seed used in ----
-    /// \param op_seed The seed used in ----
+    /**
+     * @brief Multinomial operation creates a sequence of indices of classes sampled from the multinomial distribution.
+     * 
+     * @param probs Input tensor containing at each index poisition probability/log probability of sampling a given class.
+     * @param num_samples Scalar or 1D tensor with a single value that determines the number of samples to generate per batch.
+     * @param convert_type Data type to which to convert the output class indices.
+     * @param with_replacement Boolean that determines whether a sampled class can appear more than once in the output.
+     * @param log_probs Boolean that determines whether to treat input probabilities as log probabilities.
+     * @param global_seed First seed value (key) of Phillox random number generation algorithm. (See RandomUniform for details)
+     * @param op_seed Second seed value (counter) of Phillox random number generation algorithm. (See RandomUniform for details)
+     */
     Multinomial(const Output<Node>& input,
                 const Output<Node>& num_samples,
                 const ov::element::Type_t output_type,
                 const bool with_replacement,
                 const bool log_probs,
-                const int64_t global_seed,
-                const int64_t op_seed);
+                const uint64_t global_seed,
+                const uint64_t op_seed);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
-
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    ov::element::Type_t get_output_type() const {
-        return m_output_type;
-    }
+    ov::element::Type_t get_convert_type() const;
+    bool get_with_replacement() const;
+    bool get_log_probs() const;
+    uint64_t get_global_seed() const;
+    uint64_t get_op_seed() const;
 
-    void set_output_type(ov::element::Type_t output_type) {
-        m_output_type = output_type;
-    }
-
-    bool get_with_replacement() const {
-        return m_with_replacement;
-    }
-
-    void set_with_replacement(bool with_replacement) {
-        m_with_replacement = with_replacement;
-    }
-
-    bool get_log_probs() const {
-        return m_log_probs;
-    }
-
-    void set_log_probs(bool log_probs) {
-        m_log_probs = log_probs;
-    }
-
-    int64_t get_global_seed() const {
-        return m_global_seed;
-    }
-
-    void set_global_seed(int64_t global_seed) {
-        m_global_seed = global_seed;
-    }
-
-    int64_t get_op_seed() const {
-        return m_op_seed;
-    }
-
-    void set_op_seed(int64_t op_seed) {
-        m_op_seed = op_seed;
-    }
-
-    using Node::set_output_type;
+    void set_convert_type(const ov::element::Type_t output_type);
+    void set_with_replacement(const bool with_replacement);
+    void set_log_probs(const bool log_probs);
+    void set_global_seed(const uint64_t global_seed);
+    void set_op_seed(const uint64_t op_seed);
 
 private:
-    ov::element::Type_t m_output_type;
+    ov::element::Type_t m_convert_type;
     bool m_with_replacement;
     bool m_log_probs;
-    int64_t m_global_seed;
-    int64_t m_op_seed;
+    uint64_t m_global_seed;
+    uint64_t m_op_seed;
 };
 }  // namespace v13
 }  // namespace op

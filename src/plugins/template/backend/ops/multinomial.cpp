@@ -3,7 +3,7 @@
 //
 
 #include "openvino/reference/multinomial.hpp"
-
+#include "multinomial_shape_inference.hpp"
 #include "evaluate_node.hpp"
 
 namespace multinomial {
@@ -24,51 +24,27 @@ inline void evaluate_internal(const std::shared_ptr<ov::op::v13::Multinomial>& o
                                                         op->get_with_replacement(),
                                                         op->get_log_probs(),
                                                         op->get_global_seed(),
-                                                        op->get_op_seed(),
-                                                        false);
+                                                        op->get_op_seed());
+    const auto tensor_acc = make_tensor_accessor(inputs);
+    std::vector<ov::Shape> input_shapes{op->get_input_shape(0), op->get_input_shape(1)};
+    const auto out_shape = shape_infer(this, input_shapes, tensor_acc).front().to_shape();
+    outputs[0].set_shape(out_shape);
 }
 
 template <ov::element::Type_t INPUT_T, ov::element::Type_t SAMPLES_T>
 inline void evaluate(const std::shared_ptr<ov::op::v13::Multinomial>& op,
                      const ov::HostTensorVector& outputs,
                      const ov::HostTensorVector& inputs) {
-    switch (op->get_output_type()) {
-    case ov::element::Type_t::f32:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::f32>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::i4:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::i4>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::i8:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::i8>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::i16:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::i16>(op, outputs, inputs);
-        return;
+    switch (op->get_convert_type()) {
     case ov::element::Type_t::i32:
         evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::i32>(op, outputs, inputs);
         return;
     case ov::element::Type_t::i64:
         evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::i64>(op, outputs, inputs);
         return;
-    case ov::element::Type_t::u4:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::u4>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::u8:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::u8>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::u16:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::u16>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::u32:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::u32>(op, outputs, inputs);
-        return;
-    case ov::element::Type_t::u64:
-        evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::u64>(op, outputs, inputs);
-        return;
     default:
         OPENVINO_THROW(std::string("Unhandled output data type ") +
-                       ov::element::Type(op->get_output_type()).get_type_name() + std::string("in evaluate_node()"));
+                       ov::element::Type(op->get_output_type()).get_type_name() + std::string("in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
     }
 }
 }  // namespace multinomial
@@ -97,8 +73,14 @@ bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
         element_type = node->get_input_element_type(1);
 
     switch (element_type) {
+    case ov::element::Type_t::f16:
+        return evaluate<ov::element::Type_t::f16>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
     case ov::element::Type_t::f32:
         return evaluate<ov::element::Type_t::f32>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
+    case ov::element::Type_t::f64:
+        return evaluate<ov::element::Type_t::f64>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
+    case ov::element::Type_t::bf16:
+        return evaluate<ov::element::Type_t::f16>(ov::as_type_ptr<ov::op::v13::Multinomial>(node), outputs, inputs);
     default:
         OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
