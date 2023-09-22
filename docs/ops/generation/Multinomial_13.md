@@ -18,8 +18,8 @@
 Note: The following notation
 
 .. math::
-   
-   [a, b] => \{ x \in \mathbb{R},  a <= x <= b \}
+
+   [a, b] => { x \in \mathbb{R},  a <= x <= b }
 
 denotes a range of real numbers between a and b.
 
