@@ -127,7 +127,8 @@ void regclass_graph_op_If(py::module m) {
         "get_function",
         [](ov::op::v8::If& self, size_t index) {
             auto model = self.get_function(index);
-            return py::module::import("openvino.runtime").attr("Model")(model);
+            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            return model_class(py::cast(model));
         },
         py::arg("index"),
         R"(

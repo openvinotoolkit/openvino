@@ -191,7 +191,11 @@ def test_simple_if_basic():
 
     if_node = ov.if_op(condition.output(0))
     if_node.set_function(0, then_body)
-    assert if_node.get_function(0) == then_body
+    subgraph_func = if_node.get_function(0)
+    print(subgraph_func)
+    print(then_body)
+    assert type(subgraph_func) == type(then_body)
+    assert subgraph_func == then_body
 
     if_node.set_input_descriptions(0, then_body_inputs)
     if_node.set_output_descriptions(1, else_body_outputs)
