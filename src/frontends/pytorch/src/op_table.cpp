@@ -96,10 +96,12 @@ OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
 OP_CONVERTER(translate_max);
+OP_CONVERTER(translate_maximum);
 OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
+OP_CONVERTER(translate_minimum);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
 OP_CONVERTER(translate_neg);
@@ -165,6 +167,7 @@ OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
+OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_upsample_bicubic2d);
@@ -350,12 +353,14 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::masked_scatter_", op::inplace_op<op::translate_masked_scatter>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::max", op::translate_max},
+        {"aten::maximum", op::translate_maximum},
         {"aten::max_pool1d", op::quantizable_op<op::translate_max_poolnd>},
         {"aten::max_pool2d", op::quantizable_op<op::translate_max_poolnd>},
         {"aten::max_pool3d", op::quantizable_op<op::translate_max_poolnd>},
         {"aten::mean", op::quantizable_op<op::translate_mean>},
         {"aten::meshgrid", op::translate_meshgrid},
         {"aten::min", op::translate_min},
+        {"aten::minimum", op::translate_minimum},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
@@ -392,7 +397,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
         {"aten::remainder", op::translate_remainder},
-        {"aten::repeat", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Tile>>},
+        {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
@@ -479,6 +484,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::requires_grad", op::return_false_scalar},
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"prim::TupleIndex", op::translate_tuple_index},
         {"quantized::add", op::translate_quantized_add},
         {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::cat", op::translate_quantized_cat},
