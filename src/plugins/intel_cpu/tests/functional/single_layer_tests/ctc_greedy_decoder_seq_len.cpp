@@ -118,9 +118,7 @@ protected:
                 if (funcInput.get_element_type().is_real()) {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                      targetInputStaticShapes[i],
-                                                                     10,
-                                                                     0,
-                                                                     1000);
+                                                                     ov::test::utils::InputGenerateData(0, 10, 1000));
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                      targetInputStaticShapes[i]);
@@ -149,8 +147,7 @@ protected:
                 // blank should be valid class type
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                  targetInputStaticShapes[i],
-                                                                 dataShape[2],
-                                                                 0);
+                                                                 ov::test::utils::InputGenerateData(0, dataShape[2]));
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

@@ -109,17 +109,17 @@ void EltwiseLayerTest::SetUp() {
             case EltwiseTypes::DIVIDE:
             case EltwiseTypes::MOD:
             case EltwiseTypes::FLOOR_MOD: {
-                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, 8, 2);
+                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, ov::test::utils::InputGenerateData(2, 8));
                 secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
                 break;
             }
             case EltwiseTypes::POWER: {
-                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, 2, 1);
+                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, ov::test::utils::InputGenerateData(1, 2));
                 secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
                 break;
             }
             default: {
-                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, 9, 1);
+                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, ov::test::utils::InputGenerateData(1, 9));
                 secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
             }
         }

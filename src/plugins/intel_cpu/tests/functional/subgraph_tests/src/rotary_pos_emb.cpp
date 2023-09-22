@@ -150,7 +150,7 @@ public:
         auto seq_length = input_shape[1];
 
         ov::Tensor t_input =
-            utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, 2, -1.0f, 32768);
+            utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, ov::test::utils::InputGenerateData(-1, 2, 32768));
         ov::Tensor t_position_id_end = create_i32_tensor(ov::Shape({}), position_id_start + seq_length);
         ov::Tensor t_position_ids = create_i32_tensor(ov::Shape({1, seq_length}), position_id_start);
 

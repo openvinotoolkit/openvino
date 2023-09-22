@@ -69,15 +69,16 @@ protected:
         const auto& shapeX = targetInputStaticShapes[0];
         const auto& shapeH = targetInputStaticShapes[1];
 
-        ov::Tensor tensorX = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shapeX, 1, 0, 16);
-        ov::Tensor tensorH = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), shapeH, 1, 0, 16);
+        ov::Tensor tensorX = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shapeX, ov::test::utils::InputGenerateData(0, 1, 16));
+        ov::Tensor tensorH = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), shapeH, ov::test::utils::InputGenerateData(0, 1, 16));
 
         inputs.insert({funcInputs[0].get_node_shared_ptr(), tensorX});
         inputs.insert({funcInputs[1].get_node_shared_ptr(), tensorH});
 
         if (hasCell) {
             const auto& shapeC = targetInputStaticShapes[cellIdx];
-            ov::Tensor tensorC = utils::create_and_fill_tensor(funcInputs[cellIdx].get_element_type(), shapeC, 2, -1, 128, 2);
+            ov::Tensor tensorC = utils::create_and_fill_tensor(funcInputs[cellIdx].get_element_type(), shapeC,
+                                                               ov::test::utils::InputGenerateData(-1, 2, 128, 2));
             inputs.insert({funcInputs[cellIdx].get_node_shared_ptr(), tensorC});
         }
     }

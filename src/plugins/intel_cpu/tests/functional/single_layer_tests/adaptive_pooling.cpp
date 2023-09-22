@@ -160,10 +160,8 @@ protected:
                 }
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 2560,
-                                                                 0,
-                                                                 256);
+                                                                    targetInputStaticShapes[i],
+                                                                    ov::test::utils::InputGenerateData(0, 2560, 256));
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

@@ -120,10 +120,8 @@ protected:
                     batchShapePtr[j] = outBatchShape[j];
                 }
             } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 1,
-                                                                 (i == 0 ? rowNum : (i == 1 ? colNum : shift)));
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i],
+                                                                 ov::test::utils::InputGenerateData((i == 0 ? rowNum : (i == 1 ? colNum : 6)), 1));
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

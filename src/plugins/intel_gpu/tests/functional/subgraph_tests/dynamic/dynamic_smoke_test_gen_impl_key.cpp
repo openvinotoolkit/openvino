@@ -62,7 +62,7 @@ protected:
               ov::Tensor tensor;
               tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                targetInputStaticShapes[i],
-                                                               80, 0, 8);
+                                                               ov::test::utils::InputGenerateData(0, 80, 8));
               inputs.insert({funcInput.get_node_shared_ptr(), tensor});
           }
     }

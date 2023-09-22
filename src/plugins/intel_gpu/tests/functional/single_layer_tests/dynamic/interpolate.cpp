@@ -111,7 +111,9 @@ public:
             ov::Tensor tensor;
 
             if (i == 0) {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 ov::test::utils::InputGenerateData(0, 2560, 256));
             } else if (i == 1) {
                 if (shapeCalcMode == ov::op::v4::Interpolate::ShapeCalcMode::SIZES || funcInputs.size() == 3) {
                     tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], sizes[inferRequestNum].data());

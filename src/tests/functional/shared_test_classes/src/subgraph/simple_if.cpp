@@ -177,8 +177,7 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ov::Shape>
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                              targetInputStaticShapes[i],
-                                                             10,
-                                                             -5);
+                                                             ov::test::utils::InputGenerateData(-5, 10));
         }
 
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});

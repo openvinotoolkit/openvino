@@ -48,7 +48,7 @@ void GatherElementsLayerTest::SetUp() {
         posAxis += dataShape.size();
     const auto axisDim = dataShape[posAxis];
 
-    auto indicesValues = ov::test::utils::create_and_fill_tensor(ov::element::i32, indicesShape, axisDim - 1, 0);
+    auto indicesValues = ov::test::utils::create_and_fill_tensor(ov::element::i32, indicesShape, ov::test::utils::InputGenerateData(0, axisDim - 1));
     auto indicesNode = std::make_shared<ov::op::v0::Constant>(indicesValues);
 
     auto gather = std::make_shared<ov::op::v6::GatherElements>(params[0], indicesNode, axis);

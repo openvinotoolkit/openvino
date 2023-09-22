@@ -168,11 +168,14 @@ void fill_data_roi(ov::runtime::Tensor& tensor,
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
+// k_range = start_from * k have to be integer value
+// k_start = range      * k have to be integer value
+// otherwise UB. ex 0.35 * 10 = 3.5
 template <class T>
 void inline fill_data_random(T* pointer,
                              std::size_t size,
-                             const uint32_t range = 10,
-                             double_t start_from = 0,
+                             const double range = 10,
+                             const double start_from = 0,
                              const int32_t k = 1,
                              const int seed = 1) {
     if (range == 0) {
@@ -186,11 +189,19 @@ void inline fill_data_random(T* pointer,
     const uint32_t k_range = k * range;  // range with respect to k
     random.Generate(k_range);
 
-    if (start_from < 0 && !std::numeric_limits<T>::is_signed) {
-        start_from = 0;
+    uint32_t k_start = k * start_from;  // start_from with respect to k
+    if (k_start < 0 && !std::numeric_limits<T>::is_signed) {
+        k_start = 0;
     }
-    for (std::size_t i = 0; i < size; i++) {
-        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
+
+    if (1 == k) {
+        for (std::size_t i = 0; i < size; i++) {
+            pointer[i] = static_cast<T>(random.Generate(k_range) - k_start);
+        }
+    } else {
+        for (std::size_t i = 0; i < size; i++) {
+            pointer[i] = static_cast<T>(static_cast<double>(random.Generate(k_range) - k_start) / k);
+        }
     }
 }
 

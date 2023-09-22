@@ -104,7 +104,7 @@ protected:
                 }
             } else {
                 if (model_type.is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(model_type, targetShape, 10, 0, 1000);
+                    tensor = ov::test::utils::create_and_fill_tensor(model_type, targetShape, ov::test::utils::InputGenerateData(0, 10, 1000));
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(model_type, targetShape);
                 }

@@ -71,10 +71,7 @@ public:
 
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                              targetInputStaticShapes[i],
-                                                             15,
-                                                             0,
-                                                             32768);
-
+                                                             ov::test::utils::InputGenerateData(0, 15, 32768));
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }

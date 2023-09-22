@@ -102,7 +102,7 @@ protected:
             const auto seqLengthsTensor =
                 ov::test::utils::create_and_fill_tensor(funcInputs[1].get_element_type(),
                                                         targetInputStaticShapes[1],
-                                                        maxSeqLength, 1);
+                                                        ov::test::utils::InputGenerateData(1, maxSeqLength));
             inputs.insert({funcInputs[1].get_node_shared_ptr(), seqLengthsTensor});
         }
     }

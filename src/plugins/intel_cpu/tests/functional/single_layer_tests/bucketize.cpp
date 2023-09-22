@@ -60,10 +60,7 @@ public:
         auto data_size = shape_size(targetInputStaticShapes[0]);
         ov::Tensor tensorData = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(),
                                                                         targetInputStaticShapes[0],
-                                                                        data_size * 5,
-                                                                        0,
-                                                                        10,
-                                                                        7235346);
+                                                                        ov::test::utils::InputGenerateData(0, data_size * 5, 10, 7235346));
 
         ov::Tensor tensorBucket =
             ov::test::utils::create_and_fill_tensor_unique_sequence(funcInputs[1].get_element_type(),

@@ -116,8 +116,7 @@ protected:
             auto tensor =
                 ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(),
                                                         targetInputStaticShapes[i],
-                                                        maxBeamIndex,
-                                                        (i == 2 || i == 3) ? maxBeamIndex / 2 : 0);
+                                                        ov::test::utils::InputGenerateData((i == 2 || i == 3) ? maxBeamIndex / 2 : 0, maxBeamIndex));
             inputs.insert({funcInputs[i].get_node_shared_ptr(), tensor});
         }
     }

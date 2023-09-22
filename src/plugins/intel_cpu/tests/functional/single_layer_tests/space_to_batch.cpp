@@ -65,9 +65,7 @@ public:
             if (i == 0U) {
                 tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                        targetInputStaticShapes[i],
-                                                       2560,
-                                                       0,
-                                                       256);
+                                                       ov::test::utils::InputGenerateData(0, 2560, 256));
             } else if (i == 1U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto* dataPtr = tensor.data<int64_t>();

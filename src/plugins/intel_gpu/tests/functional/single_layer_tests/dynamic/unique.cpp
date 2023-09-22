@@ -110,9 +110,7 @@ protected:
                                                 std::multiplies<size_t>());
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                        targetInputStaticShapes[0],
-                                                       range,
-                                                       -range / 2,
-                                                       1);
+                                                       ov::test::utils::InputGenerateData(-range / 2, range, 1));
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

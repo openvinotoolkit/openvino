@@ -148,8 +148,7 @@ void ReduceCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInp
         if (reductionType == utils::ReductionType::Prod) {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                              targetInputStaticShapes[i],
-                                                             10,
-                                                             5);
+                                                             ov::test::utils::InputGenerateData(5, 10));
             if (netPrecision == ElementType::f32) {
                 auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
                 for (size_t i = 0; i < tensor.get_size(); ++i) {

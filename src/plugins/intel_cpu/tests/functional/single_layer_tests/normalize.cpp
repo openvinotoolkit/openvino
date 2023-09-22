@@ -91,7 +91,7 @@ protected:
             ov::Tensor tensor;
             if (funcInput.get_element_type().is_real()) {
                 tensor = ov::test::utils::create_and_fill_tensor(
-                        funcInput.get_element_type(), targetInputStaticShapes[i], 10, -5, 7, 222);
+                        funcInput.get_element_type(), targetInputStaticShapes[i], ov::test::utils::InputGenerateData(-5, 10, 7, 222));
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             }

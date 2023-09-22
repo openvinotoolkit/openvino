@@ -9,12 +9,22 @@
 namespace ov {
 namespace test {
 namespace utils {
+struct InputGenerateData {
+    double start_from = 0;
+    double range = 10;
+    int resolution = 1;
+    int seed = 1;
+
+    InputGenerateData(double _start_from = 0, double _range = 10, int _resolution = 1, int _seed = 1)
+        : start_from(_start_from),
+          range(_range),
+          resolution(_resolution),
+          seed(_seed){};
+};
+
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
-                                  const uint32_t range = 10,
-                                  const double_t start_from = 0,
-                                  const int32_t resolution = 1,
-                                  const int seed = 1);
+                                  const InputGenerateData& inGenData = InputGenerateData(0, 10, 1, 1));
 
 template <class T>
 static ov::runtime::Tensor create_tensor(const ov::element::Type& element_type,

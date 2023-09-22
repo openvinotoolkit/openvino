@@ -145,17 +145,13 @@ protected:
                                                 std::multiplies<uint32_t>());
                 tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                        targetInputStaticShapes[0],
-                                                       range,
-                                                       -range / 2,
-                                                       1);
+                                                       ov::test::utils::InputGenerateData(-range / 2, range, 1));
             } else if (funcInput.get_node()->get_friendly_name() == "grid") {
                 int32_t range = std::max(targetInputStaticShapes[0][2], targetInputStaticShapes[0][3]) + 2;
                 int32_t resolution = range / 2;
                 tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                        targetInputStaticShapes[1],
-                                                       range,
-                                                       -1,
-                                                       resolution == 0 ? 1 : resolution);
+                                                       ov::test::utils::InputGenerateData(-1, range, resolution == 0 ? 1 : resolution));
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

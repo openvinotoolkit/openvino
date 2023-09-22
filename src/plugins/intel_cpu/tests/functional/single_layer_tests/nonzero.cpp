@@ -55,7 +55,9 @@ public:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], range, startFrom);
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                        targetInputStaticShapes[i],
+                                                                        ov::test::utils::InputGenerateData(startFrom, range));
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }

@@ -65,7 +65,7 @@ protected:
                 // Random inputs for concat
                 tensor = ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(),
                                                                  targetInputStaticShapes[i],
-                                                                 80, 0, 8);
+                                                               ov::test::utils::InputGenerateData(0, 80, 8));
             }
             inputs.insert({funcInputs[i].get_node_shared_ptr(), tensor});
           }

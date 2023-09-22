@@ -142,7 +142,9 @@ public:
                 resolution = 10;
             }
 
-            auto tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], range, 0, resolution);
+            auto tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                  targetInputStaticShapes[i],
+                                                                  ov::test::utils::InputGenerateData(0, range, resolution));
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }

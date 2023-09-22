@@ -32,13 +32,19 @@ std::shared_ptr<ov::Node> make_lstm(const std::vector<ov::Output<Node>>& in,
 
     if (WRB_range > 0) {
         w_tensor =
-            ov::test::utils::create_and_fill_tensor(in[0].get_element_type(), constants[0], 2 * WRB_range, -WRB_range);
+            ov::test::utils::create_and_fill_tensor(in[0].get_element_type(),
+                                                    constants[0],
+                                                    ov::test::utils::InputGenerateData(-WRB_range, 2 * WRB_range));
         W = std::make_shared<ov::op::v0::Constant>(w_tensor);
         r_tensor =
-            ov::test::utils::create_and_fill_tensor(in[0].get_element_type(), constants[1], 2 * WRB_range, -WRB_range);
+            ov::test::utils::create_and_fill_tensor(in[0].get_element_type(),
+                                                    constants[1],
+                                                    ov::test::utils::InputGenerateData(-WRB_range, 2 * WRB_range));
         R = std::make_shared<ov::op::v0::Constant>(r_tensor);
         b_tensor =
-            ov::test::utils::create_and_fill_tensor(in[0].get_element_type(), constants[2], 2 * WRB_range, -WRB_range);
+            ov::test::utils::create_and_fill_tensor(in[0].get_element_type(),
+                                                    constants[2],
+                                                    ov::test::utils::InputGenerateData(-WRB_range, 2 * WRB_range));
         B = std::make_shared<ov::op::v0::Constant>(b_tensor);
     }
     if (!make_sequence) {
@@ -80,11 +86,10 @@ std::shared_ptr<ov::Node> make_lstm(const std::vector<ov::Output<Node>>& in,
             }
             case ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST:
             case ov::test::utils::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST: {
-                auto seq_lengths_tensor =
-                    ov::test::utils::create_and_fill_tensor(ov::element::i64,
-                                                            constants[3],
-                                                            static_cast<float>(in[0].get_shape()[1]),
-                                                            0);
+                auto seq_lengths_tensor = ov::test::utils::create_and_fill_tensor(
+                    ov::element::i64,
+                    constants[3],
+                    ov::test::utils::InputGenerateData(0, static_cast<float>(in[0].get_shape()[1])));
                 seq_lengths = std::make_shared<ov::op::v0::Constant>(seq_lengths_tensor);
                 break;
             }

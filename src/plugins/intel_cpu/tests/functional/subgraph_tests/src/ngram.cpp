@@ -177,7 +177,7 @@ public:
         const auto& indices_et = model_inputs[1].get_element_type();
         const auto& indices_shape = targetInputStaticShapes[1];
         const size_t batch_size = data_shape[0];
-        auto indices_tensor = ov::test::utils::create_and_fill_tensor(indices_et, indices_shape, batch_size, 0);
+        auto indices_tensor = ov::test::utils::create_and_fill_tensor(indices_et, indices_shape, ov::test::utils::InputGenerateData(0, batch_size));
 
         if (indices_et == ov::element::i32) {
             auto* indices_data = indices_tensor.data<int32_t>();

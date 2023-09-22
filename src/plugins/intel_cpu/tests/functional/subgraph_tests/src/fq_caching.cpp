@@ -208,8 +208,7 @@ protected:
             ov::Tensor tensor;
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                              targetInputStaticShapes[i],
-                                                             inDataHighBounds - inDataLowBounds,
-                                                             inDataLowBounds);
+                                                             ov::test::utils::InputGenerateData(inDataLowBounds, inDataHighBounds - inDataLowBounds));
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }

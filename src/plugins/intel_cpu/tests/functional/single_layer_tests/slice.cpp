@@ -75,9 +75,7 @@ protected:
                 // Fill the slice input0 tensor with random data.
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                  targetInputStaticShapes[i],
-                                                                 10,
-                                                                 1,
-                                                                 1);
+                                                                 ov::test::utils::InputGenerateData(1, 10, 1));
             else
                 // Fill the slice input1~input4 with specified data.
                 tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValues[i - 1]};

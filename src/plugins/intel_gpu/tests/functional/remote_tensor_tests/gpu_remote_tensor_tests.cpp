@@ -1262,7 +1262,9 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image = ov::test::utils::create_and_fill_tensor(ov::element::i8, {1, height, width, feature}, 50, 0, 1);
+    ov::Tensor fake_image = ov::test::utils::create_and_fill_tensor(ov::element::i8,
+                                                                    {1, height, width, feature},
+                                                                    ov::test::utils::InputGenerateData(0, 50));
     ov::Tensor fake_image_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, height, width, feature });
 
     auto image_ptr = static_cast<uint8_t*>(fake_image.data());
@@ -1364,8 +1366,12 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1);
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                           {1, height, width, 1},
+                                                                           ov::test::utils::InputGenerateData(0, 50));
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                            {1, height / 2, width / 2, 2},
+                                                                            ov::test::utils::InputGenerateData(0, 256));
 
     auto ie = ov::Core();
 
@@ -1475,7 +1481,9 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_yuv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height * 3 / 2, width, 1}, 50);
+    ov::Tensor fake_image_data_yuv = ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                             {1, height * 3 / 2, width, 1},
+                                                                             ov::test::utils::InputGenerateData(0, 50));
 
     auto ie = ov::Core();
 
@@ -1565,8 +1573,12 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1);
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                           {1, height, width, 1},
+                                                                           ov::test::utils::InputGenerateData(0, 50));
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                            {1, height / 2, width / 2, 2},
+                                                                            ov::test::utils::InputGenerateData(0, 256));
 
     auto ie = ov::Core();
 
@@ -1674,8 +1686,12 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1);
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                           {1, height, width, 1},
+                                                                           ov::test::utils::InputGenerateData(0, 50));
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                            {1, height / 2, width / 2, 2},
+                                                                            ov::test::utils::InputGenerateData(0, 256));
 
     auto ie = ov::Core();
 
@@ -1777,7 +1793,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
     std::vector<ov::Tensor> fake_image_data_yuv;
     for (size_t i = 0; i < num_batch; i++) {
         fake_image_data_yuv.push_back(ov::test::utils::create_and_fill_tensor(
-            ov::element::u8, {1, height * 3 / 2, width, 1}, 50, 0, 1, static_cast<int32_t>(i)));
+            ov::element::u8, {1, height * 3 / 2, width, 1}, ov::test::utils::InputGenerateData(0, 50, 1, static_cast<int32_t>(i))));
     }
 
     auto ie = ov::Core();
@@ -1883,9 +1899,11 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_y, fake_image_data_uv;
     for (size_t i = 0; i < num_batch; i++) {
-        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1, static_cast<int32_t>(i)));
+        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                            {1, height, width, 1},
+                                                                            ov::test::utils::InputGenerateData(0, 50, 1, static_cast<int32_t>(i))));
         fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(
-            ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1, static_cast<int32_t>(i)));
+            ov::element::u8, {1, height / 2, width / 2, 2}, ov::test::utils::InputGenerateData(0, 256, 1, static_cast<int32_t>(i))));
     }
 
     auto ie = ov::Core();
@@ -2011,7 +2029,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
     std::vector<ov::Tensor> fake_image;
     std::vector<ov::Tensor> fake_image_regular;
     for (size_t i = 0; i < num_batch; i++) {
-        auto tensor_image = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, feature}, 50, 0, 1, static_cast<int32_t>(i));
+        auto tensor_image = ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                    {1, height, width, feature},
+                                                                    ov::test::utils::InputGenerateData(0, 50, 1, static_cast<int32_t>(i)));
         auto tensor_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width });
         auto image_ptr = static_cast<uint8_t*>(tensor_image.data());
         auto image_ptr_regular = static_cast<float*>(tensor_regular.data());
@@ -2127,9 +2147,11 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_y, fake_image_data_uv;
     for (size_t i = 0; i < num_batch * 2; ++i) {
-        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1, static_cast<int32_t>(i)));
+        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8,
+                                                                            {1, height, width, 1},
+                                                                            ov::test::utils::InputGenerateData(0, 50, 1, static_cast<int32_t>(i))));
         fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(
-            ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1, static_cast<int32_t>(i)));
+            ov::element::u8, {1, height / 2, width / 2, 2}, ov::test::utils::InputGenerateData(0, 256, 1, static_cast<int32_t>(i))));
     }
 
     auto ie = ov::Core();

@@ -133,19 +133,13 @@ protected:
             if (funcInput.get_node()->get_friendly_name() == "data") {
                 const auto dataTypeSize = funcInput.get_element_type().size();
                 const uint32_t range = dataTypeSize == 4 ? 0x7FFFFFFF : dataTypeSize == 2 ? 0xFFFF : 0xFF;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[0],
-                                                                 range,
-                                                                 0,
-                                                                 1);
+                tensor = ov::test::utils::create_and_fill_tensor(
+                    funcInput.get_element_type(), targetInputStaticShapes[0], ov::test::utils::InputGenerateData(0, range, 1));
             } else if (funcInput.get_node()->get_friendly_name() == "indices") {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[1],
-                                                                 axisDim * 2,
-                                                                 -axisDim,
-                                                                 1);
+                tensor = ov::test::utils::create_and_fill_tensor(
+                    funcInput.get_element_type(), targetInputStaticShapes[1], ov::test::utils::InputGenerateData(-axisDim, axisDim * 2, 1));
             } else if (funcInput.get_node()->get_friendly_name() == "axis") {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), {1}, 1, axis, 1);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), {1}, ov::test::utils::InputGenerateData(axis, 1, 1));
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

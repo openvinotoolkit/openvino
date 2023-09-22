@@ -78,9 +78,7 @@ protected:
             if (i == 0) {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                  targetInputStaticShapes[i],
-                                                                 10,
-                                                                 1,
-                                                                 1);
+                                                                 ov::test::utils::InputGenerateData(1, 10, 1));
             } else {
                 tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValues[i - 1]};
             }

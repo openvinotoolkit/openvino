@@ -85,7 +85,7 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
                 break;
         }
     }
-    return ov::test::utils::create_and_fill_tensor(type, shape, params.range, params.start_from, params.resolution);
+    return ov::test::utils::create_and_fill_tensor(type, shape, ov::test::utils::InputGenerateData(params.start_from, params.range, params.resolution));
 }
 
 void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

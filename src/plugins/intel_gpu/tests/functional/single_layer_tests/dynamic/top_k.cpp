@@ -136,7 +136,7 @@ protected:
             const size_t startFrom = 1;
             const size_t range = targetInputStaticShapes[0][axis];
             const size_t seed = inferRequestNum++;
-            const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
+            const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, ov::test::utils::InputGenerateData(startFrom, range, 1, seed));
 
             inputs.insert({funcInputs[1].get_node_shared_ptr(), kTensor});
         }
