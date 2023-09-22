@@ -19,12 +19,14 @@ namespace lowered {
 
 class LinearIR;
 using ExpressionPtr = std::shared_ptr<Expression>;
+using ExressionMap = std::unordered_map<Expression*, ExpressionPtr>;
 class Expression : public std::enable_shared_from_this<Expression> {
     friend class LinearIR;
     friend class ExpressionPort;
 
 public:
     Expression() = default;
+    Expression(const Expression& other);
     virtual ~Expression() = default;
 
     std::shared_ptr<Node> get_node() const;
@@ -55,11 +57,17 @@ public:
 
     std::vector<size_t> get_loop_ids() const;
     void set_loop_ids(const std::vector<size_t>& loops);
+    virtual ExpressionPtr clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
+                                                const std::shared_ptr<Node>& new_node) const;
+    ExpressionPtr clone_with_new_inputs(const ExressionMap& expr_map, const std::shared_ptr<Node>& new_node) const;
 
 protected:
     // Note: The constructor initialization is private since an expression can be created only by Linear IR.
     //       The method must be used only by Linear IR builder of expressions!
     Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
+    static void update_node_and_connectors(const ExpressionPtr& expr,
+                                           const std::vector<PortConnectorPtr>& new_inputs,
+                                           const std::shared_ptr<Node>& new_node);
 
     void replace_input(size_t port, PortConnectorPtr to);
 
@@ -80,7 +88,9 @@ class IOExpression : public Expression {
 
 public:
     enum class io_type {INPUT, OUTPUT, UNDEFINED};
-
+    IOExpression(const IOExpression& other) = default;
+    ExpressionPtr clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
+                                        const std::shared_ptr<Node>& new_node) const override;
     int64_t get_index() const  { return m_index; }
     io_type get_type() const { return m_type; }
     // Result needs shapeInfer to copy shape from Parent's output to this expr input

@@ -14,6 +14,10 @@ namespace lowered {
 ExpressionPort::ExpressionPort(const std::shared_ptr<Expression>& expr, Type type, size_t port)
         : m_expr(expr), m_type(type), m_port_index(port) {}
 
+std::shared_ptr<ExpressionPort> ExpressionPort::clone_for_new_expr(const std::shared_ptr<Expression>& new_expr) const {
+    return std::make_shared<ExpressionPort>(new_expr, m_type, m_port_index);
+}
+
 std::shared_ptr<Expression> ExpressionPort::get_expr() const {
     const auto expr_ptr = m_expr.lock();
     OPENVINO_ASSERT(expr_ptr != nullptr, "ExpressionPort has invalid expression pointer");

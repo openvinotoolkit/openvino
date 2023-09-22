@@ -15,8 +15,17 @@
 namespace ov {
 namespace snippets {
 namespace lowered {
+using LoopManager = LinearIR::LoopManager;
+using LoopPort = LoopManager::LoopPort;
+using LoopInfo = LoopManager::LoopInfo;
 
-LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
+std::shared_ptr<LoopPort> LoopPort::clone_for_new_expr(const ExpressionPtr& new_expr) const {
+    auto new_loop_port = std::make_shared<LoopPort>(*this);
+    new_loop_port->expr_port = expr_port->clone_for_new_expr(new_expr);
+    return new_loop_port;
+}
+
+LoopInfo::LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
                                           const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits)
     : work_amount(work_amount), increment(increment), dim_idx(dim_idx), outer_splited_loop(false) {
     entry_points.reserve(entries.size());
@@ -25,6 +34,35 @@ LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount, size_t increment, 
         entry_points.emplace_back(port);
     for (const auto& port : exits)
         exit_points.emplace_back(port);
+}
+
+std::shared_ptr<LoopInfo> LoopInfo::clone_for_new_expr(const ExressionMap& expr_map) const {
+    auto clone_loop_ports = [&expr_map](const std::vector<LoopPort>& port_points) {
+        std::vector<LoopPort> cloned_port_points;
+        cloned_port_points.reserve(port_points.size());
+        for (const auto& p : port_points) {
+            const auto& expr = p.expr_port->get_expr().get();
+            OPENVINO_ASSERT(expr_map.count(expr), "Can't clone LoopInfo: old expression is not in the map");
+            const auto& new_expr = expr_map.at(expr);
+            cloned_port_points.emplace_back(*p.clone_for_new_expr(new_expr));
+        }
+        return cloned_port_points;
+    };
+    const auto& new_entry_points = clone_loop_ports(entry_points);
+    const auto& new_exit_points = clone_loop_ports(exit_points);
+
+    auto new_loop_info = std::make_shared<LoopInfo>(work_amount, increment, dim_idx, new_entry_points, new_exit_points);
+    new_loop_info->outer_splited_loop = outer_splited_loop;
+
+    return new_loop_info;
+}
+
+std::shared_ptr<LoopManager> LoopManager::clone_for_new_expr(const ExressionMap& expr_map) const {
+    auto new_loop_manager = std::make_shared<LoopManager>();
+    for (const auto& id_info : m_map)
+        new_loop_manager->m_map.insert({id_info.first, id_info.second->clone_for_new_expr(expr_map)});
+    new_loop_manager->next_id = next_id;
+    return new_loop_manager;
 }
 
 bool operator==(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
