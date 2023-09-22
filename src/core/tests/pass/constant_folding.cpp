@@ -3847,7 +3847,7 @@ public:
         const ov::op::AutoBroadcastSpec& auto_broadcast = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY))
         : ov::op::v1::Add(arg0, arg1, auto_broadcast) {
         ON_CALL(*this, evaluate).WillByDefault([this](ov::TensorVector& outputs, const ov::TensorVector& inputs) {
-            return ov::Node::evaluate(outputs, inputs);
+            return ov::op::v1::Add::evaluate(outputs, inputs);
         });
     }
     MOCK_METHOD(bool,
