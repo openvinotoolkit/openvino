@@ -50,7 +50,7 @@ Example 2 - 2D tensor, log probabilities
 * Let ``probs`` = ``[[-1, 1, 2], [50, 1, 21]]``, ``num_samples`` = 10, ``log_probs`` = true, ``with_replacement`` = true
 * Exponentiated ``probs`` = ``[[0.36, 2.71, 7.38], [5184705528587072464087.45, 2.71, 1318815734.48]]``
 * CDF of ``probs``, per batch = ``[[0.36, 3.07, 10.45], [5184705528587072464087.45, 5184705528587072464090.16, 5184705528588391279824.64]]``
-* Normalized CDF = ``[[0.03, 0.29, 1], [1, 0, 0]]``
+* Normalized CDF = ``[[0.03, 0.29, 1], [1.0, 1.0, 1.0]]``
 * Randomly generated floats = ``[[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1], [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]``
 * Assigned classes = ``[[1, 1, 2, 2, 2, 2, 2, 2, 2, 2], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]``
 
@@ -60,12 +60,13 @@ Example 3 - 1D tensor, without replacement
 * CDF of ``probs`` = ``[0.1, 0.6, 1]``
 * Randomly generated floats = ``[0.3, 0.2]``
 * In a loop:
+
   * For a value of 0.3, a class with idx ``1`` is selected
   * Therefore, in CDF, for every class starting with idx ``1`` subtract the probability of class at idx ``1`` = ``probs[1]`` = 0.5
   * CDF = ``[0.1, 0.6 - 0.5, 1.0 - 0.5]`` = ``[0.1, 0.1, 0.5]``
   * Normalize CDF by dividing by last value: CDF = ``[0.2, 0.2, 1.0]``
-  * Take the next randomly generated float, here 0.2, and repeat until all random samples have assigned classes.
-    * Notice that for ``sampled values`` <= 0.2, only the class wih idx ``0`` can be selected, since the search stops at the index with the first value satisfying ``sample value`` <= ``CDF probability``
+  * Take the next randomly generated float, here 0.2, and repeat until all random samples have assigned classes. Notice that for ``sampled values`` <= 0.2, only the class wih idx ``0`` can be selected, since the search stops at the index with the first value satisfying ``sample value`` <= ``CDF probability``
+
 * Assigned classes = ``[1, 2]``
 
 
@@ -91,8 +92,10 @@ Example 3 - 1D tensor, without replacement
 
   * **Description**: allows to control whether *inputs* should be treated as probabilities or unnormalized log probabilities.
   * **Range of values**: `true`, `false`
+
       * ``true`` - set values in *inputs* are unnormalized log probabilities that can be any real number.
       * ``false`` - probabilities in *inputs* are expected to be non-negative, finite and have a non-zero-sum.
+
   * **Type**: `bool`
   * **Required**: *Yes*
 
