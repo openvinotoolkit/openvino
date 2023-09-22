@@ -25,7 +25,7 @@ struct RotatedBox {
 };
 struct Point2D {
     float x, y;
-    Point2D(const float& px = 0, const float& py = 0) : x(px), y(py) {}
+    Point2D(const float px = 0.f, const float py = 0.f) : x(px), y(py) {}
     Point2D operator+(const Point2D& p) const {
         return Point2D(x + p.x, y + p.y);
     }
@@ -54,8 +54,8 @@ static inline float cross_2d(const Point2D& A, const Point2D& B) {
 static inline void get_rotated_vertices(const RotatedBox& box, Point2D (&pts)[4]) {
     // M_PI / 180. == 0.01745329251
     auto theta = box.a;  // angle already in radians
-    auto cosTheta2 = static_cast<float>(std::cos(theta)) * 0.5f;
-    auto sinTheta2 = static_cast<float>(std::sin(theta)) * 0.5f;
+    auto cosTheta2 = std::cos(theta) * 0.5f;
+    auto sinTheta2 = std::sin(theta) * 0.5f;
 
     // y: top --> down; x: left --> right
     // Left-Down
@@ -94,7 +94,7 @@ static inline int get_intersection_points(const Point2D (&pts1)[4],
             float det = cross_2d(vec2[j], vec1[i]);
 
             // This takes care of parallel lines
-            if (std::abs(det) <= 1e-14) {
+            if (std::abs(det) <= 1e-14f) {
                 continue;
             }
 
@@ -206,7 +206,7 @@ static inline int convex_hull_graham(const Point2D (&p)[24],
     // in the stack
     int k;  // index of the non-overlapped second point
     for (k = 1; k < num_in; k++) {
-        if (dist[k] > 1e-8) {
+        if (dist[k] > 1e-8f) {
             break;
         }
     }
@@ -250,7 +250,7 @@ static inline float polygon_area(const Point2D (&q)[24], const int& m) {
         return 0;
     }
 
-    float area = 0;
+    float area = 0.f;
     for (int i = 1; i < m - 1; i++) {
         area += std::abs(cross_2d(q[i] - q[0], q[i + 1] - q[0]));
     }
@@ -272,7 +272,7 @@ static inline float rotated_boxes_intersection(const RotatedBox& box1, const Rot
     int num = get_intersection_points(pts1, pts2, intersectPts);
 
     if (num <= 2) {
-        return 0.0;
+        return 0.f;
     }
 
     // Convex Hull to order the intersection points in clockwise order and find
