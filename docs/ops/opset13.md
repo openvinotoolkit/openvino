@@ -119,10 +119,8 @@ Table of Contents
 * :doc:`Mod <openvino_docs_ops_arithmetic_Mod_1>`
 * :doc:`MVN <openvino_docs_ops_normalization_MVN_6>`
 * :doc:`MulticlassNMS <openvino_docs_ops_sort_MulticlassNonMaxSuppression_9>`
-* :doc:`Multiply <openvino_docs_ops_arithmetic_Multiply_1>`
-* :doc:`Negative <openvino_docs_ops_arithmetic_Negative_1>`
-* :doc:`Multiply <openvino_docs_ops_arithmetic_Multiply_1>`
 * :doc:`Multinomial <openvino_docs_ops_generation_Multinomial_13>`
+* :doc:`Multiply <openvino_docs_ops_arithmetic_Multiply_1>`
 * :doc:`Negative <openvino_docs_ops_arithmetic_Negative_1>`
 * :doc:`NMSRotated <openvino_docs_ops_sort_NMSRotated_13>`
 * :doc:`NonMaxSuppression <openvino_docs_ops_sort_NonMaxSuppression_9>`
