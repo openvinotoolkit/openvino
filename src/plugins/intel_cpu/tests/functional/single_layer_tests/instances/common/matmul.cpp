@@ -24,87 +24,10 @@ std::vector<std::map<std::string, std::string>> additionalConfig {
     {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
 };
 
-std::vector<CPUSpecificParams> filterSpecificParams_Brgconv1x1() {
-    std::vector<CPUSpecificParams> specificParams;
-    if (with_cpu_x86_avx512_core()) {
-        specificParams.push_back(CPUSpecificParams{{}, {}, {/* brgconv_avx512_1x1 is not a part of fc impl list */}, "brgconv_avx512_1x1"});
-    }
 
-    return specificParams;
-}
 
 /* ============= FullyConnected ============= */
 namespace fullyConnected {
-
-
-std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
-// The following three patterns are covered by MLAS test
-#ifndef OV_CPU_WITH_MLAS
-        emptyFusingSpec,
-        fusingBias,
-        fusingMultiplyPerChannel,
-#endif
-        fusingFakeQuantizePerTensorRelu,
-};
-
-const std::vector<ShapeRelatedParams> IS3D_nightly = {
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {true, false}},
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {true, true}},
-
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {false, false}},
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {true, true}},
-
-    {
-        {
-            {{-1, -1, -1}, {{1, 32, 120}, {1, 12, 120}}},
-            {{120, 3}, {{120, 3}, {120, 3}}}
-        },
-        {false, false}
-    },
-    {
-        {
-            {{-1, -1, 50}, {{1, 2, 50}, {1, 10, 50}, {1, 2, 50}, {2, 2, 50}}},
-            {{50, 7}, {{50, 7}, {50, 7}, {50, 7}, {50, 7}}}
-        },
-        {true, false}
-    },
-    {
-        {
-            {{-1, -1, 32}, {{1, 5, 32}, {1, 5, 32}}},
-            {{32, 3}, {{32, 3}, {32, 3}}}
-        },
-        {false, true}
-    },
-};
-
-
-
-const std::vector<ShapeRelatedParams> IS2D_Brgemm_smoke = {
-    // needed by 'IS2D_Brgconv1x1_smoke'
-    {static_shapes_to_test_representation({{1, 120}, {120, 120}}), {true, false}},
-    {static_shapes_to_test_representation({{1, 128}, {128, 166}}), {true, false}},
-
-    {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, false}},
-    {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, true}},
-
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, false}},
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
-
-    {
-        {
-            {{-1, -1}, {{12, 16}, {25, 16}, {12, 16}, {25, 16}}},
-            {{16, 35}, {{16, 35}, {16, 35}, {16, 35}, {16, 35}}}
-        },
-        {false, false}
-    },
-    {
-        {
-            {{{0, 50}, {0, 50}}, {{17, 48}, {15, 48}}},
-            {{48, 15}, {{48, 15}, {48, 15}}}
-        },
-        {true, true}
-    },
-};
 
 const std::vector<ShapeRelatedParams> IS2D_Brgconv1x1_smoke = {
     {static_shapes_to_test_representation({{49, 120}, {120, 120}}), {true, false}},
@@ -136,20 +59,7 @@ const std::vector<ShapeRelatedParams> IS2D_Brgconv1x1_smoke = {
     },
 };
 
-const auto fullyConnectedParams2D_Brgconv1x1_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgconv1x1_smoke),
-                                                       ::testing::Values(ElementType::f32),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                       ::testing::Values(emptyAdditionalConfig()));
 
-const auto testParams2D_Brgconv1x1_smoke = ::testing::Combine(fullyConnectedParams2D_Brgconv1x1_smoke,
-                                             ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
-                                             ::testing::ValuesIn(filterSpecificParams_Brgconv1x1()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgconv1x1, MatMulLayerCPUTest, testParams2D_Brgconv1x1_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 
 const std::vector<ShapeRelatedParams> IS3D_Brgconv1x1_smoke = {
@@ -189,21 +99,6 @@ const std::vector<ShapeRelatedParams> IS3D_Brgconv1x1_smoke = {
         {true, true}
     },
 };
-
-const auto fullyConnectedParams3D_Brgconv1x1_smoke = ::testing::Combine(::testing::ValuesIn(IS3D_Brgconv1x1_smoke),
-                                                       ::testing::Values(ElementType::f32),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                       ::testing::Values(emptyAdditionalConfig()));
-
-const auto testParams3D_Brgconv1x1_smoke = ::testing::Combine(fullyConnectedParams3D_Brgconv1x1_smoke,
-                                             ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
-                                             ::testing::ValuesIn(filterSpecificParams_Brgconv1x1()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_Brgconv1x1, MatMulLayerCPUTest, testParams3D_Brgconv1x1_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 } // namespace fullyConnected
 
@@ -591,57 +486,6 @@ const auto testParamsDynamicFusing = ::testing::Combine(matMulParamsDynamicFusin
                                                   ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic_Fusing, MatMulLayerCPUTest, testParamsDynamicFusing, MatMulLayerCPUTest::getTestCaseName);
-
-const std::vector<ShapeRelatedParams> IS_brgemm_smoke = {
-        {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
-        {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, false}},
-
-        {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, true}},
-        {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, true}},
-
-        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
-        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
-
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
-};
-
-const std::vector<ShapeRelatedParams> IS_brgemm_nightly = {
-        {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, true}},
-        {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, true}},
-
-        {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, false}},
-        {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, false}},
-
-        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, true}},
-        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, true}},
-
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, false}},
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, false}},
-};
-
-std::vector<fusingSpecificParams> matmulBrgemmAmxFusingParams {
-        emptyFusingSpec,
-        fusingPReluPerTensor,
-        fusingAddPerTensor,
-        fusingBias,
-};
-
-const std::vector<ShapeRelatedParams> IS_brgemm_Amx_smoke = {
-        {static_shapes_to_test_representation({{1, 2, 32, 64}, {64, 5}}), {false, false}},
-        {static_shapes_to_test_representation({{1, 2, 32, 64}, {64, 5}}), {true, false}},
-
-        {static_shapes_to_test_representation({{7, 32, 128}, {3, 7, 128, 5}}), {false, true}},
-        {static_shapes_to_test_representation({{7, 32, 128}, {3, 7, 128, 5}}), {true, true}},
-
-        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
-        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
-
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
-};
-
-
 
 } // namespace matmul
 } // namespace MatMul
