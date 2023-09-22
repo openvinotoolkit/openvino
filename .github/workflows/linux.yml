@@ -538,6 +538,7 @@ jobs:
           python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
 
       - name: nGraph and IE Python Bindings Tests
+        if: always()
         run: |
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph  ${{ env.PYTHON_STATIC_ARGS }} \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
@@ -545,6 +546,7 @@ jobs:
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
+        if: always()
         run: |
           # For python imports to import pybind_mock_frontend
           source ${{ env.INSTALL_DIR }}/setupvars.sh
@@ -558,6 +560,7 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
 
       - name: Conversion UT
+        if: always()
         run: |
           # For python imports to import pybind_mock_frontend
           source ${{ env.INSTALL_DIR }}/setupvars.sh
@@ -565,13 +568,80 @@ jobs:
         env:
           PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Python API snippets
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-python
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            if-no-files-found: 'error'
+
+  Python_Unit_Tests_Snippets:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-20.04
+    env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+
+    steps:
+      - name: Create Directories
         run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          popd
+
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --force-reinstall -r  ${{ env.INSTALL_TEST_DIR }}/constraints.txt
+
+      - name: Install Python wheels
+        run: |
+          python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
+
+      - name: Clone API snippets
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: openvino/docs/snippets
+          path: 'openvino'
+          submodules: 'false'
+
+      - name: Python API snippets
+        if: always()
+        run: |
           python3 ${{ github.workspace }}/openvino/docs/snippets/main.py
         env:
-          PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}:${{ github.workspace }}/openvino/docs
-          LD_LIBRARY_PATH: ${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
+          PYTHONPATH: ${{ github.workspace }}/openvino/docs
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -593,7 +663,6 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
-    continue-on-error: true
 
     steps:
       - name: Create Directories
@@ -635,6 +704,7 @@ jobs:
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
       - name: PyTorch Layer Tests
+        if: always()
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
@@ -643,12 +713,14 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python Frontend tests
+        if: always()
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
         env:
           PYTHONPATH: ${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
 
       - name: TensorFlow 1 Layer Tests - TF FE
+        if: always()
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
@@ -657,6 +729,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - TF FE
+        if: always()
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
@@ -665,6 +738,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
+        if: always()
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
         env:
@@ -672,12 +746,14 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
+        if: always()
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
         env:
           PYTHONPATH: ${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
+        if: always()
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
               --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
