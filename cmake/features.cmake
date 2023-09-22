@@ -7,7 +7,14 @@
 #
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
-ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
+if(WIN32 AND AARCH64 AND OV_COMPILER_IS_CLANG)
+    set(ENABLE_INTEL_CPU_DEFAULT OFF)
+else()
+    set(ENABLE_INTEL_CPU_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ${ENABLE_INTEL_CPU_DEFAULT}
+    "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
 
 ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
