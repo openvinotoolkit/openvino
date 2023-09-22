@@ -6,10 +6,6 @@ if(NOT ENABLE_INTEL_CPU)
     return()
 endif()
 
-if(WIN32 AND AARCH64 AND OV_COMPILER_IS_CLANG)
-    message(FATAL_ERROR "For cpu plugin, Clang compiler is not supported for Windows on ARM at the moment, please use MSVC as compiler")
-endif()
-
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
