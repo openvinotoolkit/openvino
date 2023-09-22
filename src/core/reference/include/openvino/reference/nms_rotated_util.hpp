@@ -53,8 +53,8 @@ static inline float cross_2d(const Point& A, const Point& B) {
 static inline void get_rotated_vertices(const RotatedBox& box, Point (&pts)[4]) {
     // M_PI / 180. == 0.01745329251
     auto theta = box.a;  // angle already in radians
-    auto cosTheta2 = static_cast<float>(cos(theta)) * 0.5f;
-    auto sinTheta2 = static_cast<float>(sin(theta)) * 0.5f;
+    auto cosTheta2 = static_cast<float>(std::cos(theta)) * 0.5f;
+    auto sinTheta2 = static_cast<float>(std::sin(theta)) * 0.5f;
 
     // y: top --> down; x: left --> right
     pts[0].x = box.x_ctr - sinTheta2 * box.h - cosTheta2 * box.w;
