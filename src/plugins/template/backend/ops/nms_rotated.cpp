@@ -33,19 +33,19 @@ constexpr size_t boxes_port = 0;
 constexpr size_t scores_port = 1;
 
 PartialShape infer_selected_indices_shape(const TensorVector& inputs, size_t max_output_boxes_per_class) {
-    const auto boxes_ps = inputs[boxes_port].get_shape();
-    const auto scores_ps = inputs[scores_port].get_shape();
+    const auto boxes_shape = inputs[boxes_port].get_shape();
+    const auto scores_shape = inputs[scores_port].get_shape();
 
     // NMSRotated produces triplets
     // that have the following format: [batch_index, class_index, box_index]
     PartialShape result = {Dimension::dynamic(), 3};
 
-    if (boxes_ps.size() > 0 && scores_ps.size() > 0) {
-        const auto num_boxes_boxes = boxes_ps[1];
+    if (boxes_shape.size() > 0 && scores_shape.size() > 0) {
+        const auto num_boxes_boxes = boxes_shape[1];
         const auto num_boxes = num_boxes_boxes;
-        const auto num_classes = scores_ps[1];
+        const auto num_classes = scores_shape[1];
 
-        result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0];
+        result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_shape[0];
     }
     return result;
 }
