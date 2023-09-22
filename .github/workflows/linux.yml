@@ -621,7 +621,7 @@ jobs:
       - name: Install python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install --force-reinstall -r  ${{ env.INSTALL_TEST_DIR }}/constraints.txt
+          python3 -m pip install --force-reinstall -r  ${{ env.INSTALL_TEST_DIR }}/bindings/python/constraints.txt
 
       - name: Install Python wheels
         run: |
