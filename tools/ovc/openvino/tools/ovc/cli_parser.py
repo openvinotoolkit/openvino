@@ -8,6 +8,7 @@ import logging as log
 import os
 import pathlib
 import re
+import sys
 from collections import OrderedDict, namedtuple
 from distutils.util import strtobool
 from operator import xor
@@ -25,9 +26,18 @@ from openvino.tools.ovc.utils import get_mo_root_dir
 # Helper class for storing input cut information
 _InputCutInfo = namedtuple("InputCutInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
 
+
 def is_shape_type(value):
     if isinstance(value, PartialShape):
         return True
+    if 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        if isinstance(value, (tf.TensorShape, tf.Tensor)):
+            return True
+    if 'paddle' in sys.modules:
+        import paddle
+        if isinstance(value, paddle.Tensor):
+            return True
     if isinstance(value, Shape):
         return True
     if isinstance(value, list) or isinstance(value, tuple):
@@ -36,6 +46,80 @@ def is_shape_type(value):
                 return False
         return True
     return False
+
+
+def is_type(val):
+    if isinstance(val, (type, Type)):
+        return True
+    if 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        if isinstance(val, tf.dtypes.DType):
+            return True
+    if 'torch' in sys.modules:
+        import torch
+        if isinstance(val, torch.dtype):
+            return True
+    if 'paddle' in sys.modules:
+        import paddle
+        if isinstance(val, paddle.dtype):
+            return True
+    return False
+
+
+def to_ov_type(val):
+    if isinstance(val, Type):
+        return val
+    if isinstance(val, type):
+        return Type(val)
+    if 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        if isinstance(val, tf.dtypes.DType):
+            return Type(val.as_numpy_dtype())
+    if 'torch' in sys.modules:
+        import torch
+        import openvino as ov
+
+        if isinstance(val, torch.dtype):
+            torch_to_ov_type = {
+                torch.float32: ov.Type.f32,
+                torch.float16: ov.Type.f16,
+                torch.float64: ov.Type.f64,
+                torch.bfloat16: ov.Type.bf16,
+                torch.uint8: ov.Type.u8,
+                torch.int8: ov.Type.i8,
+                torch.int16: ov.Type.i16,
+                torch.int32: ov.Type.i32,
+                torch.int64: ov.Type.i64,
+                torch.bool: ov.Type.boolean,
+            }
+            if val not in torch_to_ov_type:
+                raise Exception("The provided data time is not supported {}.".format(val))
+
+            return torch_to_ov_type[val]
+
+    if 'paddle' in sys.modules:
+        import paddle
+
+        if isinstance(val, paddle.dtype):
+            paddle_to_ov_type = {
+                paddle.float32: ov.Type.f32,
+                paddle.float16: ov.Type.f16,
+                paddle.float64: ov.Type.f64,
+                paddle.bfloat16: ov.Type.bf16,
+                paddle.uint8: ov.Type.u8,
+                paddle.int8: ov.Type.i8,
+                paddle.int16: ov.Type.i16,
+                paddle.int32: ov.Type.i32,
+                paddle.int64: ov.Type.i64,
+                paddle.bool: ov.Type.boolean,
+            }
+
+            if val not in paddle_to_ov_type:
+                raise Exception("The provided data time is not supported {}.".format(val))
+
+            return paddle_to_ov_type[val]
+    raise Exception("Unexpected type object. Expected ov.Type, np.dtype, tf.dtypes.DType. Got {}".format(type(val)))
+
 
 def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
     """
@@ -52,7 +136,7 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
     if isinstance(input, (tuple, list)) or is_shape_type(input):
         # If input represents list with shape, wrap it to list. Single PartialShape also goes to this condition.
         # Check of all dimensions will be in is_shape_type(val) method below
-        if len(input) > 0 and isinstance(input[0], (int, Dimension)) or isinstance(input, PartialShape):
+        if is_shape_type(input):
             input = [input]
 
         # Check values of tuple or list and collect to InputCutInfo
@@ -64,14 +148,14 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                 if name is not None:
                     raise Exception("More than one input name provided: {}".format(input))
                 name = val
-            elif isinstance(val, (type, Type)):
+            elif is_type(val):
                 if inp_type is not None:
                     raise Exception("More than one input type provided: {}".format(input))
-                inp_type = val
+                inp_type = to_ov_type(val)
             elif is_shape_type(val):
                 if shape is not None:
                     raise Exception("More than one input shape provided: {}".format(input))
-                shape = PartialShape(val)
+                shape = to_partial_shape(val)
             else:
                 raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
                                 "input type or input shape. Got unknown object: {}".format(val))
@@ -81,13 +165,36 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                              inp_type,
                              None)
     # Case when only type is set
-    if isinstance(input, (type, Type)):
-        return _InputCutInfo(None, None, input, None) # pylint: disable=no-member
+    if is_type(input):
+        return _InputCutInfo(None, None, to_ov_type(input), None) # pylint: disable=no-member
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
 
     raise Exception("Unexpected object provided for input. Expected tuple, Shape, PartialShape, Type or str. Got {}".format(type(input)))
+
+
+def tensor_to_int_list(tensor):
+    assert hasattr(tensor, 'numpy'), "Could not get value of provided tensor: {}".format(shape)
+    tensor_numpy = tensor.numpy()
+    assert tensor_numpy.dtype == np.int32, "Unexpected type of provided tensor. Expected int32, got: {}".format(
+        tensor_numpy.dtype)
+    return tensor_numpy.tolist()
+
+
+def to_partial_shape(shape):
+    if 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        if isinstance(shape, tf.Tensor):
+            return PartialShape(tensor_to_int_list(shape))
+        if isinstance(shape, tf.TensorShape):
+            return PartialShape(list(shape))
+    if 'paddle' in sys.modules:
+        import paddle
+        if isinstance(shape, paddle.Tensor):
+            return PartialShape(tensor_to_int_list(shape))
+    return PartialShape(shape)
+
 
 def is_single_input(input: [tuple, list]):
     """
@@ -103,14 +210,14 @@ def is_single_input(input: [tuple, list]):
             if name is not None:
                 return False
             name = val
-        elif isinstance(val, (type, Type)):
+        elif is_type(val):
             if inp_type is not None:
                 return False
-            inp_type = val
+            inp_type = to_ov_type(val)
         elif is_shape_type(val):
             if shape is not None:
                 return False
-            shape = PartialShape(val)
+            shape = to_partial_shape(val)
         else:
             return False
     return True
