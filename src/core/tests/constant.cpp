@@ -1779,3 +1779,43 @@ TEST(constant, lazy_bitwise_identical) {
     // '10' times is guaranteed to be faster here (typical value is ~200'000)
     EXPECT_GT(bitwise_check_count_only, bitwise_check_count * 10);
 }
+
+TEST(constant, cast_vector) {
+    std::vector<element::Type_t> types = {element::boolean,
+                                          element::bf16,
+                                          element::f16,
+                                          element::f32,
+                                          element::f64,
+                                          element::i4,
+                                          element::i8,
+                                          element::i16,
+                                          element::i32,
+                                          element::i64,
+                                          element::u1,
+                                          element::u4,
+                                          element::u8,
+                                          element::u16,
+                                          element::u32,
+                                          element::u64};
+    std::vector<int64_t> data = {0, 1, 0, 0, 1, 1, 0, 1};
+    std::vector<int64_t> expected_partial_data = {0, 1, 0, 0, 1, 1};
+
+    for (const auto& type : types) {
+        const auto& constant = op::v0::Constant::create(type, Shape{data.size()}, data);
+
+        const auto& default_casted = constant->cast_vector<int64_t>();
+        EXPECT_EQ(default_casted, data) << "Constant::cast_vector failed default casting for type " << type;
+
+        int64_t num_elements_for_partial_casting = static_cast<int64_t>(expected_partial_data.size());
+        const auto& partially_casted = constant->cast_vector<int64_t>(num_elements_for_partial_casting);
+        EXPECT_EQ(partially_casted, expected_partial_data)
+            << "Constant::cast_vector failed partial casting for type " << type;
+
+        int64_t num_elements_for_over_casting = static_cast<int64_t>(data.size()) + 10;
+        const auto& over_casted = constant->cast_vector<int64_t>(num_elements_for_over_casting);
+        EXPECT_EQ(over_casted, data) << "Constant::cast_vector failed for partial casting for type " << type;
+
+        EXPECT_TRUE(constant->cast_vector<int64_t>(0).empty())
+            << "Constant::cast_vector failed empty casting for type " << type;
+    }
+}
