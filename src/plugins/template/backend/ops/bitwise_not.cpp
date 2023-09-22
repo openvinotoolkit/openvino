@@ -5,20 +5,16 @@
 #include "openvino/op/bitwise_not.hpp"
 
 #include "evaluate_node.hpp"
-#include "openvino/reference/not.hpp"
+#include "openvino/reference/bitwise_not.hpp"
 
 using namespace ov;
 
-template <element::Type_t T>
+template <element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v13::BitwiseNot>& node,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    using ET = typename ov::element_type_traits<T>::value_type;
-    if (T == element::Type_t::boolean) {
-        ov::reference::logical_not(inputs[0].data<ET>(), outputs[0].data<ET>(), shape_size(inputs[0].get_shape()));
-    } else {
-        ov::reference::bitwise_not(inputs[0].data<ET>(), outputs[0].data<ET>(), shape_size(inputs[0].get_shape()));
-    }
+    using T = typename ov::element_type_traits<ET>::value_type;
+    ov::reference::bitwise_not(inputs[0].data<T>(), outputs[0].data<T>(), shape_size(inputs[0].get_shape()));
     return true;
 }
 

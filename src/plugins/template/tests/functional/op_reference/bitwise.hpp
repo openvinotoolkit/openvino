@@ -5,23 +5,14 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-
-// #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_not.hpp"
-// #include "openvino/op/bitwise_or.hpp"
-// #include "openvino/op/bitwise_xor.hpp"
 
 using namespace ov;
 
 namespace reference_tests {
 namespace BitwiseOpsRefTestDefinitions {
 
-enum BitwiseTypes {
-    // BITWISE_AND,
-    // BITWISE_OR,
-    // BITWISE_XOR,
-    BITWISE_NOT
-};
+enum BitwiseTypes { BITWISE_NOT };
 
 struct RefBitwiseParams {
     BitwiseTypes opType;
@@ -68,22 +59,10 @@ private:
 
         std::shared_ptr<ov::Node> bitwise_op;
         switch (op_type) {
-        // case BitwiseTypes::BITWISE_AND: {
-        //     bitwise_op = std::make_shared<ov::op::v13::BitwiseAnd>(params_vec[0], params_vec[1]);
-        //     break;
-        // }
         case BitwiseTypes::BITWISE_NOT: {
             bitwise_op = std::make_shared<ov::op::v13::BitwiseNot>(params_vec[0]);
             break;
         }
-        // case BitwiseTypes::BITWISE_OR: {
-        //     bitwise_op = std::make_shared<ov::op::v13::BitwiseOr>(params_vec[0], params_vec[1]);
-        //     break;
-        // }
-        // case BitwiseTypes::BITWISE_XOR: {
-        //     bitwise_op = std::make_shared<ov::op::v13::BitwiseXor>(params_vec[0], params_vec[1]);
-        //     break;
-        // }
         default: {
             throw std::runtime_error("Incorrect type of Bitwise operation");
         }

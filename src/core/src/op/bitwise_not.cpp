@@ -11,17 +11,16 @@
 namespace ov {
 namespace op {
 namespace v13 {
-BitwiseNot::BitwiseNot(const Output<Node>& arg) : Op({arg}) {
+BitwiseNot::BitwiseNot(const Output<Node>& arg) : util::UnaryElementwiseArithmetic({arg}) {
     constructor_validate_and_infer_types();
 }
 void BitwiseNot::validate_and_infer_types() {
     OV_OP_SCOPE(v13_BitwiseNot_validate_and_infer_types);
     const auto& element_type = get_input_element_type(0);
-    const auto& arg_pshape = get_input_partial_shape(0);
     NODE_VALIDATION_CHECK(this,
                           element_type.is_dynamic() || element_type.is_integral() || element_type == element::boolean,
                           "The element type of the input tensor must be integral or boolean.");
-    set_output_type(0, element_type, arg_pshape);
+    set_output_type(0, element_type, get_input_partial_shape(0));
 }
 
 std::shared_ptr<Node> BitwiseNot::clone_with_new_inputs(const OutputVector& new_args) const {

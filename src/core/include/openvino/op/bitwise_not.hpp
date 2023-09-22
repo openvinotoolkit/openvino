@@ -5,13 +5,14 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
 namespace v13 {
 /// \brief Elementwise bitwise negation operation.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API BitwiseNot : public Op {
+class OPENVINO_API BitwiseNot : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("BitwiseNot", "opset13", op::Op);
     /// \brief Constructs a bitwise negation operation.
