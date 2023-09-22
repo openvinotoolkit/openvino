@@ -203,20 +203,15 @@ void nms_rotated(const float* boxes_data,
     size_t idx;
     for (idx = 0; idx < output_size; idx++) {
         const auto& box_info = filteredBoxes[idx];
-        SelectedIndex selected_index{box_info.batch_index, box_info.class_index, box_info.index};
-        SelectedScore selected_score{static_cast<float>(box_info.batch_index),
-                                     static_cast<float>(box_info.class_index),
-                                     box_info.score};
-
-        selected_indices_ptr[idx] = selected_index;
-        selected_scores_ptr[idx] = selected_score;
+        selected_indices_ptr[idx] = SelectedIndex{box_info.batch_index, box_info.class_index, box_info.index};
+        selected_scores_ptr[idx] = SelectedScore{static_cast<float>(box_info.batch_index),
+                                                 static_cast<float>(box_info.class_index),
+                                                 box_info.score};
     }
 
-    SelectedIndex selected_index_filler{0, 0, 0};
-    SelectedScore selected_score_filler{0.0f, 0.0f, 0.0f};
     for (; idx < max_num_of_selected_indices; idx++) {
-        selected_indices_ptr[idx] = selected_index_filler;
-        selected_scores_ptr[idx] = selected_score_filler;
+        selected_indices_ptr[idx] = SelectedIndex{0, 0, 0};
+        selected_scores_ptr[idx] = SelectedScore{0.0f, 0.0f, 0.0f};
     }
 }
 
