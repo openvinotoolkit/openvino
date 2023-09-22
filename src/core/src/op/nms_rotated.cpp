@@ -19,29 +19,21 @@ void input_types(const Node* op) {
     const auto inputs_size = op->get_input_size();
 
     NODE_VALIDATION_CHECK(op, inputs_size == 5, "Expected 5 inputs to be provided.");
+    constexpr size_t integer_input_idx = 2;
+    for (size_t i = 0; i < inputs_size; ++i) {
+        if (i == integer_input_idx) {
+            continue;
+        }
+        NODE_VALIDATION_CHECK(op,
+                              op->get_input_element_type(i).is_real() || op->get_input_element_type(i).is_dynamic(),
+                              "Expected floating point type as element type for the input at: ",
+                              i);
+    }
 
     NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(0).is_real() || op->get_input_element_type(0).is_dynamic(),
-                          "Expected floating point type as element type for the 'boxes' input.");
-
-    NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(1).is_real() || op->get_input_element_type(0).is_dynamic(),
-                          "Expected floating point type as element type for the 'scores' input.");
-
-    NODE_VALIDATION_CHECK(
-        op,
-        op->get_input_element_type(2).is_integral_number() || op->get_input_element_type(0).is_dynamic(),
-        "Expected integer number type as element type for the 'max_output_boxes_per_class' input.");
-
-    NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(3).is_real() || op->get_input_element_type(0).is_dynamic(),
-                          "Expected floating point type as element type for the "
-                          "'iou_threshold' input.");
-
-    NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(4).is_real() || op->get_input_element_type(0).is_dynamic(),
-                          "Expected floating point type as element type for the "
-                          "'score_threshold_ps' input.");
+                          op->get_input_element_type(integer_input_idx).is_integral_number() ||
+                              op->get_input_element_type(integer_input_idx).is_dynamic(),
+                          "Expected integer type as element type for the input at: 2");
 }
 }  // namespace
 }  // namespace validate

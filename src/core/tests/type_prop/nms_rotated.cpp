@@ -73,12 +73,38 @@ TYPED_TEST_P(NMSRotatedCommonTest, incorrect_boxes_last_dim) {
                     HasSubstr("The last dimension of the 'boxes' input must be equal to 5"));
 }
 
+TYPED_TEST_P(NMSRotatedCommonTest, input_types_check) {
+    const auto param_fp = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto param_int = make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(ignore = this->make_op(param_int, param_fp, param_int, param_fp, param_fp),
+                    NodeValidationFailure,
+                    HasSubstr("Expected floating point type as element type for the input at: 0"));
+
+    OV_EXPECT_THROW(ignore = this->make_op(param_fp, param_int, param_int, param_fp, param_fp),
+                    NodeValidationFailure,
+                    HasSubstr("Expected floating point type as element type for the input at: 1"));
+
+    OV_EXPECT_THROW(ignore = this->make_op(param_fp, param_fp, param_fp, param_fp, param_fp),
+                    NodeValidationFailure,
+                    HasSubstr("Expected integer type as element type for the input at: 2"));
+
+    OV_EXPECT_THROW(ignore = this->make_op(param_fp, param_fp, param_int, param_int, param_fp),
+                    NodeValidationFailure,
+                    HasSubstr("Expected floating point type as element type for the input at: 3"));
+
+    OV_EXPECT_THROW(ignore = this->make_op(param_fp, param_fp, param_int, param_fp, param_int),
+                    NodeValidationFailure,
+                    HasSubstr("Expected floating point type as element type for the input at: 4"));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(NMSRotatedCommonTest,
                             incorrect_boxes_rank,
                             incorrect_scores_rank,
                             incorrect_scheme_num_batches,
                             incorrect_scheme_num_boxes,
-                            incorrect_boxes_last_dim);
+                            incorrect_boxes_last_dim,
+                            input_types_check);
 
 using NMSRotatedCommonTypes = testing::Types<op::v13::NMSRotated>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, NMSRotatedCommonTest, NMSRotatedCommonTypes);
