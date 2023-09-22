@@ -35,7 +35,8 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
     } else {
         // const won't be cloned in case model takes > 50% RAM
         auto model_bytesize = model->get_graph_size();
-        if (model_bytesize > mem_size) {
+        // ov::Model + ov::CompiledModel
+        if (model_bytesize * 2 > mem_size) {
             auto mem_size_gb = mem_size;
             mem_size_gb <<= 30;
             std::cout << "[ WARNING ] Model " << model_meta_data << " bytesize is " << model_bytesize <<
