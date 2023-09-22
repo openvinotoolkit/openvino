@@ -23,34 +23,34 @@ namespace iou_rotated {
 struct RotatedBox {
     float x_ctr, y_ctr, w, h, a;
 };
-struct Point {
+struct Point2D {
     float x, y;
-    Point(const float& px = 0, const float& py = 0) : x(px), y(py) {}
-    Point operator+(const Point& p) const {
-        return Point(x + p.x, y + p.y);
+    Point2D(const float& px = 0, const float& py = 0) : x(px), y(py) {}
+    Point2D operator+(const Point2D& p) const {
+        return Point2D(x + p.x, y + p.y);
     }
-    Point& operator+=(const Point& p) {
+    Point2D& operator+=(const Point2D& p) {
         x += p.x;
         y += p.y;
         return *this;
     }
-    Point operator-(const Point& p) const {
-        return Point(x - p.x, y - p.y);
+    Point2D operator-(const Point2D& p) const {
+        return Point2D(x - p.x, y - p.y);
     }
-    Point operator*(const float coeff) const {
-        return Point(x * coeff, y * coeff);
+    Point2D operator*(const float coeff) const {
+        return Point2D(x * coeff, y * coeff);
     }
 };
 
-static inline float dot_2d(const Point& A, const Point& B) {
+static inline float dot_2d(const Point2D& A, const Point2D& B) {
     return A.x * B.x + A.y * B.y;
 }
 
-static inline float cross_2d(const Point& A, const Point& B) {
+static inline float cross_2d(const Point2D& A, const Point2D& B) {
     return A.x * B.y - B.x * A.y;
 }
 
-static inline void get_rotated_vertices(const RotatedBox& box, Point (&pts)[4]) {
+static inline void get_rotated_vertices(const RotatedBox& box, Point2D (&pts)[4]) {
     // M_PI / 180. == 0.01745329251
     auto theta = box.a;  // angle already in radians
     auto cosTheta2 = static_cast<float>(std::cos(theta)) * 0.5f;
@@ -67,10 +67,10 @@ static inline void get_rotated_vertices(const RotatedBox& box, Point (&pts)[4]) 
     pts[3].y = 2 * box.y_ctr - pts[1].y;
 }
 
-static inline int get_intersection_points(const Point (&pts1)[4], const Point (&pts2)[4], Point (&intersections)[24]) {
+static inline int get_intersection_points(const Point2D (&pts1)[4], const Point2D (&pts2)[4], Point2D (&intersections)[24]) {
     // Line vector
     // A line from p1 to p2 is: p1 + (p2-p1)*t, t=[0,1]
-    Point vec1[4], vec2[4];
+    Point2D vec1[4], vec2[4];
     for (int i = 0; i < 4; i++) {
         vec1[i] = pts1[(i + 1) % 4] - pts1[i];
         vec2[i] = pts2[(i + 1) % 4] - pts2[i];
@@ -142,9 +142,9 @@ static inline int get_intersection_points(const Point (&pts1)[4], const Point (&
     return num;
 }
 
-static inline int convex_hull_graham(const Point (&p)[24],
+static inline int convex_hull_graham(const Point2D (&p)[24],
                                      const int num_in,
-                                     Point (&q)[24],
+                                     Point2D (&q)[24],
                                      bool shift_to_zero = false) {
     assert(num_in >= 2);
 
@@ -178,7 +178,7 @@ static inline int convex_hull_graham(const Point (&p)[24],
         dist[i] = dot_2d(q[i], q[i]);
     }
 
-    std::sort(q + 1, q + num_in, [](const Point& A, const Point& B) -> bool {
+    std::sort(q + 1, q + num_in, [](const Point2D& A, const Point2D& B) -> bool {
         float temp = cross_2d(A, B);
         if (std::abs(temp) < 1e-6f) {
             return dot_2d(A, A) < dot_2d(B, B);
@@ -235,7 +235,7 @@ static inline int convex_hull_graham(const Point (&p)[24],
     return m;
 }
 
-static inline float polygon_area(const Point (&q)[24], const int& m) {
+static inline float polygon_area(const Point2D (&q)[24], const int& m) {
     if (m <= 2) {
         return 0;
     }
@@ -251,10 +251,10 @@ static inline float polygon_area(const Point (&q)[24], const int& m) {
 static inline float rotated_boxes_intersection(const RotatedBox& box1, const RotatedBox& box2) {
     // There are up to 4 x 4 + 4 + 4 = 24 intersections (including dups) returned
     // from rotated_rect_intersection_pts
-    Point intersectPts[24], orderedPts[24];
+    Point2D intersectPts[24], orderedPts[24];
 
-    Point pts1[4];
-    Point pts2[4];
+    Point2D pts1[4];
+    Point2D pts2[4];
     get_rotated_vertices(box1, pts1);
     get_rotated_vertices(box2, pts2);
 
