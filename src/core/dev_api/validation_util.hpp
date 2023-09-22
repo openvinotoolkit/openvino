@@ -43,7 +43,7 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Outpu
  * @brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
  * they are the same returns Constant operation from the resulting bound, otherwise nullptr.
  *
- * @param source  Node output use to get its tensor data as constant.
+ * @param source  Node output used to get its tensor data as constant.
  * @return Shared pointer to constant data or nullptr.
  */
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
