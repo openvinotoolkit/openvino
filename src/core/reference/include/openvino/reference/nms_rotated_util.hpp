@@ -50,6 +50,7 @@ static inline float cross_2d(const Point2D& A, const Point2D& B) {
     return A.x * B.y - B.x * A.y;
 }
 
+// Calculate box vertices rotated by angle (clockwise) over the box center
 static inline void get_rotated_vertices(const RotatedBox& box, Point2D (&pts)[4]) {
     // M_PI / 180. == 0.01745329251
     auto theta = box.a;  // angle already in radians
@@ -57,17 +58,26 @@ static inline void get_rotated_vertices(const RotatedBox& box, Point2D (&pts)[4]
     auto sinTheta2 = static_cast<float>(std::sin(theta)) * 0.5f;
 
     // y: top --> down; x: left --> right
+    // Left-Down
     pts[0].x = box.x_ctr - sinTheta2 * box.h - cosTheta2 * box.w;
     pts[0].y = box.y_ctr + cosTheta2 * box.h - sinTheta2 * box.w;
+    // Left-Top
     pts[1].x = box.x_ctr + sinTheta2 * box.h - cosTheta2 * box.w;
     pts[1].y = box.y_ctr - cosTheta2 * box.h - sinTheta2 * box.w;
+    // Right-Top
     pts[2].x = 2 * box.x_ctr - pts[0].x;
     pts[2].y = 2 * box.y_ctr - pts[0].y;
+    // Right-Down
     pts[3].x = 2 * box.x_ctr - pts[1].x;
     pts[3].y = 2 * box.y_ctr - pts[1].y;
 }
 
-static inline int get_intersection_points(const Point2D (&pts1)[4], const Point2D (&pts2)[4], Point2D (&intersections)[24]) {
+// Find points defining area of the boxes intersection:
+// - Find all intersection points between edges of the boxes
+// - Find all corners of box1 within area of box2, and all corners of box2 within area of box1
+static inline int get_intersection_points(const Point2D (&pts1)[4],
+                                          const Point2D (&pts2)[4],
+                                          Point2D (&intersections)[24]) {
     // Line vector
     // A line from p1 to p2 is: p1 + (p2-p1)*t, t=[0,1]
     Point2D vec1[4], vec2[4];
@@ -250,7 +260,7 @@ static inline float polygon_area(const Point2D (&q)[24], const int& m) {
 
 static inline float rotated_boxes_intersection(const RotatedBox& box1, const RotatedBox& box2) {
     // There are up to 4 x 4 + 4 + 4 = 24 intersections (including dups) returned
-    // from rotated_rect_intersection_pts
+    // from get_intersection_points
     Point2D intersectPts[24], orderedPts[24];
 
     Point2D pts1[4];
@@ -258,6 +268,7 @@ static inline float rotated_boxes_intersection(const RotatedBox& box1, const Rot
     get_rotated_vertices(box1, pts1);
     get_rotated_vertices(box2, pts2);
 
+    // Find points defining area of the boxes intersection
     int num = get_intersection_points(pts1, pts2, intersectPts);
 
     if (num <= 2) {
