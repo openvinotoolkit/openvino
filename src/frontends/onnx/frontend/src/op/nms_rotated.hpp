@@ -10,10 +10,9 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset13.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -36,10 +35,7 @@ inline OutputVector nms_rotated(const Node& node) {
     return {nms->output(0)};
 }
 }  // namespace set_1
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph
 OPENVINO_SUPPRESS_DEPRECATED_END

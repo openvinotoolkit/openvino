@@ -24,8 +24,8 @@ void non_max_suppression(const float* boxes_data,
                          float* selected_scores,
                          const Shape& selected_scores_shape,
                          int64_t* valid_outputs,
-                         const bool sort_result_descending,
-                         const bool clockwise = true);
+                         bool sort_result_descending,
+                         bool clockwise = true);
 
 using ov::reference::nms_postprocessing;
 

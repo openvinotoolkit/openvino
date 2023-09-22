@@ -43,8 +43,8 @@ struct Builder : ParamsBuilder<NMSRotatedParams> {
 class ReferenceNMSRotatedTest : public testing::TestWithParam<NMSRotatedParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
-        function = CreateFunction(params);
+        const auto& params = GetParam();
+        function = CreateModel(params);
         inputData = {params.boxes.data, params.scores.data};
         refOutData = {params.expectedSelectedIndices.data,
                       params.expectedSelectedScores.data,
@@ -52,7 +52,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<NMSRotatedParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "bType=" << param.boxes.type;
         result << "_bShape=" << param.boxes.shape;
@@ -71,7 +71,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const NMSRotatedParams& params) {
+    static std::shared_ptr<Model> CreateModel(const NMSRotatedParams& params) {
         const auto boxes = std::make_shared<opset1::Parameter>(params.boxes.type, params.boxes.shape);
         const auto scores = std::make_shared<opset1::Parameter>(params.scores.type, params.scores.shape);
         const auto max_output_boxes_per_class =
@@ -92,16 +92,15 @@ private:
                                                                false,
                                                                params.expectedSelectedIndices.type,
                                                                params.clockwise);
-        const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
-        return f;
+        return std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
     }
 };
 
 class ReferenceNMSRotatedTestWithoutConstants : public ReferenceNMSRotatedTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
-        function = CreateFunction(params);
+        const auto& params = GetParam();
+        function = CreateModel(params);
         inputData = {params.boxes.data,
                      params.scores.data,
                      params.maxOutputBoxesPerClass.data,
@@ -113,7 +112,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const NMSRotatedParams& params) {
+    static std::shared_ptr<Model> CreateModel(const NMSRotatedParams& params) {
         const auto boxes = std::make_shared<opset1::Parameter>(params.boxes.type, params.boxes.shape);
         const auto scores = std::make_shared<opset1::Parameter>(params.scores.type, params.scores.shape);
         const auto max_output_boxes_per_class =
@@ -131,10 +130,9 @@ private:
                                                                false,
                                                                params.expectedSelectedIndices.type,
                                                                params.clockwise);
-        const auto f = std::make_shared<Model>(
+        return std::make_shared<Model>(
             nms->outputs(),
             ParameterVector{boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold});
-        return f;
     }
 };
 
@@ -428,7 +426,7 @@ std::vector<NMSRotatedParams> generateCombinedParams() {
     std::vector<NMSRotatedParams> combinedParams;
 
     for (const auto& params : generatedParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
     }
     return combinedParams;
 }

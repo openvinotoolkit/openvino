@@ -20,7 +20,7 @@ struct Rectangle {
         : y1{y_left},
           x1{x_left},
           y2{y_right},
-          x2{x_right} {};
+          x2{x_right} {}
 
     Rectangle() = default;
 
@@ -136,7 +136,7 @@ void non_max_suppression5(const float* boxes_data,
     std::vector<BoxInfo> filteredBoxes;
 
     for (int64_t batch = 0; batch < num_batches; batch++) {
-        const float* boxesPtr = boxes_data + batch * num_boxes * 4;  //
+        const float* boxesPtr = boxes_data + batch * num_boxes * 4;
         Rectangle* r = reinterpret_cast<Rectangle*>(const_cast<float*>(boxesPtr));
 
         for (int64_t class_idx = 0; class_idx < num_classes; class_idx++) {

@@ -20,8 +20,8 @@ public:
 
     /// \brief Constructs a NMSRotated operation.
     ///
-    /// \param boxes Node containing the box coordinates
-    /// \param scores Node containing the box scores
+    /// \param boxes Node containing the coordinates of the bounding boxes
+    /// \param scores Node containing the scores of the bounding boxes
     /// \param max_output_boxes_per_class Node containing maximum number of boxes to be
     /// selected per class
     /// \param iou_threshold Node containing intersection over union threshold
