@@ -563,7 +563,7 @@ jobs:
         if: always()
         run: |
           # For python imports to import pybind_mock_frontend
-          python3 -m pytest -s ${{ env.INSTALL_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
         env:
           PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}
 
