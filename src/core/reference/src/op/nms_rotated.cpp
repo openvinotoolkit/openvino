@@ -13,12 +13,10 @@
 
 namespace ov {
 namespace reference {
-
-using namespace iou_rotated;
-namespace {
-
-float rotated_intersection_over_union(const RotatedBox& boxI, const RotatedBox& boxJ) {
-    const auto intersection = rotated_boxes_intersection(boxI, boxJ);
+namespace nms_detail {
+using iou_rotated::RotatedBox;
+static float rotated_intersection_over_union(const RotatedBox& boxI, const RotatedBox& boxJ) {
+    const auto intersection = iou_rotated::rotated_boxes_intersection(boxI, boxJ);
     const auto areaI = boxI.w * boxI.h;
     const auto areaJ = boxJ.w * boxJ.h;
 
@@ -78,7 +76,7 @@ struct BoxInfo {
     int64_t class_index = 0;
     float score = 0.0f;
 };
-}  // namespace
+}  // namespace nms_detail
 
 void nms_rotated(const float* boxes_data,
                  const Shape& boxes_data_shape,
@@ -95,6 +93,11 @@ void nms_rotated(const float* boxes_data,
                  int64_t* valid_outputs,
                  const bool sort_result_descending,
                  const bool clockwise) {
+    using iou_rotated::RotatedBox;
+    using nms_detail::BoxInfo;
+    using nms_detail::SelectedIndex;
+    using nms_detail::SelectedScore;
+
     // The code for softsigma is kept to simplify unification with NMS code,
     // but for NMSRotated softsigma is not supported (always 0.0);
     float scale = 0.0f;
@@ -159,7 +162,7 @@ void nms_rotated(const float* boxes_data,
                 for (int64_t j = static_cast<int64_t>(selected.size()) - 1; j >= next_candidate.suppress_begin_index;
                      --j) {
                     // The main difference between NMS and NMSRotated is the calculation of iou for rotated boxes
-                    float iou = rotated_intersection_over_union(next_candidate.box, selected[j].box);
+                    float iou = nms_detail::rotated_intersection_over_union(next_candidate.box, selected[j].box);
                     next_candidate.score *= get_score_scale(iou);
 
                     if ((iou > iou_threshold) && !soft_nms) {
