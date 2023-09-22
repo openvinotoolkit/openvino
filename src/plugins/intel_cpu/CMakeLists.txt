@@ -6,6 +6,10 @@ if(NOT ENABLE_INTEL_CPU)
     return()
 endif()
 
+if(WIN32 AND AARCH64 AND OV_COMPILER_IS_CLANG)
+    message(FATAL_ERROR "For cpu plugin, Clang compiler is not supported for Windows on ARM at the moment, please use MSVC as compiler")
+endif()
+
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -34,9 +38,9 @@ elseif(AARCH64)
 endif()
 set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT})
 
-if(X86 OR X86_64 OR (AARCH64 AND NOT WIN32))
+if(X86 OR X86_64 OR AARCH64)
     # disable mlas with webassembly
-    if(EMSCRIPTEN OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7))
+    if(EMSCRIPTEN OR (WIN32 AND AARCH64) OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7))
         set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
     else()
         set(ENABLE_MLAS_FOR_CPU_DEFAULT ON)

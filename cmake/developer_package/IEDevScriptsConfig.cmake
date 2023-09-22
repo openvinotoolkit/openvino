@@ -39,10 +39,6 @@ set_ci_build_number()
 
 include(target_flags)
 
-if(WIN32 AND AARCH64 AND OV_COMPILER_IS_CLANG)
-    message(FATAL_ERROR "For Windows on ARM, Clang compiler is not supported at the moment, please use MSVC as compiler")
-endif()
-
 string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCH_FOLDER)
 if(X86_64)
     set(ARCH_FOLDER intel64)
