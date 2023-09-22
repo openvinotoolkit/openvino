@@ -32,7 +32,7 @@ static inline void print_elements(const char* label, const struct ggml_tensor * 
         if (k > 0) { printf(", "); }
         printf("%d", static_cast<int>(t->ne[k]));
     }
-    printf("]\n");
+    printf("] (%d)\n", t->type);//0 - f32; 1 - f16
 }
 
 template <typename SrcType>
@@ -76,9 +76,9 @@ void ggml_mul_mat(int64_t M,
     struct ggml_cgraph ggml_graph = ggml_build_forward(ggml_dst);
     ggml_graph_compute_with_ctx(ctx, &ggml_graph, /*n_threads = */1);
 
-    print_elements("ggml_A", ggml_A);
-    print_elements("ggml_B", ggml_B);
-    print_elements("ggml_dst", ggml_dst);
+    //print_elements("ggml_A", ggml_A);
+    //print_elements("ggml_B", ggml_B);
+    //print_elements("ggml_dst", ggml_dst);
     float* dst = reinterpret_cast<float*>(ggml_dst->data);
     memcpy(dst_ptr, dst, ggml_nbytes(ggml_dst));
     ggml_free(ctx);

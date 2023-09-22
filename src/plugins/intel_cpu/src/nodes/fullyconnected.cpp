@@ -230,8 +230,6 @@ void FullyConnected::getSupportedDescriptors() {
             outputDataType = memory::data_type::f16;
         }
 #endif
-        //FIXME: hardcode f32 output for GGML
-        outputDataType = memory::data_type::f32;
     } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
         if (weightsDataType != memory::data_type::s8) {
             // weight has to be s8 for INT8 mode, otherwise fallback to
@@ -857,9 +855,10 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                             {{LayoutType::ncsp, dataPrecision}},
                             impl_desc_type::ggml);
         } else {
+            //out precision is hardcoded to fp32 since GGML mul_mat returns fp32 tensor
             addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                 {LayoutType::ncsp, dataPrecision}},
-                {{LayoutType::ncsp, dataPrecision}},
+                {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
                 impl_desc_type::ggml);
         }
         return;
