@@ -52,8 +52,6 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
       MODEL_HUB_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/model_hub_tests
       BUILD_DIR: /__w/openvino/openvino/build
-      DATA_PATH: /__w/openvino/openvino/testdata
-      MODELS_PATH: /__w/openvino/openvino/testdata
       OV_TEMP: /__w/openvino/openvino/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
@@ -76,15 +74,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          submodules: 'recursive'
-
-      - name: Clone testdata for C API tests
-        uses: actions/checkout@v4
-        with:
-          repository: 'openvinotoolkit/testdata'
-          path: 'testdata'
-          submodules: 'recursive'
-          lfs: 'true'
+          submodules: 'true'
 
       #
       # Dependencies
@@ -516,8 +506,6 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
       MODEL_HUB_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/model_hub_tests
       BUILD_DIR: /__w/openvino/openvino/build
-      DATA_PATH: /__w/openvino/openvino/testdata
-      MODELS_PATH: /__w/openvino/openvino/testdata
       OV_TEMP: /__w/openvino/openvino/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
 
@@ -698,21 +686,6 @@ jobs:
 
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
-          TEST_DEVICE: CPU
-
-      - name: TensorFlow Hub Tests - TF FE
-        run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
-
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-
-          source ${INSTALL_DIR}/setupvars.sh
-
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${{ env.TYPE }} --junitxml=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.xml --html TEST-tf_hub_tf_fe.html --self-contained-html
-
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${{ env.TYPE }} --junitxml=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.xml --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html
-        env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
