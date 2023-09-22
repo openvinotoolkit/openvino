@@ -92,7 +92,8 @@ void regclass_graph_op_Loop(py::module m) {
             py::arg("successive_value"));
 
     cls.def("get_function", [](const std::shared_ptr<ov::op::v5::Loop>& self) {
-        return self->get_function();
+        auto model = self->get_function();
+        return py::module::import("openvino.runtime").attr("Model")(model);
     });
 
     cls.def(

@@ -49,9 +49,13 @@ void regclass_graph_op_If(py::module m) {
             :rtype: openvino.impl.op.If
         )");
 
-    cls.def("get_else_body",
-            &ov::op::v8::If::get_else_body,
-            R"(
+    cls.def(
+        "get_else_body",
+        [](ov::op::v8::If& self) {
+            auto model = self.get_else_body();
+            return py::module::import("openvino.runtime").attr("Model")(model);
+        },
+        R"(
             Gets else_body as Model object.
 
             :return: else_body as Model object.
@@ -119,13 +123,14 @@ void regclass_graph_op_If(py::module m) {
             :rtype: openvino.runtime.Output
         )");
 
-    cls.def("get_function", [](ov::op::v8::If& self, size_t index) {
-        auto model = self.get_function(index);
-
-        return py::module::import("openvino.runtime").attr("Model")(model);
-    },
-            py::arg("index"),
-            R"(
+    cls.def(
+        "get_function",
+        [](ov::op::v8::If& self, size_t index) {
+            auto model = self.get_function(index);
+            return py::module::import("openvino.runtime").attr("Model")(model);
+        },
+        py::arg("index"),
+        R"(
             Gets internal sub-graph by index in MultiSubGraphOp.
 
             :param index: sub-graph's index in op.
