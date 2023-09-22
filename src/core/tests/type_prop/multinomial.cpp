@@ -1,0 +1,11 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/op/multinomial.hpp"
+
+#include "arithmetic_ops.hpp"
+
+using Type = ::testing::Types<ov::op::v13::Multinomial>;
+
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_multinomial, ArithmeticOperator, Type);
