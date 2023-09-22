@@ -17,6 +17,8 @@
 #include <numeric>
 #include <vector>
 
+namespace ov {
+namespace reference {
 namespace iou_rotated {
 struct RotatedBox {
     float x_ctr, y_ctr, w, h, a;
@@ -269,3 +271,6 @@ static inline float rotated_boxes_intersection(const RotatedBox& box1, const Rot
 }
 
 }  // namespace iou_rotated
+
+}  // namespace reference
+}  // namespace ov
