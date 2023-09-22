@@ -45,7 +45,7 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
                                                     0,
                                                     0,
                                                     ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
-                                                    {{config.get_property(ov::num_streams)/2, MAIN_CORE_PROC, 1, 0, 0}},
+                                                    {{config.get_property(ov::num_streams), MAIN_CORE_PROC, 1, 0, 0}},
                                                     true};
         auto postConfig = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executorConfig);
         return std::make_shared<ov::threading::CPUStreamsExecutor>(postConfig);
