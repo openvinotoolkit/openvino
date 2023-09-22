@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
-import unittest
+import pytest
 
 import numpy as np
 import onnx
@@ -13,7 +13,7 @@ from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import PB
 
 
-class TestTransposeONNXExt(unittest.TestCase):
+class TestTransposeONNXExt():
     @staticmethod
     def _create_transpose_node(order: list):
         if order is None:
@@ -40,23 +40,21 @@ class TestTransposeONNXExt(unittest.TestCase):
         pass
 
     # This generator generates all permutations for [0,1,2,3] and [0,1,2] orders
-    def test_transpose_ext(self):
-        test_cases=([list(order) for order in list(itertools.permutations(np.arange(4)))] +
+    @pytest.mark.parametrize("order",[list(order) for order in list(itertools.permutations(np.arange(4)))] +
                [list(order) for order in list(itertools.permutations(np.arange(3)))] + [None])
-        for idx, (order) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                node = self._create_transpose_node(order)
-                TransposeFrontExtractor.extract(node)
+    def test_transpose_ext(self, order):
+        node = self._create_transpose_node(order)
+        TransposeFrontExtractor.extract(node)
 
-                exp_res = {
-                    'type': 'Transpose',
-                    'order': order,
-                    'infer': Transpose.infer
-                }
+        exp_res = {
+            'type': 'Transpose',
+            'order': order,
+            'infer': Transpose.infer
+        }
 
-                for key in exp_res.keys():
-                    if isinstance(exp_res[key], list):
-                        self.assertTrue(np.array_equal(node[key], exp_res[key]),
-                                        "Orders are not the same: {} and {}".format(node[key], exp_res[key]))
-                    else:
-                        self.assertEqual(node[key], exp_res[key])
+        for key in exp_res.keys():
+            if isinstance(exp_res[key], list):
+                assert np.array_equal(node[key], exp_res[key]),\
+                    "Orders are not the same: {} and {}".format(node[key], exp_res[key])
+            else:
+                assert node[key] == exp_res[key]
