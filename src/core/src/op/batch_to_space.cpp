@@ -18,8 +18,8 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/slice_plan.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/op/util/slice_plan.hpp"
 #include "openvino/reference/strided_slice.hpp"
 
 using namespace std;
@@ -160,18 +160,16 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
     begins.assign(crops_begin_values, crops_begin_values + shape_size(inputs[2]->get_shape()));
 
     std::vector<int64_t> default_strides(begins.size(), 1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    SlicePlan slice_plan = make_slice_plan(data_shape,
-                                           begins,
-                                           upperbounds_values,
-                                           default_strides,
-                                           begin_mask,
-                                           end_mask,
-                                           AxisSet(),
-                                           AxisSet(),
-                                           AxisSet());
+    const auto slice_plan = ov::op::util::make_slice_plan(data_shape,
+                                                          begins,
+                                                          upperbounds_values,
+                                                          default_strides,
+                                                          begin_mask,
+                                                          end_mask,
+                                                          AxisSet(),
+                                                          AxisSet(),
+                                                          AxisSet());
     ov::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return true;
 }
 }  // namespace
