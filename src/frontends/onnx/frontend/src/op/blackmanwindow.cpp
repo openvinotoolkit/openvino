@@ -7,6 +7,7 @@
 
 #include "default_opset.hpp"
 #include "utils/common.hpp"
+#include <math.h>
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
