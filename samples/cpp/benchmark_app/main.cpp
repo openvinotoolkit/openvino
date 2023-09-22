@@ -13,6 +13,7 @@
 // clang-format off
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 #ifndef IN_OV_COMPONENT
 #    define IN_OV_COMPONENT
@@ -562,6 +563,32 @@ int main(int argc, char* argv[]) {
         if (FLAGS_b > 0) {
             slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
             device_config.insert(ov::hint::allow_auto_batching(false));
+            switch (FLAGS_b) {
+                case 1:
+                    device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::HIGH));
+                    device_config.insert(ov::hint::enable_cpu_pinning(true));
+                    break;
+                case 2:
+                    device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::MEDIUM));
+                    device_config.insert(ov::hint::enable_cpu_pinning(true));
+                    break;
+                case 3:
+                    device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::LOW));
+                    device_config.insert(ov::hint::enable_cpu_pinning(true));
+                    break;
+                case 4:
+                    device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::HIGH));
+                    device_config.insert(ov::hint::enable_cpu_pinning(false));
+                    break;
+                case 5:
+                    device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::MEDIUM));
+                    device_config.insert(ov::hint::enable_cpu_pinning(false));
+                    break;
+                case 6:
+                    device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::LOW));
+                    device_config.insert(ov::hint::enable_cpu_pinning(false));
+                    break;
+            }
         }
 
         bool isDynamicNetwork = false;
