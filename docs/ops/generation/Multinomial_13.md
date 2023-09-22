@@ -34,7 +34,7 @@ Given a list of probabilities x1, x2, ..., xn:
 * If *with_replacement* is False (sampling without replacement):
   * Assume a class with index i has been selected - then every CDF value starting at i-th index should be lowered by the original probability of the selected class. This effectively sets the probability of sampling the given class to 0.
   * Afterwards, divide the CDF by its last (maximum) value to normalize the cumulative probabilities between the real values in the range [0, 1]
-* Convert the output indices to *output_type*
+* Convert the output indices to *convert_type*
 * Return output indices
 
 **Example computations**:
@@ -72,10 +72,10 @@ Example 3 - 1D tensor, without replacement
 
 **Attributes**:
 
-* ``output_type``
+* ``convert_type``
 
-  * **Description**: the type of the output. Determines generation algorithm and affects resulting values. Output numbers generated for different values of *output_type* may not be equal.
-  * **Range of values**: "i4", "i8", "i16", "i32", "i64", "f32", "u4", "u8", "u16", u32", "u64".
+  * **Description**: the type of the output. Determines generation algorithm and affects resulting values. Output numbers generated for different values of *convert_type* may not be equal.
+  * **Range of values**: "i32", "i64".
   * **Type**: string
   * **Required**: *Yes*
 
@@ -123,12 +123,12 @@ Example 3 - 1D tensor, without replacement
 
 **Outputs**:
 
-* **1**:  ``output``-  A tensor with type specified by the attribute *output_type* and shape depending on the rank of *probs*, either ``[num_samples]`` for one-dimensional *probs* or ``[batch_size, num_samples]`` for the two-dimensional one.
+* **1**:  ``output``-  A tensor with type specified by the attribute *convert_type* and shape depending on the rank of *probs*, either ``[num_samples]`` for one-dimensional *probs* or ``[batch_size, num_samples]`` for the two-dimensional one.
 
 **Types**
 
 * **T_IN**: any supported floating-point type.
-* **T_SAMPLES**: 32-bit or 64-bit integers. Negative values produce an error.
+* **T_SAMPLES**: 32-bit or 64-bit integers.
 
 
 *Example 1: 1D input tensor.*
@@ -137,7 +137,7 @@ Example 3 - 1D tensor, without replacement
    :force:
 
     <layer ... name="Multinomial" type="Multinomial">
-        <data output_type="f32", with_replacement="true", log_probs="false", global_seed="234", op_seed="148"/>
+        <data convert_type="f32", with_replacement="true", log_probs="false", global_seed="234", op_seed="148"/>
         <input>
             <port id="0" precision="FP32">  < !-- probs value: [0.1, 0.5, 0.4] -->
                 <dim>3</dim>
@@ -157,7 +157,7 @@ Example 3 - 1D tensor, without replacement
    :force:
 
     <layer ... name="Multinomial" type="Multinomial">
-        <data output_type="f32", with_replacement="true", log_probs="true", global_seed="234", op_seed="148"/>
+        <data convert_type="f32", with_replacement="true", log_probs="true", global_seed="234", op_seed="148"/>
         <input>
             <port id="0" precision="FP32">  < !-- probs value: [[-1, 1, 2], [50, 1, 21]] -->
                 <dim>2</dim> < !-- batch size of 2 -->
@@ -179,7 +179,7 @@ Example 3 - 1D tensor, without replacement
    :force:
 
     <layer ... name="Multinomial" type="Multinomial">
-        <data output_type="f32", with_replacement="false", log_probs="false", global_seed="234", op_seed="148"/>
+        <data convert_type="f32", with_replacement="false", log_probs="false", global_seed="234", op_seed="148"/>
         <input>
             <port id="0" precision="FP32">  < !-- probs value: [0.1, 0.5, 0.4] -->
                 <dim>3</dim>
