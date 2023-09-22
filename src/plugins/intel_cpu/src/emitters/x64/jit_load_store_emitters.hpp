@@ -101,6 +101,11 @@ private:
     InferenceEngine::Precision dst_prc_;
     bool is_fill_;
     std::string fill_value_;
+
+    size_t start_address = 0;
+    size_t current_address = 0;
+    size_t iteration = 0;
+    std::shared_ptr<snippets::op::Store> m_load_node;
 };
 
 class jit_store_emitter : public jit_emitter {
@@ -174,6 +179,11 @@ private:
     mutable bool data_reg_updated = false;
     mutable int data_idx = 0;
     mutable int aux_src_idx = 0;
+
+    size_t start_address = 0;
+    size_t current_address = 0;
+    size_t iteration = 0;
+    std::shared_ptr<snippets::op::Store> m_store_node;
 };
 
 }   // namespace intel_cpu

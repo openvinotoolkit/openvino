@@ -97,6 +97,24 @@ size_t jit_load_emitter::aux_gprs_count() const {
 }
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
+    // save runtime debug info
+    h->push(h->r15);
+    Xbyak::Label label_set_current;
+    h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
+    h->cmp(h->qword[h->r15], 0);
+    h->jne(label_set_current);
+    h->mov(h->qword[h->r15], Xbyak::Reg64(in_idxs[0]));
+    h->L(label_set_current);
+    {
+        h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
+        h->mov(h->qword[h->r15], Xbyak::Reg64(in_idxs[0]));
+
+        // iteration++
+        h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
+        h->add(h->qword[h->r15], 0x01);
+    }
+    h->pop(h->r15);
+
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
@@ -601,6 +619,7 @@ void jit_load_emitter::register_table_entries() {
 
 void jit_load_emitter::print_debug_info() const {
     std::cerr << "ERROR is from jit_load_emitter." << "\n";
+    std::cerr << "where start_address:" << start_address << " current_address:" << current_address << " iteration:" << iteration << "\n";
     std::cerr << "Emitter name:" << name_ << "\n";
     std::cerr << "load_num_:" << load_num_ << "\n";
     std::cerr << "src_prc_:" << src_prc_ << "\n";
@@ -667,6 +686,24 @@ void jit_store_emitter::emit_data() const {
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
+    // save runtime debug info
+    h->push(h->r15);
+    Xbyak::Label label_set_current;
+    h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
+    h->cmp(h->qword[h->r15], 0);
+    h->jne(label_set_current);
+    h->mov(h->qword[h->r15], Xbyak::Reg64(out_idxs[0]));
+    h->L(label_set_current);
+    {
+        h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
+        h->mov(h->qword[h->r15], Xbyak::Reg64(out_idxs[0]));
+
+        // iteration++
+        h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
+        h->add(h->qword[h->r15], 0x01);
+    }
+    h->pop(h->r15);
+
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
@@ -1273,6 +1310,7 @@ void jit_store_emitter::register_table_entries() {
 
 void jit_store_emitter::print_debug_info() const {
     std::cerr << "Segfault happens in jit_store_emitter." << "\n";
+    std::cerr << "where start_address:" << start_address << " current_address:" << current_address << " iteration:" << iteration << "\n";
     std::cerr << "Emitter name:" << name_ << "\n";
     std::cerr << "store_num_:" << store_num_ << "\n";
     std::cerr << "src_prc_:" << src_prc_ << "\n";
