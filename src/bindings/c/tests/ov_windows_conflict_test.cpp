@@ -9,13 +9,21 @@
  * "OV_BOOLEAN"
  */
 
-#if defined(_MSC_VER)
-#    include <Windows.h>
+#if defined(_WIN32)
+#    include <gtest/gtest.h>
+#    include <windows.h>
 
-#    include "ov_test.hpp"
+#    include "openvino/c/openvino.h"
+
+#    ifndef UNUSED
+#        define UNUSED(x) ((void)(x))
+#    endif
+
 TEST(ov_windows_conflict_test, ov_windows_boolean_conflict) {
-    EXPECT_NO_THROW(ov_element_type_e element_type =
-                        OV_BOOLEAN);           // The BOOLEAN from ov_element_type_e will be replaced by OV_BOOLEAN
-    EXPECT_NO_THROW(WIN_BOOLEAN win_boolean);  // The BOOLEAN from Windows.h will be replaced by WIN_BOOLEAN
+    ov_element_type_e element_type = OV_BOOLEAN;  // The BOOLEAN from ov_element_type_e will be replaced by OV_BOOLEAN
+    WIN_BOOLEAN win_boolean;                      // The BOOLEAN from Windows.h will be replaced by WIN_BOOLEAN
+
+    UNUSED(win_boolean);
+    UNUSED(element_type);
 }
 #endif
