@@ -144,14 +144,14 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             # new frontend
             (
                     "model_add_with_undefined_constant.pbtxt",
-                    "x[2,3]",
+                    ("x", [2, 3]),
                     {"x": np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32)},
                     np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32),
                     np.float32
             ),
             (
                     "model_mul_with_undefined_constant.pbtxt",
-                    "x[2]",
+                    ("x", [2]),
                     {"x": np.array([11, -12], dtype=np.int32)},
                     np.array([0, 0], dtype=np.int32),
                     np.int32

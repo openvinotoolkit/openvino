@@ -187,8 +187,7 @@ def create_pytorch_nn_module_case3(tmp_dir):
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = tuple([sample_input1, sample_input2])
-
-    return pt_model, ref_model, {'input': "[?,3,?,?],[?,3,?,?]",
+    return pt_model, ref_model, {'input': [[-1, 3, -1, -1], [-1, 3, -1, -1]],
                                  'example_input': sample_input}
 
 
@@ -1092,6 +1091,37 @@ class ConvertRaises(unittest.TestCase):
         # Check that mo raises error message of wrong argument.
         with self.assertRaisesRegex(TypeError, ".*got an unexpected keyword argument 'example_inputs'.*"):
             convert_model(pytorch_model, example_inputs=(torch.tensor(1),))
+
+    def test_incorrect_inputs_1(self):
+        from openvino.tools.ovc import convert_model
+        pytorch_model, _, _ = create_pytorch_nn_module_case1('')
+
+        with self.assertRaisesRegex(Exception, ".*No node with name.*"):
+            convert_model(pytorch_model, input='input1[1, 10]')
+
+    def test_incorrect_inputs_2(self):
+        from openvino.tools.ovc import convert_model
+        pytorch_model, _, _ = create_pytorch_nn_module_case1('')
+
+        # check that it accepts specified names as is, without parsing into 2 different inputs
+        with self.assertRaisesRegex(Exception, 'No node with name input1,input2'):
+            convert_model(pytorch_model, input='input1,input2')
+
+    def test_incorrect_inputs_3(self):
+        from openvino.tools.ovc import convert_model
+        pytorch_model, _, _ = create_pytorch_nn_module_case1('')
+
+        # check that it accepts specified names as is, without parsing into 2 different inputs
+        with self.assertRaisesRegex(Exception, 'No node with name input1\[1, 10\],input2\[2, 100\]'):
+            convert_model(pytorch_model, input='input1[1, 10],input2[2, 100]')
+
+    def test_incorrect_inputs_4(self):
+        from openvino.tools.ovc import convert_model
+        pytorch_model, _, _ = create_pytorch_nn_module_case1('')
+
+        # check that it accepts specified names as is, without parsing into 2 different inputs
+        with self.assertRaisesRegex(Exception, 'No node with name input1\[1, 10\]'):
+            convert_model(pytorch_model, input=['input1[1, 10]', 'input2[2, 100]'])
 
     def test_failed_extension(self):
         from openvino.tools.ovc import convert_model
