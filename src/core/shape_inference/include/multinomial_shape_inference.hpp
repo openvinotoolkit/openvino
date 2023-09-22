@@ -43,7 +43,9 @@ std::vector<TRShape> shape_infer(const Multinomial* op,
 
     auto output_shapes = std::vector<TRShape>(1);
     auto& result_shape = output_shapes[0];
-    if (input_shape.rank().compatible(1)) {
+    if (input_shape.is_dynamic()) {
+        result_shape = ov::PartialShape::dynamic(ov::Dimension::dynamic());
+    } else if (input_shape.rank().compatible(1)) {
         result_shape = ov::PartialShape({num_samples_dim});
     } else if (input_shape.rank().compatible(2)) {
         ov::Dimension input_dim(input_shape[0]);
