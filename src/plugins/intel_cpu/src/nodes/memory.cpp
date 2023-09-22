@@ -122,6 +122,9 @@ void MemoryInput::createPrimitive() {
         for (auto& d : dims) {
             if (d == Shape::UNDEFINED_DIM) d = 0;
         }
+
+        // HARDCODE
+        dims[0] = 1; // beamsize*batchsize
     }
     auto desc = _desc.cloneWithNewDims(dims);
     dataStore = std::make_shared<Memory>(getEngine(), desc);
