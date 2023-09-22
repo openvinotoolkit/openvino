@@ -82,7 +82,11 @@ bool engine::use_unified_shared_memory() const {
 }
 
 uint64_t engine::get_max_memory_size() const {
-    static uint64_t max_device_mem = (std::max)(get_device_info().max_global_mem_size, static_cast<uint64_t>(get_cpu_ram_size()));
+    static uint64_t max_device_mem = get_device_info().max_global_mem_size;
+    const auto& dev_type = get_device_info().dev_type;
+    if (dev_type == device_type::discrete_gpu) {
+        max_device_mem += get_host_memory_size();
+    }
     return max_device_mem;
 }
 
