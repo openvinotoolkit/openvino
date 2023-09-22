@@ -1,5 +1,5 @@
 -c ../constraints.txt
-paddlepaddle #  ticket 95904
+# paddlepaddle #  ticket 95904
 numpy
 requests
 torch
