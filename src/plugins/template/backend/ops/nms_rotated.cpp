@@ -81,30 +81,30 @@ bool evaluate(const std::shared_ptr<op::v13::NMSRotated>& op, TensorVector& outp
     std::vector<float> selected_scores(info.out_shape_size);
     int64_t valid_outputs = 0;
 
-    reference::nms_rotated::non_max_suppression(info.boxes_data.data(),
-                                                info.boxes_shape,
-                                                info.scores_data.data(),
-                                                info.scores_shape,
-                                                info.max_output_boxes_per_class,
-                                                info.iou_threshold,
-                                                info.score_threshold,
-                                                info.soft_nms_sigma,
-                                                selected_indices.data(),
-                                                info.out_shape,
-                                                selected_scores.data(),
-                                                info.out_shape,
-                                                &valid_outputs,
-                                                info.sort_result_descending,
-                                                info.clockwise);
+    reference::nms_rotated(info.boxes_data.data(),
+                           info.boxes_shape,
+                           info.scores_data.data(),
+                           info.scores_shape,
+                           info.max_output_boxes_per_class,
+                           info.iou_threshold,
+                           info.score_threshold,
+                           info.soft_nms_sigma,
+                           selected_indices.data(),
+                           info.out_shape,
+                           selected_scores.data(),
+                           info.out_shape,
+                           &valid_outputs,
+                           info.sort_result_descending,
+                           info.clockwise);
 
     auto selected_scores_type = (outputs.size() < 2) ? element::f32 : outputs[1].get_element_type();
 
-    reference::nms_rotated::nms_postprocessing(outputs,
-                                               info.output_type,
-                                               selected_indices,
-                                               selected_scores,
-                                               valid_outputs,
-                                               selected_scores_type);
+    reference::nms_rotated_postprocessing(outputs,
+                                          info.output_type,
+                                          selected_indices,
+                                          selected_scores,
+                                          valid_outputs,
+                                          selected_scores_type);
     return true;
 }
 }  // namespace
