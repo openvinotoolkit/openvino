@@ -411,6 +411,17 @@ ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const IT
     }
     return out;
 }
+
+/**
+ * @brief Inference broadcast shape for element wise operator according to broadcast specification stored in operator.
+ *
+ * @param op      Pointer to operator.
+ * @param first   First input shape.
+ * @param second  Second input shape.
+ *
+ * @return Result shape from inputs with applied broadcast specification.
+ */
+ov::Shape infer_broadcast_shape(const ov::Node* const op, const ov::Shape& first, const ov::Shape& second);
 }  // namespace op
 
 /**
