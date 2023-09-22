@@ -479,13 +479,13 @@ bool ov::interval_bound_evaluator(const Node* node,
     return fully_defined;
 }
 
-bool ov::tensor_is_positive(const Tensor& bound) {
+bool ov::tensor_is_non_negative(const Tensor& bound) {
     const auto bound_constant =
         std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
     const auto zero_constant = op::v0::Constant::create(bound.get_element_type(), {1}, {0});
     OutputVector greater(1);
 
-    bool folded = std::make_shared<op::v1::Greater>(bound_constant, zero_constant)
+    bool folded = std::make_shared<op::v1::GreaterEqual>(bound_constant, zero_constant)
                       ->constant_fold(greater, {bound_constant, zero_constant});
     OPENVINO_ASSERT(folded);
 
