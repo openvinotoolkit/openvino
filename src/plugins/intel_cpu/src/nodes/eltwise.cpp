@@ -11,6 +11,7 @@
 
 #include <ie_parallel.hpp>
 
+#include "config.h"
 #include "cpu_types.h"
 #include "utils/bfloat16.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -2171,15 +2172,23 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
 #if defined (OV_CPU_WITH_ACL)
     eltwiseAttrs = {algorithm, alpha, beta, gamma};
-    if (isChannelsFirstApplicable) {
-        auto channelFirstDesc = initDesc(ChannelsFirst, true);
-        if (channelFirstDesc.getExecutorFactory())
-            supportedPrimitiveDescriptors.emplace_back(channelFirstDesc);
-    }
 
-    auto planarDesc = initDesc(Planar, true);
-    if (planarDesc.getExecutorFactory())
-        supportedPrimitiveDescriptors.emplace_back(planarDesc);
+    auto addDesc = [&initDesc](std::vector<NodeDesc>& supportedPrimitiveDescriptors, const LayoutType layoutType) {
+        auto nodeDesc = initDesc(layoutType, true);
+        if (nodeDesc.getExecutorFactory())
+            supportedPrimitiveDescriptors.emplace_back(nodeDesc);
+    };
+
+    // @todo should be handled in scope of selectPreferPrimitiveDescriptor
+    if (context->getConfig().modelType == Config::ModelType::CNN) {
+        if (isChannelsFirstApplicable)
+            addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
+        addDesc(supportedPrimitiveDescriptors, Planar);
+    } else {
+        addDesc(supportedPrimitiveDescriptors, Planar);
+        if (isChannelsFirstApplicable)
+            addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
+    }
 
     canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
     if (canUseAclExecutor)
