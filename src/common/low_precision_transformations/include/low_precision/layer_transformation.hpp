@@ -38,8 +38,20 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 namespace precision_set {
-    const std::vector<element::Type>& get_int8_support();
-    const std::vector<element::Type>& get_int8_int16_int32_support();
+    static inline const std::vector<element::Type>& get_int8_support() {
+        static const std::vector<element::Type> int8_support = {
+            ov::element::u8,  ov::element::i8
+        };
+        return int8_support;
+    }
+    static inline const std::vector<element::Type>& get_int8_int16_int32_support() {
+        static const std::vector<element::Type> int8_int16_int32_support = {
+            ov::element::u8,  ov::element::i8,
+            ov::element::u16, ov::element::i16,
+            ov::element::u32, ov::element::i32
+        };
+        return int8_int16_int32_support;
+    }
 } // namespace precision_set
 enum levels : size_t {
     int4 = 16,
