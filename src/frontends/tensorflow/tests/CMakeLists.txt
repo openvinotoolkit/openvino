@@ -83,6 +83,6 @@ add_subdirectory(standalone_build)
 add_dependencies(${TARGET_NAME} tensorflow_fe_standalone_build_test)
 
 install(FILES requirements.txt
-        DESTINATION tests/frontends/tensorflow
+        DESTINATION tests/python/frontends/tensorflow
         COMPONENT tests
         EXCLUDE_FROM_ALL)
