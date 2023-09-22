@@ -196,7 +196,7 @@ void FullyConnected::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
 
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
+    inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
     if (!fusedWith.empty()) {
@@ -230,6 +230,8 @@ void FullyConnected::getSupportedDescriptors() {
             outputDataType = memory::data_type::f16;
         }
 #endif
+        //FIXME: hardcode f32 output for GGML
+        outputDataType = memory::data_type::f32;
     } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
         if (weightsDataType != memory::data_type::s8) {
             // weight has to be s8 for INT8 mode, otherwise fallback to
@@ -521,15 +523,12 @@ void FullyConnected::prepareParams() {
 }
 
 #ifdef OV_CPU_WITH_GGML
+template <typename SrcType>
 void FullyConnected::executeGGML() {
     const auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     const auto src0MemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     const auto src1MemPtr = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
     const auto biasMemPtr = withBiases ? getParentEdgeAt(BIAS_ID)->getMemoryPtr() : nullptr;
-
-    float* src0 = reinterpret_cast<float*>(src0MemPtr->getData());
-    float* src1 = reinterpret_cast<float*>(src1MemPtr->getData());
-    float* dst = reinterpret_cast<float*>(dstMemPtr->getData());
 
     //std::cout << "src0_dims: " << src0MemPtr->getStaticDims().size() << std::endl;
     //std::cout << "src1_dims: " << src1MemPtr->getStaticDims().size() << std::endl;
@@ -541,15 +540,15 @@ void FullyConnected::executeGGML() {
         return;
     }
 
-    ggml_mul_mat((dstMemPtr->getStaticDims().size() == 3) ?
-                    dstMemPtr->getStaticDims()[0] * dstMemPtr->getStaticDims()[1] :
-                    dstMemPtr->getStaticDims()[0],//M
-                 src1MemPtr->getStaticDims()[0],//N
-                 src1MemPtr->getStaticDims()[1],//K
-                 src0,
-                 src1,
-                 dst,
-                 withBiases ? reinterpret_cast<float*>(biasMemPtr->getData()) : nullptr);
+    ggml_mul_mat<SrcType>((dstMemPtr->getStaticDims().size() == 3) ?
+                                dstMemPtr->getStaticDims()[0] * dstMemPtr->getStaticDims()[1] :
+                                dstMemPtr->getStaticDims()[0],//M
+                            src1MemPtr->getStaticDims()[0],//N
+                            src1MemPtr->getStaticDims()[1],//K
+                            reinterpret_cast<SrcType*>(src0MemPtr->getData()),
+                            reinterpret_cast<float*>(src1MemPtr->getData()),
+                            reinterpret_cast<float*>(dstMemPtr->getData()),
+                            withBiases ? reinterpret_cast<SrcType*>(biasMemPtr->getData()) : nullptr);
 }
 #endif
 
@@ -588,7 +587,13 @@ void FullyConnected::execute(dnnl::stream strm) {
 #endif
 #ifdef OV_CPU_WITH_GGML
     if (useGgml) {
-        executeGGML();
+        if (inputDataType == memory::data_type::f32)
+            executeGGML<float>();
+        else if (inputDataType == memory::data_type::f16)
+            executeGGML<uint16_t>();
+        else
+            IE_THROW() << "GGML can't execute FullyConnected node with name: " << getName()
+                       << ", because input data type is not supported: " << int(inputDataType);
         return;
     }
 #endif

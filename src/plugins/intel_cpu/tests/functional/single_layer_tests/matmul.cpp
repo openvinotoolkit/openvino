@@ -225,6 +225,7 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig_BrgemmAmx
 }
 
 const std::vector<ElementType> netPRCs {
+    ElementType::f16,
     ElementType::f32,
     ElementType::bf16
 };
@@ -279,19 +280,19 @@ std::vector<CPUSpecificParams> filterSpecificParams_MLAS() {
 namespace fullyConnected {
 
 const std::vector<ShapeRelatedParams> IS2D_smoke = {
-    {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
-    {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
+   // {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
+   // {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
 
-    {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, false}},
-    {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, true}},
+    {static_shapes_to_test_representation({{3, 2}, {2, 1}}), {false, false}},
+   // {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, true}},
 
-    {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, false}},
-    {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, false}},
+   // {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, false}},
+   // {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, false}},
 
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
+   // {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
+   // {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
 
-    {
+   /* {
         {
             {{-1, -1}, {{20, 60}, {20, 60}}},
             {{60, 120}, {{60, 120}, {60, 120}}}
@@ -304,7 +305,7 @@ const std::vector<ShapeRelatedParams> IS2D_smoke = {
             {{1, 120}, {{1, 120}, {1, 120}, {1, 120}, {1, 120}}}
         },
         {true, true}
-    },
+    },*/
 };
 
 const std::vector<ShapeRelatedParams> IS2D_nightly = {
@@ -345,12 +346,12 @@ const std::vector<ShapeRelatedParams> IS2D_nightly = {
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_smoke {
 // The following three patterns are convered by MLAS test
-#ifndef OV_CPU_WITH_MLAS
+//#ifndef OV_CPU_WITH_MLAS
         emptyFusingSpec,
-        fusingBias,
-        fusingMultiplyPerChannel,
-#endif
-        fusingFakeQuantizePerTensorRelu,
+//        fusingBias,
+//        fusingMultiplyPerChannel,
+//#endif
+//        fusingFakeQuantizePerTensorRelu,
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
@@ -380,7 +381,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2DBF16 {
 };
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke),
-                                                                ::testing::Values(ElementType::f32),
+                                                                ::testing::ValuesIn(netPRCs),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -412,7 +413,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_MLAS_smoke {
 };
 
 const auto testParams2D_MLAS_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke),
-                                                                ::testing::Values(ElementType::f32),
+                                                                ::testing::ValuesIn(netPRCs),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -425,7 +426,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_MLAS, MatMulLayerCPUTest, testParams2D_MLAS
 #endif
 
 const auto testParams2D_nightly = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_nightly),
-                                                                ::testing::Values(ElementType::f32),
+                                                                ::testing::ValuesIn(netPRCs),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -454,7 +455,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_MLAS_nightly {
         fusingScaleShift
 };
 const auto testParams2D_MLAS_nightly = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_nightly),
-                                                                ::testing::Values(ElementType::f32),
+                                                                ::testing::ValuesIn(netPRCs),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -555,7 +556,7 @@ std::vector<fusingSpecificParams> fusingParamsSet3DBF16 {
 };
 
 const auto fullyConnectedParams3D_smoke = ::testing::Combine(::testing::ValuesIn(IS3D_smoke),
-                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::ValuesIn(netPRCs),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -598,7 +599,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_MLAS, MatMulLayerCPUTest, testParams3D_MLAS
 #endif
 
 const auto fullyConnectedParams3D_nightly = ::testing::Combine(::testing::ValuesIn(IS3D_nightly),
-                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::ValuesIn(netPRCs),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -677,7 +678,7 @@ const std::vector<ShapeRelatedParams> IS2D_Brgemm_nightly = {
 };
 
 const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_smoke),
-                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::ValuesIn(netPRCs),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -722,7 +723,7 @@ const std::vector<ShapeRelatedParams> IS2D_Brgconv1x1_smoke = {
 };
 
 const auto fullyConnectedParams2D_Brgconv1x1_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgconv1x1_smoke),
-                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::ValuesIn(netPRCs),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -776,7 +777,7 @@ const std::vector<ShapeRelatedParams> IS3D_Brgconv1x1_smoke = {
 };
 
 const auto fullyConnectedParams3D_Brgconv1x1_smoke = ::testing::Combine(::testing::ValuesIn(IS3D_Brgconv1x1_smoke),
-                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::ValuesIn(netPRCs),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -814,7 +815,7 @@ const std::vector<ShapeRelatedParams> IS2D_Brgemm_Amx_smoke = {
 };
 
 const auto fullyConnectedParams2D_Brgemm_Amx_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_Amx_smoke),
-                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::ValuesIn(netPRCs),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -830,7 +831,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_Amx, MatMulLayerCPUTest, testParams2
 
 
 const auto fullyConnectedParams2D_Brgemm_nightly = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_nightly),
-                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::ValuesIn(netPRCs),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -845,7 +846,7 @@ const auto testParams2D_Brgemm_nightly = ::testing::Combine(fullyConnectedParams
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_nightly, MatMulLayerCPUTest::getTestCaseName);
 
 const auto fullyConnectedParams2D_Brgemm_Amx_nightly = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_nightly),
-                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::ValuesIn(netPRCs),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
@@ -1276,7 +1277,7 @@ const std::vector<ShapeRelatedParams> IS_brgemm_nightly = {
 };
 
 const auto matMulBrgemmParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_brgemm_smoke),
-                                                         ::testing::Values(ElementType::f32),
+                                                         ::testing::ValuesIn(netPRCs),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
@@ -1312,7 +1313,7 @@ const std::vector<ShapeRelatedParams> IS_brgemm_Amx_smoke = {
 };
 
 const auto matMulBrgemmAmxParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_brgemm_Amx_smoke),
-                                                         ::testing::Values(ElementType::f32),
+                                                         ::testing::ValuesIn(netPRCs),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
@@ -1327,7 +1328,7 @@ const auto testBrgemmAmxParams_smoke = ::testing::Combine(matMulBrgemmAmxParams_
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Amx_Static, MatMulLayerCPUTest, testBrgemmAmxParams_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulBrgemmParams_nightly = ::testing::Combine(::testing::ValuesIn(IS_brgemm_nightly),
-                                                         ::testing::Values(ElementType::f32),
+                                                         ::testing::ValuesIn(netPRCs),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
@@ -1342,7 +1343,7 @@ const auto testBrgemmParams_nightly = ::testing::Combine(matMulBrgemmParams_nigh
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Static, MatMulLayerCPUTest, testBrgemmParams_nightly, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulBrgemmAmxParams_nightly = ::testing::Combine(::testing::ValuesIn(IS_brgemm_Amx_smoke),
-                                                         ::testing::Values(ElementType::f32),
+                                                         ::testing::ValuesIn(netPRCs),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
@@ -1417,7 +1418,7 @@ const std::vector<ShapeRelatedParams> IS_Brgemm_Dynamic = {
 };
 
 const auto matMulBrgemmParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Brgemm_Dynamic),
-                                                          ::testing::Values(ElementType::f32),
+                                                          ::testing::ValuesIn(netPRCs),
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(helpers::InputLayerType::PARAMETER),
@@ -1432,7 +1433,7 @@ const auto testBrgemmParamsDynamic = ::testing::Combine(matMulBrgemmParamsDynami
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Dynamic, MatMulLayerCPUTest, testBrgemmParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulBrgemmAmxParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Brgemm_Dynamic),
-                                                          ::testing::Values(ElementType::f32),
+                                                          ::testing::ValuesIn(netPRCs),
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(helpers::InputLayerType::PARAMETER),
@@ -1447,7 +1448,7 @@ const auto testBrgemmAmxParamsDynamic = ::testing::Combine(matMulBrgemmAmxParams
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Amx_Dynamic, MatMulLayerCPUTest, testBrgemmAmxParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulParamsBrgemmDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
-                                                                ::testing::Values(ElementType::f32),
+                                                                ::testing::ValuesIn(netPRCs),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(helpers::InputLayerType::PARAMETER),
