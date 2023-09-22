@@ -853,7 +853,6 @@ jobs:
         shell: bash
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
     env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
