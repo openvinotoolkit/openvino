@@ -490,15 +490,6 @@ jobs:
         run: |
           mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install python dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install --force-reinstall -r  ${{ env.INSTALL_TEST_DIR }}/constraints.txt
-
       #     # For running ONNX frontend unit tests
       #     python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
 
@@ -533,6 +524,15 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --force-reinstall -r  ${{ env.INSTALL_TEST_DIR }}/constraints.txt
+
       - name: Install Python wheels
         run: |
           python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
@@ -547,29 +547,31 @@ jobs:
       - name: Python API 2.0 Tests
         run: |
           # For python imports to import pybind_mock_frontend
-          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
-
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_zoo_models.py \
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_backend.py
-
-      - name: Python API snippets
-        run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:${{ github.workspace }}/openvino/docs/:$PYTHONPATH
-          export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
-          python3 ${{ github.workspace }}/openvino/docs/snippets/main.py
+        env:
+          PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}
+          LD_LIBRARY_PATH: ${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
 
       - name: Conversion UT
         run: |
           # For python imports to import pybind_mock_frontend
-          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+          python3 -m pytest -s ${{ env.INSTALL_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+        env:
+          PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Python API snippets
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          python3 ${{ github.workspace }}/openvino/docs/snippets/main.py
+        env:
+          PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}:${{ github.workspace }}/openvino/docs
+          LD_LIBRARY_PATH: ${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
