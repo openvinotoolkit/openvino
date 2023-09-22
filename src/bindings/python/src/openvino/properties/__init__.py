@@ -7,7 +7,7 @@ from openvino._pyopenvino.properties import Affinity
 
 # Properties
 from openvino._pyopenvino.properties import enable_profiling
-from openvino._pyopenvino.properties import cache_dir
+from openvino._pyopenvino.properties import cache_dir as cd
 from openvino._pyopenvino.properties import auto_batch_timeout
 from openvino._pyopenvino.properties import num_streams
 from openvino._pyopenvino.properties import inference_num_threads
@@ -26,29 +26,8 @@ from openvino._pyopenvino.properties import range_for_async_infer_requests
 from openvino._pyopenvino.properties import execution_devices
 from openvino._pyopenvino.properties import loaded_from_cache
 
-# from openvino.utils import module_property
-
-# class A:
-#     @classmethod
-#     def __call__(cls, *args):
-#         if args is not None:
-#             return sp(*args)
-#         return sp()
-#     @classmethod
-#     def __str__(cls):
-#         return sp()
-#     @classmethod
-#     def __repr__(cls):
-#         return sp()
-
-
-# @module_property
-# def _supported_properties():
-#     return A()
-
-
-from openvino.properties.api import supported_properties
-#import openvino.properties.api as props
+from openvino.properties.properties import supported_properties
+from openvino.properties.properties import cache_dir
 
 # Submodules
 from openvino.runtime.properties import hint
