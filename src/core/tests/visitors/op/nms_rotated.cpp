@@ -8,19 +8,19 @@
 
 #include "visitors/visitors.hpp"
 
-using namespace std;
-using namespace ov;
+using ov::Shape;
+using ov::op::v0::Parameter;
 using ov::test::NodeBuilder;
 
 TEST(attributes, nms_rotated_v13_default_attributes) {
     NodeBuilder::get_ops().register_factory<ov::op::v13::NMSRotated>();
-    auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 5});
-    auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
-    auto max_out = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
-    auto iou_tresh = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
-    auto score_tresh = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto boxes = std::make_shared<Parameter>(ov::element::f32, Shape{1, 1, 5});
+    auto scores = std::make_shared<Parameter>(ov::element::f32, Shape{1, 1, 1});
+    auto max_out = std::make_shared<Parameter>(ov::element::i32, Shape{});
+    auto iou_tresh = std::make_shared<Parameter>(ov::element::f32, Shape{});
+    auto score_tresh = std::make_shared<Parameter>(ov::element::f32, Shape{});
 
-    auto nms = make_shared<ov::op::v13::NMSRotated>(boxes, scores, max_out, iou_tresh, score_tresh);
+    auto nms = std::make_shared<ov::op::v13::NMSRotated>(boxes, scores, max_out, iou_tresh, score_tresh);
 
     NodeBuilder builder(nms, {boxes, scores, max_out, iou_tresh, score_tresh});
     auto g_nms = ov::as_type_ptr<ov::op::v13::NMSRotated>(builder.create());
@@ -32,23 +32,23 @@ TEST(attributes, nms_rotated_v13_default_attributes) {
 
 TEST(attributes, nms_rotated_v13_custom_attributes) {
     NodeBuilder::get_ops().register_factory<ov::op::v13::NMSRotated>();
-    auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 5});
-    auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
-    auto max_out = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
-    auto iou_tresh = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
-    auto score_tresh = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto boxes = std::make_shared<Parameter>(ov::element::f32, Shape{1, 1, 5});
+    auto scores = std::make_shared<Parameter>(ov::element::f32, Shape{1, 1, 1});
+    auto max_out = std::make_shared<Parameter>(ov::element::i32, Shape{});
+    auto iou_tresh = std::make_shared<Parameter>(ov::element::f32, Shape{});
+    auto score_tresh = std::make_shared<Parameter>(ov::element::f32, Shape{});
 
     auto sort_results_desc = false;
-    auto output_elem_type = element::i32;
+    auto output_elem_type = ov::element::i32;
     auto clockwise = false;
-    auto nms = make_shared<ov::op::v13::NMSRotated>(boxes,
-                                                    scores,
-                                                    max_out,
-                                                    iou_tresh,
-                                                    score_tresh,
-                                                    sort_results_desc,
-                                                    output_elem_type,
-                                                    clockwise);
+    auto nms = std::make_shared<ov::op::v13::NMSRotated>(boxes,
+                                                         scores,
+                                                         max_out,
+                                                         iou_tresh,
+                                                         score_tresh,
+                                                         sort_results_desc,
+                                                         output_elem_type,
+                                                         clockwise);
 
     NodeBuilder builder(nms, {boxes, scores, max_out, iou_tresh, score_tresh});
     auto g_nms = ov::as_type_ptr<ov::op::v13::NMSRotated>(builder.create());
