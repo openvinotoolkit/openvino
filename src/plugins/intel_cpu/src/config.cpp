@@ -220,8 +220,10 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, cons
         } else if (CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION == key) {
             if (val == PluginConfigParams::YES) {
                 denormalsOptMode = DenormalsOptMode::DO_On;
+                changedDenormalsOptMode = true;
             } else if (val == PluginConfigParams::NO) {
                 denormalsOptMode = DenormalsOptMode::DO_Off;
+                changedDenormalsOptMode = true;
             } else {
                 denormalsOptMode = DenormalsOptMode::DO_Keep;
                 IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION

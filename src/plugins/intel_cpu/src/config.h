@@ -81,6 +81,7 @@ struct Config {
     bool inferencePrecisionSetExplicitly = false;
     ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 
+    bool changedDenormalsOptMode = false;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_On;
 #else
