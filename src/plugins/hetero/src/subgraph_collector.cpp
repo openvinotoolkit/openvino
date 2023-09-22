@@ -511,35 +511,49 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
     std::unordered_set<std::string> devices;
     ov::hetero::SubgraphCollector::AffinitiesMap affinities;
     ov::SupportedOpsMap debug_supported_ops{supported_ops};
-    // Check that all nodes has user or plugin defined affinities
-    for (const auto& node : model->get_ordered_ops()) {
-        auto it_affinity = supported_ops.find(node->get_friendly_name());
-        if (it_affinity != supported_ops.end()) {
-            affinities[node] = it_affinity->second;
-            devices.emplace(it_affinity->second);
-        } else if (!default_device.empty()) {
-            affinities[node] = default_device;
-            devices.emplace(default_device);
-            debug_supported_ops.insert({node->get_friendly_name(), default_device});
-        } else if (!user_set_affinities) {
-            OPENVINO_THROW("Hetero device used default fallback policy, but some layers eg: \n(Name:",
-                           node->get_friendly_name(),
-                           ", Type: ",
-                           node->get_type_name(),
-                           ") were not able to be assigned on any pointed device.\n",
-                           "It happened because these layers are not supported in plugins by default.\n",
-                           "You need to implement custom layers to support them.");
-        } else {
-            OPENVINO_THROW("Model passed to CompiledModel has affinity assigned, but some layers eg: \n(Name:",
-                           node->get_friendly_name(),
-                           ", Type: ",
-                           node->get_type_name(),
-                           ") were not assigned to any device.\n",
-                           "It might happen if you assigned layers manually and missed some layers or\n",
-                           "if you used some automatic assigning mode which decided that these layers are not\n",
-                           "supported by any plugin");
-        }
-    }
+    // Check that all nodes has user or plugin defined affinitie
+    std::function<void(const std::shared_ptr<ov::Model>&, const std::string&)> collect_affinities =
+        [&](const std::shared_ptr<ov::Model>& model, const std::string& default_device) {
+            for (const auto& node : model->get_ordered_ops()) {
+                auto it_affinity = supported_ops.find(node->get_friendly_name());
+                if (it_affinity != supported_ops.end()) {
+                    affinities[node] = it_affinity->second;
+                    devices.emplace(it_affinity->second);
+                } else if (!default_device.empty()) {
+                    affinities[node] = default_device;
+                    devices.emplace(default_device);
+                    debug_supported_ops.insert({node->get_friendly_name(), default_device});
+                } else if (!user_set_affinities) {
+                    OPENVINO_THROW("Hetero device used default fallback policy, but some layers eg: \n(Name:",
+                                   node->get_friendly_name(),
+                                   ", Type: ",
+                                   node->get_type_name(),
+                                   ") were not able to be assigned on any pointed device.\n",
+                                   "It happened because these layers are not supported in plugins by default.\n",
+                                   "You need to implement custom layers to support them.");
+                } else {
+                    OPENVINO_THROW(
+                        "Model passed to CompiledModel has affinity assigned, but some layers eg: \n(Name:",
+                        node->get_friendly_name(),
+                        ", Type: ",
+                        node->get_type_name(),
+                        ") were not assigned to any device.\n",
+                        "It might happen if you assigned layers manually and missed some layers or\n",
+                        "if you used some automatic assigning mode which decided that these layers are not\n",
+                        "supported by any plugin");
+                }
+                if (dump_dot_files) {
+                    if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+                        for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i) {
+                            if (const auto& sub_graph = multi_subgraph_op->get_function(i)) {
+                                collect_affinities(sub_graph, debug_supported_ops.at(node->get_friendly_name()));
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    collect_affinities(model, default_device);
     if (dump_dot_files) {
         ov::hetero::debug::dump_affinities(model, debug_supported_ops, devices);
     }
@@ -550,8 +564,17 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
     if (dump_dot_files) {
         auto subgraph_ids = subgraph_collector.get_subgraph_ids();
         std::map<std::string, ov::hetero::SubgraphCollector::SubgraphId> map_id;
-        for (const auto& v : subgraph_ids) {
-            map_id.emplace(v.first->get_friendly_name(), v.second);
+        for (const auto& node : model->get_ordered_ops()) {
+            map_id.emplace(node->get_friendly_name(), subgraph_ids.at(node));
+            if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+                for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i) {
+                    if (const auto& sub_graph = multi_subgraph_op->get_function(i)) {
+                        for (const auto& sub_node : sub_graph->get_ordered_ops()) {
+                            map_id.emplace(sub_node->get_friendly_name(), subgraph_ids.at(node));
+                        }
+                    }
+                }
+            }
         }
         ov::hetero::debug::dump_subgraphs(model, debug_supported_ops, map_id);
     }
