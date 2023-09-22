@@ -532,6 +532,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install --force-reinstall -r ${{ env.INSTALL_TEST_DIR }}/python/frontends/onnx/requirements.txt
+          python3 -m pip install --force-reinstall -r ${{ env.INSTALL_TEST_DIR }}/python/preprocess/torchvision/requirements.txt
 
       - name: Install Python wheels
         run: |
@@ -699,7 +700,7 @@ jobs:
       - name: Install python dependencies
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/python/frontends/tensorflow/requirements.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/python/frontends/tensorflow/requirements.txt
 
       - name: PyTorch Layer Tests
         if: always()

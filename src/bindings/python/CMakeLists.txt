@@ -391,6 +391,10 @@ if(ENABLE_TESTS)
         DESTINATION tests/bindings/python/
         COMPONENT tests
         EXCLUDE_FROM_ALL)
+    install(FILES src/openvino/preprocess/torchvision/requirements.txt
+        DESTINATION tests/python/preprocess/torchvision/requirements.txt
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)
