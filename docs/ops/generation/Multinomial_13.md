@@ -174,7 +174,7 @@ Example 3 - 1D tensor, without replacement
     <layer ... name="Multinomial" type="Multinomial">
         <data output_type="f32", with_replacement="false", log_probs="false", global_seed="234", op_seed="148"/>
         <input>
-            <port id="0" precision="FP32">  < !-- shape value: [0.1, 0.5, 0.4] -->
+            <port id="0" precision="FP32">  < !-- probs value: [0.1, 0.5, 0.4] -->
                 <dim>3</dim>
             </port>
             <port id="1" precision="I32"/> < !-- num_samples value: 2 -->
