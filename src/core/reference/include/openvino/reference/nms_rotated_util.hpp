@@ -50,9 +50,9 @@ static inline float cross_2d(const Point& A, const Point& B) {
 
 static inline void get_rotated_vertices(const RotatedBox& box, Point (&pts)[4]) {
     // M_PI / 180. == 0.01745329251
-    double theta = box.a;  // angle already in radians
-    float cosTheta2 = (float)cos(theta) * 0.5f;
-    float sinTheta2 = (float)sin(theta) * 0.5f;
+    auto theta = box.a;  // angle already in radians
+    auto cosTheta2 = static_cast<float>(cos(theta)) * 0.5f;
+    auto sinTheta2 = static_cast<float>(sin(theta)) * 0.5f;
 
     // y: top --> down; x: left --> right
     pts[0].x = box.x_ctr - sinTheta2 * box.h - cosTheta2 * box.w;
@@ -82,14 +82,14 @@ static inline int get_intersection_points(const Point (&pts1)[4], const Point (&
             float det = cross_2d(vec2[j], vec1[i]);
 
             // This takes care of parallel lines
-            if (fabs(det) <= 1e-14) {
+            if (std::abs(det) <= 1e-14) {
                 continue;
             }
 
             auto vec12 = pts2[j] - pts1[i];
 
-            float t1 = cross_2d(vec2[j], vec12) / det;
-            float t2 = cross_2d(vec1[i], vec12) / det;
+            auto t1 = cross_2d(vec2[j], vec12) / det;
+            auto t2 = cross_2d(vec1[i], vec12) / det;
 
             if (t1 >= 0.0f && t1 <= 1.0f && t2 >= 0.0f && t2 <= 1.0f) {
                 intersections[num++] = pts1[i] + vec1[i] * t1;
@@ -141,7 +141,7 @@ static inline int get_intersection_points(const Point (&pts1)[4], const Point (&
 }
 
 static inline int convex_hull_graham(const Point (&p)[24],
-                                     const int& num_in,
+                                     const int num_in,
                                      Point (&q)[24],
                                      bool shift_to_zero = false) {
     assert(num_in >= 2);
@@ -165,9 +165,7 @@ static inline int convex_hull_graham(const Point (&p)[24],
     }
 
     // Swap the starting point to position 0
-    auto tmp = q[0];
-    q[0] = q[t];
-    q[t] = tmp;
+    std::swap(q[t], q[0]);
 
     // Step 3:
     // Sort point 1 ~ num_in according to their relative cross-product values
@@ -178,10 +176,9 @@ static inline int convex_hull_graham(const Point (&p)[24],
         dist[i] = dot_2d(q[i], q[i]);
     }
 
-    // CPU version
     std::sort(q + 1, q + num_in, [](const Point& A, const Point& B) -> bool {
         float temp = cross_2d(A, B);
-        if (fabs(temp) < 1e-6) {
+        if (std::abs(temp) < 1e-6f) {
             return dot_2d(A, A) < dot_2d(B, B);
         } else {
             return temp > 0;
@@ -243,7 +240,7 @@ static inline float polygon_area(const Point (&q)[24], const int& m) {
 
     float area = 0;
     for (int i = 1; i < m - 1; i++) {
-        area += fabs(cross_2d(q[i] - q[0], q[i + 1] - q[0]));
+        area += std::abs(cross_2d(q[i] - q[0], q[i + 1] - q[0]));
     }
 
     return area / 2.0f;
