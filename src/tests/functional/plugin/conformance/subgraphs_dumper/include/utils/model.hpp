@@ -49,13 +49,17 @@ static std::vector<std::regex> FROTEND_REGEXP = {
 enum ModelCacheStatus {
     SUCCEED = 0,
     NOT_FULLY_CACHED = 1,
-    NOT_READ = 2
+    NOT_READ = 2,
+    LARGE_MODELS_EXCLUDED = 3,
+    LARGE_MODELS_INCLUDED = 4,
 };
 
 static std::map<ModelCacheStatus, std::string> model_cache_status_to_str = {
     { ModelCacheStatus::SUCCEED, "successful_models" },
     { ModelCacheStatus::NOT_FULLY_CACHED, "not_fully_cached_models" },
     { ModelCacheStatus::NOT_READ, "not_read_models" },
+    { ModelCacheStatus::LARGE_MODELS_EXCLUDED, "large_models_excluded" },
+    { ModelCacheStatus::LARGE_MODELS_INCLUDED, "large_models_included" },
 };
 
 std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>

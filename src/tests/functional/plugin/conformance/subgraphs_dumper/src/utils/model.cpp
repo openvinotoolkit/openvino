@@ -77,7 +77,9 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
     std::map<ModelCacheStatus, std::vector<std::string>> cache_status = {
         { ModelCacheStatus::SUCCEED, {} },
         { ModelCacheStatus::NOT_FULLY_CACHED, {} },
-        { ModelCacheStatus::NOT_READ, {} }
+        { ModelCacheStatus::NOT_READ, {} },
+        { ModelCacheStatus::LARGE_MODELS_EXCLUDED, {} },
+        { ModelCacheStatus::LARGE_MODELS_INCLUDED, {} },
     };
     auto core = ov::test::utils::PluginCache::get().core();
     auto models_size = models.size();
@@ -91,6 +93,12 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
             try {
                 std::shared_ptr<ov::Model> function = core->read_model(model);
                 try {
+                    if (cache->is_model_large_to_read(function, model)) {
+                        cache_status[ModelCacheStatus::LARGE_MODELS_EXCLUDED].push_back(model);
+                        continue;
+                    } else if (cache->is_model_large_to_store_const(function)) {
+                        cache_status[ModelCacheStatus::LARGE_MODELS_INCLUDED].push_back(model);
+                    }
                     cache->update_cache(function, model, extract_body, from_cache);
                 } catch (std::exception &e) {
                     std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
