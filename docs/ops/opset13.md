@@ -32,6 +32,10 @@ Table of Contents
 * :doc:`BatchNormInference <openvino_docs_ops_normalization_BatchNormInference_5>`
 * :doc:`BatchToSpace <openvino_docs_ops_movement_BatchToSpace_2>`
 * :doc:`BinaryConvolution <openvino_docs_ops_convolution_BinaryConvolution_1>`
+* :doc:`BitwiseAnd <openvino_docs_ops_bitwise_BitwiseAnd_13>`
+* :doc:`BitwiseOr <openvino_docs_ops_bitwise_BitwiseOr_13>`
+* :doc:`BitwiseXor <openvino_docs_ops_bitwise_BitwiseXor_13>`
+* :doc:`BitwiseNot <openvino_docs_ops_bitwise_BitwiseNot_13>`
 * :doc:`Broadcast <openvino_docs_ops_movement_Broadcast_3>`
 * :doc:`Bucketize <openvino_docs_ops_condition_Bucketize_3>`
 * :doc:`CTCGreedyDecoder <openvino_docs_ops_sequence_CTCGreedyDecoder_1>`
