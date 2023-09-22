@@ -1829,7 +1829,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
-    if (!mayiuse(avx512_core)) {
+    if (!mayiuse(avx512_core) && !mayiuse(avx2_vnni_2)) {
         if (outputPrecision == ov::element::bf16)
             outputPrecision = ov::element::f32;
     }
