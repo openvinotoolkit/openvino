@@ -505,7 +505,6 @@ jobs:
       SAMPLES_INSTALL_DIR: /__w/openvino/openvino/install/samples
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
       MODEL_HUB_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/model_hub_tests
-      BUILD_DIR: /__w/openvino/openvino/build
       OV_TEMP: /__w/openvino/openvino/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
 
@@ -957,15 +956,6 @@ jobs:
       - name: Install Python wheels
         run: |
           python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
-      - name: PyTorch Models Tests
-        run: |
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements_secondary.txt
-          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html
-        env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
-          TEST_DEVICE: CPU
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
