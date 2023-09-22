@@ -91,7 +91,7 @@ void op::v13::NMSRotated::validate_and_infer_types() {
     nms_rotated::validate::input_types(this);
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
-                          "Output type must be i32 or i64");
+                          "The `output_type` attribute (related to the first and third output) must be i32 or i64.");
 
     set_output_type(0, m_output_type, output_shapes[0]);
     set_output_type(1, element::f32, output_shapes[1]);

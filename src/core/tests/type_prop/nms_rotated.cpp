@@ -98,13 +98,24 @@ TYPED_TEST_P(NMSRotatedCommonTest, input_types_check) {
                     HasSubstr("Expected floating point type as element type for the input at: 4"));
 }
 
+TYPED_TEST_P(NMSRotatedCommonTest, output_type_attr_check) {
+    const auto param_fp = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto param_int = make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(
+        ignore = this->make_op(param_fp, param_fp, param_int, param_fp, param_fp, true, element::f16),
+        NodeValidationFailure,
+        HasSubstr("The `output_type` attribute (related to the first and third output) must be i32 or i64"));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(NMSRotatedCommonTest,
                             incorrect_boxes_rank,
                             incorrect_scores_rank,
                             incorrect_scheme_num_batches,
                             incorrect_scheme_num_boxes,
                             incorrect_boxes_last_dim,
-                            input_types_check);
+                            input_types_check,
+                            output_type_attr_check);
 
 using NMSRotatedCommonTypes = testing::Types<op::v13::NMSRotated>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, NMSRotatedCommonTest, NMSRotatedCommonTypes);
