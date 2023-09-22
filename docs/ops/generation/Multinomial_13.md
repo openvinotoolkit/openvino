@@ -152,7 +152,7 @@ Example 3 - 1D tensor, without replacement
     <layer ... name="Multinomial" type="Multinomial">
         <data output_type="f32", with_replacement="true", log_probs="true", global_seed="234", op_seed="148"/>
         <input>
-            <port id="0" precision="FP32">  < !-- shape value: [[-1, 1, 2], [50, 1, 21]] -->
+            <port id="0" precision="FP32">  < !-- probs value: [[-1, 1, 2], [50, 1, 21]] -->
                 <dim>2</dim> < !-- batch size of 2 -->
                 <dim>3</dim>
             </port>
