@@ -938,3 +938,20 @@ class TestTFLoadByModel(unittest.TestCase):
         fe = fem.load_by_model(model)
         assert fe is not None
         assert fe.get_name() == "tf"
+
+
+class TestTFConvertRaises(unittest.TestCase):
+    def test_incorrect_inputs_1(self):
+        from openvino.tools.ovc import convert_model
+        tf_model, _, _ = create_keras_model('')
+
+        with self.assertRaisesRegex(Exception, ".*No node with name.*"):
+            convert_model(tf_model, input='Input1[1, 2, 3]')
+
+    def test_incorrect_inputs_2(self):
+        from openvino.tools.ovc import convert_model
+        tf_model, _, _ = create_keras_model('')
+
+        # check that it accepts specified names as is without parsing into 2 different inputs
+        with self.assertRaisesRegex(Exception, 'No node with name Input1\[1, 2, 3\],Input2\[1, 2, 3\]'):
+            convert_model(tf_model, input='Input1[1, 2, 3],Input2[1, 2, 3]')
