@@ -53,7 +53,8 @@ void regclass_graph_op_If(py::module m) {
         "get_else_body",
         [](ov::op::v8::If& self) {
             auto model = self.get_else_body();
-            return py::module::import("openvino.runtime").attr("Model")(model);
+            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            return model_class(py::cast(model));
         },
         R"(
             Gets else_body as Model object.

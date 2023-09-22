@@ -56,12 +56,14 @@ void regclass_graph_op_TensorIterator(py::module m) {
 
     cls.def("get_body", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) {
         auto model = self->get_body();
-        return py::module::import("openvino.runtime").attr("Model")(model);
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
     });
 
     cls.def("get_function", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) {
         auto model = self->get_function();
-        return py::module::import("openvino.runtime").attr("Model")(model);
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
     });
 
     cls.def(

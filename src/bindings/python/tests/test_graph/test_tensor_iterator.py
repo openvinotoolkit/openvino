@@ -118,7 +118,9 @@ def test_tensor_iterator_basic():
     ti.get_iter_value(curr_cma.output(0), -1)
     ti.get_concatenated_slices(cma_hist.output(0), 0, 1, 1, -1, 0)
 
-    assert ti.get_function() == graph_body
+    subgraph_func = ti.get_function()
+    assert type(subgraph_func) == type(graph_body)
+    assert subgraph_func == graph_body
     assert ti.get_num_iterations() == 16
 
     input_desc = ti.get_input_descriptions()

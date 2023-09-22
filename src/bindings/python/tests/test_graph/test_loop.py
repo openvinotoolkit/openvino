@@ -139,7 +139,9 @@ def test_loop_basic():
     loop.get_iter_value(curr_cma.output(0), -1)
     loop.get_concatenated_slices(cma_hist.output(0), 0, 1, 1, -1, 0)
 
-    assert loop.get_function() == graph_body
+    subgraph_func = loop.get_function()
+    assert type(subgraph_func) == type(graph_body)
+    assert subgraph_func == graph_body
     assert loop.get_special_body_ports() == body_ports
     assert loop.get_num_iterations() == 16
 
