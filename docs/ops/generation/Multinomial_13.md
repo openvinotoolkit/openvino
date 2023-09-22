@@ -17,7 +17,9 @@
 
 Note: The following notation
 
-$$[a, b] => \{ x \in \mathbb{R},  a <= x <= b \} $$
+.. math::
+   
+   [a, b] => \{ x \in \mathbb{R},  a <= x <= b \}
 
 denotes a range of real numbers between a and b.
 
