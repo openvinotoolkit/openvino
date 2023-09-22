@@ -10,8 +10,8 @@ namespace multinomial {
 
 template <ov::element::Type_t INPUT_T, ov::element::Type_t SAMPLES_T, ov::element::Type_t OUTPUT_T>
 inline void evaluate_internal(const std::shared_ptr<ov::op::v13::Multinomial>& op,
-                              const ov::HostTensorVector& outputs,
-                              const ov::HostTensorVector& inputs) {
+                              const ov::TensorVector& outputs,
+                              const ov::TensorVector& inputs) {
     using T1 = typename ov::element_type_traits<INPUT_T>::value_type;
     using T2 = typename ov::element_type_traits<SAMPLES_T>::value_type;
     using T3 = typename ov::element_type_traits<OUTPUT_T>::value_type;
@@ -33,8 +33,8 @@ inline void evaluate_internal(const std::shared_ptr<ov::op::v13::Multinomial>& o
 
 template <ov::element::Type_t INPUT_T, ov::element::Type_t SAMPLES_T>
 inline void evaluate(const std::shared_ptr<ov::op::v13::Multinomial>& op,
-                     const ov::HostTensorVector& outputs,
-                     const ov::HostTensorVector& inputs) {
+                     const ov::TensorVector& outputs,
+                     const ov::TensorVector& inputs) {
     switch (op->get_convert_type()) {
     case ov::element::Type_t::i32:
         evaluate_internal<INPUT_T, SAMPLES_T, ov::element::Type_t::i32>(op, outputs, inputs);
@@ -51,8 +51,8 @@ inline void evaluate(const std::shared_ptr<ov::op::v13::Multinomial>& op,
 
 template <ov::element::Type_t INPUT_T>
 bool evaluate(const std::shared_ptr<ov::op::v13::Multinomial>& op,
-              const ov::HostTensorVector& outputs,
-              const ov::HostTensorVector& inputs) {
+              const ov::TensorVector& outputs,
+              const ov::TensorVector& inputs) {
     switch (inputs[1]->get_element_type()) {
     case ov::element::Type_t::i64:
         multinomial::evaluate<INPUT_T, ov::element::Type_t::i64>(op, outputs, inputs);
@@ -66,8 +66,8 @@ bool evaluate(const std::shared_ptr<ov::op::v13::Multinomial>& op,
 
 template <>
 bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
-                                             const ov::HostTensorVector& outputs,
-                                             const ov::HostTensorVector& inputs) {
+                                             const ov::TensorVector& outputs,
+                                             const ov::TensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
     if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
         element_type = node->get_input_element_type(1);
