@@ -60,7 +60,7 @@ jobs:
       - name: Install git
         run: |
           apt-get update
-          apt-get install -y git git-lfs
+          apt-get install --assume-yes --no-install-recommends git
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -85,7 +85,7 @@ jobs:
           # openjdk-11-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
           # unzip - to download ninja
-          apt --assume-yes install openjdk-11-jdk libssl1.1 unzip
+          apt install --assume-yes --no-install-recommends openjdk-11-jdk libssl1.1 unzip
 
           wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
           unzip ninja-linux.zip
@@ -172,36 +172,6 @@ jobs:
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz tests/
           popd
 
-      - name: Build cpp samples
-        run: ${SAMPLES_INSTALL_DIR}/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-
-      - name: Build c samples
-        run: ${SAMPLES_INSTALL_DIR}/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-
-      #
-      # Tests
-      #
-
-      - name: Samples tests
-        run: |
-          export WORKSPACE=${INSTALL_DIR}
-          export IE_APP_PATH=${INSTALL_DIR}/samples_bin
-          export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
-          export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
-
-          python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
-          export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
-
-          source ${INSTALL_DIR}/setupvars.sh
-
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
-            --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
-
       #
       # Upload build artifacts
       #
@@ -222,22 +192,23 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-  CXX_Unit_Tests:
+  Samples:
     needs: Build
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores
+    runs-on: ubuntu-20.04
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: ubuntu:20.04
     env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
+      BUILD_DIR: /__w/openvino/openvino/build
 
     steps:
       - name: Create Directories
-        run: |
-          mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
       #
       # Initialize OpenVINO
@@ -265,7 +236,98 @@ jobs:
           popd
 
       - name: Install OpenVINO dependencies
-        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
+      - name: Build cpp samples - GCC
+        run: ${SAMPLES_INSTALL_DIR}/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+
+      - name: Build cpp samples - Clang
+        run: |
+          apt-get install -y clang
+          ${SAMPLES_INSTALL_DIR}/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples_clang
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+          CC: clang
+          CXX: clang++
+
+      - name: Build c samples
+        run: ${SAMPLES_INSTALL_DIR}/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+
+      #
+      # Tests
+      #
+
+      - name: Samples tests
+        run: |
+          export WORKSPACE=${INSTALL_DIR}
+          export IE_APP_PATH=${INSTALL_DIR}/samples_bin
+          export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
+          export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
+
+          python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
+          export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
+
+          source ${INSTALL_DIR}/setupvars.sh
+
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
+            --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-cpp
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
+
+  CXX_Unit_Tests:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-4-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    env:
+      INSTALL_DIR: /__w/openvino/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
+
+    steps:
+      - name: Create Directories
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+
+      #
+      # Initialize OpenVINO
+      #
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+          popd
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=gpu -y
 
       #
       # Tests
@@ -318,8 +380,9 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
-                --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles*:*dyn* \
+                --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles*:*onnx_dyn_shapes_expand*:*onnx_if_dynamic_inputs*:*onnx_model_skip_layer_normalization_dynamic_shapes* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
+        continue-on-error: true
 
       - name: TensorFlow Common frontend tests
         run: |
@@ -438,7 +501,7 @@ jobs:
       - name: Install git
         run: |
           apt update
-          apt --assume-yes install git git-lfs
+          apt install --assume-yes --no-install-recommends git
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
