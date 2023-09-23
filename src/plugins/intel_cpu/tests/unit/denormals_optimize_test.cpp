@@ -20,6 +20,7 @@ using namespace testing;
 class DenormalsOptimizeTestF : public ov::test::TestsCommon {
 public:
     DenormalsOptimizeTestF() {
+        // Recover the default setting before starting a new test.
         ov::intel_cpu::flush_to_zero(false);
         ov::intel_cpu::denormals_as_zero(false);
     }
