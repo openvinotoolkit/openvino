@@ -46,8 +46,10 @@ jobs:
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      INSTALL_DIR: /__w/openvino/openvino/install
-      BUILD_DIR: /__w/openvino/openvino/build
+      INSTALL_DIR: /__w/openvino/openvino/openvino_install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
+      BUILD_DIR: /__w/openvino/openvino/openvino_build
+      OPENVINO_CONTRIB_BUILD_DIR: /__w/openvino/openvino/openvino_contrib_build
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
@@ -119,7 +121,7 @@ jobs:
         run: |
           mkdir -p $CCACHE_DIR
 
-      - name: CMake configure
+      - name: CMake configure - OpenVINO
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
@@ -138,7 +140,6 @@ jobs:
             -DBUILD_nvidia_plugin=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
-            -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -148,23 +149,35 @@ jobs:
       - name: Cmake build
         run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
+      - name: Build OpenVINO Contrib
+        run: |
+          cmake \
+            -G "${{ env.CMAKE_GENERATOR }}" \
+            -DBUILD_nvidia_plugin=OFF \
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
+            -DOpenVINODeveloperPackage_DIR=${BUILD_DIR} \
+            -S ${OPENVINO_CONTRIB_REPO}/modules \
+            -B ${OPENVINO_CONTRIB_BUILD_DIR}
+
+          cmake --build ${OPENVINO_CONTRIB_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+
       - name: Show ccache stats
         run: ccache --show-stats
 
       - name: Cmake install
         run: |
-          cmake -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
           pushd ${INSTALL_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz --exclude=tests *
+            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
 
-          pushd ${INSTALL_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz tests/
+          pushd ${INSTALL_TEST_DIR}
+            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
           popd
 
       #
