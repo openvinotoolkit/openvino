@@ -277,6 +277,9 @@ jobs:
 
       - name: Samples tests
         run: |
+          # OpenCV dependency
+          apt-get install -y libgl1
+
           export WORKSPACE=${INSTALL_DIR}
           export IE_APP_PATH=${INSTALL_DIR}/samples_bin
           export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
@@ -597,7 +600,7 @@ jobs:
         run: |
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:$PYTHONPATH
           # required for MxNet
-          apt-get install -y libgomp1
+          apt-get install -y libgomp1 libquadmath0
 
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml

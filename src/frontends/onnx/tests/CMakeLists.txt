@@ -107,7 +107,17 @@ ov_add_clang_format_target(ov_onnx_frontend_tests_clang FOR_SOURCES ${full_src_n
 foreach(BACKEND_NAME IN LISTS ACTIVE_BACKEND_LIST)
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
     string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
-    set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
+    set(SRC_MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
+    set(MANIFEST_RENAME "${BACKEND_DIR}_unit_test.manifest")
+    set(MANIFEST "${TEST_MODEL_ZOO}/onnx/${MANIFEST_RENAME}")
+
+    list(APPEND custom_commands
+         COMMAND ${CMAKE_COMMAND} -E copy "${SRC_MANIFEST}"
+                                          "${TEST_MODEL_ZOO_OUTPUT_DIR}/onnx/${MANIFEST_RENAME}")
+
+    install(FILES "${SRC_MANIFEST}"
+            RENAME "${MANIFEST_RENAME}"
+            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
     foreach(TEST_SRC ${MULTI_TEST_SRC})
         string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
@@ -160,19 +170,16 @@ target_include_directories(ov_onnx_frontend_tests PRIVATE
     $<TARGET_PROPERTY:openvino_onnx_frontend,INCLUDE_DIRECTORIES>)
 
 install(TARGETS ov_onnx_frontend_tests
-        RUNTIME DESTINATION tests
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
-        DESTINATION tests
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+        DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
 add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
                                                     "${TEST_MODEL_ZOO_OUTPUT_DIR}/onnx/unit_test.manifest"
-                   COMMENT "Copy unit_test.manifest to ${TEST_MODEL_ZOO}/onnx")
+                   ${custom_commands}
+                   COMMENT "Copy test manifest files to ${TEST_MODEL_ZOO}/onnx")
 
 # process models
 add_dependencies(ov_onnx_frontend_tests test_model_zoo)

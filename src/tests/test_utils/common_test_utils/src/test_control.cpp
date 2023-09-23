@@ -16,7 +16,6 @@ static unordered_set<string>& get_blacklist(const string& backend) {
 
 string ov::prepend_disabled(const string& backend_name, const string& test_name, const string& manifest) {
     string rc = test_name;
-    std::cout << manifest << std::endl;
     unordered_set<string>& blacklist = get_blacklist(backend_name);
     if (blacklist.empty() && !manifest.empty()) {
         ifstream f(manifest);
