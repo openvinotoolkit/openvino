@@ -277,9 +277,6 @@ jobs:
 
       - name: Samples tests
         run: |
-          # OpenCV dependency
-          apt-get install -y libgl1
-
           export WORKSPACE=${INSTALL_DIR}
           export IE_APP_PATH=${INSTALL_DIR}/samples_bin
           export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
