@@ -159,7 +159,10 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         }
 
         if (reset || res->is_memory_reset_needed(layout)) {
-            get_service_stream().wait_for_events({res->fill(get_service_stream())});
+            auto ev = res->fill(get_service_stream());
+            if (ev) {
+                get_service_stream().wait_for_events({ev});
+            }
         }
 
         return res;
