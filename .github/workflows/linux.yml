@@ -47,12 +47,7 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       INSTALL_DIR: /__w/openvino/openvino/install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-      SAMPLES_INSTALL_DIR: /__w/openvino/openvino/install/samples
-      LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
-      MODEL_HUB_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/model_hub_tests
       BUILD_DIR: /__w/openvino/openvino/build
-      OV_TEMP: /__w/openvino/openvino/openvino_temp
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
@@ -60,7 +55,7 @@ jobs:
       - name: Install git
         run: |
           apt-get update
-          apt-get install --assume-yes --no-install-recommends git
+          apt-get install --assume-yes --no-install-recommends git git-lfs ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4

@@ -4,10 +4,10 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "common_test_utils/test_control.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "ngraph/file_util.hpp"
+#include "common_test_utils/test_control.hpp"
 #include "gtest/gtest.h"
+#include "ngraph/file_util.hpp"
 
 static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 

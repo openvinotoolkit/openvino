@@ -6,6 +6,8 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 ov_try_use_gold_linker()
 
+ov_deprecated_no_errors()
+
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(
