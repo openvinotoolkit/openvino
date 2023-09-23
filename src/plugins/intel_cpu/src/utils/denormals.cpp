@@ -1,8 +1,12 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <map>
 #include "denormals.hpp"
+
+#include "cpu/x64/xbyak/xbyak.h"
+#include "cpu/x64/xbyak/xbyak_util.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #   include <immintrin.h>
@@ -111,6 +115,20 @@ bool denormals_as_zero(bool on) {
         bool denormals_as_zero(bool on) { return false; }
     #endif
 #endif // OPENVINO_ARCH_X86_64
+
+void set_denormals_optimization(ov::intel_cpu::Config& conf) {
+    static Xbyak::util::Cpu cpu;
+    // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
+    if (cpu.has(Xbyak::util::Cpu::tSSE)) {
+        if (conf.denormalsOptMode == ov::intel_cpu::Config::DenormalsOptMode::DO_On) {
+            flush_to_zero(true);
+            conf.DAZOn = denormals_as_zero(true);
+        } else if (conf.denormalsOptMode == ov::intel_cpu::Config::DenormalsOptMode::DO_Off) {
+            flush_to_zero(false);
+            denormals_as_zero(false);
+        }
+    }
+}
 
 }   // namespace intel_cpu
 }   // namespace ov

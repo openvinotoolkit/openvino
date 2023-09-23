@@ -20,12 +20,10 @@ using namespace testing;
 class DenormalsOptimizeTestF : public ov::test::TestsCommon {
 public:
     DenormalsOptimizeTestF() {
-        std::cout << __FUNCTION__ << std::endl;
         ov::intel_cpu::flush_to_zero(false);
         ov::intel_cpu::denormals_as_zero(false);
     }
     ~DenormalsOptimizeTestF() {
-        std::cout << __FUNCTION__ << std::endl;
         if (pConst1)
             delete[] pConst1;
         if (pConst2)
@@ -35,15 +33,12 @@ public:
     }
 
     void SetUp() override {
-        std::cout << __FUNCTION__ << std::endl;
         initBuf(pConst1, shape_size(inpShape), std::numeric_limits<float>::min());
         initBuf(pConst2, shape_size(inpShape), 0.5f);
         initModel();
     }
 
-    void TearDown() override {
-        std::cout << __FUNCTION__ << std::endl;
-    }
+    void TearDown() override {}
 
     ov::Shape inpShape = ov::Shape{1, 5, 12, 64};
     ov::element::Type rtPrc = ov::element::f32;
@@ -126,6 +121,9 @@ TEST_F(DenormalsOptimizeTestF, Sync) {
     run(true);
 
     checkOutput(false);
+
+    // To prove that there is no impact on customers' applications for the default setting.
+    run_reference_multiply();
 }
 
 TEST_F(DenormalsOptimizeTestF, Sync_Opt_YES) {
@@ -154,6 +152,9 @@ TEST_F(DenormalsOptimizeTestF, Async) {
     run(false);
 
     checkOutput(true);
+
+    // To prove that there is no impact on customers' applications for the default setting.
+    run_reference_multiply();
 }
 
 TEST_F(DenormalsOptimizeTestF, Async_Opt_YES) {
