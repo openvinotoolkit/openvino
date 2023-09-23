@@ -131,17 +131,15 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
-            -DENABLE_PYTHON=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
-            -DBUILD_SHARED_LIBS=ON \
-            -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
-            -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_TBB=ON \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DENABLE_SYSTEM_PUGIXML=ON \
             -DBUILD_nvidia_plugin=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
@@ -151,7 +149,7 @@ jobs:
       - name: Clean ccache stats
         run: ccache --zero-stats --show-config
 
-      - name: Build
+      - name: Cmake build
         run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show ccache stats
@@ -232,13 +230,6 @@ jobs:
             --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
             --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
 
-      # Present in the "Build" job due to the fact that these tests require build directory
-      - name: ONNX frontend tests
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
-
       #
       # Upload build artifacts
       #
@@ -303,7 +294,7 @@ jobs:
 
       - name: Install OpenVINO dependencies
         run: |
-          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh
+          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev
 
       #
       # Tests
@@ -352,12 +343,12 @@ jobs:
       #     ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* \
       #           --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
-      # Present in the "Build" job as these tests require build directory
-      # - name: ONNX frontend tests
-      #   run: |
-      #     source ${INSTALL_DIR}/setupvars.sh
-      #     ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
-      #           --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
+      - name: ONNX frontend tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
+                --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
         run: |
@@ -525,16 +516,16 @@ jobs:
         run: |
           python3 -m pip install openvino-dev[mxnet,caffe,kaldi,onnx,tensorflow2] --find-links=${INSTALL_DIR}/tools
 
+      #
+      # Tests
+      #
+
       - name: nGraph and IE Python Bindings Tests
         run: |
           python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph  ${{ env.PYTHON_STATIC_ARGS }} \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_zoo_models.py \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_backend.py
-
-      #
-      # Tests
-      #
 
       - name: Python API 2.0 Tests
         run: |
@@ -702,13 +693,13 @@ jobs:
 
       - name: Install OpenVINO dependencies
         run: |
-          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh
+          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev
 
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Install python dependencies for test parallel
+      - name: Install python dependencies for run_parallel.py
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/requirements.txt
@@ -794,12 +785,13 @@ jobs:
         run: |
           python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
 
-      - name: TensorFlow Hub Tests - TF FE
+      - name: Install TF Hub tests requirements
         run: |
           python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
 
+      - name: TensorFlow Hub Tests - TF FE
+        run: |
           export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-
           python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.html --self-contained-html
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
