@@ -13,7 +13,7 @@ add_compile_definitions(
     ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx"
     ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx/"
     TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
-    MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
+    MANIFEST="${SERIALIZED_ZOO}/onnx/unit_test.manifest"
     SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
 
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
@@ -102,7 +102,7 @@ foreach(src IN LISTS SRC MULTI_TEST_SRC)
 endforeach()
 ov_add_clang_format_target(ov_onnx_frontend_tests_clang FOR_SOURCES ${full_src_names})
 
-foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
+foreach(BACKEND_NAME IN LISTS ACTIVE_BACKEND_LIST)
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
     string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
     set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
@@ -161,6 +161,16 @@ install(TARGETS ov_onnx_frontend_tests
         RUNTIME DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
+
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
+        DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
+add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
+                                                    "${TEST_MODEL_ZOO_OUTPUT_DIR}/onnx/unit_test.manifest"
+                   COMMENT "Copy unit_test.manifest to ${TEST_MODEL_ZOO}/onnx")
 
 # process models
 add_dependencies(ov_onnx_frontend_tests test_model_zoo)

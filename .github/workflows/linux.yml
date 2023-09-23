@@ -380,9 +380,8 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
-                --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles*:*onnx_dyn_shapes_expand*:*onnx_if_dynamic_inputs*:*onnx_model_skip_layer_normalization_dynamic_shapes* \
+                --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
-        continue-on-error: true
 
       - name: TensorFlow Common frontend tests
         run: |
