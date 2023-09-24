@@ -1,11 +1,13 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from snippets import get_model
 
-from openvino.runtime import Core
+model = get_model()
 
 #! [static_shape]
-core = Core()
-model = core.read_model("model.xml")
+import openvino as ov
+
+core = ov.Core()
 model.reshape([10, 20, 30, 40])
 #! [static_shape]

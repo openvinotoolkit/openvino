@@ -70,7 +70,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const ov::AnyMap& prop, ModelType modelType) {
+void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     const auto streamExecutorConfigKeys =
         streamExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
@@ -276,6 +276,7 @@ void Config::readProperties(const ov::AnyMap& prop, ModelType modelType) {
     streamExecutorConfig._streams = 1;
     streamExecutorConfig._streams_changed = true;
 #endif
+    this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();

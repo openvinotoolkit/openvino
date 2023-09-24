@@ -33,6 +33,7 @@ OutputVector translate_max(const NodeContext& context) {
     // torch.max(input, other)
     if (context.input_is_none(2)) {
         auto y = context.get_input(1);
+        align_eltwise_input_types(context, x, y, true);
         return {context.mark_node(std::make_shared<v1::Maximum>(x, y))};
     }
     // torch.max(input, dim, keepdim), returns values and indicies
@@ -62,6 +63,7 @@ OutputVector translate_min(const NodeContext& context) {
     // torch.min(input, other)
     if (context.input_is_none(2)) {
         auto y = context.get_input(1);
+        align_eltwise_input_types(context, x, y, true);
         return {context.mark_node(std::make_shared<v1::Minimum>(x, y))};
     }
     // torch.min(input, dim, keepdim), returns values and indicies
@@ -77,6 +79,38 @@ OutputVector translate_min(const NodeContext& context) {
     }
     return {values, indicies};
 };
+
+OutputVector translate_maximum(const NodeContext& context) {
+    // aten::maximum(Tensor self, Tensor other) -> Tensor
+
+    //  aten::maximum.out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
+
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    align_eltwise_input_types(context, x, y, true);
+    auto res = context.mark_node(std::make_shared<v1::Maximum>(x, y));
+    if (!context.input_is_none(2)) {
+        context.mutate_input(2, res);
+    }
+    return {res};
+}
+
+OutputVector translate_minimum(const NodeContext& context) {
+    // aten::minimum(Tensor self, Tensor other) -> Tensor
+
+    //  aten::minimum.out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
+
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    align_eltwise_input_types(context, x, y, true);
+    auto res = context.mark_node(std::make_shared<v1::Minimum>(x, y));
+    if (!context.input_is_none(2)) {
+        context.mutate_input(2, res);
+    }
+    return {res};
+}
 
 }  // namespace op
 }  // namespace pytorch
