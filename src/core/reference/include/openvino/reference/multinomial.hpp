@@ -75,7 +75,7 @@ void multinomial(const T* probs,
     std::vector<int64_t> target_axis_vec{static_cast<int64_t>(last_axis)};
     slice(static_cast<const char*>(cdf.data()),
           probs_shape, // == cdf shape
-          static_cast<const char*>(max_value_per_batch.data()),
+          static_cast<char*>(max_value_per_batch.data()),
           max_value_per_batch_shape,
           sizeof(T),
           start,
