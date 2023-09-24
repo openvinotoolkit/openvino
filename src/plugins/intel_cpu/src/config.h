@@ -102,6 +102,11 @@ struct Config {
     DebugCapsConfig debugCaps;
     void applyDebugCapsProperties();
 #endif
+
+    #define DECLARE_PROPERTY_VALUE(name) static constexpr auto name = #name
+    DECLARE_PROPERTY_VALUE(YES);
+    DECLARE_PROPERTY_VALUE(NO);
+    #undef DECLARE_PROPERTY_VALUE
 };
 
 }  // namespace intel_cpu

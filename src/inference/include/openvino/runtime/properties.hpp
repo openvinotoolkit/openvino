@@ -1110,6 +1110,18 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
 static constexpr Property<Affinity> affinity{"AFFINITY"};
 
 /**
+ * @brief The name for setting to execute in bfloat16 precision whenever it is possible
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * This option let plugin know to downscale the precision where it see performance benefits from
+ * bfloat16 execution
+ * Such option do not guarantee accuracy of the network, the accuracy in this mode should be
+ * verified separately by the user and basing on performance and accuracy results it should be
+ * user's decision to use this option or not to use
+ */
+static constexpr Property<bool> enforce_bf16{"ENFORCE_BF16"};
+
+/**
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
  */
