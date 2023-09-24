@@ -146,7 +146,8 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
     }
 
-    if (((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY)) &&
+    if (((input_streams_changed == false) &&
+         (input_perf_hint == ov::util::to_string(ov::hint::PerformanceMode::LATENCY)) &&
          ((latencyThreadingMode == Config::LatencyThreadingMode::PER_PLATFORM) || (proc_type_table.size() == 1))) ||
         ((input_streams_changed == true) && (input_streams == 1))) {
         n_streams = 1;
@@ -175,7 +176,8 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 stream_info[PROC_TYPE] = ALL_PROC;
             }
         }
-    } else if ((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY)) &&
+    } else if ((input_streams_changed == false) &&
+               (input_perf_hint == ov::util::to_string(ov::hint::PerformanceMode::LATENCY)) &&
                (latencyThreadingMode == Config::LatencyThreadingMode::PER_SOCKET)) {
         for (auto& row : proc_socket_table) {
             n_threads_per_stream = std::max(n_threads_per_stream, row[ALL_PROC]);
@@ -188,7 +190,8 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
         n_streams = input_threads > 0 ? static_cast<int>(input_threads / n_threads_per_stream) : n_streams;
         n_streams = input_infer_requests > 0 ? std::min(input_infer_requests, n_streams) : n_streams;
-    } else if ((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY)) &&
+    } else if ((input_streams_changed == false) &&
+               (input_perf_hint == ov::util::to_string(ov::hint::PerformanceMode::LATENCY)) &&
                (latencyThreadingMode == Config::LatencyThreadingMode::PER_NUMA_NODE)) {
         if (proc_type_table.size() == 1) {
             n_streams = 1;
