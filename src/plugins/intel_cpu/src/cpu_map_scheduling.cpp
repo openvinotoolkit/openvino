@@ -88,7 +88,12 @@ bool get_cpu_pinning(bool& input_value,
         }
     }
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#    if defined(__APPLE__) || defined(_WIN32)
+#    if defined(_WIN32)
+    if (proc_type_table.size() > 1) {
+        result_value = false;
+    }
+#    endif
+#    if defined(__APPLE__)
     result_value = false;
 #    endif
 #endif
