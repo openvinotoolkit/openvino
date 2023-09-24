@@ -505,7 +505,6 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
-      PYTHON_STATIC_ARGS: -m "not dynamic_library"
 
     steps:
       - name: Create Directories
@@ -568,18 +567,19 @@ jobs:
 
       - name: nGraph and IE Python Bindings Tests
         run: |
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph  ${{ env.PYTHON_STATIC_ARGS }} \
+          python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_zoo_models.py \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
         run: |
-          # For python imports to import pybind_mock_frontend
+          # For python imports to import 'pybind_mock_frontend'
           export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
+          # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
 
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} \
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_onnx/test_zoo_models.py \
@@ -595,7 +595,7 @@ jobs:
 
       - name: Model Optimizer unit tests
         run: |
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:$PYTHONPATH
+          export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
           # required for MxNet
           apt-get install -y libgomp1 libquadmath0
 
@@ -605,7 +605,7 @@ jobs:
       - name: PyTorch Layer Tests
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+          export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
 
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -672,7 +672,10 @@ jobs:
       - name: MO Python API Tests
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+          export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
+          source ${INSTALL_DIR}/setupvars.sh
+          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
@@ -688,7 +691,7 @@ jobs:
 
       - name: OVC unit tests
         run: |
-          # For python imports to import pybind_mock_frontend
+          # For python imports to import 'pybind_mock_frontend'
           export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
 
           python3 -m pytest -s ${OPENVINO_REPO}/tools/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml

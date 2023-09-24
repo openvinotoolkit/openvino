@@ -115,11 +115,7 @@ foreach(BACKEND_NAME IN LISTS ACTIVE_BACKEND_LIST)
          COMMAND ${CMAKE_COMMAND} -E copy "${SRC_MANIFEST}"
                                           "${TEST_MODEL_ZOO_OUTPUT_DIR}/onnx/${MANIFEST_RENAME}")
 
-    install(FILES "${SRC_MANIFEST}"
-            RENAME "${MANIFEST_RENAME}"
-            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-
-    foreach(TEST_SRC ${MULTI_TEST_SRC})
+    foreach(TEST_SRC IN LISTS MULTI_TEST_SRC)
         string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
         string(REPLACE ".in." "_${BACKEND_NAME}." TARGET_NAME ${TEST_SRC})
         configure_file(${TEST_SRC} ${TARGET_NAME})
@@ -171,9 +167,6 @@ target_include_directories(ov_onnx_frontend_tests PRIVATE
 
 install(TARGETS ov_onnx_frontend_tests
         RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
-        DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
 add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
