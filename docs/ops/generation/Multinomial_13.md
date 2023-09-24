@@ -32,8 +32,10 @@ Given a list of probabilities x1, x2, ..., xn:
 * Randomly generate a sequence of double-precision floating point numbers in the range [0, 1].
 * For each generated number, assign the class with the lowest index for which the cumulative probability is less or equal to the generated value.
 * If *with_replacement* is False (sampling without replacement):
+
   * Assume a class with index i has been selected - then every CDF value starting at i-th index should be lowered by the original probability of the selected class. This effectively sets the probability of sampling the given class to 0.
   * Afterwards, divide the CDF by its last (maximum) value to normalize the cumulative probabilities between the real values in the range [0, 1]
+
 * Convert the output indices to *convert_type*
 * Return output indices
 
@@ -83,8 +85,10 @@ Example 3 - 1D tensor, without replacement
 
   * **Description**: controls whether to sample with replacement (classes can be sampled multiple times).
   * **Range of values**: `true`, `false`
+  
       * ``true`` - class indices can be sampled multiple times.
       * ``false`` - class indices will not repeat in the output and the size of ``probs``' ``class_size`` dimension is required to be larger or equal to *num_samples* value. Might affect performance.
+  
   * **Type**: `bool`
   * **Required**: *Yes*
 
