@@ -3,8 +3,8 @@ abcp4/mymodel-test,mymodel,skip,Load problem
 abeja/gpt-neox-japanese-2.7b,gpt_neox_japanese
 acl-submission-anonym/EAM-spectral,examuse,skip,Load problem
 adalbertojunior/modular-test,modular,skip,Load problem
-aerner/lm-v2,open-llama,skip,Load problem: maximum recursion depth exceeded while calling a Python object
-afonsosamarques/ardt-vanilla-combo_train_hopper_v2-2508_1336-33,decision_transformer,skip,Load problem
+aerner/lm-v2,open-llama
+afonsosamarques/ardt-vanilla-combo_train_hopper_v2-2508_1336-33,decision_transformer,xfail,Tracing problem
 aihijo/gec-zh-gector-bert-large,gector,skip,Load problem
 albert-base-v2,albert
 AlekseyKorshuk/test_reward_model,reward_model,skip,Load problem
@@ -32,7 +32,7 @@ bigscience/bloom-560m,bloom
 Bono93/basic-cnn-example,simplecnn,skip,Load problem
 caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr,xfail,Unsupported op prim::Constant
 camembert-base,camembert
-CarlCochet/trajectory-transformer-ant-expert-v2,trajectory_transformer,skip,Load problem
+CarlCochet/trajectory-transformer-ant-expert-v2,trajectory_transformer,xfail,Tracing problem
 CEBaB/bert-base-uncased.CEBaB.causalm.ambiance.2-class.exclusive.seed_42,bert_causalm,skip,Load problem
 CEBaB/gpt2.CEBaB.causalm.None__None.2-class.exclusive.seed_42,gpt2_causalm,skip,Load problem
 CEBaB/lstm.CEBaB.causalm.ambiance__food.2-class.exclusive.seed_42,lstm_causalm,skip,Load problem
@@ -40,9 +40,9 @@ CEBaB/roberta-base.CEBaB.causalm.None__None.2-class.exclusive.seed_42,roberta_ca
 cestwc/lava-small-gigaword,lava,skip,Load problem
 chlab/efficientnet_61_planet_detection,efficientnet_61_planet_detection,skip,Load problem
 CIDAS/clipseg-rd64-refined,clipseg
-clefourrier/graphormer-base-pcqm4mv2,graphormer,skip,Load problem
+clefourrier/graphormer-base-pcqm4mv2,graphormer,xfail,Tracing problem
 cliang1453/deberta-v3-base-rte-teacher-stage1,ted-deberta-v2,skip,Load problem
-clip-italian/clip-italian,vision-text-dual-encoder,skip,Load problem
+clip-italian/clip-italian,vision-text-dual-encoder,xfail,Tracing problem
 Clyde013/deqbert-base,deqbert,skip,Load problem
 connor-henderson/fastspeech2_conformer,fastspeech2_conformer,skip,Load problem
 connor-henderson/fastspeech2_conformer_with_hifigan,fastspeech2_conformer_with_hifigan,skip,Load problem
@@ -67,9 +67,9 @@ facebook/convnextv2-tiny-22k-384,convnextv2
 facebook/detr-resnet-50,detr
 facebook/dinov2-base,dinov2,skip,Load problem
 facebook/dpr-question_encoder-single-nq-base,dpr
-facebook/encodec_24khz,encodec,skip,Load problem
+facebook/encodec_24khz,encodec,xfail,Unsupported op aten::lstm
 facebook/esm2_t6_8M_UR50D,esm,xfail,Tracing error: The values for attribute 'shape' do not match
-facebook/flava-full,flava,skip,Load problem
+facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
 facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former,xfail,Accuracy validation failed
@@ -81,9 +81,9 @@ facebook/rag-token-nq,rag,skip,Load problem
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
 facebook/timesformer-base-finetuned-k400,timesformer,xfail,Shape inference of Add node failed: Eltwise shape infer input shapes dim index: 1 mismatch
 facebook/vit-mae-base,vit_mae,xfail,Accuracy validation failed
-facebook/wmt19-ru-en,fsmt,skip,Load problem
+facebook/wmt19-ru-en,fsmt,xfail,Tracing problem
 facebook/xlm-roberta-xl,xlm-roberta-xl
-facebook/xmod-base,xmod,skip,Load problem
+facebook/xmod-base,xmod
 flax-community/ft5-cnn-dm,f_t5,skip,Load problem
 fnlp/elasticbert-base,elasticbert,skip,Load problem
 FranzStrauss/ponet-base-uncased,ponet,skip,Load problem
@@ -105,7 +105,7 @@ google/mt5-base,mt5
 google/owlvit-base-patch32,owlvit
 google/pix2struct-docvqa-base,pix2struct,skip,Load problem
 google/realm-orqa-nq-openqa,realm,skip,Load problem
-google/reformer-crime-and-punishment,reformer,skip,Load problem
+google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
 google/tapas-large-finetuned-wtq,tapas,skip,Load problem
 google/vit-hybrid-base-bit-384,vit-hybrid,skip,Load problem
 google/vivit-b-16x2-kinetics400,vivit
@@ -114,7 +114,7 @@ gpt2,gpt2
 Graphcore/groupbert-base-uncased,groupbert,skip,Load problem
 haoranzhao419/saffu-100M-0.1,saffu-100M-0.1,skip,Load problem
 Helsinki-NLP/opus-mt-fr-en,marian
-hf-internal-testing/random-nllb-moe-2-experts,nllb-moe,skip,Load problem
+#hf-internal-testing/random-nllb-moe-2-experts,nllb-moe,skip,Load problem
 hf-internal-testing/tiny-random-BlenderbotModel,blenderbot,skip,Load problem
 hf-internal-testing/tiny-random-CodeGenModel,codegen
 hf-internal-testing/tiny-random-convnext,convnext
@@ -133,7 +133,7 @@ hf-internal-testing/tiny-random-groupvit,groupvit
 hf-internal-testing/tiny-random-IBertModel,ibert
 hf-internal-testing/tiny-random-ImageGPTModel,imagegpt
 hf-internal-testing/tiny-random-LevitModel,levit,skip,Load problem
-hf-internal-testing/tiny-random-LiltModel,lilt,skip,Load problem
+hf-internal-testing/tiny-random-LiltModel,lilt
 hf-internal-testing/tiny-random-LongT5Model,longt5,skip,Load problem
 hf-internal-testing/tiny-random-mbart,mbart,xfail,Compile error: CPU plug-in doesnt support Squeeze operation with dynamic rank
 hf-internal-testing/tiny-random-MobileNetV2Model,mobilenet_v2
@@ -153,7 +153,7 @@ hf-internal-testing/tiny-random-SEWDModel,sew-d,skip,Load problem
 hf-internal-testing/tiny-random-SEWModel,sew,skip,Load problem
 hf-internal-testing/tiny-random-Speech2TextModel,speech_to_text,skip,Load problem
 hf-internal-testing/tiny-random-speech-encoder-decoder,speech-encoder-decoder,skip,Load problem
-hf-internal-testing/tiny-random-SplinterModel,splinter,skip,Load problem
+hf-internal-testing/tiny-random-SplinterModel,splinter
 hf-internal-testing/tiny-random-SqueezeBertModel,squeezebert
 hf-internal-testing/tiny-random-SwinModel,swin,xfail,Unsupported op aten::adaptive_avg_pool1d
 hf-internal-testing/tiny-random-unispeech,unispeech,skip,Load problem
@@ -242,8 +242,8 @@ microsoft/deberta-base,deberta
 microsoft/git-large-coco,git,skip,Load problem
 microsoft/layoutlm-base-uncased,layoutlm
 microsoft/layoutlmv2-base-uncased,layoutlmv2,skip,Load problem
-microsoft/layoutlmv3-base,layoutlmv3,skip,Load problem
-microsoft/markuplm-base,markuplm,skip,Load problem
+microsoft/layoutlmv3-base,layoutlmv3,xfail,Unsupported op aten::amax aten::clip
+microsoft/markuplm-base,markuplm
 microsoft/resnet-50,resnet
 microsoft/speecht5_hifigan,hifigan,skip,Load problem
 microsoft/speecht5_tts,speecht5,skip,Load problem
@@ -307,7 +307,7 @@ raman-ai/pcqv2-tokengt-lap16,tokengt,skip,Load problem
 range3/pegasus-gpt2-medium,pegasusgpt2,skip,Load problem
 regisss/bridgetower-newyorker-a100-8x,bridgetower
 rinna/japanese-cloob-vit-b-16,cloob,skip,Load problem
-Rocketknight1/tiny-random-falcon-7b,falcon,skip,Load problem
+Rocketknight1/tiny-random-falcon-7b,falcon
 RUCAIBox/mass-base-uncased,mass,skip,Load problem
 RWKV/rwkv-4-169m-pile,rwkv,xfail,Unsupported op aten::maximum
 sahasrarjn/interbert,BERT,skip,Load problem
@@ -366,23 +366,23 @@ transZ/phrext,phrext,skip,Load problem
 transZ/reword,reword,skip,Load problem
 transZ/roberta_texid,roberta_texid,skip,Load problem
 transZ/tforge_v1.9,Transformer_Forge,skip,Load problem
-trl-internal-testing/tiny-random-BigBirdPegasusForConditionalGeneration,bigbird_pegasus,skip,Load problem
+trl-internal-testing/tiny-random-BigBirdPegasusForConditionalGeneration,bigbird_pegasus
 trl-internal-testing/tiny-random-BlenderbotSmallForConditionalGeneration,blenderbot-small,skip,Load problem
-trl-internal-testing/tiny-random-MvpForConditionalGeneration,mvp,skip,Load problem
+trl-internal-testing/tiny-random-MvpForConditionalGeneration,mvp
 trl-internal-testing/tiny-random-PegasusXForConditionalGeneration,pegasus_x,skip,Load problem
-trl-internal-testing/tiny-random-PLBartForConditionalGeneration,plbart,skip,Load problem
+trl-internal-testing/tiny-random-PLBartForConditionalGeneration,plbart,xfail,Compile error: CPU plug-in doesnt support Squeeze operation with dynamic rank
 trl-internal-testing/tiny-random-ProphetNetForConditionalGeneration,prophetnet,skip,Load problem
 trl-internal-testing/tiny-random-SwitchTransformersForConditionalGeneration,switch_transformers,skip,Load problem
 turing-motors/heron-chat-blip-ja-stablelm-base-7b-v0,video_blip,skip,Load problem
 turing-motors/heron-chat-git-ELYZA-fast-7b-v0,git_llama,skip,Load problem
-uclanlp/visualbert-vqa-coco-pre,visual_bert,skip,Load problem
+uclanlp/visualbert-vqa-coco-pre,visual_bert
 ummagumm-a/samolet_room_classifier,AirModelHF,skip,Load problem
 ummagumm-a/samolet-room-classifier,gru,skip,Load problem
 UNCANNY69/Misinfo-BERT-LSTM,BertLSTMForSequenceClassification,skip,Load problem
 UNCANNY69/Miss-BERT-CNN,BertCNNForSequenceClassification,skip,Load problem
 unc-nlp/lxmert-base-uncased,lxmert,skip,Load problem
-uw-madison/mra-base-512-4,mra,skip,Load problem
-uw-madison/yoso-4096,yoso,skip,Fatal Python error: Aborted
+uw-madison/mra-base-512-4,mra
+uw-madison/yoso-4096,yoso,xfail,Compile error: CPU plug-in doesnt support Squeeze operation with dynamic rank
 valhalla/cogview-gpt2-test,cog_view,skip,Load problem
 valhalla/s2t_mustc_multilinguial_medium,speech_to_text_transformer,skip,Load problem
 vblagoje/greaselm-csqa,greaselm,skip,Load problem
@@ -397,7 +397,7 @@ WENGSYX/CoNN_Parity,conn,skip,Load problem
 xlm-roberta-base,xlm-roberta
 xlnet-base-cased,xlnet
 ybelkada/focusondepth,focusondepth,skip,Load problem
-ybelkada/random-tiny-BertGenerationModel,bert-generation,skip,Load problem
+ybelkada/random-tiny-BertGenerationModel,bert-generation
 ydshieh/temp-testing-kosmos-2,kosmos-2,skip,Load problem
 YituTech/conv-bert-base,convbert
 yjernite/retribert-base-uncased,retribert,xfail,Unsupported op aten::cross_entropy_loss
