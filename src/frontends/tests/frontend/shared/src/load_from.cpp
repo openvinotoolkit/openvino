@@ -23,11 +23,9 @@ void FrontEndLoadFromTest::SetUp() {
 
 ///////////////////load from Variants//////////////////////
 
-TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromFilePath) {
+TEST_P(FrontEndLoadFromTest, testLoadFromFilePath) {
     std::string model_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_file);
-    std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_path));
     ASSERT_NE(m_frontEnd, nullptr);
 
@@ -39,11 +37,9 @@ TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromFilePath) {
     ASSERT_NE(model, nullptr);
 }
 
-TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromFilePathWithExplicitVariants) {
+TEST_P(FrontEndLoadFromTest, testLoadFromFilePathWithExplicitVariants) {
     std::string model_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_file);
-    std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
 
     std::vector<ov::Any> variants;
     variants.emplace_back(model_path);
@@ -58,12 +54,10 @@ TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromFilePathWithExplicitVariants) 
     ASSERT_NE(function, nullptr);
 }
 
-TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromTwoFiles) {
+TEST_P(FrontEndLoadFromTest, testLoadFromTwoFiles) {
     std::string model_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_files[0]);
     std::string weights_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_files[1]);
-    std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_path, weights_path));
     ASSERT_NE(m_frontEnd, nullptr);
 
@@ -75,7 +69,7 @@ TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromTwoFiles) {
     ASSERT_NE(model, nullptr);
 }
 
-TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromStream) {
+TEST_P(FrontEndLoadFromTest, testLoadFromStream) {
     std::ifstream ifs(FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_stream),
                       std::ios::in | std::ios::binary);
     std::istream* is = &ifs;
@@ -93,7 +87,7 @@ TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromStream) {
     ASSERT_NE(model, nullptr);
 }
 
-TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromTwoStreams) {
+TEST_P(FrontEndLoadFromTest, testLoadFromTwoStreams) {
     std::ifstream model_ifs(FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_streams[0]),
                             std::ios::in | std::ios::binary);
     std::ifstream weights_ifs(FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_streams[1]),

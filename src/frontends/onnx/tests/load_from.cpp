@@ -25,7 +25,7 @@ static LoadFromFEParam getTestData() {
     return res;
 }
 
-TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromStreamAndPassPath) {
+TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     const auto path = file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                            TEST_ONNX_MODELS_DIRNAME,
@@ -34,9 +34,7 @@ TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromStreamAndPassPath) {
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
     std::istream* is = &ifs;
-    std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(is)) << "Could not create the ONNX FE using the istream object";
     ASSERT_NE(m_frontEnd, nullptr);
 
