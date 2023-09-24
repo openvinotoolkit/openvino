@@ -394,7 +394,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
-                --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
+                --gtest_filter=-*IE_GPU* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
@@ -686,6 +686,8 @@ jobs:
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+          # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
+          source ${INSTALL_DIR}/setupvars.sh
 
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 

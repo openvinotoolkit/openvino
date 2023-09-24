@@ -131,7 +131,7 @@ set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV ONNX_FE)
 
 add_dependencies(ov_onnx_frontend_tests template_extension)
 
-target_include_directories(ov_onnx_frontend_tests PRIVATE ".")
+target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_compile_definitions(ov_onnx_frontend_tests
     PRIVATE
