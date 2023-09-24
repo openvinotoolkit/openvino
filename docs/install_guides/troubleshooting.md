@@ -10,7 +10,12 @@
 
 .. _troubleshooting guide for install:
 
-This guide provides general troubleshooting steps and solutions to possible issues that can be encountered while installing and configuring OpenVINO™.
+| This guide provides general troubleshooting steps and solutions to possible issues that
+  may be encountered while installing and configuring OpenVINO™. For a comprehensive 
+  database of support topics on OpenVINO, go to:
+| `Support for OpenVINO™ toolkit <https://www.intel.com/content/www/us/en/support/products/96066/software/development-software/openvino-toolkit.html>`__
+
+
 
 .. _install_for_prc:
 
@@ -108,7 +113,7 @@ This guide provides general troubleshooting steps and solutions to possible issu
    
 .. dropdown:: Check the versions of Python and PIP
 
-   To check your Python version, run ``python -VV`` or ``python --version``. The supported Python versions should be 64-bit and between 3.7 and 3.11. If you are using Python 3.6, you are recommended to upgrade the version to 3.7 or higher.
+   To check your Python version, run ``python -VV`` or ``python --version``. The supported Python versions should be 64-bit and between 3.8 and 3.11. If you are using Python 3.7, you are recommended to upgrade the version to 3.8 or higher.
 
    If your Python version does not meet the requirements, update Python:
 

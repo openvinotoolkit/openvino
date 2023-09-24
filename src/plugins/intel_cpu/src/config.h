@@ -87,7 +87,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const ov::AnyMap &config, ModelType modelType = ModelType::Unknown);
+    void readProperties(const ov::AnyMap &config, const ModelType modelType = ModelType::Unknown);
 
     void updateProperties();
 
@@ -96,6 +96,7 @@ struct Config {
     bool isLegacyApi = false;
 
     int modelPreferThreads = -1;
+    ModelType modelType = ModelType::Unknown;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;

@@ -13,7 +13,6 @@
    * offers C/C++ APIs only
    * does not offer support for GNA and NPU inference
    * additionally includes code samples 
-   * is dedicated to Linux users.
 
 .. tab-set::
 
@@ -38,7 +37,7 @@
    
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
       * GCC 8.2.0
-      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`_
+      * `Python 3.8 - 3.11, 64-bit <https://www.python.org/downloads/>`_
 
 
 Install OpenVINO Runtime
@@ -115,7 +114,7 @@ Install OpenVINO Runtime
    
       .. code-block:: sh
    
-         sudo yum install openvino-2023.0.0
+         sudo yum install openvino-2023.1.0
 
 
 
@@ -186,7 +185,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
    
       .. code-block:: sh
    
-         sudo yum autoremove openvino-2023.0.0
+         sudo yum autoremove openvino-2023.1.0
 
 
 
