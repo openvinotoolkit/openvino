@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "base_reference_test.hpp"
 #include "openvino/op/subtract.hpp"
+
+#include <gtest/gtest.h>
+
+#include "base_reference_test.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -14,11 +16,11 @@ namespace {
 struct SubtractParams {
     template <class IT>
     SubtractParams(const PartialShape& iShape1,
-              const PartialShape& iShape2,
-              const element::Type& iType,
-              const std::vector<IT>& iValues1,
-              const std::vector<IT>& iValues2,
-              const std::vector<IT>& oValues)
+                   const PartialShape& iShape2,
+                   const element::Type& iType,
+                   const std::vector<IT>& iValues1,
+                   const std::vector<IT>& iValues2,
+                   const std::vector<IT>& oValues)
         : pshape1(iShape1),
           pshape2(iShape2),
           inType(iType),
@@ -57,9 +59,9 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                    const PartialShape& input_shape2,
-                                                    const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+                                                 const PartialShape& input_shape2,
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto subtract = std::make_shared<op::v1::Subtract>(in1, in2);
@@ -88,19 +90,14 @@ std::vector<SubtractParams> generateParamsForSubtract() {
                        IN_ET,
                        std::vector<T>{12, 24, 36, 48, 60, 72},
                        std::vector<T>{1, 2, 3, 4, 6, 1},
-                       std::vector<T>{11, 10,  9,  8,  6, 11,
-                                      23, 22, 21, 20, 18, 23,
-                                      35, 34, 33, 32, 30, 35,
-                                      47, 46, 45, 44, 42, 47,
-                                      59, 58, 57, 56, 54, 59,
-                                      71, 70, 69, 68, 66, 71}),
+                       std::vector<T>{11, 10, 9,  8,  6,  11, 23, 22, 21, 20, 18, 23, 35, 34, 33, 32, 30, 35,
+                                      47, 46, 45, 44, 42, 47, 59, 58, 57, 56, 54, 59, 71, 70, 69, 68, 66, 71}),
         SubtractParams(ov::PartialShape{1},
                        ov::PartialShape{1},
                        IN_ET,
                        std::vector<T>{8},
                        std::vector<T>{2},
-                       std::vector<T>{6})
-    };
+                       std::vector<T>{6})};
     return params;
 }
 
@@ -108,27 +105,23 @@ template <element::Type_t IN_ET>
 std::vector<SubtractParams> generateParamsForSubtractFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<SubtractParams> params{
-        SubtractParams(ov::PartialShape{1},
-                       ov::PartialShape{1},
-                       IN_ET,
-                       std::vector<T>{3.1},
-                       std::vector<T>{8},
-                       std::vector<T>{-4.9})
-    };
+    std::vector<SubtractParams> params{SubtractParams(ov::PartialShape{1},
+                                                      ov::PartialShape{1},
+                                                      IN_ET,
+                                                      std::vector<T>{3.1},
+                                                      std::vector<T>{8},
+                                                      std::vector<T>{-4.9})};
     return params;
 }
 
 std::vector<SubtractParams> generateCombinedParamsForSubtract() {
-    const std::vector<std::vector<SubtractParams>> allTypeParams{
-        generateParamsForSubtract<element::Type_t::f32>(),
-        generateParamsForSubtract<element::Type_t::f16>(),
-        generateParamsForSubtract<element::Type_t::bf16>(),
-        generateParamsForSubtract<element::Type_t::i64>(),
-        generateParamsForSubtract<element::Type_t::i32>(),
-        generateParamsForSubtract<element::Type_t::u64>(),
-        generateParamsForSubtract<element::Type_t::u32>()
-    };
+    const std::vector<std::vector<SubtractParams>> allTypeParams{generateParamsForSubtract<element::Type_t::f32>(),
+                                                                 generateParamsForSubtract<element::Type_t::f16>(),
+                                                                 generateParamsForSubtract<element::Type_t::bf16>(),
+                                                                 generateParamsForSubtract<element::Type_t::i64>(),
+                                                                 generateParamsForSubtract<element::Type_t::i32>(),
+                                                                 generateParamsForSubtract<element::Type_t::u64>(),
+                                                                 generateParamsForSubtract<element::Type_t::u32>()};
 
     std::vector<SubtractParams> combinedParams;
 
@@ -142,8 +135,7 @@ std::vector<SubtractParams> generateCombinedParamsForSubtract() {
 std::vector<SubtractParams> generateCombinedParamsForSubtractFloat() {
     const std::vector<std::vector<SubtractParams>> allTypeParams{
         generateParamsForSubtractFloat<element::Type_t::f32>(),
-        generateParamsForSubtractFloat<element::Type_t::f16>()
-    };
+        generateParamsForSubtractFloat<element::Type_t::f16>()};
 
     std::vector<SubtractParams> combinedParams;
 
@@ -154,16 +146,14 @@ std::vector<SubtractParams> generateCombinedParamsForSubtractFloat() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Subtract_With_Hardcoded_Refs,
-    ReferenceSubtractLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForSubtract()),
-    ReferenceSubtractLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Subtract_With_Hardcoded_Refs,
+                         ReferenceSubtractLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForSubtract()),
+                         ReferenceSubtractLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Subtract_Float_With_Hardcoded_Refs,
-    ReferenceSubtractLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForSubtractFloat()),
-    ReferenceSubtractLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Subtract_Float_With_Hardcoded_Refs,
+                         ReferenceSubtractLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForSubtractFloat()),
+                         ReferenceSubtractLayerTest::getTestCaseName);
 
 }  // namespace

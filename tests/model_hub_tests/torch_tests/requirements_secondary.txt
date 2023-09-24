@@ -1,0 +1,4 @@
+-c ../../constraints.txt
+# This file contains requirements dependednt from modules in requirements.txt
+git+https://github.com/facebookresearch/detectron2.git 
+natten
