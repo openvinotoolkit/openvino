@@ -830,7 +830,7 @@ jobs:
         if: ${{ always() }}
         with:
           name: cpu-func-tests-times-stamp
-          path: ${PARALLEL_TEST_CACHE}
+          path: ${{ env.PARALLEL_TEST_CACHE }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
