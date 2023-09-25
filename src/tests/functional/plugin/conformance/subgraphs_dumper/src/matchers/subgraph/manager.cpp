@@ -127,18 +127,19 @@ ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model,
         auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         std::cout << "[ INFO ][ EXTRACTOR DURATION ][ ORIGINAL MODEL ] " << it.first << " " << delta << "ms" << std::endl;
 
-        if (!is_dynamic_model(model)) {
-            // extract patterns from models after `constant_folding` pass
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::ConstantFolding>();
-            manager.run_passes(model);
-            extracted_patterns = it.second->extract(model, is_extract_body, is_copy_constants);
-            result.insert(result.end(), extracted_patterns.begin(), extracted_patterns.end());
+        // todo: enable it after validation
+        // if (!is_dynamic_model(model)) {
+        //     // extract patterns from models after `constant_folding` pass
+        //     ov::pass::Manager manager;
+        //     manager.register_pass<ov::pass::ConstantFolding>();
+        //     manager.run_passes(model);
+        //     extracted_patterns = it.second->extract(model, is_extract_body, is_copy_constants);
+        //     result.insert(result.end(), extracted_patterns.begin(), extracted_patterns.end());
 
-            end = std::chrono::high_resolution_clock::now();
-            delta = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            std::cout << "[ INFO ][ EXTRACTOR DURATION ][ CONSTANT FOLDING ] " << it.first << " " << delta << "ms" << std::endl;
-        }
+        //     end = std::chrono::high_resolution_clock::now();
+        //     delta = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        //     std::cout << "[ INFO ][ EXTRACTOR DURATION ][ CONSTANT FOLDING ] " << it.first << " " << delta << "ms" << std::endl;
+        // }
     }
     return result;
 }

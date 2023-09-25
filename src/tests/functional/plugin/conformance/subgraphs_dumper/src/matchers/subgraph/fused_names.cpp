@@ -16,8 +16,14 @@ using namespace ov::tools::subgraph_dumper;
 
 void FusedNamesExtractor::set_target_device(const std::string& _device) {
     auto available_devices = core->get_available_devices();
-    if (std::find(available_devices.begin(), available_devices.end(), _device) ==
-        available_devices.end()) {
+    if (_device.empty()) {
+        device = available_devices.front();
+        std::cout << "[ WARNING ][ GRAPH CACHE ] " << device <<
+            " will be used for `fused_names` extractor" << std::endl;
+        return;
+    } else if (std::find(available_devices.begin(),
+                         available_devices.end(),
+                         _device) == available_devices.end()) {
         std::string message = "Incorrect device ";
         message += _device;
         message += " to enable `fused_names` extractor! Available devices: ";
@@ -25,7 +31,7 @@ void FusedNamesExtractor::set_target_device(const std::string& _device) {
         throw std::runtime_error(message);
     }
     device = _device;
-    std::cout << "[ INFO ][ GRAPH CASE ] " << device << " is using for `fused_names` extractor" << std::endl;
+    std::cout << "[ INFO ][ GRAPH CACHE ] " << device << " is using for `fused_names` extractor" << std::endl;
 }
 
 std::unordered_set<std::string>
