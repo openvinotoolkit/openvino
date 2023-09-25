@@ -8,19 +8,10 @@ import unittest
 import numpy as np
 import openvino.runtime as ov
 import pytest
-import tensorflow as tf
-import torch
 from openvino.runtime import PartialShape, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.tf_layer_test_class import save_to_pb
-
-paddle_is_imported = False
-try:
-    import paddle
-    paddle_is_imported = True
-except ImportError:
-    pass
 
 
 class TestComplexParams(CommonMOConvertTest):
@@ -79,27 +70,13 @@ class TestComplexParams(CommonMOConvertTest):
         # save model to .pb and return path to the model
         return save_to_pb(tf_net, tmp_dir)
 
-    paddle_test_data_set_1 = [
-        {'params_test': {'input': [paddle.shape(paddle.to_tensor(np.random.rand(2, 3, 4))),
-                                   paddle.to_tensor(np.random.rand(2, 3, 4)).shape,
-                                   paddle.to_tensor(np.random.rand(2, 3, 4)).shape]},
-         'params_ref': {'input': "Input1[2,3,4],Input2[2,3,4],Input3[2,3,4]"}},
-        {'params_test': {'input': [paddle.float32, paddle.float32]},
-         'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
-
-    ] if paddle_is_imported else []
-
-    test_data_1 = [
+    test_data = [
         {'params_test': {'output': ["Sigmoid_0", "Sigmoid_2"]},
          'params_ref': {'output': "Sigmoid_0,Sigmoid_2"}},
         {'params_test': {'output': ["Sigmoid_0"]},
          'params_ref': {'output': "Sigmoid_0"}},
         {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
          'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
-        {'params_test': {'input': [tf.shape(tf.zeros((2, 3, 4))), tf.zeros((2, 3, 4)).shape, tf.TensorShape((2,3,4))]},
-         'params_ref': {'input': "Input1[2,3,4],Input2[2,3,4],Input3[2,3,4]"}},
-        {'params_test': {'input': [torch.Size([2, 3, 4]), torch.empty(2, 3, 4).size(), torch.Size([2, 3, 4])]},
-         'params_ref': {'input': "Input1[2,3,4],Input2[2,3,4],Input3[2,3,4]"}},
         {'params_test': {'input': [PartialShape([1, 3, -1, -1]), [1, 3, -1, -1]]},
          'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1,Input2'}},
         {'params_test': {'input': [(2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4))]},
@@ -113,10 +90,6 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'input': [np.int32, Type(np.int32), np.int32]},
          'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
         {'params_test': {'input': [ov.Type.f32, ov.Type.f32]},
-         'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
-        {'params_test': {'input': [tf.float32, tf.float32]},
-         'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
-        {'params_test': {'input': [torch.float32, torch.float32]},
          'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
         {'params_test': {'input': [([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32]},
          'params_ref': {'input': 'Input1[1,3,?,?]{i32},Input2{i32},Input3{i32}'}},
@@ -132,9 +105,9 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
         {'params_test': {'input': (([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32)},
          'params_ref': {'input': 'Input1[1,3,?,?]{i32},Input2{i32},Input3{i32}'}}
-    ] + paddle_test_data_set_1
+    ]
 
-    @pytest.mark.parametrize("params", test_data_1)
+    @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
                                  temp_dir, use_new_frontend, use_old_api):
@@ -146,14 +119,7 @@ class TestComplexParams(CommonMOConvertTest):
         ref_params.update({'input_model': tf_net_path})
         self._test(temp_dir, test_params, ref_params)
 
-    paddle_test_data_set_2 = [
-        {'params_test': {'input': [paddle.shape(paddle.to_tensor(np.random.rand(2, 3, 4)))]},
-         'params_ref': {'input': "Input[2,3,4]"}},
-        {'params_test': {'input': [paddle.int32]},
-         'params_ref': {'input': 'Input{i32}'}},
-    ] if paddle_is_imported else []
-
-    test_data_2 = [
+    test_data = [
         {'params_test': {'input': {"Input": ([3, 2], ov.Type.i32)}},
          'params_ref': {'input': "Input[3,2]{i32}"}},
         {'params_test': {'input': {"Input": ov.Type.i32}},
@@ -178,23 +144,9 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': "Input[1,2,3]{i32}"}},
         {'params_test': {'input': [Dimension(3, 10), 10, -1]},
          'params_ref': {'input': 'Input[3..10,10,?]'}},
-        {'params_test': {'input': [tf.shape(tf.zeros((2, 3, 4)))]},
-         'params_ref': {'input': "Input[2,3,4]"}},
-        {'params_test': {'input': [tf.zeros((2, 3, 4)).shape]},
-         'params_ref': {'input': "Input[2,3,4]"}},
-        {'params_test': {'input': [tf.TensorShape((2,3,4))]},
-         'params_ref': {'input': "Input[2,3,4]"}},
-        {'params_test': {'input': [torch.Size([2, 3, 4])]},
-         'params_ref': {'input': "Input[2,3,4]"}},
-        {'params_test': {'input': [torch.empty(2, 3, 4).size()]},
-         'params_ref': {'input': "Input[2,3,4]"}},
-        {'params_test': {'input': [tf.int32]},
-         'params_ref': {'input': 'Input{i32}'}},
-        {'params_test': {'input': [torch.float16]},
-         'params_ref': {'input': 'Input{f16}'}},
-    ] + paddle_test_data_set_2
+    ]
 
-    @pytest.mark.parametrize("params", test_data_2)
+    @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_tf_model_single_input_output(self, params, ie_device, precision, ir_version,
