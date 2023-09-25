@@ -339,6 +339,9 @@ jobs:
       # Dependencies
       #
 
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -364,11 +367,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: |
-          ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=gpu -y
-          
-          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+      - name: Install Conformance Script Dependencies
+        run: python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
       # Tests
