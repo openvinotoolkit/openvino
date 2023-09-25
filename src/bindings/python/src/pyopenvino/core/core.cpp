@@ -33,7 +33,6 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::map<std::string, py::object>& properties) {
-            std::cout << "MEEEOOOW";
             self.set_property(Common::utils::properties_to_any_map(properties));
         },
         py::arg("properties"),
@@ -48,7 +47,6 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::pair<std::string, py::object>& property) {
-            std::cout << "GAAAAW";
             ov::AnyMap _properties{{property.first, Common::utils::py_object_to_any(property.second)}};
             self.set_property(_properties);
         },

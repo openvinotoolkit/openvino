@@ -48,18 +48,20 @@ def add_openvino_libs_to_path() -> None:
 def property(func):
     """Turns module functions into properties. Function names must be prefixed with an underscore."""
     module = sys.modules[func.__module__]
+
     def base_getattr(name):
         raise AttributeError(
-            f"Module '{module.__name__}' has no attribute '{name}'")
-    old_getattr = getattr(module, '__getattr__', base_getattr)
+            f"Module '{module.__name__}' doesn't have the attribute with name '{name}'.")
 
-    def new_getattr(name):
-        if f'_{name}' == func.__name__:
+    getattr_old = getattr(module, "__getattr__", base_getattr)
+
+    def getattr_new(name):
+        if func.__name__ == f"_{name}":
             return func()
         else:
-            return old_getattr(name)
+            return getattr_old(name)
 
-    module.__getattr__ = new_getattr
+    module.__getattr__ = getattr_new
     return func
 
 

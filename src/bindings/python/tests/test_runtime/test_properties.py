@@ -477,21 +477,21 @@ def test_single_property_setting(device):
     "properties_to_set",
     [
         # Dict from list of tuples
-        # dict(  # noqa: C406
-        #     [  # noqa: C406
-        #         props.enable_profiling(True),
-        #         props.cache_dir("./"),
-        #         props.inference_num_threads(9),
-        #         props.affinity(props.Affinity.NONE),
-        #         hints.inference_precision(Type.f32),
-        #         hints.performance_mode(hints.PerformanceMode.LATENCY),
-        #         hints.enable_cpu_pinning(True),
-        #         hints.scheduling_core_type(hints.SchedulingCoreType.PCORE_ONLY),
-        #         hints.enable_hyper_threading(True),
-        #         hints.num_requests(12),
-        #         streams.num(5),
-        #     ],
-        # ),
+        dict(  # noqa: C406
+            [  # noqa: C406
+                props.enable_profiling(True),
+                props.cache_dir("./"),
+                props.inference_num_threads(9),
+                props.affinity(props.Affinity.NONE),
+                hints.inference_precision(Type.f32),
+                hints.performance_mode(hints.PerformanceMode.LATENCY),
+                hints.enable_cpu_pinning(True),
+                hints.scheduling_core_type(hints.SchedulingCoreType.PCORE_ONLY),
+                hints.enable_hyper_threading(True),
+                hints.num_requests(12),
+                streams.num(5),
+            ],
+        ),
         # Pure dict
         {
             props.enable_profiling(): True,
@@ -507,18 +507,18 @@ def test_single_property_setting(device):
             streams.num(): 5,
         },
         # Mixed dict
-        # {
-        #     props.enable_profiling(): True,
-        #     "CACHE_DIR": "./",
-        #     props.inference_num_threads(): 9,
-        #     props.affinity(): "NONE",
-        #     "INFERENCE_PRECISION_HINT": Type.f32,
-        #     hints.performance_mode(): hints.PerformanceMode.LATENCY,
-        #     hints.scheduling_core_type(): hints.SchedulingCoreType.PCORE_ONLY,
-        #     hints.num_requests(): 12,
-        #     "NUM_STREAMS": streams.Num(5),
-        #     "ENABLE_MMAP": "NO",
-        # },
+        {
+            props.enable_profiling(): True,
+            "CACHE_DIR": "./",
+            props.inference_num_threads(): 9,
+            props.affinity(): "NONE",
+            "INFERENCE_PRECISION_HINT": Type.f32,
+            hints.performance_mode(): hints.PerformanceMode.LATENCY,
+            hints.scheduling_core_type(): hints.SchedulingCoreType.PCORE_ONLY,
+            hints.num_requests(): 12,
+            "NUM_STREAMS": streams.Num(5),
+            "ENABLE_MMAP": "NO",
+        },
     ],
 )
 def test_core_cpu_properties(properties_to_set):
@@ -529,18 +529,17 @@ def test_core_cpu_properties(properties_to_set):
     core.set_property(properties_to_set)
 
     # RW properties
-    # assert core.get_property("CPU", props.enable_profiling()) is True
-    assert core.get_property("CPU", props.cache_dir()) == "./"
-    # assert core.get_property("CPU", props.inference_num_threads()) == 9
-    # assert core.get_property("CPU", props.affinity()) == props.Affinity.NONE
-    # assert core.get_property("CPU", streams.num()) == 5
+    assert core.get_property("CPU", props.enable_profiling()) is True
+    assert core.get_property("CPU", props.cache_dir) == "./"
+    assert core.get_property("CPU", props.inference_num_threads()) == 9
+    assert core.get_property("CPU", props.affinity()) == props.Affinity.NONE
+    assert core.get_property("CPU", streams.num()) == 5
 
-    # # RO properties
-    # print(type(props.supported_properties))
-    # assert type(core.get_property("CPU", props.supported_properties())) == dict
-    # assert type(core.get_property("CPU", props.available_devices())) == list
-    # assert type(core.get_property("CPU", props.optimal_number_of_infer_requests())) == int
-    # assert type(core.get_property("CPU", props.range_for_streams())) == tuple
-    # assert type(core.get_property("CPU", props.range_for_async_infer_requests())) == tuple
-    # assert type(core.get_property("CPU", device.full_name())) == str
-    # assert type(core.get_property("CPU", device.capabilities())) == list
+    # RO properties
+    assert type(core.get_property("CPU", props.supported_properties)) == dict
+    assert type(core.get_property("CPU", props.available_devices())) == list
+    assert type(core.get_property("CPU", props.optimal_number_of_infer_requests())) == int
+    assert type(core.get_property("CPU", props.range_for_streams())) == tuple
+    assert type(core.get_property("CPU", props.range_for_async_infer_requests())) == tuple
+    assert type(core.get_property("CPU", device.full_name())) == str
+    assert type(core.get_property("CPU", device.capabilities())) == list

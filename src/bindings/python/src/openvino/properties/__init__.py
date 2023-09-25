@@ -26,6 +26,8 @@ from openvino._pyopenvino.properties import range_for_async_infer_requests
 from openvino._pyopenvino.properties import execution_devices
 from openvino._pyopenvino.properties import loaded_from_cache
 
+
+# Properties as python properties
 from openvino.properties.properties import supported_properties
 from openvino.properties.properties import cache_dir
 

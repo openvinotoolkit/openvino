@@ -7,7 +7,8 @@ from openvino.utils import property
 from openvino._pyopenvino.properties import supported_properties as sp
 from openvino._pyopenvino.properties import cache_dir as cd
 
-class A(str):
+
+class Property(str):
     def __new__(cls, prop):
         instance = super().__new__(cls, prop())
         instance.prop = prop
@@ -21,9 +22,9 @@ class A(str):
 
 @property
 def _supported_properties():
-    return A(sp)
+    return Property(sp)
 
 
 @property
 def _cache_dir():
-    return A(cd)
+    return Property(cd)
