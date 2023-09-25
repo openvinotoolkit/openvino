@@ -45,26 +45,6 @@ def add_openvino_libs_to_path() -> None:
     _add_openvino_libs_to_search_path()
 
 
-def property(func):
-    """Turns module functions into properties. Function names must be prefixed with an underscore."""
-    module = sys.modules[func.__module__]
-
-    def base_getattr(name):
-        raise AttributeError(
-            f"Module '{module.__name__}' doesn't have the attribute with name '{name}'.")
-
-    getattr_old = getattr(module, "__getattr__", base_getattr)
-
-    def getattr_new(name):
-        if func.__name__ == f"_{name}":
-            return func()
-        else:
-            return getattr_old(name)
-
-    module.__getattr__ = getattr_new
-    return func
-
-
 def deprecated(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[..., Any]:
     """Prints deprecation warning "{function_name} is deprecated and will be removed in version {version}. {message}" and runs the function.
 
