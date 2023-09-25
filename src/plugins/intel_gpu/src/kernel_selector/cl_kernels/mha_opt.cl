@@ -57,8 +57,8 @@ KERNEL(mha_opt)(
     half m = -HALF_MAX;
     half p_l = 0;
     half l = 0;
-    __local half P[SCORE_MAT_SIZE]; // SCORE_MAT_SIZE = Br * Bc
-    __local half O[OUT_BLK_SIZE];   // OUT_BLK_SIZE = Br * d
+    __local half P[SCORE_MAT_SIZE];   // SCORE_MAT_SIZE = Br * Bc
+    __local half O[OUT_BLK_SIZE];     // OUT_BLK_SIZE = Br * d
     __local half k_block[K_BLK_SIZE];
     __local half v_block[V_BLK_SIZE];
     __local half q_block[Q_BLK_SIZE];
@@ -76,6 +76,10 @@ KERNEL(mha_opt)(
     half row_max = -HALF_MAX;
     half row_sum = 0.0f;
 
+// note: DEPTH_SIZE is supposed to be multiple of 4 at this moment
+#define VEC_TYPE half4
+#define VEC_SIZE 4
+
     for (int j = 0; j < NUM_BLK_COL; j++) {
         // Fill Key block
         const int k_col_idx = BLK_COL_SIZE * j; // X-axis
@@ -89,8 +93,7 @@ KERNEL(mha_opt)(
         const int v_start = BLK_COL_SIZE * j; // Y-axis
         unroll_for (int r = row_id; r < BLK_COL_SIZE; r += BLK_ROW_SIZE) {
             unroll_for (int c = 0; c < DEPTH_SIZE; c++) {
-                v_block[(DEPTH_SIZE * r) + c] =
-                    inputv[INPUT2_GET_INDEX_SAFE(b, f, v_start + r, c)];
+                v_block[(BLK_ROW_SIZE * c) + r] = inputv[INPUT2_GET_INDEX_SAFE(b, f, v_start + r, c)];
             }
         }
 
@@ -99,9 +102,13 @@ KERNEL(mha_opt)(
         // S = matmul(Q, K) and get max value.
         row_max = -HALF_MAX;
         for (int c = 0; c < BLK_COL_SIZE; c++) {
+            VEC_TYPE acc4 = 0.f;
+            unroll_for (int d = 0; d < DEPTH_SIZE; d += VEC_SIZE) {
+                acc4 = mad(*(VEC_TYPE*)(q_block + DEPTH_SIZE * row_id + d), *(VEC_TYPE*)(k_block + DEPTH_SIZE * c + d), acc4);
+            }
             half acc = 0.f;
-            unroll_for (int d = 0; d < DEPTH_SIZE; d++) {
-                acc += q_block[DEPTH_SIZE * row_id + d] * k_block[DEPTH_SIZE * c + d];
+            unroll_for (int i = 0; i < VEC_SIZE; i++) {
+                acc += acc4[i];
             }
             P[BLK_COL_SIZE * row_id + c] = acc;
             row_max = max(row_max , acc);
@@ -110,11 +117,13 @@ KERNEL(mha_opt)(
 
         // Calculate P
         row_sum = 0.0f;
-        half e = 0.f;
-        for (int c = 0; c < BLK_COL_SIZE; c++) {
-            // e = exp(P[BLK_COL_SIZE * row_id + c] - m);
-            P[BLK_COL_SIZE * row_id + c] = 1.f;
-            row_sum += e;
+        half4 e = 0.f;
+        unroll_for (int c = 0; c < BLK_COL_SIZE; c += VEC_SIZE) {
+            e = exp((*(VEC_TYPE*)(P + BLK_COL_SIZE * row_id + c) - (VEC_TYPE)m));
+            *(VEC_TYPE*)(P + BLK_COL_SIZE * row_id + c) = e;
+            unroll_for (int i = 0; i < VEC_SIZE; i++) {
+                row_sum += e[i];
+            }
         }
 
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -125,9 +134,13 @@ KERNEL(mha_opt)(
 
         // Calculate O + PV block.
         for (int d = 0; d < DEPTH_SIZE; d++) {
+            VEC_TYPE acc4 = 0.f;
+            unroll_for (int c = 0; c < BLK_COL_SIZE; c += VEC_SIZE) {
+                acc4 = mad(*(VEC_TYPE*)(P + BLK_COL_SIZE * row_id + c), *(VEC_TYPE*)(v_block + BLK_COL_SIZE * d + c), acc4);
+            }
             half acc = 0.f;
-            unroll_for (int c = 0; c < BLK_COL_SIZE; c++) {
-                acc += P[BLK_COL_SIZE * row_id + c] * v_block[DEPTH_SIZE * c + d];
+            unroll_for (int i = 0; i < VEC_SIZE; i++) {
+                acc += acc4[i];
             }
             O[DEPTH_SIZE * row_id + d] = exp_m * O[DEPTH_SIZE * row_id + d] + acc;
         }

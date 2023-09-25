@@ -131,11 +131,11 @@ bool MHAKernelOpt::Validate(const Params& p, const optional_params& o) const {
     auto params = static_cast<const mha_params&>(p);
 
     /* FIXME: fill here to allow SD-2.1 only */
-    if (params.inputs[0].Feature().v != 10 ||
-        params.inputs[0].Y().v != 9216 || params.inputs[0].X().v != 64) {
-        std::cout << __FILE__ << ":" << __LINE__ << " " << "Failed to validation" << std::endl;
-        return false;
-    }
+    // if (params.inputs[0].Feature().v != 10 ||
+    //     params.inputs[0].Y().v != 9216 || params.inputs[0].X().v != 64) {
+    //     std::cout << __FILE__ << ":" << __LINE__ << " " << "Failed to validation" << std::endl;
+    //     return false;
+    // }
 
     if (params.fused_ops.size() > 0)
         return false;
