@@ -29,6 +29,21 @@ def flattenize_outputs(outputs):
         return dict((k, v.numpy(force=True)) for k, v in outputs.items())
 
 
+def filter_example(model, example):
+    try:
+        import inspect
+        if isinstance(example, dict):
+            model_params = inspect.signature(model.forward).parameters
+            names_set = {p for p in model_params}
+            new_example = dict()
+            for k, v in example:
+                if k in names_set:
+                    new_example[k] = v
+        return new_example
+    except:
+        return example
+
+
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
@@ -37,6 +52,8 @@ class TestTransformersModel(TestConvertModel):
     def setup_class(self):
         from PIL import Image
         import requests
+
+        self.infer_timeout = 1200
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
@@ -101,6 +118,13 @@ class TestTransformersModel(TestConvertModel):
             processor = AutoProcessor.from_pretrained(name)
             encoded_input = processor(images=self.image, return_tensors="pt")
             example = (encoded_input.pixel_values,)
+        elif "flava" in mi.tags:
+            from transformers import AutoProcessor
+            processor = AutoProcessor.from_pretrained(name)
+            encoded_input = processor(text=["a photo of a cat", "a photo of a dog"],
+                                      images=[self.image, self.image],
+                                      return_tensors="pt")
+            example = dict(encoded_input)
         elif "vivit" in mi.tags:
             from transformers import VivitImageProcessor
             frames = list(torch.randint(
@@ -117,14 +141,6 @@ class TestTransformersModel(TestConvertModel):
             input_dict = processor(
                 images, audio, sampling_rate=44100, return_tensors="pt")
             example = dict(input_dict)
-        elif "xmod" in mi.tags:
-            from transformers import AutoTokenizer, AutoModel
-            processor = AutoTokenizer.from_pretrained(name)
-            text = "Replace me by any text you'd like."
-            encoded_input = processor(text=[text], return_tensors="pt")
-            model = AutoModel.from_pretrained(name, torchscript=True)
-            model.set_default_language("de_CH")
-            example = dict(encoded_input)
         elif "gptsan-japanese" in mi.tags:
             from transformers import AutoTokenizer
             processor = AutoTokenizer.from_pretrained(name)
@@ -140,110 +156,114 @@ class TestTransformersModel(TestConvertModel):
             inputs = processor(video, return_tensors="pt")
             example = dict(inputs)
         else:
-            if auto_model == "AutoModelForCausalLM":
-                from transformers import AutoTokenizer, AutoModelForCausalLM
-                tokenizer = AutoTokenizer.from_pretrained(name)
-                model = AutoModelForCausalLM.from_pretrained(
-                    name, torchscript=True)
-                text = "Replace me by any text you'd like."
-                encoded_input = tokenizer(text, return_tensors='pt')
-                inputs_dict = dict(encoded_input)
-                if "facebook/incoder" in name and "token_type_ids" in inputs_dict:
-                    del inputs_dict["token_type_ids"]
-                example = inputs_dict
-            elif auto_model == "AutoModelForMaskedLM":
-                from transformers import AutoTokenizer, AutoModelForMaskedLM
-                tokenizer = AutoTokenizer.from_pretrained(name)
-                model = AutoModelForMaskedLM.from_pretrained(
-                    name, torchscript=True)
-                text = "Replace me by any text you'd like."
-                encoded_input = tokenizer(text, return_tensors='pt')
-                example = dict(encoded_input)
-            elif auto_model == "AutoModelForImageClassification":
-                from transformers import AutoProcessor, AutoModelForImageClassification
-                processor = AutoProcessor.from_pretrained(name)
-                model = AutoModelForImageClassification.from_pretrained(
-                    name, torchscript=True)
-                encoded_input = processor(
-                    images=self.image, return_tensors="pt")
-                example = dict(encoded_input)
-            elif auto_model == "AutoModelForSeq2SeqLM":
-                from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-                tokenizer = AutoTokenizer.from_pretrained(name)
-                model = AutoModelForSeq2SeqLM.from_pretrained(
-                    name, torchscript=True)
-                inputs = tokenizer(
-                    "Studies have been shown that owning a dog is good for you", return_tensors="pt")
-                decoder_inputs = tokenizer(
-                    "<pad> Studien haben gezeigt dass es hilfreich ist einen Hund zu besitzen",
-                    return_tensors="pt",
-                    add_special_tokens=False,
-                )
-                example = dict(input_ids=inputs.input_ids,
-                               decoder_input_ids=decoder_inputs.input_ids)
-            elif auto_model == "AutoModelForSpeechSeq2Seq":
-                from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq
-                from datasets import load_dataset
-                processor = AutoProcessor.from_pretrained(name)
-                model = AutoModelForSpeechSeq2Seq.from_pretrained(
-                    name, torchscript=True)
-                dataset = load_dataset(
-                    "hf-internal-testing/librispeech_asr_demo", "clean", split="validation")
-                dataset = dataset.sort("id")
-                sampling_rate = dataset.features["audio"].sampling_rate
-                inputs = processor(
-                    dataset[0]["audio"]["array"], sampling_rate=sampling_rate, return_tensors="pt")
-                example = dict(inputs)
-            elif auto_model == "AutoModelForCTC":
-                from transformers import AutoProcessor, AutoModelForCTC
-                from datasets import load_dataset
-                processor = AutoProcessor.from_pretrained(name)
-                model = AutoModelForCTC.from_pretrained(
-                    name, torchscript=True)
-                ds = load_dataset(
-                    "patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
-                input_values = processor(
-                    ds[0]["audio"]["array"], return_tensors="pt")
-                example = dict(input_values)
-            elif auto_model == "AutoModelForTableQuestionAnswering":
-                import pandas as pd
-                from transformers import AutoTokenizer, AutoModelForTableQuestionAnswering
-                tokenizer = AutoTokenizer.from_pretrained(name)
-                model = AutoModelForTableQuestionAnswering.from_pretrained(
-                    name, torchscript=True)
-                data = {"Actors": ["Brad Pitt", "Leonardo Di Caprio", "George Clooney"],
-                        "Number of movies": ["87", "53", "69"]}
-                queries = ["What is the name of the first actor?",
-                           "How many movies has George Clooney played in?",
-                           "What is the total number of movies?",]
-                answer_coordinates = [[(0, 0)], [(2, 1)], [
-                    (0, 1), (1, 1), (2, 1)]]
-                answer_text = [["Brad Pitt"], ["69"], ["209"]]
-                table = pd.DataFrame.from_dict(data)
-                encoded_input = tokenizer(table=table, queries=queries, answer_coordinates=answer_coordinates,
-                                          answer_text=answer_text, padding="max_length", return_tensors="pt",)
-                example = dict(encoded_input)
-            else:
-                from transformers import AutoTokenizer, AutoProcessor
-                text = "Replace me by any text you'd like."
-                if auto_processor is not None and "Tokenizer" not in auto_processor:
-                    processor = AutoProcessor.from_pretrained(name)
-                    encoded_input = processor(
-                        text=[text], images=self.image, return_tensors="pt", padding=True)
-                else:
+            try:
+                if auto_model == "AutoModelForCausalLM":
+                    from transformers import AutoTokenizer, AutoModelForCausalLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
+                    model = AutoModelForCausalLM.from_pretrained(
+                        name, torchscript=True)
+                    text = "Replace me by any text you'd like."
                     encoded_input = tokenizer(text, return_tensors='pt')
-                example = dict(encoded_input)
+                    inputs_dict = dict(encoded_input)
+                    if "facebook/incoder" in name and "token_type_ids" in inputs_dict:
+                        del inputs_dict["token_type_ids"]
+                    example = inputs_dict
+                elif auto_model == "AutoModelForMaskedLM":
+                    from transformers import AutoTokenizer, AutoModelForMaskedLM
+                    tokenizer = AutoTokenizer.from_pretrained(name)
+                    model = AutoModelForMaskedLM.from_pretrained(
+                        name, torchscript=True)
+                    text = "Replace me by any text you'd like."
+                    encoded_input = tokenizer(text, return_tensors='pt')
+                    example = dict(encoded_input)
+                elif auto_model == "AutoModelForImageClassification":
+                    from transformers import AutoProcessor, AutoModelForImageClassification
+                    processor = AutoProcessor.from_pretrained(name)
+                    model = AutoModelForImageClassification.from_pretrained(
+                        name, torchscript=True)
+                    encoded_input = processor(
+                        images=self.image, return_tensors="pt")
+                    example = dict(encoded_input)
+                elif auto_model == "AutoModelForSeq2SeqLM":
+                    from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+                    tokenizer = AutoTokenizer.from_pretrained(name)
+                    model = AutoModelForSeq2SeqLM.from_pretrained(
+                        name, torchscript=True)
+                    inputs = tokenizer(
+                        "Studies have been shown that owning a dog is good for you", return_tensors="pt")
+                    decoder_inputs = tokenizer(
+                        "<pad> Studien haben gezeigt dass es hilfreich ist einen Hund zu besitzen",
+                        return_tensors="pt",
+                        add_special_tokens=False,
+                    )
+                    example = dict(input_ids=inputs.input_ids,
+                                   decoder_input_ids=decoder_inputs.input_ids)
+                elif auto_model == "AutoModelForSpeechSeq2Seq":
+                    from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq
+                    from datasets import load_dataset
+                    processor = AutoProcessor.from_pretrained(name)
+                    model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                        name, torchscript=True)
+                    inputs = processor(torch.randn(1000).numpy(), sampling_rate=16000, return_tensors="pt")
+                    example = dict(inputs)
+                elif auto_model == "AutoModelForCTC":
+                    from transformers import AutoProcessor, AutoModelForCTC
+                    from datasets import load_dataset
+                    processor = AutoProcessor.from_pretrained(name)
+                    model = AutoModelForCTC.from_pretrained(
+                        name, torchscript=True)
+                    input_values = processor(torch.randn(1000).numpy(), return_tensors="pt")
+                    example = dict(input_values)
+                elif auto_model == "AutoModelForTableQuestionAnswering":
+                    import pandas as pd
+                    from transformers import AutoTokenizer, AutoModelForTableQuestionAnswering
+                    tokenizer = AutoTokenizer.from_pretrained(name)
+                    model = AutoModelForTableQuestionAnswering.from_pretrained(
+                        name, torchscript=True)
+                    data = {"Actors": ["Brad Pitt", "Leonardo Di Caprio", "George Clooney"],
+                            "Number of movies": ["87", "53", "69"]}
+                    queries = ["What is the name of the first actor?",
+                               "How many movies has George Clooney played in?",
+                               "What is the total number of movies?",]
+                    answer_coordinates = [[(0, 0)], [(2, 1)], [
+                        (0, 1), (1, 1), (2, 1)]]
+                    answer_text = [["Brad Pitt"], ["69"], ["209"]]
+                    table = pd.DataFrame.from_dict(data)
+                    encoded_input = tokenizer(table=table, queries=queries, answer_coordinates=answer_coordinates,
+                                              answer_text=answer_text, padding="max_length", return_tensors="pt",)
+                    example = dict(input_ids=encoded_input["input_ids"],
+                                   token_type_ids=encoded_input["token_type_ids"],
+                                   attention_mask=encoded_input["attention_mask"])
+                else:
+                    from transformers import AutoTokenizer, AutoProcessor
+                    text = "Replace me by any text you'd like."
+                    if auto_processor is not None and "Tokenizer" not in auto_processor:
+                        processor = AutoProcessor.from_pretrained(name)
+                        encoded_input = processor(
+                            text=[text], images=self.image, return_tensors="pt", padding=True)
+                    else:
+                        tokenizer = AutoTokenizer.from_pretrained(name)
+                        encoded_input = tokenizer(text, return_tensors='pt')
+                    example = dict(encoded_input)
+            except:
+                pass
         if model is None:
             from transformers import AutoModel
             model = AutoModel.from_pretrained(name, torchscript=True)
-        self.example = example
+            if hasattr(model, "set_default_language"):
+                model.set_default_language("en_XX")
+        if example is None:
+            if "encodec" in mi.tags:
+                example = (torch.randn(1, 1, 100),)
+            else:
+                example = (torch.randint(1, 1000, [1, 100]),)
+        self.example = filter_example(model, example)
         model.eval()
         # do first inference
-        if isinstance(example, dict):
-            model(**example)
+        if isinstance(self.example, dict):
+            model(**self.example)
         else:
-            model(*example)
+            model(*self.example)
         return model
 
     def get_inputs_info(self, model_obj):
@@ -274,9 +294,11 @@ class TestTransformersModel(TestConvertModel):
 
     @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
                                            ("facebook/bart-large-mnli", "bart"),
-                                           ("google/flan-t5-base","t5"),
+                                           ("google/flan-t5-base", "t5"),
+                                           ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
-                                           ("openai/clip-vit-large-patch14", "clip")])
+                                           ("openai/clip-vit-large-patch14", "clip"),
+                                           ("RWKV/rwkv-4-169m-pile", "rwkv")])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
