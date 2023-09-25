@@ -136,8 +136,7 @@ kernel_selector::data_type to_data_type(data_types dt) {
         case cldnn::data_types::f32:
             return kernel_selector::data_type::F32;
         default:
-            assert(0);
-            return kernel_selector::data_type::F16;
+            OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector data type");
     }
 }
 
@@ -158,8 +157,7 @@ data_types from_data_type(kernel_selector::data_type dt) {
         case kernel_selector::data_type::F32:
             return cldnn::data_types::f32;
         default:
-            assert(0);
-            return cldnn::data_types::f16;
+            OPENVINO_THROW("[GPU] Unable to convert kernel_selector data type ", kernel_selector::toString(dt), " to cldnn data type");
     }
 }
 
@@ -175,9 +173,10 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
             return kernel_selector::weights_type::F16;
         case cldnn::data_types::f32:
             return kernel_selector::weights_type::F32;
+        case cldnn::data_types::i32:
+            return kernel_selector::weights_type::INT32;
         default:
-            assert(0);
-            return kernel_selector::weights_type::F16;
+            OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector weights type");
     }
 }
 
@@ -193,9 +192,10 @@ data_types from_weights_type(kernel_selector::weights_type dt) {
             return data_types::f16;
         case kernel_selector::weights_type::F32:
             return data_types::f32;
+        case kernel_selector::weights_type::INT32:
+            return data_types::i32;
         default:
-            assert(0);
-            return data_types::f16;
+            OPENVINO_THROW("[GPU] Unable to convert kernel_selector weights type ", kernel_selector::toString(dt), " to cldnn data type");
     }
 }
 
