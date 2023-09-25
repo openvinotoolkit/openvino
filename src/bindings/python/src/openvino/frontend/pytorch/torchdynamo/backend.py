@@ -8,6 +8,7 @@ import logging
 import os
 from functools import partial
 from hashlib import sha256
+from typing import Optional, Any
 
 import torch
 from torch._dynamo.backends.common import fake_tensor_unsupported
@@ -44,15 +45,23 @@ log = logging.getLogger(__name__)
 
 @register_backend
 @fake_tensor_unsupported
-def openvino(subgraph, example_inputs):
-    return fx_openvino(subgraph, example_inputs)
+def openvino(subgraph, example_inputs, options=None):
+    return fx_openvino(subgraph, example_inputs, options)
 
 @register_backend
 @fake_tensor_unsupported
-def openvino_ts(subgraph, example_inputs):
-    return ts_openvino(subgraph, example_inputs)
+def openvino_ts(subgraph, example_inputs, options=None):
+    return ts_openvino(subgraph, example_inputs, options)
 
-def ts_openvino(subgraph, example_inputs):
+
+def _get_option(key, options) -> Optional[Any]:
+    if key in options:
+        return options[key]
+    else:
+        return os.getenv(key)
+
+
+def ts_openvino(subgraph, example_inputs, options):
     try:
         model = torch.jit.script(subgraph)
         model.eval()
@@ -83,8 +92,9 @@ def ts_openvino(subgraph, example_inputs):
         om.validate_nodes_and_infer_types()
 
         device = "CPU"
-        if (os.getenv("OPENVINO_TORCH_BACKEND_DEVICE") is not None):
-            device = os.getenv("OPENVINO_TORCH_BACKEND_DEVICE")
+        openvino_torch_backend_device = _get_option("OPENVINO_TORCH_BACKEND_DEVICE", options)
+        if openvino_torch_backend_device is not None:
+            device = openvino_torch_backend_device
             assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
 
         compiled_model = core.compile_model(om, device)
@@ -111,11 +121,13 @@ def ts_openvino(subgraph, example_inputs):
         return compile_fx(subgraph, example_inputs)
 
 
-def fx_openvino(subgraph, example_inputs):
+def fx_openvino(subgraph, example_inputs, options):
     try:
         executor_parameters = None
         inputs_reversed = False
-        if os.getenv("OPENVINO_TORCH_MODEL_CACHING") is not None:
+
+        openvino_torch_model_caching = _get_option("OPENVINO_TORCH_MODEL_CACHING", options)
+        if openvino_torch_model_caching is not None:
             # Create a hash to be used for caching
             model_hash_str = sha256(subgraph.code.encode('utf-8')).hexdigest()
             executor_parameters = {"model_hash_str": model_hash_str}
