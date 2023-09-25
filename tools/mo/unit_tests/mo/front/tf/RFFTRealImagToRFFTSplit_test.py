@@ -1,9 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-
-import unittest
-
+import pytest
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.RFFTRealImagToRFFTSplit import RFFTRealImagToRDFTSplit
@@ -84,22 +82,20 @@ ref_graph_edges = [
 ]
 
 
-class RFFTRealImagToRFFTSplitTest(unittest.TestCase):
-    def test_replacement(self):
-        test_cases=[1, 2, 3]
-        for idx, (num_of_dims) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=graph_node_attrs,
-                                    edges=graph_edges,
-                                    update_attributes={
-                                        'rfft': {'num_of_dimensions': num_of_dims}
-                                    })
-                graph.stage = 'front'
-                RFFTRealImagToRDFTSplit().find_and_replace_pattern(graph)
-                ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs,
-                                        edges=ref_graph_edges,
-                                        update_attributes={
-                                            'rfft': {'num_of_dimensions': num_of_dims}
-                                        })
-                (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
-                self.assertTrue(flag, resp)
+class TestRFFTRealImagToRFFTSplitTest():
+    @pytest.mark.parametrize("num_of_dims",[1, 2, 3])
+    def test_replacement(self, num_of_dims):
+        graph = build_graph(nodes_attrs=graph_node_attrs,
+                            edges=graph_edges,
+                            update_attributes={
+                                'rfft': {'num_of_dimensions': num_of_dims}
+                            })
+        graph.stage = 'front'
+        RFFTRealImagToRDFTSplit().find_and_replace_pattern(graph)
+        ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs,
+                                edges=ref_graph_edges,
+                                update_attributes={
+                                    'rfft': {'num_of_dimensions': num_of_dims}
+                                })
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
+        assert flag, resp
