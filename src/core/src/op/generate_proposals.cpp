@@ -7,7 +7,6 @@
 #include "generate_proposals_shape_inference.hpp"
 #include "itt.hpp"
 
-using namespace std;
 namespace ov {
 
 op::v9::GenerateProposals::GenerateProposals(const Output<Node>& im_info,
@@ -22,15 +21,15 @@ op::v9::GenerateProposals::GenerateProposals(const Output<Node>& im_info,
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v9::GenerateProposals::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v9::GenerateProposals::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v9_GenerateProposals_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<ov::op::v9::GenerateProposals>(new_args.at(0),
-                                                      new_args.at(1),
-                                                      new_args.at(2),
-                                                      new_args.at(3),
-                                                      m_attrs,
-                                                      m_roi_num_type);
+    return std::make_shared<ov::op::v9::GenerateProposals>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           new_args.at(3),
+                                                           m_attrs,
+                                                           m_roi_num_type);
 }
 
 bool op::v9::GenerateProposals::visit_attributes(AttributeVisitor& visitor) {

@@ -9,7 +9,6 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/validation_util.hpp"
 
-using namespace std;
 namespace ov {
 op::v6::ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const Output<Node>& input_rois,
                                                                      const Output<Node>& rois_probs,
@@ -25,10 +24,10 @@ bool op::v6::ExperimentalDetectronTopKROIs::visit_attributes(AttributeVisitor& v
     return true;
 }
 
-shared_ptr<Node> op::v6::ExperimentalDetectronTopKROIs::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v6::ExperimentalDetectronTopKROIs::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v6::ExperimentalDetectronTopKROIs>(new_args.at(0), new_args.at(1), m_max_rois);
+    return std::make_shared<op::v6::ExperimentalDetectronTopKROIs>(new_args.at(0), new_args.at(1), m_max_rois);
 }
 
 void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types() {

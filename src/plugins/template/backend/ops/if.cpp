@@ -6,7 +6,7 @@
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
-#include "shape_util.hpp"
+#include "openvino/core/shape_util.hpp"
 
 namespace if_op {
 bool call(ov::TensorVector& func_outputs,

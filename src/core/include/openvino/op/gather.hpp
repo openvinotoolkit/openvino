@@ -21,7 +21,6 @@ public:
     /// \param axis The tensor is a dimension index to gather data from
     Gather(const Output<Node>& params, const Output<Node>& indices, const Output<Node>& axis);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     int64_t get_axis() const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

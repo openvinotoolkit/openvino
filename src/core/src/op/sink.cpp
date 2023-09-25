@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/sink.hpp"
+#include "openvino/op/sink.hpp"
 
-using namespace ngraph;
-
-op::Sink::~Sink() = default;
+ov::op::Sink::~Sink() = default;

@@ -125,7 +125,7 @@ bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
 }
 
 bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_upper) {
-    NGRAPH_CHECK(node, output_values.size() == 1);
+    OPENVINO_ASSERT(node, output_values.size() == 1);
     const auto& input = node->input_value(0);
     if (const auto& value = is_upper ? input.get_tensor().get_upper_value() : input.get_tensor().get_lower_value()) {
         if (is_vector(value.get_shape()) && (value.get_shape().front() == 0)) {
@@ -175,8 +175,8 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v0_Convert_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }

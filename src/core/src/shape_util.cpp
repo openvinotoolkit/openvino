@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "openvino/core/partial_shape.hpp"
-#include "shape_util.hpp"
+#include "openvino/core/shape_util.hpp"
 
 using namespace ngraph;
 

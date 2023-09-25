@@ -7,7 +7,6 @@
 #include "adaptive_max_pool_shape_inference.hpp"
 #include "itt.hpp"
 
-using namespace std;
 namespace ov {
 
 op::v8::AdaptiveMaxPool::AdaptiveMaxPool(const Output<Node>& data,
@@ -39,10 +38,10 @@ void op::v8::AdaptiveMaxPool::validate_and_infer_types() {
     set_output_type(1, m_index_element_type, output_shapes[1]);
 }
 
-shared_ptr<Node> op::v8::AdaptiveMaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v8::AdaptiveMaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v8_AdaptiveMaxPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v8::AdaptiveMaxPool>(new_args.at(0), new_args.at(1), m_index_element_type);
+    return std::make_shared<v8::AdaptiveMaxPool>(new_args.at(0), new_args.at(1), m_index_element_type);
 }
 
 void op::v8::AdaptiveMaxPool::set_index_element_type(const element::Type& type) {

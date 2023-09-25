@@ -118,8 +118,8 @@ bool evaluate_select(const HostTensorVector& output_values,
 bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_Select_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 3));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 3));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     const auto autob = get_auto_broadcast();
     return detail::evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());

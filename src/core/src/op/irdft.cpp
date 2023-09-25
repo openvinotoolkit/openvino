@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/irdft.hpp"
+#include "openvino/op/irdft.hpp"
 
 #include <memory>
 
 #include "irdft_shape_inference.hpp"
 #include "itt.hpp"
-
-using namespace std;
 
 ov::op::v9::IRDFT::IRDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
@@ -18,11 +16,6 @@ ov::op::v9::IRDFT::IRDFT(const Output<Node>& data, const Output<Node>& axes) : F
 ov::op::v9::IRDFT::IRDFT(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size)
     : FFTBase(data, axes, signal_size) {
     constructor_validate_and_infer_types();
-}
-
-bool ov::op::v9::IRDFT::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v9_IRDFT_visit_attributes);
-    return true;
 }
 
 std::shared_ptr<ov::Node> ov::op::v9::IRDFT::clone_with_new_inputs(const OutputVector& new_args) const {

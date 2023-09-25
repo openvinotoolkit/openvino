@@ -9,8 +9,6 @@
 #include "openvino/core/validation_util.hpp"
 #include "psroi_pooling_shape_inference.hpp"
 
-using namespace std;
-
 namespace ov {
 namespace op {
 namespace v0 {
@@ -22,7 +20,7 @@ PSROIPooling::PSROIPooling(const Output<Node>& input,
                            const float spatial_scale,
                            int spatial_bins_x,
                            int spatial_bins_y,
-                           const string& mode)
+                           const std::string& mode)
     : Op({input, coords}),
       m_output_dim(output_dim),
       m_group_size(group_size),
@@ -61,17 +59,17 @@ void PSROIPooling::validate_and_infer_types() {
     set_output_type(0, feat_maps_et, output_shapes[0]);
 }
 
-shared_ptr<Node> PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_PSROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<PSROIPooling>(new_args.at(0),
-                                     new_args.at(1),
-                                     m_output_dim,
-                                     m_group_size,
-                                     m_spatial_scale,
-                                     m_spatial_bins_x,
-                                     m_spatial_bins_y,
-                                     m_mode);
+    return std::make_shared<PSROIPooling>(new_args.at(0),
+                                          new_args.at(1),
+                                          m_output_dim,
+                                          m_group_size,
+                                          m_spatial_scale,
+                                          m_spatial_bins_x,
+                                          m_spatial_bins_y,
+                                          m_mode);
 }
 
 void PSROIPooling::set_output_dim(size_t output_dim) {

@@ -10,8 +10,8 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/reference/concat.hpp"
-#include "shape_util.hpp"
 
 namespace ov {
 namespace reference {

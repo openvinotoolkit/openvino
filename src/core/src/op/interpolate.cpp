@@ -14,7 +14,6 @@
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
-using namespace std;
 namespace ov {
 ov::op::v0::Interpolate::Interpolate(const Output<Node>& image,
                                      const Output<Node>& output_shape,
@@ -51,10 +50,10 @@ void ov::op::v0::Interpolate::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Interpolate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
+    return std::make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
 std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
@@ -134,17 +133,17 @@ void ov::op::v4::Interpolate::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<ov::Node> ov::op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v4_Interpolate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() <= 3) {
-        return make_shared<ov::op::v4::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+        return std::make_shared<ov::op::v4::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
     }
-    return make_shared<ov::op::v4::Interpolate>(new_args.at(0),
-                                                new_args.at(1),
-                                                new_args.at(2),
-                                                new_args.at(3),
-                                                m_attrs);
+    return std::make_shared<ov::op::v4::Interpolate>(new_args.at(0),
+                                                     new_args.at(1),
+                                                     new_args.at(2),
+                                                     new_args.at(3),
+                                                     m_attrs);
 }
 
 namespace {
@@ -320,13 +319,13 @@ op::v11::Interpolate::Interpolate(const Output<Node>& image,
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v11::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v11::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v11_Interpolate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2) {
-        return make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
+        return std::make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    return make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+    return std::make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
 void op::v11::Interpolate::validate_and_infer_types() {
