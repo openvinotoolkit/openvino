@@ -7,9 +7,9 @@
 #include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/axes_util.hpp"
 #include "openvino/reference/reduce_prod.hpp"
-#include "shape_util.hpp"
 
 namespace ov {
 namespace op {
