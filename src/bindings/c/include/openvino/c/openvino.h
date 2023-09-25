@@ -15,12 +15,12 @@
  **/
 #pragma once
 
-#define BOOLEAN OV_BOOLEAN
 #ifdef _WINDOWS_
 #    pragma message( \
         "The BOOLEAN define in ov_element_type_e conflict with Windows.h BOOLEAN define. Here redifine the BOOLEAN of Windows.h to WIN_BOOLEAN & the BOOLEAN of ov_element_type_e to OV_BOOLEAN.")
 typedef BOOLEAN WIN_BOOLEAN;
 #endif
+#define BOOLEAN OV_BOOLEAN
 
 #include "openvino/c/auto/properties.h"
 #include "openvino/c/ov_common.h"
