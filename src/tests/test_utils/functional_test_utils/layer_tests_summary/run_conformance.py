@@ -141,9 +141,8 @@ class Conformance:
             logger.info(f"Conformance IRs will be downloaded from {url_to_download} to {download_path}")
             ur.urlretrieve(url_to_download, filename=download_path)
         except Exception as exc:
-            logger.error(f"Please verify URL: {url_to_download}. Looks like that is incorrect")
-            logger.exception(str(exc))
-            logger.error(exc)
+            logger.error(f"Please verify URL: {url_to_download}. It might be incorrect. See below for the full error.")
+            logger.exception(f'FULL ERROR: {exc}')
             exit(-1)
         logger.info(f"Conformance IRs were downloaded from {url_to_download} to {download_path}")
         if not os.path.isfile(download_path):
