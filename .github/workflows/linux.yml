@@ -892,10 +892,6 @@ jobs:
       - name: Create Directories
         run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }} ${{ env.PIP_CACHE_DIR }}
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -917,8 +913,13 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
       - name: Install Python wheels
         run: |
+          python3 -m pip install --upgrade pip
           python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
 
       - name: Install PyTorch tests requirements
