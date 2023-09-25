@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import unittest
-
+import pytest
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.TFFFTToDFT import TFFFTToDFT
@@ -82,9 +81,8 @@ ref_dft_graph_with_signal_size_edges = [
 ]
 
 
-class TFFFTToDFTTest(unittest.TestCase):
-    def test_replacement(self):
-        test_cases=[(2, 'DFT', int64_array([-2, -1])),
+class TestTFFFTToDFTTest():
+    @pytest.mark.parametrize("num_of_dimensions, dft_type, fft_axes",[(2, 'DFT', int64_array([-2, -1])),
                 (2, 'IDFT', int64_array([-2, -1])),
                 (1, 'DFT', int64_array([-1])),
                 (1, 'IDFT', int64_array([-1])),
@@ -95,28 +93,26 @@ class TFFFTToDFTTest(unittest.TestCase):
                 (1, 'RDFT', int64_array([-1])),
                 (1, 'IRDFT', int64_array([-1])),
                 (3, 'RDFT', int64_array([-3, -2, -1])),
-                (3, 'IRDFT', int64_array([-3, -2, -1]))]
-        for idx, (num_of_dimensions, dft_type, fft_axes) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=dft_graph_node_attrs,
-                                    edges=dft_graph_edges,
-                                    update_attributes={
-                                        'fft': {'num_of_dimensions': num_of_dimensions, 'fft_kind': dft_type},
-                                    })
-                graph.stage = 'front'
-                graph.graph['layout'] = 'NHWC'
-                TFFFTToDFT().find_and_replace_pattern(graph)
-                ref_graph = build_graph(nodes_attrs=ref_dft_graph_node_attrs,
-                                        edges=ref_dft_graph_edges,
-                                        update_attributes={
-                                            'fft': {'kind': 'op', 'op': dft_type},
-                                            'fft_axes': {'value': fft_axes, 'shape': int64_array(fft_axes.shape)},
-                                        })
-                (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
-                self.assertTrue(flag, resp)
+                (3, 'IRDFT', int64_array([-3, -2, -1]))])
+    def test_replacement(self, num_of_dimensions, dft_type, fft_axes):
+        graph = build_graph(nodes_attrs=dft_graph_node_attrs,
+                            edges=dft_graph_edges,
+                            update_attributes={
+                                'fft': {'num_of_dimensions': num_of_dimensions, 'fft_kind': dft_type},
+                            })
+        graph.stage = 'front'
+        graph.graph['layout'] = 'NHWC'
+        TFFFTToDFT().find_and_replace_pattern(graph)
+        ref_graph = build_graph(nodes_attrs=ref_dft_graph_node_attrs,
+                                edges=ref_dft_graph_edges,
+                                update_attributes={
+                                    'fft': {'kind': 'op', 'op': dft_type},
+                                    'fft_axes': {'value': fft_axes, 'shape': int64_array(fft_axes.shape)},
+                                })
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
+        assert flag, resp
 
-    def test_replacement_for_signal_size(self):
-        test_cases=[
+    @pytest.mark.parametrize("num_of_dims, fft_kind, fft_axes, input_shape, signal_size",[
         (2, 'RDFT', int64_array([-2, -1]), int64_array([3, 100, 100]), int64_array([100, -1])),
         (2, 'IRDFT', int64_array([-2, -1]), int64_array([3, 100, 100, 2]), int64_array([100, -1])),
         (2, 'RDFT', int64_array([-2, -1]), int64_array([3, 100, 100]), int64_array([95, 116])),
@@ -135,30 +131,29 @@ class TFFFTToDFTTest(unittest.TestCase):
         (1, 'IRDFT', int64_array([-1]), int64_array([3, 100, 100, 2]), int64_array([116])),
         (1, 'RDFT', int64_array([-1]), int64_array([3, 100, 100]), int64_array([100])),
         (1, 'IRDFT', int64_array([-1]), int64_array([3, 100, 100, 2]), int64_array([100])),
-    ]
-        for idx, (num_of_dims, fft_kind, fft_axes, input_shape, signal_size) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=dft_graph_with_signal_size_node_attrs,
-                                    edges=dft_graph_with_signal_size_edges,
-                                    update_attributes={
-                                        'placeholder': {'shape': input_shape},
-                                        'signal_size': {
-                                            'shape': signal_size.shape, 'value': signal_size
-                                        },
-                                        'fft': {'num_of_dimensions': num_of_dims, 'fft_kind': fft_kind},
-                                    })
-                graph.stage = 'front'
-                graph.graph['layout'] = 'NHWC'
-                TFFFTToDFT().find_and_replace_pattern(graph)
-                ref_graph = build_graph(nodes_attrs=ref_dft_graph_with_signal_size_node_attrs,
-                                        edges=ref_dft_graph_with_signal_size_edges,
-                                        update_attributes={
-                                            'placeholder': {'shape': input_shape},
-                                            'signal_size': {
-                                                'shape': signal_size.shape, 'value': signal_size
-                                            },
-                                            'fft': {'kind': 'op', 'op': fft_kind},
-                                            'fft_axes': {'value': fft_axes, 'shape': int64_array(fft_axes.shape)},
-                                        })
-                (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
-                self.assertTrue(flag, resp)
+    ])
+    def test_replacement_for_signal_size(self, num_of_dims, fft_kind, fft_axes, input_shape, signal_size):
+        graph = build_graph(nodes_attrs=dft_graph_with_signal_size_node_attrs,
+                            edges=dft_graph_with_signal_size_edges,
+                            update_attributes={
+                                'placeholder': {'shape': input_shape},
+                                'signal_size': {
+                                    'shape': signal_size.shape, 'value': signal_size
+                                },
+                                'fft': {'num_of_dimensions': num_of_dims, 'fft_kind': fft_kind},
+                            })
+        graph.stage = 'front'
+        graph.graph['layout'] = 'NHWC'
+        TFFFTToDFT().find_and_replace_pattern(graph)
+        ref_graph = build_graph(nodes_attrs=ref_dft_graph_with_signal_size_node_attrs,
+                                edges=ref_dft_graph_with_signal_size_edges,
+                                update_attributes={
+                                    'placeholder': {'shape': input_shape},
+                                    'signal_size': {
+                                        'shape': signal_size.shape, 'value': signal_size
+                                    },
+                                    'fft': {'kind': 'op', 'op': fft_kind},
+                                    'fft_axes': {'value': fft_axes, 'shape': int64_array(fft_axes.shape)},
+                                })
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
+        assert flag, resp
