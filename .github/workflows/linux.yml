@@ -131,10 +131,10 @@ jobs:
             -DENABLE_SYSTEM_PUGIXML=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
-            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -DCMAKE_MINIMUM_REQUIRED_VERSION=3.20 \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -239,19 +239,19 @@ jobs:
 
       - name: Install debian packages & check conflicts
         run: |
-          apt-get update
+          apt-get update -y
           # Install debian packages from previous release
-          apt-get install --no-install-recommends gnupg wget ca-certificates
+          apt-get install --no-install-recommends -y gnupg wget ca-certificates
           wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2023.list
-          apt-get update
-          apt-get install openvino -y
+          apt-get update -y
+          apt-get install -y openvino
           # install our local one and make sure the conflicts are resolved
-          apt-get install --no-install-recommends dpkg-dev -y
+          apt-get install --no-install-recommends -y dpkg-dev
           dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
-          echo "deb [trusted=yes] file:$(DEBIAN_PACKAGES_DIR) ./" | tee /etc/apt/sources.list.d/openvino-local.list
-          apt-get update
+          echo "deb [trusted=yes] file:${DEBIAN_PACKAGES_DIR} ./" | tee /etc/apt/sources.list.d/openvino-local.list
+          apt-get update -y
           apt-get install openvino -y
         working-directory: ${{ env.DEBIAN_PACKAGES_DIR }}
 

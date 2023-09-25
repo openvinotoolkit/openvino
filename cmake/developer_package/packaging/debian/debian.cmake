@@ -148,7 +148,14 @@ macro(ov_debian_specific_settings)
     # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
 
     if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-        set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        if(OV_GENERATOR_MULTI_CONFIG)
+            # $<CONFIG> generator expression does not work in this place, have to add all possible configs
+            foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+                list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${config}")
+            endforeach()
+        else()
+            set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        endif()
     else()
         message(FATAL_ERROR "CMAKE_LIBRARY_OUTPUT_DIRECTORY is empty")
     endif()
