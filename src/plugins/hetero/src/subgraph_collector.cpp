@@ -564,18 +564,28 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
     if (dump_dot_files) {
         auto subgraph_ids = subgraph_collector.get_subgraph_ids();
         std::map<std::string, ov::hetero::SubgraphCollector::SubgraphId> map_id;
-        for (const auto& node : model->get_ordered_ops()) {
-            map_id.emplace(node->get_friendly_name(), subgraph_ids.at(node));
-            if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
-                for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i) {
-                    if (const auto& sub_graph = multi_subgraph_op->get_function(i)) {
-                        for (const auto& sub_node : sub_graph->get_ordered_ops()) {
-                            map_id.emplace(sub_node->get_friendly_name(), subgraph_ids.at(node));
+        std::function<void(const std::shared_ptr<ov::Model>&, const ov::hetero::SubgraphCollector::SubgraphId&)>
+            collect_map_id = [&](const std::shared_ptr<ov::Model>& model,
+                                 const ov::hetero::SubgraphCollector::SubgraphId& default_id) {
+                for (const auto& node : model->get_ordered_ops()) {
+                    ov::hetero::SubgraphCollector::SubgraphId subgraph_id;
+                    if (subgraph_ids.count(node)) {
+                        subgraph_id = subgraph_ids.at(node);
+                    } else {
+                        OPENVINO_ASSERT(default_id >= 0, "Invalid default id for node " + node->get_friendly_name());
+                        subgraph_id = default_id;
+                    }
+                    map_id.emplace(node->get_friendly_name(), subgraph_id);
+                    if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+                        for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i) {
+                            if (const auto& sub_graph = multi_subgraph_op->get_function(i)) {
+                                collect_map_id(sub_graph, subgraph_id);
+                            }
                         }
                     }
                 }
-            }
-        }
+            };
+        collect_map_id(model, -1);
         ov::hetero::debug::dump_subgraphs(model, debug_supported_ops, map_id);
     }
 
