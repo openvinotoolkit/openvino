@@ -159,37 +159,6 @@ def input_to_input_cut_info(input: [dict, tuple, list]):
     return [single_input_to_input_cut_info(input)]
 
 
-def freeze_placeholder_to_input_cut_info(inputs: list):
-    """
-    Parses freezing parts from input list.
-    :param inputs: list of InputCutInfo with information from 'input' parameter
-    :returns (placeholder_values, unnamed_placeholder_values), where
-    placeholder_values - dictionary where key is node name, value is node value,
-    unnamed_placeholder_values - list with unnamed node values
-    """
-    placeholder_values = {}
-    unnamed_placeholder_values = []
-
-    # Collect values for freezing from 'inputs'
-    if inputs is not None and len(inputs) > 0:
-        for input in inputs:
-            node_name = input.name
-            value = input.value
-            if value is None:
-                continue
-            # Check for value conflict
-            if node_name in placeholder_values and placeholder_values[node_name] != value:
-                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
-                            ".".format(node_name, placeholder_values[node_name], value))
-            if node_name is not None:
-                # Named input case, add to dictionary
-                placeholder_values[node_name] = value
-            else:
-                # Unnamed input case, add to list
-                unnamed_placeholder_values.append(value)
-
-    return placeholder_values, unnamed_placeholder_values
-
 ParamDescription = namedtuple("ParamData", ["description", "cli_tool_description"])
 
 
@@ -349,50 +318,6 @@ def readable_files_or_empty(paths: [str, list, tuple]):
         paths_list = [readable_file_or_object(path) for path in str(paths).split(',')]
         return paths_list
     return paths
-
-
-def readable_dir(path: str):
-    """
-    Check that specified path is a readable directory.
-    :param path: path to check
-    :return: path if the directory is readable
-    """
-    if not os.path.isdir(path):
-        raise Error('The "{}" is not existing directory'.format(path))
-    elif not os.access(path, os.R_OK):
-        raise Error('The "{}" is not readable'.format(path))
-    else:
-        return path
-
-
-def writable_dir(path: str):
-    """
-    Checks that specified directory is writable. The directory may not exist but it's parent or grandparent must exist.
-    :param path: path to check that it is writable.
-    :return: path if it is writable
-    """
-    if path is None:
-        raise Error('The directory parameter is None')
-    if os.path.exists(path):
-        if os.path.isdir(path):
-            if os.access(path, os.W_OK):
-                return path
-            else:
-                raise Error('The directory "{}" is not writable'.format(path))
-        else:
-            raise Error('The "{}" is not a directory'.format(path))
-    else:
-        cur_path = path
-        while os.path.dirname(cur_path) != cur_path:
-            if os.path.exists(cur_path):
-                break
-            cur_path = os.path.dirname(cur_path)
-        if cur_path == '':
-            cur_path = os.path.curdir
-        if os.access(cur_path, os.W_OK):
-            return path
-        else:
-            raise Error('The directory "{}" is not writable'.format(cur_path))
 
 
 def add_args_by_description(args_group, params_description):

@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from openvino.tools.ovc.cli_parser import input_to_input_cut_info, writable_dir, \
+from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \
     readable_file_or_object, get_all_cli_parser, get_mo_convert_params, parse_inputs
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace, arguments_post_parsing, args_to_argv
 from openvino.tools.ovc.error import Error
@@ -344,27 +344,6 @@ class PathCheckerFunctions(unittest.TestCase):
             shutil.rmtree(os.path.dirname(__class__.NOT_WRITABLE_SUB_DIR), ignore_errors=True)
         if os.path.exists(__class__.EXISTING_FILE):
             os.remove(__class__.EXISTING_FILE)
-
-    def test_single_writable_dir(self):
-        self.assertEqual(__class__.WRITABLE_DIR, writable_dir(__class__.WRITABLE_DIR))
-
-    @unittest.skip("Temporary disabled since chmod() is temporary not working on Linux. (Windows do not support not writable dir at all)")
-    def test_single_non_writable_dir(self):
-        with self.assertRaises(Error) as cm:
-            writable_dir(__class__.NOT_WRITABLE_DIR)
-
-    @unittest.skip("Temporary disabled since chmod() is temporary not working on Linux. (Windows do not support not writable dir at all)")
-    def test_single_non_writable_sub_dir(self):
-        with self.assertRaises(Error) as cm:
-            writable_dir(__class__.NOT_WRITABLE_SUB_DIR)
-
-    def test_multiple_writable_dirs(self):
-        dirs_str = ','.join([__class__.WRITABLE_DIR, __class__.WRITABLE_NON_EXISTING_DIR])
-        self.assertEqual(dirs_str, writable_dir(dirs_str))
-
-    def test_single_writable_non_existing_dir(self):
-        self.assertEqual(__class__.WRITABLE_NON_EXISTING_DIR, writable_dir(__class__.WRITABLE_NON_EXISTING_DIR))
-
 
     def test_readable_file(self):
         self.assertEqual(__class__.EXISTING_FILE, readable_file_or_object(__class__.EXISTING_FILE))
