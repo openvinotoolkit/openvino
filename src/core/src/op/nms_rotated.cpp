@@ -22,18 +22,17 @@ void input_types(const Node* op) {
     constexpr size_t integer_input_idx = 2;
     for (size_t i = 0; i < inputs_size; ++i) {
         if (i == integer_input_idx) {
-            continue;
+            NODE_VALIDATION_CHECK(op,
+                                  op->get_input_element_type(integer_input_idx).is_integral_number() ||
+                                      op->get_input_element_type(integer_input_idx).is_dynamic(),
+                                  "Expected integer type as element type for the input at: 2");
+        } else {
+            NODE_VALIDATION_CHECK(op,
+                                  op->get_input_element_type(i).is_real() || op->get_input_element_type(i).is_dynamic(),
+                                  "Expected floating point type as element type for the input at: ",
+                                  i);
         }
-        NODE_VALIDATION_CHECK(op,
-                              op->get_input_element_type(i).is_real() || op->get_input_element_type(i).is_dynamic(),
-                              "Expected floating point type as element type for the input at: ",
-                              i);
     }
-
-    NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(integer_input_idx).is_integral_number() ||
-                              op->get_input_element_type(integer_input_idx).is_dynamic(),
-                          "Expected integer type as element type for the input at: 2");
 }
 }  // namespace
 }  // namespace validate
