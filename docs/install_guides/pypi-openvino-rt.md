@@ -89,11 +89,11 @@ Users in China might encounter errors while downloading sources via PIP during O
 
 On Windows*, some libraries are necessary to run OpenVINO. To resolve this issue, install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
-### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
+### ImportError: libpython3.8.so.1.0: cannot open shared object file: No such file or directory
 
 To resolve missing external dependency on Ubuntu*, execute the following command:
 ```sh
-sudo apt-get install libpython3.7
+sudo apt-get install libpython3.8
 ```
 
 ## Additional Resources
