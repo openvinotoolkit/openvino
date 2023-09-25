@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from openvino.tools.ovc.cli_parser import input_to_input_cut_info, check_positive, writable_dir, \
+from openvino.tools.ovc.cli_parser import input_to_input_cut_info, writable_dir, \
     readable_file_or_object, get_all_cli_parser, get_mo_convert_params, parse_inputs
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace, arguments_post_parsing, args_to_argv
 from openvino.tools.ovc.error import Error
@@ -306,18 +306,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
                                     "Incorrect format of input."):
             argv_input = parse_inputs("inp1->[1.0]")
             input_to_input_cut_info(argv_input)
-
-
-class PositiveChecker(unittest.TestCase):
-    def test_positive_checker_batch(self):
-        res = check_positive('1')
-        self.assertEqual(res, 1)
-
-    def test_positive_checker_batch_negative(self):
-        self.assertRaises(argparse.ArgumentTypeError, check_positive, '-1')
-
-    def test_positive_checker_batch_not_int(self):
-        self.assertRaises(argparse.ArgumentTypeError, check_positive, 'qwe')
 
 
 class PathCheckerFunctions(unittest.TestCase):

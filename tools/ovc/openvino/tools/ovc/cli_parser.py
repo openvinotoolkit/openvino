@@ -2,22 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import ast
 import inspect
-import logging as log
 import os
 import pathlib
 import re
 from collections import OrderedDict, namedtuple
-from distutils.util import strtobool
-from operator import xor
 from typing import List, Union
 
-import numpy as np
 from openvino.runtime import PartialShape, Dimension, Shape, Type  # pylint: disable=no-name-in-module,import-error
 
 import openvino
-from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 from openvino.tools.ovc.utils import get_mo_root_dir
@@ -578,16 +572,6 @@ def get_node_name_with_port_from_input_value(input_value: str):
     return remove_shape_from_input_value(input_value)
 
 
-def partial_shape_prod(shape: [PartialShape, tuple]):
-    assert not (isinstance(shape, PartialShape) and shape.is_dynamic), \
-        "Unable to calculate prod for dynamic shape {}.".format(shape)
-
-    prod = 1
-    for dim in shape:
-        prod *= dim.get_min_length()
-    return prod
-
-
 def parse_input_value(input_value: str):
     """
     Parses a value of the "input" command line parameter and gets a node name, shape and value.
@@ -638,32 +622,6 @@ def split_inputs(input_str):
         inputs.append(input_str[:idx])
         input_str = input_str[idx+1:]
     return inputs
-
-
-def split_node_in_port(node_id: str):
-    """Split node_id in form port:node to separate node and port, where port is converted to int"""
-    if isinstance(node_id, str):
-        separator = ':'
-        parts = node_id.split(separator)
-        if len(parts) > 1:
-            if parts[0].isdigit():
-                node_name = separator.join(parts[1:])
-                try:
-                    port = int(parts[0])
-                    return node_name, port
-                except ValueError as err:
-                    log.warning('Didn\'t recognize port:node format for "{}" because port is not an integer.'.format(
-                    node_id))
-            else:
-                node_name = separator.join(parts[:-1])
-                try:
-                    port = int(parts[-1])
-                    return node_name, port
-                except ValueError as err:
-                    log.warning('Didn\'t recognize node:port format for "{}" because port is not an integer.'.format(
-                    node_id))
-
-    return node_id, None
 
 
 def get_model_name(path_input_model: str) -> str:
@@ -730,58 +688,6 @@ def get_absolute_path(path_to_file: str) -> str:
     if not os.path.isabs(file_path):
         file_path = os.path.join(os.getcwd(), file_path)
     return file_path
-
-
-def isfloat(value):
-    try:
-        float(value)
-        return True
-    except ValueError:
-        return False
-
-
-def isbool(value):
-    try:
-        strtobool(value)
-        return True
-    except ValueError:
-        return False
-
-
-def isdict(value):
-    try:
-        evaluated = ast.literal_eval(value)
-        return isinstance(evaluated, dict)
-    except ValueError:
-        return False
-
-
-def convert_string_to_real_type(value: str):
-    if isdict(value):
-        return ast.literal_eval(value)
-
-    values = value.split(',')
-    for i in range(len(values)):
-        value = values[i]
-        if value.isdigit():
-            values[i] = int(value)
-        elif isfloat(value):
-            values[i] = float(value)
-        elif isbool(value):
-            values[i] = strtobool(value)
-
-    return values[0] if len(values) == 1 else values
-
-
-def check_positive(value):
-    try:
-        int_value = int(value)
-        if int_value <= 0:
-            raise ValueError
-    except ValueError:
-        raise argparse.ArgumentTypeError("expected a positive integer value")
-
-    return int_value
 
 
 def check_bool(value):
