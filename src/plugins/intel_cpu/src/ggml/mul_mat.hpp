@@ -46,7 +46,7 @@ void ggml_mul_mat(int64_t M,
     struct ggml_init_params params = {
         /*.mem_size   =*/16 * 1024 * 1024,
         /*.mem_buffer =*/NULL,
-        /*.no_alloc   =*/false,
+        /*.no_alloc   =*/true,
     };
 
     struct ggml_context* ctx = ggml_init(params);
@@ -72,15 +72,17 @@ void ggml_mul_mat(int64_t M,
     //memcpy(ggml_A->data, A_ptr, ggml_nbytes(ggml_A));
     //memcpy(ggml_B->data, B_ptr, ggml_nbytes(ggml_B));
 
-    struct ggml_tensor* ggml_dst = ggml_mul_mat(ctx, ggml_A, ggml_B);
+    print_elements("ggml_A", ggml_A);
+    print_elements("ggml_B", ggml_B);
+
+    struct ggml_tensor* ggml_dst = ggml_mul_mat_ext_dst(ctx, ggml_A, ggml_B, dst_ptr);
     struct ggml_cgraph ggml_graph = ggml_build_forward(ggml_dst);
     ggml_graph_compute_with_ctx(ctx, &ggml_graph, /*n_threads = */1);
 
-    //print_elements("ggml_A", ggml_A);
-    //print_elements("ggml_B", ggml_B);
+
     //print_elements("ggml_dst", ggml_dst);
-    float* dst = reinterpret_cast<float*>(ggml_dst->data);
-    memcpy(dst_ptr, dst, ggml_nbytes(ggml_dst));
+    //float* dst = reinterpret_cast<float*>(ggml_dst->data);
+    //memcpy(dst_ptr, dst, ggml_nbytes(ggml_dst));
     ggml_free(ctx);
 }
 }  // namespace intel_cpu
