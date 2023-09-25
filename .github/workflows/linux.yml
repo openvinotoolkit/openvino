@@ -885,8 +885,9 @@ jobs:
         run: |
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
           sudo apt install --assume-yes --no-install-recommends libssl1.1
-          # install git
-          sudo apt-get install --assume-yes --no-install-recommends git ca-certificates
+          # install git (requeried to build pip deps from the sources)
+          # install g++ to build 'detectron2' and 'natten' wheels
+          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
 
       - name: Maximize build space
         run:  |
