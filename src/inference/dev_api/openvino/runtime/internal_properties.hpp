@@ -131,7 +131,6 @@ static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream_sma
  */
 static constexpr Property<size_t, PropertyMutability::RW> small_core_offset{"SMALL_CORE_OFFSET"};
 
-
 /**
  * @brief Enable hyper thread
  * @ingroup ov_dev_api_plugin_api
