@@ -10,7 +10,6 @@ namespace ov {
 namespace pass {
 
 class CompressQuantizeWeights;
-class ZeroPointOptimizer;
 
 }  // namespace pass
 }  // namespace ov
@@ -62,31 +61,4 @@ class ov::pass::CompressQuantizeWeights : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("CompressQuantizeWeights", "0");
     CompressQuantizeWeights();
-};
-
-/*
-   if zero_point == 0 we can eliminate Subtract from following dequantization subgraph:
-
-                                +-----------------+
-                                |    Constant     |
-                                | (low precision) |
-                                +-----------------+
-                                        |
-                                        v
-                                +------------------+
-                                |     Convert      |
-                                |  (to high prec)  |
-                                +------------------+
-                                        |
-                                        v
-                  +----------+    +------------+
-                  |zero point|--->|  Subtract  |
-                  +----------+    +-----+------+
-                                        |
-                                        v
-*/
-class ov::pass::ZeroPointOptimizer : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("ZeroPointOptimizer");
-    ZeroPointOptimizer();
 };
