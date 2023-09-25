@@ -9,6 +9,7 @@ from openvino.tools.mo.middle.dequantize_linear_resolver import DequantizeLinear
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
+import pytest
 
 nodes1_attributes = {
     'input': {'kind': 'op', 'op': 'AnyOp'},
@@ -144,9 +145,9 @@ class TestDequantizeLinearResolver(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-class TestDequantizeWithAxis(unittest.TestCase):
-    def test_dequantize_with_axis(self):
-        test_cases=[(int64_array([1, 3, 4, 4]), np.array([2, 3, 4, 5], dtype=np.float32),
+class TestDequantizeWithAxis():
+    @pytest.mark.parametrize("input_shape, scale_param_value, zero_param_value, target_shape, axis",
+                             [(int64_array([1, 3, 4, 4]), np.array([2, 3, 4, 5], dtype=np.float32),
                  np.array([2, 3, 4, 5], dtype=np.uint8), int64_array([1, 1, 4, 1]), 2),
                 (int64_array([1, 3, 4, 4]), int64_array([2, 3, 4, 5]),
                  np.array([2, 3, 4, 5], dtype=np.uint8), int64_array([1, 3, 1, 1]), 1),
@@ -162,76 +163,75 @@ class TestDequantizeWithAxis(unittest.TestCase):
                  np.array([2, 3, 4, 5], dtype=np.int32), int64_array([1, 3, 1, 1]), 1),
                 (int64_array([2, 3, 4, 4]), int64_array([2, 3, 4, 5]),
                  np.array([2, 3, 4, 5], dtype=np.int32), int64_array([2, 1, 1, 1]), 0),
-                ]
-        for idx, (input_shape, scale_param_value, zero_param_value, target_shape, axis) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes1_attributes,
-                                    [('input', 'input_data'),
-                                    ('input_data', 'dequantize'),
-                                    ('dequantize', 'dequantize_data'),
-                                    ('scale_param_dq', 'scale_param_dq_data'),
-                                    ('zerop_param_dq', 'zerop_param_dq_data'),
-                                    ('scale_param_dq_data', 'dequantize'),
-                                    ('zerop_param_dq_data', 'dequantize'),
-                                    ('dequantize_data', 'out'),
-                                    ('out', 'out_data'),
-                                    ('out_data', 'result'),
-                                    ],
-                                    {'input_data': {'shape': input_shape},
-                                    'dequantize': {'axis': axis},
-                                    'scale_param_dq': {'shape': scale_param_value.shape,
-                                                        'value': scale_param_value},
-                                    'scale_param_dq_data': {'shape': scale_param_value.shape,
-                                                            'value': scale_param_value},
-                                    'zerop_param_dq': {'shape': zero_param_value.shape,
-                                                        'value': zero_param_value},
-                                    'zerop_param_dq_data': {'shape': zero_param_value.shape,
-                                                            'value': zero_param_value},
-                                    }, nodes_with_edges_only=True)
+                ])
+    def test_dequantize_with_axis(self, input_shape, scale_param_value, zero_param_value, target_shape, axis):
+        graph = build_graph(nodes1_attributes,
+                            [('input', 'input_data'),
+                             ('input_data', 'dequantize'),
+                             ('dequantize', 'dequantize_data'),
+                             ('scale_param_dq', 'scale_param_dq_data'),
+                             ('zerop_param_dq', 'zerop_param_dq_data'),
+                             ('scale_param_dq_data', 'dequantize'),
+                             ('zerop_param_dq_data', 'dequantize'),
+                             ('dequantize_data', 'out'),
+                             ('out', 'out_data'),
+                             ('out_data', 'result'),
+                             ],
+                            {'input_data': {'shape': input_shape},
+                             'dequantize': {'axis': axis},
+                             'scale_param_dq': {'shape': scale_param_value.shape,
+                                                'value': scale_param_value},
+                             'scale_param_dq_data': {'shape': scale_param_value.shape,
+                                                     'value': scale_param_value},
+                             'zerop_param_dq': {'shape': zero_param_value.shape,
+                                                'value': zero_param_value},
+                             'zerop_param_dq_data': {'shape': zero_param_value.shape,
+                                                     'value': zero_param_value},
+                             }, nodes_with_edges_only=True)
 
-                graph_ref = build_graph(nodes_ref_attributes,
-                                        [('input', 'input_data'),
-                                        ('input_data', 'cast'),
-                                        ('cast', 'cast_data'),
-                                        ('cast_data', 'sub'),
-                                        ('zerop_param_dq', 'zerop_param_dq_data'),
+        graph_ref = build_graph(nodes_ref_attributes,
+                                [('input', 'input_data'),
+                                 ('input_data', 'cast'),
+                                 ('cast', 'cast_data'),
+                                 ('cast_data', 'sub'),
+                                 ('zerop_param_dq', 'zerop_param_dq_data'),
 
-                                        ('zerop_param_dq_data', 'sub_reshape'),
-                                        ('sub_reshape_const', 'sub_reshape_const_data'),
-                                        ('sub_reshape_const_data', 'sub_reshape'),
-                                        ('sub_reshape', 'sub_reshape_data'),
-                                        ('sub_reshape_data', 'sub'),
+                                 ('zerop_param_dq_data', 'sub_reshape'),
+                                 ('sub_reshape_const', 'sub_reshape_const_data'),
+                                 ('sub_reshape_const_data', 'sub_reshape'),
+                                 ('sub_reshape', 'sub_reshape_data'),
+                                 ('sub_reshape_data', 'sub'),
 
-                                        ('sub', 'sub_data'),
-                                        ('sub_data', 'mul'),
-                                        ('scale_param_dq', 'scale_param_dq_data'),
+                                 ('sub', 'sub_data'),
+                                 ('sub_data', 'mul'),
+                                 ('scale_param_dq', 'scale_param_dq_data'),
 
-                                        ('scale_param_dq_data', 'mul_reshape'),
-                                        ('mul_reshape_const', 'mul_reshape_const_data'),
-                                        ('mul_reshape_const_data', 'mul_reshape'),
-                                        ('mul_reshape', 'mul_reshape_data'),
-                                        ('mul_reshape_data', 'mul'),
+                                 ('scale_param_dq_data', 'mul_reshape'),
+                                 ('mul_reshape_const', 'mul_reshape_const_data'),
+                                 ('mul_reshape_const_data', 'mul_reshape'),
+                                 ('mul_reshape', 'mul_reshape_data'),
+                                 ('mul_reshape_data', 'mul'),
 
-                                        ('mul', 'mul_data'),
-                                        ('mul_data', 'out'),
-                                        ('out', 'out_data'),
-                                        ('out_data', 'result'),
-                                        ],
-                                        {'input_data': {'shape': input_shape},
-                                        'scale_param_dq': {'shape': scale_param_value.shape,
-                                                            'value': scale_param_value},
-                                        'scale_param_dq_data': {'shape': scale_param_value.shape,
-                                                                'value': scale_param_value},
-                                        'zerop_param_dq': {'shape': zero_param_value.shape,
-                                                            'value': zero_param_value},
-                                        'zerop_param_dq_data': {'shape': zero_param_value.shape,
-                                                                'value': zero_param_value},
-                                        'sub_reshape_const_data': {'shape': target_shape.shape, 'value': target_shape},
-                                        'mul_reshape_const_data': {'shape': target_shape.shape, 'value': target_shape},
-                                        }, nodes_with_edges_only=True)
+                                 ('mul', 'mul_data'),
+                                 ('mul_data', 'out'),
+                                 ('out', 'out_data'),
+                                 ('out_data', 'result'),
+                                 ],
+                                {'input_data': {'shape': input_shape},
+                                 'scale_param_dq': {'shape': scale_param_value.shape,
+                                                    'value': scale_param_value},
+                                 'scale_param_dq_data': {'shape': scale_param_value.shape,
+                                                         'value': scale_param_value},
+                                 'zerop_param_dq': {'shape': zero_param_value.shape,
+                                                    'value': zero_param_value},
+                                 'zerop_param_dq_data': {'shape': zero_param_value.shape,
+                                                         'value': zero_param_value},
+                                 'sub_reshape_const_data': {'shape': target_shape.shape, 'value': target_shape},
+                                 'mul_reshape_const_data': {'shape': target_shape.shape, 'value': target_shape},
+                                 }, nodes_with_edges_only=True)
 
-                graph.stage = 'middle'
-                DequantizeLinearResolver().find_and_replace_pattern(graph)
+        graph.stage = 'middle'
+        DequantizeLinearResolver().find_and_replace_pattern(graph)
 
-                (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=True)
-                self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=True)
+        assert flag, resp
