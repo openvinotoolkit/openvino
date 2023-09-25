@@ -123,7 +123,7 @@ function(openvino_developer_export_targets)
 endfunction()
 
 # add target with processed tests model zoo
-if (ENABLE_TESTS)
+if(ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
@@ -135,14 +135,20 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
 endif()
 
 # Enable interpreter backend for tests
-if (ENABLE_TESTS OR ENABLE_TEMPLATE)
+if(ENABLE_TESTS OR ENABLE_TEMPLATE)
     add_subdirectory(src/plugins/template/backend)
 endif()
+
 include(cmake/extra_modules.cmake)
 add_subdirectory(docs)
 add_subdirectory(tools)
 add_subdirectory(scripts)
 add_subdirectory(licensing)
+
+if(ENABLE_TESTS)
+    # layers and other more high-level / e2e tests
+    add_subdirectory(tests)
+endif()
 
 #
 # CPack
