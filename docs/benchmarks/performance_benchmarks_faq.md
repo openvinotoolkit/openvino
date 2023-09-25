@@ -3,8 +3,11 @@
 
 @sphinxdirective
 
+
 .. meta::
    :description: Check the F.A.Q. for performance benchmarks in Intel® Distribution of OpenVINO™ toolkit.
+
+
 
 
 .. dropdown:: How often do performance benchmarks get updated?
@@ -37,7 +40,7 @@
 
    The image size used in inference depends on the benchmarked
    network. The table below presents the list of input sizes for each
-   network model:
+   network model and a link to more information on that model:
 
    .. list-table::
       :header-rows: 1
@@ -46,10 +49,22 @@
         - Public Network
         - Task
         - Input Size
-      * - `GPT-2 <https://https://github.com/onnx/models/blob/main/text/machine_comprehension/gpt-2/README.md>`__
-        - OpenAI GPT-2
+      * - `BLOOMZ-560M <https://huggingface.co/bigscience/bloomz-560m>`__
+        - BigScience Bloomz & MT0
+        - Transformer based llm
+        - 2048
+      * - `GPT-J-6B <https://huggingface.co/EleutherAI/gpt-j-6b>`__
+        - Eleuther AI
         - Transformer
-        - 1024
+        - 2048
+      * - `Llama-2-7b-chat <https://ai.meta.com/llama/>`__
+        - Meta AI
+        - Auto regressive language
+        - 4096
+      * - `Stable-Diffusion-V2-1 <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__
+        - Hugginface
+        - Latent Diffusion Model
+        - 77
       * - `bert-base-cased <https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1>`__
         - BERT
         - question / answer
@@ -62,22 +77,6 @@
         -  DeepLab v3 Tf
         - semantic segmentation
         - 513x513
-      * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`__
-        - Efficientdet
-        - classification
-        - 512x512
-      * - `faster_rcnn_resnet50_coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco>`__
-        - Faster RCNN Tf
-        - object detection
-        - 600x1024
-      * - `inception-v4 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/googlenet-v4-tf>`__
-        - Inception v4 (aka GoogleNet-V4)
-        - classification
-        - 299x299
-      * - `mobilenet-ssd <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-ssd>`__
-        - SSD (MobileNet)_COCO-2017_Caffe
-        - object detection
-        - 300x300
       * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
         - Mobilenet V2 PyTorch
         - classification
@@ -86,6 +85,10 @@
         - ResNet-50_v1_ILSVRC-2012
         - classification
         - 224x224
+      * - `ssd-mobilenet-v1-coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd_mobilenet_v1_coco>`__
+        - ssd-mobilenet-V1-coco onnx model
+        - object detection
+        - 300x300      
       * - `ssd-resnet34-1200-onnx <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd-resnet34-1200-onnx>`__
         - ssd-resnet34 onnx model
         - object detection

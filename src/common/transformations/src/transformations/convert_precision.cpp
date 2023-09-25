@@ -201,6 +201,8 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     }
 
     for (const auto& param : f->get_parameters()) {
+        if (skip_precision_sensitive && fp16_compression_is_disabled(param) && has_fp16_compression)
+            continue;
         is_changed |= fuse_type_to_parameter(param, precisions, convert_input_output_precision);
     }
 
@@ -689,6 +691,8 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
     return res;
 }
 
+namespace {
+
 bool update_type(size_t idx,
                  const std::shared_ptr<ov::Node>& node,
                  const precisions_map& precisions,
@@ -703,6 +707,8 @@ bool update_type(size_t idx,
     }
     return false;
 }
+
+}  // namespace
 
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto nms = ov::as_type_ptr<opset8::MatrixNms>(node);

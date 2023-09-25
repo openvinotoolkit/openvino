@@ -38,7 +38,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationOperations2;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     TestTransformationParams params;
     Actual actual;
     Expected expected;
@@ -56,12 +56,12 @@ public:
                                                                                   testValues.actual.fakeQuantizeOnData2,
                                                                                   {});
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+        transformer.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
-        transformer.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
+        transformer.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
+        transformer.add<ov::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
-        transformer.add<ngraph::pass::low_precision::EliminateFakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
+        transformer.add<ov::pass::low_precision::EliminateFakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
         transformer.transform(actualFunction);
 

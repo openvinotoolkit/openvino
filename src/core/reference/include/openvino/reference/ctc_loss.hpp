@@ -6,6 +6,8 @@
 
 #include <math.h>
 
+#include <unordered_set>
+
 #include "ngraph/shape_util.hpp"
 
 namespace ov {
