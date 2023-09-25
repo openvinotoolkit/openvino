@@ -829,6 +829,13 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
+          name: cpu-func-tests-times-stamp
+          path: ${PARALLEL_TEST_CACHE}
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
           name: test-results-functional-cpu
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
