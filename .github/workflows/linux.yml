@@ -961,6 +961,11 @@ jobs:
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
+      - name: Install dependencies
+        run: |
+          # libssl1.1 - 'python3 -m pip' in self-hosted runner
+          sudo apt install --assume-yes --no-install-recommends libssl1.1
+
       - name: Maximize build space
         run:  |
           sudo rm -rf /usr/local/lib/android # will release about 10 GB if you don't need Android
