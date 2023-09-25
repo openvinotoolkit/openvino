@@ -6,12 +6,27 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/if.hpp"
 
+#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 
 #include "matchers/subgraph/fused_names.hpp"
 #include "utils/model.hpp"
 
 using namespace ov::tools::subgraph_dumper;
+
+void FusedNamesExtractor::set_target_device(const std::string& _device) {
+    auto available_devices = core->get_available_devices();
+    if (std::find(available_devices.begin(), available_devices.end(), _device) ==
+        available_devices.end()) {
+        std::string message = "Incorrect device ";
+        message += _device;
+        message += " to enable `fused_names` extractor! Available devices: ";
+        message += ov::test::utils::vec2str(available_devices);
+        throw std::runtime_error(message);
+    }
+    device = _device;
+    std::cout << "[ INFO ][ GRAPH CASE ] " << device << " is using for `fused_names` extractor" << std::endl;
+}
 
 std::unordered_set<std::string>
 FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Model>& model) {
@@ -26,9 +41,9 @@ FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Mode
     return compiled_op_name;
 }
 
-FusedNamesExtractor::FusedNamesExtractor() {
+FusedNamesExtractor::FusedNamesExtractor(const std::string& device) {
     core = ov::test::utils::PluginCache::get().core();
-    device = *(core->get_available_devices().begin());
+    set_target_device(device);
 }
 
 FusedNamesExtractor::~FusedNamesExtractor() {

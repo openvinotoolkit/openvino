@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     }
     if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
         std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
-        caches.push_back(GraphCache::get());
+        caches.push_back(GraphCache::get(FLAGS_device));
     }
 
     for (auto& cache : caches) {
