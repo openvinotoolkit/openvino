@@ -3,14 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
-from types import BuiltinFunctionType
+from types import BuiltinFunctionType, ModuleType
 from typing import Callable, Any, Union
-
-import openvino
 
 
 class Property(str):
-    def __new__(cls, prop: Callable[..., Any]):
+    def __new__(cls, prop: Callable[..., Any]):  # type: ignore
         instance = super().__new__(cls, prop())
         instance.prop = prop
         return instance
@@ -22,8 +20,7 @@ class Property(str):
 
 
 def __append_property_to_module(func: Callable[..., Any], target_module_name: str) -> None:
-    """
-    Modifies the target module's __getattr__ method to expose a python property wrapper by the function's name.
+    """Modifies the target module's __getattr__ method to expose a python property wrapper by the function's name.
 
     :param func: the function which will be transformed to behave as python property.
     :param target_module_name: the name of the module to which properties are added.
@@ -42,15 +39,16 @@ def __append_property_to_module(func: Callable[..., Any], target_module_name: st
         else:
             return getattr_old(name)
 
-    module.__getattr__ = getattr_new # type: ignore
+    module.__getattr__ = getattr_new  # type: ignore
 
 
-def __make_properties(target_module_name: str) -> None:
-    """Makes python properties in target module from functions found in the properties module from _pyopenvino lib.
+def __make_properties(source_module_of_properties: ModuleType, target_module_name: str) -> None:
+    """Makes python properties in target module from functions found in the source module.
 
+    :param source_module_of_properties: the source module from which functions should be taken.
     :param target_module_name: the name of the module to which properties are added.
     """
-    for attr in dir(openvino._pyopenvino.properties):
-        func = getattr(openvino._pyopenvino.properties, attr)
+    for attr in dir(source_module_of_properties):
+        func = getattr(source_module_of_properties, attr)
         if isinstance(func, BuiltinFunctionType):
             __append_property_to_module(func, target_module_name)

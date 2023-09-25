@@ -28,7 +28,7 @@ def test_properties_ro_base():
 
 
 def test_properties_rw_base():
-    assert props.cache_dir() == "CACHE_DIR"
+    assert props.cache_dir == "CACHE_DIR"
     assert props.cache_dir("./test_dir") == ("CACHE_DIR", OVAny("./test_dir"))
 
     with pytest.raises(TypeError) as e:
@@ -181,6 +181,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
 def test_properties_ro(ov_property_ro, expected_value):
     # Test if property is correctly registered
     assert ov_property_ro() == expected_value
+    assert ov_property_ro == expected_value
 
 
 ###
@@ -369,6 +370,7 @@ def test_properties_ro(ov_property_ro, expected_value):
 def test_properties_rw(ov_property_rw, expected_value, test_values):
     # Test if property is correctly registered
     assert ov_property_rw() == expected_value
+    assert ov_property_rw == expected_value
 
     # Test if property process values correctly
     for values in test_values:
@@ -381,7 +383,7 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 # Special cases
 ###
 def test_properties_device_priorities():
-    assert device.priorities() == "MULTI_DEVICE_PRIORITIES"
+    assert device.priorities == "MULTI_DEVICE_PRIORITIES"
     assert device.priorities("CPU,GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
     assert device.priorities("CPU", "GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
 
@@ -401,7 +403,7 @@ def test_properties_device_properties():
     def check(value1, value2):
         assert device.properties(value1) == ("DEVICE_PROPERTIES", OVAny(value2))
 
-    check({"CPU": {streams.num(): 2}},
+    check({"CPU": {streams.num: 2}},
           {"CPU": {"NUM_STREAMS": 2}})
     check({"CPU": make_dict(streams.num(2))},
           {"CPU": {"NUM_STREAMS": streams.Num(2)}})
@@ -457,7 +459,7 @@ def test_properties_hint_model():
 
     model = generate_add_model()
 
-    assert hints.model() == "MODEL_PTR"
+    assert hints.model == "MODEL_PTR"
 
     property_tuple = hints.model(model)
     assert property_tuple[0] == "MODEL_PTR"
@@ -498,13 +500,13 @@ def test_single_property_setting(device):
             props.cache_dir: "./",
             props.inference_num_threads: 9,
             props.affinity: props.Affinity.NONE,
-            hints.inference_precision(): Type.f32,
-            hints.performance_mode(): hints.PerformanceMode.LATENCY,
-            hints.enable_cpu_pinning(): True,
-            hints.scheduling_core_type(): hints.SchedulingCoreType.PCORE_ONLY,
-            hints.enable_hyper_threading(): True,
-            hints.num_requests(): 12,
-            streams.num(): 5,
+            hints.inference_precision: Type.f32,
+            hints.performance_mode: hints.PerformanceMode.LATENCY,
+            hints.enable_cpu_pinning: True,
+            hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
+            hints.enable_hyper_threading: True,
+            hints.num_requests: 12,
+            streams.num: 5,
         },
         # Mixed dict
         {
@@ -513,9 +515,9 @@ def test_single_property_setting(device):
             props.inference_num_threads: 9,
             props.affinity: "NONE",
             "INFERENCE_PRECISION_HINT": Type.f32,
-            hints.performance_mode(): hints.PerformanceMode.LATENCY,
-            hints.scheduling_core_type(): hints.SchedulingCoreType.PCORE_ONLY,
-            hints.num_requests(): 12,
+            hints.performance_mode: hints.PerformanceMode.LATENCY,
+            hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
+            hints.num_requests: 12,
             "NUM_STREAMS": streams.Num(5),
             "ENABLE_MMAP": "NO",
         },
@@ -533,7 +535,7 @@ def test_core_cpu_properties(properties_to_set):
     assert core.get_property("CPU", props.cache_dir) == "./"
     assert core.get_property("CPU", props.inference_num_threads) == 9
     assert core.get_property("CPU", props.affinity) == props.Affinity.NONE
-    assert core.get_property("CPU", streams.num()) == 5
+    assert core.get_property("CPU", streams.num) == 5
 
     # RO properties
     assert type(core.get_property("CPU", props.supported_properties)) == dict
@@ -541,5 +543,5 @@ def test_core_cpu_properties(properties_to_set):
     assert type(core.get_property("CPU", props.optimal_number_of_infer_requests)) == int
     assert type(core.get_property("CPU", props.range_for_streams)) == tuple
     assert type(core.get_property("CPU", props.range_for_async_infer_requests)) == tuple
-    assert type(core.get_property("CPU", device.full_name())) == str
-    assert type(core.get_property("CPU", device.capabilities())) == list
+    assert type(core.get_property("CPU", device.full_name)) == str
+    assert type(core.get_property("CPU", device.capabilities)) == list
