@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -93,62 +93,59 @@ edges_with_transpose_for_case_with_two_results = [
 ]
 
 
-class PreserveRuntimeInfoTest(unittest.TestCase):
-    def test_transpose_insert(self):
-        test_cases=[
+class TestPreserveRuntimeInfoTest():
+    @pytest.mark.parametrize("nhwc_to_nchw_order, nchw_to_nhwc_order, add_permutation_attrs",[
         ([0, 3, 1, 2], [0, 2, 3, 1], True),
         ([0, 4, 1, 2, 3], [0, 2, 3, 4, 1], True),
         (None, None, False),
-    ]
-        for idx, (nhwc_to_nchw_order, nchw_to_nhwc_order, add_permutation_attrs) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph_nodes = {
-                    **valued_const_with_data('transpose_parameter_order', np.array(nhwc_to_nchw_order)),
-                    **valued_const_with_data('transpose_result_order', np.array(nchw_to_nhwc_order))
-                }
-                graph_nodes.update(nodes)
-                shape_len = len(nhwc_to_nchw_order) if add_permutation_attrs else 3
-                shape = np.array(range(shape_len))
-                add_shape = shape if nhwc_to_nchw_order is None else shape[nhwc_to_nchw_order]
-                graph_nodes.update(
-                    {
-                        **regular_op_with_shaped_data('placeholder1', shape,
-                                                    {'type': 'Parameter', 'rt_info': RTInfo(), 'shape': shape}),
-                        **regular_op_with_shaped_data('result', shape, {'type': 'Result', 'rt_info': RTInfo(),
-                                                                        'shape': shape}),
-                        **regular_op_with_shaped_data('add', add_shape,
-                                                    {'type': 'Add', 'op': 'Add', 'infer': copy_shape_infer}),
-                    }
-                )
+    ])
+    def test_transpose_insert(self, nhwc_to_nchw_order, nchw_to_nhwc_order, add_permutation_attrs):
+        graph_nodes = {
+            **valued_const_with_data('transpose_parameter_order', np.array(nhwc_to_nchw_order)),
+            **valued_const_with_data('transpose_result_order', np.array(nchw_to_nhwc_order))
+        }
+        graph_nodes.update(nodes)
+        shape_len = len(nhwc_to_nchw_order) if add_permutation_attrs else 3
+        shape = np.array(range(shape_len))
+        add_shape = shape if nhwc_to_nchw_order is None else shape[nhwc_to_nchw_order]
+        graph_nodes.update(
+            {
+                **regular_op_with_shaped_data('placeholder1', shape,
+                                              {'type': 'Parameter', 'rt_info': RTInfo(), 'shape': shape}),
+                **regular_op_with_shaped_data('result', shape, {'type': 'Result', 'rt_info': RTInfo(), 'shape': shape}),
+                **regular_op_with_shaped_data('add', add_shape,
+                                              {'type': 'Add', 'op': 'Add', 'infer': copy_shape_infer}),
+            }
+        )
 
-                graph = build_graph(graph_nodes, edges)
-                graph_ref = build_graph(graph_nodes, edges_with_transpose if add_permutation_attrs else edges)
+        graph = build_graph(graph_nodes, edges)
+        graph_ref = build_graph(graph_nodes, edges_with_transpose if add_permutation_attrs else edges)
 
-                param_node = Node(graph, 'placeholder1')
-                result_node = Node(graph, 'result')
+        param_node = Node(graph, 'placeholder1')
+        result_node = Node(graph, 'result')
 
-                if add_permutation_attrs:
-                    shape_len = len(nhwc_to_nchw_order)
-                    param_node['permute_attrs'] = PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])
-                    param_node.out_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
-                    result_node.in_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
+        if add_permutation_attrs:
+            shape_len = len(nhwc_to_nchw_order)
+            param_node['permute_attrs'] = PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])
+            param_node.out_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
+            result_node.in_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
 
-                PreserveRuntimeInfo().find_and_replace_pattern(graph)
+        PreserveRuntimeInfo().find_and_replace_pattern(graph)
 
-                (flag, resp) = compare_graphs(graph, graph_ref, 'result')
-                self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result')
+        assert flag, resp
 
-                self.assertFalse(param_node.has_valid('permute_attrs'))
-                self.assertFalse(param_node.out_node(0).has_valid('permutation'))
+        assert not param_node.has_valid('permute_attrs')
+        assert not param_node.out_node(0).has_valid('permutation')
 
-                if add_permutation_attrs:
-                    rt_info = param_node.rt_info.info
-                    old_api_map = rt_info[('old_api_map_order', 0)].info
-                    self.assertTrue(np.array_equal(old_api_map['inverse_order'], nchw_to_nhwc_order))
+        if add_permutation_attrs:
+            rt_info = param_node.rt_info.info
+            old_api_map = rt_info[('old_api_map_order', 0)].info
+            assert np.array_equal(old_api_map['inverse_order'], nchw_to_nhwc_order)
 
-                    rt_info = result_node.rt_info.info
-                    old_api_map = rt_info[('old_api_map_order', 0)].info
-                    self.assertTrue(np.array_equal(old_api_map['order'], nhwc_to_nchw_order))
+            rt_info = result_node.rt_info.info
+            old_api_map = rt_info[('old_api_map_order', 0)].info
+            assert np.array_equal(old_api_map['order'], nhwc_to_nchw_order)
 
     def test_auto_disable_nhwc_to_nchw(self):
         shape_len = 4
@@ -174,77 +171,74 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
         PreserveRuntimeInfo().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
         rt_info = param_node.rt_info.info
         old_api_map = rt_info[('old_api_map_order', 0)].info
-        self.assertTrue(np.array_equal(old_api_map['inverse_order'], [0, 2, 3, 1]))
+        assert np.array_equal(old_api_map['inverse_order'], [0, 2, 3, 1])
 
         rt_info = result_node.rt_info.info
         old_api_map = rt_info[('old_api_map_order', 0)].info
-        self.assertTrue(np.array_equal(old_api_map['order'], [0, 3, 1, 2]))
+        assert np.array_equal(old_api_map['order'], [0, 3, 1, 2])
 
-    def test_transpose_insert_with_two_result_nodes(self):
-        test_cases=[
-        ([0, 3, 1, 2], [0, 2, 3, 1], True, 'DFT'),
+    @pytest.mark.parametrize("nhwc_to_nchw_order, nchw_to_nhwc_order,add_permutation_attrs, fft_kind",
+                             [([0, 3, 1, 2], [0, 2, 3, 1], True, 'DFT'),
         ([0, 3, 1, 2], [0, 2, 3, 1], True, 'IDFT'),
         (None, None, False, 'DFT'),
         (None, None, False, 'IDFT'),
         ([0, 4, 1, 2, 3], [0, 2, 3, 4, 1], True, 'DFT'),
         ([0, 4, 1, 2, 3], [0, 2, 3, 4, 1], True, 'IDFT'),
-    ]
-        for idx, (nhwc_to_nchw_order, nchw_to_nhwc_order,
-                                    add_permutation_attrs, fft_kind) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                shape_len = len(nhwc_to_nchw_order) if add_permutation_attrs else 3
-                shape = np.array(range(shape_len))
-                add_shape = shape if nhwc_to_nchw_order is None else shape[nhwc_to_nchw_order]
-                graph = build_graph(nodes_attrs=nodes_for_case_with_two_results,
-                                    edges=edges_for_case_with_two_results,
-                                    update_attributes={
-                                        'placeholder1_data': {'shape': int64_array(shape)},
-                                        'placeholder1': {'shape': int64_array(shape), 'rt_info': RTInfo()},
-                                        'transpose_parameter_order': {
-                                            'value': np.array(nhwc_to_nchw_order),
-                                            'shape': int64_array(np.array(nhwc_to_nchw_order).shape)
-                                        },
-                                        'transpose_parameter_order_data': {
-                                            'value': np.array(nhwc_to_nchw_order),
-                                            'shape': int64_array(np.array(nhwc_to_nchw_order).shape)
-                                        },
-                                        'fft': {'op': fft_kind, 'type': fft_kind},
-                                        'add_data': {'shape': add_shape},
-                                        'fft_data': {'shape': add_shape},
-                                        'result1': {'shape': shape, 'rt_info': RTInfo()},
-                                        'result2': {'shape': shape, 'rt_info': RTInfo()},
-                                    })
+    ])
+    def test_transpose_insert_with_two_result_nodes(self, nhwc_to_nchw_order, nchw_to_nhwc_order,
+                                                    add_permutation_attrs, fft_kind):
+        shape_len = len(nhwc_to_nchw_order) if add_permutation_attrs else 3
+        shape = np.array(range(shape_len))
+        add_shape = shape if nhwc_to_nchw_order is None else shape[nhwc_to_nchw_order]
+        graph = build_graph(nodes_attrs=nodes_for_case_with_two_results,
+                            edges=edges_for_case_with_two_results,
+                            update_attributes={
+                                'placeholder1_data': {'shape': int64_array(shape)},
+                                'placeholder1': {'shape': int64_array(shape), 'rt_info': RTInfo()},
+                                'transpose_parameter_order': {
+                                    'value': np.array(nhwc_to_nchw_order),
+                                    'shape': int64_array(np.array(nhwc_to_nchw_order).shape)
+                                },
+                                'transpose_parameter_order_data': {
+                                    'value': np.array(nhwc_to_nchw_order),
+                                    'shape': int64_array(np.array(nhwc_to_nchw_order).shape)
+                                },
+                                'fft': {'op': fft_kind, 'type': fft_kind},
+                                'add_data': {'shape': add_shape},
+                                'fft_data': {'shape': add_shape},
+                                'result1': {'shape': shape, 'rt_info': RTInfo()},
+                                'result2': {'shape': shape, 'rt_info': RTInfo()},
+                            })
 
-                if add_permutation_attrs:
-                    graph_ref = build_graph(nodes_for_case_with_two_results,
-                                    edges_with_transpose_for_case_with_two_results)
-                else:
-                    graph_ref = build_graph(nodes_for_case_with_two_results, edges_for_case_with_two_results)
+        if add_permutation_attrs:
+            graph_ref = build_graph(nodes_for_case_with_two_results, edges_with_transpose_for_case_with_two_results)
+        else:
+            graph_ref = build_graph(nodes_for_case_with_two_results, edges_for_case_with_two_results)
 
-                param1_node = Node(graph, 'placeholder1')
-                result1_node = Node(graph, 'result1')
-                result2_node = Node(graph, 'result2')
+        param1_node = Node(graph, 'placeholder1')
+        result1_node = Node(graph, 'result1')
+        result2_node = Node(graph, 'result2')
 
-                if add_permutation_attrs:
-                    shape_len = len(nhwc_to_nchw_order)
-                    param1_node['permute_attrs'] = PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])
-                    param1_node.out_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
-                    result1_node.in_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
-                    result2_node.in_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
+        if add_permutation_attrs:
+            shape_len = len(nhwc_to_nchw_order)
+            param1_node['permute_attrs'] = PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])
+            param1_node.out_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
+            result1_node.in_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
+            result2_node.in_node(0)['permutation'] = PermuteAttrs().get_nhwc_to_nchw_permutation(shape_len)
 
-                PreserveRuntimeInfo().find_and_replace_pattern(graph)
+        PreserveRuntimeInfo().find_and_replace_pattern(graph)
 
-                (flag, resp) = compare_graphs(graph, graph_ref, 'result1')
-                self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result1')
+        assert flag, resp
 
-                self.assertFalse(param1_node.has_valid('permute_attrs'))
-                self.assertFalse(param1_node.out_node(0).has_valid('permutation'))
+        assert not param1_node.has_valid('permute_attrs')
+        assert not param1_node.out_node(0).has_valid('permutation')
 
-                if add_permutation_attrs:
-                    rt_info = param1_node.rt_info.info
-                    old_api_map = rt_info[('old_api_map_order', 0)].info
-                    self.assertTrue(np.array_equal(old_api_map['inverse_order'], nchw_to_nhwc_order))
+        if add_permutation_attrs:
+            rt_info = param1_node.rt_info.info
+            old_api_map = rt_info[('old_api_map_order', 0)].info
+            assert np.array_equal(old_api_map['inverse_order'], nchw_to_nhwc_order)
