@@ -24,6 +24,7 @@ on:
       - master
 
 concurrency:
+  # github.run_id is not unique in post-commit
   group: ${{ github.ref_name == 'master' && github.run_id || github.ref }}-linux
   cancel-in-progress: true
 
