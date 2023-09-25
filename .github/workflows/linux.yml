@@ -24,7 +24,7 @@ on:
       - master
 
 concurrency:
-  group: ${{ github.ref_name == 'master' && github.run_id || github.ref }}-${{ runner.os }}
+  group: ${{ github.ref_name == 'master' && github.run_id || github.ref }}-linux
   cancel-in-progress: true
 
 jobs:
