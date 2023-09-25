@@ -177,8 +177,8 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
 bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_BatchToSpace_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 4));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 4));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (outputs[0]->get_partial_shape().is_dynamic()) {
