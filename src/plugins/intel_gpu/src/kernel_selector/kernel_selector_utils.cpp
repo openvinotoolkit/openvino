@@ -26,6 +26,8 @@ static WeightsType DataTypeToWeightsType(Datatype t) {
             return WeightsType::F32;
         case Datatype::BINARY:
             return WeightsType::BINARY;
+        case Datatype::INT32:
+            return WeightsType::INT32;
         default:
             return WeightsType::UNSUPPORTED;
     }

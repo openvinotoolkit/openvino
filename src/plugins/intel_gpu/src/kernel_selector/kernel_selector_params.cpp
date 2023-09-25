@@ -137,6 +137,8 @@ void ParamsKey::EnableInputWeightsType(WeightsType wt) {
         case WeightsType::BINARY:
             key.inputWeightsType.val.binary = 1;
             break;
+        case WeightsType::INT32:
+            key.inputWeightsType.val.int32 = 1;
         default:
             break;
     }
@@ -158,6 +160,8 @@ void ParamsKey::EnableOutputWeightsType(WeightsType wt) {
         case WeightsType::BINARY:
             key.outputWeightsType.val.binary = 1;
             break;
+        case WeightsType::INT32:
+            key.outputWeightsType.val.int32 = 1;
         default:
             break;
     }
