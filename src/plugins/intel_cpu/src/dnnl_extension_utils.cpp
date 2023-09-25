@@ -65,7 +65,7 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
         default: {
-            OPENVINO_THROW("Unsupported data type: ", prec);
+            return memory::data_type::undef;
         }
     }
 }

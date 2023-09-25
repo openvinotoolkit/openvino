@@ -20,7 +20,7 @@ namespace internal {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> supported_properties{
-    "SUPPORTED_PROPERTIES"};
+    "INTERNAL_SUPPORTED_PROPERTIES"};
 
 /**
  * @brief Read-only property to get a std::vector<PropertyName> of properties
