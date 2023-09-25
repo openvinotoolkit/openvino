@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -70,74 +70,72 @@ nodes_attributes = {
 }
 
 
-class FusedBatchNormTrainingTest(unittest.TestCase):
-    def test_transformation(self):
-        test_cases=[
+class TestFusedBatchNormTrainingTest():
+    @pytest.mark.parametrize("op",[
         'FusedBatchNorm', 'FusedBatchNormV2', 'FusedBatchNormV3',
-    ]
-        for idx, (op) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attributes,
-                                    [('placeholder', 'placeholder_data', {}),
-                                    ('scale', 'scale_data'),
-                                    ('offset', 'offset_data'),
-                                    ('mean', 'mean_data'),
-                                    ('variance', 'variance_data'),
-                                    ('placeholder_data', 'batchnorm', {'in': 0}),
-                                    ('scale_data', 'batchnorm', {'in': 1}),
-                                    ('offset_data', 'batchnorm', {'in': 2}),
-                                    ('mean_data', 'batchnorm', {'in': 3}),
-                                    ('variance_data', 'batchnorm', {'in': 4}),
-                                    ('batchnorm', 'batchnorm_data'),
-                                    ('batchnorm_data', 'result'),
-                                    ],
-                                    {}, nodes_with_edges_only=True)
-                graph.nodes['batchnorm']['op'] = op
-                graph_ref = build_graph(nodes_attributes,
-                                        [('placeholder', 'placeholder_data', {}),
-                                        ('scale', 'scale_data'),
-                                        ('offset', 'offset_data'),
-                                        ('bn_mean', 'bn_mean_data'),
-                                        ('bn_variance', 'bn_variance_data'),
-                                        ('scale_data', 'batchnorm', {'in': 1}),
-                                        ('offset_data', 'batchnorm', {'in': 2}),
-                                        ('bn_mean_data', 'batchnorm', {'in': 3}),
-                                        ('bn_variance_data', 'batchnorm', {'in': 4}),
+    ])
+    def test_transformation(self, op: str):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder', 'placeholder_data', {}),
+                             ('scale', 'scale_data'),
+                             ('offset', 'offset_data'),
+                             ('mean', 'mean_data'),
+                             ('variance', 'variance_data'),
+                             ('placeholder_data', 'batchnorm', {'in': 0}),
+                             ('scale_data', 'batchnorm', {'in': 1}),
+                             ('offset_data', 'batchnorm', {'in': 2}),
+                             ('mean_data', 'batchnorm', {'in': 3}),
+                             ('variance_data', 'batchnorm', {'in': 4}),
+                             ('batchnorm', 'batchnorm_data'),
+                             ('batchnorm_data', 'result'),
+                             ],
+                            {}, nodes_with_edges_only=True)
+        graph.nodes['batchnorm']['op'] = op
+        graph_ref = build_graph(nodes_attributes,
+                                [('placeholder', 'placeholder_data', {}),
+                                 ('scale', 'scale_data'),
+                                 ('offset', 'offset_data'),
+                                 ('bn_mean', 'bn_mean_data'),
+                                 ('bn_variance', 'bn_variance_data'),
+                                 ('scale_data', 'batchnorm', {'in': 1}),
+                                 ('offset_data', 'batchnorm', {'in': 2}),
+                                 ('bn_mean_data', 'batchnorm', {'in': 3}),
+                                 ('bn_variance_data', 'batchnorm', {'in': 4}),
 
-                                        ('placeholder_data', 'reshape_1', {'in': 0}),
-                                        ('reshape_1_const', 'reshape_1_const_data'),
-                                        ('reshape_1_const_data', 'reshape_1', {'in': 1}),
-                                        ('reshape_1', 'reshape_1_data', {}),
-                                        ('reshape_1_data', 'mvn', {'in': 0}),
-                                        ('mvn', 'mvn_data'),
-                                        ('mvn_data', 'reshape_to_orig', {'in': 0}),
-                                        ('start', 'start_data'),
-                                        ('start_data', 'mvn_axes'),
-                                        ('stop', 'stop_data'),
-                                        ('stop_data', 'mvn_axes'),
-                                        ('step', 'step_data'),
-                                        ('step_data', 'mvn_axes'),
-                                        ('mvn_axes', 'mvn_axes_data'),
-                                        ('mvn_axes_data', 'mvn'),
-                                        ('placeholder_data', 'shapeof', {'in': 0}),
-                                        ('shapeof', 'shapeof_data'),
-                                        ('shapeof_data', 'reshape_to_orig', {'in': 1}),
-                                        ('reshape_to_orig', 'reshape_to_orig_data'),
-                                        ('reshape_to_orig_data', 'batchnorm', {'in': 0}),
+                                 ('placeholder_data', 'reshape_1', {'in': 0}),
+                                 ('reshape_1_const', 'reshape_1_const_data'),
+                                 ('reshape_1_const_data', 'reshape_1', {'in': 1}),
+                                 ('reshape_1', 'reshape_1_data', {}),
+                                 ('reshape_1_data', 'mvn', {'in': 0}),
+                                 ('mvn', 'mvn_data'),
+                                 ('mvn_data', 'reshape_to_orig', {'in': 0}),
+                                 ('start', 'start_data'),
+                                 ('start_data', 'mvn_axes'),
+                                 ('stop', 'stop_data'),
+                                 ('stop_data', 'mvn_axes'),
+                                 ('step', 'step_data'),
+                                 ('step_data', 'mvn_axes'),
+                                 ('mvn_axes', 'mvn_axes_data'),
+                                 ('mvn_axes_data', 'mvn'),
+                                 ('placeholder_data', 'shapeof', {'in': 0}),
+                                 ('shapeof', 'shapeof_data'),
+                                 ('shapeof_data', 'reshape_to_orig', {'in': 1}),
+                                 ('reshape_to_orig', 'reshape_to_orig_data'),
+                                 ('reshape_to_orig_data', 'batchnorm', {'in': 0}),
 
-                                        ('batchnorm', 'batchnorm_data'),
-                                        ('batchnorm_data', 'result'),
-                                        ],
-                                        {'batchnorm': {'is_training': False},
+                                 ('batchnorm', 'batchnorm_data'),
+                                 ('batchnorm_data', 'result'),
+                                 ],
+                                {'batchnorm': {'is_training': False},
 
-                                        }, nodes_with_edges_only=True)
-                FusedBatchNormTraining().find_and_replace_pattern(graph)
-                shape_inference(graph)
+                                 }, nodes_with_edges_only=True)
+        FusedBatchNormTraining().find_and_replace_pattern(graph)
+        shape_inference(graph)
 
-                graph_ref.nodes['batchnorm']['op'] = op
+        graph_ref.nodes['batchnorm']['op'] = op
 
-                (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-                self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        assert flag, resp
 
     def test_non_training(self):
         graph = build_graph(nodes_attributes,
@@ -161,4 +159,4 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
         shape_inference(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
