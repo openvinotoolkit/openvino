@@ -339,9 +339,6 @@ jobs:
       # Dependencies
       #
 
-      - name: Install OpenVINO dependencies
-        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -363,12 +360,18 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
 
+      - name: Install 'actions/setup-python@v4' dependencies
+        run: apt-get update && apt-get install -y libssl1.1
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
       - name: Install Conformance Script Dependencies
-        run: python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+        run: |
+          ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+          
+          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
       # Tests
