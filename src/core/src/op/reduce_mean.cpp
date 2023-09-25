@@ -61,8 +61,8 @@ bool evaluate_mean(const HostTensorPtr& arg, const HostTensorPtr& out, const Axi
 bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceMean_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 2));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
