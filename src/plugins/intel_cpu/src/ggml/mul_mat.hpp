@@ -39,8 +39,8 @@ template <typename SrcType>
 void ggml_mul_mat(int64_t M,
                   int64_t N,
                   int64_t K,
-                  const SrcType* A_ptr,
-                  const float* B_ptr,
+                  SrcType* A_ptr,
+                  float* B_ptr,
                   float* dst_ptr,
                   const SrcType* bias_ptr) {
     struct ggml_init_params params = {
@@ -66,11 +66,11 @@ void ggml_mul_mat(int64_t M,
         return;
     }
 
-    struct ggml_tensor* ggml_A = ggml_new_tensor_2d(ctx, ggmlDataType, K, M);
-    struct ggml_tensor* ggml_B = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, K, N);
+    struct ggml_tensor* ggml_A = ggml_new_tensor_2d_ext_data(ctx, ggmlDataType, K, M, reinterpret_cast<void* >(A_ptr));
+    struct ggml_tensor* ggml_B = ggml_new_tensor_2d_ext_data(ctx, GGML_TYPE_F32, K, N, reinterpret_cast<void* >(B_ptr));
 
-    memcpy(ggml_A->data, A_ptr, ggml_nbytes(ggml_A));
-    memcpy(ggml_B->data, B_ptr, ggml_nbytes(ggml_B));
+    //memcpy(ggml_A->data, A_ptr, ggml_nbytes(ggml_A));
+    //memcpy(ggml_B->data, B_ptr, ggml_nbytes(ggml_B));
 
     struct ggml_tensor* ggml_dst = ggml_mul_mat(ctx, ggml_A, ggml_B);
     struct ggml_cgraph ggml_graph = ggml_build_forward(ggml_dst);

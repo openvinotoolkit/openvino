@@ -77,4 +77,4 @@
 	url = https://github.com/openvinotoolkit/mlas.git
 [submodule "src/plugins/intel_cpu/thirdparty/ggml"]
 	path = src/plugins/intel_cpu/thirdparty/ggml
-	url = https://github.com/ggerganov/ggml.git
+	url = https://github.com/alvoron/ggml.git
