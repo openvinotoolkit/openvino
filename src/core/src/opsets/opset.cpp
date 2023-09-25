@@ -83,7 +83,8 @@ const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_availabl
                                                                                        _OPENVINO_REG_OPSET(opset9),
                                                                                        _OPENVINO_REG_OPSET(opset10),
                                                                                        _OPENVINO_REG_OPSET(opset11),
-                                                                                       _OPENVINO_REG_OPSET(opset12)};
+                                                                                       _OPENVINO_REG_OPSET(opset12),
+                                                                                       _OPENVINO_REG_OPSET(opset13)};
 #undef _OPENVINO_REG_OPSET
     return opset_map;
 }
