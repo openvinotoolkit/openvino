@@ -178,15 +178,22 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    if (!hasPositiveIndexes(pad))
-        return true;
-
     const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }
 
     const auto mode = pad->get_pad_mode();
+    if (mode != op::PadMode::CONSTANT &&
+        mode != op::PadMode::EDGE &&
+        mode != op::PadMode::REFLECT &&
+        mode != op::PadMode::SYMMETRIC) {
+        return false;
+    }
+
+    if (!hasPositiveIndexes(pad))
+        return true;
+
     if (mode == op::PadMode::CONSTANT) {
         auto padAndDqByTheSameDimension = [&](const std::shared_ptr<ov::opset1::Constant>& deqConst) {
             const auto padsBegin = pad->get_pads_begin();
