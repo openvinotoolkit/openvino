@@ -3,6 +3,7 @@
 
 import csv
 import os
+import ssl
 import urllib.request as ur
 from argparse import ArgumentParser
 from pathlib import Path
@@ -139,7 +140,14 @@ class Conformance:
         download_path = os.path.join(path_to_save, file_name)
         try:
             logger.info(f"Conformance IRs will be downloaded from {url_to_download} to {download_path}")
+            # Required to mitigate:
+            # "ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed:
+            # self-signed certificate in certificate chain (_ssl.c:1006)"
+            # example: https://github.com/openvinotoolkit/openvino/actions/runs/6301117820/job/17105876684?pr=19841
+            tmp = ssl._create_default_https_context
+            ssl._create_default_https_context = ssl._create_unverified_context
             ur.urlretrieve(url_to_download, filename=download_path)
+            ssl._create_default_https_context = tmp
         except Exception as exc:
             logger.error(f"Please verify URL: {url_to_download}. It might be incorrect. See below for the full error.")
             logger.exception(f'FULL ERROR: {exc}')
