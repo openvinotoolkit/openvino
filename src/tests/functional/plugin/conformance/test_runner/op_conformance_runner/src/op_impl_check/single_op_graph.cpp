@@ -2003,6 +2003,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
 #include "openvino/opsets/opset12_tbl.hpp"
+#include "openvino/opsets/opset13_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;
