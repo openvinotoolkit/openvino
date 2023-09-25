@@ -866,10 +866,15 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-8-cores' || 'aks-linux-4-cores'}}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      PIP_CACHE_DIR: /mount/caches/pip/linux
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
@@ -882,7 +887,7 @@ jobs:
           df -h
 
       - name: Create Directories
-        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }} ${{ env.PIP_CACHE_DIR }}
 
       - uses: actions/setup-python@v4
         with:
@@ -908,6 +913,7 @@ jobs:
           pushd ${{ env.INSTALL_TEST_DIR }}
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
+
       - name: Install Python wheels
         run: |
           python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
