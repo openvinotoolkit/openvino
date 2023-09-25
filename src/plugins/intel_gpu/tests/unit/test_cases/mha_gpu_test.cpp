@@ -147,13 +147,11 @@ void test_mha_graph(int f, int N, int d, bool is_caching_test) {
     topo_mha.add(
         mha("mha", input_info("Query"), input_info("Key"), input_info("Value"))
     );
-    std::cout << __FILE__ << ":" << __LINE__ << " " << "Created topology" << std::endl;
+
     cldnn::network::ptr network_mha = get_network(engine, topo_mha, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-    std::cout << __FILE__ << ":" << __LINE__ << " " << "Created network" << std::endl;
     network_mha->set_input_data("Query_f32", input1);
     network_mha->set_input_data("Key_f32", input2);
     network_mha->set_input_data("Value_f32", input3);
-    std::cout << __FILE__ << ":" << __LINE__ << " " << "Start execute" << std::endl;
     auto outputs_mha = network_mha->execute();
     auto output_mha = outputs_mha.at("mha").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr_mha(output_mha, get_test_stream());
@@ -163,7 +161,7 @@ void test_mha_graph(int f, int N, int d, bool is_caching_test) {
     for (size_t i = 0; i < output_ptr.size(); ++i) {
         // if (std::abs(half_to_float(output_ptr_mha[i]) - half_to_float(output_ptr[i])) > 3e-1)
         //     std::cout << "output at " << i << ": " << half_to_float(output_ptr_mha[i]) << "  --  " << half_to_float(output_ptr[i]) << std::endl;
-        // ASSERT_NEAR(half_to_float(output_ptr_mha[i]), half_to_float(output_ptr[i]), 3.1e-1);
+        ASSERT_NEAR(half_to_float(output_ptr_mha[i]), half_to_float(output_ptr[i]), 3.1e-1);
     }
 }
 
