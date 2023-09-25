@@ -247,7 +247,7 @@ static inline int convex_hull_graham(const Point2D (&p)[24],
 
 static inline float polygon_area(const Point2D (&q)[24], const int& m) {
     if (m <= 2) {
-        return 0;
+        return 0.f;
     }
 
     float area = 0.f;
