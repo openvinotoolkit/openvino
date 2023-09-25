@@ -4,7 +4,7 @@
 
 #include "tensor_conversion_util.hpp"
 
-#include "shape_util.hpp"
+#include "openvino/core/shape_util.hpp"
 
 namespace ov {
 namespace util {
