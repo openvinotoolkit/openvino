@@ -80,6 +80,7 @@ public:
 using OVCheckSetSupportedRWMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
 using OVCheckGetSupportedROMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
 using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithCompileModelProps;
+using OVCheckChangePropComplieModleGetPropTests_InferencePrecision = OVPropertiesTestsWithCompileModelProps;
 using OVCheckMetricsPropsTests_ModelDependceProps = OVPropertiesTestsWithCompileModelProps;
 
 class OVClassSetDefaultDeviceIDPropTest : public OVPluginTestBase,
