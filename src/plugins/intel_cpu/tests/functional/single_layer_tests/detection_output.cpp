@@ -138,6 +138,9 @@ public:
         return result.str();
     }
 
+    // There are two major implemenation path for small tensor and large tensor(confidence tensor) compared with cache size.
+    // This function is to scale input shape based on current machine cache size,
+    // such that tensor size is large enough to cover sparsity implementation.
     static void scale_input_shapes(std::vector<ov::test::InputShape> &inShapes) {
         const int cacheSizeL3 = get_cache_size(3, true);
         auto confShapes = inShapes[idxConfidence].second;

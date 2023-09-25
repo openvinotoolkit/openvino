@@ -264,7 +264,7 @@ void DetectionOutput::execute(dnnl::stream strm) {
             // Caffe style
             parallel_for(classesNum, [&](int c) {
                 if (c != backgroundClassId) {  // Ignore background class
-                    int off = n * priorsNum * classesNum + c * priorsNum;
+                    const int off = n * priorsNum * classesNum + c * priorsNum;
                     const float *pconfReorder = reorderedConfData + off;
                     int *pindices = indicesData + off;
                     int *pbuffer = indicesBufData + off;
@@ -288,7 +288,7 @@ void DetectionOutput::execute(dnnl::stream strm) {
             });
         } else {
             // MXNet style
-            int offImg = n * priorsNum * classesNum;
+            const int offImg = n * priorsNum * classesNum;
             const float *pconf = confData + offImg;
             float *pconfReorder = reorderedConfData + offImg;
             int *pbuffer = indicesBufData + offImg;
@@ -315,7 +315,7 @@ void DetectionOutput::execute(dnnl::stream strm) {
 
             std::mutex mtx;
             parallel_for(classesNum, [&](int c) {
-                int detections = detectionsData[n * classesNum + c];
+                const int detections = detectionsData[n * classesNum + c];
                 int *pindices = indicesData + n * classesNum * priorsNum + c * priorsNum;
 
                 float *pconf  = reorderedConfData + n * classesNum * confInfoLen + c * confInfoLen;
@@ -336,8 +336,8 @@ void DetectionOutput::execute(dnnl::stream strm) {
             memset(detectionsData + n * classesNum, 0, classesNum * sizeof(int));
 
             for (size_t j = 0; j < confIndicesClassMap.size(); ++j) {
-                int cls = confIndicesClassMap[j].second.first;
-                int pr = confIndicesClassMap[j].second.second;
+                const int cls = confIndicesClassMap[j].second.first;
+                const int pr = confIndicesClassMap[j].second.second;
                 int *pindices = indicesData + n * classesNum * priorsNum + cls * priorsNum;
                 pindices[detectionsData[n * classesNum + cls]] = pr;
                 detectionsData[n * classesNum + cls]++;
@@ -377,7 +377,7 @@ inline void DetectionOutput::confFilterMX(const float* confData, const float* AR
         // out: pindices, detectionCount
         // intentionally code branch from higher level
         if (withAddBoxPred) {
-            bool isARMPrior = ARMConfData[n*priorsNum*2 + p * 2 + 1] < objScore;
+            const bool isARMPrior = ARMConfData[n*priorsNum*2 + p * 2 + 1] < objScore;
             float maxConf = -1;
             int maxCIdx = 0;
             for (int c = 1; c < classesNum; ++c) {
@@ -459,7 +459,7 @@ inline void DetectionOutput::confReorderDense(const float *confData, const float
     }
     // withAddBoxPred is false
     parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
-        int offset = n * priorsNum * classesNum;
+        const int offset = n * priorsNum * classesNum;
         for (int p = 0; p < priorsNum; ++p) {
             reorderedConfData[offset + c * priorsNum + p] =
             confData[offset + p * classesNum + c];
@@ -471,13 +471,13 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
     int* indicesData, int* indicesBufData, int* detectionsData) {
     int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
     for (int n = 0; n < imgNum; ++n) {
-        int off = n * priorsNum * classesNum;
-        int offV = n * priorsNum;  // vertical info
+        const int off = n * priorsNum * classesNum;
+        const int offV = n * priorsNum;  // vertical info
 
-        int offH = n * confInfoLen * classesNum; // horizontal info
+        const int offH = n * confInfoLen * classesNum; // horizontal info
         // reset count
         parallel_for(classesNum, [&](size_t c) {
-            int countIdx = offH + c * confInfoLen + priorsNum;
+            const int countIdx = offH + c * confInfoLen + priorsNum;
             reorderedConfDataIndices[countIdx] = 0;
         });
 
@@ -485,7 +485,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
         parallel_for(numPriorsActual[n], [&](size_t p) {
             // intentionally code branch from higher level
             if (withAddBoxPred) {
-                bool isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
+                const bool isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
                 bool priorStatusSet = false;
                 if (isShareLoc)
                     confInfoForPrior[offV + p] = -1;
@@ -495,7 +495,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                     if (isARMPrior)
                         conf = (c == backgroundClassId) ? 1.0f : 0.0f;
                     if (conf > confidenceThreshold) {
-                        int idx = offH + c * confInfoLen;
+                        const int idx = offH + c * confInfoLen;
                         reorderedConfData[idx + p] = conf;
                         mtx.lock();
                         reorderedConfDataIndices[idx + priorsNum]++;
@@ -516,7 +516,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
                     if (conf > confidenceThreshold) {
-                        int idx = offH + c * confInfoLen;
+                        const int idx = offH + c * confInfoLen;
                         reorderedConfData[idx + p] = conf;
                         mtx.lock();
                         reorderedConfDataIndices[idx + priorsNum]++;
@@ -536,9 +536,9 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
             // out: buffer, detectionCount(k)
             if (c == static_cast<size_t>(backgroundClassId))  // Ignore background class
                 return;
-            int countIdx = offH + c * confInfoLen + priorsNum;
-            int count = reorderedConfDataIndices[countIdx];
-            int k = (topK == -1 ? count : (std::min)(topK, count));
+            const int countIdx = offH + c * confInfoLen + priorsNum;
+            const int count = reorderedConfDataIndices[countIdx];
+            const int k = (topK == -1 ? count : (std::min)(topK, count));
 
             int *reorderedConfIndices = reorderedConfDataIndices + countIdx + 1;
             int *pbuffer = indicesBufData + off + c * priorsNum;
@@ -553,8 +553,8 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
 inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
     int* indicesData, int* indicesBufData, int* detectionsData) {
     for (int n = 0; n < imgNum; ++n) {
-        int off = n * priorsNum * classesNum;
-        int offV = n * priorsNum;  // vertical info
+        const int off = n * priorsNum * classesNum;
+        const int offV = n * priorsNum;  // vertical info
 
         std::mutex mtx;
         parallel_for(numPriorsActual[n], [&](size_t p) {
@@ -599,8 +599,8 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
         // topk
         // in:  indicesData, detection_count(filtered num)
         // out: buffer, detection_count(k)
-        int count = detectionsData[n * classesNum];
-        int k = (topK == -1 ? count : (std::min)(topK, count));
+        const int count = detectionsData[n * classesNum];
+        const int k = (topK == -1 ? count : (std::min)(topK, count));
 
         const float *pconf = reorderedConfData + off;
         int *indices = indicesData + off;
@@ -724,15 +724,15 @@ static inline float JaccardOverlap(const float *decodedBbox,
                                    const float *bboxSizes,
                                    const int idx1,
                                    const int idx2) {
-    float xmin1 = decodedBbox[idx1 * 4 + 0];
-    float ymin1 = decodedBbox[idx1 * 4 + 1];
-    float xmax1 = decodedBbox[idx1 * 4 + 2];
-    float ymax1 = decodedBbox[idx1 * 4 + 3];
+    const float xmin1 = decodedBbox[idx1 * 4 + 0];
+    const float ymin1 = decodedBbox[idx1 * 4 + 1];
+    const float xmax1 = decodedBbox[idx1 * 4 + 2];
+    const float ymax1 = decodedBbox[idx1 * 4 + 3];
 
-    float xmin2 = decodedBbox[idx2 * 4 + 0];
-    float ymin2 = decodedBbox[idx2 * 4 + 1];
-    float xmax2 = decodedBbox[idx2 * 4 + 2];
-    float ymax2 = decodedBbox[idx2 * 4 + 3];
+    const float xmin2 = decodedBbox[idx2 * 4 + 0];
+    const float ymin2 = decodedBbox[idx2 * 4 + 1];
+    const float xmax2 = decodedBbox[idx2 * 4 + 2];
+    const float ymax2 = decodedBbox[idx2 * 4 + 3];
 
     if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
         return 0.0f;
