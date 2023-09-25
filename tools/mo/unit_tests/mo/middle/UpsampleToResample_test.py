@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -142,9 +142,8 @@ ref_graph_edges = [
 ]
 
 
-class UpsampleToResampleTest(unittest.TestCase):
-    def test_conversion(self):
-        test_cases=[([2, 10, 20, 30], [1, 1, 5, 5], [2, 3]),
+class TestUpsampleToResampleTest():
+    @pytest.mark.parametrize("input_shape, scales, axes",[([2, 10, 20, 30], [1, 1, 5, 5], [2, 3]),
                 ([2, 20, 30, 40], [1, 1, 3, 3], [2, 3]),
                 ([2, 10, 20, 30], [1, 1, 6, 5], [2, 3]),
                 ([2, 20, 30, 40], [1, 1, 3, 4], [2, 3]),
@@ -160,63 +159,57 @@ class UpsampleToResampleTest(unittest.TestCase):
                 ([2, 3, 20, 30, 40], [1, 1, 3.74, 4.873, 3.287], [2, 3, 4]),
                 ([2, 3, 20, 30, 40], [1, 1, 4.8, 3.6, 3.11], [2, 3, 4]),
                 ([2, 3, 20, 30, 40], [1, 1, 3.33, 3.73, 4.765], [2, 3, 4]),
-                ]
-        for idx, (input_shape, scales, axes) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                input_shape_as_array = int64_array(input_shape)
-                scales_as_array = float32_array(scales)
-                graph = build_graph(graph_node_attrs,
-                                    graph_edges,
-                                    {
-                                        'placeholder_data': {'shape': input_shape_as_array},
-                                        'scales': {'value': scales_as_array, 'shape': scales_as_array.shape},
-                                        'scales_data': {'value': scales_as_array, 'shape': scales_as_array.shape},
-                                        'upsample_data':
-                                            {'shape': ((input_shape_as_array + 1.e-5) *
-                                                       scales_as_array).astype(np.int64)}
-                                    })
-                graph.graph['layout'] = 'NCHW'
-                ref_graph = build_graph(new_ref_graph_node_attr,
-                                        new_ref_graph_edges,
-                                        {
-                                            'placeholder_data': {'shape': int64_array(input_shape)},
-                                            'ss_begin': {'value': int64_array([axes[0]])},
-                                            'ss_end': {'value': int64_array([axes[-1] + 1])},
-                                            'ss_begin_data': {'value': int64_array([axes[0]])},
-                                            'ss_end_data': {'value': int64_array([axes[-1] + 1])},
-                                            'factor': {'value': scales_as_array[2:],
+                ])
+    def test_conversion(self, input_shape, scales, axes):
+        input_shape_as_array = int64_array(input_shape)
+        scales_as_array = float32_array(scales)
+        graph = build_graph(graph_node_attrs,
+                            graph_edges,
+                            {
+                                'placeholder_data': {'shape': input_shape_as_array},
+                                'scales': {'value': scales_as_array, 'shape': scales_as_array.shape},
+                                'scales_data': {'value': scales_as_array, 'shape': scales_as_array.shape},
+                                'upsample_data':
+                                    {'shape': ((input_shape_as_array + 1.e-5) * scales_as_array).astype(np.int64)}
+                            })
+        graph.graph['layout'] = 'NCHW'
+        ref_graph = build_graph(new_ref_graph_node_attr,
+                                new_ref_graph_edges,
+                                {
+                                    'placeholder_data': {'shape': int64_array(input_shape)},
+                                    'ss_begin': {'value': int64_array([axes[0]])},
+                                    'ss_end': {'value': int64_array([axes[-1] + 1])},
+                                    'ss_begin_data': {'value': int64_array([axes[0]])},
+                                    'ss_end_data': {'value': int64_array([axes[-1] + 1])},
+                                    'factor': {'value': scales_as_array[2:],
+                                               'shape': scales_as_array[2:].shape},
+                                    'factor_data': {'value': scales_as_array[2:],
                                                     'shape': scales_as_array[2:].shape},
-                                            'factor_data': {'value': scales_as_array[2:],
-                                                            'shape': scales_as_array[2:].shape},
-                                            'axes_const': {'value': int64_array(axes),
-                                                           'shape': int64_array(axes).shape},
-                                            'interpolate_data': {
-                                                'shape': (input_shape_as_array *
-                                                          scales_as_array + 1e-5).astype(np.int64)},
-                                        })
-                UpsampleToResample().find_and_replace_pattern(graph)
-                (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-                self.assertTrue(flag, resp)
+                                    'axes_const': {'value': int64_array(axes), 'shape': int64_array(axes).shape},
+                                    'interpolate_data': {
+                                        'shape': (input_shape_as_array * scales_as_array + 1e-5).astype(np.int64)},
+                                })
+        UpsampleToResample().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        assert flag, resp
 
-    def test_pattern_does_not_satisfy(self):
-        test_cases=[([2, 10, 20, 30], [1, 2, 5, 5],),
+    @pytest.mark.parametrize("input_shape, scales",[([2, 10, 20, 30], [1, 2, 5, 5],),
                 ([2, 3, 20, 30, 40], [1, 2, 3, 3, 3],),
-                ]
-        for idx, (input_shape, scales) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(graph_node_attrs, graph_edges,
-                                    {'placeholder_data': {'shape': int64_array(input_shape)},
-                                    'scales': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
-                                    'scales_data': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
-                                    'upsample_data': {'shape': int64_array(input_shape) * int64_array(scales)}})
-                graph.graph['layout'] = 'NCHW'
+                ])
+    def test_pattern_does_not_satisfy(self, input_shape, scales):
+        graph = build_graph(graph_node_attrs, graph_edges,
+                            {'placeholder_data': {'shape': int64_array(input_shape)},
+                             'scales': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
+                             'scales_data': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
+                             'upsample_data': {'shape': int64_array(input_shape) * int64_array(scales)}})
+        graph.graph['layout'] = 'NCHW'
 
-                ref_graph = build_graph(graph_node_attrs, graph_edges,
-                                    {'placeholder_data': {'shape': int64_array(input_shape)},
-                                    'scales': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
-                                    'scales_data': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
-                                    'upsample_data': {'shape': int64_array(input_shape) * int64_array(scales)}})
+        ref_graph = build_graph(graph_node_attrs, graph_edges,
+                            {'placeholder_data': {'shape': int64_array(input_shape)},
+                             'scales': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
+                             'scales_data': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
+                             'upsample_data': {'shape': int64_array(input_shape) * int64_array(scales)}})
 
-                UpsampleToResample().find_and_replace_pattern(graph)
-                (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-                self.assertTrue(flag, resp)
+        UpsampleToResample().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        assert flag, resp
