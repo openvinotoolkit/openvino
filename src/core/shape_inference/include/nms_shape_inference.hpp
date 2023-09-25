@@ -60,12 +60,8 @@ void num_boxes(const Node* const op, const std::vector<TShape>& input_shapes) {
 
 template <class TShape>
 void boxes_last_dim(const Node* const op, const std::vector<TShape>& input_shapes) {
-    int box_def_size;
-    if (ov::is_type<v13::NMSRotated>(op)) {
-        box_def_size = 5;
-    } else {
-        box_def_size = 4;
-    }
+    using TDim = typename TShape::value_type;
+    TDim box_def_size = ov::is_type<v13::NMSRotated>(op) ? 5 : 4;
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            input_shapes[0][2].compatible(box_def_size),
