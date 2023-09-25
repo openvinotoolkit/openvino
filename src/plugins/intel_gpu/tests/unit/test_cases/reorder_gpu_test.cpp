@@ -1928,6 +1928,104 @@ TEST(reorder_gpu_i32, basic)
         ASSERT_EQ(*(a_ptr++), val);
 }
 
+TEST(reorder_weights_gpu_i32, reorder_weights)
+{
+    auto& engine = get_test_engine();
+
+    layout in_layout(data_types::f32, format::bfyx, { 2, 2, 2, 2 });
+    layout out_layout(data_types::i32, format::oiyx, { 2, 2, 2, 2 });
+    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(in_layout, out_layout);
+
+    auto input = engine.allocate_memory(in_layout);
+
+    set_values(input, {
+        1.f, 0.f, 5.f, 1.5f,
+        2.f, 0.f, 6.f, 5.2f,
+        3.f, 0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f, 8.f
+    });
+
+    topology topology {
+        input_layout("input", in_layout),
+        reorder("reorder", input_info("input"), weights_reorder_params)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc wr_impl_desc = { format::oiyx, "reorder_weights", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", wr_impl_desc} }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+
+    std::vector<int32_t> ref_output = {
+        1, 0, 5, 1,
+        2, 0, 6, 5,
+        3, 0, 7, 12,
+        4, 0, 8, 8
+    };
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), ref_output.size());
+    for (size_t i = 0; i < ref_output.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], ref_output[i]);
+    }
+}
+
+TEST(reorder_weights_gpu_i32, reorder_weights_opt)
+{
+    auto& engine = get_test_engine();
+
+    layout in_layout(data_types::f32, format::bfyx, { 16, 1, 2, 1 });
+    layout out_layout(data_types::i32, format::os_iyx_osv16, { 16, 1, 2, 1 });
+    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(in_layout, out_layout);
+
+    auto input = engine.allocate_memory(in_layout);
+
+    set_values(input, {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f,
+        8.f, 9.f, 10.f, 0.5f, 12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f, 20.f, -1.6f, 22.f, 23.f,
+        -1.0f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f
+    });
+
+    topology topology {
+        input_layout("input", in_layout),
+        reorder("reorder", input_info("input"), weights_reorder_params)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc wr_impl_desc = { format::os_iyx_osv16, "reorder_weights_opt", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", wr_impl_desc} }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+
+    std::vector<int32_t> ref_output = {
+        0, 2, 4, 6, 8, 10, 12, 14,
+        16, 18, 20, 22, -1, 26, 28, 30,
+        1, 3, 5, 7, 9, 0, 13, 15,
+        17, 19, -1, 23, 25, 27, 29, 31
+    };
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), ref_output.size());
+    for (size_t i = 0; i < ref_output.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], ref_output[i]);
+    }
+}
+
 TEST(reorder_gpu_i64, basic)
 {
     //  Test for converting data types f32->i64
