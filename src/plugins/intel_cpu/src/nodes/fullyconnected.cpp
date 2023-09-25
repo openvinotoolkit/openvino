@@ -729,10 +729,10 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     // and prepack runtime attributes accordingly for better performance
     bool withAMX = selected_pd->getImplementationType() & impl_desc_type::amx;
     int icBlock = withAMX ? 2 : 1;
-    if (!decompressionMultiply.empty())
-        dnnlpoc.appendDecompressionScales(decompressionMultiply, icBlock);
-    if (!decompressionSubtract.empty())
-        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtract, icBlock);
+    if (decompressionMultiplyPtr)
+        dnnlpoc.appendDecompressionScales(decompressionMultiplyPtr, icBlock);
+    if (decompressionSubtractPtr)
+        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, icBlock);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -1132,27 +1132,20 @@ bool FullyConnected::useSparseWeightsDecompression() {
     return true;
 }
 
-void FullyConnected::fuseDecompressionMultiply(const NodePtr& constData) {
-    fuseDecompressionConstant(constData, decompressionMultiply);
+void FullyConnected::fuseDecompressionMultiplyPtr(const NodePtr& constData) {
+    fuseDecompressionConstantPtr(constData, decompressionMultiplyPtr);
 }
 
-void FullyConnected::fuseDecompressionSubtract(const NodePtr& constData) {
-    fuseDecompressionConstant(constData, decompressionSubtract);
+void FullyConnected::fuseDecompressionSubtractPtr(const NodePtr& constData) {
+    fuseDecompressionConstantPtr(constData, decompressionSubtractPtr);
 }
 
-void FullyConnected::fuseDecompressionConstant(const NodePtr& constData, std::vector<float>& decompressionValues) {
+void FullyConnected::fuseDecompressionConstantPtr(const NodePtr& constData, MemoryCPtr& decompressionValuesPtr) {
     auto *constInputNode = dynamic_cast<node::Input *>(constData.get());
     if (!constInputNode) {
         IE_THROW() << "Cannot cast " << constData->getName() << " to Input";
     }
-    auto constBlob = constInputNode->getMemoryPtr();
-    const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-    decompressionValues.resize(elementsCount);
-    cpu_convert(constBlob->getData(),
-                &decompressionValues[0],
-                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
-                Precision::FP32,
-                elementsCount);
+    decompressionValuesPtr = constInputNode->getMemoryPtr();
 }
 
 DnnlMemoryDescPtr FullyConnected::makeTransposedWeightDescriptor(DnnlMemoryDescPtr desc) {
