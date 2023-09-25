@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 
-using namespace std;
 using namespace ov;
 using namespace testing;
 
@@ -21,9 +21,8 @@ constexpr size_t exp_num_of_outputs = 1;
 const auto types = Values(boolean, i8, i16, i32, i64, u8, u16, u32, u64);
 
 const auto static_shapes = Values(PartialShape{0}, PartialShape{1}, PartialShape{2, 3, 7, 8});
-const auto dynamic_shapes = Values(PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
-                                   PartialShape{2, {-1, 5}, {4, -1}, -1, {3, 8}},
-                                   PartialShape::dynamic());
+const auto dynamic_shapes =
+    Values(PartialShape::dynamic(3), PartialShape{2, {0, 5}, {4, -1}, -1, {3, 8}}, PartialShape::dynamic());
 }  // namespace
 
 class BitwiseNotTest : public TypePropOpTest<ov::op::v13::BitwiseNot>, public WithParamInterface<BitwiseNotTestParam> {
@@ -79,14 +78,8 @@ TEST_P(BitwiseNotTest, default_ctor) {
 }
 
 TEST(BitwiseNotTest, invalid_element_type) {
-    auto data = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-
-    try {
-        auto bitwise = std::make_shared<ov::op::v13::BitwiseNot>(data);
-        FAIL() << "Invalid floating-point element type for input not detected";
-    } catch (const ov::NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The element type of the input tensor must be integral or boolean.");
-    } catch (...) {
-        FAIL() << "Numeric element type node validation check failed for unexpected reason";
-    }
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v13::BitwiseNot>(data),
+                    ov::NodeValidationFailure,
+                    HasSubstr("The element type of the input tensor must be integral or boolean."));
 }
