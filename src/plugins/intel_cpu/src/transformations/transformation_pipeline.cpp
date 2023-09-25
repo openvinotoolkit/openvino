@@ -210,7 +210,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
         // MarkDequantizationSubgraph is used even in non-LPT pipeline on X64 platforms
-        // in order to keep compressed u8 MatMul weights with decompression operations as is
+        // in order to keep compressed MatMul weights with decompression operations as is
         CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, ov::element::TypeVector{ov::element::u8, ov::element::nf4}, true);
         CPU_SET_CALLBACK_X64(manager, [](const_node_ptr &node) -> bool {
             auto get_single_consumer = [](const_node_ptr &node) -> std::shared_ptr<ov::Node> {
