@@ -11,8 +11,8 @@ namespace LayerTestsDefinitions {
 class PadTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    std::vector<uint64_t> padsBegin;
-    std::vector<uint64_t> padsEnd;
+    std::vector<int64_t> padsBegin;
+    std::vector<int64_t> padsEnd;
     float padValue;
     std::string layerName;
     std::string expectedKernelType;
