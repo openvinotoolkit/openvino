@@ -5,6 +5,9 @@
 include(options)
 include(target_flags)
 
+set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
+list (APPEND IE_OPTIONS CPACK_GENERATOR)
+
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
 ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF

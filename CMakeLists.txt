@@ -2,21 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
-    # 3.17: 'target_link_libraries' does not work correctly when called from
-    # different directory where 'add_library' is called: CMake generates
-    # incorrect OpenVINOConfig.cmake in this case
-    # 3.18: add_library cannot create ALIAS for non-GLOBAL targets
-    cmake_minimum_required(VERSION 3.18)
-else()
-    if(CPACK_GENERATOR STREQUAL "DEB")
-        # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
-        cmake_minimum_required(VERSION 3.20)
+if(NOT DEFINED CMAKE_MINIMUM_REQUIRED_VERSION)
+    if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
+        # 3.17: 'target_link_libraries' does not work correctly when called from
+        # different directory where 'add_library' is called: CMake generates
+        # incorrect OpenVINOConfig.cmake in this case
+        # 3.18: add_library cannot create ALIAS for non-GLOBAL targets
+        set(CMAKE_MINIMUM_REQUIRED_VERSION 3.18)
     else()
-        # default choice
-        cmake_minimum_required(VERSION 3.13)
+        if(CPACK_GENERATOR STREQUAL "DEB")
+            # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
+            set(CMAKE_MINIMUM_REQUIRED_VERSION 3.20)
+        else()
+            # default choice
+            set(CMAKE_MINIMUM_REQUIRED_VERSION 3.13)
+        endif()
     endif()
 endif()
+
+cmake_minimum_required(VERSION ${CMAKE_MINIMUM_REQUIRED_VERSION})
 
 if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY

@@ -128,12 +128,6 @@ endmacro()
 
 ov_define_component_names()
 
-if(NOT DEFINED CPACK_GENERATOR)
-    set(CPACK_GENERATOR "TGZ")
-elseif(NOT CPACK_GENERATOR)
-    message(FATAL_ERROR "CPACK_GENERATOR cannot contain an empty value")
-endif()
-
 #
 # Include generator specific configuration file:
 # 1. Overrides directories set by ov_<debian | rpm | archive | common_libraries>_cpack_set_dirs()
