@@ -21,7 +21,13 @@ class Property(str):
         return self.prop()
 
 
-def __append_property_to_module(content_, target_module_name):
+def __append_property_to_module(func: Callable[..., Any], target_module_name: str) -> None:
+    """
+    Modifies the target module's __getattr__ method to expose a python property wrapper by the function's name.
+
+    :param func: the function which will be transformed to behave as python property.
+    :param target_module_name: the name of the module to which properties are added.
+    """
     module = sys.modules[target_module_name]
 
     def base_getattr(name: str) -> None:
@@ -31,16 +37,20 @@ def __append_property_to_module(content_, target_module_name):
     getattr_old = getattr(module, "__getattr__", base_getattr)
 
     def getattr_new(name: str) -> Union[Callable[..., Any], Any]:
-        if content_.__name__ == name:
-            return Property(content_)
+        if func.__name__ == name:
+            return Property(func)
         else:
             return getattr_old(name)
 
     module.__getattr__ = getattr_new # type: ignore
 
 
-def __make_properties(target_module_name):
-    for content in dir(openvino._pyopenvino.properties):
-        content_ = getattr(openvino._pyopenvino.properties,content)
-        if isinstance(content_, BuiltinFunctionType):
-            __append_property_to_module(content_, target_module_name)
+def __make_properties(target_module_name: str) -> None:
+    """Makes python properties in target module from functions found in the properties module from _pyopenvino lib.
+
+    :param target_module_name: the name of the module to which properties are added.
+    """
+    for attr in dir(openvino._pyopenvino.properties):
+        func = getattr(openvino._pyopenvino.properties, attr)
+        if isinstance(func, BuiltinFunctionType):
+            __append_property_to_module(func, target_module_name)
