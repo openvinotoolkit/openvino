@@ -433,9 +433,9 @@ static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineC
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& val = enableLPT->second.as<std::string>();
-    if (val == InferenceEngine::PluginConfigParams::YES)
+    if (val == Config::YES)
         return true;
-    else if (val == InferenceEngine::PluginConfigParams::NO)
+    else if (val == Config::NO)
         return false;
     else
         OPENVINO_THROW("Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
@@ -457,14 +457,14 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
-    const auto& snippetsMode = modelConfig.find(ov::internal::snippets_mode.name());
+    const auto& snippetsMode = modelConfig.find(ov::snippets_mode.name());
     if (snippetsMode == modelConfig.end())    // not set explicitly
         return Config::SnippetsMode::Enable;  // enable by default
 
     const auto& val = snippetsMode->second.as<std::string>();
-    if (val == ov::util::to_string(ov::internal::SnippetsMode::IGNORE_CALLBACK))
+    if (val == ov::util::to_string(ov::SnippetsMode::IGNORE_CALLBACK))
         return Config::SnippetsMode::IgnoreCallback;
-    else if (val == ov::util::to_string(ov::internal::SnippetsMode::DISABLE))
+    else if (val == ov::util::to_string(ov::SnippetsMode::DISABLE))
         return Config::SnippetsMode::Disable;
     else
         OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");

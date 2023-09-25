@@ -49,6 +49,40 @@ static constexpr Property<std::string, PropertyMutability::WO> config_device_id{
  */
 static constexpr Property<bool, PropertyMutability::RW> lp_transforms_mode{"LP_TRANSFORMS_MODE"};
 
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const ov::threading::IStreamsExecutor::ThreadBindingType& type) {
+    switch (type) {
+    case ov::threading::IStreamsExecutor::NONE:
+        return os << "NONE";
+    case ov::threading::IStreamsExecutor::CORES:
+        return os << "CORES";
+    case ov::threading::IStreamsExecutor::NUMA:
+        return os << "NUMA";
+    case ov::threading::IStreamsExecutor::HYBRID_AWARE:
+        return os << "HYBRID_AWARE";
+    default:
+        OPENVINO_THROW("Unsupported thread binding type value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, ov::threading::IStreamsExecutor::ThreadBindingType& type) {
+    std::string str;
+    is >> str;
+    if (str == "NONE") {
+        type = ov::threading::IStreamsExecutor::NONE;
+    } else if (str == "CORES") {
+        type = ov::threading::IStreamsExecutor::CORES;
+    } else if (str == "NUMA") {
+        type = ov::threading::IStreamsExecutor::NUMA;
+    } else if (str == "HYBRID_AWARE") {
+        type = ov::threading::IStreamsExecutor::HYBRID_AWARE;
+    } else {
+        OPENVINO_THROW("Unsupported thread binding type: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
 /**
  * @brief The name for setting CPU affinity per thread option.
  *
@@ -97,12 +131,6 @@ static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream_sma
  */
 static constexpr Property<size_t, PropertyMutability::RW> small_core_offset{"SMALL_CORE_OFFSET"};
 
-/**
- * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
- * stream
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<int32_t, PropertyMutability::RW> cpu_runtime_cache_capacity{"CPU_RUNTIME_CACHE_CAPACITY"};
 
 /**
  * @brief Enable hyper thread
@@ -115,55 +143,6 @@ static constexpr Property<bool, PropertyMutability::RW> enable_hyper_thread{"ENA
  * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream{"THREADS_PER_STREAM"};
-
-/**
- * @brief Enum to define possible snippets mode hints
- * @ingroup ov_runtime_cpp_prop_api
- */
-enum class SnippetsMode {
-    ENABLE = 0,           //!<  Enable
-    IGNORE_CALLBACK = 1,  //!<  Ignore callback
-    DISABLE = 2,          //!<  Disable
-};
-
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const SnippetsMode& mode) {
-    switch (mode) {
-    case SnippetsMode::ENABLE:
-        return os << "ENABLE";
-    case SnippetsMode::IGNORE_CALLBACK:
-        return os << "IGNORE_CALLBACK";
-    case SnippetsMode::DISABLE:
-        return os << "DISABLE";
-    default:
-        OPENVINO_THROW("Unsupported snippets mode value");
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
-    std::string str;
-    is >> str;
-    if (str == "ENABLE") {
-        mode = SnippetsMode::ENABLE;
-    } else if (str == "IGNORE_CALLBACK") {
-        mode = SnippetsMode::IGNORE_CALLBACK;
-    } else if (str == "DISABLE") {
-        mode = SnippetsMode::DISABLE;
-    } else {
-        OPENVINO_THROW("Unsupported snippets mode: ", str);
-    }
-    return is;
-}
-/** @endcond */
-
-/**
- * @brief Defines Snippets tokenization mode
- *      @param ENABLE - default pipeline
- *      @param IGNORE_CALLBACK - disable the Snippets markup transformation and tokenization callback
- *      @param DISABLE - turn off the Snippets
- * @ingroup ie_dev_api_plugin_api
- */
-static constexpr Property<size_t, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
 
 }  // namespace internal
 OPENVINO_DEPRECATED(

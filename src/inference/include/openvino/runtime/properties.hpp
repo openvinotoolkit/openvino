@@ -1122,6 +1122,63 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
 static constexpr Property<bool> enforce_bf16{"ENFORCE_BF16"};
 
 /**
+ * @brief Enum to define possible snippets mode hints
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class SnippetsMode {
+    ENABLE = 0,           //!<  Enable
+    IGNORE_CALLBACK = 1,  //!<  Ignore callback
+    DISABLE = 2,          //!<  Disable
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const SnippetsMode& mode) {
+    switch (mode) {
+    case SnippetsMode::ENABLE:
+        return os << "ENABLE";
+    case SnippetsMode::IGNORE_CALLBACK:
+        return os << "IGNORE_CALLBACK";
+    case SnippetsMode::DISABLE:
+        return os << "DISABLE";
+    default:
+        OPENVINO_THROW("Unsupported snippets mode value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "ENABLE") {
+        mode = SnippetsMode::ENABLE;
+    } else if (str == "IGNORE_CALLBACK") {
+        mode = SnippetsMode::IGNORE_CALLBACK;
+    } else if (str == "DISABLE") {
+        mode = SnippetsMode::DISABLE;
+    } else {
+        OPENVINO_THROW("Unsupported snippets mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Defines Snippets tokenization mode
+ *      @param ENABLE - default pipeline
+ *      @param IGNORE_CALLBACK - disable the Snippets markup transformation and tokenization callback
+ *      @param DISABLE - turn off the Snippets
+ * @ingroup ie_dev_api_plugin_api
+ */
+static constexpr Property<size_t, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
+
+/**
+ * @brief The name for setting performance counters option.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * It is passed to core::set_property(), this option should be used with values: true or false
+ */
+static constexpr Property<bool> perf_count{"PERF_COUNT"};
+
+/**
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
  */
