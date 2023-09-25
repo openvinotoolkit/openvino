@@ -6,7 +6,6 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
-#include "openvino/reference/not.hpp"
 
 namespace ov {
 namespace op {
