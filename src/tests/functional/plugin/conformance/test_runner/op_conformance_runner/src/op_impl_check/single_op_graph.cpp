@@ -1243,10 +1243,10 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::IsNaN> &n
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::BitwiseNot> &node) {
-    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 2});
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 2});
     auto bitwise = std::make_shared<ov::op::v13::BitwiseNot>(param);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(bitwise)};
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "bitwise_not_graph");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "BitwiseNotGraph");
 }
 
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {

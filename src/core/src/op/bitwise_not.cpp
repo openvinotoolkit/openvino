@@ -10,7 +10,7 @@
 namespace ov {
 namespace op {
 namespace v13 {
-BitwiseNot::BitwiseNot(const Output<Node>& arg) : util::UnaryElementwiseArithmetic({arg}) {
+BitwiseNot::BitwiseNot(const Output<Node>& arg) : op::Op({arg}) {
     constructor_validate_and_infer_types();
 }
 void BitwiseNot::validate_and_infer_types() {

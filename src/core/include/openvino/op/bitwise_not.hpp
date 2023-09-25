@@ -12,7 +12,7 @@ namespace op {
 namespace v13 {
 /// \brief Elementwise bitwise negation operation.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API BitwiseNot : public util::UnaryElementwiseArithmetic {
+class OPENVINO_API BitwiseNot : public op::Op {
 public:
     OPENVINO_OP("BitwiseNot", "opset13", op::Op);
     /// \brief Constructs a bitwise negation operation.
