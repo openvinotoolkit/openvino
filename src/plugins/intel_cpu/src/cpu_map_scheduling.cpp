@@ -72,7 +72,6 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
 bool get_cpu_pinning(bool& input_value,
                      const bool input_changed,
                      const int num_streams,
-                     const threading::IStreamsExecutor::ThreadBindingType bind_type,
                      const Config::LatencyThreadingMode latency_threading_mode,
                      const std::vector<std::vector<int>>& proc_type_table) {
     int result_value;
@@ -82,18 +81,11 @@ bool get_cpu_pinning(bool& input_value,
     if (input_changed) {
         result_value = input_value;
     } else {
+        result_value = true;
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
             proc_type_table[0][EFFICIENT_CORE_PROC] < proc_type_table[0][ALL_PROC]) {
-            result_value =
-                ((latency || bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA) ? false : true);
-        } else {
-            result_value = (bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA ? false : true);
+            result_value = latency ? false : true;
         }
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#    if defined(_WIN32)
-        result_value = false;
-#    endif
-#endif
     }
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 #    if defined(_WIN32)
