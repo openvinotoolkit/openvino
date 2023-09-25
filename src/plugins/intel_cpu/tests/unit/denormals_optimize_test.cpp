@@ -19,11 +19,7 @@ using namespace testing;
 
 class DenormalsOptimizeTestF : public ov::test::TestsCommon {
 public:
-    DenormalsOptimizeTestF() {
-        // Recover the default setting before starting a new test.
-        ov::intel_cpu::flush_to_zero(false);
-        ov::intel_cpu::denormals_as_zero(false);
-    }
+    DenormalsOptimizeTestF() {}
     ~DenormalsOptimizeTestF() {
         if (pConst1)
             delete[] pConst1;
@@ -31,6 +27,10 @@ public:
             delete[] pConst2;
         if (pConst3)
             delete[] pConst3;
+
+        // Recover the default setting to avoid impacting other tests.
+        ov::intel_cpu::flush_to_zero(false);
+        ov::intel_cpu::denormals_as_zero(false);
     }
 
     void SetUp() override {
@@ -152,10 +152,14 @@ TEST_F(DenormalsOptimizeTestF, Async) {
 
     run(false);
 
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
     checkOutput(true);
 
     // To prove that there is no impact on customers' applications for the default setting.
     run_reference_multiply();
+#else
+    checkOutput(false);
+#endif
 }
 
 TEST_F(DenormalsOptimizeTestF, Async_Opt_YES) {
