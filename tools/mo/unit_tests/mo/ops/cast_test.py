@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -18,7 +18,7 @@ nodes = lambda value, dst_type: {
 }
 
 
-class CastTest(unittest.TestCase):
+class TestCastTest():
     """
     Example of checking:
         7 == 0111,           padded to 0111 0000, results in 112
@@ -27,393 +27,76 @@ class CastTest(unittest.TestCase):
         -8 == 1000,          padded to 1000 0000, results in 128
     """
 
-    def test_case_1(self):
-        value = [0]
-        expected = [0]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_2(self):
-        value = [1]
-        expected = [16]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_3(self):
-        value = [2]
-        expected = [32]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_4(self):
-        value = [3]
-        expected = [48]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_5(self):
-        value = [4]
-        expected = [64]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_6(self):
-        value = [5]
-        expected = [80]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_7(self):
-        value = [6]
-        expected = [96]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_8(self):
-        value = [7]
-        expected = [112]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_9(self):
-        value = [8]
-        expected = [128]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_10(self):
-        value = [9]
-        expected = [144]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_11(self):
-        value = [10]
-        expected = [160]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_12(self):
-        value = [11]
-        expected = [176]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_13(self):
-        value = [12]
-        expected = [192]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_14(self):
-        value = [13]
-        expected = [208]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_15(self):
-        value = [14]
-        expected = [224]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_16(self):
-        value = [15]
-        expected = [240]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_17(self):
-        value = [0, 15]
-        expected = [15]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_18(self):
-        value = [1, 14]
-        expected = [30]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_19(self):
-        value = [2, 13]
-        expected = [45]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_20(self):
-        value = [3, 12]
-        expected = [60]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_21(self):
-        value = [4, 11]
-        expected = [75]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_22(self):
-        value = [5, 10]
-        expected = [90]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_23(self):
-        value = [6, 9]
-        expected = [105]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_24(self):
-        value = [7, 8]
-        expected = [120]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_25(self):
-        value = [8, 7]
-        expected = [135]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_26(self):
-        value = [9, 6]
-        expected = [150]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_27(self):
-        value = [10, 5]
-        expected = [165]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_28(self):
-        value = [11, 4]
-        expected = [180]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_29(self):
-        value = [12, 3]
-        expected = [195]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_30(self):
-        value = [13, 2]
-        expected = [210]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_31(self):
-        value = [14, 1]
-        expected = [225]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_32(self):
-        value = [15, 0]
-        expected = [240]
-        custom_dtype = packed_U4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_33(self):
-        value = [-8]
-        expected = [128]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_34(self):
-        value = [-7]
-        expected = [144]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_35(self):
-        value = [-6]
-        expected = [160]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_36(self):
-        value = [-5]
-        expected = [176]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_37(self):
-        value = [-4]
-        expected = [192]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_38(self):
-        value = [-3]
-        expected = [208]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_39(self):
-        value = [-2]
-        expected = [224]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_40(self):
-        value = [-1]
-        expected = [240]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_41(self):
-        value = [0]
-        expected = [0]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_42(self):
-        value = [1]
-        expected = [16]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_43(self):
-        value = [2]
-        expected = [32]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_44(self):
-        value = [3]
-        expected = [48]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_45(self):
-        value = [4]
-        expected = [64]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_46(self):
-        value = [5]
-        expected = [80]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_47(self):
-        value = [6]
-        expected = [96]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_48(self):
-        value = [7]
-        expected = [112]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_49(self):
-        value = [-8, 7]
-        expected = [135]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_50(self):
-        value = [-7, 6]
-        expected = [150]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_51(self):
-        value = [-6, 5]
-        expected = [165]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_52(self):
-        value = [-5, 4]
-        expected = [180]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_53(self):
-        value = [-4, 3]
-        expected = [195]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_54(self):
-        value = [-3, 2]
-        expected = [210]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_55(self):
-        value = [-2, 1]
-        expected = [225]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_56(self):
-        value = [-1, 0]
-        expected = [240]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_57(self):
-        value = [0, -1]
-        expected = [15]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_58(self):
-        value = [1, -2]
-        expected = [30]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_59(self):
-        value = [2, -3]
-        expected = [45]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_60(self):
-        value = [3, -4]
-        expected = [60]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_61(self):
-        value = [4, -5]
-        expected = [75]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_62(self):
-        value = [5, -6]
-        expected = [90]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_63(self):
-        value = [6, -7]
-        expected = [105]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-
-    def test_case_64(self):
-        value = [7, -8]
-        expected = [120]
-        custom_dtype = packed_I4
-        self._test_custom_value_propagation(value, expected, custom_dtype)
-    # Add more test cases as needed
-
-
-    def _test_custom_value_propagation(self, value, expected, custom_dtype):
+    @pytest.mark.parametrize("value, expected, custom_dtype",[
+        ([0], [0], packed_U4),
+        ([1], [16], packed_U4),
+        ([2], [32], packed_U4),
+        ([3], [48], packed_U4),
+        ([4], [64], packed_U4),
+        ([5], [80], packed_U4),
+        ([6], [96], packed_U4),
+        ([7], [112], packed_U4),
+        ([8], [128], packed_U4),
+        ([9], [144], packed_U4),
+        ([10], [160], packed_U4),
+        ([11], [176], packed_U4),
+        ([12], [192], packed_U4),
+        ([13], [208], packed_U4),
+        ([14], [224], packed_U4),
+        ([15], [240], packed_U4),
+
+        ([0, 15], [15], packed_U4),
+        ([1, 14], [30], packed_U4),
+        ([2, 13], [45], packed_U4),
+        ([3, 12], [60], packed_U4),
+        ([4, 11], [75], packed_U4),
+        ([5, 10], [90], packed_U4),
+        ([6, 9], [105], packed_U4),
+        ([7, 8], [120], packed_U4),
+        ([8, 7], [135], packed_U4),
+        ([9, 6], [150], packed_U4),
+        ([10, 5], [165], packed_U4),
+        ([11, 4], [180], packed_U4),
+        ([12, 3], [195], packed_U4),
+        ([13, 2], [210], packed_U4),
+        ([14, 1], [225], packed_U4),
+        ([15, 0], [240], packed_U4),
+
+        ([-8], [128], packed_I4),
+        ([-7], [144], packed_I4),
+        ([-6], [160], packed_I4),
+        ([-5], [176], packed_I4),
+        ([-4], [192], packed_I4),
+        ([-3], [208], packed_I4),
+        ([-2], [224], packed_I4),
+        ([-1], [240], packed_I4),
+        ([0], [0], packed_I4),
+        ([1], [16], packed_I4),
+        ([2], [32], packed_I4),
+        ([3], [48], packed_I4),
+        ([4], [64], packed_I4),
+        ([5], [80], packed_I4),
+        ([6], [96], packed_I4),
+        ([7], [112], packed_I4),
+
+        ([-8, 7], [135], packed_I4),
+        ([-7, 6], [150], packed_I4),
+        ([-6, 5], [165], packed_I4),
+        ([-5, 4], [180], packed_I4),
+        ([-4, 3], [195], packed_I4),
+        ([-3, 2], [210], packed_I4),
+        ([-2, 1], [225], packed_I4),
+        ([-1, 0], [240], packed_I4),
+        ([0, -1], [15], packed_I4),
+        ([1, -2], [30], packed_I4),
+        ([2, -3], [45], packed_I4),
+        ([3, -4], [60], packed_I4),
+        ([4, -5], [75], packed_I4),
+        ([5, -6], [90], packed_I4),
+        ([6, -7], [105], packed_I4),
+        ([7, -8], [120], packed_I4),
+    ])
+    def test_custom_value_propagation(self, value, expected, custom_dtype):
         graph = build_graph(nodes(value, custom_dtype), [
             *connect('value', 'convert'), *connect('convert', 'output'),
         ])
@@ -425,4 +108,4 @@ class CastTest(unittest.TestCase):
                                                'value': expected}})
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
