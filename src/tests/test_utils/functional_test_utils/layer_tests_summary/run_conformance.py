@@ -124,6 +124,7 @@ class Conformance:
         self._ov_config_path = ov_config_path
         self._is_parallel_over_devices = parallel_devices
         self._expected_failures = set()
+        self._unexpected_failures = set()
         self._expected_failures_file = expected_failures_file
         if os.path.isfile(expected_failures_file):
             self._expected_failures = self.__get_failed_test_from_csv(expected_failures_file)
@@ -206,12 +207,20 @@ class Conformance:
         diff = this_run_failures.difference(self._expected_failures)
         if len(diff) > 0:
             logger.error(f"Unexpected failures: {diff}")
+            self._unexpected_failures = diff
+            self.is_successful_run = False
 
-        intersection = self._expected_failures.intersection(this_run_failures)
-        if this_run_failures != self._expected_failures and self._expected_failures_update:
-            logger.info(f"Expected failures file {self._expected_failures} will be updated!!!")
+        # we do not want to update the expected failures file if there are failures that were not present
+        # in the passed expected failures file, i.e. if len(self._unexpected_failures) > 0
+        if this_run_failures != self._expected_failures and self._expected_failures_update and \
+                not len(self._unexpected_failures):
+            logger.info(f"Expected failures file {self._expected_failures_file} will be updated! "
+                        f"The following will be deleted as they are passing now: "
+                        f"{self._expected_failures.difference(this_failures_file)}")
             os.remove(self._expected_failures_file)
             copyfile(this_failures_file, self._expected_failures_file)
+
+            self.is_successful_run = True
 
     def __run_conformance(self):
         conformance_path = None
@@ -258,7 +267,7 @@ class Conformance:
         final_report_name = f'report_{self._type.lower()}'
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
 
-        logger.info(f"Conformance is successful. XML report was saved to {report_dir}")
+        logger.info(f"XML report was saved to {report_dir}")
         return os.path.join(report_dir, final_report_name + ".xml"), report_dir
 
     def __summarize(self, xml_report_path: os.path, report_dir: os.path):
