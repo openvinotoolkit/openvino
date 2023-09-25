@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -30,27 +30,25 @@ graph_edges_sizes = [
 ]
 
 
-class TestComplexOp(unittest.TestCase):
-    def test_complex_op_shape_inference(self):
-        test_cases=[
+class TestComplexOp():
+    @pytest.mark.parametrize("input_shape, output_shape",[
         ([1, 260, 100, 150], [1, 260, 100, 150, 2]),
         ([1, 260, 100], [1, 260, 100, 2]),
         ([5, 14, 300, 40], [5, 14, 300, 40, 2]),
         ([1, 3, 260, 100, 150], [1, 3, 260, 100, 150, 2]),
         ([5, 14, 1000, 300, 40], [5, 14, 1000, 300, 40, 2])
-    ]
-        for idx, (input_shape, output_shape) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=graph_node_attrs_sizes,
-                                    edges=graph_edges_sizes,
-                                    update_attributes={
-                                        'input_real_data': {'shape': int64_array(input_shape)},
-                                        'input_imag_data': {'shape': int64_array(input_shape)},
-                                    })
-                node = Node(graph, 'complex')
-                Complex.infer(node)
+    ])
+    def test_complex_op_shape_inference(self, input_shape, output_shape):
+        graph = build_graph(nodes_attrs=graph_node_attrs_sizes,
+                            edges=graph_edges_sizes,
+                            update_attributes={
+                                'input_real_data': {'shape': int64_array(input_shape)},
+                                'input_imag_data': {'shape': int64_array(input_shape)},
+                            })
+        node = Node(graph, 'complex')
+        Complex.infer(node)
 
-                msg = "Complex operation infer failed for case: expected_shape={}, actual_shape={}"
+        msg = "Complex operation infer failed for case: expected_shape={}, actual_shape={}"
 
-                self.assertTrue(np.array_equal(graph.node['complex_data']['shape'], int64_array(output_shape)),
-                                msg.format(output_shape, graph.node['complex_data']['shape']))
+        assert np.array_equal(graph.node['complex_data']['shape'], int64_array(output_shape)),\
+                        msg.format(output_shape, graph.node['complex_data']['shape'])
