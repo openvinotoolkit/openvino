@@ -8,6 +8,7 @@
 #include "default_opset.hpp"
 #include "utils/common.hpp"
 #include <math.h>
+#define _USE_MATH_DEFINES
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -24,11 +25,11 @@ OutputVector hannwindow(const Node& node) {
 
     // Weights as described in ONNX BlackManWindow docs
     // https://github.com/onnx/onnx/blob/main/docs/Operators.md#hannwindow
-    const auto a_0 = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.5});
-    const auto a_1 = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.5});
+    const auto a_0 = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.5f});
+    const auto a_1 = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.5f});
 
-    const auto start = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.0});
-    const auto step = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{1.0});
+    const auto start = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.0f});
+    const auto step = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{1.0f});
     const auto range = std::make_shared<default_opset::Range>(start, size, step, output_datatype);
     const auto pi = default_opset::Constant::create(output_datatype, ov::Shape(), {static_cast<float>(M_PI)});
     const auto factor = std::make_shared<default_opset::Multiply>(
