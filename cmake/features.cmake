@@ -5,6 +5,10 @@
 #
 # Common cmake options
 #
+
+ov_option (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
+list (APPEND IE_OPTIONS CPACK_GENERATOR)
+
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
 ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)

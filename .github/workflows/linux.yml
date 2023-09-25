@@ -96,7 +96,6 @@ jobs:
         run: |
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/requirements.txt
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
           # For running ONNX frontend unit tests
@@ -131,6 +130,7 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON \
             -DENABLE_SYSTEM_PUGIXML=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCPACK_GENERATOR=TGZ \
             -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -165,7 +165,16 @@ jobs:
 
       - name: Build Debian packages
         run: |
-          cmake -DCPACK_GENERATOR=DEB -DENABLE_PYTHON_PACKAGING=ON -UPYTHON* -DPYTHON_EXECUTABLE=/usr/bin/python3.8 -B ${BUILD_DIR}
+          /usr/bin/python3.8 -m pip install -U pip
+          /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          cmake -UPYTHON* \
+                -DCPACK_GENERATOR=DEB \
+                -DENABLE_PYTHON_PACKAGING=ON \
+                -DPYTHON_EXECUTABLE=/usr/bin/python3.8 \
+                -DENABLE_TESTS=OFF \
+                -S ${OPENVINO_REPO} \
+                -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
 
       - name: Cmake & Build - OpenVINO Contrib
@@ -174,6 +183,7 @@ jobs:
             -DBUILD_nvidia_plugin=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
+            -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 

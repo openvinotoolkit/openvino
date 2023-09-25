@@ -14,7 +14,7 @@ else()
         cmake_minimum_required(VERSION 3.20)
     else()
         # default choice
-        cmake_minimum_required(VERSION 3.13)
+        cmake_minimum_required(VERSION 3.20)
     endif()
 endif()
 
