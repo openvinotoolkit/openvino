@@ -178,16 +178,16 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
-    if (dequantization.empty()) {
-        return false;
-    }
-
     const auto mode = pad->get_pad_mode();
     if (mode != op::PadMode::CONSTANT &&
         mode != op::PadMode::EDGE &&
         mode != op::PadMode::REFLECT &&
         mode != op::PadMode::SYMMETRIC) {
+        return false;
+    }
+
+    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
+    if (dequantization.empty()) {
         return false;
     }
 
