@@ -8,37 +8,22 @@ from openvino._pyopenvino.properties import supported_properties as sp
 from openvino._pyopenvino.properties import cache_dir as cd
 
 class A(str):
-    @classmethod
-    def __call__(cls, *args):
+    def __new__(cls, prop):
+        instance = super().__new__(cls, prop())
+        instance.prop = prop
+        return instance
+
+    def __call__(self, *args):
         if args is not None:
-            return sp(*args)
-        return sp()
-    @classmethod
-    def __str__(cls):
-        return sp()
-    @classmethod
-    def __repr__(cls):
-        return sp()
+            return self.prop(*args)
+        return self.prop()
 
 
 @property
 def _supported_properties():
-    return A()
-
-class B(str):
-    @classmethod
-    def __call__(cls, *args):
-        if args is not None:
-            return cd(*args)
-        return cd()
-    @classmethod
-    def __str__(cls):
-        return str("\'" + cd() + "\'")
-    @classmethod
-    def __repr__(cls):
-        return str("\'" + cd() + "\'")
+    return A(sp)
 
 
 @property
 def _cache_dir():
-    return B()
+    return A(cd)

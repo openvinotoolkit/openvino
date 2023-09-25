@@ -526,10 +526,7 @@ def test_core_cpu_properties(properties_to_set):
 
     if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
         pytest.skip("This test runs only on openvino intel cpu plugin")
-    print(type(props.cache_dir), props.cache_dir)
-    core.set_property({props.cache_dir(): "./"})
-    core.set_property({props.cache_dir: "./"})
-    #core.set_property(properties_to_set)
+    core.set_property(properties_to_set)
 
     # RW properties
     # assert core.get_property("CPU", props.enable_profiling()) is True
