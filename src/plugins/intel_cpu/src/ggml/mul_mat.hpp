@@ -72,13 +72,23 @@ void ggml_mul_mat(int64_t M,
     //memcpy(ggml_A->data, A_ptr, ggml_nbytes(ggml_A));
     //memcpy(ggml_B->data, B_ptr, ggml_nbytes(ggml_B));
 
-    print_elements("ggml_A", ggml_A);
-    print_elements("ggml_B", ggml_B);
+    //print_elements("ggml_A", ggml_A);
+    //print_elements("ggml_B", ggml_B);
 
     struct ggml_tensor* ggml_dst = ggml_mul_mat_ext_dst(ctx, ggml_A, ggml_B, dst_ptr);
     struct ggml_cgraph ggml_graph = ggml_build_forward(ggml_dst);
     ggml_graph_compute_with_ctx(ctx, &ggml_graph, /*n_threads = */1);
-
+    struct ggml_cplan cplan = ggml_graph_plan(&ggml_graph, 1);
+    struct ggml_object * obj = ggml_new_object(ctx, GGML_OBJECT_WORK_BUFFER, cplan.work_size);
+    cplan.work_data = reinterpret_cast<uint8_t *>(ctx->mem_buffer) + obj->offs;
+            struct ggml_compute_params compute_params = {
+                GGML_TASK_FINALIZE,
+                0,
+                0,
+                cplan.work_size,
+                cplan.work_data,
+            };
+    ggml_compute_forward_mul_mat(&compute_params, ggml_A, ggml_B, ggml_dst);
 
     //print_elements("ggml_dst", ggml_dst);
     //float* dst = reinterpret_cast<float*>(ggml_dst->data);
