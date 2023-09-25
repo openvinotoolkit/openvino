@@ -371,8 +371,9 @@ jobs:
         run: |
           ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
           
+          apt-get update && apt-get install -y ca-certificates
+          
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
-          python3 -m pip install pip_system_certs
 
       #
       # Tests
