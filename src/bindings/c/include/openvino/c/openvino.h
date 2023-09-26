@@ -17,8 +17,7 @@
 
 #ifdef _WINDOWS_
 #    pragma message( \
-        "The BOOLEAN define in ov_element_type_e conflict with Windows.h BOOLEAN define. Here redifine the BOOLEAN of Windows.h to WIN_BOOLEAN & the BOOLEAN of ov_element_type_e to OV_BOOLEAN.")
-typedef BOOLEAN WIN_BOOLEAN;
+        "The BOOLEAN define in ov_element_type_e conflict with Windows.h BOOLEAN define. The BOOLEAN of ov_element_type_e redefine to OV_BOOLEAN here. If you want to use BOOLEAN of Windows.h, pls redefine befor include openvino/c/openvino.h, such as typedef BOOLEAN WIN_BOOLEAN")
 #endif
 #define BOOLEAN OV_BOOLEAN
 
