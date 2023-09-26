@@ -553,7 +553,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             if (pluginName == ov::DEFAULT_DEVICE_NAME)
-                OPENVINO_THROW("No device is provided, so AUTO device is used by default, which failed loading.");
+                OPENVINO_THROW("No device is provided, so AUTO device is used by default, which is not registered in "
+                               "the OpenVINO Runtime.");
             else
                 OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
         }
