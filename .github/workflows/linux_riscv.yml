@@ -1,4 +1,4 @@
-name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.11)
+name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -47,7 +47,8 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv_Release
+      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_Release/.conan
+      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
     steps:
@@ -67,27 +68,21 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
 
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
       #
       # Dependencies
       #
 
       - name: Install build dependencies
         run: |
+          # create build directory
+          mkdir -p ${OPENVINO_BUILD_DIR}
+
           # install compilers to build OpenVINO for RISC-V 64
           apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
           apt --assume-yes install gcc g++ python3-pip python3-venv python3-dev
           # generic dependencies
-          apt --assume-yes install cmake ccache ninja-build unzip fdupes
+          apt --assume-yes install cmake ccache ninja-build fdupes patchelf
 
-      - name: Install python dependencies
-        run: |
-          # create build directory
-          mkdir -p ${OPENVINO_BUILD_DIR}
           python3 -m venv ${OPENVINO_BUILD_DIR}/env
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/requirements.txt
@@ -121,15 +116,18 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
           # generate build profile
           conan profile detect
-          # generate host profile for linux_riscv
-          echo "include(default)" > ${OPENVINO_BUILD_DIR}/linux_riscv
-          echo "[buildenv]" >> ${OPENVINO_BUILD_DIR}/linux_riscv
-          echo "CC=riscv64-linux-gnu-gcc" >> ${OPENVINO_BUILD_DIR}/linux_riscv
-          echo "CXX=riscv64-linux-gnu-g++" >> ${OPENVINO_BUILD_DIR}/linux_riscv
+          # patch settings.yml to contain riscv64 architecture
+          sed -i 's/sparcv9/riscv64/g' ~/.conan2/settings.yml
+          # generate host profile for linux_riscv64
+          echo "include(default)" > ${OPENVINO_BUILD_DIR}/linux_riscv64
+          echo "[buildenv]" >> ${OPENVINO_BUILD_DIR}/linux_riscv64
+          echo "CC=riscv64-linux-gnu-gcc" >> ${OPENVINO_BUILD_DIR}/linux_riscv64
+          echo "CXX=riscv64-linux-gnu-g++" >> ${OPENVINO_BUILD_DIR}/linux_riscv64
           # install OpenVINO dependencies
           conan install ${OPENVINO_REPO}/conanfile.txt \
-            -pr:h ${OPENVINO_BUILD_DIR}/linux_riscv \
-            -s:h arch=riscv \
+            -pr:h ${OPENVINO_BUILD_DIR}/linux_riscv64 \
+            -s:h arch=riscv64 \
+            -s:h build_type=${CMAKE_BUILD_TYPE} \
             -o:h onetbb/*:tbbbind=False \
             -of ${OPENVINO_BUILD_DIR}/dependencies \
             -b missing
@@ -150,6 +148,7 @@ jobs:
             -DENABLE_WHEEL=ON \
             -DPYTHON_MODULE_EXTENSION=$(riscv64-linux-gnu-python3-config --extension-suffix) \
             -DPython3_INCLUDE_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_path('include'))") \
+            -DPYBIND11_PYTHON_EXECUTABLE_LAST=${OPENVINO_BUILD_DIR}/env/bin/python3.10 \
             -DENABLE_TESTS=ON \
             -DTHREADING=SEQ \
             -DENABLE_PYTHON_PACKAGING=ON \
@@ -158,12 +157,15 @@ jobs:
             -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_PUGIXML=ON \
             -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
+            -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-            -DCMAKE_TOOLCHAIN_FILE=$OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+            -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
@@ -175,7 +177,7 @@ jobs:
         run: ccache --show-stats
 
       - name: Cmake - Install
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install --install-prefix ${INSTALL_DIR}
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
 
       - name: Build OpenVINO C++ samples
         run: |
