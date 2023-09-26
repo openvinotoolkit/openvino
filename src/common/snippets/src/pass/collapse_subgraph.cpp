@@ -9,6 +9,7 @@
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
@@ -86,15 +87,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
 
     auto is_supported_fq_op = [](const std::shared_ptr<const Node>& n) -> bool {
-        // TODO [92179]: Add support of FakeQuantize with non-constants inputs and with binarization algorithm.
-        const auto fq = ov::as_type_ptr<const opset1::FakeQuantize>(n);
-        return fq && fq->get_levels() != 2 &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)) &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(2)) &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(3)) &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(4)) &&
-               (fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NUMPY ||
-                fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NONE);
+        return CommonFakeQuantizeDecomposition::is_supported_fq(ov::as_type_ptr<const opset1::FakeQuantize>(n));
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
