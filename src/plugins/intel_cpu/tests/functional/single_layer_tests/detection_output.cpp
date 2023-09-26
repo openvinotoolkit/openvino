@@ -8,38 +8,15 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include <dnnl.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov;
 using namespace test;
-using namespace dnnl;
 
 namespace CPULayerTestsDefinitions {
 
 using namespace ov::test;
-unsigned get_cache_size(int level, bool per_core);
-unsigned get_cache_size(int level, bool per_core) {
-    if (per_core) {
-        return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
-    } else {
-        using namespace dnnl::impl::cpu::x64;
-        if (cpu().getDataCacheLevels() == 0) {
-            // this function can return stub values in case of unknown CPU type
-            return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
-        }
-
-        if (level > 0 && (unsigned) level <= cpu().getDataCacheLevels()) {
-            unsigned l = level - 1;
-            return cpu().getDataCacheSize(l);
-        } else {
-            return 0U;
-        }
-    }
-    DNNL_THROW_ERROR(dnnl_unimplemented, "get_cache_size has no mode per_core == false");
-}
 
 enum {
     idxLocation,

@@ -123,6 +123,7 @@ public:
     static const char *cpu_fmt2str(cpu_memory_format_t v);
     static cpu_memory_format_t cpu_str2fmt(const char *str);
     static std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts, const std::string &prefix);
+    static unsigned get_cache_size(int level, bool per_core);
     static ov::PrimitivesPriority impls2primProiority(const std::vector<std::string> &priority);
     static CPUInfo makeCPUInfo(const std::vector<cpu_memory_format_t>& inFmts,
                                const std::vector<cpu_memory_format_t>& outFmts,

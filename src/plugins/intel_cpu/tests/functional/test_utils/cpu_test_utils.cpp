@@ -9,6 +9,8 @@
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "utils/general_utils.h"
 #include <cstdint>
+#include <dnnl.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 namespace CPUTestUtils {
 const char* CPUTestsBase::any_type = "any_type";
@@ -100,6 +102,25 @@ std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts,
         str.pop_back();
     }
     return str;
+}
+
+unsigned CPUTestsBase::get_cache_size(int level, bool per_core) {
+    if (per_core) {
+        return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
+    } else {
+        using namespace dnnl::impl::cpu::x64;
+        if (cpu().getDataCacheLevels() == 0) {
+            // this function can return stub values in case of unknown CPU type
+            return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
+        }
+
+        if (level > 0 && (unsigned) level <= cpu().getDataCacheLevels()) {
+            unsigned l = level - 1;
+            return cpu().getDataCacheSize(l);
+        } else {
+            return 0U;
+        }
+    }
 }
 
 ov::PrimitivesPriority CPUTestsBase::impls2primProiority(const std::vector<std::string> &priority) {

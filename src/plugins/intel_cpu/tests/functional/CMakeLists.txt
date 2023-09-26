@@ -4,7 +4,7 @@
 
 # fix XByak compilation warning
 if(SUGGEST_OVERRIDE_SUPPORTED)
-    set_source_files_properties(single_layer_tests/detection_output.cpp
+    set_source_files_properties(test_utils/cpu_test_utils.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
