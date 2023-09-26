@@ -464,11 +464,15 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
+          # Conformance utilizes all the cores resulting in Docker daemon crash
+          cpus_to_use=$(( ${{ steps.cpu-cores.outputs.count }}-4 ))
+          
           # GHA's bash has `set -e` by default and it leads to an exit from Docker if any script fails
           # We do not want to exit the container and fail further steps
-          # `set +e` affects only this step 
+          # `set +e` affects only this step
           set +e
           python3 ${CONFORMANCE_TOOLS_DIR}/run_conformance.py -ov=${INSTALL_DIR}/tests \
+            -j=4 \
             -d=${TEST_DEVICE} \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR}
