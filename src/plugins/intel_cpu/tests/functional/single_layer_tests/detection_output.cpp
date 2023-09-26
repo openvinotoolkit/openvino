@@ -20,7 +20,7 @@ using namespace dnnl;
 namespace CPULayerTestsDefinitions {
 
 using namespace ov::test;
-
+unsigned get_cache_size(int level, bool per_core);
 unsigned get_cache_size(int level, bool per_core) {
     if (per_core) {
         return dnnl::impl::cpu::platform::get_per_core_cache_size(level);

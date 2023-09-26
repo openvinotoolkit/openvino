@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# fix XByak compilation warning
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(single_layer_tests/detection_output.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
+
 set(TARGET_NAME ov_cpu_func_tests)
 
 add_library(cpuSpecificRtInfo STATIC
