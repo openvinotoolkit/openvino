@@ -563,7 +563,11 @@ int main(int argc, char* argv[]) {
         if (FLAGS_b > 0) {
             slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
             device_config.insert(ov::hint::allow_auto_batching(false));
-            switch (FLAGS_b) {
+        }
+        if (FLAGS_test_config > 0) {
+            slog::warn << "test config is set. Auto batching will be disabled" << slog::endl;
+            device_config.insert(ov::hint::allow_auto_batching(false));
+            switch (FLAGS_test_config) {
             case 1:
                 device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::HIGH));
                 device_config.insert(ov::hint::enable_cpu_pinning(true));

@@ -72,6 +72,8 @@ static const char load_from_file_message[] = "Optional. Loads model from file di
 /// @brief message for execution time
 static const char execution_time_message[] = "Optional. Time in seconds to execute topology.";
 
+static const char test_config_message[] = "Optional. test config for performance data collection ";
+
 static const char batch_size_message[] =
     "Optional. Batch size value. If not specified, the batch size value is determined from "
     "Intermediate Representation.";
@@ -284,6 +286,10 @@ DEFINE_uint64(t, 0, execution_time_message);
 /// Default is 0 (that means don't specify)
 DEFINE_uint64(b, 0, batch_size_message);
 
+/// @brief Define parameter for batch size <br>
+/// Default is 0 (that means don't specify)
+DEFINE_uint64(test_config, 1, test_config_message);
+
 /// @brief Define flag for input shape <br>
 DEFINE_string(shape, "", shape_message);
 
@@ -400,6 +406,7 @@ static void show_usage() {
     std::cout << std::endl;
     std::cout << "Input shapes" << std::endl;
     std::cout << "    -b  <integer>                 " << batch_size_message << std::endl;
+    std::cout << "    -test_config  <integer>       " << test_config_message << std::endl;
     std::cout << "    -shape                        " << shape_message << std::endl;
     std::cout << "    -data_shape                   " << data_shape_message << std::endl;
     std::cout << "    -layout                       " << layout_message << std::endl;
