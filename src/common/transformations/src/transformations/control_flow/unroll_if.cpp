@@ -42,6 +42,9 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
         auto body = (cond_value[0]) ? if_node->get_then_body() : if_node->get_else_body();
         auto input_descriptions = if_node->get_input_descriptions(static_cast<int>(!cond_value[0]));
         auto output_descriptions = if_node->get_output_descriptions(static_cast<int>(!cond_value[0]));
+        // copy rt info before reconnection
+        for (auto& op : body->get_ops())
+            copy_runtime_info({op, if_node}, op);
 
         // connect inputs instead of body parameters
         for (const auto& input_descr : input_descriptions) {
@@ -67,7 +70,6 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
         }
         is_applicable = true;
         f->add_sinks(body->get_sinks());
-        copy_runtime_info(if_node, body->get_ops());
     }
     return is_applicable;
 }
