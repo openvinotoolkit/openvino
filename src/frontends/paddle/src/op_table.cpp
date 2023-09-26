@@ -114,6 +114,7 @@ OP_CONVERTER(strided_slice);
 OP_CONVERTER(sum);
 OP_CONVERTER(swish);
 OP_CONVERTER(tanh);
+OP_CONVERTER(tanh_shrink);
 OP_CONVERTER(tensor_array_to_tensor);
 OP_CONVERTER(tile);
 OP_CONVERTER(top_k_v2);
@@ -243,6 +244,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"swish", op::swish},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
+            {"tanh_shrink", op::tanh_shrink},
             {"tensor_array_to_tensor", op::tensor_array_to_tensor},
             {"tile", op::tile},
             {"top_k_v2", op::top_k_v2},

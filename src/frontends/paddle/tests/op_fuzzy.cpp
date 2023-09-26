@@ -538,6 +538,8 @@ static const std::vector<std::string> models{
     std::string("swish_default_params"),
     std::string("swish_beta"),
     std::string("tanh"),
+    std::string("tanh_shrink_1"),
+    std::string("tanh_shrink_2"),
     std::string("tile_repeat_times_tensor"),
     std::string("tile_list_float32"),
     std::string("tile_list_int32"),
