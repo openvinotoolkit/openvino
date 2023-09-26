@@ -482,6 +482,7 @@ jobs:
           key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-${{ github.sha }}
 
       - name: Pack Conformance Artifacts
+        if: ${{ always() }}
         run: |
           pushd ${CONFORMANCE_ARTIFACTS_DIR}
             tar -czvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
