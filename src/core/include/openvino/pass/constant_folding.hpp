@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/pass/pass.hpp"
 
@@ -22,7 +23,8 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 protected:
-    void copy_runtime_info_from_input_values(const std::shared_ptr<Node>& node);
+    void copy_runtime_info_from_input_values(const std::shared_ptr<Node>& node,
+                                             const std::shared_ptr<ov::RTInfoConfig> rt_config = nullptr);
     /// \brief Folds pre-calculated output tensor values to constants in case lower and
     /// upper estimations are equal. Traverses graph backwards starting from the results.
     bool pre_calculated_values_folding(const std::shared_ptr<ov::Model>& model);

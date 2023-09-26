@@ -12,6 +12,7 @@
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "transformations/utils/utils.hpp"
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
@@ -47,6 +48,32 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
         return node.get_friendly_name() + "." + std::to_string(idx);
     }
 };
+
+namespace {
+class PreFusedNames : public ov::FusedNames {
+public:
+    OPENVINO_RTTI("precalculated_fused_names");
+    PreFusedNames() = default;
+    explicit PreFusedNames(const std::string& name) : FusedNames(name){};
+    explicit PreFusedNames(const std::vector<std::string>& names) : FusedNames(names){};
+    void fuse_with(const PreFusedNames& names) {
+        for (const auto& name : names.fused_names) {
+            fused_names.insert(name);
+        }
+    }
+    ov::Any merge(const ov::NodeVector& nodes) const override {
+        PreFusedNames merged_names;
+        for (auto& node : nodes) {
+            const auto& rt_info = node->get_rt_info();
+            auto it_info = rt_info.find(PreFusedNames::get_type_info_static());
+            if (it_info != rt_info.end()) {
+                merged_names.fuse_with(it_info->second.as<PreFusedNames>());
+            }
+        }
+        return merged_names;
+    }
+};
+}  // namespace
 
 bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ConstantFolding);
@@ -93,12 +120,14 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 }
             }
         }
+        node->get_rt_info().erase(PreFusedNames::get_type_info_static());
     }
 
     return rewritten;
 }
 
-void ov::pass::ConstantFolding::copy_runtime_info_from_input_values(const std::shared_ptr<Node>& node) {
+void ov::pass::ConstantFolding::copy_runtime_info_from_input_values(const std::shared_ptr<Node>& node,
+                                                                    const std::shared_ptr<ov::RTInfoConfig> rt_config) {
     if (is_type<op::util::ShapeOfBase>(node)) {
         // Don't propogate names of ShapeOf source node since it is not fused itself
         return;
@@ -108,15 +137,23 @@ void ov::pass::ConstantFolding::copy_runtime_info_from_input_values(const std::s
     for (auto& input : node->input_values()) {
         from.push_back(input.get_node_shared_ptr());
     }
-    copy_runtime_info(from, node);
+    copy_runtime_info(from, node, rt_config);
 }
 
 bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_ptr<ov::Model>& model) {
+    // During precalculation disable copying of real fused names,
+    // instead of it use pre-calculated fused names
+    const auto& rt_config = std::make_shared<ov::RTInfoConfig>();
+    rt_config->disable<ov::FusedNames>();
+
     // IsOutputNodeFoldable is_output_foldable;
     // To avoid excess graph traversals we have to manually propagate DisableConstantFolding with some
     // temporary attribute which indicates that the node which is marked with this attribute can't be folded because
     // it is included into not foldable sub-graph.
     for (auto&& node : model->get_ordered_ops()) {
+        auto& rt_info = node->get_rt_info();
+        // Initialize pre-calculated fused names by original fused names
+        rt_info[PreFusedNames::get_type_info_static()] = PreFusedNames(ov::getFusedNames(node));
         const auto& input_values = node->input_values();
         bool can_be_folded;
 
@@ -134,10 +171,10 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         } else {
             can_be_folded = std::all_of(input_values.cbegin(), input_values.cend(), is_output_foldable);
             if (input_values.size() && can_be_folded) {
-                copy_runtime_info_from_input_values(node);
+                copy_runtime_info_from_input_values(node, rt_config);
             }
         }
-        node->get_rt_info()["can_be_folded"] = can_be_folded;
+        rt_info["can_be_folded"] = can_be_folded;
     }
 
     std::deque<std::shared_ptr<Node>> nodes;
@@ -158,6 +195,11 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         for (auto& output : curr_node->input_values()) {
             if (is_output_foldable(output) && output.get_tensor().has_and_set_bound()) {
                 auto input_node = output.get_node_shared_ptr();
+                auto& rt_info = input_node->get_rt_info();
+                // Set fused names to precalculated
+                if (rt_info.count(PreFusedNames::get_type_info_static()))
+                    rt_info[ov::FusedNames::get_type_info_static()] = ov::FusedNames(
+                        rt_info.at(PreFusedNames::get_type_info_static()).as<PreFusedNames>().getVectorNames());
                 const auto& lower = output.get_tensor().get_lower_value();
                 auto replacement =
                     std::make_shared<ov::op::v0::Constant>(lower.get_element_type(), lower.get_shape(), lower.data());

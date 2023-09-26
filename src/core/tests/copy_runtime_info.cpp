@@ -93,6 +93,24 @@ TEST(copy_runtime_info, node_to_node_1) {
     ASSERT_TRUE(TestAttributeNoCopyable::exists_in(b));
 }
 
+TEST(copy_runtime_info, node_to_node_1_disabled) {
+    auto a = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+
+    TestAttributeCopyable::set(a);
+    TestAttributeNoCopyable::set(b);
+
+    auto rt_config = std::make_shared<ov::RTInfoConfig>();
+    rt_config->disable<TestAttributeCopyable>();
+
+    ov::copy_runtime_info(a, b, rt_config);
+
+    ASSERT_TRUE(TestAttributeCopyable::exists_in(a));
+    ASSERT_FALSE(TestAttributeCopyable::exists_in(b));
+
+    ASSERT_TRUE(TestAttributeNoCopyable::exists_in(b));
+}
+
 TEST(copy_runtime_info, node_to_node_2) {
     auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
     auto b = make_shared<op::v0::Parameter>(element::f32, Shape{1});

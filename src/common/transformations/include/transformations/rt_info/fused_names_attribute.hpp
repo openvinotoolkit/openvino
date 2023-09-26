@@ -28,6 +28,7 @@ namespace ov {
  * all operation names that was fully or partially fused into node
  */
 class TRANSFORMATIONS_API FusedNames : public ov::RuntimeAttribute {
+protected:
     std::set<std::string> fused_names;
 
 public:
@@ -46,6 +47,13 @@ public:
         fused_names.insert(name);
     }
 
+    /**
+     * @brief      Constructs a new object consisting of multiple names    *
+     * @param[in]  names  The names
+     */
+    explicit FusedNames(const std::vector<std::string>& names) {
+        fused_names.insert(names.begin(), names.end());
+    }
     /**
      * @brief Unites current set of already fused names with another FusedNames object
      * @param[in] names Another object to fuse with

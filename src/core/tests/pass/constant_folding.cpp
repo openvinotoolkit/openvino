@@ -3924,6 +3924,55 @@ TEST(constant_folding, gather_with_dynamic_shapes_in_data_input) {
     check_names(res, {"result"}, "result");
 }
 
+TEST(constant_folding, gather_with_dynamic_shapes_in_data_input_fail) {
+    auto in_0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{30});
+
+    // dynamic input to Gather
+    auto in_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 2});
+    in_1->set_friendly_name("in_1");
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(in_1);
+    shape_of->set_friendly_name("shape_of");
+    auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{0});
+    indices->set_friendly_name("indices");
+    auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{0});
+    axis->set_friendly_name("axis");
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, indices, axis);
+    gather->set_friendly_name("test");
+    auto in_2 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{10});
+    in_2->set_friendly_name("in_2");
+    auto in_3 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+    in_3->set_friendly_name("in_3");
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(in_0,
+                                                                gather,
+                                                                in_2,
+                                                                in_3,
+                                                                std::vector<int64_t>{0, 0},
+                                                                std::vector<int64_t>{0, 0},
+                                                                std::vector<int64_t>{0, 0},
+                                                                std::vector<int64_t>{0, 1});
+    strided_slice->set_friendly_name("strided_slice");
+    auto res = std::make_shared<ov::op::v0::Result>(strided_slice);
+    res->set_friendly_name("result");
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{in_0, in_1});
+
+    run_constant_folding(model);
+
+    ASSERT_EQ(count_ops_of_type<ov::op::v8::Gather>(model), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v1::StridedSlice>(model), 1);
+
+    // check that we are not copying unnecessary values
+    check_names(in_1, {"in_1"}, "in_1");
+    check_names(in_2, {"in_2"}, "in_2");
+    check_names(in_3, {"in_3"}, "in_3");
+    check_names(shape_of, {"shape_of"}, "shape_of");
+    check_names(indices, {"indices"}, "indices");
+    check_names(axis, {"axis"}, "axis");
+    check_names(gather, {"test"}, "test");
+    check_names(strided_slice, {"strided_slice"}, "strided_slice");
+    check_names(res, {"result"}, "result");
+}
+
 TEST(constant_folding, parameter_with_unspecified_type_from_host_tensor) {
     auto param = std::make_shared<ov::op::v0::Parameter>(element::undefined, ov::PartialShape{});
     auto res = std::make_shared<ov::op::v0::Result>(param);

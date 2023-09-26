@@ -9,20 +9,33 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/pass/pass_config.hpp"
 
 namespace ov {
-OPENVINO_API
-void copy_runtime_info(const std::shared_ptr<ov::Node>& from, const std::shared_ptr<ov::Node>& to);
+using RTInfoConfig = typename pass::PassConfig;
 
 OPENVINO_API
-void copy_runtime_info(const std::shared_ptr<ov::Node>& from, ov::NodeVector to);
+void copy_runtime_info(const std::shared_ptr<ov::Node>& from,
+                       const std::shared_ptr<ov::Node>& to,
+                       const std::shared_ptr<ov::RTInfoConfig> rt_config = nullptr);
 
 OPENVINO_API
-void copy_runtime_info(const ov::NodeVector& from, const std::shared_ptr<ov::Node>& to);
+void copy_runtime_info(const std::shared_ptr<ov::Node>& from,
+                       ov::NodeVector to,
+                       const std::shared_ptr<ov::RTInfoConfig> rt_config = nullptr);
 
 OPENVINO_API
-void copy_runtime_info(const ov::NodeVector& from, ov::NodeVector to);
+void copy_runtime_info(const ov::NodeVector& from,
+                       const std::shared_ptr<ov::Node>& to,
+                       const std::shared_ptr<ov::RTInfoConfig> rt_config = nullptr);
 
 OPENVINO_API
-void copy_output_runtime_info(const ov::OutputVector& from, ov::OutputVector to);
+void copy_runtime_info(const ov::NodeVector& from,
+                       ov::NodeVector to,
+                       const std::shared_ptr<ov::RTInfoConfig> rt_config = nullptr);
+
+OPENVINO_API
+void copy_output_runtime_info(const ov::OutputVector& from,
+                              ov::OutputVector to,
+                              const std::shared_ptr<ov::RTInfoConfig> rt_config = nullptr);
 }  // namespace ov
