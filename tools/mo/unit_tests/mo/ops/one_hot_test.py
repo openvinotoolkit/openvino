@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -31,42 +31,28 @@ edges = [
 ]
 
 
-class TestOneHotInfer(unittest.TestCase):
-    def test_case_1(self):
-        input_value = 1
-        exp_value = [0, 1, 0, 0]
-        self._test_infer(input_value, exp_value)
-
-    def test_case_2(self):
-        input_value = [1, 2]
-        exp_value = [[0, 1, 0, 0], [0, 0, 1, 0]]
-        self._test_infer(input_value, exp_value)
-
-    def test_case_3(self):
-        input_value = [[1, 2], [3, 4]]
-        exp_value = [[[0, 1, 0, 0], [0, 0, 1, 0]], [[0, 0, 0, 1], [0, 0, 0, 0]]]
-        self._test_infer(input_value, exp_value)
-
-    def test_case_4(self):
-        input_value = [[[0, 2], [1, 2]], [[2, 1], [3, 0]]]
-        exp_value = [[[[1, 0, 0, 0], [0, 0, 1, 0]], [[0, 1, 0, 0], [0, 0, 1, 0]]],
-                     [[[0, 0, 1, 0], [0, 1, 0, 0]], [[0, 0, 0, 1], [1, 0, 0, 0]]]]
-        self._test_infer(input_value, exp_value)
-
-    def test_case_5(self):
-        input_value = [-2, 2]
-        exp_value = [[0, 0, 1, 0], [0, 0, 1, 0]]
-        self._test_infer(input_value, exp_value)
-
-    def test_case_6(self):
-        input_value = [[1, 2], [3, 4]]
-        exp_value = [[[0, 0], [1, 0], [0, 1], [0, 0]], [[0, 0], [0, 0], [0, 0], [1, 0]]]
-        axis = 1
-        self._test_infer(input_value, exp_value, axis)
-
-    def _test_infer(self, input_value, exp_value, axis=-1):
+class TestOneHotInfer():
+    @pytest.mark.parametrize("input_value, exp_value, axis",[
+        # 0d input
+        (1, [0, 1, 0, 0], -1),
+        # 1d input
+        ([1, 2], [[0, 1, 0, 0], [0, 0, 1, 0]], -1),
+        # 2D input
+        ([[1, 2], [3, 4]], [[[0, 1, 0, 0], [0, 0, 1, 0]],
+                            [[0, 0, 0, 1], [0, 0, 0, 0]]], -1),
+        # 3d input
+        ([[[0, 2], [1, 2]], [[2, 1], [3, 0]]],
+         [[[[1, 0, 0, 0], [0, 0, 1, 0]], [[0, 1, 0, 0], [0, 0, 1, 0]]],
+          [[[0, 0, 1, 0], [0, 1, 0, 0]], [[0, 0, 0, 1], [1, 0, 0, 0]]]], -1),
+        # 1d input with negative indices
+        ([-2, 2], [[0, 0, 1, 0], [0, 0, 1, 0]], -1),
+        # check if axis is neither 0 nor -1
+        ([[1, 2], [3, 4]], [[[0, 0], [1, 0], [0, 1], [0, 0]],
+                            [[0, 0], [0, 0], [0, 0], [1, 0]]], 1)
+    ])
+    def test_infer(self, input_value, exp_value, axis):
         graph = build_graph(generate_nodes(int64_array(input_value), axis), edges)
         onehot_node = Node(graph, 'one_hot')
         OneHot.infer(onehot_node)
         res_value = graph.node['one_hot_d']['value']
-        self.assertTrue(np.array_equal(exp_value, int64_array(res_value)))
+        assert np.array_equal(exp_value, int64_array(res_value))
