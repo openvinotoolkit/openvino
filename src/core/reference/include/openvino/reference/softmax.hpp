@@ -6,11 +6,11 @@
 
 #include <cmath>
 
+#include "openvino/core/shape_util.hpp"
 #include "openvino/reference/max.hpp"
 #include "openvino/reference/sum.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
-#include "shape_util.hpp"
 
 namespace ov {
 namespace reference {

@@ -9,7 +9,7 @@
 #include "ngraph/file_util.hpp"
 #include "onnx_test_util.hpp"
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
