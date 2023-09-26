@@ -7,7 +7,6 @@
 #include "deformable_convolution_shape_inference.hpp"
 #include "itt.hpp"
 
-using namespace std;
 namespace ov {
 op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,

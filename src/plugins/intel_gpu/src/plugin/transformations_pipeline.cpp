@@ -148,7 +148,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-    const auto& defaultPrecisions = ov::pass::low_precision::precision_set::int8_support;
+    const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
