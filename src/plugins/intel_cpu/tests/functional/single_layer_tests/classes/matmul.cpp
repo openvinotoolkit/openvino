@@ -174,6 +174,36 @@ const std::vector<ElementType>& netPRCs() {
     return netPRCs;
 }
 
+const std::vector<std::map<std::string, std::string>>& additionalConfig() {
+    static std::vector<std::map<std::string, std::string>> additionalConfig {
+    #ifndef OV_CPU_WITH_MLAS
+        // FP32 precision is covered by MLAS
+        std::map<std::string, std::string>{/* empty config */},
+    #endif
+        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
+    };
+    return additionalConfig;
+}
+
+const std::vector<fusingSpecificParams>& matmulFusingParams() {
+    static std::vector<fusingSpecificParams> matmulFusingParams {
+            emptyFusingSpec,
+            fusingElu,
+            fusingSqrt,
+            fusingPReluPerTensor,
+            fusingMultiplyPerChannel,
+            fusingAddPerTensor,
+            fusingBias,
+            fusingFakeQuantizePerChannel,
+            /* @todo FQ unfolds into FQ + Convert + Substract + Multiply after LPT,
+            * so Relu cannot be fused in this case. Should be analysed */
+            // fusingFakeQuantizePerChannelRelu,
+            fusingFakeQuantizePerTensorRelu,
+            fusingScaleShiftAndFakeQuantizePerChannel,
+    };
+    return matmulFusingParams;
+}
+
 const std::vector<ShapeRelatedParams>& IS2D_nightly() {
     static const std::vector<ShapeRelatedParams> IS2D_nightly = {
         {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, false}},

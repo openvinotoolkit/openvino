@@ -58,6 +58,8 @@ protected:
 
 namespace MatMul {
    const std::vector<ElementType>& netPRCs();
+   const std::vector<fusingSpecificParams>& matmulFusingParams();
+   const std::vector<std::map<std::string, std::string>>& additionalConfig();
    const std::map<std::string, std::string>& emptyAdditionalConfig();
    const std::vector<CPUSpecificParams>& filterSpecificParams();
    const std::vector<ShapeRelatedParams>& IS2D_nightly();

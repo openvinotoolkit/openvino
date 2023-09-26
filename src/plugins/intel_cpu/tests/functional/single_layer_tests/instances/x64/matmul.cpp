@@ -58,7 +58,7 @@ const auto testParams2DBF16_smoke = ::testing::Combine(::testing::Combine(::test
                                                                     ::testing::Values(ElementType::undefined),
                                                                     ::testing::Values(helpers::InputLayerType::CONSTANT),
                                                                     ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                                    ::testing::ValuesIn(additionalConfig)),
+                                                                    ::testing::ValuesIn(additionalConfig())),
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
                                                  ::testing::ValuesIn(fusingParamsSet2DBF16),
                                                  ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
@@ -133,6 +133,36 @@ const std::vector<ShapeRelatedParams> IS2D_Brgemm_smoke = {
     },
 };
 
+const std::vector<ShapeRelatedParams> IS2D_Brgconv1x1_smoke = {
+    {static_shapes_to_test_representation({{49, 120}, {120, 120}}), {true, false}},
+    {static_shapes_to_test_representation({{79, 120}, {120, 120}}), {true, false}},
+
+    {static_shapes_to_test_representation({{256, 188}, {188, 120}}), {true, false}},
+    {static_shapes_to_test_representation({{256, 188}, {188, 120}}), {true, true}},
+
+    {static_shapes_to_test_representation({{71, 128}, {128, 200}}), {false, false}},
+    {static_shapes_to_test_representation({{71, 128}, {128, 200}}), {false, true}},
+
+    {
+        {
+            // ip->brg->ip->brg
+            // {1, 120} are covered in 'IS2D_Brgemm_smoke' which is ip
+            // {49, 120}, {79, 120} are covered above which is brg1x1
+            {{-1, -1}, {{1, 120}, {49, 120}, {1, 120}, {79, 120}}},
+            {{120, 120}, {{120, 120}, {120, 120}, {120, 120}, {120, 120}}}
+        },
+        {false, false}
+    },
+    {
+        {
+            // ip->brg->ip(cached)->brg(cached)
+            {{{0, 200}, {0, 200}}, {{1, 128}, {199, 128}, {1, 128}, {199, 128}}},
+            {{128, 166}, {{128, 166}, {128, 166}}}
+        },
+        {true, true}
+    },
+};
+
 std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
 // The following three patterns are covered by MLAS test
 #ifndef OV_CPU_WITH_MLAS
@@ -182,7 +212,7 @@ const auto matMulBrgemmParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_
 
 const auto testBrgemmParams_smoke = ::testing::Combine(matMulBrgemmParams_smoke,
                                                        ::testing::Values(MatMulNodeType::MatMul),
-                                                       ::testing::ValuesIn(matmulFusingParams),
+                                                       ::testing::ValuesIn(matmulFusingParams()),
                                                        ::testing::ValuesIn(filterSpecificParams_Brgemm()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Static, MatMulLayerCPUTest, testBrgemmParams_smoke, MatMulLayerCPUTest::getTestCaseName);
@@ -211,7 +241,7 @@ const auto matMulBrgemmParams_nightly = ::testing::Combine(::testing::ValuesIn(I
 
 const auto testBrgemmParams_nightly = ::testing::Combine(matMulBrgemmParams_nightly,
                                                        ::testing::Values(MatMulNodeType::MatMul),
-                                                       ::testing::ValuesIn(matmulFusingParams),
+                                                       ::testing::ValuesIn(matmulFusingParams()),
                                                        ::testing::ValuesIn(filterSpecificParams_Brgemm()));
 
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Static, MatMulLayerCPUTest, testBrgemmParams_nightly, MatMulLayerCPUTest::getTestCaseName);
@@ -290,6 +320,52 @@ const auto testBrgemmParamsDynamic = ::testing::Combine(matMulBrgemmParamsDynami
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Dynamic, MatMulLayerCPUTest, testBrgemmParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
 
+const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing = {
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1}, {{16, 12}, {33, 7}, {16, 12}}}, // input 0
+            {{-1, 33}, {{12, 33}, {7, 33}, {12, 33}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
+            {{-1, 5}, {{60, 5}, {30, 5}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
+            {{-1, -1, -1, 25}, {{3, 7, 60, 25}, {3, 7, 30, 25}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}, {10, 10, 10}}}, // input 0
+            {{-1, -1, 5}, {{10, 10, 5}, {5, 5, 5}, {10, 10, 5}}}  // input 1
+        },
+        {false, false}
+    },
+};
+
+const auto matMulParamsDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
+                                                        ::testing::ValuesIn(netPRCs()),
+                                                        ::testing::Values(ElementType::undefined),
+                                                        ::testing::Values(ElementType::undefined),
+                                                        ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                        ::testing::ValuesIn(additionalConfig()));
+
+const auto testParamsDynamicFusing = ::testing::Combine(matMulParamsDynamicFusing,
+                                                  ::testing::Values(MatMulNodeType::MatMul),
+                                                  ::testing::ValuesIn(matmulFusingParams()),
+                                                  ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic_Fusing, MatMulLayerCPUTest, testParamsDynamicFusing, MatMulLayerCPUTest::getTestCaseName);
+
 const auto matMulParamsBrgemmDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
@@ -300,7 +376,7 @@ const auto matMulParamsBrgemmDynamicFusing = ::testing::Combine(::testing::Value
 
 const auto testParamsBrgemmDynamicFusing = ::testing::Combine(matMulParamsBrgemmDynamicFusing,
                                                               ::testing::Values(MatMulNodeType::MatMul),
-                                                              ::testing::ValuesIn(matmulFusingParams),
+                                                              ::testing::ValuesIn(matmulFusingParams()),
                                                               ::testing::ValuesIn(filterSpecificParams_Brgemm()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Dynamic_Fusing, MatMulLayerCPUTest, testParamsBrgemmDynamicFusing, MatMulLayerCPUTest::getTestCaseName);
@@ -436,6 +512,44 @@ const auto testParams2D_Brgconv1x1_smoke = ::testing::Combine(fullyConnectedPara
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgconv1x1, MatMulLayerCPUTest, testParams2D_Brgconv1x1_smoke, MatMulLayerCPUTest::getTestCaseName);
 
+const std::vector<ShapeRelatedParams> IS3D_Brgconv1x1_smoke = {
+    {static_shapes_to_test_representation({{2, 49, 120}, {120, 120}}), {true, false}},
+    {static_shapes_to_test_representation({{4, 79, 120}, {120, 120}}), {true, false}},
+
+    {static_shapes_to_test_representation({{1, 256, 188}, {188, 120}}), {true, false}},
+    {static_shapes_to_test_representation({{2, 256, 188}, {188, 120}}), {true, true}},
+
+    {static_shapes_to_test_representation({{2, 71, 128}, {128, 200}}), {false, false}},
+    {static_shapes_to_test_representation({{3, 71, 128}, {128, 200}}), {false, true}},
+
+    {
+        {
+            // ip->brg->ip->brg
+            // {1, 1, 120}, {3, 1, 120} are covered in 'IS3D_smoke' which is ip
+            // {2, 49, 120}, {4, 79, 120} are covered above which is brg1x1
+            {{-1, -1, -1}, {{1, 1, 120}, {2, 49, 120}, {3, 1, 120}, {4, 79, 120}}},
+            {{120, 120}, {{120, 120}, {120, 120}, {120, 120}, {120, 120}}}
+        },
+        {false, false}
+    },
+    {
+        {
+            // weights: Acb32a->Acb64a->Acb32a(cached)->Acb64a(cached)
+            {{-1, -1, -1}, {{1, 54, 96}, {8, 54 * 2, 96}, {1, 54, 96}, {8, 54 * 2, 96}}},
+            {{96, 128}, {{96, 128}, {96, 128}, {96, 128}, {96, 128}}}
+        },
+        {false, false}
+    },
+    {
+        {
+            // ip->brg->ip(cached)->brg(cached)
+            {{{0, 200}, {0, 200}, {0, 200}}, {{1, 18, 128}, {2, 199, 128}, {3, 18, 128}, {4, 199, 128}}},
+            {{128, 166}, {{128, 166}, {128, 166}}}
+        },
+        {true, true}
+    },
+};
+
 const auto fullyConnectedParams3D_Brgconv1x1_smoke = ::testing::Combine(::testing::ValuesIn(IS3D_Brgconv1x1_smoke),
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
@@ -525,7 +639,7 @@ const auto testParams2DBF16_nightly = ::testing::Combine(::testing::Combine(::te
                                                                     ::testing::Values(ElementType::undefined),
                                                                     ::testing::Values(helpers::InputLayerType::CONSTANT),
                                                                     ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                                    ::testing::ValuesIn(additionalConfig)),
+                                                                    ::testing::ValuesIn(additionalConfig())),
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
                                                  ::testing::ValuesIn(fusingParamsSet2DBF16),
                                                  ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
@@ -556,7 +670,7 @@ const auto fullyConnectedParams3DBF16_smoke = ::testing::Combine(::testing::Valu
                                                            ::testing::Values(ElementType::undefined),
                                                            ::testing::Values(helpers::InputLayerType::CONSTANT),
                                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                           ::testing::ValuesIn(additionalConfig));
+                                                           ::testing::ValuesIn(additionalConfig()));
 
 const auto testParams3DBF16_smoke = ::testing::Combine(fullyConnectedParams3DBF16_smoke,
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
@@ -628,7 +742,7 @@ const auto fullyConnectedParams3DBF16_nightly = ::testing::Combine(::testing::Va
                                                            ::testing::Values(ElementType::undefined),
                                                            ::testing::Values(helpers::InputLayerType::CONSTANT),
                                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                           ::testing::ValuesIn(additionalConfig));
+                                                           ::testing::ValuesIn(additionalConfig()));
 
 const auto testParams3DBF16_nightly = ::testing::Combine(fullyConnectedParams3DBF16_nightly,
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
