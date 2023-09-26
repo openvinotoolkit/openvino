@@ -79,9 +79,9 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseFCAndWeightsDecompression(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
-    FuseConvolutionMatMulDeconvAndBias(graph);
-    graph.RemoveDroppedNodes();
+    //OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
+    //FuseConvolutionMatMulDeconvAndBias(graph);
+    //graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMultiplyAndAdd");
     FuseMultiplyAndAdd(graph);
