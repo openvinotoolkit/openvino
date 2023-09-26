@@ -7,9 +7,6 @@
                  precision transformations that handle decomposition and 
                  dequantization operations.
 
-
-Main transformations are the majority of low precision transformations. Transformations operate with dequantization operations. Main transformations include:
-
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -49,7 +46,8 @@ Main transformations are the majority of low precision transformations. Transfor
    UnsqueezeTransformation <openvino_docs_OV_UG_lpt_UnsqueezeTransformation>
    VariadicSplitTransformation <openvino_docs_OV_UG_lpt_VariadicSplitTransformation>
    
-   
+
+Main transformations are the majority of low precision transformations. Transformations operate with dequantization operations. Main transformations include:
    
 * :doc:`AddTransformation <openvino_docs_OV_UG_lpt_AddTransformation>` 
 * :doc:`AvgPoolTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>` 
