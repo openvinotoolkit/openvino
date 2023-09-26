@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -14,9 +14,8 @@ from unit_tests.utils.graph import build_graph, regular_op_with_empty_data, resu
 
 dyn = dynamic_dimension
 
-class GatherElementsInferTest(unittest.TestCase):
-    def test_gatherelements_value_infer(self):
-        test_cases=[
+class TestGatherElementsInferTest():
+    @pytest.mark.parametrize("data, indices, axis, ref_res",[
         ([[1, 2],
           [3, 4]],
          [[0, 1],
@@ -75,32 +74,31 @@ class GatherElementsInferTest(unittest.TestCase):
              [[9, 9],
               [12, 12]]
          ]),
-    ]
-        for idx, (data, indices, axis, ref_res) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                nodes = {
-                    **valued_const_with_data('data', int64_array(data)),
-                    **valued_const_with_data('indices', int64_array(indices)),
-                    **regular_op_with_empty_data('gather_elements', {'op': 'GatherElements', 'axis': axis}),
-                    **result()
-                }
+    ])
+    def test_gatherelements_value_infer(self, data, indices, axis, ref_res):
+        nodes = {
+            **valued_const_with_data('data', int64_array(data)),
+            **valued_const_with_data('indices', int64_array(indices)),
+            **regular_op_with_empty_data('gather_elements', {'op': 'GatherElements', 'axis': axis}),
+            **result()
+        }
 
-                graph = build_graph(nodes_attrs=nodes, edges=[
-                    *connect('data', '0:gather_elements'),
-                    *connect('indices', '1:gather_elements'),
-                    *connect('gather_elements', 'output')
-                ], nodes_with_edges_only=True)
-                graph.stage = 'middle'
+        graph = build_graph(nodes_attrs=nodes, edges=[
+            *connect('data', '0:gather_elements'),
+            *connect('indices', '1:gather_elements'),
+            *connect('gather_elements', 'output')
+        ], nodes_with_edges_only=True)
+        graph.stage = 'middle'
 
-                gather_el_node = Node(graph, 'gather_elements')
-                GatherElements.infer(gather_el_node)
+        gather_el_node = Node(graph, 'gather_elements')
+        GatherElements.infer(gather_el_node)
 
-                res_output_shape = gather_el_node.out_node().shape
-                self.assertTrue(np.array_equal(int64_array(ref_res).shape, res_output_shape))
+        res_output_shape = gather_el_node.out_node().shape
+        assert np.array_equal(int64_array(ref_res).shape, res_output_shape)
 
-                res_output_value = gather_el_node.out_node().value
-                if res_output_value is not None:
-                    self.assertTrue(np.array_equal(int64_array(ref_res), res_output_value))
+        res_output_value = gather_el_node.out_node().value
+        if res_output_value is not None:
+            assert np.array_equal(int64_array(ref_res), res_output_value)
 
     def check_shape_infer(self, data_shape, indices_shape, axis, ref):
         nodes = {
@@ -121,7 +119,7 @@ class GatherElementsInferTest(unittest.TestCase):
         GatherElements.infer(gather_el_node)
 
         res_output_shape = gather_el_node.out_node().shape
-        self.assertTrue(strict_compare_tensors(res_output_shape, ref))
+        assert strict_compare_tensors(res_output_shape, ref)
 
     def test_shape_infer_1(self):
         self.check_shape_infer(data_shape=[3], indices_shape=[100], ref=[100], axis=0)
@@ -165,13 +163,13 @@ class GatherElementsInferTest(unittest.TestCase):
 
     # negative tests
     def test_negative_shape_infer_ranks_differ(self):
-        self.assertRaises(AssertionError, self.check_shape_infer,
-                          data_shape=[1, 3, 64], indices_shape=[1, 3], ref=[1, 3, 1024], axis=2)
+        with pytest.raises(AssertionError):
+            self.check_shape_infer(data_shape=[1, 3, 64], indices_shape=[1, 3], ref=[1, 3, 1024], axis=2)
 
     def test_negative_shape_infer_axis_out_of_bound(self):
-        self.assertRaises(AssertionError, self.check_shape_infer,
-                          data_shape=[1, 4, 64], indices_shape=[1, 3, 64], ref=[1, 3, 1024], axis=20)
+        with pytest.raises(AssertionError):
+            self.check_shape_infer(data_shape=[1, 4, 64], indices_shape=[1, 3, 64], ref=[1, 3, 1024], axis=20)
 
     def test_negative_shape_infer_inconsistent_shapes(self):
-        self.assertRaises(Error, self.check_shape_infer,
-                          data_shape=[1, 4, 64], indices_shape=[1, 3, 64], ref=[1, 3, 1024], axis=2)
+        with pytest.raises(Error):
+            self.check_shape_infer(data_shape=[1, 4, 64], indices_shape=[1, 3, 64], ref=[1, 3, 1024], axis=2)
