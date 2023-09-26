@@ -3,7 +3,6 @@
 
 import csv
 import os
-import requests
 import urllib.request as ur
 from argparse import ArgumentParser
 from pathlib import Path
