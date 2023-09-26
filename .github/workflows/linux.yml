@@ -967,13 +967,13 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: openvino_package
-          path: ${INSTALL_DIR}
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
           name: openvino_tests
-          path: ${INSTALL_TEST_DIR}
+          path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
         run: |
