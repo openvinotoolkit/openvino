@@ -6,6 +6,7 @@
 
 #include "evaluate_node.hpp"
 #include "openvino/reference/bitwise_not.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 
@@ -13,6 +14,10 @@ template <element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v13::BitwiseNot>& node,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
+    OPENVINO_ASSERT(inputs.size() == 1);
+    OPENVINO_ASSERT(outputs.size() == 1);
+    outputs[0].set_shape(inputs[0].get_shape());
+
     using T = typename ov::element_type_traits<ET>::value_type;
     ov::reference::bitwise_not(inputs[0].data<T>(), outputs[0].data<T>(), shape_size(inputs[0].get_shape()));
     return true;
