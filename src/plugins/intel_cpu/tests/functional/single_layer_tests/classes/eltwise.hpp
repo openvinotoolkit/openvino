@@ -20,7 +20,8 @@ namespace CPULayerTestsDefinitions  {
 typedef std::tuple<
         subgraph::EltwiseTestParams,
         CPUSpecificParams,
-        fusingSpecificParams> EltwiseLayerCPUTestParamsSet;
+        fusingSpecificParams,
+        bool> EltwiseLayerCPUTestParamsSet;
 
 class EltwiseLayerCPUTest : public testing::WithParamInterface<EltwiseLayerCPUTestParamsSet>,
                             virtual public SubgraphBaseTest, public CPUTestUtils::CpuTestWithFusing {
@@ -66,6 +67,8 @@ const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant();
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_parameter();
 
 const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesI32();
+
+const std::vector<bool>& enforceSnippets();
 
 } // namespace Eltwise
 } // namespace CPULayerTestsDefinitions

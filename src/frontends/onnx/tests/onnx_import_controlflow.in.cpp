@@ -20,7 +20,7 @@ using namespace ngraph::onnx_import;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 // ~~~~~~~~TERMINATION CONDITION/TRIP COUNT COMBINATIONS TESTS:~~~~~~~~

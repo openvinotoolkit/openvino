@@ -5,28 +5,26 @@
 #include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset5.hpp>
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset5.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+using namespace ov;
 
 TEST(SmartReshapeTests, SS_Squeeze) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-        auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
-            input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 1}),
-            std::vector<int64_t>{1, 1},
-            std::vector<int64_t>{1, 1});
-        auto squeeze =
-            std::make_shared<ngraph::opset5::Squeeze>(ss,
-                                                      ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
-        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3});
+        auto ss = std::make_shared<opset5::StridedSlice>(input,
+                                                         opset5::Constant::create(element::i64, {2}, {0, 0}),
+                                                         opset5::Constant::create(element::i64, {2}, {0, 0}),
+                                                         opset5::Constant::create(element::i64, {2}, {1, 1}),
+                                                         std::vector<int64_t>{1, 1},
+                                                         std::vector<int64_t>{1, 1});
+        auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {0}));
+        auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -45,22 +43,20 @@ TEST(SmartReshapeTests, SS_Squeeze) {
 }
 
 TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 768});
-        auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128, 768});
+        auto ss = std::make_shared<opset5::StridedSlice>(
             input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {0, 1, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {0, 2, 768}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {1, 1, 1}),
+            opset5::Constant::create(element::i64, {3}, {0, 1, 0}),
+            opset5::Constant::create(element::i64, {3}, {0, 2, 768}),
+            opset5::Constant::create(element::i64, {3}, {1, 1, 1}),
             std::vector<int64_t>{0},
             std::vector<int64_t>{1});  // begin_mask.size() is no larger than axis that is going to be squeezed.
-        auto squeeze =
-            std::make_shared<ngraph::opset5::Squeeze>(ss,
-                                                      ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}));
-        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
+        auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {1}));
+        auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -81,24 +77,22 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
 }
 
 TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 768});
-        auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 768});
+        auto ss = std::make_shared<opset5::StridedSlice>(
             input,
-            ngraph::opset5::Constant::create(ngraph::element::i64,
-                                             {1},
-                                             {0}),  // begin.size() is no larger than axis that is going to be squeezed.
-            ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}),
+            opset5::Constant::create(element::i64,
+                                     {1},
+                                     {0}),  // begin.size() is no larger than axis that is going to be squeezed.
+            opset5::Constant::create(element::i64, {1}, {0}),
+            opset5::Constant::create(element::i64, {1}, {1}),
             std::vector<int64_t>{1, 1, 1},
             std::vector<int64_t>{1, 1, 1});
-        auto squeeze =
-            std::make_shared<ngraph::opset5::Squeeze>(ss,
-                                                      ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}));
-        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
+        auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {1}));
+        auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -119,22 +113,19 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
 }
 
 TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-        auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
-            input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 1}),
-            std::vector<int64_t>{1, 1},
-            std::vector<int64_t>{1, 1},
-            std::vector<int64_t>{0, 1});
-        auto squeeze =
-            std::make_shared<ngraph::opset5::Squeeze>(ss,
-                                                      ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3});
+        auto ss = std::make_shared<opset5::StridedSlice>(input,
+                                                         opset5::Constant::create(element::i64, {2}, {0, 0}),
+                                                         opset5::Constant::create(element::i64, {2}, {0, 0}),
+                                                         opset5::Constant::create(element::i64, {2}, {1, 1}),
+                                                         std::vector<int64_t>{1, 1},
+                                                         std::vector<int64_t>{1, 1},
+                                                         std::vector<int64_t>{0, 1});
+        auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {0}));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(NodeVector{squeeze}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -150,22 +141,19 @@ TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
 }
 
 TEST(SmartReshapeTests, SS_Squeeze_negative_stride_negative) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-        auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
-            input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {-1, -1}),
-            std::vector<int64_t>{1, 1},
-            std::vector<int64_t>{1, 1});
-        auto squeeze =
-            std::make_shared<ngraph::opset5::Squeeze>(ss,
-                                                      ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
-        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3});
+        auto ss = std::make_shared<opset5::StridedSlice>(input,
+                                                         opset5::Constant::create(element::i64, {2}, {0, 0}),
+                                                         opset5::Constant::create(element::i64, {2}, {0, 0}),
+                                                         opset5::Constant::create(element::i64, {2}, {-1, -1}),
+                                                         std::vector<int64_t>{1, 1},
+                                                         std::vector<int64_t>{1, 1});
+        auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {0}));
+        auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -181,25 +169,20 @@ TEST(SmartReshapeTests, SS_Squeeze_negative_stride_negative) {
 }
 
 TEST(SmartReshapeTests, SS_SharedSqueezes) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-        auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
-            input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 1}),
-            std::vector<int64_t>{1, 1},
-            std::vector<int64_t>{1, 1});
-        auto squeeze_1 =
-            std::make_shared<ngraph::opset5::Squeeze>(ss,
-                                                      ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
-        auto squeeze_2 =
-            std::make_shared<ngraph::opset5::Squeeze>(ss,
-                                                      ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
-        auto relu_1 = std::make_shared<ngraph::opset5::Relu>(squeeze_1);
-        auto relu_2 = std::make_shared<ngraph::opset5::Relu>(squeeze_2);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu_1, relu_2}, ngraph::ParameterVector{input});
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3});
+        auto ss = std::make_shared<opset5::StridedSlice>(input,
+                                                         opset5::Constant::create(element::i64, {2}, {0, 0}),
+                                                         opset5::Constant::create(element::i64, {2}, {0, 0}),
+                                                         opset5::Constant::create(element::i64, {2}, {1, 1}),
+                                                         std::vector<int64_t>{1, 1},
+                                                         std::vector<int64_t>{1, 1});
+        auto squeeze_1 = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {0}));
+        auto squeeze_2 = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {0}));
+        auto relu_1 = std::make_shared<opset5::Relu>(squeeze_1);
+        auto relu_2 = std::make_shared<opset5::Relu>(squeeze_2);
+        f = std::make_shared<ov::Model>(NodeVector{relu_1, relu_2}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -219,22 +202,20 @@ TEST(SmartReshapeTests, SS_SharedSqueezes) {
 }
 
 TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 1, 8, 1, 2});
-        auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
-            input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {6}, {0, 0, 0, 0, 0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {6}, {0, 0, 0, 0, 0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {6}, {1, 1, 1, 1, 1, 1}),
-            std::vector<int64_t>{1, 1, 1, 1, 1, 1},
-            std::vector<int64_t>{1, 1, 1, 1, 1, 1});
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(
-            ss,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {-2, 0, -4}));
-        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 1, 8, 1, 2});
+        auto ss =
+            std::make_shared<opset5::StridedSlice>(input,
+                                                   opset5::Constant::create(element::i64, {6}, {0, 0, 0, 0, 0, 0}),
+                                                   opset5::Constant::create(element::i64, {6}, {0, 0, 0, 0, 0, 0}),
+                                                   opset5::Constant::create(element::i64, {6}, {1, 1, 1, 1, 1, 1}),
+                                                   std::vector<int64_t>{1, 1, 1, 1, 1, 1},
+                                                   std::vector<int64_t>{1, 1, 1, 1, 1, 1});
+        auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {3}, {-2, 0, -4}));
+        auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -254,21 +235,19 @@ TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
 }
 
 TEST(SmartReshapeTests, Squeeze_SSNegativeAxes) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 1, 8, 1, 2});
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(
-            input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {-2, 0, -4}));
-        auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
-            squeeze,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {0, 0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {0, 0, 0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {1, 1, 1}),
-            std::vector<int64_t>{1, 1, 1},
-            std::vector<int64_t>{1, 1, 1});
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 1, 8, 1, 2});
+        auto squeeze =
+            std::make_shared<opset5::Squeeze>(input, opset5::Constant::create(element::i64, {3}, {-2, 0, -4}));
+        auto ss = std::make_shared<opset5::StridedSlice>(squeeze,
+                                                         opset5::Constant::create(element::i64, {3}, {0, 0, 0}),
+                                                         opset5::Constant::create(element::i64, {3}, {0, 0, 0}),
+                                                         opset5::Constant::create(element::i64, {3}, {1, 1, 1}),
+                                                         std::vector<int64_t>{1, 1, 1},
+                                                         std::vector<int64_t>{1, 1, 1});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);

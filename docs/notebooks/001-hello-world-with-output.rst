@@ -11,10 +11,31 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial. For more information about how OpenVINO IR models are
 created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
-tutorial.
+tutorial. 
+
+**Table of contents:**
+
+- `Imports <#imports>`__
+- `Download the Model and data samples <#download-the-model-and-data-samples>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Load an Image <#load-an-image>`__
+- `Do Inference <#do-inference>`__
+
+.. code:: ipython3
+
+    # Install openvino package
+    !pip install -q "openvino==2023.1.0.dev20230811"
+
+
+.. parsed-literal::
+
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    openvino-dev 2023.0.0 requires openvino==2023.0.0, but you have openvino 2023.1.0.dev20230811 which is incompatible.
+    
 
 Imports
--------
+############################################
 
 .. code:: ipython3
 
@@ -24,13 +45,13 @@ Imports
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-    from openvino.runtime import Core
+    import openvino as ov
     
     sys.path.append("../utils")
     from notebook_utils import download_file
 
 Download the Model and data samples
------------------------------------
+########################################################################
 
 .. code:: ipython3
 
@@ -64,15 +85,15 @@ Download the Model and data samples
 
 
 Select inference device
------------------------
+############################################################
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
@@ -92,18 +113,18 @@ select device from dropdown list for running inference using OpenVINO
 
 
 Load the Model
---------------
+###################################################
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     model = core.read_model(model=model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
     
     output_layer = compiled_model.output(0)
 
 Load an Image
--------------
+##################################################
 
 .. code:: ipython3
 
@@ -119,11 +140,11 @@ Load an Image
 
 
 
-.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_10_0.png
+.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_11_0.png
 
 
 Do Inference
-------------
+#################################################
 
 .. code:: ipython3
 

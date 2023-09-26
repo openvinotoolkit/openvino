@@ -33,20 +33,11 @@ pr:
 
 resources:
   repositories:
-  - repository: openvino
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/openvino
-
   - repository: openvino_contrib
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
-
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
+    ref: master
 
 jobs:
 - job: CUDAPlugin_Lin
@@ -63,7 +54,6 @@ jobs:
     HOME_DIR: $(Agent.HomeDirectory)
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_REPO_DIR: $(REPO_DIR)/../openvino
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BIN_DIR: $(OPENVINO_REPO_DIR)/bin/intel64/$(BUILD_TYPE)

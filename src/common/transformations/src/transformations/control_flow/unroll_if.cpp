@@ -5,18 +5,18 @@
 #include "transformations/control_flow/unroll_if.hpp"
 
 #include <memory>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
     bool is_applicable = false;
     for (const auto& op : f->get_ordered_ops()) {
@@ -32,7 +32,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f
         }
         Output<Node> cond = if_node->input_value(0);
         OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto cond_is_const = ngraph::get_constant_from_source(cond);
+        const auto cond_is_const = ov::get_constant_from_source(cond);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!cond_is_const) {
             continue;
@@ -42,6 +42,9 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f
         auto body = (cond_value[0]) ? if_node->get_then_body() : if_node->get_else_body();
         auto input_descriptions = if_node->get_input_descriptions(static_cast<int>(!cond_value[0]));
         auto output_descriptions = if_node->get_output_descriptions(static_cast<int>(!cond_value[0]));
+        // copy rt info before reconnection
+        for (auto& op : body->get_ops())
+            copy_runtime_info({op, if_node}, op);
 
         // connect inputs instead of body parameters
         for (const auto& input_descr : input_descriptions) {
@@ -55,19 +58,18 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f
             std::shared_ptr<ov::op::v0::Result> result = body->get_results()[output_desc->m_body_value_index];
             const auto& in_value = result->input_value(0);
 
-            // set output name to Tensor to store it for ngraph to cnn conversion
-            NGRAPH_SUPPRESS_DEPRECATED_START
+            // set output name to Tensor to store it for openvino to cnn conversion
+            OPENVINO_SUPPRESS_DEPRECATED_START
             ov::descriptor::set_ov_tensor_legacy_name(
                 in_value.get_tensor(),
                 op::util::create_ie_output_name(if_node->output(output_desc->m_output_index)));
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            OPENVINO_SUPPRESS_DEPRECATED_END
             for (const auto& input : if_node->output(output_desc->m_output_index).get_target_inputs()) {
                 input.replace_source_output(result->get_input_source_output(0));
             }
         }
         is_applicable = true;
         f->add_sinks(body->get_sinks());
-        copy_runtime_info(if_node, body->get_ops());
     }
     return is_applicable;
 }

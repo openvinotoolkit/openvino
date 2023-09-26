@@ -5,7 +5,6 @@
 #include "openvino/runtime/core.hpp"
 
 #include "any_copy.hpp"
-#include "cnn_network_ngraph_impl.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "itt.hpp"

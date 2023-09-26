@@ -39,9 +39,9 @@ if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 
 # must be called after all target_link_libraries
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

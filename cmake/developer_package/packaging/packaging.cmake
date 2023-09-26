@@ -24,6 +24,10 @@ macro(ov_install_static_lib target comp)
 
         install(TARGETS ${target} EXPORT OpenVINOTargets
                 ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
+
+        # export to local tree to build against static build tree
+        export(TARGETS ${target} NAMESPACE openvino::
+               APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
     endif()
 endmacro()
 
@@ -113,6 +117,7 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_OVC "ovc")
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE "pyopenvino_package")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
+    set(OV_CPACK_COMP_OPENVINO_REQ_FILES "openvino_req_files")
     # tools
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES "openvino_dev_req_files")
     set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
@@ -122,12 +127,6 @@ macro(ov_define_component_names)
 endmacro()
 
 ov_define_component_names()
-
-if(NOT DEFINED CPACK_GENERATOR)
-    set(CPACK_GENERATOR "TGZ")
-elseif(NOT CPACK_GENERATOR)
-    message(FATAL_ERROR "CPACK_GENERATOR cannot contain an empty value")
-endif()
 
 #
 # Include generator specific configuration file:

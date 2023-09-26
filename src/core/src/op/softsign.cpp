@@ -1,21 +1,21 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ngraph/runtime/reference/softsign.hpp"
+#include "openvino/op/softsign.hpp"
 
 #include <openvino/core/validation_util.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/op/softsign.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/reference/softsign.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "shape_util.hpp"
 
 namespace {
 template <ov::element::Type_t ET>
 inline bool evaluate(const ov::Tensor& arg, const ov::Tensor& out, const size_t count) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::softsign<T>(arg.data<T>(), out.data<T>(), count);
+    ov::reference::softsign<T>(arg.data<T>(), out.data<T>(), count);
     return true;
 }
 

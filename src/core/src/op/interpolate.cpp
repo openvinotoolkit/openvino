@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/interpolate.hpp"
+#include "openvino/reference/interpolate.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -14,7 +14,6 @@
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
-using namespace std;
 namespace ov {
 ov::op::v0::Interpolate::Interpolate(const Output<Node>& image,
                                      const Output<Node>& output_shape,
@@ -51,10 +50,10 @@ void ov::op::v0::Interpolate::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Interpolate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
+    return std::make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
 std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
@@ -134,17 +133,17 @@ void ov::op::v4::Interpolate::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<ov::Node> ov::op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v4_Interpolate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() <= 3) {
-        return make_shared<ov::op::v4::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+        return std::make_shared<ov::op::v4::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
     }
-    return make_shared<ov::op::v4::Interpolate>(new_args.at(0),
-                                                new_args.at(1),
-                                                new_args.at(2),
-                                                new_args.at(3),
-                                                m_attrs);
+    return std::make_shared<ov::op::v4::Interpolate>(new_args.at(0),
+                                                     new_args.at(1),
+                                                     new_args.at(2),
+                                                     new_args.at(3),
+                                                     m_attrs);
 }
 
 namespace {
@@ -182,8 +181,8 @@ static void pad_input_data(const uint8_t* data_ptr,
                            const ov::Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform input_transform(input_shape);
-    ngraph::CoordinateTransform padded_transform(padded_input_shape);
+    ov::CoordinateTransform input_transform(input_shape);
+    ov::CoordinateTransform padded_transform(padded_input_shape);
 
     for (const ngraph::Coordinate& input_coord : input_transform) {
         auto padded_coord = input_coord;
@@ -234,49 +233,49 @@ bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const 
 
     switch (input_et) {
     case element::Type_t::f32:
-        ngraph::runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
-                                                       padded_input_shape,
-                                                       scales,
-                                                       *axes,
-                                                       outputs[0].data<float>(),
-                                                       out_shape,
-                                                       m_attrs);
+        ov::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                          padded_input_shape,
+                                          scales,
+                                          *axes,
+                                          outputs[0].data<float>(),
+                                          out_shape,
+                                          m_attrs);
         break;
     case element::Type_t::f16:
-        ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                         padded_input_shape,
-                                                         scales,
-                                                         *axes,
-                                                         outputs[0].data<float16>(),
-                                                         out_shape,
-                                                         m_attrs);
+        ov::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                            padded_input_shape,
+                                            scales,
+                                            *axes,
+                                            outputs[0].data<float16>(),
+                                            out_shape,
+                                            m_attrs);
         break;
     case element::Type_t::bf16:
-        ngraph::runtime::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
-                                                          padded_input_shape,
-                                                          scales,
-                                                          *axes,
-                                                          outputs[0].data<bfloat16>(),
-                                                          out_shape,
-                                                          m_attrs);
+        ov::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
+                                             padded_input_shape,
+                                             scales,
+                                             *axes,
+                                             outputs[0].data<bfloat16>(),
+                                             out_shape,
+                                             m_attrs);
         break;
     case element::Type_t::i8:
-        ngraph::runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
-                                                        padded_input_shape,
-                                                        scales,
-                                                        *axes,
-                                                        outputs[0].data<int8_t>(),
-                                                        out_shape,
-                                                        m_attrs);
+        ov::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                           padded_input_shape,
+                                           scales,
+                                           *axes,
+                                           outputs[0].data<int8_t>(),
+                                           out_shape,
+                                           m_attrs);
         break;
     case element::Type_t::u8:
-        ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
-                                                         padded_input_shape,
-                                                         scales,
-                                                         *axes,
-                                                         outputs[0].data<uint8_t>(),
-                                                         out_shape,
-                                                         m_attrs);
+        ov::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
+                                            padded_input_shape,
+                                            scales,
+                                            *axes,
+                                            outputs[0].data<uint8_t>(),
+                                            out_shape,
+                                            m_attrs);
         break;
     default:;
     }
@@ -320,13 +319,13 @@ op::v11::Interpolate::Interpolate(const Output<Node>& image,
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v11::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v11::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v11_Interpolate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2) {
-        return make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
+        return std::make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    return make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+    return std::make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
 void op::v11::Interpolate::validate_and_infer_types() {

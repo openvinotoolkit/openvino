@@ -5,12 +5,10 @@
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -19,11 +17,13 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
     MATCHER_SCOPE(GRUCellDecomposition);
-    auto gru_cell = ngraph::pattern::wrap_type<ov::op::v3::GRUCell>();
-    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+    auto gru_cell = ov::pass::pattern::wrap_type<ov::op::v3::GRUCell>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto gru_cell = std::dynamic_pointer_cast<ov::op::v3::GRUCell>(m.get_match_root());
         if (!gru_cell || transformation_callback(gru_cell)) {
             return false;
@@ -62,7 +62,7 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
         if (clip > 0.f) {
             clamp_z = std::make_shared<ov::op::v0::Clamp>(add_z_2, -clip, clip);
             clamp_r = std::make_shared<ov::op::v0::Clamp>(add_r_2, -clip, clip);
-            ngraph::copy_runtime_info(gru_cell, {clamp_z, clamp_r});
+            ov::copy_runtime_info(gru_cell, {clamp_z, clamp_r});
         }
 
         // zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
@@ -77,20 +77,20 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
             auto mul_h_1 = std::make_shared<ov::op::v1::Multiply>(r_t, Ht_Rh_Rbh);
             auto add_h_1 = std::make_shared<ov::op::v1::Add>(mul_h_1, biases_zrh->output(2));
             _h = std::make_shared<ov::op::v1::Add>(Xt_W_zrh->output(2), add_h_1);
-            ngraph::copy_runtime_info(gru_cell, {Ht_Rh_Rbh, mul_h_1, add_h_1, _h});
+            ov::copy_runtime_info(gru_cell, {Ht_Rh_Rbh, mul_h_1, add_h_1, _h});
         } else {
             // _h = Xt*(Wh^T) + (rt (.) Ht-1)*(Rh^T) + Rbh + Wbh
             auto rt_Ht = std::make_shared<ov::op::v1::Multiply>(r_t, H_t);
             auto mul_h_1 = std::make_shared<ov::op::v0::MatMul>(rt_Ht, R_zrh->output(2), false, true);
             auto add_h_1 = std::make_shared<ov::op::v1::Add>(mul_h_1, biases_zrh->output(2));
             _h = std::make_shared<ov::op::v1::Add>(Xt_W_zrh->output(2), add_h_1);
-            ngraph::copy_runtime_info(gru_cell, {rt_Ht, mul_h_1, add_h_1, _h});
+            ov::copy_runtime_info(gru_cell, {rt_Ht, mul_h_1, add_h_1, _h});
         }
         // ht = g(_h)
         std::shared_ptr<Node> clamp_h = _h;
         if (clip > 0.f) {
             clamp_h = std::make_shared<ov::op::v0::Clamp>(_h, -clip, clip);
-            ngraph::copy_runtime_info(gru_cell, clamp_h);
+            ov::copy_runtime_info(gru_cell, clamp_h);
         }
         auto h_t = ov::op::util::activation(gru_cell->get_activations()[1], clamp_h);
 
@@ -102,28 +102,28 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
         auto out_H = std::make_shared<ov::op::v1::Add>(mul_1, mul_2);
 
         out_H->set_friendly_name(gru_cell->get_friendly_name());
-        ngraph::copy_runtime_info(gru_cell,
-                                  {Xt_W,
-                                   Ht_R,
-                                   axis_0,
-                                   Xt_W_zrh,
-                                   R_zrh,
-                                   Ht_R_zrh,
-                                   biases_zrh,
-                                   add_z_1,
-                                   add_z_2,
-                                   add_r_1,
-                                   add_r_2,
-                                   h_t,
-                                   one,
-                                   sub,
-                                   mul_1,
-                                   mul_2,
-                                   out_H});
-        ngraph::replace_node(gru_cell, out_H);
+        ov::copy_runtime_info(gru_cell,
+                              {Xt_W,
+                               Ht_R,
+                               axis_0,
+                               Xt_W_zrh,
+                               R_zrh,
+                               Ht_R_zrh,
+                               biases_zrh,
+                               add_z_1,
+                               add_z_2,
+                               add_r_1,
+                               add_r_2,
+                               h_t,
+                               one,
+                               sub,
+                               mul_1,
+                               mul_2,
+                               out_H});
+        ov::replace_node(gru_cell, out_H);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_cell, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gru_cell, matcher_name);
     register_matcher(m, callback);
 }

@@ -18,16 +18,17 @@ using namespace ov::tools::subgraph_dumper;
 
 
 // ======================= ExtractorsManagerTest Unit tests =======================
-class RepeatPatternExtractorTest : public RepeatPatternExtractor,
-                                   public SubgraphsDumperBaseTest {
+class RepeatPatternExtractorTest : public SubgraphsDumperBaseTest {
 protected:
+    RepeatPatternExtractor extractor;
+
     bool is_match(const std::list<ExtractedPattern>& models,
                   const std::vector<std::shared_ptr<ov::Model>>& ref_models) {
         size_t match_numbers = 0;
         for (const auto& model : models) {
             bool is_match = false;
             for (const auto& ref_model : ref_models) {
-                if (this->match(model.first, ref_model)) {
+                if (extractor.match(std::get<0>(model), ref_model)) {
                     is_match = true;
                     ++match_numbers;
                     break;
@@ -43,21 +44,21 @@ protected:
 
 TEST_F(RepeatPatternExtractorTest, extract_0) {
     auto test_model = Model_0();
-    auto models = this->extract(test_model.get());
+    auto models = extractor.extract(test_model.get());
     auto ref = test_model.get_repeat_pattern_ref();
     ASSERT_TRUE(is_match(models, ref));
 }
 
 TEST_F(RepeatPatternExtractorTest, extract_1) {
     auto test_model = Model_1();
-    auto models = this->extract(test_model.get());
+    auto models = extractor.extract(test_model.get());
     auto ref = test_model.get_repeat_pattern_ref();
     ASSERT_TRUE(is_match(models, ref));
 }
 
 TEST_F(RepeatPatternExtractorTest, extract_2) {
     auto test_model = Model_2();
-    auto models = this->extract(test_model.get());
+    auto models = extractor.extract(test_model.get());
     auto ref = test_model.get_repeat_pattern_ref();
     ASSERT_TRUE(is_match(models, ref));
 }

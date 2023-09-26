@@ -18,8 +18,6 @@ struct mutable_data : public primitive_base<mutable_data> {
 
     mutable_data() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Enum type to specify function for data filling.
     enum filler_type { no_fill, zero, one, xavier };
 
@@ -50,7 +48,7 @@ struct mutable_data : public primitive_base<mutable_data> {
     memory::ptr mem;
 
     /// @brief Specifies function which will be used to fill weights.
-    filler_type fill_type;
+    filler_type fill_type = filler_type::no_fill;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

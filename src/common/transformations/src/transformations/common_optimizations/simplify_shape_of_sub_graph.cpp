@@ -2,26 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
+
 #include <memory>
 #include <numeric>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/util/op_types.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
-#include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -290,8 +292,10 @@ bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f
     Manager manager;
     manager.set_per_pass_validation(false);
 
+    REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, EliminateGatherUnsqueeze)  // should run after SharedOpOptimization
+    REGISTER_PASS(manager, NopElimination, m_use_shapes)
     REGISTER_PASS(manager, GroupedGatherElimination)
     // GatherNopElimination depends on shape, so it requires shape propagation
     // if previous transformations has resolved some dynamic shapes.

@@ -38,7 +38,7 @@ void VariadicSplitPad::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(inputs, axis, numSplits, connectIndexes, padBegin, padEnd, padMode, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto input = ngraph::builder::makeParams(ngPrc, {inputs});
+    ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputs))};
     auto split = ngraph::builder::makeVariadicSplit(input[0], numSplits, axis);
     ngraph::ResultVector results;
 

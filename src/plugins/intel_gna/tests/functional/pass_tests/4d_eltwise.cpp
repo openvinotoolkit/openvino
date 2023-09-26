@@ -53,7 +53,7 @@ protected:
 
         outPrc = InferenceEngine::Precision::FP32;
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 72}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 72})};
 
         std::vector<size_t> outFormShapes1 = {1, 1, 6, 12};
         auto pattern1 =
@@ -102,8 +102,8 @@ protected:
 
         outPrc = InferenceEngine::Precision::FP32;
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 72}, {1, 72}});
-
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 72}),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 72})};
         std::vector<size_t> outFormShapes1 = {1, 1, 6, 12};
         auto pattern1 =
             std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{4}, outFormShapes1);

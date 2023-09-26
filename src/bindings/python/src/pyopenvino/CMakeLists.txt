@@ -105,8 +105,8 @@ if(OpenVINO_SOURCE_DIR)
 endif()
 
 if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
-    ie_python_minimal_api(${PROJECT_NAME})
-    add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
+    ov_python_minimal_api(${PROJECT_NAME})
+    ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
                            HIDDEN)
@@ -124,15 +124,17 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
+    ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_REQ_FILES} HIDDEN)
+
     install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
             DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}
-            ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
+            COMPONENT ${OV_CPACK_COMP_OPENVINO_REQ_FILES}
+            ${OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL})
     
     install(FILES ${OpenVINOPython_SOURCE_DIR}/src/openvino/preprocess/torchvision/requirements.txt
-            DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}/src/openvino/preprocess/torchvision
-            ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
+            DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/preprocess/torchvision
+            COMPONENT ${OV_CPACK_COMP_OPENVINO_REQ_FILES}
+            ${OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL})
 
     install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
             DESTINATION tests/${PROJECT_NAME}

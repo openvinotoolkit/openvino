@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/experimental_detectron_topkrois.hpp"
+#include "openvino/op/experimental_detectron_topkrois.hpp"
 
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
@@ -17,8 +17,8 @@ namespace {
 
 using namespace cldnn;
 
-void CreateExperimentalDetectronTopKROIsOp(Program &p,
-                                           const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronTopKROIs> &op) {
+void CreateExperimentalDetectronTopKROIsOp(ProgramBuilder &p,
+                                           const std::shared_ptr<ov::op::v6::ExperimentalDetectronTopKROIs> &op) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     auto max_rois = static_cast<uint32_t>(op->get_max_rois());

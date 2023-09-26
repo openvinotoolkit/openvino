@@ -24,7 +24,13 @@ class TRANSFORMATIONS_API CompressFloatConstants;
 class ov::pass::CompressFloatConstantsImpl : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("CompressFloatConstantsImpl", "0");
-    CompressFloatConstantsImpl();
+    /// @brief Transformation constructor
+    /// @param postponed If true then the transformation won't compress the constants
+    ///                  keeping them in the original type but still will insert Converts. This is
+    ///                  a special mode of operation that requires another transformation to
+    ///                  apply a real compression on constants. Constants eligible for
+    ///                  postponed compression are marked with a special rt_info tag.
+    CompressFloatConstantsImpl(bool postponed = false);
 };
 
 /**
@@ -44,8 +50,10 @@ public:
 class ov::pass::CompressFloatConstants : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("CompressFloatConstants", "0");
-    CompressFloatConstants() {
-        add_matcher<ov::pass::CompressFloatConstantsImpl>();
+    /// @brief Transformation constructor
+    /// @param postponed Postponed compression, see ov::pass::CompressFloatConstantsImpl for details.
+    CompressFloatConstants(bool postponed = false) {
+        add_matcher<ov::pass::CompressFloatConstantsImpl>(postponed);
         add_matcher<ov::pass::AddOldApiMapToParameters>();
     }
 };

@@ -208,11 +208,7 @@ OutputVector translate_convolution_op(const frontend::NodeContext& node, size_t 
     }
 
     Output<Node> conv;
-    if (input_channels_static && num_groups == 1) {
-        // regular convolutional operation
-        // we assume that input channel size will not be changed if they are already static
-        conv = make_shared<Convolution>(input, filter, strides, pads_begin, pads_end, dilations, auto_pad);
-    } else {
+    if (input_channels_static && num_groups > 1) {
         // grouped convolutional operation
         // compute input channels given from the input and the filter
         // and number of groups required to split the filter
@@ -233,6 +229,12 @@ OutputVector translate_convolution_op(const frontend::NodeContext& node, size_t 
         auto filter_new_shape = make_shared<Concat>(OutputVector{num_groups, filter_new_cout, shape_cin_xy}, 0);
         auto new_filter = make_shared<Reshape>(filter, filter_new_shape, false);
         conv = make_shared<GroupConvolution>(input, new_filter, strides, pads_begin, pads_end, dilations, auto_pad);
+    } else {
+        // assumption to use regular convolution for all other cases is taken from the legacy frontend
+        // this solution is sufficient for all observed models in the validation
+        // in general, it has limitation and it needs to use grouped convolution when num_groups is not static
+        // 118107: remove this assumtpion when it obtains complete shape propagation in the core
+        conv = make_shared<Convolution>(input, filter, strides, pads_begin, pads_end, dilations, auto_pad);
     }
 
     convert_nchw_to_nhwc(is_nhwc, conv, Rank(spatial_dims_num + 2));
@@ -345,6 +347,13 @@ shared_ptr<Reshape> make_reshape(const Output<Node>& arg, const vector<int64_t>&
     auto new_shape_node = make_shared<Constant>(element::i64, Shape{new_shape.size()}, new_shape);
     auto reshape = make_shared<Reshape>(arg, new_shape_node, true);
     return reshape;
+}
+
+Output<Node> get_data_slice(const Output<Node>& data, const int64_t& start, const int64_t& stop, const int64_t& step) {
+    auto start_const = make_shared<Constant>(element::i64, Shape{1}, start);
+    auto stop_const = make_shared<Constant>(element::i64, Shape{1}, stop);
+    auto step_const = make_shared<Constant>(element::i64, Shape{1}, step);
+    return make_shared<Slice>(data, start_const, stop_const, step_const)->output(0);
 }
 
 }  // namespace tensorflow

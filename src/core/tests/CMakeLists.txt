@@ -11,8 +11,6 @@ ov_try_use_gold_linker()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
-message(STATUS "OpenVINO Core unit tests enabled")
-
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -39,10 +37,10 @@ ov_add_test_target(
             test_model_zoo
         LINK_LIBRARIES
             common_test_utils
-            ngraph_reference
-            ngraph::builder
+            openvino::reference
+            openvino::builders
             openvino::util
-            ov_shape_inference
+            openvino::shape_inference
             ${CMAKE_DL_LIBS}
             Threads::Threads
             openvino::conditional_compilation

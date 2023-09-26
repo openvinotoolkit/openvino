@@ -5,12 +5,10 @@
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -20,36 +18,38 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     MATCHER_SCOPE(NormalizeL2Fusion);
     auto input = pass::pattern::any_input();
 
-    auto exp = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto exp = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto pow = std::make_shared<ov::op::v1::Power>(input, exp);
-    auto axes = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(pow, axes);
 
-    auto eps_const = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto eps_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto max = std::make_shared<ov::op::v1::Maximum>(reduce_sum, eps_const);
     auto add = std::make_shared<ov::op::v1::Add>(reduce_sum, eps_const);
     auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
 
     // Sqrt can be represented by Sqrt node or as Power node with exponent 0.5
     auto sqrt = std::make_shared<ov::op::v0::Sqrt>(max_or_add);
-    auto exp2 = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto exp2 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto pow_as_sqrt = std::make_shared<ov::op::v1::Power>(max_or_add, exp2);
     auto power_or_sqrt = std::make_shared<pattern::op::Or>(OutputVector{sqrt, pow_as_sqrt});
 
     // divide(input,sqrt(..)) can be represented as mul(input, power(..., -0.5f))
     auto divide = std::make_shared<ov::op::v1::Divide>(input, power_or_sqrt);
-    auto exp3 = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto exp3 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reversed_pow_as_sqrt = std::make_shared<ov::op::v1::Power>(max_or_add, exp3);
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, reversed_pow_as_sqrt);
     auto divide_or_mul = std::make_shared<pattern::op::Or>(OutputVector{divide, mul});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
@@ -126,11 +126,11 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
             outputs_to_replace.emplace_back(pattern_to_output.at(add));
         }
 
-        ngraph::copy_runtime_info(as_node_vector(outputs_to_replace), normalize_l2);
-        ngraph::replace_node(m.get_match_root(), normalize_l2);
+        ov::copy_runtime_info(as_node_vector(outputs_to_replace), normalize_l2);
+        ov::replace_node(m.get_match_root(), normalize_l2);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(divide_or_mul, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(divide_or_mul, matcher_name);
     register_matcher(m, callback);
 }

@@ -12,9 +12,9 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/reshape.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -96,9 +96,9 @@ void op::v1::Reshape::validate_and_infer_types() {
         auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
                                ->cast_vector<int64_t>();
         shape_can_be_calculated = true;
-        NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
+        OPENVINO_ASSERT(lower_bound.size() == upper_bound.size());
         const TensorLabel& labels = get_input_source_output(1).get_tensor().get_value_label();
-        NGRAPH_CHECK(labels.empty() || lower_bound.size() == labels.size());
+        OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
 
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             NODE_VALIDATION_CHECK(this,
@@ -125,7 +125,7 @@ void op::v1::Reshape::validate_and_infer_types() {
         // or equal to 1
         if (output_rank.is_static() && output_rank.get_length() == 0 && !lower_bound.empty()) {
             reshape_pattern.clear();
-            NGRAPH_CHECK(lower_bound.size() == 1);
+            OPENVINO_ASSERT(lower_bound.size() == 1);
             NODE_VALIDATION_CHECK(this,
                                   lower_bound[0] == 1 && upper_bound[0] == 1,
                                   "The value of scalar shape pattern should be equal to 1!");
@@ -182,7 +182,7 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
 
     std::vector<Dimension> output_shape(out_shape_val.size());
     calculate_output_shape(reshape_pattern, minus_one_idx, inputs[0]->get_partial_shape(), output_shape);
-    NGRAPH_CHECK(ov::PartialShape(output_shape).is_static());
+    OPENVINO_ASSERT(ov::PartialShape(output_shape).is_static());
     outputs[0]->set_shape(ov::PartialShape(output_shape).to_shape());
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -194,8 +194,8 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_Reshape_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 2));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return evaluate_reshape(outputs, inputs);
 }

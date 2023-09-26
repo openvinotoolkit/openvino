@@ -118,7 +118,7 @@ protected:
         std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto relu1 = std::make_shared<ngraph::opset1::Relu>(params[0]);
 
         size_t num_out_channels = 8;

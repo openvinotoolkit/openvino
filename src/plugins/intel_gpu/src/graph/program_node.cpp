@@ -117,7 +117,11 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     s << get_preferred_impl_type();
     node_info->add("preferred impl", s.str());
 
-    node_info->add("output layout", output_layouts[0].to_short_string());
+    json_composite output_layouts_desc;
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        output_layouts_desc.add(std::to_string(i), output_layouts[i].to_short_string());
+    }
+    node_info->add("output layouts", output_layouts_desc);
 
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
@@ -168,7 +172,9 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             if (empty) {
                 empty = false;
             }
-            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(itr->first)));
+            auto ptr = std::to_string(reinterpret_cast<uintptr_t>(itr->first));
+            auto port = std::to_string(itr->second);
+            deps_ptrs.push_back(ptr + "(" + port + ")");
             itr++;
         }
         if (deps_ptrs.empty()) {
@@ -288,8 +294,8 @@ layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t 
     if (valid_output_layouts[idx])
         return output_layouts[idx];
 
-    auto new_layout = calc_output_layout();
-    set_output_layout(new_layout, invalidate_users_if_changed, idx);
+    auto new_layouts = calc_output_layouts();
+    set_output_layouts(new_layouts, invalidate_users_if_changed);
     return output_layouts[idx];
 }
 

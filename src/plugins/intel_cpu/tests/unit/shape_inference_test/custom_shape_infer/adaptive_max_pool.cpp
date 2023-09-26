@@ -29,8 +29,8 @@ public:
         StaticShape tmp_exp_shape;
         std::tie(tmp_input_shapes, tmp_axes, tmp_exp_shape) = obj.param;
         std::ostringstream result;
-        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
-        result << "sd" << CommonTestUtils::vec2str(tmp_axes) << "_";
+        result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
+        result << "sd" << ov::test::utils::vec2str(tmp_axes) << "_";
         result << "exp_shape" << tmp_exp_shape;
         return result.str();
     }
@@ -61,8 +61,8 @@ TEST_P(AdaptiveMaxPoolV8CpuShapeInferenceTest , shape_inference_with_const_map) 
     const auto op = make_op(arg, axes_node);
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{axes.size()}, axes);
-    const auto axes_tensor = std::make_shared<ov::HostTensor>(axes_const);
-    const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, axes_tensor}};
+    const auto axes_tensor = ov::Tensor(element::i32, ov::Shape{axes.size()}, axes.data());
+    const std::unordered_map<size_t, ov::Tensor> constant_data = {{1, axes_tensor}};
 
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
@@ -77,4 +77,3 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

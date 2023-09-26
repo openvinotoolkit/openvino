@@ -73,7 +73,8 @@ void PriorBoxClusteredLayerTest::SetUp() {
         variances) = specParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShapes, imageShapes });
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes)),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
 
     ngraph::op::PriorBoxClusteredAttrs attributes;
     attributes.widths = widths;

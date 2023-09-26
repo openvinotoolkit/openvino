@@ -10,8 +10,8 @@
 #include "itt.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/non_zero.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/reference/non_zero.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -91,7 +91,7 @@ bool evaluate_nonzero_execute(const HostTensorPtr& input, const HostTensorPtr& o
     ov::Shape input_shape = input->get_shape();
     size_t input_rank = input_shape.size();
 
-    size_t non_zero_count = runtime::reference::non_zero_get_count<IN_T>(input->get_data_ptr<INPUT_ET>(), input_shape);
+    size_t non_zero_count = ov::reference::non_zero_get_count<IN_T>(input->get_data_ptr<INPUT_ET>(), input_shape);
 
     ov::Shape out_shape;
     if (input_rank == 0 && non_zero_count > 0) {
@@ -101,9 +101,7 @@ bool evaluate_nonzero_execute(const HostTensorPtr& input, const HostTensorPtr& o
     }
 
     output->set_shape(out_shape);
-    runtime::reference::non_zero<IN_T, OUT_T>(input->get_data_ptr<INPUT_ET>(),
-                                              output->get_data_ptr<OUT_ET>(),
-                                              input_shape);
+    ov::reference::non_zero<IN_T, OUT_T>(input->get_data_ptr<INPUT_ET>(), output->get_data_ptr<OUT_ET>(), input_shape);
 
     return true;
 }

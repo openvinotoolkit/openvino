@@ -335,7 +335,7 @@ Q31. What does the message "Input port > 0 in --input is not supported if --inpu
 
 **A:** When using the ``PORT:NODE`` notation for the ``--input`` command line argument and ``PORT`` > 0, you should specify ``--input_shape`` for this input. This is a limitation of the current Model Optimizer implementation.
 
-> **NOTE**: It is no longer relevant message since the limitation on input port index for model truncation has been resolved.
+.. note:: It is no longer relevant message since the limitation on input port index for model truncation has been resolved.
 
 .. _question-32:
 
@@ -933,7 +933,7 @@ Q102. What does the message "Operation _contrib_box_nms is not supported ..." me
 Q103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean?
 #####################################################################################################################################################
 
-**A:** If a ``*.caffemodel`` file exists and is correct, the error occurred possibly because of the use of Python protobuf implementation. In some cases, error messages may appear during model parsing, for example: "``utf-8`` codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use a newer Python version (3.7 - 3.11) or build the ``cpp`` implementation of ``protobuf`` yourself for your version of Python. For the complete instructions about building ``protobuf`` from sources, see the appropriate section in the :doc:`Converting Models with Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` guide.
+**A:** If a ``*.caffemodel`` file exists and is correct, the error occurred possibly because of the use of Python protobuf implementation. In some cases, error messages may appear during model parsing, for example: "``utf-8`` codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use a newer Python version (3.8 - 3.11) or build the ``cpp`` implementation of ``protobuf`` yourself for your version of Python. For the complete instructions about building ``protobuf`` from sources, see the appropriate section in the :doc:`Converting Models with Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` guide.
 
 .. _question-104:
 

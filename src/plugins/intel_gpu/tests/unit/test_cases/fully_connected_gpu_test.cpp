@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/layout.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "test_utils.h"
+#include "float16.h"
 #include "random_generator.hpp"
 #include "network_test.h"
 #include <intel_gpu/runtime/utils.hpp>
@@ -656,6 +660,172 @@ TEST(fully_connected_gpu, x_f32_relu) {
     ASSERT_EQ(0.00f, output_ptr[3]);
 }
 
+TEST(fully_connected_gpu, compressed_scale_zp_bias) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f32, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+
+    set_values(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f,
+                            0.5f, -2.0f, -0.5f, -1.0f });
+    set_values(weights_mem, { 1.5f,  1.0f,  0.5f, -1.0f,
+                              0.0f,  0.5f,  0.5f, -0.5f,
+                             -2.0f, -0.5f,  1.0f,  1.5f,
+                             -2.0f, -0.5f,  1.0f,  1.5f,
+                              2.0f,  0.5f, -1.0f, -1.5f,
+                              2.0f,  0.5f, -1.0f, -1.5f,
+                             -1.5f, -1.0f, -0.5f,  1.0f,
+                              0.0f, -0.5f, 0.5f, 0.5f });
+
+    set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f  });
+    set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f  });
+    set_values(zp_mem, { 1.0f, 2.0f, 2.0f, 1.0f, 4.0f, 1.0f, 6.0f, 2.0f });
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        data("scale", scale_mem),
+        data("zp", zp_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, padding(), 3, 2)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr (output_mem, get_test_stream());
+
+    ov::PartialShape expected_shape{1, 2, 8};
+    ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+    std::vector<float> expected_result = {-4.0f, -23.0f, 11.0f, 0.0f, -2.0f, -3.5f, -30.0f, -10.5f,
+                                          6.0f, 19.0f, -5.0f, -8.0f, 12.0f, -8.5f, 44.0f, 14.5f};
+
+    for (size_t i = 0; i < expected_result.size(); i++) {
+        ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+    }
+}
+
+TEST(fully_connected_gpu, compressed_scale_bias) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f32, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+
+    set_values(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f,
+                            0.5f, -2.0f, -0.5f, -1.0f });
+    set_values(weights_mem, { 1.5f,  1.0f,  0.5f, -1.0f,
+                              0.0f,  0.5f,  0.5f, -0.5f,
+                             -2.0f, -0.5f,  1.0f,  1.5f,
+                             -2.0f, -0.5f,  1.0f,  1.5f,
+                              2.0f,  0.5f, -1.0f, -1.5f,
+                              2.0f,  0.5f, -1.0f, -1.5f,
+                             -1.5f, -1.0f, -0.5f,  1.0f,
+                              0.0f, -0.5f, 0.5f, 0.5f });
+
+    set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f });
+    set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 1.0f });
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        data("scale", scale_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "", data_types::f32, padding(), 3, 2)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr (output_mem, get_test_stream());
+
+    ov::PartialShape expected_shape{1, 2, 8};
+    ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+    std::vector<float> expected_result = {2.0f, 1.0f, -1.0f, -12.0f, 4.0f, -5.0f, 6.0f, -8.25f,
+                                          0.0f, -5.0f, 7.0f, 4.0f, 6.0f, -7.0f, 8.0f, -7.75f};
+
+    for (size_t i = 0; i < expected_result.size(); i++) {
+        ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+    }
+}
+
+TEST(fully_connected_gpu, compressed_scale_fp16) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory({ { 2, 4}, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f16, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {1, 8}, data_types::f16, format::bfyx });
+
+    set_values<FLOAT16>(input_mem, { FLOAT16(-0.5f), FLOAT16(2.0f),  FLOAT16(0.5f),  FLOAT16(1.0f),
+                                     FLOAT16(0.5f),  FLOAT16(-2.0f), FLOAT16(-0.5f), FLOAT16(-1.0f) });
+    set_values<FLOAT16>(weights_mem, {FLOAT16( 1.5f), FLOAT16( 1.0f), FLOAT16( 0.5f), FLOAT16(-1.0f),
+                                      FLOAT16( 0.0f), FLOAT16( 0.5f), FLOAT16( 0.5f), FLOAT16(-0.5f),
+                                      FLOAT16(-2.0f), FLOAT16(-0.5f), FLOAT16( 1.0f), FLOAT16( 1.5f),
+                                      FLOAT16(-2.0f), FLOAT16(-0.5f), FLOAT16( 1.0f), FLOAT16( 1.5f),
+                                      FLOAT16( 2.0f), FLOAT16( 0.5f), FLOAT16(-1.0f), FLOAT16(-1.5f),
+                                      FLOAT16( 2.0f), FLOAT16( 0.5f), FLOAT16(-1.0f), FLOAT16(-1.5f),
+                                      FLOAT16(-1.5f), FLOAT16(-1.0f), FLOAT16(-0.5f), FLOAT16( 1.0f),
+                                      FLOAT16( 0.0f), FLOAT16(-0.5f), FLOAT16(0.5f),  FLOAT16( 0.5f) });
+
+    set_values<FLOAT16>(scale_mem, {FLOAT16(2.0f), FLOAT16(4.0f), FLOAT16(-2.0f), FLOAT16(-4.0f), FLOAT16(0.5f), FLOAT16(-0.5f), FLOAT16(2.0f), FLOAT16(2.0f)});
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("scale", scale_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f32, padding(), 2, 2)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<FLOAT16> output_ptr (output_mem, get_test_stream());
+
+    ov::PartialShape expected_shape{2, 8};
+    ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+   std::vector<FLOAT16> expected_result = {
+        FLOAT16(1.0f), FLOAT16( 3.0f), FLOAT16(-4.0f), FLOAT16(-8.0f), FLOAT16(-1.0f), FLOAT16( 1.0f), FLOAT16(-1.0f), FLOAT16(-0.5f),
+        FLOAT16(-1.0f), FLOAT16(-3.0f), FLOAT16( 4.0f), FLOAT16( 8.0f), FLOAT16( 1.0f), FLOAT16(-1.0f), FLOAT16( 1.0f), FLOAT16( 0.5f)};
+
+    for (size_t i = 0; i < expected_result.size(); i++) {
+        ASSERT_FLOAT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+    }
+}
+
 TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
     //  Input  : 3x1
     //  Output : 4x1
@@ -1076,6 +1246,20 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
         ::testing::Values(""),
+        ::testing::Values(false))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_fully_connected_gpu_bs_f_bsv16_af8_vload,
+    fully_connected_random_test_f16,
+    ::testing::Combine(
+        ::testing::Values(16),
+        ::testing::Values(shared_dims{3, 1, 1},
+                          shared_dims{17, 1, 1}),
+        ::testing::Values(3, 32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values("fully_connected_gpu_bs_f_bsv16_af8_vload"),
         ::testing::Values(false))
 );
 
@@ -1690,6 +1874,7 @@ TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
 
     const int32_t input_f = 3, input_b = 1, weight_b = 4;
 
+    auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
     auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
     auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
@@ -1725,7 +1910,7 @@ TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
     auto output_prim_mem = outputs.begin()->second.get_memory();
 
     auto out_l = network.get_output_layout(outputs.begin()->first);
-    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
     ASSERT_EQ(out_l.batch(), input_b);
     ASSERT_EQ(out_l.feature(), weight_b);
     ASSERT_EQ(out_l.spatial(0), 1);
@@ -1861,6 +2046,7 @@ TEST(fully_connected_gpu, dynamic) {
 
     const int32_t input_f = 3, input_b = 1, weight_b = 4;
 
+    auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
     auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
     auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
@@ -1887,7 +2073,7 @@ TEST(fully_connected_gpu, dynamic) {
     auto output_prim_mem = outputs.begin()->second.get_memory();
 
     auto out_l = network.get_output_layout(outputs.begin()->first);
-    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
     ASSERT_EQ(out_l.batch(), input_b);
     ASSERT_EQ(out_l.feature(), weight_b);
     ASSERT_EQ(out_l.spatial(0), 1);
@@ -2015,7 +2201,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
     auto input_data1 = engine.allocate_memory(input_actual_layout);
     auto input_data2 = engine.allocate_memory(input_actual_layout);
     auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
-
+    auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
     set_values(input_data1, { 0.5f, -2.0f, -0.5f });
     set_values(input_data2, { -0.5f, 2.0f, 0.5f });
     set_values(weights_data, { 1.5f, 1.0f, 0.5f,
@@ -2044,7 +2230,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network.get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -2068,7 +2254,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network.get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -2088,6 +2274,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
 
     const int32_t input_f = 3, weight_b = 4;
 
+    auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
     auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
     auto input_actual_layout1 = layout{ ov::PartialShape{ 2, input_f }, data_types::f32,format::bfyx};
     auto input_actual_layout2 = layout{ ov::PartialShape{ 1, input_f }, data_types::f32,format::bfyx};
@@ -2127,7 +2314,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network.get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 8)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, fake_alignment_size)); // fake_alignment
         ASSERT_EQ(out_l.batch(), 2);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -2156,7 +2343,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network.get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 8)); // fake_alignment
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, fake_alignment_size)); // fake_alignment
         ASSERT_EQ(out_l.batch(), 1);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -2176,6 +2363,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
 
     const int32_t input_f = 3, weight_b = 4;
 
+    auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
     auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
     auto input_actual_layout1 = layout{ ov::PartialShape{ 2, input_f }, data_types::f32,format::bfyx};
     auto input_actual_layout2 = layout{ ov::PartialShape{ 1, input_f }, data_types::f32,format::bfyx};
@@ -2214,7 +2402,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network.get_output_layout(outputs.begin()->first);
-            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 8)); // fake_alignment
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, fake_alignment_size)); // fake_alignment
             ASSERT_EQ(out_l.batch(), 2); // fake_alignment
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -2243,7 +2431,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network.get_output_layout(outputs.begin()->first);
-            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 8)); // fake_alignment
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, fake_alignment_size)); // fake_alignment
             ASSERT_EQ(out_l.batch(), 1); // fake_alignment
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -2477,6 +2665,7 @@ TEST(fully_connected_gpu, has_cached_weights_reorder) {
 
     const int32_t input_f = 3, input_b = 1, weight_b = 4;
 
+    auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
     auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
     auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
@@ -2517,7 +2706,7 @@ TEST(fully_connected_gpu, has_cached_weights_reorder) {
     ASSERT_TRUE(reorder_impl == nullptr);
 
     auto out_l = network.get_output_layout(outputs.begin()->first);
-    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
     ASSERT_EQ(out_l.batch(), input_b);
     ASSERT_EQ(out_l.feature(), weight_b);
     ASSERT_EQ(out_l.spatial(0), 1);
@@ -2828,3 +3017,51 @@ INSTANTIATE_TEST_SUITE_P(
     ),
     fully_connected_types_u8_f32_test::PrintToStringParamName
 );
+
+TEST(fully_connected_gpu, weights_reorder_shapes_update_test) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_f = 3, input_b = 1, weight_b = 4;
+
+    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32, format::bfyx };
+    auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f }, data_types::f32, format::bfyx });
+    auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32, format::bfyx });
+
+    set_values(input_data, { -0.5f, 2.0f, 0.5f });
+    set_values(weights_data, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
+
+    cldnn::topology topology{
+        input_layout("input", input_dyn_layout),
+        data("weights", weights_data),
+        fully_connected("fc", input_info("input"), "weights")
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto inst = network.get_primitive("fc");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    ASSERT_TRUE(impl->need_weights_reorder());
+    auto weights_reorder_params = impl->get_weights_reorder_params();
+    auto out_weights_reorder_layout = weights_reorder_params->get_output_layout();
+    auto out_weights_reorder_pshape = out_weights_reorder_layout.get_partial_shape();
+    ASSERT_EQ(weights_data->get_layout().get_partial_shape(), out_weights_reorder_pshape);
+
+    auto output_prim_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
+
+    ASSERT_EQ(1.5f, output_ptr[0]);
+    ASSERT_EQ(0.75f, output_ptr[1]);
+    ASSERT_EQ(-2.25f, output_ptr[2]);
+    ASSERT_EQ(3.0f, output_ptr[3]);
+}

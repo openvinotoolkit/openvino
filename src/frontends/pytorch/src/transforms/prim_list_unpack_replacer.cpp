@@ -111,6 +111,91 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             return true;
         }
 
+        if (auto tensor_split = cast_fw_node(input_node, "aten::tensor_split")) {
+            auto rank = tensor_split->input(1).get_partial_shape().rank();
+            if (rank.is_dynamic()) {
+                add_exception_to_fw_node(tensor_split, "aten::tensor_split: dynamic rank is not supported.");
+                return false;
+            }
+
+            auto const_0 = opset10::Constant::create(element::i32, Shape{1}, {0});
+            auto const_1 = opset10::Constant::create(element::i32, Shape{1}, {1});
+            auto const_0_scalar = opset10::Constant::create(element::i32, Shape{}, {0});
+            auto const_1_scalar = opset10::Constant::create(element::i32, Shape{}, {1});
+            auto const_max = opset10::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
+            auto const_neg_1 = opset10::Constant::create(element::i32, Shape{1}, {-1});
+
+            auto input = tensor_split->get_input_source_output(0);
+            auto indices_or_sections = tensor_split->get_input_source_output(1);
+            auto dim = rg.make<opset10::Unsqueeze>(tensor_split->get_input_source_output(2), const_0);
+            auto list_num_outs = opset10::Constant::create(element::i32, Shape{1}, {list_unpack->get_output_size()});
+            auto list_num_outs_scalar =
+                opset10::Constant::create(element::i32, Shape{}, {list_unpack->get_output_size()});
+
+            if (rank.get_length() == 0) {
+                auto input_shape = rg.make<opset10::ShapeOf>(input, element::i32);
+                auto axis_size = rg.make<opset10::Gather>(input_shape, dim, const_0);
+                auto minimum_split_size = rg.make<opset10::Divide>(axis_size, indices_or_sections);
+                auto maximum_split_size = rg.make<opset10::Add>(minimum_split_size, const_1);
+                auto num_splits_with_max_size = rg.make<opset10::Mod>(axis_size, indices_or_sections);
+                auto num_splits_with_min_size =
+                    rg.make<opset10::Subtract>(indices_or_sections, num_splits_with_max_size);
+                auto splits_max_size = rg.make<opset10::Tile>(maximum_split_size, num_splits_with_max_size);
+                auto splits_min_size = rg.make<opset10::Tile>(minimum_split_size, num_splits_with_min_size);
+
+                auto split_sizes = rg.make<opset10::Concat>(OutputVector{splits_max_size, splits_min_size}, 0);
+                // Reshape is used to make number of outputs static.
+                auto split_sizes_known_lenght = rg.make<opset10::Reshape>(split_sizes, list_num_outs, false);
+                auto splits = rg.make<opset10::VariadicSplit>(input, dim, split_sizes_known_lenght);
+                copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
+                replace_node(list_unpack, splits->outputs());
+                return true;
+            } else {
+                auto range =
+                    rg.make<opset10::Range>(const_0_scalar, list_num_outs_scalar, const_1_scalar, element::i32);
+                auto range_plus_1 = rg.make<opset10::Add>(range, const_1);
+                auto sections = rg.make<opset10::Concat>(OutputVector{const_0, indices_or_sections, const_max}, 0);
+
+                auto starts_tensor = rg.make<opset10::Slice>(sections, const_0, const_neg_1, const_1, const_0);
+                auto starts =
+                    rg.make<opset10::Split>(starts_tensor, const_0_scalar, list_unpack->get_output_size())->outputs();
+                auto stops_tensor = rg.make<opset10::Slice>(sections, const_1, const_max, const_1, const_0);
+                auto stops =
+                    rg.make<opset10::Split>(stops_tensor, const_0_scalar, list_unpack->get_output_size())->outputs();
+                OutputVector outputs{};
+                for (size_t i = 0; i < list_unpack->get_output_size(); i++) {
+                    auto slice = rg.make<opset10::Slice>(input, starts[i], stops[i], const_1, dim);
+                    outputs.push_back(slice);
+                }
+                copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
+                replace_node(list_unpack, outputs);
+                return true;
+            }
+        }
+
+        if (auto broadcast_tensors = cast_fw_node(input_node, "aten::broadcast_tensors")) {
+            auto tensors = cast_fw_node(broadcast_tensors->input_value(0).get_node_shared_ptr(), "prim::ListConstruct");
+            if (!tensors) {
+                add_exception_to_fw_node(input_node,
+                                         "aten::broadcast_tensors: only prim::ListConstruct supported as input.");
+                return false;
+            }
+            Output<Node> final_shape_t = opset10::Constant::create(element::i32, Shape{}, {0});
+            for (auto input : tensors->inputs()) {
+                auto tensor_shape = rg.make<opset10::ShapeOf>(input.get_source_output(), element::i32);
+                final_shape_t =
+                    rg.make<opset10::Broadcast>(final_shape_t, tensor_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+            }
+            auto final_shape = rg.make<opset10::ShapeOf>(final_shape_t, element::i32);
+            OutputVector outputs;
+            for (auto input : tensors->inputs()) {
+                outputs.push_back(rg.make<opset10::Broadcast>(input.get_source_output(), final_shape));
+            }
+            copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
+            replace_node(list_unpack, outputs);
+            return true;
+        }
+
         if (auto unbind = cast_fw_node(input_node, "aten::unbind")) {
             const auto input = unbind->get_input_source_output(0);
             const auto axis = unbind->get_input_source_output(1);

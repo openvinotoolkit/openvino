@@ -5,14 +5,14 @@
 set(TARGET_NAME ie_docs_snippets)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wall)
+    ov_add_compiler_flags(-Wall)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-unused-variable)
+    ov_add_compiler_flags(-Wno-unused-variable)
 endif()
 if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
-    ie_add_compiler_flags(-Wno-unused-but-set-variable)
+    ov_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
@@ -38,7 +38,7 @@ endif()
 
 # remove OpenCV related sources
 find_package(OpenCV QUIET COMPONENTS core imgcodecs)
-if(NOT OpenCV_FOUND)
+if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
 

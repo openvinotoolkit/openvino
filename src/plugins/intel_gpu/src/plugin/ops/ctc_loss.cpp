@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/ctc_loss.hpp"
 #include "intel_gpu/primitives/ctc_loss.hpp"
-
-#include <ngraph/op/ctc_loss.hpp>
-
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 namespace {
 
-void CreateCTCLossOp(Program& p, const std::shared_ptr<ngraph::op::v4::CTCLoss>& op) {
+void CreateCTCLossOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4::CTCLoss>& op) {
     validate_inputs_count(op, {4, 5});
 
     const cldnn::ctc_loss ctc_loss_prim(layer_type_name_ID(op),

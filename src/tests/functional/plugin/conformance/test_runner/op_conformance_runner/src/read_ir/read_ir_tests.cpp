@@ -22,11 +22,11 @@ TEST_P(ReadIRTest, Inference) {
 }
 
 // temporarty disable to provide correct numbers for release
-TEST_P(ReadIRTest, DISABLED_QueryModel) {
+TEST_P(ReadIRTest, QueryModel) {
     query_model();
 }
 
-TEST_P(ReadIRTest, DISABLED_ImportExport) {
+TEST_P(ReadIRTest, ImportExport) {
     import_export();
 }
 
@@ -39,14 +39,14 @@ TEST_P(ReadIRTest, DISABLED_ImportExport) {
                              ReadIRTest::getTestCaseName); \
 
 // It should point on latest opset which contains biggest list of operations
-#include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
 #undef _OPENVINO_OP_REG
 
-INSTANTIATE_TEST_SUITE_P(conformance_other,
+INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
                         ReadIRTest,
                         ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths)),
-                                        ::testing::Values(targetDevice),
-                                        ::testing::Values(pluginConfig)),
+                                           ::testing::Values(targetDevice),
+                                           ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);
 
 }  // namespace

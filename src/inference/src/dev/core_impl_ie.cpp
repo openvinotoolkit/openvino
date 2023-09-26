@@ -53,8 +53,7 @@ InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& modelPa
     return InferenceEngine::details::ReadNetwork(modelPath,
                                                  binPath,
                                                  extensions,
-                                                 ov_extensions,
-                                                 is_new_api(),
+                                                 isNewAPI(),
                                                  coreConfig.get_enable_mmap());
 }
 
@@ -62,7 +61,7 @@ InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& model,
                                                       const InferenceEngine::Blob::CPtr& weights,
                                                       bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::ReadNetwork from memory");
-    return InferenceEngine::details::ReadNetwork(model, weights, extensions, ov_extensions, is_new_api(), frontendMode);
+    return InferenceEngine::details::ReadNetwork(model, weights, extensions, isNewAPI(), frontendMode);
 }
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork(
@@ -268,10 +267,17 @@ std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const 
         ov::DeviceIDParser parser(deviceName_);
         std::string deviceNameLocal = parser.get_device_name();
 
-        ov::Plugin cppPlugin = get_plugin(deviceNameLocal);
-
-        versions[deviceNameLocal] =
-            ov::legacy_convert::convert_plugin(ov::SoPtr<ov::IPlugin>{cppPlugin.m_ptr, cppPlugin.m_so})->GetVersion();
+        try {
+            ov::Plugin cppPlugin = get_plugin(deviceNameLocal);
+            auto convertedPlugin =
+                ov::legacy_convert::convert_plugin(ov::SoPtr<ov::IPlugin>{cppPlugin.m_ptr, cppPlugin.m_so});
+            versions[deviceNameLocal] = convertedPlugin->GetVersion();
+        } catch (const ov::Exception& ex) {
+            std::string exception(ex.what());
+            if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
+                throw;
+            }
+        }
     }
 
     return versions;

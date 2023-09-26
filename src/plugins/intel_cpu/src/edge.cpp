@@ -497,7 +497,7 @@ EdgePtr Edge::getBaseEdge(int look) {
     for (auto edge : edgesForSamePort) {
         if (edge.get() != this) {
             // Return once found the first inplace consumer
-            if (edge->inPlace() && edge != edgesForSamePort[0]) return edge;
+            if (edge->inPlace()) return edge;
         }
     }
 

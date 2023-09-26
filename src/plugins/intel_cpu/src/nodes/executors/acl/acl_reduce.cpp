@@ -47,6 +47,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
 
+    std::function<std::unique_ptr<IFunction>(void)> exec_func;
     switch (reduceAttrs.operation) {
         case Algorithm::ReduceMean: {
             for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
@@ -59,10 +60,10 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
                 DEBUG_LOG("NEReduceMean validation failed: ", reduceMeanStatus.error_description());
                 return false;
             }
-            exec_func = [this]{
+            exec_func = [this]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEReduceMean>();
                 acl_op->configure(&srcTensor, axesMean, this->reduceAttrs.keepDims, &dstTensor);
-                acl_op->run();
+                return acl_op;
             };
             break;
         }
@@ -76,18 +77,18 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
                 DEBUG_LOG("NEReductionOperation validation with indices failed: ", reductionOperationStatus.error_description());
                 return false;
             }
-            exec_func = [this, srcDims]{
+            exec_func = [this, srcDims]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEReductionOperation>();
                 acl_op->configure(&srcTensor, &dstTensor, axisCast(this->reduceAttrs.axes[0], srcDims.size()),
                                     getAclReductionOperationByAlgorithm(this->reduceAttrs.operation), this->reduceAttrs.keepDims);
-                acl_op->run();
+                return acl_op;
             };
             break;
         }
         default:
             IE_THROW() << "Unsupported operation type for ACL Reduce executor: " << static_cast<int>(reduceAttrs.operation);
     }
-
+    ifunc = exec_func();
     return true;
 }
 
@@ -95,7 +96,7 @@ void AclReduceExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vect
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
 
-    exec_func();
+    ifunc->run();
 
     srcTensor.allocator()->free();
     dstTensor.allocator()->free();

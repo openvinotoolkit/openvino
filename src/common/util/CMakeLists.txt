@@ -35,6 +35,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 add_library(openvino::util ALIAS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
 if (WIN32)
@@ -45,7 +46,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORIES ${UTIL_INCLUDE_DIR})
 

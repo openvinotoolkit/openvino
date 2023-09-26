@@ -37,14 +37,17 @@ void extract_operation_name_and_port(const std::string& port_name,
     auto left_part = port_name.substr(0, pos);
     auto right_part = port_name.substr(pos + 1, port_name.length() - pos);
 
-    if (left_part.find_first_not_of("0123456789") == std::string::npos) {
-        port_type = "in";
-        operation_name = right_part;
-        port_index = std::atoi(left_part.c_str());
-    } else if (right_part.find_first_not_of("0123456789") == std::string::npos) {
+    // it gives priority to parsing output ports
+    // because pruning is less important than out-of-the-box conversion
+    // for OOB conversion, the model refers only output ports
+    if (right_part.find_first_not_of("0123456789") == std::string::npos) {
         port_type = "out";
         operation_name = left_part;
         port_index = std::atoi(right_part.c_str());
+    } else if (left_part.find_first_not_of("0123456789") == std::string::npos) {
+        port_type = "in";
+        operation_name = right_part;
+        port_index = std::atoi(left_part.c_str());
     } else {
         FRONT_END_GENERAL_CHECK(false, "Incorrect port name specified: " + port_name);
     }
@@ -256,15 +259,26 @@ void InputModel::InputModelTFImpl::load_places() {
         return;
     }
 
-    // treat terminal nodes as the models outputs for the frozen TF1 format
-    std::set<std::string> op_names_without_consumers;
-    std::set_difference(all_op_names.begin(),
-                        all_op_names.end(),
-                        op_names_with_consumers.begin(),
-                        op_names_with_consumers.end(),
-                        std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
-
-    for (const auto& output_name : op_names_without_consumers) {
+    auto out_names = m_graph_iterator->get_output_names();
+    if (!out_names.size()) {
+        // treat terminal nodes as the models outputs for the frozen TF1 format
+        std::set<std::string> op_names_without_consumers;
+        std::set_difference(all_op_names.begin(),
+                            all_op_names.end(),
+                            op_names_with_consumers.begin(),
+                            op_names_with_consumers.end(),
+                            std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
+        for (const auto& output_name : op_names_without_consumers) {
+            auto output_place = std::make_shared<TensorPlace>(m_input_model,
+                                                              ov::PartialShape({}),
+                                                              ov::element::dynamic,
+                                                              std::vector<std::string>{output_name});
+            m_tensor_places[output_name] = output_place;
+            m_outputs.push_back(output_place);
+        }
+        return;
+    }
+    for (const auto& output_name : out_names) {
         auto output_place = std::make_shared<TensorPlace>(m_input_model,
                                                           ov::PartialShape({}),
                                                           ov::element::dynamic,
@@ -309,7 +323,6 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
     // TODO: implement logic to check direct cycles in the graph
     // and break them
     // probably not only NextIteration can generate cycles
-
     for (const auto& output_place : m_outputs) {
         FRONT_END_GENERAL_CHECK(output_place->get_names().size() > 0, "TensorPlace must have at least one name.");
         auto output_place_name = output_place->get_names()[0];

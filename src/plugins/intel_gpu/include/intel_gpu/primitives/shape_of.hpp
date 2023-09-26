@@ -14,8 +14,6 @@ struct shape_of : public primitive_base<shape_of> {
 
     shape_of() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs shape_of primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -36,10 +34,9 @@ struct shape_of : public primitive_base<shape_of> {
              const input_info& input,
              const data_types output_data_type,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}})
-        , input_rank(0) {}
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}) {}
 
-    size_t input_rank;
+    size_t input_rank = 0;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))

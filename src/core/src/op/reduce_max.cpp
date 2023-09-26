@@ -10,8 +10,8 @@
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/max.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/max.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -24,7 +24,7 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet&
     OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
     OPENVINO_SUPPRESS_DEPRECATED_END
-    runtime::reference::max(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+    ov::reference::max(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
     return true;
 }
 
@@ -62,8 +62,8 @@ shared_ptr<Node> op::v1::ReduceMax::clone_with_new_inputs(const OutputVector& ne
 bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceMax_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 2));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());

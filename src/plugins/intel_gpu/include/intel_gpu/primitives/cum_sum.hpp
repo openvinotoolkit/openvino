@@ -6,14 +6,10 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-
-
 struct cum_sum : public primitive_base<cum_sum> {
     CLDNN_DECLARE_PRIMITIVE(cum_sum)
 
     cum_sum() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs cum_sum primitive.
     /// @param id This primitive id.
@@ -31,11 +27,11 @@ struct cum_sum : public primitive_base<cum_sum> {
     {}
 
     /// @brief Scalar axis.
-    int64_t axis;
+    int64_t axis = 0;
     /// @brief If set to true then the top element is not included in sum.
-    bool exclusive;
+    bool exclusive = false;
     /// @brief If set to true will perform the sums in reverse direction.
-    bool reverse;
+    bool reverse = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

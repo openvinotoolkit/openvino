@@ -30,6 +30,55 @@ TSBinaryForward::TSBinaryForward() : TSForwardBase() {
     transpose_sinking(matcher_name);
 }
 
+namespace {
+using NodePtr = std::shared_ptr<Node>;
+/**
+ * Inserts Unsqueeze node as a child to @arg node with axes {0, 2, ... N - 1}, where N = @arg n_dims
+ */
+NodePtr InsertBroadcastUnsqueezePReluSlope(const Output<Node>& node, size_t n_dims) {
+    if (!n_dims)
+        return node.get_node_shared_ptr();
+
+    std::vector<size_t> dims(n_dims);
+    dims[0] = 0;
+    std::iota(dims.begin() + 1, dims.end(), 2);
+
+    auto unsqueeze_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, Shape{dims.size()}, dims);
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(node, unsqueeze_const);
+    copy_runtime_info(node.get_node_shared_ptr(), {unsqueeze, unsqueeze_const});
+    return unsqueeze;
+}
+
+/**
+ * PRelu has special case. If slope input rank is 1 and its dimension is equal to
+ * the second dimension of data input, then per channel broadcast is applied.
+ * In such a case we need to insert Unsqueeze before Transpose with another axes.
+ */
+bool IsSpecialPRelu(NodePtr node) {
+    auto prelu = as_type_ptr<ov::op::v0::PRelu>(node);
+    if (!prelu)
+        return false;
+
+    const auto& slope_shape = prelu->get_input_partial_shape(1);
+    if (slope_shape.size() != 1)
+        return false;
+    const auto& slope_channel_dim = slope_shape[0];
+    if (slope_channel_dim.is_dynamic())
+        return false;
+
+    const auto& arg_shape = prelu->get_input_partial_shape(0);
+    if (arg_shape.rank().is_dynamic())
+        return false;
+
+    const auto& channel_dim_idx = arg_shape.size() > 1 ? 1 : 0;
+    const auto& arg_channel_dim = arg_shape[channel_dim_idx];
+    if (arg_channel_dim.is_dynamic())
+        return false;
+
+    return arg_channel_dim == slope_channel_dim;
+}
+}  // namespace
+
 TSBinaryBackward::TSBinaryBackward() {
     MATCHER_SCOPE(TSBinaryBackward);
 
@@ -58,7 +107,12 @@ TSBinaryBackward::TSBinaryBackward() {
             return false;
         }
 
-        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
+        auto InsertUnsqueeze =
+            IsSpecialPRelu(main_node) ? InsertBroadcastUnsqueezePReluSlope : InsertBroadcastUnsqueeze;
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node,
+                                                                       transpose_const,
+                                                                       /* input_indexes */ {},
+                                                                       InsertUnsqueeze)) {
             register_new_node(new_node);
         }
         main_node->validate_and_infer_types();

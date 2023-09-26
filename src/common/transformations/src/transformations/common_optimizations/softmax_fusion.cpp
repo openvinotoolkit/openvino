@@ -5,12 +5,10 @@
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
@@ -18,23 +16,26 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::SoftmaxFusion::SoftmaxFusion() {
     MATCHER_SCOPE(SoftmaxFusion);
 
     auto data_pattern = pass::pattern::any_input(pass::pattern::has_static_rank());
-    auto reduce_max_axes_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto reduce_max_axes_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reduce_max_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::ReduceMax>({data_pattern, reduce_max_axes_pattern});
-    auto sub_pattern = ngraph::pattern::wrap_type<ov::op::v1::Subtract>({data_pattern, reduce_max_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceMax>({data_pattern, reduce_max_axes_pattern});
+    auto sub_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({data_pattern, reduce_max_pattern});
 
     auto exp_input = std::make_shared<pattern::op::Or>(OutputVector{sub_pattern, data_pattern});
-    auto exp_pattern = ngraph::pattern::wrap_type<ov::op::v0::Exp>({exp_input});
+    auto exp_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Exp>({exp_input});
 
-    auto reduce_sum_axes_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reduce_sum_pattern = ngraph::pattern::wrap_type<ov::op::v1::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
-    auto div_pattern = ngraph::pattern::wrap_type<ov::op::v1::Divide>({exp_pattern, reduce_sum_pattern});
+    auto reduce_sum_axes_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto reduce_sum_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
+    auto div_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({exp_pattern, reduce_sum_pattern});
 
     ov::matcher_pass_callback callback = [=](pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root()))
@@ -88,6 +89,6 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(div_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

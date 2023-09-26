@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/lstm_cell.hpp"
-#include "ngraph/op/lstm_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -61,7 +61,7 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
     }
 }
 
-static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell>& op) {
+static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4::LSTMCell>& op) {
     validate_inputs_count(op, {6});
     int lstm_batch_size, lstm_input_size, lstm_hidden_size;
     auto inputs = p.GetInputInfo(op);
@@ -156,7 +156,7 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
     p.add_primitive(*op, cldnn::reshape(outputCellID, cldnn::input_info(outputCellCropID), outSz));
 }
 
-static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v5::LSTMSequence>& op) {
+static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::LSTMSequence>& op) {
     validate_inputs_count(op, {7});
 
     std::string layerName = layer_type_name_ID(op);
@@ -186,7 +186,7 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
     std::vector<cldnn::activation_additional_params> activation_params;
     GetLSTMActivationParams(op, activations, activation_params);
     float clip = op->get_clip();
-    bool isForward = op->get_direction() == ngraph::op::RecurrentSequenceDirection::FORWARD;
+    bool isForward = op->get_direction() == ov::op::RecurrentSequenceDirection::FORWARD;
 
     //  LSTM primitive works with single precision for all in/out/weights tensors
     auto lstm_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));

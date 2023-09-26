@@ -16,8 +16,6 @@ struct gather : public primitive_base<gather> {
 
     gather() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs gather primitive.
     /// @param id This primitive id.
     /// @param dict Input dictionary primitive id.
@@ -41,13 +39,13 @@ struct gather : public primitive_base<gather> {
         , support_neg_ind(support_neg_ind) {}
 
     /// @brief Gathering axis
-    int64_t axis;
+    int64_t axis = 0;
     /// @brief Gather output shape
     ov::Shape output_shape;
     /// @brief Gathering batch_dim
-    int64_t batch_dim;
+    int64_t batch_dim = 0;
     /// @brief Support negative indexes
-    bool support_neg_ind;
+    bool support_neg_ind = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

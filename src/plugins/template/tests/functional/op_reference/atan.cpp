@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/atan.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/atan.hpp"
 #include "base_reference_test.hpp"
 
 using namespace ov;
@@ -53,34 +54,43 @@ TEST_P(ReferenceAtanLayerTest, AtanWithHardcodedRefs) {
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Atan_With_Hardcoded_Refs, ReferenceAtanLayerTest,
+    smoke_Atan_With_Hardcoded_Refs,
+    ReferenceAtanLayerTest,
     ::testing::Values(
         Builder{}
-            .input({{11}, element::f16, std::vector<ngraph::float16>{-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
-            .expected({{11}, element::f16, std::vector<ngraph::float16>{-1.32581766f,
-                                                                       -1.10714872f,
-                                                                       -0.78539816f,
-                                                                       -0.46364761f,
-                                                                       -0.24497866f,
-                                                                        0.00000000f,
-                                                                        0.24497866f,
-                                                                        0.46364761f,
-                                                                        0.78539816f,
-                                                                        1.10714872f,
-                                                                        1.32581766f}}),
+            .input({{11},
+                    element::f16,
+                    std::vector<ov::float16>{-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
+            .expected({{11},
+                       element::f16,
+                       std::vector<ov::float16>{-1.32581766f,
+                                                -1.10714872f,
+                                                -0.78539816f,
+                                                -0.46364761f,
+                                                -0.24497866f,
+                                                0.00000000f,
+                                                0.24497866f,
+                                                0.46364761f,
+                                                0.78539816f,
+                                                1.10714872f,
+                                                1.32581766f}}),
         Builder{}
-            .input({{11}, element::f32, std::vector<float>{-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
-            .expected({{11}, element::f32, std::vector<float>{-1.32581766f,
-                                                             -1.10714872f,
-                                                             -0.78539816f,
-                                                             -0.46364761f,
-                                                             -0.24497866f,
-                                                              0.00000000f,
-                                                              0.24497866f,
-                                                              0.46364761f,
-                                                              0.78539816f,
-                                                              1.10714872f,
-                                                              1.32581766f}}),
+            .input({{11},
+                    element::f32,
+                    std::vector<float>{-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
+            .expected({{11},
+                       element::f32,
+                       std::vector<float>{-1.32581766f,
+                                          -1.10714872f,
+                                          -0.78539816f,
+                                          -0.46364761f,
+                                          -0.24497866f,
+                                          0.00000000f,
+                                          0.24497866f,
+                                          0.46364761f,
+                                          0.78539816f,
+                                          1.10714872f,
+                                          1.32581766f}}),
         Builder{}
             .input({{5}, element::i32, std::vector<int32_t>{-2, -1, 0, 1, 2}})
             .expected({{5}, element::i32, std::vector<int32_t>{-1, -1, 0, 1, 1}}),

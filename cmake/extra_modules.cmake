@@ -5,6 +5,9 @@
 function(ie_generate_dev_package_config)
     # dummy check that OpenCV is here
     find_package(OpenCV QUIET)
+    if(OpenCV_VERSION VERSION_LESS 3.0)
+        set(OpenCV_FOUND OFF)
+    endif()
 
     foreach(component IN LISTS openvino_export_components)
         # export all targets with prefix and use them during extra modules build
@@ -37,6 +40,9 @@ endfunction()
 function(ov_generate_dev_package_config)
     # dummy check that OpenCV is here
     find_package(OpenCV QUIET)
+    if(OpenCV_VERSION VERSION_LESS 3.0)
+        set(OpenCV_FOUND OFF)
+    endif()
 
     foreach(component IN LISTS openvino_export_components)
         # filter out targets which are installed by OpenVINOConfig.cmake static build case
@@ -125,12 +131,6 @@ endif()\n")
     # since not all extra modules use OpenVINODeveloperPackage, we have to add these function calls here
     ov_dev_package_no_errors()
     ov_deprecated_no_errors()
-
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # 'argument': conversion from 'size_t' to 'int', possible loss of data
-        ie_add_compiler_flags(/wd4267)
-        ie_add_compiler_flags(/wd4244)
-    endif()
 
     # add each extra module
     foreach(module_path IN LISTS extra_modules)

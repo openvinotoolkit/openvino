@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/op/util/attr_types.hpp"
+#include <gtest/gtest.h>
+
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
 using namespace ov;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using ov::test::NodeBuilder;
 
 TEST(attributes, convert_color_nv12_rgb) {
     NodeBuilder::get_ops().register_factory<op::v8::NV12toRGB>();

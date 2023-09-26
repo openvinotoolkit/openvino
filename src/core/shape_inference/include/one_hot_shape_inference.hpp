@@ -49,15 +49,15 @@ std::vector<TRShape> shape_infer(const OneHot* op,
     const auto& off_value_shape = input_shapes[3];
 
     NODE_VALIDATION_CHECK(op,
-                          depth_shape.is_dynamic() || ngraph::is_scalar(depth_shape.to_shape()),
+                          depth_shape.is_dynamic() || ov::is_scalar(depth_shape.to_shape()),
                           "depth input must be scalar.");
 
     NODE_VALIDATION_CHECK(op,
-                          on_value_shape.is_dynamic() || ngraph::is_scalar(on_value_shape.to_shape()),
+                          on_value_shape.is_dynamic() || ov::is_scalar(on_value_shape.to_shape()),
                           "on_value input must be scalar.");
 
     NODE_VALIDATION_CHECK(op,
-                          off_value_shape.is_dynamic() || ngraph::is_scalar(off_value_shape.to_shape()),
+                          off_value_shape.is_dynamic() || ov::is_scalar(off_value_shape.to_shape()),
                           "off_value input must be scalar.");
 
     auto output_shapes = std::vector<TRShape>(1);

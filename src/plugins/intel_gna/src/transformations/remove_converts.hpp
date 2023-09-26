@@ -46,7 +46,7 @@ const std::vector<std::pair<ov::element::Type, ov::element::Type>> kSupportedInp
     {ov::element::f32, ov::element::i32},
     {ov::element::f32, ov::element::f32}};
 
-class RemoveInputConvert : public ngraph::pass::MatcherPass {
+class RemoveInputConvert : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RemoveInputConvert", "0");
     RemoveInputConvert();
@@ -78,7 +78,7 @@ const std::vector<std::pair<ov::element::Type, ov::element::Type>> kSupportedOut
     {ov::element::f32, ov::element::f32},
     {ov::element::f32, ov::element::i32}};
 
-class RemoveOutputConvert : public ngraph::pass::MatcherPass {
+class RemoveOutputConvert : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RemoveOutputConvert", "0");
     RemoveOutputConvert();

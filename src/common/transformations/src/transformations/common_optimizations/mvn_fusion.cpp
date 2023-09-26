@@ -5,12 +5,10 @@
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -22,11 +20,13 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 template <class T>
-std::function<bool(ngraph::Output<ngraph::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
-    return [ref_values](ngraph::Output<ngraph::Node> output) -> bool {
+std::function<bool(ov::Output<ov::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
+    return [ref_values](ov::Output<ov::Node> output) -> bool {
         auto node = output.get_node_shared_ptr();
         if (auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node)) {
             return const_node->template cast_vector<T>() == ref_values;
@@ -110,7 +110,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto div_alt = pattern::wrap_type<ov::op::v1::Divide>({sub1, outsideOrInside});
     const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{div, div_alt});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(x);
 
@@ -148,10 +148,10 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
             }
         }
 
-        ngraph::NodeVector nodes_to_copy_info({pattern_to_output.at(mean1).get_node_shared_ptr(),
-                                               pattern_to_output.at(sub1).get_node_shared_ptr(),
-                                               pattern_to_output.at(power).get_node_shared_ptr(),
-                                               pattern_to_output.at(mean3).get_node_shared_ptr()});
+        ov::NodeVector nodes_to_copy_info({pattern_to_output.at(mean1).get_node_shared_ptr(),
+                                           pattern_to_output.at(sub1).get_node_shared_ptr(),
+                                           pattern_to_output.at(power).get_node_shared_ptr(),
+                                           pattern_to_output.at(mean3).get_node_shared_ptr()});
 
         op::MVNEpsMode mode;
         if (pattern_to_output.count(add_eps_os)) {
@@ -192,12 +192,12 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         }
 
         mvn->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(nodes_to_copy_info, mvn);
-        ngraph::replace_node(m.get_match_root(), mvn);
+        ov::copy_runtime_info(nodes_to_copy_info, mvn);
+        ov::replace_node(m.get_match_root(), mvn);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(powerMulOrDiv, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(powerMulOrDiv, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -255,7 +255,7 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
     // gamma * (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps) + beta
     auto add = pattern::wrap_type<ov::op::v1::Add>({mul2, sub});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(x);
 
@@ -297,21 +297,21 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         auto mul_gamma = std::make_shared<ov::op::v1::Multiply>(mvn, const_gamma_node);
         auto add_beta = std::make_shared<ov::op::v1::Add>(mul_gamma, const_beta_node);
 
-        ngraph::copy_runtime_info({pattern_to_output.at(mean1).get_node_shared_ptr(),
-                                   pattern_to_output.at(squared_difference).get_node_shared_ptr(),
-                                   pattern_to_output.at(add_eps).get_node_shared_ptr(),
-                                   pattern_to_output.at(power).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul1).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul2).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul3).get_node_shared_ptr(),
-                                   pattern_to_output.at(sub).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr()},
-                                  {mvn, const_gamma_node, mul_gamma, const_beta_node, add_beta});
+        ov::copy_runtime_info({pattern_to_output.at(mean1).get_node_shared_ptr(),
+                               pattern_to_output.at(squared_difference).get_node_shared_ptr(),
+                               pattern_to_output.at(add_eps).get_node_shared_ptr(),
+                               pattern_to_output.at(power).get_node_shared_ptr(),
+                               pattern_to_output.at(mul1).get_node_shared_ptr(),
+                               pattern_to_output.at(mul2).get_node_shared_ptr(),
+                               pattern_to_output.at(mul3).get_node_shared_ptr(),
+                               pattern_to_output.at(sub).get_node_shared_ptr(),
+                               pattern_to_output.at(add).get_node_shared_ptr()},
+                              {mvn, const_gamma_node, mul_gamma, const_beta_node, add_beta});
         add_beta->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), add_beta);
+        ov::replace_node(m.get_match_root(), add_beta);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(add, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

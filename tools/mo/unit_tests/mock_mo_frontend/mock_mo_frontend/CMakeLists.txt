@@ -15,9 +15,9 @@ add_library(${TARGET_FE_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
 target_include_directories(${TARGET_FE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(${TARGET_FE_NAME} PUBLIC openvino::runtime PRIVATE ngraph::builder)
+target_link_libraries(${TARGET_FE_NAME} PUBLIC openvino::runtime PRIVATE openvino::builders)
 
-add_clang_format_target(${TARGET_FE_NAME}_clang FOR_TARGETS ${TARGET_FE_NAME})
+ov_add_clang_format_target(${TARGET_FE_NAME}_clang FOR_TARGETS ${TARGET_FE_NAME})
 
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_FE_NAME}

@@ -5,17 +5,17 @@
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <numeric>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -25,7 +25,7 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
 
     auto transpose_label = pattern::wrap_type<ov::op::v1::Transpose>(
         {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<ov::op::v0::Constant>()});
-    ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto transpose = m.get_match_root();
         auto data = transpose->input_value(0);
         const auto input_shape = transpose->input(0).get_partial_shape();
@@ -33,7 +33,7 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
         const size_t input_shape_rank = input_shape.rank().get_length();
 
         auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
-        if (!order || !ngraph::shape_size(order->get_shape())) {
+        if (!order || !ov::shape_size(order->get_shape())) {
             return false;
         }
 
@@ -110,6 +110,6 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

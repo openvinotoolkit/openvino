@@ -18,7 +18,7 @@ ability to effectively capture both fast and slow-motion information in
 video sequences, making it particularly well-suited to tasks that
 require a temporal and spatial understanding of the data.
 
-.. image:: https://camo.githubusercontent.com/8d7441ad72421909352b2c3010aae2ee3f4463ef8c14a0a0e1cb92cfb7f6f9f6/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f33343332343135352f3134333034343131312d39343637366636342d376261382d343038312d393031312d6638303534626564373033302e706e67
+|image0|
 
 More details about the network can be found in the original
 `paper <https://openaccess.thecvf.com/content_ICCV_2019/html/Feichtenhofer_SlowFast_Networks_for_Video_Recognition_ICCV_2019_paper.html>`__
@@ -36,18 +36,33 @@ This tutorial consists of the following steps
 -  Convert ONNX Model to OpenVINO Intermediate Representation
 -  Verify inference with the converted model
 
+.. |image0| image:: https://user-images.githubusercontent.com/34324155/143044111-94676f64-7ba8-4081-9011-f8054bed7030.png
+
+**Table of contents:**
+
+- `Prepare PyTorch Model <#prepare-pytorch-model>`__
+
+  - `Install necessary packages <#install-necessary-packages>`__
+  - `Imports and Settings <#imports-and-settings>`__
+
+- `Export to ONNX <#export-to-onnx>`__
+- `Convert ONNX to OpenVINO™ Intermediate Representation <#convert-onnx-to-openvino-intermediate-representation>`__
+- `Select inference device <#select-inference-device>`__
+- `Verify Model Inference <#verify-model-inference>`__
+
 Prepare PyTorch Model
----------------------
+###############################################################################################################################
 
 Install necessary packages
-~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
-    !pip install fvcore -q
+    !pip install -q "openvino==2023.1.0.dev20230811"
+    !pip install -q fvcore
 
 Imports and Settings
-~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -60,7 +75,7 @@ Imports and Settings
     from pathlib import Path
     from typing import Any, List, Dict
     from IPython.display import Video
-    from openvino.runtime.ie_api import CompiledModel
+    import openvino as ov
     
     sys.path.append("../utils")
     from notebook_utils import download_file
@@ -844,7 +859,7 @@ model.
             frames=frames, num_frames=num_frames, crop_size=crop_size, mean=mean, std=std
         )
     
-        if isinstance(model, CompiledModel):
+        if isinstance(model, ov.CompiledModel):
             # openvino compiled model
             output_blob = model.output(0)
             predictions = model(inputs)[output_blob]
@@ -900,12 +915,12 @@ inference using the same. The top 5 predictions can be seen below.
 
 
 Export to ONNX
---------------
+###############################################################################################################################
 
 Now that we have obtained our trained model and checked inference with
 it, we export the PyTorch model to Open Neural Network Exchange(ONNX)
 format, an open format for representing machine learning models, so that
-we can use the Model Optimizer to convert it to OpenVINO Intermediate
+we can use model conversion API to convert it to OpenVINO Intermediate
 Representation format(IR). This can be later used to run inference using
 the OpenVINO Runtime. Note that although the OpenVINO Runtime supports
 running ONNX models directly, converting to IR format enables us to take
@@ -923,28 +938,24 @@ quantization.
         export_params=True,
     )
 
-Convert ONNX to OpenVINO™ Intermediate Representation
------------------------------------------------------
+Convert ONNX to OpenVINO Intermediate Representation
+###############################################################################################################################
 
 Now that our ONNX model is ready, we can convert it to IR format. In
-this format, the network is represented using two files: an xml file
+this format, the network is represented using two files: an ``xml`` file
 describing the network architecture and an accompanying binary file that
 stores constant values such as convolution weights in a binary format.
-We can use the OpenVINO Model Optimizer for converting into IR format as
-follows. The ``convert_model`` method returns an
-``openvino.runtime.Model`` object that can either be compiled and
-inferred or serialized.
+We can use model conversion API for converting into IR format as
+follows. The ``ov.convert_model`` method returns an ``ov.Model`` object
+that can either be compiled and inferred or serialized.
 
 .. code:: ipython3
 
-    from openvino.runtime import serialize
-    from openvino.tools import mo
-    
-    model = mo.convert_model(ONNX_MODEL_PATH)
+    model = ov.convert_model(ONNX_MODEL_PATH)
     IR_PATH = MODEL_DIR / "slowfast-r50.xml"
     
     # serialize model for saving IR
-    serialize(model=model, xml_path=str(IR_PATH))
+    ov.save_model(model=model, output_model=str(IR_PATH), compress_to_fp16=False)
 
 Next, we read and compile the serialized model using OpenVINO runtime.
 The ``read_model`` function expects the ``.bin`` weights file to have
@@ -954,18 +965,45 @@ using the ``weights`` parameter.
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
-    
-    core = Core()
+    core = ov.Core()
     
     # read converted model
     conv_model = core.read_model(str(IR_PATH))
+
+Select inference device
+###############################################################################################################################
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
     
-    # load model on CPU device
-    compiled_model = core.compile_model(model=conv_model, device_name="CPU")
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    # load model on device
+    compiled_model = core.compile_model(model=conv_model, device_name=device.value)
 
 Verify Model Inference
-----------------------
+###############################################################################################################################
 
 Using the compiled model, we run inference on the same sample video and
 print the top 5 predictions again.

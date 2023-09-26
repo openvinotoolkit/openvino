@@ -5,6 +5,7 @@
 #
 # Common cmake options
 #
+
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
 ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
@@ -23,7 +24,7 @@ endif()
 
 ie_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
-if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR NOT BUILD_SHARED_LIBS)
+if (ANDROID OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR (NOT BUILD_SHARED_LIBS AND ENABLE_INTEL_CPU))
     # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
     # also, in case of static build CPU's and GPU's oneDNNs will conflict, so we are disabling GPU's one in this case
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
@@ -84,6 +85,7 @@ else()
 endif()
 
 ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ${ENABLE_TBBBIND_2_5_DEFAULT} "THREADING MATCHES TBB; NOT APPLE" OFF)
+ie_dependent_option (ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_dependent_option (ENABLE_INTEL_GNA "GNA support for OpenVINO Runtime" ON
     "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
@@ -104,15 +106,11 @@ ie_dependent_option (ENABLE_PLUGINS_XML "Generate plugins.xml configuration file
 
 ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_TESTS;ENABLE_GAPI_PREPROCESSING" OFF)
 
-ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
-
 ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
 ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
 
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
-
-ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 find_host_package(PythonInterp 3 QUIET)
 ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
@@ -176,7 +174,6 @@ ie_dependent_option (ENABLE_SYSTEM_PROTOBUF "Enables use of system Protobuf" OFF
 ie_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snappy" OFF
     "ENABLE_SNAPPY_COMPRESSION" OFF)
 
-# temporary option until we enable this by default when review python API distribution
 ie_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
     "ENABLE_PYTHON;UNIX" OFF)
 

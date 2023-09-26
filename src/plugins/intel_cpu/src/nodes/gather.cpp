@@ -140,18 +140,40 @@ void Gather::initSupportedPrimitiveDescriptors() {
     // Let's check for the special inPlace memory use case
     // in place only makes sense when we split by dense blocks since strided tensors are not supported by most nodes
 
-    const auto& parentdDims = inputShapes[0].getDims();
-    if (isAxisInputConst &&
-        0 == batchDims &&
-        1 == constIndices.size() &&
-        parentdDims[axis] != Shape::UNDEFINED_DIM &&
-        std::all_of(parentdDims.begin(), parentdDims.begin() + axis, [](size_t dim) { return  dim == 1; })) {
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                        {LayoutType::ncsp, Precision::I32},
-                        {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
-                        {{LayoutType::ncsp, dataPrecision, false, GATHER_DATA}},
-                        unknown);
+    if (!isAxisInputConst) {
+        return;
     }
+
+    if (batchDims != 0) {
+        return;
+    }
+
+    if (constIndices.size() != 1) {
+        return;
+    }
+
+    const auto& parentDims = inputShapes[0].getDims();
+    const auto axisDim = parentDims[axis];
+    if (Shape::UNDEFINED_DIM == axisDim) {
+        return;
+    }
+
+    const auto indx = constIndices.front();
+    const auto normIndex = indx < 0 ? static_cast<int64_t>(axisDim) + indx : indx;
+
+    if (normIndex < 0 || normIndex >= static_cast<int64_t>(axisDim)) {
+        return;
+    }
+
+    if (std::any_of(parentDims.begin(), parentDims.begin() + axis, [](size_t dim) { return  dim != 1; })) {
+        return;
+    }
+
+    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                    {LayoutType::ncsp, Precision::I32},
+                    {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
+                    {{LayoutType::ncsp, dataPrecision, false, GATHER_DATA}},
+                    unknown);
 }
 
 void Gather::createPrimitive() {
@@ -293,6 +315,9 @@ void Gather::prepareParams() {
 }
 
 void Gather::execute(dnnl::stream strm) {
+    if (isInPlace()) {
+        return;
+    }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData();
@@ -349,6 +374,9 @@ void Gather::execute(dnnl::stream strm) {
 }
 
 void Gather::executeDynamicImpl(dnnl::stream strm) {
+    if (isInPlace()) {
+        return;
+    }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData();
@@ -530,11 +558,11 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto& config = selected_pd->getConfig();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
-    auto baseDim = inputShapes.front().getDims()[axis];
+    const auto baseDim = inputShapes.front().getDims()[axis];
     IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Gather node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
     auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
-    auto index = constIndices.at(0);
-    ptrdiff_t offset = index < 0 ? baseDim + index : index;
+    const auto index = constIndices.front();
+    const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
     for (auto& childEdge : childEdges) {
         IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<

@@ -1,6 +1,8 @@
 Visual Question Answering and Image Captioning using BLIP and OpenVINO
 ======================================================================
 
+
+
 Humans perceive the world through vision and language. A longtime goal
 of AI is to build intelligent agents that can understand the world
 through vision and language inputs to communicate with humans through
@@ -22,21 +24,45 @@ The tutorial consists of the following parts:
 2. Convert the BLIP model to OpenVINO IR.
 3. Run visual question answering and image captioning with OpenVINO.
 
-Background
-----------
+.. _top:
 
-Visual language processing is a branch of an artificial intelligence
-that focuses on creating algorithms designed to enable computers to more
+**Table of contents**:
+
+- `Background <#background>`__
+
+  - `Image Captioning <#image-captioning>`__
+  - `Visual Question Answering <#visual-question-answering>`__
+
+- `Instantiate Model <#instantiate-model>`__
+- `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
+
+  - `Vision Model <#vision-model>`__
+  - `Text Encoder <#text-encoder>`__
+  - `Text Decoder <#text-decoder>`__
+
+- `Run OpenVINO Model <#run-openvino-model>`__
+
+  - `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Image Captioning <#image-captioning>`__
+  - `Question Answering <#question-answering>`__
+
+Background `⇑ <#top>`__
+###############################################################################################################################
+
+
+Visual language processing is a branch of artificial intelligence that
+focuses on creating algorithms designed to enable computers to more
 accurately understand images and their content.
 
 Popular tasks include:
 
-* **Text to Image Retrieval** - a semantic task
-that aims to find the most relevant image for a given text description.
-* **Image Captioning** - a semantic task that aims to provide a text
-description for image content. 
-* **Visual Question Answering** - a
-semantic task that aims to answer questions based on image content.
+-  **Text to Image Retrieval** - a semantic task that aims to find the
+   most relevant image for a given text description.
+-  **Image Captioning** - a semantic task that aims to provide a text
+   description for image content.
+-  **Visual Question Answering** - a semantic task that aims to answer
+   questions based on image content.
 
 As shown in the diagram below, these three tasks differ in the input
 provided to the AI system. For text-to-image retrieval, you have a
@@ -47,13 +73,14 @@ case of visual question answering, where you have a predefined question
 visual question answering, both the text-based question and image
 context are variables requested by a user.
 
-.. image:: https://camo.githubusercontent.com/3a1ebcd9609c551f47ad4e030556dc5b15f1f5a00e09b81facbfc85152a541a6/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3232313735353731372d61356235316237652d353233632d343631662d623330632d3465646266616639613133342e706e67
+|image0|
 
 This notebook does not focus on Text to Image retrieval. Instead, it
 considers Image Captioning and Visual Question Answering.
 
-Image Captioning
-~~~~~~~~~~~~~~~~
+Image Captioning `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Image Captioning is the task of describing the content of an image in
 words. This task lies at the intersection of computer vision and natural
@@ -62,22 +89,21 @@ encoder-decoder framework, where an input image is encoded into an
 intermediate representation of the information in the image, and then
 decoded into a descriptive text sequence.
 
-.. image:: https://camo.githubusercontent.com/13bad05eeae51c0318331a4bb0e30e9d1e196fa3127fafd39ae30ddee4751efe/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3232313634303834372d31383638313137632d616163302d343830362d393961342d3334663231386539386262382e706e67
+|image1|
 
-Visual Question Answering
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Visual Question Answering `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Visual Question Answering (VQA) is the task of answering text-based
-questions about image content.
+Visual Question Answering (VQA) is the task of answering text-based questions about image content.
 
-.. image:: https://camo.githubusercontent.com/43412d73adb987a8ebf397cd10f0b0e98e2b436bb13195bcc03930c44dcb1740/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3232313634313938342d33633664386232662d646430642d343330322d613464382d3066383536346663613737322e706e67
+|image2|
 
 For a better understanding of how VQA works, let us consider a
 traditional NLP task like Question Answering, which aims to retrieve the
 answer to a question from a given text input. Typically, a question
 answering pipeline consists of three steps:
 
-.. image:: https://camo.githubusercontent.com/434ec750fdd38953ccf2d0dfb9c545edd9cb2681ad4ffcd00f6a66c62df9f1ca/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3232313736303838312d33373866316561382d656164632d343631302d616666302d3639656361626636326666662e706e67
+|image3|
 
 1. Question analysis - analysis of provided question in natural language
    form to understand the object in the question and additional context.
@@ -92,70 +118,79 @@ answering pipeline consists of three steps:
    knowledge base, typically provided text documents or databases serve
    as a source of knowledge.
 
-.. image:: https://camo.githubusercontent.com/f06359136073bc9162207c04d993755f49a55957dabeb11ebd9b9ee08638234b/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3232323039343836312d33636166646639662d643730302d343734312d623663352d6662303963316134646139612e706e67
+|image4|
 
 The difference between text-based question answering and visual question
 answering is that an image is used as context and the knowledge base.
 
-.. image:: https://camo.githubusercontent.com/c7f49075b23edf50a7f2ae9263ad39828226961a205b70a1c18c12576047ba85/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3232323039353131382d33643538323665342d323636322d346431632d616266322d6135313566323364366436612e706e67
+|image5|
 
 Answering arbitrary questions about images is a complex problem because
 it requires involving a lot of computer vision sub-tasks. In the table
 below, you can find an example of questions and the required computer
 vision skills to find answers.
 
-+--------------------+-------------------------------------------------+
-| Computer vision    | Question examples                               |
-| task               |                                                 |
-+====================+=================================================+
-| Object recognition | What is shown in the picture? What is it?       |
-+--------------------+-------------------------------------------------+
-| Object detection   | Is there any object (dog, man, book) in the     |
-|                    | image? Where is … located?                      |
-+--------------------+-------------------------------------------------+
-| Object and image   | What color is an umbrella? Does this man wear   |
-| attribute          | glasses? Is there color in the image?           |
-| recognition        |                                                 |
-+--------------------+-------------------------------------------------+
-| Scene recognition  | Is it rainy? What celebration is pictured?      |
-+--------------------+-------------------------------------------------+
-| Object counting    | How many players are there on the football      |
-|                    | field? How many steps are there on the stairs?  |
-+--------------------+-------------------------------------------------+
-| Activity           | Is the baby crying? What is the woman cooking?  |
-| recognition        | What are they doing?                            |
-+--------------------+-------------------------------------------------+
-| Spatial            | What is located between the sofa and the        |
-| relationships      | armchair? What is in the bottom left corner?    |
-| among objects      |                                                 |
-+--------------------+-------------------------------------------------+
-| Commonsense        | Does she have 100% vision? Does this person     |
-| reasoning          | have children?                                  |
-+--------------------+-------------------------------------------------+
-| Knowledge-based    | Is it a vegetarian pizza?                       |
-| reasoning          |                                                 |
-+--------------------+-------------------------------------------------+
-| Text recognition   | What is the title of the book? What is shown on |
-|                    | the screen?                                     |
-+--------------------+-------------------------------------------------+
++-----------------------------+----------------------------------------+
+| Computer vision task        | Question examples                      |
++=============================+========================================+
+| Object recognition          | What is shown in the picture? What is  |
+|                             | it?                                    |
++-----------------------------+----------------------------------------+
+| Object detection            | Is there any object (dog, man, book)   |
+|                             | in the image? Where is … located?      |
++-----------------------------+----------------------------------------+
+| Object and image attribute  | What color is an umbrella? Does this   |
+| recognition                 | man wear glasses? Is there color in    |
+|                             | the image?                             |
++-----------------------------+----------------------------------------+
+| Scene recognition           | Is it rainy? What celebration is       |
+|                             | pictured?                              |
++-----------------------------+----------------------------------------+
+| Object counting             | How many players are there on the      |
+|                             | football field? How many steps are     |
+|                             | there on the stairs?                   |
++-----------------------------+----------------------------------------+
+| Activity recognition        | Is the baby crying? What is the woman  |
+|                             | cooking? What are they doing?          |
++-----------------------------+----------------------------------------+
+| Spatial relationships among | What is located between the sofa and   |
+| objects                     | the armchair? What is in the bottom    |
+|                             | left corner?                           |
++-----------------------------+----------------------------------------+
+| Commonsense reasoning       | Does she have 100% vision? Does this   |
+|                             | person have children?                  |
++-----------------------------+----------------------------------------+
+| Knowledge-based reasoning   | Is it a vegetarian pizza?              |
++-----------------------------+----------------------------------------+
+| Text recognition            | What is the title of the book? What is |
+|                             | shown on the screen?                   |
++-----------------------------+----------------------------------------+
 
-There are a lot of applications for visual question answering: 
+There are a lot of applications for visual question answering:
 
-* Aid Visually Impaired Persons: VQA models can be used to reduce barriers for
-visually impaired people by helping them get information about images
-from the web and the real world.
-* Education: VQA models can be used to
-improve visitor experiences at museums by enabling observers to directly
-ask questions they are interested in or to bring more interactivity to
-schoolbooks for children interested in acquiring specific knowledge.
-* E-commerce: VQA models can retrieve information about products using
-photos from online stores.
-* Independent expert assessment: VQA models
-can be provide objective assessments in sports competitions, medical
-diagnosis, and forensic examination.
+-  Aid Visually Impaired Persons: VQA models can be used to reduce
+   barriers for visually impaired people by helping them get information
+   about images from the web and the real world.
+-  Education: VQA models can be used to improve visitor experiences at
+   museums by enabling observers to directly ask questions they are
+   interested in or to bring more interactivity to schoolbooks for
+   children interested in acquiring specific knowledge.
+-  E-commerce: VQA models can retrieve information about products using
+   photos from online stores.
+-  Independent expert assessment: VQA models can be provide objective
+   assessments in sports competitions, medical diagnosis, and forensic
+   examination.
 
-Instantiate Model
------------------
+.. |image0| image:: https://user-images.githubusercontent.com/29454499/221755717-a5b51b7e-523c-461f-b30c-4edbfaf9a134.png
+.. |image1| image:: https://user-images.githubusercontent.com/29454499/221640847-1868117c-aac0-4806-99a4-34f218e98bb8.png
+.. |image2| image:: https://user-images.githubusercontent.com/29454499/221641984-3c6d8b2f-dd0d-4302-a4d8-0f8564fca772.png
+.. |image3| image:: https://user-images.githubusercontent.com/29454499/221760881-378f1ea8-eadc-4610-aff0-69ecabf62fff.png
+.. |image4| image:: https://user-images.githubusercontent.com/29454499/222094861-3cafdf9f-d700-4741-b6c5-fb09c1a4da9a.png
+.. |image5| image:: https://user-images.githubusercontent.com/29454499/222095118-3d5826e4-2662-4d1c-abf2-a515f23d6d6a.png
+
+Instantiate Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 The BLIP model was proposed in the `BLIP: Bootstrapping Language-Image
 Pre-training for Unified Vision-Language Understanding and
@@ -171,26 +206,26 @@ generation capabilities, BLIP introduces a multimodal mixture of an
 encoder-decoder and a multi-task model which can operate in one of the
 three modes:
 
-* **Unimodal encoders**, which separately encode images
-and text. The image encoder is a vision transformer. The text encoder is
-the same as BERT.
-* **Image-grounded text encoder**, which injects
-visual information by inserting a cross-attention layer between the
-self-attention layer and the feed-forward network for each transformer
-block of the text encoder.
-* **Image-grounded text decoder**, which
-replaces the bi-directional self-attention layers in the text encoder
-with causal self-attention layers.
+-  **Unimodal encoders**, which separately encode images and text. The
+   image encoder is a vision transformer. The text encoder is the same
+   as BERT.
+-  **Image-grounded text encoder**, which injects visual information by
+   inserting a cross-attention layer between the self-attention layer
+   and the feed-forward network for each transformer block of the text
+   encoder.
+-  **Image-grounded text decoder**, which replaces the bi-directional
+   self-attention layers in the text encoder with causal self-attention
+   layers.
 
 More details about the model can be found in the `research
-paper <https://arxiv.org/abs/2201.12086>`__, `Salesforces
+paper <https://arxiv.org/abs/2201.12086>`__, `Salesforce
 blog <https://blog.salesforceairesearch.com/blip-bootstrapping-language-image-pretraining/>`__,
 `GitHub repo <https://github.com/salesforce/BLIP>`__ and `Hugging Face
 model
 documentation <https://huggingface.co/docs/transformers/model_doc/blip>`__.
 
 In this tutorial, you will use the
-```blip-vqa-base`` <https://huggingface.co/Salesforce/blip-vqa-base>`__
+`blip-vqa-base <https://huggingface.co/Salesforce/blip-vqa-base>`__
 model available for download from `Hugging
 Face <https://huggingface.co/>`__. The same actions are also applicable
 to other similar models from the BLIP family. Although this model class
@@ -209,24 +244,25 @@ text and vision modalities and postprocessing of generation results.
 
 .. parsed-literal::
 
-    Requirement already satisfied: transformers>=4.26.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (4.30.2)
-    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (3.12.2)
-    Requirement already satisfied: huggingface-hub<1.0,>=0.14.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.16.4)
-    Requirement already satisfied: numpy>=1.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (1.23.5)
-    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (23.1)
-    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (6.0)
-    Requirement already satisfied: regex!=2019.12.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (2023.6.3)
-    Requirement already satisfied: requests in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (2.31.0)
-    Requirement already satisfied: tokenizers!=0.11.3,<0.14,>=0.11.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.13.3)
-    Requirement already satisfied: safetensors>=0.3.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.3.1)
-    Requirement already satisfied: tqdm>=4.27 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (4.65.0)
-    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.26.0) (2023.6.0)
-    Requirement already satisfied: typing-extensions>=3.7.4.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.26.0) (4.7.1)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (3.2.0)
-    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (3.4)
-    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (1.26.16)
-    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (2023.5.7)
-
+    Requirement already satisfied: transformers>=4.26.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (4.31.0)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (3.12.2)
+    Requirement already satisfied: huggingface-hub<1.0,>=0.14.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.16.4)
+    Requirement already satisfied: numpy>=1.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (1.23.5)
+    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (23.1)
+    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (6.0.1)
+    Requirement already satisfied: regex!=2019.12.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (2023.8.8)
+    Requirement already satisfied: requests in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (2.31.0)
+    Requirement already satisfied: tokenizers!=0.11.3,<0.14,>=0.11.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.13.3)
+    Requirement already satisfied: safetensors>=0.3.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.3.2)
+    Requirement already satisfied: tqdm>=4.27 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (4.66.1)
+    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.26.0) (2023.6.0)
+    Requirement already satisfied: typing-extensions>=3.7.4.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.26.0) (4.7.1)
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (3.2.0)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (3.4)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (1.26.16)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (2023.7.22)
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
 
 .. code:: ipython3
 
@@ -261,10 +297,10 @@ text and vision modalities and postprocessing of generation results.
 
 .. parsed-literal::
 
-    2023-07-11 23:28:58.566617: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-07-11 23:28:58.600974: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-08-15 23:34:17.871379: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-08-15 23:34:17.904962: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-07-11 23:28:59.072595: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-08-15 23:34:18.440790: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -275,7 +311,7 @@ text and vision modalities and postprocessing of generation results.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/generation/utils.py:1353: UserWarning: Using `max_length`'s default (20) to control the generation length. This behaviour is deprecated and will be removed from the config in v5 of Transformers -- we recommend using `max_new_tokens` to control the maximum length of the generation.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/generation/utils.py:1369: UserWarning: Using `max_length`'s default (20) to control the generation length. This behaviour is deprecated and will be removed from the config in v5 of Transformers -- we recommend using `max_new_tokens` to control the maximum length of the generation.
       warnings.warn(
 
 
@@ -286,7 +322,7 @@ text and vision modalities and postprocessing of generation results.
 
 .. parsed-literal::
 
-    Processing time: 0.2072 s
+    Processing time: 0.2136 s
 
 
 .. code:: ipython3
@@ -327,11 +363,12 @@ text and vision modalities and postprocessing of generation results.
 
 
 
-.. image:: 233-blip-visual-language-processing-with-output_files/233-blip-visual-language-processing-with-output_7_0.png
+.. image:: 233-blip-visual-language-processing-with-output_files/233-blip-visual-language-processing-with-output_8_0.png
 
 
-Convert Models to OpenVINO IR
------------------------------
+Convert Models to OpenVINO IR `⇑ <#top>`__
+###############################################################################################################################
+
 
 OpenVINO supports PyTorch through export to the ONNX format. You will
 use the ``torch.onnx.export`` function for obtaining ONNX model. For
@@ -345,22 +382,22 @@ example, input and output names or dynamic shapes).
 While ONNX models are directly supported by OpenVINO™ runtime, it can be
 useful to convert them to OpenVINO Intermediate Representation (IR)
 format to take the advantage of advanced OpenVINO optimization tools and
-features. You will use OpenVINO Model Optimizer to convert the model to
-IR format and compress weights to ``FP16`` format.
+features. You will use model conversion API to convert the model to IR
+format and compress weights to ``FP16`` format.
 
-The model consists of three parts: 
+The model consists of three parts:
 
-* vision_model - an encoder for
-image representation.
-* text_encoder - an encoder for input query, used
-for question answering and text-to-image retrieval only.
-* text_decoder - a decoder for output answer.
+-  vision_model - an encoder for image representation.
+-  text_encoder - an encoder for input query, used for question
+   answering and text-to-image retrieval only.
+-  text_decoder - a decoder for output answer.
 
 To be able to perform multiple tasks, using the same model components,
 you should convert each part independently.
 
-Vision Model
-~~~~~~~~~~~~
+Vision Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The vision model accepts float input tensors with the [1,3,384,384]
 shape, containing RGB image pixel values normalized in the [0,1] range.
@@ -388,7 +425,7 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
         if not VISION_MODEL_ONNX.exists():
             with torch.no_grad():
                 torch.onnx.export(vision_model, inputs["pixel_values"], VISION_MODEL_ONNX, input_names=["pixel_values"])
-        # convert ONNX model to IR using Model Optimizer Python API, use compress_to_fp16=True for compressing model weights to FP16 precision        
+        # convert ONNX model to IR using model conversion Python API, use compress_to_fp16=True for compressing model weights to FP16 precision        
         ov_vision_model = mo.convert_model(VISION_MODEL_ONNX, compress_to_fp16=True)
         # save model on disk for next usages
         serialize(ov_vision_model, str(VISION_MODEL_OV))
@@ -406,8 +443,9 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
     Vision model successfuly converted and saved to blip_vision_model.xml
 
 
-Text Encoder
-~~~~~~~~~~~~
+Text Encoder `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The text encoder is used by visual question answering tasks to build a
 question embedding representation. It takes ``input_ids`` with a
@@ -443,7 +481,7 @@ tutorial <https://pytorch.org/tutorials/advanced/super_resolution_with_onnxrunti
             # export PyTorch model to ONNX
             with torch.no_grad():
                 torch.onnx.export(text_encoder, input_dict, TEXT_ENCODER_ONNX, input_names=list(input_dict), dynamic_axes=dynamic_axes)
-        # convert ONNX model to IR using Model Optimizer Python API, use compress_to_fp16=True for compressing model weights to FP16 precision
+        # convert ONNX model to IR using model conversion Python API, use compress_to_fp16=True for compressing model weights to FP16 precision
         ov_text_encoder = mo.convert_model(TEXT_ENCODER_ONNX, compress_to_fp16=True)
         # save model on disk for next usages
         serialize(ov_text_encoder, str(TEXT_ENCODER_OV))
@@ -454,9 +492,9 @@ tutorial <https://pytorch.org/tutorials/advanced/super_resolution_with_onnxrunti
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:711: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:712: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if is_decoder:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:630: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:631: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if is_decoder:
 
 
@@ -465,8 +503,9 @@ tutorial <https://pytorch.org/tutorials/advanced/super_resolution_with_onnxrunti
     Text encoder successfuly converted and saved to blip_text_encoder.xml
 
 
-Text Decoder
-~~~~~~~~~~~~
+Text Decoder `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The text decoder is responsible for generating the sequence of tokens to
 represent model output (answer to question or caption), using an image
@@ -549,7 +588,7 @@ shapes.
         if not TEXT_DECODER_ONNX.exists():
             with torch.no_grad():
                 torch.onnx.export(text_decoder, input_dict, TEXT_DECODER_ONNX, input_names=list(input_dict), output_names=output_names + past_key_values_outs, dynamic_axes=dynamic_axes)
-        # convert ONNX model to IR using Model Optimizer Python API, use compress_to_fp16=True for compressing model weights to FP16 precision
+        # convert ONNX model to IR using model conversion Python API, use compress_to_fp16=True for compressing model weights to FP16 precision
         ov_text_decoder = mo.convert_model(TEXT_DECODER_ONNX, compress_to_fp16=True)
         # save model on disk for next usages
         serialize(ov_text_decoder, str(TEXT_DECODER_OV))
@@ -560,9 +599,9 @@ shapes.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:639: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:640: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if causal_mask.shape[1] < attention_mask.shape[1]:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:890: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:888: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if return_logits:
 
 
@@ -600,7 +639,7 @@ layers.
         if not TEXT_DECODER_WITH_PAST_ONNX.exists():
             with torch.no_grad():
                 torch.onnx.export(text_decoder, input_dict_with_past, TEXT_DECODER_WITH_PAST_ONNX, input_names=input_names_with_past, output_names=output_names + past_key_values_outs, dynamic_axes=dynamic_axes_with_past)
-        # convert ONNX model to IR using Model Optimizer Python API, use compress_to_fp16=True for compressing model weights to FP16 precision
+        # convert ONNX model to IR using model conversion Python API, use compress_to_fp16=True for compressing model weights to FP16 precision
         ov_text_decoder = mo.convert_model(TEXT_DECODER_WITH_PAST_ONNX, compress_to_fp16=True)
         # save model on disk for next usages
         serialize(ov_text_decoder, str(TEXT_DECODER_WITH_PAST_OV))
@@ -614,44 +653,79 @@ layers.
     Text decoder with past successfuly converted and saved to blip_text_decoder_with_past.xml
 
 
-Run OpenVINO Model
-------------------
+Run OpenVINO Model `⇑ <#top>`__
+###############################################################################################################################
 
-Prepare Inference Pipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Prepare Inference Pipeline `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 As discussed before, the model consists of several blocks which can be
 reused for building pipelines for different tasks. In the diagram below,
 you can see how image captioning works:
 
-.. image:: https://camo.githubusercontent.com/70694ac4d489ffcece4c48133e5e462c52858a9ebed6db6a6d61af2e91ae987a/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3232313836353833362d61353664613036652d313936642d343439632d613564632d3431333664613661623564352e706e67
+|image01|
 
-The visual model accepts the image preprocessed by BlipProcessor as
+The visual model accepts the image preprocessed by ``BlipProcessor`` as
 input and produces image embeddings, which are directly passed to the
 text decoder for generation caption tokens. When generation is finished,
-output sequence of tokens is provided to BlipProcessor for decoding to
-text using a tokenizer.
+output sequence of tokens is provided to ``BlipProcessor`` for decoding
+to text using a tokenizer.
 
 The pipeline for question answering looks similar, but with additional
 question processing. In this case, image embeddings and question
-tokenized by BlipProcessor are provided to the text encoder and then
+tokenized by ``BlipProcessor`` are provided to the text encoder and then
 multimodal question embedding is passed to the text decoder for
 performing generation of answers.
 
-.. image:: https://camo.githubusercontent.com/a90752e235ef0ab74382290e6adad951b16101578a98e220f3872245b8e223a7/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3232313836383136372d64303038316164642d643966332d343539312d383065372d3437353363383863316430612e706e67
+|image02|
 
 The next step is implementing both pipelines using OpenVINO models.
+
+.. |image01| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
+.. |image02| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
 
 .. code:: ipython3
 
     # create OpenVINO Core object instance
     core = Core()
+
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
     
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     # load models on device
-    ov_vision_model = core.compile_model(VISION_MODEL_OV)
-    ov_text_encoder = core.compile_model(TEXT_ENCODER_OV)
-    ov_text_decoder = core.compile_model(TEXT_DECODER_OV)
-    ov_text_decoder_with_past = core.compile_model(TEXT_DECODER_WITH_PAST_OV)
+    ov_vision_model = core.compile_model(VISION_MODEL_OV, device.value)
+    ov_text_encoder = core.compile_model(TEXT_ENCODER_OV, device.value)
+    ov_text_decoder = core.compile_model(TEXT_DECODER_OV, device.value)
+    ov_text_decoder_with_past = core.compile_model(TEXT_DECODER_WITH_PAST_OV, device.value)
 
 .. code:: ipython3
 
@@ -826,8 +900,9 @@ initial token for decoder work.
 
 Now, the model is ready for generation.
 
-Image Captioning
-~~~~~~~~~~~~~~~~
+Image Captioning `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -837,11 +912,12 @@ Image Captioning
 
 
 
-.. image:: 233-blip-visual-language-processing-with-output_files/233-blip-visual-language-processing-with-output_24_0.png
+.. image:: 233-blip-visual-language-processing-with-output_files/233-blip-visual-language-processing-with-output_28_0.png
 
 
-Question Answering
-~~~~~~~~~~~~~~~~~~
+Question Answering `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -853,7 +929,7 @@ Question Answering
 
 
 
-.. image:: 233-blip-visual-language-processing-with-output_files/233-blip-visual-language-processing-with-output_26_0.png
+.. image:: 233-blip-visual-language-processing-with-output_files/233-blip-visual-language-processing-with-output_30_0.png
 
 
 .. code:: ipython3
@@ -863,5 +939,5 @@ Question Answering
 
 .. parsed-literal::
 
-    Processing time: 0.1530
+    Processing time: 0.1504
 

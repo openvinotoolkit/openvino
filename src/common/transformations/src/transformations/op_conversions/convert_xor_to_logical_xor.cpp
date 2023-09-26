@@ -4,12 +4,11 @@
 
 #include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/op/xor.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertXorToLogicalXor::ConvertXorToLogicalXor() {
     MATCHER_SCOPE(ConvertXorToLogicalXor);

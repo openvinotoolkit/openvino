@@ -108,15 +108,14 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 if (index < 0) {
                     index = split->outputs().size() + index;
                 }
-                replace_node(getitem, {split->outputs()[index]});
+                getitem->output(0).replace(split->outputs()[index]);
             }
         } else if (auto list_construct = cast_fw_node(input_node, "prim::ListConstruct")) {
             auto getitem_idx = getitem->input_value(1).get_node_shared_ptr();
             auto getitem_idx_const = std::dynamic_pointer_cast<v0::Constant>(getitem_idx);
             if (getitem_idx_const) {
                 auto idx = getitem_idx_const->cast_vector<int64_t>();
-                auto element = list_construct->input_value(idx[0]).get_node_shared_ptr();
-                replace_node(getitem, element);
+                getitem->output(0).replace(list_construct->input_value(idx[0]));
             } else {
                 auto input_concat = concat_list_construct(list_construct);
                 auto zero = v0::Constant::create(element::i32, Shape{}, {0});

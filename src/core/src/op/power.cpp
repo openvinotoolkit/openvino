@@ -9,7 +9,7 @@
 #include "ngraph/op/log.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/power.hpp"
+#include "openvino/reference/power.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -22,12 +22,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::power(arg0->get_data_ptr<ET>(),
-                              arg1->get_data_ptr<ET>(),
-                              out->get_data_ptr<ET>(),
-                              arg0->get_shape(),
-                              arg1->get_shape(),
-                              broadcast_spec);
+    ov::reference::power(arg0->get_data_ptr<ET>(),
+                         arg1->get_data_ptr<ET>(),
+                         out->get_data_ptr<ET>(),
+                         arg0->get_shape(),
+                         arg1->get_shape(),
+                         broadcast_spec);
     return true;
 }
 

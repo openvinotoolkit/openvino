@@ -100,5 +100,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_MultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
         // TODO: Issue: 111556
         R"(.*SplitConvTest.CompareWithRefImpl.*IS=\(1.(128|256)\).*IC=4.*OC=4.*configItem=GNA_DEVICE_MODE_GNA_SW_FP32)",
+        // TODO: Issue: 114149
+        R"(.*smoke_Decompose2DConv.*)",
     };
 }

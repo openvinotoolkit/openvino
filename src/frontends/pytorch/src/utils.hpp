@@ -136,7 +136,7 @@ inline OutputVector return_false_scalar(const NodeContext& context) {
 }
 
 inline OutputVector skip_node(const NodeContext& context) {
-    return {context.get_input(0).get_node_shared_ptr()};
+    return {context.get_input(0)};
 }
 
 }  // namespace op
@@ -161,9 +161,6 @@ public:
     virtual Any get_input_type(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_input_type);
     }
-    virtual const std::vector<size_t>& get_input_transpose_order(size_t index) const override {
-        FRONT_END_NOT_IMPLEMENTED(get_input_transpose_order);
-    }
     virtual const std::string& get_output_debug_name(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_output_debug_name);
     }
@@ -172,9 +169,6 @@ public:
     }
     virtual Any get_output_type(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_output_type);
-    }
-    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const override {
-        FRONT_END_NOT_IMPLEMENTED(get_output_transpose_order);
     }
     virtual bool input_is_none(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(input_is_none);

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock.h>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "gmock/gmock.h"
-#include "ngraph/ngraph.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 struct ReduceParams {
     PartialShape data_ps;
@@ -21,15 +23,15 @@ struct ReduceParams {
 
 template <class T>
 static std::shared_ptr<Node> makeReduceOp(const ReduceParams& p, bool axes_as_param = false) {
-    auto in_data = make_shared<op::Parameter>(p.data_et, p.data_ps);
+    auto in_data = make_shared<ov::op::v0::Parameter>(p.data_et, p.data_ps);
     shared_ptr<Node> in_axes;
     if (axes_as_param) {
-        in_axes = make_shared<op::Parameter>(p.axes_et, p.axes_ps);
+        in_axes = make_shared<ov::op::v0::Parameter>(p.axes_et, p.axes_ps);
     } else {
         if (shape_size(p.axes_ps) != p.axes.size()) {
             OPENVINO_THROW("Axes shape does not match with axes elements");
         }
-        in_axes = make_shared<op::Constant>(p.axes_et, p.axes_ps, p.axes);
+        in_axes = make_shared<ov::op::v0::Constant>(p.axes_et, p.axes_ps, p.axes);
     }
     return make_shared<T>(in_data, in_axes, p.keep_dims);
 }
@@ -49,8 +51,8 @@ TYPED_TEST_P(ReduceTest, reduce_default_ctor) {
 
     bool keep_dims = true;
 
-    const auto data = make_shared<op::Parameter>(data_et, data_ps);
-    const auto in_axes = make_shared<op::Parameter>(axes_et, axes_ps);
+    const auto data = make_shared<ov::op::v0::Parameter>(data_et, data_ps);
+    const auto in_axes = make_shared<ov::op::v0::Parameter>(axes_et, axes_ps);
 
     auto op = std::make_shared<TypeParam>();
     op->set_arguments(OutputVector{data, in_axes});

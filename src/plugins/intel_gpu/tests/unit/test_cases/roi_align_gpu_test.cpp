@@ -199,3 +199,71 @@ TYPED_TEST(roi_align_test, max_half_pixel_cached) {
         {TD(4.375f), TD(4.9375f), TD(5.6875f), TD(5.625f), TD(4.625f), TD(7.125f), TD(3.3125f), TD(4.3125f)};
     this->execute(expected_output, roi_align::PoolingMode::max, roi_align::AlignedMode::half_pixel, true);
 }
+
+TEST(roi_align_gpu_fp32, bfyx_inpad_1x1) {
+    auto& engine = get_test_engine();
+
+    const int pooled_h{2};
+    const int pooled_w{2};
+    const int sampling_ratio{2};
+    const float spatial_scale{1};
+
+    const std::vector<float> input_data = {
+        0.f,  1.f,  8.f,  5.f,  5.f, 2.f,  0.f, 7.f,  7.f,  10.f, 4.f,
+        5.f,  9.f,  0.f,  0.f,  5.f, 7.f,  0.f, 4.f,  0.f,  4.f,  7.f,
+        6.f,  10.f, 9.f,  5.f,  1.f, 7.f,  4.f, 7.f,  10.f, 8.f,  2.f,
+        0.f,  8.f,  3.f,  6.f,  8.f, 10.f, 4.f, 2.f,  10.f, 7.f,  8.f,
+        7.f,  0.f,  6.f,  9.f,  2.f, 4.f,  8.f, 5.f,  2.f,  3.f,  3.f,
+        1.f,  5.f,  9.f,  10.f, 0.f, 9.f,  5.f, 5.f,  3.f,  10.f, 5.f,
+        2.f,  0.f,  10.f, 0.f,  5.f, 4.f,  3.f, 10.f, 5.f,  5.f,  10.f,
+        0.f,  8.f,  8.f,  9.f,  1.f, 0.f,  7.f, 9.f,  6.f,  8.f,  7.f,
+        10.f, 9.f,  2.f,  3.f,  3.f, 5.f,  6.f, 9.f,  4.f,  9.f,  2.f,
+        4.f,  5.f,  5.f,  3.f,  1.f, 1.f,  6.f, 8.f,  0.f,  5.f,  5.f,
+        10.f, 8.f,  6.f,  9.f,  6.f, 9.f,  1.f, 2.f,  7.f,  1.f,  1.f,
+        3.f,  0.f,  4.f,  0.f,  7.f, 10.f, 2.f
+    };
+    const std::vector<float> coords_data = {2.f, 2.f, 4.f, 4.f, 2.f, 2.f, 4.f, 4.f};
+    const std::vector<int32_t> roi_data = {0, 1};
+
+    auto input = engine.allocate_memory({ov::PartialShape{2, 1, 8, 8}, data_types::f32, format::bfyx});
+    auto coords = engine.allocate_memory({ov::PartialShape{2, 4, 1, 1}, data_types::f32, format::bfyx});
+    auto roi_ind = engine.allocate_memory({ov::PartialShape{2, 1, 1, 1}, data_types::i32, format::bfyx});
+    set_values(input, input_data);
+    set_values(coords, coords_data);
+    set_values(roi_ind, roi_data);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("coords", coords->get_layout()));
+    topology.add(input_layout("roi_ind", roi_ind->get_layout()));
+    topology.add(reorder("reorder_input", input_info("input"), input->get_layout().with_padding(padding{ {0,0,1,1},0 })));
+    topology.add(roi_align("roi_align",
+                           { input_info("reorder_input"), input_info("coords"), input_info("roi_ind") },
+                           pooled_h,
+                           pooled_w,
+                           sampling_ratio,
+                           spatial_scale,
+                           roi_align::PoolingMode::avg,
+                           roi_align::AlignedMode::asymmetric));
+    topology.add(reorder("out", input_info("roi_align"), format::bfyx, data_types::f32));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+    network.set_input_data("coords", coords);
+    network.set_input_data("roi_ind", roi_ind);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("out").get_memory();
+
+    std::vector<float> expected_output = {
+        3.f, 3.75f, 4.75f, 5.f, 3.f, 5.5f, 2.75f, 3.75f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), expected_output.size());
+    for (uint32_t i = 0; i < expected_output.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], expected_output[i]);
+    }
+}

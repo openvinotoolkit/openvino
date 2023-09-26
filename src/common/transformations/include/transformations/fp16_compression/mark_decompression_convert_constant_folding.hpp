@@ -14,7 +14,6 @@ namespace pass {
 class TRANSFORMATIONS_API EnableDecompressionConvertConstantFolding;
 class TRANSFORMATIONS_API DisableDecompressionConvertConstantFolding;
 class TRANSFORMATIONS_API KeepConstAndDecompression;
-class TRANSFORMATIONS_API KeepConstAndDecompressionForMatMul;
 
 }  // namespace pass
 }  // namespace ov
@@ -47,15 +46,4 @@ class ov::pass::KeepConstAndDecompression : public MatcherPass {
 public:
     OPENVINO_RTTI("KeepConstAndDecompression", "0");
     KeepConstAndDecompression();
-};
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief Disables ConstantFolding for Convert operation (just before MatMul operation only) and prevents conversion
- * of f16 Consts to f32.
- */
-class ov::pass::KeepConstAndDecompressionForMatMul : public MatcherPass {
-public:
-    OPENVINO_RTTI("KeepConstAndDecompressionForMatMul", "0");
-    KeepConstAndDecompressionForMatMul();
 };

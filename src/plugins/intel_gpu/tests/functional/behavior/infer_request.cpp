@@ -78,7 +78,7 @@ void InferRequestIOPrecision::SetUp() {
     float clamp_max = 5.0f;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
     params[0]->set_friendly_name("Input");
 
     auto activation = ngraph::builder::makeActivation(params[0],
@@ -139,8 +139,7 @@ TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
 }
 
 TEST(TensorTest, smoke_canSetScalarTensor) {
-    std::vector<std::vector<size_t>> scalar_shape = {{}};
-    auto params = ngraph::builder::makeParams(ngraph::element::f64, scalar_shape);
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f64, ov::Shape{})};
     params.front()->set_friendly_name("Scalar_1");
     params.front()->output(0).get_tensor().set_names({"scalar1"});
 

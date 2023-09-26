@@ -9,7 +9,7 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd5051)
+    ov_add_compiler_flags(/wd5051)
 endif()
 
 if (X86_64)
@@ -42,7 +42,7 @@ addIeTargetTest(
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
             PRIVATE
-                $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
+                $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
             ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
         OBJECT_FILES
@@ -54,7 +54,7 @@ addIeTargetTest(
             dnnl
             inference_engine_transformations
             inference_engine_lp_transformations
-            ov_shape_inference
+            openvino::shape_inference
             inference_engine_s
             unit_test_utils
             ngraphFunctions
@@ -77,7 +77,7 @@ if (WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
 endif()
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     UNITY
 )
 

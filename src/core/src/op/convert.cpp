@@ -10,7 +10,7 @@
 #include "itt.hpp"
 #include "ngraph/op/equal.hpp"
 #include "ngraph/op/select.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
+#include "openvino/reference/convert.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -53,13 +53,13 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
     if (((INPUT_ET == element::u1) || (OUTPUT_ET == element::u1)) ||
         ((INPUT_ET == element::u4) || (OUTPUT_ET == element::u4)) ||
         ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4))) {
-        runtime::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
-                                               out->get_data_ptr<OUTPUT_ET>(),
-                                               element_count,
-                                               INPUT_ET,
-                                               OUTPUT_ET);
+        ov::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
+                                          out->get_data_ptr<OUTPUT_ET>(),
+                                          element_count,
+                                          INPUT_ET,
+                                          OUTPUT_ET);
     } else {
-        runtime::reference::convert(arg->get_data_ptr<INPUT_ET>(), out->get_data_ptr<OUTPUT_ET>(), element_count);
+        ov::reference::convert(arg->get_data_ptr<INPUT_ET>(), out->get_data_ptr<OUTPUT_ET>(), element_count);
     }
     return true;
 }
@@ -125,7 +125,7 @@ bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
 }
 
 bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_upper) {
-    NGRAPH_CHECK(node, output_values.size() == 1);
+    OPENVINO_ASSERT(node, output_values.size() == 1);
     const auto& input = node->input_value(0);
     if (const auto& value = is_upper ? input.get_tensor().get_upper_value() : input.get_tensor().get_lower_value()) {
         if (is_vector(value.get_shape()) && (value.get_shape().front() == 0)) {
@@ -175,8 +175,8 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v0_Convert_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }

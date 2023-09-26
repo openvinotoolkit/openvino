@@ -26,7 +26,10 @@ public:
         return std::list<ExtractedPattern>{};
     };
 
+    void set_extractor_name(const std::string& _extractor_name) { extractor_name = _extractor_name; }
+
 protected:
+    std::string extractor_name = "";
     FunctionsComparator comparator = FunctionsComparator::no_default()
         .enable(FunctionsComparator::ATTRIBUTES)
         .enable(FunctionsComparator::NODES)

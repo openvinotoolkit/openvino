@@ -73,16 +73,53 @@ vector in embedded space.
 
 3. Stage 3: Follows the same path as Stage 2 and upscales the image to
    1024x1024 pixel resolution. It is not released yet, so we will use a
-   conventional Super Resolution network to get hir-res results.
+   conventional Super Resolution network to get hi-res results. 
+   
 
-   .. note::
 
-      - *This example requires the download of roughly 27 GB of model checkpoints, which could take some time depending on your internet connection speed. Additionally, the converted models will consume another 27 GB of disk space.*
-      - *Please be aware that a minimum of 32 GB of RAM is necessary to convert and run inference on the models. There may be instances where the notebook appears to freeze or stop responding.*
-      - *To access the model checkpoints,you'll need a Hugging Face account. You'll also be prompted to explicitly accept the* `model license <https://huggingface.co/DeepFloyd/IF-I-M-v10>`__
 
-Prerequisites
--------------
+.. _top:
+
+**Table of contents**:
+
+- `Prerequisites <#prerequisites>`__
+
+  - `Authentication <#authentication>`__
+
+- `DeepFloyd IF in Diffusers library <#deepfloyd-if-in-diffusers-library>`__
+- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+- `Convert Text Encoder <#convert-text-encoder>`__
+- `Convert the first Pixel Diffusion module’s UNet <#convert-the-first-pixel-diffusion-modules-unet>`__
+- `Convert the second pixel diffusion module <#convert-the-second-pixel-diffusion-module>`__
+- `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+- `Run Text-to-Image generation <#run-text-to-image-generation>`__
+
+  - `Text Encoder inference <#text-encoder-inference>`__
+  - `First Stage diffusion block inference <#first-stage-diffusion-block-inference>`__
+  - `Second Stage diffusion block inference <#second-stage-diffusion-block-inference>`__
+  - `Third Stage diffusion block <#third-stage-diffusion-block>`__
+  - `Upscale the generated image using a Super Resolution network <#upscale-the-generated-image-using-a-super-resolution-network>`__
+
+    - `Download the Super Resolution model weights <#download-the-super-resolution-model-weights>`__
+    - `Reshape the model’s inputs <#reshape-the-models-inputs>`__
+    - `Prepare the input images and run the model <#prepare-the-input-images-and-run-the-model>`__
+    - `Display the result <#display-the-result>`__
+
+.. note::
+
+   - *This example requires the download of roughly 27 GB of model
+     checkpoints, which could take some time depending on your internet
+     connection speed. Additionally, the converted models will consume
+     another 27 GB of disk space.*
+   - *Please be aware that a minimum of 32 GB of RAM is necessary to
+     convert and run inference on the models. There may be instances
+     where the notebook appears to freeze or stop responding.*
+   - *To access the model checkpoints, you’ll need a Hugging Face
+     account. You’ll also be prompted to explicitly accept the*\ `model
+     license <https://huggingface.co/DeepFloyd/IF-I-M-v1.0>`__\ *.*
+
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
 
 Install required packages.
 
@@ -92,7 +129,7 @@ Install required packages.
     
     !pip install -q --upgrade pip
     !pip install -q "diffusers>=0.16.1" accelerate transformers safetensors sentencepiece huggingface_hub
-    !pip install -q --pre --upgrade openvino-dev
+    !pip install -q "openvino-dev>=2023.0.0"
 
 .. code:: ipython3
 
@@ -120,34 +157,33 @@ Install required packages.
 
 .. code:: ipython3
 
-    # Set up target computing device
-    DEVICE = 'CPU'
-    
     checkpoint_variant = 'fp16'
     model_dtype = torch.float32
     ir_input_type = 'f32'
     compress_to_fp16 = False
     
-    models_dir = Path('./models').expanduser()
+    models_dir = Path('./models')
     models_dir.mkdir(exist_ok=True)
     
     encoder_ir_path = models_dir / 'encoder_ir.xml'
     first_stage_unet_ir_path = models_dir / 'unet_ir_I.xml'
     second_stage_unet_ir_path = models_dir / 'unet_ir_II.xml'
 
-Authentication
-~~~~~~~~~~~~~~
+Authentication `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-In order to access IF checkpoints, users need to provide an
-authentication token.
+In order to access IF checkpoints, users need to provide an authentication token.
 
 If you already have a token, you can input it into the provided form in
 the next cell. If not, please proceed according to the following
-instructions: 
+instructions:
 
-1. Make sure to have a `Hugging Face <https://huggingface.co/>`__ account and be logged in
-2. Accept the license on the model card of `DeepFloyd/IF-I-M-v1.0 <https://huggingface.co/DeepFloyd/IF-I-M-v1.0>`__
-3. To generate a token, proceed to `this page <https://huggingface.co/settings/tokens>`__
+1. Make sure to have a `Hugging Face <https://huggingface.co/>`__
+   account and be logged in
+2. Accept the license on the model card of
+   `DeepFloyd/IF-I-M-v1.0 <https://huggingface.co/DeepFloyd/IF-I-M-v1.0>`__
+3. To generate a token, proceed to `this
+   page <https://huggingface.co/settings/tokens>`__
 
 Uncheck the ``Add token as git credential?`` box.
 
@@ -165,14 +201,14 @@ Uncheck the ``Add token as git credential?`` box.
     VBox(children=(HTML(value='<center> <img\nsrc=https://huggingface.co/front/assets/huggingface_logo-noborder.sv…
 
 
-DeepFoyd IF in Diffusers library
---------------------------------
+DeepFloyd IF in Diffusers library `⇑ <#top>`__
+###############################################################################################################################
 
 To work with IF by DeepFloyd Lab, we will use `Hugging Face Diffusers
 package <https://github.com/huggingface/diffusers>`__. Diffusers package
-exposes the DiffusionPipeline class, simplifying experiments with
+exposes the ``DiffusionPipeline`` class, simplifying experiments with
 diffusion models. The code below demonstrates how to create a
-DiffusionPipeline using IF configs:
+``DiffusionPipeline`` using IF configs:
 
 .. code:: ipython3
 
@@ -230,14 +266,14 @@ DiffusionPipeline using IF configs:
     Wall time: 16.1 s
 
 
-Convert models to OpenVINO Intermediate representation (IR) format
-------------------------------------------------------------------
+Convert models to OpenVINO Intermediate representation (IR) format. `⇑ <#top>`__
+###############################################################################################################################
 
-The OpenVINO Model Optimizer enables direct conversion of PyTorch
-models. We will utilize the mo.convert_model method to acquire OpenVINO
-IR versions of the models. This requires providing a model object, input
-data for model tracing, and other relevant parameters. The
-use_legacy_frontend=True parameter instructs the Model Optimizer to
+Model conversion API enables direct conversion of PyTorch
+models. We will utilize the ``mo.convert_model`` method to acquire
+OpenVINO IR versions of the models. This requires providing a model
+object, input data for model tracing, and other relevant parameters. The
+``use_legacy_frontend=True`` parameter instructs model conversion API to
 employ the ONNX model format as an intermediate step, as opposed to
 using the PyTorch JIT compiler, which is not optimal for our situation.
 
@@ -250,10 +286,11 @@ The pipeline consists of three important parts:
 -  A Stage 2 U-Net that takes low resolution output from the previous
    step and the latent representations to upscale the resulting image.
 
-Let us convert each part
+Let us convert each part.
 
-1. Convert Text Encoder
------------------------
+1. Convert Text Encoder `⇑ <#top>`__
+###############################################################################################################################
+
 
 The text encoder is responsible for converting the input prompt, such as
 “ultra close-up color photo portrait of rainbow owl with deer horns in
@@ -271,12 +308,12 @@ and/or the PyTorch-specific ``example_input`` argument. However, in this
 case, the ``InputCutInfo`` class was utilized to describe the model
 input and provide it as the ``input`` argument. Using the
 ``InputCutInfo`` class offers a framework-agnostic solution and enables
-the definition of complex inputs. It allows for specifying the input
-name, shape, type, and value within a single argument, providing greater
+the definition of complex inputs. It allows specifying the input name,
+shape, type, and value within a single argument, providing greater
 flexibility.
 
-To learn more please refer to `Model Optimizer Python API
-docs <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__
+To learn more, refer to this
+`page <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 
 .. code:: ipython3
 
@@ -303,8 +340,9 @@ docs <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__
     Wall time: 1.37 s
 
 
-Convert the first Pixel Diffusion module’s UNet
------------------------------------------------
+Convert the first Pixel Diffusion module’s UNet `⇑ <#top>`__
+###############################################################################################################################
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -347,16 +385,17 @@ resolution images.
     Wall time: 298 ms
 
 
-Convert the second pixel diffusion module
------------------------------------------
+Convert the second pixel diffusion module `⇑ <#top>`__
+###############################################################################################################################
+
 
 The second Diffusion module in the cascade generates 256x256 pixel
 images.
 
 The second stage pipeline will use bilinear interpolation to upscale the
-64x64 image that was generated in the previopus stage to a higher
-256x256 resolution. Then it will denoise the image taking into account
-the encoded user prompt.
+64x64 image that was generated in the previous stage to a higher 256x256
+resolution. Then it will denoise the image taking into account the
+encoded user prompt.
 
 .. code:: ipython3
 
@@ -387,8 +426,9 @@ the encoded user prompt.
     Wall time: 273 ms
 
 
-Prepare Inference pipeline
---------------------------
+Prepare Inference pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 The original pipeline from the source repository will be reused in this
 example. In order to achieve this, adapter classes were created to
@@ -398,6 +438,24 @@ seamlessly into the pipeline.
 .. code:: ipython3
 
     core = Core()
+
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
 
 .. code:: ipython3
 
@@ -527,16 +585,18 @@ seamlessly into the pipeline.
             result_numpy = result[self.unet_openvino.outputs[0]]
             return result_tuple(torch.tensor(result_numpy, dtype=self.dtype))
 
-Run Text-to-Image generation
-----------------------------
+Run Text-to-Image generation `⇑ <#top>`__
+###############################################################################################################################
+
 
 Now, we can set a text prompt for image generation and execute the
 inference pipeline. Optionally, you can also modify the random generator
 seed for latent state initialization and adjust the number of images to
 be generated for the given prompt.
 
-Text Encoder inference
-~~~~~~~~~~~~~~~~~~~~~~
+Text Encoder inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -546,7 +606,7 @@ Text Encoder inference
     negative_prompt = 'blurred unreal uncentered occluded'
     
     # Initialize TextEncoder wrapper class
-    stage_1.text_encoder = TextEncoder(encoder_ir_path, dtype=model_dtype, device=DEVICE)
+    stage_1.text_encoder = TextEncoder(encoder_ir_path, dtype=model_dtype, device=device.value)
     print('The model has been loaded')
     
     # Generate text embeddings
@@ -582,8 +642,9 @@ Text Encoder inference
 
 
 
-First Stage diffusion block inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+First Stage diffusion block inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -599,7 +660,7 @@ First Stage diffusion block inference
         first_stage_unet_ir_path,
         stage_1_config,
         dtype=model_dtype,
-        device=DEVICE
+        device=device.value
     )
     print('The model has been loaded')
     
@@ -637,12 +698,13 @@ First Stage diffusion block inference
 
 
 
-.. image:: 238-deep-floyd-if-with-output_files/238-deep-floyd-if-with-output_27_3.png
+.. image:: 238-deep-floyd-if-with-output_files/238-deep-floyd-if-with-output_29_3.png
 
 
 
-Second Stage diffusion block inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Second Stage diffusion block inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -653,7 +715,7 @@ Second Stage diffusion block inference
         second_stage_unet_ir_path,
         stage_2_config,
         dtype=model_dtype,
-        device=DEVICE
+        device=device.value
     )
     print('The model has been loaded')
     
@@ -689,18 +751,19 @@ Second Stage diffusion block inference
 
 
 
-.. image:: 238-deep-floyd-if-with-output_files/238-deep-floyd-if-with-output_29_3.png
+.. image:: 238-deep-floyd-if-with-output_files/238-deep-floyd-if-with-output_31_3.png
 
 
 
-Third Stage diffusion block
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Third Stage diffusion block `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The final block, which upscales images to a higher resolution (1024x1024
-px), has not been released by DeepFloyd yet. Stay tuned!
+The final block, which
+upscales images to a higher resolution (1024x1024 px), has not been
+released by DeepFloyd yet. Stay tuned!
 
-Upscale the generated image using a Super Resolution network
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Upscale the generated image using a Super Resolution network. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Though the third stage has not been officially released, we’ll employ
 the Super Resolution network from `Example
@@ -715,8 +778,9 @@ release!
     # Temporary requirement
     !pip install -q matplotlib
 
-Download the Super Resolution model weights
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Download the Super Resolution model weights `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -754,13 +818,13 @@ Download the Super Resolution model weights
     single-image-super-resolution-1032 already downloaded to models
 
 
-Reshape the model’s inputs
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Reshape the model’s inputs `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
 
-We need to reshape the inputs for the model. This is necessary because
-the IR model was converted with a different target input resolution. The
-Second IF stage returns 256x256 pixel images. Using the 4x
-SuperResolution model makes our target image size 1024x1024 pixel.
+We need to reshape the inputs for the model. This is necessary because the IR model was converted with
+a different target input resolution. The Second IF stage returns 256x256
+pixel images. Using the 4x Super Resolution model makes our target image
+size 1024x1024 pixel.
 
 .. code:: ipython3
 
@@ -769,10 +833,11 @@ SuperResolution model makes our target image size 1024x1024 pixel.
         0: [1, 3, 256, 256],
         1: [1, 3, 1024, 1024]
     })
-    compiled_model = core.compile_model(model=model, device_name=DEVICE)
+    compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Prepare the input images and run the model
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Prepare the input images and run the model `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -790,8 +855,9 @@ Prepare the input images and run the model
         [input_image_original, input_image_bicubic]
     )[compiled_model.output(0)]
 
-Display the result
-^^^^^^^^^^^^^^^^^^
+Display the result `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -813,6 +879,6 @@ Display the result
 
 
 
-.. image:: 238-deep-floyd-if-with-output_files/238-deep-floyd-if-with-output_39_0.png
+.. image:: 238-deep-floyd-if-with-output_files/238-deep-floyd-if-with-output_41_0.png
 
 

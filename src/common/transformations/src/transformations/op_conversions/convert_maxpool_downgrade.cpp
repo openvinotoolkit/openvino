@@ -4,13 +4,12 @@
 
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <transformations/utils/utils.hpp>
-
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -42,12 +41,12 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
 
         maxpool_v1_node->set_friendly_name(maxpool_v8_node->get_friendly_name());
         maxpool_v8_node->output(0).replace(maxpool_v1_node->output(0));
-        ngraph::copy_runtime_info(maxpool_v8_node, maxpool_v1_node);
+        ov::copy_runtime_info(maxpool_v8_node, maxpool_v1_node);
         maxpool_v8_node->clear_control_dependencies();
 
-        NGRAPH_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ov::descriptor::set_ov_tensor_legacy_name(maxpool_v1_node->output(0).get_tensor(), out_name);
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         return true;
     };

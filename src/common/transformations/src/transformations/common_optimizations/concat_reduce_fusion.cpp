@@ -5,13 +5,10 @@
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
@@ -21,6 +18,8 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -60,7 +59,7 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
             }
         }
 
-        ngraph::OutputVector eltwise_inputs;
+        ov::OutputVector eltwise_inputs;
         for (size_t input_index = 0; input_index < eltwise_inputs_size; ++input_index) {
             const auto eltwise_input = eltwise->input_value(input_index);
             const auto new_input_node = ov::op::util::clone_try_fold(squeeze, {eltwise_input, squeeze->input_value(1)});
@@ -68,14 +67,14 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
             if (!is_type<ov::op::v0::Constant>(new_input_node))
                 register_new_node(as_type_ptr<ov::op::v0::Squeeze>(new_input_node));
 
-            ngraph::copy_runtime_info(squeeze, new_input_node);
+            ov::copy_runtime_info(squeeze, new_input_node);
             eltwise_inputs.push_back(new_input_node);
         }
 
         const auto new_eltwise = ov::op::util::clone_try_fold(eltwise, eltwise_inputs);
         new_eltwise->set_friendly_name(squeeze->get_friendly_name());
-        ngraph::copy_runtime_info({eltwise, squeeze}, new_eltwise);
-        ngraph::replace_node(squeeze, new_eltwise);
+        ov::copy_runtime_info({eltwise, squeeze}, new_eltwise);
+        ov::replace_node(squeeze, new_eltwise);
         return true;
     };
 
@@ -86,10 +85,11 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
 ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     MATCHER_SCOPE(ReplaceConcatReduceByMinOrMax);
 
-    auto concat_pattern = ngraph::pattern::wrap_type<ov::op::v0::Concat>({pattern::any_input(), pattern::any_input()});
-    auto reduce_axes_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reduce_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::ReduceMin, ov::op::v1::ReduceMax>({concat_pattern, reduce_axes_pattern});
+    auto concat_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v0::Concat>({pattern::any_input(), pattern::any_input()});
+    auto reduce_axes_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto reduce_pattern = ov::pass::pattern::wrap_type<ov::op::v1::ReduceMin, ov::op::v1::ReduceMax>(
+        {concat_pattern, reduce_axes_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -106,7 +106,7 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         }
 
         ReduceType reduce_type = get_reduce_type(reduce);
-        std::shared_ptr<ngraph::Node> result_node;
+        std::shared_ptr<ov::Node> result_node;
         switch (reduce_type) {
         case ReduceType::MAX:
             result_node = register_new_node<ov::op::v1::Maximum>(concat->input_value(0), concat->input_value(1));
@@ -122,7 +122,7 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
 
         if (!reduce->get_keep_dims()) {
             const auto squeeze_axis_node =
-                ov::op::v0::Constant::create(ngraph::element::i64, {}, {*reduction_axes.begin()});
+                ov::op::v0::Constant::create(ov::element::i64, {}, {*reduction_axes.begin()});
             result_node = register_new_node<ov::op::v0::Squeeze>(result_node, squeeze_axis_node);
             copy_runtime_info({concat, reduce}, result_node);
         }
@@ -132,7 +132,7 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reduce_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reduce_pattern, matcher_name);
     register_matcher(m, callback);
 }
 

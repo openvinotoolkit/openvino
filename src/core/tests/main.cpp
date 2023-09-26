@@ -6,8 +6,6 @@
 #include <iostream>
 
 #include "gtest/gtest.h"
-#include "ngraph/log.hpp"
-#include "ngraph/ngraph.hpp"
 
 using namespace std;
 

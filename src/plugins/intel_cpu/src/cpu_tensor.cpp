@@ -68,8 +68,9 @@ void Tensor::update_strides() const {
     OPENVINO_ASSERT(blocked_desc, "not a valid blocked memory descriptor.");
     auto& strides = blocked_desc->getStrides();
     m_strides.resize(strides.size());
-    std::transform(strides.cbegin(), strides.cend(), m_strides.begin(),
-                std::bind1st(std::multiplies<size_t>(), m_element_type.size()));
+    std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this] (const size_t stride) {
+        return stride * m_element_type.size();
+    });
 }
 
 void* Tensor::data(const element::Type& element_type) const {

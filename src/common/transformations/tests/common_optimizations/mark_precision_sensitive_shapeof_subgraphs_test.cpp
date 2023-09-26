@@ -7,15 +7,15 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;

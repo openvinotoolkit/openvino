@@ -3,12 +3,13 @@
 //
 
 #pragma once
-#include <utility>
-#include <vector>
 
-#include "ngraph/op/multiclass_nms.hpp"
+#include "openvino/op/multiclass_nms.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "primitive.hpp"
+
+#include <utility>
+#include <vector>
 
 namespace cldnn {
 
@@ -17,8 +18,6 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
     CLDNN_DECLARE_PRIMITIVE(multiclass_nms)
 
     multiclass_nms() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     enum class sort_result_type : int32_t {
         classid,  // sort selected boxes by class id (ascending) in each batch element
@@ -71,7 +70,7 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
               normalized(normalized),
               nms_eta(nms_eta) {}
 
-        attributes(const ngraph::op::util::MulticlassNmsBase::Attributes& attrs)
+        attributes(const ov::op::util::MulticlassNmsBase::Attributes& attrs)
             : attributes(from(attrs.sort_result_type),
                          attrs.sort_result_across_batch,
                          cldnn::element_type_to_data_type(attrs.output_type),
@@ -110,13 +109,13 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
         }
 
     private:
-        static sort_result_type from(const ngraph::op::util::MulticlassNmsBase::SortResultType sort_result_type) {
+        static sort_result_type from(const ov::op::util::MulticlassNmsBase::SortResultType sort_result_type) {
             switch (sort_result_type) {
-                case ngraph::op::util::MulticlassNmsBase::SortResultType::CLASSID:
+                case ov::op::util::MulticlassNmsBase::SortResultType::CLASSID:
                     return sort_result_type::classid;
-                case ngraph::op::util::MulticlassNmsBase::SortResultType::SCORE:
+                case ov::op::util::MulticlassNmsBase::SortResultType::SCORE:
                     return sort_result_type::score;
-                case ngraph::op::util::MulticlassNmsBase::SortResultType::NONE:
+                case ov::op::util::MulticlassNmsBase::SortResultType::NONE:
                     return sort_result_type::none;
                 default:
                     return sort_result_type::none;

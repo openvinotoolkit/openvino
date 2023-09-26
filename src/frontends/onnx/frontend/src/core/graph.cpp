@@ -123,19 +123,19 @@ ov::frontend::ExtensionHolder subgraph_required_extensions(
 
 Graph::Graph(const std::string& model_dir,
              const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
-             const bool enable_mmap,
+             detail::MappedMemoryHandles mmap_cache,
              ov::frontend::ExtensionHolder extensions)
-    : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), enable_mmap, std::move(extensions)) {}
+    : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), mmap_cache, std::move(extensions)) {}
 
 Graph::Graph(const std::string& model_dir,
              const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
-             const bool enable_mmap,
+             detail::MappedMemoryHandles mmap_cache,
              ov::frontend::ExtensionHolder extensions)
     : m_cache{std::move(cache)},
       m_extensions{std::move(extensions)},
       m_model_dir{model_dir},
-      m_enable_mmap{enable_mmap},
+      m_mmap_cache{mmap_cache},
       m_ops_bridge{detail::init_ops_bridge(m_extensions.conversions)} {
     m_model = common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, m_ops_bridge));
 
@@ -146,7 +146,7 @@ Graph::Graph(const std::string& model_dir,
     // Process all initializers in the graph
     for (const auto& initializer_tensor : m_model->get_graph().initializer()) {
         if (initializer_tensor.has_name()) {
-            Tensor tensor = Tensor{initializer_tensor, m_model_dir, enable_mmap};
+            Tensor tensor = Tensor{initializer_tensor, m_model_dir, m_mmap_cache};
             std::shared_ptr<default_opset::Constant> ng_constant;
             // For each initializer create a Constant node and store it in cache
             try {
@@ -458,7 +458,7 @@ Subgraph::Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_prot
     : Graph(parent_graph->model_dir(),
             model_proto,
             common::make_unique<GraphCache>(),
-            parent_graph->mmap_enabled(),
+            parent_graph->get_mmap_cache(),
             detail::subgraph_required_extensions(parent_graph->get_extensions())),
       m_parent_graph(parent_graph) {}
 

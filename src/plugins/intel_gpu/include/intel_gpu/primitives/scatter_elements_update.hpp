@@ -14,8 +14,6 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
 
     scatter_elements_update() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs scatter_elements_update primitive.
     /// @param id This primitive id.
     /// @param dict Input data primitive id.
@@ -31,7 +29,7 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
         : primitive_base(id, {data, idx, idupd}, {output_padding}), axis(axis) {}
 
     /// @brief ScatterElementsUpdate axis
-    int64_t axis;
+    int64_t axis = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

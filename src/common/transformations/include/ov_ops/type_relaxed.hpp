@@ -7,11 +7,12 @@
 #include <algorithm>
 #include <memory>
 #include <mutex>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/parameter.hpp>
 #include <string>
-#include <transformations_visibility.hpp>
 #include <vector>
+
+#include "openvino/op/convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace op {

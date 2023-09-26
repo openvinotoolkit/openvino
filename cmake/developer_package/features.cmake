@@ -5,6 +5,9 @@
 include(options)
 include(target_flags)
 
+set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
+list (APPEND IE_OPTIONS CPACK_GENERATOR)
+
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
 ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF
@@ -18,7 +21,7 @@ else()
     ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
 endif()
 
-if(CI_BUILD_NUMBER)
+if(DEFINED ENV{CI_BUILD_NUMBER} AND NOT (WIN32 OR CMAKE_CROSSCOMPILING))
     set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT ON)
 else()
     set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT OFF)

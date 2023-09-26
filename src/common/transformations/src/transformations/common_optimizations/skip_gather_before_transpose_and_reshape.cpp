@@ -5,30 +5,30 @@
 #include "transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndReshape() {
     MATCHER_SCOPE(SkipGatherBeforeTransposeAndReshape);
 
-    auto input_m = pass::pattern::any_input(ngraph::pattern::has_static_dim(0));
+    auto input_m = pass::pattern::any_input(ov::pass::pattern::has_static_dim(0));
 
-    auto indices_m = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto axis_m = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto gather_m = ngraph::pattern::wrap_type<ov::op::util::GatherBase>({input_m, indices_m, axis_m});
+    auto indices_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto axis_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto gather_m = ov::pass::pattern::wrap_type<ov::op::util::GatherBase>({input_m, indices_m, axis_m});
 
-    auto transpose_const_m = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_m = ngraph::pattern::wrap_type<ov::op::v1::Transpose>({gather_m, transpose_const_m});
+    auto transpose_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto transpose_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({gather_m, transpose_const_m});
 
-    auto reshape_const_m = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reshape_m = ngraph::pattern::wrap_type<ov::op::v1::Reshape>({transpose_m, reshape_const_m});
+    auto reshape_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto reshape_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({transpose_m, reshape_const_m});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -82,12 +82,12 @@ ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndResha
                                                                       new_transpose_vals);
         const auto new_transpose = transpose->clone_with_new_inputs({input, new_transpose_const});
         new_transpose->set_friendly_name(transpose->get_friendly_name());
-        ngraph::copy_runtime_info({transpose, gather}, new_transpose);
-        ngraph::replace_node(transpose, new_transpose);
+        ov::copy_runtime_info({transpose, gather}, new_transpose);
+        ov::replace_node(transpose, new_transpose);
 
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_m, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_m, matcher_name);
     register_matcher(m, callback);
 }

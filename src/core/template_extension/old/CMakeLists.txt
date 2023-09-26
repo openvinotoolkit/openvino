@@ -9,11 +9,14 @@ set(TARGET_NAME "template_extension")
 
 find_package(OpenVINO REQUIRED COMPONENTS Runtime OPTIONAL_COMPONENTS ONNX)
 find_package(OpenCV QUIET COMPONENTS core)
+if(OpenCV_VERSION VERSION_LESS 3)
+    set(OpenCV_FOUND OFF)
+endif()
 
 set(SRC cpu_kernel.cpp extension.cpp op.cpp)
 
 if(OpenCV_FOUND)
-    set(SRC ${SRC} fft_kernel.cpp fft_op.cpp)
+    list(APPEND SRC fft_kernel.cpp fft_op.cpp)
 endif()
 
 add_library(${TARGET_NAME} MODULE ${SRC})
@@ -34,7 +37,7 @@ endif()
 
 # Enable code style check
 file(GLOB_RECURSE template_extension_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
-add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${template_extension_src})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${template_extension_src})
 
 install(TARGETS ${TARGET_NAME}
-    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

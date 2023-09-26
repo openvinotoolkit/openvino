@@ -550,6 +550,11 @@ TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutIdentity) {
     }
 }
 
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphMMAPCompare) {
+    { model = convert_model("metagraph_variables/graph.meta"); }
+    { model_ref = convert_model("metagraph_variables/graph.meta", nullptr, {}, {}, {}, {}, {}, true); }
+}
+
 TEST_F(FrontEndConversionWithReferenceTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
@@ -659,7 +664,8 @@ TEST_F(FrontEndConversionWithReferenceTestsF, NonMaxSuppressionWithNamedOutputs)
         selected_scores = make_shared<Convert>(selected_scores, i32);
 
         // compute the third output - valid_outputs
-        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2));
+        auto squeeze_axes = make_shared<Constant>(i64, Shape{1}, 0);
+        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2), squeeze_axes);
 
         // make post-processing before the concatenation
         auto const_minus_one = make_shared<Constant>(i32, Shape{1}, -1);
@@ -742,5 +748,31 @@ TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
         auto mul = make_shared<Multiply>(convert, y);
 
         model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{y, ind});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel) {
+    // This test aims to check conversion of a model with convolution of dynamic input channel
+    // Namely, the resulted model must contain the regular convolution, not grouped convolution
+    { model = convert_model("conv_with_dynamic_input_channel"); }
+    {
+        auto input = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, Dimension::dynamic()});
+
+        auto transpose_order = make_shared<Constant>(i64, Shape{4}, vector<int32_t>{0, 3, 1, 2});
+        auto transpose = make_shared<Transpose>(input, transpose_order);
+
+        auto filter = make_shared<Constant>(element::f32, Shape{6, 6, 3, 3}, vector<float>(6 * 6 * 3 * 3, 0.0f));
+        auto conv = make_shared<Convolution>(transpose,
+                                             filter,
+                                             Strides{1, 1},
+                                             CoordinateDiff{0, 0},
+                                             CoordinateDiff{0, 0},
+                                             Strides{1, 1},
+                                             op::PadType::SAME_UPPER);
+
+        auto transpose_order_back = make_shared<Constant>(i64, Shape{4}, vector<int32_t>{0, 2, 3, 1});
+        auto transpose_back = make_shared<Transpose>(conv, transpose_order_back);
+
+        model_ref = make_shared<Model>(OutputVector{transpose_back}, ParameterVector{input});
     }
 }

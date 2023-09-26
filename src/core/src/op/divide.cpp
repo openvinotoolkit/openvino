@@ -15,8 +15,8 @@
 #include "ngraph/op/or.hpp"
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/divide.hpp"
-#include "shape_util.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/reference/divide.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -30,13 +30,13 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec,
               bool pythondiv) {
-    runtime::reference::divide(arg0->get_data_ptr<ET>(),
-                               arg1->get_data_ptr<ET>(),
-                               out->get_data_ptr<ET>(),
-                               arg0->get_shape(),
-                               arg1->get_shape(),
-                               broadcast_spec,
-                               pythondiv);
+    ov::reference::divide(arg0->get_data_ptr<ET>(),
+                          arg1->get_data_ptr<ET>(),
+                          out->get_data_ptr<ET>(),
+                          arg0->get_shape(),
+                          arg1->get_shape(),
+                          broadcast_spec,
+                          pythondiv);
     return true;
 }
 
@@ -87,14 +87,14 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
     // for positive arg2 divide will have limits [low/up , up/low]
     // for negative arg2 limits for divide will be [up/low, low/up]
     // for arg2 range with both positive and negative values, divide can give any result [-inf, inf]
-    NGRAPH_CHECK(node, output_values.size() == 1);
+    OPENVINO_ASSERT(node, output_values.size() == 1);
     const auto& input1 = node->input_value(0);
     const auto& input2 = node->input_value(1);
 
     // broadcast shapes to allocate tensors of correct size for operations with both inputs
     PartialShape input_shape = input1.get_partial_shape();
-    NGRAPH_CHECK(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
-                 "Argument shapes in divide operation are inconsistent.");
+    OPENVINO_ASSERT(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
+                    "Argument shapes in divide operation are inconsistent.");
 
     auto input1_low = ov::evaluate_lower_bound(input1);
     if (!input1_low)

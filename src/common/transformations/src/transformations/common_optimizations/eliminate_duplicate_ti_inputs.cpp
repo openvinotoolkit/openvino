@@ -5,10 +5,10 @@
 #include "transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp"
 
 #include <memory>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 

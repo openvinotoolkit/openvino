@@ -2,73 +2,69 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/tan.hpp"
+#include "openvino/op/tan.hpp"
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/op/cos.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/tan.hpp"
+#include "openvino/reference/tan.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-op::Tan::Tan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
-    constructor_validate_and_infer_types();
-}
-
-bool ngraph::op::v0::Tan::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Tan_visit_attributes);
-    return true;
-}
-
-shared_ptr<Node> op::Tan::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(v0_Tan_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    return make_shared<Tan>(new_args.at(0));
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace tanop {
-namespace {
+namespace ov {
+namespace op {
+namespace tan {
 struct Evaluate : ov::element::NoAction<bool> {
     using ov::element::NoAction<bool>::visit;
 
     template <element::Type_t ET>
-    static result_type visit(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-        ngraph::runtime::reference::tan(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    static result_type visit(const Tensor& arg0, Tensor& out, const size_t count) {
+        using T = typename element_type_traits<ET>::value_type;
+        reference::tan(arg0.data<T>(), out.data<T>(), count);
         return true;
     }
 };
+}  // namespace tan
 
-bool evaluate_tan(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    out->set_unary(arg0);
+namespace v0 {
+Tan::Tan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+    constructor_validate_and_infer_types();
+}
+
+bool Tan::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v0_Tan_visit_attributes);
+    return true;
+}
+
+std::shared_ptr<Node> Tan::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v0_Tan_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return std::make_shared<Tan>(new_args.at(0));
+}
+
+bool Tan::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v0_Tan_evaluate);
+    OPENVINO_ASSERT(inputs.size() == 1 && outputs.size() == 1);
+    outputs[0].set_shape(inputs[0].get_shape());
 
     using namespace ov::element;
-    return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<Evaluate>(arg0->get_element_type(), arg0, out, count);
-}
-}  // namespace
-}  // namespace tanop
-
-bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    OV_OP_SCOPE(v0_Tan_evaluate);
-    return tanop::evaluate_tan(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
+    return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<tan::Evaluate>(inputs[0].get_element_type(),
+                                                                        inputs[0],
+                                                                        outputs[0],
+                                                                        shape_size(inputs[0].get_shape()));
 }
 
-bool op::Tan::has_evaluate() const {
+bool Tan::has_evaluate() const {
     OV_OP_SCOPE(v0_Tan_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v0
+}  // namespace op
+}  // namespace ov

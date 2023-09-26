@@ -49,9 +49,8 @@ def make_graph_proto_model():
 
 def create_ref_model(shape):
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
-    slope_const = ov.opset8.constant([0.1], dtype=np.float16)
-    decompress_slope = ov.opset8.convert(slope_const, np.float32)
-    prelu = ov.opset8.prelu(param1, slope=decompress_slope)
+    slope_const = ov.opset8.constant([0.1], dtype=np.float32)
+    prelu = ov.opset8.prelu(param1, slope=slope_const)
     relu = ov.opset8.elu(prelu, alpha=np.float32(0.1))
     parameter_list = [param1]
     return Model([relu], parameter_list, "test")
@@ -79,5 +78,6 @@ class TestMoConvertONNX(CommonMOConvertTest):
         test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)
+        test_params.update({'use_convert_model_from_mo': True})
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
 

@@ -36,12 +36,14 @@ protected:
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class AddConstFunction : public SnippetsFunctionBase {
 public:
-    explicit AddConstFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit AddConstFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& constShape) :
+        SnippetsFunctionBase(inputShapes), m_const_shape(constShape) {
         NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
-        NGRAPH_CHECK(input_shapes[0].is_static(), "This test supports only static shapes");
+        NGRAPH_CHECK(m_const_shape.is_static(), "Const shape must be static shape");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
+    PartialShape m_const_shape;
 //    std::shared_ptr<ov::Model> initReference() const override;
 };
 // Function is to check for different model precision
@@ -52,11 +54,12 @@ protected:
 //        Add
 //      Result
 // The function is needed to check different input element types (model precision change)
-class AddRollConstFunction : public SnippetsFunctionBase {
+class AddRollConstFunction : public AddConstFunction {
 public:
-    explicit AddRollConstFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit AddRollConstFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& constShape) :
+        AddConstFunction(inputShapes, constShape) {
         NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
-        NGRAPH_CHECK(input_shapes[0].is_static(), "Only static shapes are supported");
+        NGRAPH_CHECK(m_const_shape[0].is_static(), "Const shape must be static shape");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;

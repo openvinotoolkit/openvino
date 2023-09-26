@@ -5,14 +5,15 @@
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
 #include <array>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -25,23 +26,23 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_v4_inputs(
 
     if (interpolate->get_input_size() == 3) {
         // broadcast dummy constant to the shape of axes
-        broadcast_shape = registry.make<ov::op::v3::ShapeOf>(interpolate->input_value(2));
+        broadcast_shape = registry.add(ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(interpolate->input_value(2)));
     } else {
         // broadcast dummy constant to the rank of data
-        broadcast_shape = registry.make<ov::op::v3::ShapeOf>(interpolate->input_value(0));
-        broadcast_shape = registry.make<ov::op::v3::ShapeOf>(broadcast_shape);
+        broadcast_shape = registry.add(ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(interpolate->input_value(0)));
+        broadcast_shape = registry.add(ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(broadcast_shape));
     }
 
     if (interpolate->get_attrs().shape_calculation_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
         ret.second = interpolate->input_value(1);
         std::shared_ptr<ov::Node> sizes_input = registry.make<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
-        sizes_input = registry.make<ov::op::v3::Broadcast>(sizes_input, broadcast_shape);
+        sizes_input = registry.add(ov::op::util::make_try_fold<ov::op::v3::Broadcast>(sizes_input, broadcast_shape));
         ret.first = sizes_input;
     } else {
         ret.first = interpolate->input_value(1);
         std::shared_ptr<ov::Node> scales_input =
             registry.make<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, 1.0f);
-        scales_input = registry.make<ov::op::v3::Broadcast>(scales_input, broadcast_shape);
+        scales_input = registry.add(ov::op::util::make_try_fold<ov::op::v3::Broadcast>(scales_input, broadcast_shape));
         ret.second = scales_input;
     }
 

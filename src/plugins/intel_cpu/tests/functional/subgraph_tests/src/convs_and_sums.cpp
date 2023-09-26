@@ -36,7 +36,8 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 512, 32}, {1, 128, 32}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 512, 32}),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 128, 32})};
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         auto FQ = ngraph::builder::makeFakeQuantize(paramOuts[1], ngPrc, 256, {}, {-2.8215785026550293}, {2.799535036087036},
