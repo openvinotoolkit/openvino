@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 import numpy as np
 
 
@@ -49,58 +49,23 @@ graph_edges_sizes = [
 ]
 
 
-class TestComplexOp(unittest.TestCase):
-    def test_case_1(self):
-        input_shape = []
-        output_shape = [dynamic_dimension_value, dynamic_dimension_value]
-        self._test_complex_op_shape_inference(input_shape, output_shape)
-
-    def test_case_2(self):
-        input_shape = [1]
-        output_shape = [dynamic_dimension_value, dynamic_dimension_value]
-        self._test_complex_op_shape_inference(input_shape, output_shape)
-
-    def test_case_3(self):
-        input_shape = [1]
-        output_shape = [2, dynamic_dimension_value, dynamic_dimension_value]
-        num_rows = None
-        num_cols = None
-        batch_shape = [2]
-        self._test_complex_op_shape_inference(input_shape, output_shape, num_rows, num_cols, batch_shape)
-
-    def test_case_4(self):
-        input_shape = [1]
-        output_shape = [2, 3, dynamic_dimension_value]
-        num_rows = 3
-        num_cols = None
-        batch_shape = [2]
-        self._test_complex_op_shape_inference(input_shape, output_shape, num_rows, num_cols, batch_shape)
-
-    def test_case_5(self):
-        input_shape = [1]
-        output_shape = [2, dynamic_dimension_value, 4]
-        num_rows = None
-        num_cols = 4
-        batch_shape = [2]
-        self._test_complex_op_shape_inference(input_shape, output_shape, num_rows, num_cols, batch_shape)
-
-    def test_case_6(self):
-        input_shape = [1]
-        output_shape = [2, 3, 4]
-        num_rows = [3]
-        num_cols = [4]
-        batch_shape = [2]
-        self._test_complex_op_shape_inference(input_shape, output_shape, num_rows, num_cols, batch_shape)
-
-    def _test_complex_op_shape_inference(self, input_shape, output_shape, num_rows=None, num_cols=None, batch_shape=[]):
+class TestComplexOp():
+    @pytest.mark.parametrize("input_shape, output_shape, num_rows, num_cols, batch_shape",[
+        ([], [dynamic_dimension_value, dynamic_dimension_value],None,None,[]),
+        ([1], [dynamic_dimension_value, dynamic_dimension_value],None,None,[]),
+        ([1], [2, dynamic_dimension_value, dynamic_dimension_value], None, None, [2]),
+        ([1], [2, 3, dynamic_dimension_value], 3, None, [2]),
+        ([1], [2, dynamic_dimension_value, 4], None, 4, [2]),
+        ([1], [2, 3, 4], [3], [4], [2])
+    ])
+    def test_complex_op_shape_inference(self, input_shape, output_shape, num_rows, num_cols, batch_shape):
         graph = build_graph_with_attrs(nodes_with_attrs=graph_node_attrs_sizes,
                                        edges_with_attrs=graph_edges_sizes,
                                        update_nodes_attributes=[
                                            ('num_rows_data', {'shape': int64_array(input_shape), 'value': num_rows}),
                                            ('num_columns_data', {'shape': int64_array(input_shape), 'value': num_cols}),
                                            ('diagonal_index_data', {'shape': int64_array(input_shape)}),
-                                           ('batch_shape_data', {'shape': int64_array([len(batch_shape)]),
-                                                                 'value': batch_shape}),
+                                           ('batch_shape_data', {'shape': int64_array([len(batch_shape)]), 'value': batch_shape}),
                                            ('eye_op', {'output_type': np.float32}),
                                        ])
         node = Node(graph, 'eye_op')
@@ -108,8 +73,8 @@ class TestComplexOp(unittest.TestCase):
 
         msg = "Eye operation infer failed for case: expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['eye_op_data']['shape'], output_shape),
-                        msg.format(output_shape, graph.node['eye_op_data']['shape']))
+        assert np.array_equal(graph.node['eye_op_data']['shape'], output_shape),\
+                        msg.format(output_shape, graph.node['eye_op_data']['shape'])
 
     def test_value_inference(self):
         graph_node_attrs_sizes = {
@@ -136,5 +101,5 @@ class TestComplexOp(unittest.TestCase):
 
         msg = "Eye operation infer failed for case: expected_value={}, actual_value={}"
 
-        self.assertTrue(np.array_equal(graph.node['eye_op_d']['value'], output_value),
-                        msg.format(output_value, graph.node['eye_op_d']['value']))
+        assert np.array_equal(graph.node['eye_op_d']['value'], output_value),\
+                        msg.format(output_value, graph.node['eye_op_d']['value'])
