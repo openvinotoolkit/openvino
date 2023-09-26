@@ -2705,6 +2705,10 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_elt
 
 class conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec : public ConvFusingTest {};
 TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_ops) {
+    // Block dGPU execution until issue fix of in-correct IMAD after SHUFFLE
+    if (engine.get_device_info().supports_immad)
+        return;
+
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2740,6 +2744,10 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
 }
 
 TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_ops_mixed_types) {
+    // Block dGPU execution until issue fix of in-correct IMAD after SHUFFLE
+    if (engine.get_device_info().supports_immad)
+        return;
+
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),

@@ -8781,6 +8781,9 @@ TEST_P(convolution_random_smoke_test, u8s8f32_scale) {
 }
 
 TEST_P(convolution_random_smoke_test, s8s8f32_fsv4_input) {
+    // Block dGPU execution until issue fix of in-correct IMAD after SHUFFLE
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     convolution_random_test_fsv4_input_s8s8f32 test;
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
 }
