@@ -435,7 +435,7 @@ jobs:
           sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
           
           # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
-          sudo apt-get update && apt-get install -y ca-certificates
+          sudo apt-get update && sudo apt-get install --assume-yes --no-install-recommends ca-certificates
           
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
