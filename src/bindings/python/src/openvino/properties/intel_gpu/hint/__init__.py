@@ -3,10 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Properties
-from openvino._pyopenvino.properties.intel_gpu.hint import queue_throttle
-from openvino._pyopenvino.properties.intel_gpu.hint import queue_priority
-from openvino._pyopenvino.properties.intel_gpu.hint import host_task_priority
-from openvino._pyopenvino.properties.intel_gpu.hint import available_device_mem
+import openvino._pyopenvino.properties.intel_gpu.hint as __hint
+from openvino.properties._properties import __make_properties
+__make_properties(__hint, __name__)
 
 # Classes
 from openvino._pyopenvino.properties.intel_gpu.hint import ThrottleLevel

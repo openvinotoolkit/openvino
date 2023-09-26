@@ -6,4 +6,6 @@
 from openvino._pyopenvino.properties.log import Level
 
 # Properties
-from openvino._pyopenvino.properties.log import level
+import openvino._pyopenvino.properties.log as __log
+from openvino.properties._properties import __make_properties
+__make_properties(__log, __name__)
