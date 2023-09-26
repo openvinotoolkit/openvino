@@ -6,8 +6,6 @@
 
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
-#include "snippets/pass/transform_convert.hpp"
-#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace snippets {
@@ -82,6 +80,8 @@ public:
 class CommonFakeQuantizeDecomposition: public ov::pass::ModelPass {
 public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+    static bool is_supported_fq(const std::shared_ptr<const ov::op::v0::FakeQuantize>& fq);
 };
 
 }  // namespace pass
