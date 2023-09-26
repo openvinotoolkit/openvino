@@ -375,11 +375,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount/caches:/mount/caches
+    runs-on: ubuntu-20.04-8-cores
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -390,10 +386,10 @@ jobs:
           - TEST_TYPE: 'API'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      INSTALL_DIR: /__w/openvino/openvino/install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-      CONFORMANCE_TOOLS_DIR: /__w/openvino/openvino/install/tests/functional_test_utils/layer_tests_summary
-      CONFORMANCE_ARTIFACTS_DIR: /__w/openvino/openvino/install/conformance_artifacts_dir
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
+      CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts_dir
       TEST_DEVICE: 'CPU'
 
     steps:
@@ -427,8 +423,8 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
+#      - name: Install 'actions/setup-python@v4' dependencies
+#        run: apt-get update && apt-get install -y libssl1.1
 
       - uses: actions/setup-python@v4
         with:
@@ -436,10 +432,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
           
           # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
-          apt-get update && apt-get install -y ca-certificates
+          sudo apt-get update && apt-get install -y ca-certificates
           
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
