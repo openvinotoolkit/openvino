@@ -8,7 +8,6 @@
 
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/float16.hpp"
-#include "ngraph/type/nf4.hpp"
 
 namespace ov {
 namespace reference {

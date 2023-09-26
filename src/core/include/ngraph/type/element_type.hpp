@@ -21,7 +21,6 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
-#include "ngraph/type/nf4.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ngraph {

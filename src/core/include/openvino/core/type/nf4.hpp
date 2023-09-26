@@ -4,13 +4,13 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <string>
 #include <vector>
-#include <array>
 
 #include "openvino/core/core_visibility.hpp"
 
@@ -35,6 +35,7 @@ public:
     static float dequantize(uint8_t val);
 
     static uint8_t quantize(float x);
+
 private:
     static inline uint8_t get_u4(const uint8_t* buf, size_t idx) {
         const size_t byte_idx = idx / 2;
