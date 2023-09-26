@@ -464,8 +464,11 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
+          # Conformance utilizes all the cores resulting in Docker daemon crash
+          cpus_to_use=${{ steps.cpu-cores.outputs.count }}-4
+          
           python3 ${CONFORMANCE_TOOLS_DIR}/run_conformance.py -ov=${INSTALL_DIR}/tests \
-            -j=${{ steps.cpu-cores.outputs.count - 4 }} \
+            -j=$cpus_to_use \
             -d=${TEST_DEVICE} \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR}
