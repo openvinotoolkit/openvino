@@ -161,8 +161,7 @@ jobs:
             -DENABLE_WHEEL=ON \
             -DPYBIND11_PYTHONLIBS_OVERWRITE=OFF \
             -DPYTHON_MODULE_EXTENSION=$(aarch64-linux-gnu-python3-config --extension-suffix) \
-            -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libc-2.31.so \
-            -DPYTHON_INCLUDE_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_path('include'))") \
+            -DPython3_INCLUDE_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_path('include'))") \
             -DENABLE_TESTS=ON \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_PROTOBUF=ON \

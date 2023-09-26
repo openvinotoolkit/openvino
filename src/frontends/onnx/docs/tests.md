@@ -23,7 +23,7 @@ For example:
 
 
 ## Pre-steps for all Python tests
-1. Build OpenVINO with `-DENABLE_PYTHON=ON`, preferably in a `Python` virtual environment. To avoid problems with too many Python interpreters installed on the host, you can also set the `-DPYTHON_EXECUTABLE=PYTHON_INTERPRETER_PATH` build option.
+1. Build OpenVINO with `-DENABLE_PYTHON=ON`, preferably in a `Python` virtual environment. To avoid problems with too many Python interpreters installed on the host, you can also set the `-DPython3_EXECUTABLE=<PYTHON_INTERPRETER_PATH>` build option (requires cmake 3.16 and higher).
 > **NOTE**: If you want to run the tests from the installation directory (like in the CI), add the `-P cmake_install.cmake` and `-DCOMPONENT=tests` CMake build options, and install OpenVINO via `cmake --build . --target install` as additional steps.
 2. Set up Python paths via `source <OV_INSTALL_DIR>/setupvars.sh` for Linux, or `sh <INSTALL_DIR>\setupvars.bat` for Windows.
 3. Install Python dependencies:
