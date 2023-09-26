@@ -32,7 +32,7 @@ typedef std::tuple<
 > fqSpecificParams;
 typedef std::tuple<
         fqSpecificParams,
-        ov::element::Type,                                         // Net precision
+        ov::element::Type,                                         // Model type
         std::vector<InputShape>,                                   // Input shapes
         std::string                                                // Device name
 > fqLayerTestParamsSet;

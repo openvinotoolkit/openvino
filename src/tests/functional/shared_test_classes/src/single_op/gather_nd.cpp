@@ -49,8 +49,8 @@ void GatherNDLayerTest::SetUp() {
 
     auto gather = ngraph::builder::makeGatherND(param, indices_shape, indices_type, batch_dims);
 
-    auto result = std::make_shared<ngraph::opset1::Result>(gather);
-    function = std::make_shared<ngraph::Function>(result, ov::ParameterVector{param}, "gatherND");
+    auto result = std::make_shared<ov::op::v0::Result>(gather);
+    function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "gatherND");
 }
 
 
@@ -70,8 +70,8 @@ void GatherND8LayerTest::SetUp() {
 
     auto gather = ngraph::builder::makeGatherND8(param, indices_shape, indices_type, batch_dims);
 
-    auto result = std::make_shared<ngraph::opset1::Result>(gather);
-    function = std::make_shared<ngraph::Function>(result, ov::ParameterVector{param}, "gatherND");
+    auto result = std::make_shared<ov::op::v0::Result>(gather);
+    function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "gatherND");
 }
 }  // namespace test
 }  // namespace ov

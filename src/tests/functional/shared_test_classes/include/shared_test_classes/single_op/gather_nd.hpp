@@ -16,7 +16,7 @@ namespace test {
 typedef std::tuple<
         std::vector<InputShape>,  // Input shapes
         ov::Shape,                // Indices shape
-        int,                      // batch dims
+        int,                      // Batch dim
         ov::element::Type,        // Model type
         ov::element::Type,        // Indices type
         std::string               // Device name

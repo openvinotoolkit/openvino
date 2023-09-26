@@ -16,7 +16,7 @@ namespace test {
 using GatherTreeParamsTuple = typename std::tuple<
         ov::Shape,                         // Input tensors shape
         ov::test::utils::InputLayerType,   // Secondary input type
-        ov::element::Type,                 // Network precision
+        ov::element::Type,                 // Model type
         std::string>;                      // Device name
 
 class GatherTreeLayerTest : public testing::WithParamInterface<GatherTreeParamsTuple>,
