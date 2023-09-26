@@ -13,7 +13,6 @@
 
 #include "openvino/core/core_visibility.hpp"
 
-
 namespace ov {
 class OPENVINO_API ConvertNF4 {
 public:
