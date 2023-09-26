@@ -12,7 +12,9 @@ namespace ov {
 namespace intel_cpu {
 
 void VariableState::reset() {
-    std::memset(m_state->data(), 0, m_state->get_byte_size());
+    // state = make_blob_with_precision(tensor_desc);
+    // state->allocate();
+    // std::memset(state->buffer(), 0, state->byteSize());
 }
 
 }  // namespace intel_cpu
