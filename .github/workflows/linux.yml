@@ -1003,16 +1003,17 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11-dev'
+          python-version: '3.11'
 
       - name: Install Python wheels
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install openvino --find-links=${INSTALL_DIR}/tools
-          python3 -m pip install Cython
 
       - name: Install PyTorch tests requirements
         run: |
+          export CPLUS_INCLUDE_PATH=${AGENT_TOOLSDIRECTORY}/include/python3.11
+          echo $AGENT_TOOLSDIRECTORY
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
           python3 -m pip cache purge
