@@ -3,9 +3,9 @@
 #
 
 if(ENABLE_CPPLINT)
-    find_host_package(PythonInterp 3 QUIET)
+    find_host_package(Python3 QUIET COMPONENTS Interpreter)
 
-    if(NOT PYTHONINTERP_FOUND)
+    if(NOT Python3_Interpreter_FOUND)
         message(WARNING "Python3 interpreter was not found (required for cpplint check)")
         set(ENABLE_CPPLINT OFF)
     endif()
@@ -68,7 +68,7 @@ function(add_cpplint_target TARGET_NAME)
                 "${output_file}"
             COMMAND
                 "${CMAKE_COMMAND}"
-                -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
+                -D "Python3_EXECUTABLE=${Python3_EXECUTABLE}"
                 -D "CPPLINT_SCRIPT=${IEDevScripts_DIR}/cpplint/cpplint.py"
                 -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"

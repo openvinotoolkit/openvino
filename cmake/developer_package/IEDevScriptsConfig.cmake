@@ -200,6 +200,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
 # CMake 3.13+: option() honors normal variables.
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# CMake 3.15: Modules FindPython3, FindPython2 and FindPython use LOCATION for lookup strategy
+set(CMAKE_POLICY_DEFAULT_CMP0094 NEW)
 # CMake 3.19+: An imported target missing its location property fails during generation.
 set(CMAKE_POLICY_DEFAULT_CMP0111 NEW)
 # CMake 3.22+ :cmake_dependent_option() supports full Condition Syntax
