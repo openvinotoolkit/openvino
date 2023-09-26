@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -31,9 +31,8 @@ graph_edges=[
 ]
 
 
-class TestMatMulValuePropagation(unittest.TestCase):
-    def test_value_propagation(self):
-        test_cases=[
+class TestMatMulValuePropagation():
+    @pytest.mark.parametrize("a_shape, a_value, b_shape, b_value, transpose_a, transpose_b",[
         ([16, 3], np.arange(-5, -5 + 16 * 3).reshape((16, 3)),
          [3, 5], np.arange(0, 3 * 5).reshape((3, 5)),
          False, False),
@@ -63,32 +62,31 @@ class TestMatMulValuePropagation(unittest.TestCase):
         ([2], np.zeros((2)), [2], np.zeros((2)), False, False),
         ([2], np.zeros((2)), [1, 2, 3], np.zeros((1, 2, 3)), False, False),
         ([1, 2, 3], np.zeros((1, 2, 3)), [3], np.zeros((3)), False, False),
-    ]
-        for idx, (a_shape, a_value, b_shape, b_value, transpose_a, transpose_b) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(
-                    nodes_attrs=graph_nodes_attrs,
-                    edges=graph_edges,
-                    update_attributes={
-                        'A': {'shape': int64_array(a_shape), 'value': a_value},
-                        'A_data': {'shape': int64_array(a_shape), 'value': a_value},
-                        'B': {'shape': int64_array(b_shape), 'value': b_value},
-                        'B_data': {'shape': int64_array(b_shape), 'value': b_value},
-                        'matmul': {'transpose_a': transpose_a, 'transpose_b': transpose_b},
-                        'matmul_data': {'value': None, 'shape': None},
-                    }
-                )
-                node = Node(graph, 'matmul')
-                MatMul.infer(node)
-                node_data = node.out_port(0).get_destination().data.get_value()
-                a = a_value
-                b = b_value
-                if transpose_a:
-                    a = transpose(a)
-                if transpose_b:
-                    b = transpose(b)
-                ref_data = np.matmul(a, b)
-                node_data_shape = node_data.shape
-                ref_data_shape = ref_data.shape
-                msg = "Value propagation for 'matmul' node is not correct."
-                self.assertTrue(node_data_shape == ref_data_shape and np.all(node_data == ref_data), msg)
+    ])
+    def test_value_propagation(self, a_shape, a_value, b_shape, b_value, transpose_a, transpose_b):
+        graph = build_graph(
+            nodes_attrs=graph_nodes_attrs,
+            edges=graph_edges,
+            update_attributes={
+                'A': {'shape': int64_array(a_shape), 'value': a_value},
+                'A_data': {'shape': int64_array(a_shape), 'value': a_value},
+                'B': {'shape': int64_array(b_shape), 'value': b_value},
+                'B_data': {'shape': int64_array(b_shape), 'value': b_value},
+                'matmul': {'transpose_a': transpose_a, 'transpose_b': transpose_b},
+                'matmul_data': {'value': None, 'shape': None},
+            }
+        )
+        node = Node(graph, 'matmul')
+        MatMul.infer(node)
+        node_data = node.out_port(0).get_destination().data.get_value()
+        a = a_value
+        b = b_value
+        if transpose_a:
+            a = transpose(a)
+        if transpose_b:
+            b = transpose(b)
+        ref_data = np.matmul(a, b)
+        node_data_shape = node_data.shape
+        ref_data_shape = ref_data.shape
+        msg = "Value propagation for 'matmul' node is not correct."
+        assert node_data_shape == ref_data_shape and np.all(node_data == ref_data), msg
