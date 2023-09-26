@@ -21,9 +21,6 @@
 
 TEST(ov_windows_conflict_test, ov_windows_boolean_conflict) {
     ov_element_type_e element_type = OV_BOOLEAN;  // The BOOLEAN from ov_element_type_e will be replaced by OV_BOOLEAN
-    WIN_BOOLEAN win_boolean;                      // The BOOLEAN from Windows.h will be replaced by WIN_BOOLEAN
-
-    UNUSED(win_boolean);
     UNUSED(element_type);
 }
 #endif
