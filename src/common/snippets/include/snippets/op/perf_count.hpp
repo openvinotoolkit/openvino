@@ -11,47 +11,86 @@ namespace snippets {
 namespace op {
 
 /**
- * @interface PerfCountBegin
- * @brief Performance count start time
+ * @interface PerfCountBeginBase
+ * @brief Base class for PerfCountBegin and PerfCountRdtscBegin(cpu)
  * @ingroup snippets
  */
-class PerfCountBegin : public ov::op::Op {
+class PerfCountBeginBase : public ov::op::Op {
 public:
-    OPENVINO_OP("PerfCountBegin", "SnippetsOpset");
+    OPENVINO_OP("PerfCountBeginBase", "SnippetsOpset");
+    PerfCountBeginBase(const std::vector<Output<Node>>& args);
+    PerfCountBeginBase() = default;
+
+    void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
+protected:
+    void validate_and_infer_types_except_PerfCountEnd();
+};
+
+/**
+ * @interface PerfCountEndBase
+ * @brief Base class for PerfCountEnd and PerfCountRdtscEnd
+ * @ingroup snippets
+ */
+class PerfCountEndBase : public ov::op::Op {
+public:
+    OPENVINO_OP("PerfCountEndBase", "SnippetsOpset");
+    PerfCountEndBase(const std::vector<Output<Node>>& args);
+    PerfCountEndBase() = default;
+
+    void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+};
+
+/**
+ * @interface PerfCountBegin
+ * @brief Performance count start time with chrono call
+ * @ingroup snippets
+ */
+class PerfCountBegin : public PerfCountBeginBase {
+public:
+    OPENVINO_OP("PerfCountBegin", "SnippetsOpset", PerfCountBeginBase);
     PerfCountBegin();
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    // used for chrono call
-    std::chrono::high_resolution_clock::time_point start_time_stamp = {};
+    void set_start_time();
+    std::chrono::high_resolution_clock::time_point& get_start_time();
 
-    // used for rdtsc
-    uint64_t start_count = 0ul;
+    // ~PerfCountBegin() {
+    //     auto start_time_stamp_c = start_time_stamp.time_since_epoch().count();
+    //     std::cout << "start_time_stamp_c:" << start_time_stamp_c << "ns" << std::endl;
+    // }
+
+private:
+    std::chrono::high_resolution_clock::time_point start_time_stamp = {};
 };
 
 /**
  * @interface PerfCountEnd
- * @brief Performance count end time and duration
+ * @brief Performance count end time and duration with chrono call
  * @ingroup snippets
  */
-class PerfCountBegin;
-class PerfCountEnd : public ov::op::Op {
+class PerfCountEnd : public PerfCountEndBase {
 public:
-    OPENVINO_OP("PerfCountEnd", "SnippetsOpset");
-    PerfCountEnd(PerfCountBegin& start);
+    OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
+    PerfCountEnd(const Output<Node>& pc_begin);
+    PerfCountEnd() = default;
     ~PerfCountEnd() {
         uint64_t avg = iteration == 0 ? 0 : accumulation / iteration;
-        std::cout << "accumulation:" << accumulation << " iteration:" << iteration << " avg:" << avg << std::endl;
+        std::cout << "accumulation:" << accumulation << "ns, iteration:" << iteration << " avg:" << avg << "ns"<< std::endl;
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    // in each call, PerfCountBegin get start_time_stamp.
-    // in each call, PerfCountEnd get end_time_stamp, then total_duration += end_time_stamp - start_time_stamp, and iteration++.
-    // in destructor of PerfCountEnd, output the perf info
-    PerfCountBegin& perf_count_start;
-    // accumulation is time in nanosecond for chrono call, cycle count for rdtsc
+    std::shared_ptr<PerfCountBegin> get_pc_begin();
+    void set_accumulated_time();
+
+private:
     uint64_t accumulation = 0ul;
     uint32_t iteration = 0u;
+    // pc_begin as member for perf? no get for each get perf start?
+    // std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 };
 
 } // namespace op

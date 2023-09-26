@@ -52,9 +52,11 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::HorizonSum, HorizonOpShapeInfer),
         //
         SHAPE_INFER_PREDEFINED(op::LoopBegin, SingleElementShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::PerfCountBegin, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::PerfCountEnd, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Kernel, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Nop, EmptyShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),

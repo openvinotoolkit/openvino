@@ -24,6 +24,10 @@ public:
             return create(loop_begin, params...);
         } else if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(n)) {
             return create(loop_end, params...);
+        } else if (const auto pc_begin = ov::as_type_ptr<op::PerfCountBegin>(n)) {
+            return create(pc_begin, params...);
+        } else if (const auto pc_end = ov::as_type_ptr<op::PerfCountEnd>(n)) {
+            return create(pc_end, params...);
         }
         return create(n, params...);
     }
@@ -48,6 +52,8 @@ private:
     static ExpressionPtr create(const std::shared_ptr<op::LoopBegin>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
     static ExpressionPtr create(const std::shared_ptr<op::LoopEnd>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
     static ExpressionPtr create(const std::shared_ptr<ov::Node>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
+    static ExpressionPtr create(const std::shared_ptr<op::PerfCountBegin>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
+    static ExpressionPtr create(const std::shared_ptr<op::PerfCountEnd>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
 
     // Creates inputs for expression using parent output port connectors
     static void create_expression_inputs(const LinearIR& linear_ir, const ExpressionPtr& expr);
