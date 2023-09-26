@@ -14,7 +14,7 @@ using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 namespace MatMul {
-
+namespace {
 std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
         fusingRelu,
 #ifndef OV_CPU_WITH_MLAS
@@ -818,6 +818,6 @@ const auto testParams2D_MLAS_smoke = ::testing::Combine(::testing::Combine(::tes
                                              ::testing::ValuesIn(filterSpecificParams_MLAS()));
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_MLAS, MatMulLayerCPUTest, testParams2D_MLAS_smoke, MatMulLayerCPUTest::getTestCaseName);
 #endif
-
+} // namespace
 } // namespace MatMul
 } // namespace CPULayerTestsDefinitions
