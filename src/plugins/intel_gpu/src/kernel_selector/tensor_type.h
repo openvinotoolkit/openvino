@@ -32,6 +32,7 @@ enum DataLayout {
     yxfb,                   // 3D+batch
     byxf,                   // 3D+batch
     fyxb,                   // 3D+batch
+    fbyx,                   // 3D+batch
     bfxy,                   // 3D+batch
     byfx,
     bxfy,
@@ -318,6 +319,7 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::byxf:
         case DataLayout::byfx:
         case DataLayout::bxfy:
+        case DataLayout::fbyx:
         case DataLayout::fyxb:
         case DataLayout::bfxy:
         case DataLayout::bfzyx:

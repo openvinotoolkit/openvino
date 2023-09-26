@@ -96,7 +96,7 @@ void prepare_primitive_fusing_through::run(program& p) {
 
             input_node = &node->get_dependency(0);
         } else if (node->is_type<eltwise>()) {
-            if (node->get_dependencies().size() !=2)
+            if (node->get_dependencies().size() != 2)
                 continue;
 
             size_t second_input_idx = 0;

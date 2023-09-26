@@ -60,6 +60,7 @@ void prepare_primitive_fusing::run(program& p) {
     fuse_sigmoid_mul_to_swish(p);
     fuse_bias(p);
     fuse_simple_primitives(p);
+    fuse_constant_transposes(p);
     optimize_fused_ops(p);
 }
 
@@ -1184,6 +1185,94 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     // than fused node one
     if (recalc_processing_order)
         p.get_processing_order().calc_processing_order(p);
+}
+
+void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
+    std::function<const program_node*(const program_node*)> get_weightable_node =
+        [&get_weightable_node](const program_node* node) -> const program_node* {
+        if (node->get_users().empty())
+            return nullptr;
+
+        const auto* next_node = node->get_users().front();
+
+        if (next_node->is_type<fully_connected>() ||
+            next_node->is_type<deconvolution>() ||
+            next_node->is_type<convolution>() ||
+            next_node->is_type<binary_convolution>() ||
+            next_node->is_type<deformable_conv>()) {
+            size_t weights_offset = next_node->get_primitive()->input_size();
+            return &next_node->get_dependency(weights_offset) == node ? next_node
+                                                                      : nullptr;
+        }
+
+        if (node->is_constant() && node->get_users().size() == 1)
+            return get_weightable_node(next_node);
+
+        return nullptr;
+    };
+
+    auto convert_data_format_by_order = [](format fmt, const std::vector<uint16_t>& order) -> format {
+        const auto& old_order = fmt.dims_order();
+        auto new_order = old_order;
+
+        for (size_t i = 0; i < order.size(); ++i) {
+            new_order[i] = old_order[order[i]];
+        }
+
+        return format::find_format(new_order, fmt.block_sizes());
+    };
+
+    auto itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto& node = *itr++;
+
+        if (!node->is_type<permute>())
+            continue;
+
+        auto& permute_node = node->as<permute>();
+
+        auto weightable_node = get_weightable_node(&permute_node);
+
+        if (weightable_node == nullptr || !permute_node.get_dependency(0).is_type<data>())
+            continue;
+
+        auto& prev_const = permute_node.get_dependency(0).as<data>();
+
+        if (prev_const.get_users().size() != 1)
+            continue;
+
+        auto permute_order = permute_node.get_primitive()->permute_order;
+        // Assumption that fc weights will be reshaped to 2d
+        if (permute_order.size() != 2 && weightable_node->is_type<fully_connected>()) {
+            if (permute_order == std::vector<uint16_t>{0, 2, 1} ||
+                permute_order == std::vector<uint16_t>{0, 1, 3, 2}) {
+                permute_order = {1, 0};
+            } else {
+                continue;
+            }
+        }
+
+        format new_fmt = format::any;
+        try {
+            new_fmt = convert_data_format_by_order(prev_const.get_output_layout().format, permute_order);
+        } catch(ov::Exception&) {
+            continue;
+        }
+
+        layout updated_const_layout = prev_const.get_output_layout();
+        updated_const_layout.format = new_fmt;
+        updated_const_layout.set_partial_shape(permute_node.get_output_pshape());
+
+        p.extract_and_remove(permute_node);
+
+        const auto& new_mem = p.get_engine().reinterpret_buffer(prev_const.get_attached_memory(), updated_const_layout);
+
+        auto new_const_prim = std::make_shared<data>(prev_const.id() + "_fused_with_transpose", new_mem);
+        auto& new_const_node = p.get_or_create(new_const_prim);
+
+        p.replace(prev_const, new_const_node);
+        new_const_node.recalc_output_layout(false);
+    }
 }
 
 void prepare_primitive_fusing::optimize_fused_ops(program& p) {
