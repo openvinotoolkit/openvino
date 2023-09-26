@@ -867,7 +867,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-16-cores'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-8-cores' || 'aks-linux-4-cores'}}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -875,7 +879,7 @@ jobs:
 
     steps:
       - name: Create Directories
-        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
       - uses: actions/setup-python@v4
         with:
@@ -895,26 +899,26 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
           popd
 
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
 
       - name: Install OpenVINO Python wheels
         run: |
-          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+          python3 -m pip install openvino --find-links=${INSTALL_DIR}/tools
 
       - name: Install TF Hub tests requirements
         run: |
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
 
       - name: TensorFlow Hub Tests - TF FE
         run: |
-          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.html --self-contained-html
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
@@ -933,7 +937,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-16-cores'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-8-cores' || 'aks-linux-4-cores'}}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -949,7 +957,7 @@ jobs:
           df -h
 
       - name: Create Directories
-        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
       - uses: actions/setup-python@v4
         with:
@@ -959,30 +967,30 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
+          path: ${INSTALL_DIR}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
           name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+          path: ${INSTALL_TEST_DIR}
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
           popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
       - name: Install Python wheels
         run: |
-          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+          python3 -m pip install openvino --find-links=${INSTALL_DIR}/tools
 
       - name: Install PyTorch tests requirements
         run: |
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements_secondary.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
           python3 -m pip cache purge
           echo "Available storage:"
           df -h
@@ -990,8 +998,8 @@ jobs:
 
       - name: PyTorch Models Tests
         run: |
-          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html -v
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
