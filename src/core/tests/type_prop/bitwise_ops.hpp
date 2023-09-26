@@ -277,7 +277,7 @@ TYPED_TEST_P(BitwiseOperator, incompatible_element_types_f32) {
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(A, B),
                     ov::NodeValidationFailure,
-                    HasSubstr("The element type of the input tensor must be integral or boolean."));
+                    HasSubstr("The element type of the input tensor must be integer or boolean."));
 }
 
 TYPED_TEST_P(BitwiseOperator, shape_inference_1D_x_1D_incompatible) {
