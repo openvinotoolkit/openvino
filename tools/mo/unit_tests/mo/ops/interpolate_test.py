@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -71,9 +71,9 @@ graph_edges = [
 ]
 
 
-class TestInterpolateOp(unittest.TestCase):
-    def test_interpolate4_using_sizes(self):
-        test_cases=[([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [350, 150], [3.5, 150 / 200], [2, 3]),
+class TestInterpolateOp():
+    @pytest.mark.parametrize("pads_begin, pads_end, input_shape, output_shape, sizes, scales, axes",
+                [([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [350, 150], [3.5, 150 / 200], [2, 3]),
                 ([0, 3, 10, 10], [0], [16, 7, 190, 400], [8, 10, 390, 600],
                  [8, 390, 600], [0.5, 390 / 200, 600 / 410], [0, 2, 3]),
                 ([10, 5, 0, 10], [0, 4, 16, 18], [4, 33, 1024, 8000], [56, 42, 520, 8028],
@@ -90,36 +90,35 @@ class TestInterpolateOp(unittest.TestCase):
                 ([0], [0], [1, 690], [20, 1380], [20, 1380], [20.0, 1380.0 / 690.0], [0, 1]),
                 ([4, 3, 11, 22, 5, 0], [1, 3, 4, 8, 5, 0], [1, 16, 85, 470, 690, 349], [60, 22, 430, 500, 345, 349],
                  [60, 430, 345], [10.0, 4.3, 345.0 / 700.0], [0, 2, 4])
-                ]
-        for idx, (pads_begin, pads_end, input_shape, output_shape, sizes, scales, axes) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=graph_nodes_attrs,
-                                    edges=graph_edges,
-                                    update_attributes={
-                                        'input_data': {'shape': input_shape},
-                                        'sizes': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
-                                        'sizes_data': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
-                                        'scales': {'shape': np.array(scales).shape, 'value': np.array(scales)},
-                                        'scales_data': {'shape': np.array(scales).shape, 'value': np.array(scales)},
-                                        'axes': {'shape': int64_array(axes).shape, 'value': int64_array(axes)},
-                                        'axes_data': {'shape': int64_array(axes).shape, 'value': int64_array(axes)},
-                                        'interpolate': {'pads_begin': int64_array(pads_begin),
-                                                        'pads_end': int64_array(pads_end)}
-                                    })
+                ])
+    def test_interpolate4_using_sizes(self, pads_begin, pads_end, input_shape, output_shape, sizes, scales, axes):
+        graph = build_graph(nodes_attrs=graph_nodes_attrs,
+                            edges=graph_edges,
+                            update_attributes={
+                                'input_data': {'shape': input_shape},
+                                'sizes': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
+                                'sizes_data': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
+                                'scales': {'shape': np.array(scales).shape, 'value': np.array(scales)},
+                                'scales_data': {'shape': np.array(scales).shape, 'value': np.array(scales)},
+                                'axes': {'shape': int64_array(axes).shape, 'value': int64_array(axes)},
+                                'axes_data': {'shape': int64_array(axes).shape, 'value': int64_array(axes)},
+                                'interpolate': {'pads_begin': int64_array(pads_begin),
+                                                'pads_end': int64_array(pads_end)}
+                            })
 
-                node = Node(graph, 'interpolate')
-                tested_class = Interpolate(graph=graph, attrs=node.attrs())
-                tested_class.infer(node)
+        node = Node(graph, 'interpolate')
+        tested_class = Interpolate(graph=graph, attrs=node.attrs())
+        tested_class.infer(node)
 
-                msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}, axes={}," \
-                    " expected_shape={}, actual_shape={}"
+        msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}, axes={}," \
+              " expected_shape={}, actual_shape={}"
 
-                self.assertTrue(np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),
-                                msg.format(sizes, scales, pads_begin, pads_end, axes, output_shape,
-                                        graph.node['interpolate_data']['shape']))
+        assert np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),\
+                        msg.format(sizes, scales, pads_begin, pads_end, axes, output_shape,
+                                   graph.node['interpolate_data']['shape'])
 
-    def test_interpolate4_using_scales(self):
-        test_cases=[([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [350, 150], [3.5, 150 / 200], [2, 3]),
+    @pytest.mark.parametrize("pads_begin, pads_end, input_shape, output_shape, sizes, scales, axes",
+                [([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [350, 150], [3.5, 150 / 200], [2, 3]),
                 ([0, 3, 10, 10], [0], [16, 7, 190, 400], [8, 10, 390, 600],
                  [8, 390, 600], [0.5, 390 / 200, 600 / 410], [0, 2, 3]),
                 ([10, 5, 0, 10], [0, 4, 16, 18], [4, 33, 1024, 8000], [56, 42, 520, 8028],
@@ -142,37 +141,36 @@ class TestInterpolateOp(unittest.TestCase):
                 ([4, 3, 11, 22, 5, 0, 0], [1, 3, 4, 8, 5, 0, 0], [1, 16, 85, 470, 690, 349, 3],
                  [60, 22, 430, 500, 345, 349, 1],
                  [60, 430, 345, 1], [10.0, 4.3, 345.0 / 700.0, 0.3333333], [0, 2, 4, 6]),
-                ]
-        for idx, (pads_begin, pads_end, input_shape, output_shape, sizes, scales, axes) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=graph_nodes_attrs,
-                                    edges=graph_edges,
-                                    update_attributes={
-                                        'input_data': {'shape': input_shape},
-                                        'sizes': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
-                                        'sizes_data': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
-                                        'scales': {'shape': np.array(scales).shape, 'value': np.array(scales)},
-                                        'scales_data': {'shape': np.array(scales).shape, 'value': np.array(scales)},
-                                        'axes': {'shape': int64_array(axes).shape, 'value': int64_array(axes)},
-                                        'axes_data': {'shape': int64_array(axes).shape, 'value': int64_array(axes)},
-                                        'interpolate': {'pads_begin': int64_array(pads_begin),
-                                                        'pads_end': int64_array(pads_end),
-                                                        'shape_calculation_mode': 'scales'}
-                                    })
+                ])
+    def test_interpolate4_using_scales(self, pads_begin, pads_end, input_shape, output_shape, sizes, scales, axes):
+        graph = build_graph(nodes_attrs=graph_nodes_attrs,
+                            edges=graph_edges,
+                            update_attributes={
+                                'input_data': {'shape': input_shape},
+                                'sizes': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
+                                'sizes_data': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
+                                'scales': {'shape': np.array(scales).shape, 'value': np.array(scales)},
+                                'scales_data': {'shape': np.array(scales).shape, 'value': np.array(scales)},
+                                'axes': {'shape': int64_array(axes).shape, 'value': int64_array(axes)},
+                                'axes_data': {'shape': int64_array(axes).shape, 'value': int64_array(axes)},
+                                'interpolate': {'pads_begin': int64_array(pads_begin),
+                                                'pads_end': int64_array(pads_end),
+                                                'shape_calculation_mode': 'scales'}
+                            })
 
-                node = Node(graph, 'interpolate')
-                tested_class = Interpolate(graph=graph, attrs=node.attrs())
-                tested_class.infer(node)
+        node = Node(graph, 'interpolate')
+        tested_class = Interpolate(graph=graph, attrs=node.attrs())
+        tested_class.infer(node)
 
-                msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}, axes={}," \
-                    " expected_shape={}, actual_shape={}"
+        msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}, axes={}," \
+              " expected_shape={}, actual_shape={}"
 
-                self.assertTrue(np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),
-                                msg.format(sizes, scales, pads_begin, pads_end, axes, output_shape,
-                                        graph.node['interpolate_data']['shape']))
+        assert np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),\
+                        msg.format(sizes, scales, pads_begin, pads_end, axes, output_shape,
+                                   graph.node['interpolate_data']['shape'])
 
-    def test_interpolate4_using_sizes_without_axes(self):
-        test_cases=[([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
+    @pytest.mark.parametrize("pads_begin, pads_end, input_shape, output_shape, sizes, scales",
+                [([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
                 ([0, 3, 10, 10], [0], [16, 7, 190, 400], [8, 10, 390, 600],
                  [8, 10, 390, 600], [0.5, 1.0, 390 / 200, 600 / 410]),
                 ([10, 5, 0, 10], [0, 4, 16, 18], [4, 33, 1024, 8000], [56, 42, 520, 8028],
@@ -192,36 +190,35 @@ class TestInterpolateOp(unittest.TestCase):
                 ([4, 3, 11, 22, 5, 0, 0], [1, 3, 4, 8, 5, 0, 0], [1, 16, 85, 470, 690, 349, 3],
                  [60, 22, 430, 500, 345, 349, 1],
                  [60, 22, 430, 500, 345, 349, 1], [10.0, 1.0, 4.3, 1.0, 345.0 / 700.0, 1.0, 1 / 3]),
-                ]
-        for idx, (pads_begin, pads_end, input_shape, output_shape, sizes,scales) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=graph_node_attrs_without_axes,
-                                    edges=graph_edges_without_axes,
-                                    update_attributes={
-                                        'input_data': {'shape': input_shape},
-                                        'sizes': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
-                                        'sizes_data': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
-                                        'scales': {'shape': np.array(scales).shape, 'value': np.array(scales)},
-                                        'scales_data': {'shape': np.array(scales).shape, 'value': np.array(scales)},
-                                        'interpolate': {'pads_begin': int64_array(pads_begin),
-                                                        'pads_end': int64_array(pads_end),
-                                                        'shape_calculation_mode': 'sizes'}
-                                    })
+                ])
+    def test_interpolate4_using_sizes_without_axes(self, pads_begin, pads_end, input_shape, output_shape, sizes,
+                                                   scales):
+        graph = build_graph(nodes_attrs=graph_node_attrs_without_axes,
+                            edges=graph_edges_without_axes,
+                            update_attributes={
+                                'input_data': {'shape': input_shape},
+                                'sizes': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
+                                'sizes_data': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
+                                'scales': {'shape': np.array(scales).shape, 'value': np.array(scales)},
+                                'scales_data': {'shape': np.array(scales).shape, 'value': np.array(scales)},
+                                'interpolate': {'pads_begin': int64_array(pads_begin),
+                                                'pads_end': int64_array(pads_end),
+                                                'shape_calculation_mode': 'sizes'}
+                            })
 
-                node = Node(graph, 'interpolate')
-                tested_class = Interpolate(graph=graph, attrs=node.attrs())
-                tested_class.infer(node)
+        node = Node(graph, 'interpolate')
+        tested_class = Interpolate(graph=graph, attrs=node.attrs())
+        tested_class.infer(node)
 
-                msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}," \
-                    " expected_shape={}, actual_shape={}"
+        msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}," \
+              " expected_shape={}, actual_shape={}"
 
-                self.assertTrue(np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),
-                                msg.format(sizes, scales, pads_begin, pads_end, output_shape,
-                                        graph.node['interpolate_data']['shape']))
+        assert np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),\
+                        msg.format(sizes, scales, pads_begin, pads_end, output_shape,
+                                   graph.node['interpolate_data']['shape'])
 
-
-    def test_interpolate4_using_scales_without_axes(self):
-        test_cases=[([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
+    @pytest.mark.parametrize("pads_begin, pads_end, input_shape, output_shape, sizes, scales",
+                [([0], [0], [1, 3, 100, 200], [1, 3, 350, 150], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
                 ([0, 3, 10, 10], [0], [16, 7, 190, 400], [8, 10, 390, 600],
                  [8, 10, 390, 600], [0.5, 1.0, 390 / 200, 600 / 410]),
                 ([10, 5, 0, 10], [0, 4, 16, 18], [4, 33, 1024, 8000], [56, 42, 520, 8028],
@@ -244,29 +241,29 @@ class TestInterpolateOp(unittest.TestCase):
                 ([4, 3, 11, 22, 5, 0, 0], [1, 3, 4, 8, 5, 0, 0], [1, 16, 85, 470, 690, 349, 3],
                  [60, 22, 430, 500, 345, 349, 1],
                  [60, 22, 430, 500, 345, 349, 1], [10.0, 1.0, 4.3, 1.0, 345.0 / 700.0, 1.0, 0.3333333]),
-                ]
-        for idx, (pads_begin, pads_end, input_shape, output_shape, sizes,scales) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(nodes_attrs=graph_node_attrs_without_axes,
-                                    edges=graph_edges_without_axes,
-                                    update_attributes={
-                                        'input_data': {'shape': input_shape},
-                                        'sizes': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
-                                        'sizes_data': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
-                                        'scales': {'shape': np.array(scales).shape, 'value': np.array(scales)},
-                                        'scales_data': {'shape': np.array(scales).shape, 'value': np.array(scales)},
-                                        'interpolate': {'pads_begin': int64_array(pads_begin),
-                                                        'pads_end': int64_array(pads_end),
-                                                        'shape_calculation_mode': 'scales'}
-                                    })
+                ])
+    def test_interpolate4_using_scales_without_axes(self, pads_begin, pads_end, input_shape, output_shape, sizes,
+                                                   scales):
+        graph = build_graph(nodes_attrs=graph_node_attrs_without_axes,
+                            edges=graph_edges_without_axes,
+                            update_attributes={
+                                'input_data': {'shape': input_shape},
+                                'sizes': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
+                                'sizes_data': {'shape': int64_array(sizes).shape, 'value': int64_array(sizes)},
+                                'scales': {'shape': np.array(scales).shape, 'value': np.array(scales)},
+                                'scales_data': {'shape': np.array(scales).shape, 'value': np.array(scales)},
+                                'interpolate': {'pads_begin': int64_array(pads_begin),
+                                                'pads_end': int64_array(pads_end),
+                                                'shape_calculation_mode': 'scales'}
+                            })
 
-                node = Node(graph, 'interpolate')
-                tested_class = Interpolate(graph=graph, attrs=node.attrs())
-                tested_class.infer(node)
+        node = Node(graph, 'interpolate')
+        tested_class = Interpolate(graph=graph, attrs=node.attrs())
+        tested_class.infer(node)
 
-                msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}," \
-                    " expected_shape={}, actual_shape={}"
+        msg = "Interpolate-4 infer failed for case: sizes={}, scales={}, pads_begin={}, pads_end={}," \
+              " expected_shape={}, actual_shape={}"
 
-                self.assertTrue(np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),
-                                msg.format(sizes, scales, pads_begin, pads_end, output_shape,
-                                        graph.node['interpolate_data']['shape']))
+        assert np.array_equal(graph.node['interpolate_data']['shape'], int64_array(output_shape)),\
+                        msg.format(sizes, scales, pads_begin, pads_end, output_shape,
+                                   graph.node['interpolate_data']['shape'])
