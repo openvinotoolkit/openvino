@@ -27,16 +27,28 @@ void OpSummaryDestroyer::initialize(OpSummary* p) {
     p_instance = p;
 }
 
-OpSummary::OpSummary() {
+OpSummary::OpSummary(unsigned short int in_downgrade_coefficient) {
     reportFilename = ov::test::utils::OP_REPORT_FILENAME;
+    downgrade_coefficient = in_downgrade_coefficient;
 }
 
-OpSummary& OpSummary::getInstance() {
+OpSummary& OpSummary::createInstance(unsigned short int in_downgrade_coefficient) {
     if (!p_instance) {
-        p_instance = new OpSummary();
+        p_instance = new OpSummary(in_downgrade_coefficient);
         destroyer.initialize(p_instance);
     }
     return *p_instance;
+}
+
+OpSummary& OpSummary::getInstance() {
+    return createInstance();
+}
+
+void OpSummary::setDowngradeCoefficient(unsigned short int in_downgrade_coefficient) {
+    if (p_instance && p_instance->downgrade_coefficient != in_downgrade_coefficient) {
+        p_instance->downgrade_coefficient = in_downgrade_coefficient;
+    }
+    auto& summary_instance = createInstance(in_downgrade_coefficient);
 }
 
 void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
@@ -218,23 +230,6 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model>& model, con
     }
 }
 
-#ifdef IE_TEST_DEBUG
-void Summary::saveDebugReport(const char* className,
-                              const char* opName,
-                              unsigned long passed,
-                              unsigned long failed,
-                              unsigned long skipped,
-                              unsigned long crashed,
-                              unsigned long hanged) {
-    std::string outputFilePath = "./part_report.txt";
-    std::ofstream file;
-    file.open(outputFilePath, std::ios_base::app);
-    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << ' '
-         << hanged << '\n';
-    file.close();
-}
-#endif  // IE_TEST_DEBUG
-
 void OpSummary::saveReport() {
     if (isReported) {
         return;
@@ -316,7 +311,10 @@ void OpSummary::saveReport() {
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
-    for (const auto& it : stats) {
+    for (auto& it : stats) {
+        it.second.rel_passed /= downgrade_coefficient;
+        it.second.rel_all /= downgrade_coefficient;
+
         std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first.version_id);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());

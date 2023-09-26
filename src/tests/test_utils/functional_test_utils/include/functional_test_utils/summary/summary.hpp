@@ -66,18 +66,6 @@ public:
 
     std::string getDeviceName() const;
 
-    // #define IE_TEST_DEBUG
-
-#ifdef IE_TEST_DEBUG
-    void saveDebugReport(const char* className,
-                         const char* opName,
-                         unsigned long passed,
-                         unsigned long failed,
-                         unsigned long skipped,
-                         unsigned long crashed,
-                         unsigned long hanged);
-#endif  // IE_TEST_DEBUG
-
     virtual void saveReport() {}
 
     void setReportFilename(const std::string& val);
