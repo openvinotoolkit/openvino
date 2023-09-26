@@ -12,7 +12,7 @@
 #include "openvino/pass/pass_config.hpp"
 
 namespace ov {
-using RTInfoConfig = typename pass::PassConfig;
+typedef class pass::PassConfig RTInfoConfig;
 
 OPENVINO_API
 void copy_runtime_info(const std::shared_ptr<ov::Node>& from,

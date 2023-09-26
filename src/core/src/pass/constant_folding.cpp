@@ -52,7 +52,16 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
 namespace {
 class PreFusedNames : public ov::FusedNames {
 public:
-    OPENVINO_RTTI("precalculated_fused_names");
+    static const ::ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ::ov::DiscreteTypeInfo type_info_static{"precalculated_fused_names",
+                                                             "util",
+                                                             &ov::FusedNames::get_type_info_static()};
+        type_info_static.hash();
+        return type_info_static;
+    }
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {
+        return get_type_info_static();
+    }
     PreFusedNames() = default;
     explicit PreFusedNames(const std::string& name) : FusedNames(name){};
     explicit PreFusedNames(const std::vector<std::string>& names) : FusedNames(names){};
