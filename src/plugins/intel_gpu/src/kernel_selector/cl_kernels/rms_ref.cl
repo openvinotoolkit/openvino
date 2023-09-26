@@ -5,52 +5,46 @@
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(rms_ref)(
-    OPTIONAL_SHAPE_INFO_ARG
+    // OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* gamma,
     __global OUTPUT_TYPE* output)
 {
-    const uint b = get_global_id(0);
-    const uint f = get_global_id(1);
+    const uint in_data_idx = get_global_id(0);
+    const uint data_idx = get_global_id(1);
+    const uint data_size = DATA_SIZE;
+    const uint data_count = DATA_COUNT;
+    const uint items_num = VEC_SIZE;
+
+    const uint data_offset = data_idx * data_size;
+    const uint in_data_offset = data_offset + in_data_idx * items_num;
+    const uint gamma_offset = in_data_idx * items_num;
 
     ACCUMULATOR_TYPE rms = ACCUMULATOR_VAL_ZERO;
-    for (uint z = 0; z < INPUT0_SIZE_Z; z++)
-    {
-        for (uint y = 0; y < INPUT0_SIZE_Y; y++)
-        {
-            for (uint x = 0; x < INPUT0_SIZE_X; x++)
-            {
-#if INPUT0_DIMS == 4
-                const uint input_idx = INPUT0_GET_INDEX(b, f, y, x);
-#elif INPUT0_DIMS == 5
-                const uint input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
-#endif
-                rms += pow(TO_ACCUMULATOR_TYPE(input[input_idx]), 2);
-            }
-        }
+
+    __local ACCUMULATOR_TYPE slm_buf[SLM_SIZE];
+
+    INPUTVTYPE inputs = AS_INPUTVTYPE(VLOAD(0, input + in_data_offset));
+    INPUTVTYPE square = pow(inputs, (INPUTVTYPE)(2));
+    unroll_for (uint i = 0; i < VEC_SIZE; ++i) {
+        rms += TO_ACCUMULATOR_TYPE(square[i]);
     }
 
-    rms /= INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z;
-    rms = pow(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
+    slm_buf[in_data_idx] = rms;
 
-    for (uint z = 0; z < INPUT0_SIZE_Z; z++)
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (in_data_idx == 0)
     {
-        for (uint y = 0; y < INPUT0_SIZE_Y; y++)
-        {
-            for (uint x = 0; x < INPUT0_SIZE_X; x++)
-            {
-#if INPUT0_DIMS == 4
-                const uint input_idx = INPUT0_GET_INDEX(b, f, y, x);
-                const uint output_idx = OUTPUT_GET_INDEX(b, f, y, x);
-                const uint gamma_idx = y;
-#elif INPUT0_DIMS == 5
-                const uint input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
-                const uint output_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
-                const uint gamma_idx = z;
-#endif
-                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]) * TO_OUTPUT_TYPE(gamma[gamma_idx]);
-                output[output_idx] = result;
-            }
-        }
+        unroll_for (uint i = 1; i < SLM_SIZE; ++i)
+            rms += slm_buf[i];
+
+        rms = rms / data_size;
+        slm_buf[0] = pow(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
     }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    rms = slm_buf[0];
+
+    OUTPUTVTYPE results = (OUTPUTVTYPE)(rms) * AS_OUTPUTVTYPE(inputs) * AS_OUTPUTVTYPE(VLOAD(0, gamma + gamma_offset));
+    VSTORE(results, 0, output + in_data_offset);
 }

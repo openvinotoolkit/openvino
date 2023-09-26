@@ -27,8 +27,16 @@ public:
     RMSKernelRef() : KernelBaseOpenCL("rms_ref") {}
     virtual ~RMSKernelRef() {}
 
-    virtual JitConstants GetJitConstants(const rms_params& params) const;
-    virtual CommonDispatchData SetDefault(const rms_params& params) const;
+    struct DispatchData : public CommonDispatchData {
+        size_t dataSize;
+        size_t dataCount;
+        size_t slmSize;
+
+        DispatchData() : dataSize(0), dataCount(0), slmSize(0) {}
+    };
+
+    virtual JitConstants GetJitConstants(const rms_params& params, DispatchData DispatchData) const;
+    virtual DispatchData SetDefault(const rms_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
@@ -38,4 +46,3 @@ protected:
     bool Validate(const Params&, const optional_params&) const override;
 };
 }  // namespace kernel_selector
-

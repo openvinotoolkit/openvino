@@ -60,16 +60,19 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
 TEST(rms_gpu_test, rms_test_bfyx) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 6}, data_types::f32, format::bfyx});
-    auto gamma = engine.allocate_memory({ov::PartialShape{1, 6}, data_types::f32, format::bfyx});
-    auto output_ref = engine.allocate_memory({ov::PartialShape{1, 2, 6}, data_types::f32, format::bfyx});
+    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 16}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx});
 
     set_values(input, {
-        0.029785f, 0.014038f, 0.003098f, 0.013123f, 0.015137f, 0.009399f,
-        0.008362f, 0.008179f, 0.018188f, 0.021973f, 0.005249f, 0.004639f
+        0.001839f, -0.003815f, 0.000961f, 0.002930f, -0.003998f, -0.008057f, -0.005402f, -0.002945f,
+        0.006744f, -0.000004f, 0.004303f, -0.002380f, 0.000072f, 0.001404f, 0.000568f, 0.002579f,
+        0.003098f, -0.006989f, -0.000244f, 0.010193f, 0.002899f, -0.005798f, -0.026978f, 0.008789f,
+        0.002258f, 0.006500f, 0.003159f, -0.012329f, 0.026245f, -0.001839f, 0.000259f, 0.002670f,
     });
     set_values(gamma, {
-        0.029785f, 0.014038f, 0.003098f, 0.013123f, 0.015137f, 0.009399f
+        0.029785f, 0.014038f, 0.003098f, 0.013123f, 0.015137f, 0.009399f, 0.008362f, 0.008179f,
+        0.018188f, 0.021973f, 0.005249f, 0.004639f, 0.004272f, 0.020264f, 0.013489f, 0.008789f
     });
 
     rms_ref<float>(input, gamma, output_ref, 1e-5f);
