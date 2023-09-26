@@ -447,6 +447,10 @@ jobs:
       # Tests
       #
 
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v2
+        id: cpu-cores
+
       - name: Download Expected Failures List
         uses: actions/cache/restore@v3
         id: expected_failures_cache
@@ -459,8 +463,9 @@ jobs:
       - name: Run Conformance Tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-
+          
           python3 ${CONFORMANCE_TOOLS_DIR}/run_conformance.py -ov=${INSTALL_DIR}/tests \
+            -j=${{ steps.cpu-cores.outputs.count - 4 }} \
             -d=${TEST_DEVICE} \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR}
