@@ -1012,7 +1012,7 @@ jobs:
 
       - name: Install PyTorch tests requirements
         run: |
-          export CPLUS_INCLUDE_PATH=${AGENT_TOOLSDIRECTORY}/include/python3.11
+          export CPLUS_INCLUDE_PATH=${Python_ROOT_DIR}/include/python3.11
           echo $AGENT_TOOLSDIRECTORY
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
