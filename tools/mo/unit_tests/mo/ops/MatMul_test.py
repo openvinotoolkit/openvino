@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -11,7 +11,7 @@ from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph_with_attrs
 
 
-class TestMatMul(unittest.TestCase):
+class TestMatMul():
     nodes = [
         ('A', {'type': 'Parameter', 'kind': 'op'}),
         ('A_d', {'kind': 'data'}),
@@ -30,8 +30,7 @@ class TestMatMul(unittest.TestCase):
         ('mat_mul_d', 'op_output'),
     ]
 
-    def test_positive_matmul_infer(self):
-        test_cases=[
+    @pytest.mark.parametrize("A_shape, B_shape, C_shape, transpose_a, transpose_b",[
         ([1024], [1024, 1000], [1000], False, False),
         ([dynamic_dimension_value], [1024, 1000], [1000], False, False),
         ([1024], [dynamic_dimension_value, 1000], [1000], False, False),
@@ -50,40 +49,38 @@ class TestMatMul(unittest.TestCase):
         ([5, 10, 1024], [5, 1024, 1000], [5, 10, 1000], False, False),
         ([5, 10, 1024], [1, 1024, 1000], [5, 10, 1000], False, False),
         ([5, 10, 1024], [1, 1000, 1024], [5, 10, 1000], False, True),
-    ]
-        for idx, (A_shape, B_shape, C_shape, transpose_a, transpose_b) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                            update_nodes_attributes=[
-                                                ('A_d', {'shape': shape_array(A_shape)}),
-                                                ('B_d', {'shape': shape_array(B_shape)}),
-                                                ('mat_mul', {'transpose_a': transpose_a, 'transpose_b': transpose_b}),
-                                            ])
-                node = Node(graph, 'mat_mul')
-                MatMul.infer(node)
+    ])
+    def test_positive_matmul_infer(self, A_shape, B_shape, C_shape, transpose_a, transpose_b):
+        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
+                                       update_nodes_attributes=[
+                                           ('A_d', {'shape': shape_array(A_shape)}),
+                                           ('B_d', {'shape': shape_array(B_shape)}),
+                                           ('mat_mul', {'transpose_a': transpose_a, 'transpose_b': transpose_b}),
+                                       ])
+        node = Node(graph, 'mat_mul')
+        MatMul.infer(node)
 
-                msg = "MatMul infer failed for case: A_shape={}, B_shape={}, transpose_a={}, transpose_b={} " \
-                    "expected_shape={}, actual_shape={}"
+        msg = "MatMul infer failed for case: A_shape={}, B_shape={}, transpose_a={}, transpose_b={} " \
+              "expected_shape={}, actual_shape={}"
 
-                self.assertTrue(np.array_equal(graph.node['mat_mul_d']['shape'], shape_array(C_shape)),
-                                msg.format(A_shape, B_shape, transpose_a, transpose_b, C_shape,
-                                        graph.node['mat_mul_d']['shape']))
+        assert np.array_equal(graph.node['mat_mul_d']['shape'], shape_array(C_shape)),\
+                        msg.format(A_shape, B_shape, transpose_a, transpose_b, C_shape,
+                                   graph.node['mat_mul_d']['shape'])
 
-    def test_negative_matmul_infer(self):
-        test_cases=[
+    @pytest.mark.parametrize("A_shape, B_shape",[
         (None, [1024, 1000]),
         (1, [1024, 1000]),
         ([], [1024, 1000]),
         ([1024, 1000], [1024, 1000]),
         ([5, 10, 1024], [3, 1024, 1000]),
-    ]
-        for idx, (A_shape, B_shape) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                            update_nodes_attributes=[
-                                                ('A_d', {'shape': np.array(A_shape)}),
-                                                ('B_d', {'shape': int64_array(B_shape)}),
-                                            ])
+    ])
+    def test_negative_matmul_infer(self, A_shape, B_shape):
+        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
+                                       update_nodes_attributes=[
+                                           ('A_d', {'shape': np.array(A_shape)}),
+                                           ('B_d', {'shape': int64_array(B_shape)}),
+                                       ])
 
-                node = Node(graph, 'mat_mul')
-                self.assertRaises(AssertionError, MatMul.infer, node)
+        node = Node(graph, 'mat_mul')
+        with pytest.raises(AssertionError):
+            MatMul.infer(node)
