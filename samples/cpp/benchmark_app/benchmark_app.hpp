@@ -76,6 +76,8 @@ static const char batch_size_message[] =
     "Optional. Batch size value. If not specified, the batch size value is determined from "
     "Intermediate Representation.";
 
+static const char test_config_message[] = "oprtion for performance data collection.";
+
 static const char shape_message[] =
     "Optional. Set shape for model input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
     " in case of one input size. This parameter affect model input shape and can be dynamic."
@@ -283,6 +285,8 @@ DEFINE_uint64(t, 0, execution_time_message);
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
 DEFINE_uint64(b, 0, batch_size_message);
+
+DEFINE_uint64(test_config, 0, test_config_message);
 
 /// @brief Define flag for input shape <br>
 DEFINE_string(shape, "", shape_message);
