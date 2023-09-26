@@ -882,7 +882,7 @@ jobs:
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
       - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
+        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
 
       - uses: actions/setup-python@v4
         with:
@@ -951,19 +951,11 @@ jobs:
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
-      - name: Maximize build space
-        run:  |
-          sudo rm -rf /usr/local/lib/android # will release about 10 GB if you don't need Android
-          sudo rm -rf /usr/share/dotnet # will release about 20GB if you don't need .NET
-          sudo rm -rf /opt/ghc
-          echo "Available storage:"
-          df -h
-
       - name: Create Directories
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
       - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
+        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
 
       - uses: actions/setup-python@v4
         with:
