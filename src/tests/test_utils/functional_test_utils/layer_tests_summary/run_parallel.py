@@ -450,7 +450,7 @@ class TestParallelRunner:
             self._is_save_cache = False
             cached_test_list = self.__prepare_smart_filters(cached_test_dict)
         runtime_test_list = list()
-        if len(runtime_test_dist) > 0 and self._split_unit == constants.SUITE_UNIT_NAME:
+        if len(runtime_test_dist) > 0:
             self._is_save_cache = True
             runtime_test_list = self.__prepare_smart_filters(runtime_test_dist)
         logger.info(f"Total test counter is {self._total_test_cnt}")
