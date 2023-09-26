@@ -4,5 +4,5 @@
 
 # Properties
 import openvino._pyopenvino.properties.intel_auto as __intel_auto
-from openvino.properties.properties import __make_properties
+from openvino.properties._properties import __make_properties
 __make_properties(__intel_auto, __name__)

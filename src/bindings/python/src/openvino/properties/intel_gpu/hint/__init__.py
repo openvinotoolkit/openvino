@@ -4,7 +4,7 @@
 
 # Properties
 import openvino._pyopenvino.properties.intel_gpu.hint as __hint
-from openvino.properties.properties import __make_properties
+from openvino.properties._properties import __make_properties
 __make_properties(__hint, __name__)
 
 # Classes

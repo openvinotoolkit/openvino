@@ -8,6 +8,7 @@ from typing import Callable, Any, Union
 
 
 class Property(str):
+    """This class allows to make a string object callable. Call returns underlying string's data."""
     def __new__(cls, prop: Callable[..., Any]):  # type: ignore
         instance = super().__new__(cls, prop())
         instance.prop = prop

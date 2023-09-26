@@ -7,7 +7,7 @@ from openvino._pyopenvino.properties import Affinity
 
 # Properties
 import openvino._pyopenvino.properties as __properties
-from openvino.properties.properties import __make_properties
+from openvino.properties._properties import __make_properties
 __make_properties(__properties, __name__)
 
 # Submodules

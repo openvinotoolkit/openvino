@@ -7,5 +7,5 @@ from openvino._pyopenvino.properties.streams import Num
 
 # Properties
 import openvino._pyopenvino.properties.streams as __streams
-from openvino.properties.properties import __make_properties
+from openvino.properties._properties import __make_properties
 __make_properties(__streams, __name__)

@@ -6,6 +6,7 @@ import pytest
 import numpy as np
 import os
 
+import openvino as ov
 import openvino.properties as props
 import openvino.properties.hint as hints
 import openvino.properties.intel_cpu as intel_cpu
@@ -28,7 +29,7 @@ def test_properties_ro_base():
 
 
 def test_properties_rw_base():
-    assert props.cache_dir == "CACHE_DIR"
+    assert ov.properties.cache_dir == "CACHE_DIR"
     assert props.cache_dir("./test_dir") == ("CACHE_DIR", OVAny("./test_dir"))
 
     with pytest.raises(TypeError) as e:
@@ -470,7 +471,7 @@ def test_single_property_setting(device):
 
     core.set_property(device, streams.num(streams.Num.AUTO))
 
-    assert streams.Num.AUTO.to_integer() == -1
+    assert props.streams.Num.AUTO.to_integer() == -1
     assert type(core.get_property(device, streams.num())) == int
 
 

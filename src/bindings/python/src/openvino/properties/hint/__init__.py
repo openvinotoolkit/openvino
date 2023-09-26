@@ -10,5 +10,5 @@ from openvino.runtime.properties.hint.overloads import PerformanceMode
 
 # Properties
 import openvino._pyopenvino.properties.hint as __hint
-from openvino.properties.properties import __make_properties
+from openvino.properties._properties import __make_properties
 __make_properties(__hint, __name__)

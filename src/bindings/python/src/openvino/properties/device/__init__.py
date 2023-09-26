@@ -7,7 +7,7 @@ from openvino._pyopenvino.properties.device import Type
 
 # Properties
 import openvino._pyopenvino.properties.device as __device
-from openvino.properties.properties import __make_properties
+from openvino.properties._properties import __make_properties
 __make_properties(__device, __name__)
 
 # Classes
