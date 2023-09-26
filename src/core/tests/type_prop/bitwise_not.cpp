@@ -81,5 +81,5 @@ TEST(BitwiseNotTest, invalid_element_type) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v13::BitwiseNot>(data),
                     ov::NodeValidationFailure,
-                    HasSubstr("The element type of the input tensor must be integral or boolean."));
+                    HasSubstr("The element type of the input tensor must be integer or boolean."));
 }

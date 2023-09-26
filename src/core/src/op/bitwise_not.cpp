@@ -17,8 +17,8 @@ void BitwiseNot::validate_and_infer_types() {
     OV_OP_SCOPE(v13_BitwiseNot_validate_and_infer_types);
     const auto& element_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          element_type.is_dynamic() || element_type.is_integral() || element_type == element::boolean,
-                          "The element type of the input tensor must be integral or boolean.");
+                          element_type.is_dynamic() || element_type.is_integral(),
+                          "The element type of the input tensor must be integer or boolean.");
     set_output_type(0, element_type, get_input_partial_shape(0));
 }
 
