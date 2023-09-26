@@ -54,11 +54,25 @@ def openvino_ts(subgraph, example_inputs, options=None):
     return ts_openvino(subgraph, example_inputs, options)
 
 
-def _get_option(key, options) -> Optional[Any]:
-    if key in options:
-        return options[key]
+def _get_device_option(options) -> Optional[Any]:
+    if "device" in options:
+        return options["device"]
     else:
-        return os.getenv(key)
+        return os.getenv("OPENVINO_TORCH_BACKEND_DEVICE")
+
+
+def _get_model_caching_option(options) -> Optional[Any]:
+    if "model_caching" in options:
+        return options["model_caching"]
+    else:
+        return os.getenv("OPENVINO_TORCH_MODEL_CACHING")
+
+
+def _get_cache_dir_option(options) -> Optional[Any]:
+    if "cache_dir" in options:
+        return options["cache_dir"]
+    else:
+        return os.getenv("OPENVINO_TORCH_CACHE_DIR", default="./cache/")
 
 
 def ts_openvino(subgraph, example_inputs, options):
@@ -92,7 +106,7 @@ def ts_openvino(subgraph, example_inputs, options):
         om.validate_nodes_and_infer_types()
 
         device = "CPU"
-        openvino_torch_backend_device = _get_option("OPENVINO_TORCH_BACKEND_DEVICE", options)
+        openvino_torch_backend_device = _get_device_option(options)
         if openvino_torch_backend_device is not None:
             device = openvino_torch_backend_device
             assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
@@ -126,7 +140,8 @@ def fx_openvino(subgraph, example_inputs, options):
         executor_parameters = None
         inputs_reversed = False
 
-        openvino_torch_model_caching = _get_option("OPENVINO_TORCH_MODEL_CACHING", options)
+        openvino_torch_cache_dir = _get_cache_dir_option(options)
+        openvino_torch_model_caching = _get_model_caching_option(options)
         if openvino_torch_model_caching is not None:
             # Create a hash to be used for caching
             model_hash_str = sha256(subgraph.code.encode('utf-8')).hexdigest()
@@ -137,6 +152,7 @@ def fx_openvino(subgraph, example_inputs, options):
             maybe_fs_cached_name = cached_model_name(model_hash_str + "_fs", get_device(), example_inputs, cache_root_path())
             if os.path.isfile(maybe_fs_cached_name + ".xml") and os.path.isfile(maybe_fs_cached_name + ".bin"):
                 # Model is fully supported and already cached. Run the cached OV model directly.
+                os.environ["OPENVINO_TORCH_CACHE_DIR"] = openvino_torch_cache_dir
                 compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, *example_inputs)
                 def _call(*args):
                     res = execute_cached(compiled_model, *args)
