@@ -46,3 +46,24 @@ TEST_F(CompileModelsTests, ModelWithSplitConvConcat) {
                   }));
     }
 }
+
+TEST_F(CompileModelsTests, ModelWithShapeOf) {
+    auto model = convert_model("shapeof_slice_abs/shapeof_slice_abs.pbtxt");
+    ov::Core core;
+    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
+    const auto runtime_model = compiled_model.get_runtime_model();
+    auto get_layer_type = [](const std::shared_ptr<ov::Node>& node) {
+        return node->get_rt_info().at(ExecGraphInfoSerialization::LAYER_TYPE).as<std::string>();
+    };
+    const auto ops = runtime_model->get_ops();
+    // one Input, one Eltwise and one Output
+    EXPECT_EQ(3, ops.size());
+    // ShapeOf is folded
+    EXPECT_EQ(0, std::count_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
+                  return get_layer_type(node) == "ShapeOf";
+              }));
+    // Slice is eliminated
+    EXPECT_EQ(0, std::count_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
+                  return get_layer_type(node) == "StridedSlice";
+              }));
+}
