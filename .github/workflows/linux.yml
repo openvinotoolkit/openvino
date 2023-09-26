@@ -22,10 +22,11 @@ on:
       - '**/conformance/**'
     branches:
       - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.ref_name == 'master' && github.run_id || github.ref }}-linux
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
   cancel-in-progress: true
 
 jobs:
