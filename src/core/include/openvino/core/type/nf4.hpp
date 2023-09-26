@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>
 
 #include "openvino/core/core_visibility.hpp"
 
@@ -31,15 +32,15 @@ public:
         dst[idx] = static_cast<T>(nf4_idx);
     }
 
+    static float dequantize(uint8_t val);
+
+    static uint8_t quantize(float x);
+private:
     static inline uint8_t get_u4(const uint8_t* buf, size_t idx) {
         const size_t byte_idx = idx / 2;
         const uint8_t bit_shift = 4 * (idx % 2);
         return (buf[byte_idx] >> bit_shift) & 0xF;
     }
-
-    static float dequantize(uint8_t val);
-
-    static uint8_t quantize(float x);
 };
 
 };  // namespace ov
