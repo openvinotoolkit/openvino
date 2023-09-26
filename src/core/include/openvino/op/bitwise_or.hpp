@@ -29,8 +29,8 @@ public:
     /// Output `[d0, ...]`
     ///
     BitwiseOr(const Output<Node>& arg0,
-               const Output<Node>& arg1,
-               const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+              const Output<Node>& arg1,
+              const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };

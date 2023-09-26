@@ -21,16 +21,16 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
             .inputs({{{2, 2}, element::boolean, std::vector<char>{true, false, true, false}},
                      {{2, 2}, element::boolean, std::vector<char>{true, false, false, true}}})
             .expected({{2, 2}, element::boolean, std::vector<char>{true, false, true, true}}),
-        // Builder{}
-        //     .opType(BitwiseTypes::BITWISE_OR)
-        //     .inputs(
-        //         {{{3}, element::i8, std::vector<int8_t>{125, 2, 3}}, {{3}, element::i8, std::vector<int8_t>{-5, 2, 1}}})
-        //     .expected({{3}, element::i8, std::vector<int8_t>{121, 2, 1}}),
-        // Builder{}
-        //     .opType(BitwiseTypes::BITWISE_OR)
-        //     .inputs({{{3}, element::u8, std::vector<uint8_t>{125, 2, 3}},
-        //              {{3}, element::u8, std::vector<uint8_t>{5, 2, 1}}})
-        //     .expected({{3}, element::u8, std::vector<uint8_t>{5, 2, 1}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_OR)
+            .inputs(
+                {{{3}, element::i8, std::vector<int8_t>{125, 2, 3}}, {{3}, element::i8, std::vector<int8_t>{-5, 2, 1}}})
+            .expected({{3}, element::i8, std::vector<int8_t>{-1, 2, 3}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_OR)
+            .inputs({{{3}, element::u8, std::vector<uint8_t>{125, 2, 3}},
+                     {{3}, element::u8, std::vector<uint8_t>{5, 2, 1}}})
+            .expected({{3}, element::u8, std::vector<uint8_t>{125, 2, 3}}),
         // Builder{}
         //     .opType(BitwiseTypes::BITWISE_OR)
         //     .inputs({{{3},

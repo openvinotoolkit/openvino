@@ -450,8 +450,8 @@ extern template bool evaluate_node<ov::op::v13::BitwiseAnd>(std::shared_ptr<ov::
                                                             const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v13::BitwiseOr>(std::shared_ptr<ov::Node> node,
-                                                            ov::TensorVector& outputs,
-                                                            const ov::TensorVector& inputs);
+                                                           ov::TensorVector& outputs,
+                                                           const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v13::BitwiseXor>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,

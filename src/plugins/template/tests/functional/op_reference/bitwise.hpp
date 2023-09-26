@@ -9,17 +9,12 @@
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 
-
 using namespace ov;
 
 namespace reference_tests {
 namespace BitwiseOpsRefTestDefinitions {
 
-enum BitwiseTypes {
-    BITWISE_AND, 
-    BITWISE_OR, 
-    BITWISE_XOR
-    };
+enum BitwiseTypes { BITWISE_AND, BITWISE_OR, BITWISE_XOR };
 
 struct RefBitwiseParams {
     BitwiseTypes opType;

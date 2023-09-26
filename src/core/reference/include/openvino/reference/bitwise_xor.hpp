@@ -15,7 +15,7 @@ namespace func {
 // Check for char datatype used by ov::element::boolean
 template <class T, typename std::enable_if<std::is_same<typename std::decay<T>::type, char>::value>::type* = nullptr>
 T bitwise_xor(const T arg0, const T arg1) {
-    return static_cast<T>((a || b) && !(a && b));
+    return static_cast<T>((arg0 || arg1) && !(arg0 && arg1));
 }
 
 template <class T, typename std::enable_if<!std::is_same<typename std::decay<T>::type, char>::value>::type* = nullptr>

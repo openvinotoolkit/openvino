@@ -6,6 +6,7 @@
 
 #include "evaluate_node.hpp"
 #include "openvino/reference/bitwise_and.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 
@@ -15,7 +16,7 @@ bool evaluate(const std::shared_ptr<ov::op::v13::BitwiseAnd>& node,
               const ov::TensorVector& inputs) {
     OPENVINO_ASSERT(inputs.size() == 2);
     OPENVINO_ASSERT(outputs.size() == 1);
-    outputs[0].set_shape(infer_broadcast_shape(this, inputs[0].get_shape(), inputs[1].get_shape()));
+    outputs[0].set_shape(infer_broadcast_shape(node.get(), inputs[0].get_shape(), inputs[1].get_shape()));
     using T = typename ov::element_type_traits<ET>::value_type;
     ov::reference::bitwise_and(inputs[0].data<T>(),
                                inputs[1].data<T>(),
