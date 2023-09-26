@@ -22,6 +22,7 @@ openvino/tools/ovc/moc_frontend/pipeline.py
 openvino/tools/ovc/moc_frontend/preprocessing.py
 openvino/tools/ovc/moc_frontend/pytorch_frontend_utils.py
 openvino/tools/ovc/moc_frontend/shape_utils.py
+openvino/tools/ovc/moc_frontend/type_utils.py
 openvino/tools/ovc/ovc.py
 openvino/tools/ovc/telemetry_params.py
 openvino/tools/ovc/telemetry_stub.py

@@ -1145,3 +1145,75 @@ class ConvertRaises(unittest.TestCase):
         with self.assertRaisesRegex(Exception, ".*Cannot recognize input model.*"):
             with tempfile.NamedTemporaryFile() as tmpfile:
                 convert_model(tmpfile.name)
+
+
+def create_model_three_inputs():
+    from torch import nn
+
+    class NeuralNetwork(nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.linear_relu_stack = nn.Sequential(
+                nn.ReLU(),
+                nn.Sigmoid(),
+            )
+
+        def forward(self, x, y, z):
+            out = self.linear_relu_stack(x + y + z),
+            return out
+    return NeuralNetwork()
+
+
+def make_ref_model_three_inputs(shape, dtype=np.float32):
+    x = ov.opset8.parameter(PartialShape(
+        shape), name="x", dtype=dtype)
+    y = ov.opset8.parameter(PartialShape(
+        shape), name="y", dtype=dtype)
+    z = ov.opset8.parameter(PartialShape(
+        shape), name="z", dtype=dtype)
+    add1 = ov.opset8.add(x, y)
+    add2 = ov.opset8.add(add1, z)
+
+    relu = ov.opset8.relu(add2)
+
+    if dtype not in [np.float32, Type.dynamic]:
+        relu = ov.opset8.convert(relu, np.float32)
+
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [x, y, z]
+    model = Model([sigm], parameter_list, "test")
+    return model
+
+
+class TestPytorchConversionParams(CommonMOConvertTest):
+
+    test_data = [
+        {'params_test': {'input': [(torch.Size([2, 3, 4]), torch.float32),
+                                   (torch.empty(2, 3, 4).size(), torch.float32),
+                                   (torch.empty(2, 3, 4).shape, torch.float32)]},
+         'fw_model': create_model_three_inputs(),
+         'ref_model': make_ref_model_three_inputs([2,3,4], np.float32)},
+        {'params_test': {'input': [(torch.Size([5, 2]), torch.int32),
+                                   (torch.empty(5, 2).size(), torch.int32),
+                                   (torch.empty(5, 2).shape, torch.int32)]},
+         'fw_model': create_model_three_inputs(),
+         'ref_model': make_ref_model_three_inputs([5, 2], np.int32)},
+        {'params_test': {'input': [(torch.Size([1, 3, 5]), torch.float32)]},
+         'fw_model': make_pt_model_one_input(),
+         'ref_model': make_ref_pt_model_one_input([1, 3, 5], np.float32)},
+        {'params_test': {'input': [(torch.empty(7, 3).size(), torch.int32)]},
+         'fw_model': make_pt_model_one_input(),
+         'ref_model': make_ref_pt_model_one_input([7, 3], np.int32)},
+    ]
+
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    def test_conversion_params(self, params, ie_device, precision, ir_version,
+                                 temp_dir, use_new_frontend, use_old_api):
+        fw_model = params['fw_model']
+        test_params = params['params_test']
+        ref_model = params['ref_model']
+
+        test_params.update({'input_model': fw_model})
+        self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
