@@ -37,15 +37,15 @@ std::string GroupConvolutionLayerTest::getTestCaseName(const testing::TestParamI
         }
         result << "}_";
     }
-    result << "K" << ov::test::utils::vec2str(kernel) << "_";
-    result << "S" << ov::test::utils::vec2str(stride) << "_";
-    result << "PB" << ov::test::utils::vec2str(pad_begin) << "_";
-    result << "PE" << ov::test::utils::vec2str(pad_end) << "_";
+    result << "K=" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S=" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB=" << ov::test::utils::vec2str(pad_begin) << "_";
+    result << "PE=" << ov::test::utils::vec2str(pad_end) << "_";
     result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "O=" << conv_out_channels << "_";
     result << "G=" << num_groups << "_";
     result << "AP=" << pad_type << "_";
-    result << "netPRC=" << model_type.get_type_name() << "_";
+    result << "modelType=" << model_type.get_type_name() << "_";
     result << "trgDev=" << target_device;
     return result.str();
 }

@@ -84,17 +84,15 @@ void GRUCellTest::SetUp() {
     };
 
     std::vector<ov::Shape> param_shapes{input_shapes[0], input_shapes[1]};
-    if (WType == InputLayerType::PARAMETER) {
+    if (WType == InputLayerType::PARAMETER)
         param_shapes.push_back(input_shapes[2]);
-    };
 
-    if (RType == InputLayerType::PARAMETER) {
+    if (RType == InputLayerType::PARAMETER)
         param_shapes.push_back(input_shapes[3]);
-    };
 
-    if (BType == InputLayerType::PARAMETER) {
+    if (BType == InputLayerType::PARAMETER)
         param_shapes.push_back(input_shapes[4]);
-    };
+
     init_input_shapes(ov::test::static_shapes_to_test_representation(param_shapes));
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]),

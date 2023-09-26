@@ -24,7 +24,7 @@ using GRUCellParams = typename std::tuple<
         ov::test::utils::InputLayerType,   // W input type (Constant or Parameter)
         ov::test::utils::InputLayerType,   // R input type (Constant or Parameter)
         ov::test::utils::InputLayerType,   // B input type (Constant or Parameter)
-        ov::element::Type,                 // Network precision
+        ov::element::Type,                 // Model type
         std::string>;                      // Device name
 
 class GRUCellTest : public testing::WithParamInterface<GRUCellParams >,

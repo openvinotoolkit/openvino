@@ -13,10 +13,11 @@
 namespace ov {
 namespace test {
 typedef std::tuple<
-    ov::element::Type,
-    std::vector<InputShape>,
-    float,
-    std::string> grnParams;
+    ov::element::Type,        // Model type
+    std::vector<InputShape>,  // Input shapes
+    float,                    // Bias
+    std::string               // Device name
+> grnParams;
 
 class GrnLayerTest : public testing::WithParamInterface<grnParams>,
                      virtual public ov::test::SubgraphBaseTest{

@@ -30,7 +30,7 @@ std::string GrnLayerTest::getTestCaseName(const testing::TestParamInfo<grnParams
         }
         result << "}_";
     }
-    result << "netPRC=" << model_type.get_type_name() << '_';
+    result << "modelType=" << model_type.get_type_name() << '_';
     result << "bias="   << bias << '_';
     result << "trgDev=" << '_';
     return result.str();
