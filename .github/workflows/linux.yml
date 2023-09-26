@@ -753,7 +753,10 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores
+    strategy:
+      matrix:
+        runner: [aks-linux-16-cores, aks-linux-4-cores]
+    runs-on: ${{ matrix.runner }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
