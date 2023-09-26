@@ -938,7 +938,7 @@ jobs:
           # python3 -m pip cache purge
           echo "Available storage:"
           df -h
-          du -h -d0 ${PIP_CACHE_DIR} ${HOME}/*
+          du -h -d0 ${PIP_CACHE_DIR} ${HOME}
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python3.11
 
@@ -955,7 +955,7 @@ jobs:
         run: |
           echo "Available storage:"
           df -h
-          du -h -d0 ~/.cache ~/*
+          du -h -d0 ${PIP_CACHE_DIR} ${HOME}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
