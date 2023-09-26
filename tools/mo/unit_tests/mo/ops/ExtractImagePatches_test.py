@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import unittest
+import pytest
 
 import numpy as np
 
@@ -25,9 +24,8 @@ edges = [
     ('EIP_data', 'output'),
 ]
 
-class TestExtractImagePatchesPartialInfer(unittest.TestCase):
-    def test_eip_infer(self):
-        test_cases=[
+class TestExtractImagePatchesPartialInfer():
+    @pytest.mark.parametrize("input_shape, sizes, strides, rates, auto_pad, layout, output_shape",[
         ([1, 10, 10, 3], [1, 3, 3, 1], [1, 5, 5, 1], [1, 1, 1, 1], 'valid', 'NHWC', [1, 2, 2, 27]),
         ([1, 10, 10, 3], [1, 3, 3, 1], [1, 5, 5, 1], [1, 2, 2, 1], 'valid', 'NHWC', [1, 2, 2, 27]),
         ([1, 10, 10, 3], [1, 4, 4, 1], [1, 8, 8, 1], [1, 1, 1, 1], 'valid', 'NHWC', [1, 1, 1, 48]),
@@ -43,24 +41,25 @@ class TestExtractImagePatchesPartialInfer(unittest.TestCase):
         ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 9, 9], [1, 1, 1, 1], 'same_upper', 'NCHW', [1, 48, 2, 2]),
         ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 9, 9], [1, 1, 1, 1], 'same_lower', 'NCHW', [1, 48, 2, 2]),
 
-    ]
-        for idx, (input_shape, sizes, strides, rates, auto_pad, layout, output_shape) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(
-                    nodes_attrs=nodes,
-                    edges=edges,
-                    update_attributes={
-                        'input': {'shape': int64_array(input_shape)},
-                        'input_data': {'shape': int64_array(input_shape)},
-                        'EIP': {'spatial_dims': int64_array([1, 2]) if layout == 'NHWC' else int64_array([2, 3]),
-                                'sizes': int64_array(sizes), 'strides': int64_array(strides),
-                                'rates': int64_array(rates),
-                                'auto_pad': auto_pad},
-                    }
-                )
-                graph.graph['layout'] = layout
+    ])
 
-                eip_node = Node(graph, 'EIP')
-                ExtractImagePatches.infer(eip_node)
 
-                self.assertTrue(np.array_equal(eip_node.out_port(0).data.get_shape(), output_shape))
+    def test_eip_infer(self, input_shape, sizes, strides, rates, auto_pad, layout, output_shape):
+        graph = build_graph(
+            nodes_attrs=nodes,
+            edges=edges,
+            update_attributes={
+                'input': {'shape': int64_array(input_shape)},
+                'input_data': {'shape': int64_array(input_shape)},
+                'EIP': {'spatial_dims': int64_array([1, 2]) if layout == 'NHWC' else int64_array([2, 3]),
+                        'sizes': int64_array(sizes), 'strides': int64_array(strides), 'rates': int64_array(rates),
+                        'auto_pad': auto_pad},
+            }
+        )
+
+        graph.graph['layout'] = layout
+
+        eip_node = Node(graph, 'EIP')
+        ExtractImagePatches.infer(eip_node)
+
+        assert np.array_equal(eip_node.out_port(0).data.get_shape(), output_shape)
