@@ -416,7 +416,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     load_config.apply_user_properties();
     if (!work_mode_auto) {
         if (iter_config != properties.end() && iter_config->second.as<std::string>() != "THROUGHPUT") {
-            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only", iter_config->second.as<std::string>().c_str());
+            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only",
+                            iter_config->second.as<std::string>().c_str());
         }
         load_config.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     }

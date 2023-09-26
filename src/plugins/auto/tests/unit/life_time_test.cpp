@@ -5,18 +5,20 @@
 #include "unit_test_utils/mocks/openvino/runtime/mock_ivariable_state.hpp"
 using namespace ov::mock_auto_plugin;
 
-using ConfigParams = std::tuple<bool,
-                                ov::AnyMap>;
+using ConfigParams = std::tuple<bool, ov::AnyMap>;
 
 class AutoLifeTimeTest : public tests::AutoTest, public ::testing::Test {
 public:
     void SetUp() override {
         plugin->set_device_name("AUTO");
         mock_compiled_model = {mockIExeNetActual, std::make_shared<std::string>("for test")};
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-            ::testing::Matcher<const std::string&>("GPU.0"), _))
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>("GPU.0"),
+                              _))
             .WillByDefault(Return(mock_compiled_model));
-        mock_states = {ov::SoPtr<ov::IVariableState>(std::make_shared<NiceMock<ov::MockIVariableState>>(), std::make_shared<std::string>("for test"))};
+        mock_states = {ov::SoPtr<ov::IVariableState>(std::make_shared<NiceMock<ov::MockIVariableState>>(),
+                                                     std::make_shared<std::string>("for test"))};
         EXPECT_CALL(*inferReqInternalActual, query_state()).WillRepeatedly(Return(mock_states));
     }
 
@@ -26,7 +28,7 @@ public:
     }
 
 protected:
-    ov::SoPtr<ov::MockCompiledModel> mock_compiled_model;
+    ov::SoPtr<ov::MockICompiledModel> mock_compiled_model;
     std::vector<ov::SoPtr<ov::IVariableState>> mock_states;
 };
 
