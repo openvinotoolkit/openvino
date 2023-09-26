@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -11,100 +11,97 @@ from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph, regular_op_with_empty_data, result, connect, valued_const_with_data
 
 
-class ScatterElementsInferTest(unittest.TestCase):
-    def test_scatterelements_value_infer(self):
-        test_cases=[
-          ([[0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0]],
-          [[1, 0, 2],
-            [0, 2, 1]],
-          [[1.0, 1.1, 1.2],
-            [2.0, 2.1, 2.2]],
-          0,
-          [[2.0, 1.1, 0.0],
-            [1.0, 0.0, 2.2],
-            [0.0, 2.1, 1.2]]),
+class TestScatterElementsInferTest():
+    @pytest.mark.parametrize("data, indices, updates, axis, ref_res",[
+        ([[0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0]],
+         [[1, 0, 2],
+          [0, 2, 1]],
+         [[1.0, 1.1, 1.2],
+          [2.0, 2.1, 2.2]],
+         0,
+         [[2.0, 1.1, 0.0],
+          [1.0, 0.0, 2.2],
+          [0.0, 2.1, 1.2]]),
 
-          ([[1.0, 2.0, 3.0, 4.0, 5.0]],
-          [[1, 3]],
-          [[1.1, 2.1]],
-          1,
-          [[1.0, 1.1, 3.0, 2.1, 5.0]]),
+        ([[1.0, 2.0, 3.0, 4.0, 5.0]],
+         [[1, 3]],
+         [[1.1, 2.1]],
+         1,
+         [[1.0, 1.1, 3.0, 2.1, 5.0]]),
 
-          ([[1.0, 2.0, 3.0, 4.0, 5.0]],
-          [[1, 3]],
-          [[1.1, 2.1]],
-          [1],
-          [[1.0, 1.1, 3.0, 2.1, 5.0]]),
+        ([[1.0, 2.0, 3.0, 4.0, 5.0]],
+         [[1, 3]],
+         [[1.1, 2.1]],
+         [1],
+         [[1.0, 1.1, 3.0, 2.1, 5.0]]),
 
-          ([  # 3D case
-              [[1, 2],
-                [3, 4]],
-              [[5, 6],
-                [7, 8]],
-              [[9, 10],
-                [11, 12]]
-          ],
-          [
-              [[1, 0],
-                [0, 1]],
-              [[1, 0],
-                [1, 0]],
-              [[0, 1],
-                [1, 0]]
-          ],
-          [
-              [[21, 22],
-                [23, 24]],
-              [[25, 26],
-                [27, 28]],
-              [[29, 30],
-                [31, 32]]
-          ],
-          -1,  # axis
-          [
-              [[22, 21],
-                [23, 24]],
-              [[26, 25],
-                [28, 27]],
-              [[29, 30],
-                [32, 31]]
-          ]),
-      ]
-        for idx, (data, indices, updates, axis, ref_res) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                nodes = {
-                    **valued_const_with_data('data', np.array(data)),
-                    **valued_const_with_data('indices', int64_array(indices)),
-                    **valued_const_with_data('updates', np.array(updates)),
-                    **valued_const_with_data('axis', int64_array(axis)),
-                    **regular_op_with_empty_data('scatter_elements', {'op': 'ScatterElementsUpdate', 'axis': axis}),
-                    **result()
-                }
+        ([  # 3D case
+             [[1, 2],
+              [3, 4]],
+             [[5, 6],
+              [7, 8]],
+             [[9, 10],
+              [11, 12]]
+         ],
+         [
+             [[1, 0],
+              [0, 1]],
+             [[1, 0],
+              [1, 0]],
+             [[0, 1],
+              [1, 0]]
+         ],
+         [
+             [[21, 22],
+              [23, 24]],
+             [[25, 26],
+              [27, 28]],
+             [[29, 30],
+              [31, 32]]
+         ],
+         -1,  # axis
+         [
+             [[22, 21],
+              [23, 24]],
+             [[26, 25],
+              [28, 27]],
+             [[29, 30],
+              [32, 31]]
+         ]),
+    ])
+    def test_scatterelements_value_infer(self, data, indices, updates, axis, ref_res):
+        nodes = {
+            **valued_const_with_data('data', np.array(data)),
+            **valued_const_with_data('indices', int64_array(indices)),
+            **valued_const_with_data('updates', np.array(updates)),
+            **valued_const_with_data('axis', int64_array(axis)),
+            **regular_op_with_empty_data('scatter_elements', {'op': 'ScatterElementsUpdate', 'axis': axis}),
+            **result()
+        }
 
-                graph = build_graph(nodes_attrs=nodes, edges=[
-                    *connect('data', '0:scatter_elements'),
-                    *connect('indices', '1:scatter_elements'),
-                    *connect('updates', '2:scatter_elements'),
-                    *connect('axis', '3:scatter_elements'),
-                    *connect('scatter_elements', 'output')
-                ], nodes_with_edges_only=True)
-                graph.stage = 'middle'
+        graph = build_graph(nodes_attrs=nodes, edges=[
+            *connect('data', '0:scatter_elements'),
+            *connect('indices', '1:scatter_elements'),
+            *connect('updates', '2:scatter_elements'),
+            *connect('axis', '3:scatter_elements'),
+            *connect('scatter_elements', 'output')
+        ], nodes_with_edges_only=True)
+        graph.stage = 'middle'
 
-                scatter_el_node = Node(graph, 'scatter_elements')
-                ScatterElementsUpdate.infer(scatter_el_node)
+        scatter_el_node = Node(graph, 'scatter_elements')
+        ScatterElementsUpdate.infer(scatter_el_node)
 
-                res_output_shape = scatter_el_node.out_node().shape
-                self.assertTrue(np.array_equal(int64_array(ref_res).shape, res_output_shape))
+        res_output_shape = scatter_el_node.out_node().shape
+        assert np.array_equal(int64_array(ref_res).shape, res_output_shape)
 
-                res_output_value = scatter_el_node.out_node().value
-                self.assertTrue(np.array_equal(ref_res, res_output_value))
+        res_output_value = scatter_el_node.out_node().value
+        assert np.array_equal(ref_res, res_output_value)
 
 
-class ScatterUpdateInferTest(unittest.TestCase):
-    def test_scatter_update_value_infer(self):
-        test_cases=[
+class TestScatterUpdateInferTest():
+    @pytest.mark.parametrize("data, indices, updates, axis, ref_res",[
         ([[0.0, 0.0, 0.0],
           [0.0, 0.0, 0.0],
           [0.0, 0.0, 0.0]],
@@ -164,32 +161,31 @@ class ScatterUpdateInferTest(unittest.TestCase):
          shape_array([dynamic_dimension_value]),
          0,
          shape_array([0, 0, dynamic_dimension_value])),
-    ]
-        for idx, (data, indices, updates, axis, ref_res) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                nodes = {
-                    **valued_const_with_data('data', np.array(data)),
-                    **valued_const_with_data('indices', int64_array(indices)),
-                    **valued_const_with_data('updates', np.array(updates)),
-                    **valued_const_with_data('axis', int64_array(axis)),
-                    **regular_op_with_empty_data('scatter_update', {'op': 'ScatterUpdate', 'axis': axis}),
-                    **result()
-                }
+    ])
+    def test_scatter_update_value_infer(self, data, indices, updates, axis, ref_res):
+        nodes = {
+            **valued_const_with_data('data', np.array(data)),
+            **valued_const_with_data('indices', int64_array(indices)),
+            **valued_const_with_data('updates', np.array(updates)),
+            **valued_const_with_data('axis', int64_array(axis)),
+            **regular_op_with_empty_data('scatter_update', {'op': 'ScatterUpdate', 'axis': axis}),
+            **result()
+        }
 
-                graph = build_graph(nodes_attrs=nodes, edges=[
-                    *connect('data', '0:scatter_update'),
-                    *connect('indices', '1:scatter_update'),
-                    *connect('updates', '2:scatter_update'),
-                    *connect('axis', '3:scatter_update'),
-                    *connect('scatter_update', 'output')
-                ], nodes_with_edges_only=True)
-                graph.stage = 'middle'
+        graph = build_graph(nodes_attrs=nodes, edges=[
+            *connect('data', '0:scatter_update'),
+            *connect('indices', '1:scatter_update'),
+            *connect('updates', '2:scatter_update'),
+            *connect('axis', '3:scatter_update'),
+            *connect('scatter_update', 'output')
+        ], nodes_with_edges_only=True)
+        graph.stage = 'middle'
 
-                scatter_update_node = Node(graph, 'scatter_update')
-                ScatterUpdate.infer(scatter_update_node)
+        scatter_update_node = Node(graph, 'scatter_update')
+        ScatterUpdate.infer(scatter_update_node)
 
-                res_output_shape = scatter_update_node.out_node().shape
-                self.assertTrue(np.array_equal(int64_array(ref_res).shape, res_output_shape))
+        res_output_shape = scatter_update_node.out_node().shape
+        assert np.array_equal(int64_array(ref_res).shape, res_output_shape)
 
-                res_output_value = scatter_update_node.out_node().value
-                self.assertTrue(np.array_equal(ref_res, res_output_value))
+        res_output_value = scatter_update_node.out_node().value
+        assert np.array_equal(ref_res, res_output_value)
