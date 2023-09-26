@@ -32,6 +32,7 @@
 #include "region_yolo_inst.h"
 #include "prior_box_inst.h"
 #include "scatter_nd_update_inst.h"
+#include "gather_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -1770,6 +1771,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(0, format::bfyx);
             }
         }
+    } else if (node.is_type<gather>()) {
+        // Gather needs the original input/output rank because
+        // the parameters as indices, batch_dims and axis depend on the rank.
+        node.set_preferred_input_fmt(0, format::get_default_format(node.as<gather>().get_primitive()->input_rank));
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
