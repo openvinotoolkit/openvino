@@ -881,6 +881,9 @@ jobs:
       - name: Create Directories
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
+      - name: Install 'actions/setup-python@v4' dependencies
+        run: apt-get update && apt-get install -y libssl1.1
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
@@ -958,6 +961,9 @@ jobs:
 
       - name: Create Directories
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+
+      - name: Install 'actions/setup-python@v4' dependencies
+        run: apt-get update && apt-get install -y libssl1.1
 
       - uses: actions/setup-python@v4
         with:
