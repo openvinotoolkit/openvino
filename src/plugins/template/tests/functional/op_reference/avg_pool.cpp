@@ -60,7 +60,7 @@ struct AvgPoolParams {
 class ReferenceAvgPoolLayerTest : public testing::TestWithParam<AvgPoolParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.m_input_shape,
                                   params.m_input_type,
                                   params.m_strides,
@@ -75,11 +75,11 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<AvgPoolParams>& obj) {
-        auto params = obj.param;
+        const auto& params = obj.param;
         std::ostringstream result;
         result << "iShape=" << params.m_input_shape << "_";
         result << "iType=" << params.m_input_type << "_";
-        result << "iShape=" << params.m_output_shape << "_";
+        result << "oShape=" << params.m_output_shape << "_";
         result << "oType=" << params.m_output_type << "_";
         result << "excludePad=" << params.m_exclude_pad << "_";
         result << "roundingType=" << params.m_rounding_type << "_";
