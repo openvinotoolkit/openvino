@@ -99,6 +99,22 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         "Pad",
         "FP32"
     },
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 0, 0, -1, 1 },
+            { 0, 0, 1, -1 },
+            0.f,
+            "Pad",
+            "FP32"
+    },
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 0, 0, 0, 0 },
+            { 0, 0, -1, -1 },
+            0.f,
+            "Pad",
+            "U8"
+    },
     // tensor quantization with subtract, non zero padValue and pad by unique dimension
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
@@ -107,6 +123,23 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         2.f,
         "Pad",
         "U8"
+    },
+
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
+            { 0, 0, 2, 0 },
+            { 0, 0, -1, 0 },
+            2.f,
+            "Pad",
+            "U8"
+    },
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
+            { 0, 0, -1, 0 },
+            { 0, 0, -1, 0 },
+            2.f,
+            "Pad",
+            "U8"
     },
     // per-channel quantization with different values, non zero padValue and pad by channel
     {
@@ -124,6 +157,36 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         "Pad",
         "U8"
     },
+    {
+            {
+                    256ul,
+                    ngraph::Shape{ 1, 3, 1, 1 },
+                    { -127.f, 0.f, 128.f / 2.f },
+                    { 128.f / 4.f, 128.f / 2.f, 128.f },
+                    { 0.f, 0.f, 0.f },
+                    { 255.f / 4.f, 255.f / 2.f, 255.f }
+            },
+            { 0, 1, 0, 0 },
+            { 0, -1, 0, 0 },
+            2.f,
+            "Pad",
+            "U8"
+    },
+    {
+            {
+                    256ul,
+                    ngraph::Shape{ 1, 3, 1, 1 },
+                    { -127.f, 0.f, 128.f / 2.f },
+                    { 128.f / 4.f, 128.f / 2.f, 128.f },
+                    { 0.f, 0.f, 0.f },
+                    { 255.f / 4.f, 255.f / 2.f, 255.f }
+            },
+            { 0, -1, 0, 0 },
+            { 0, -1, 0, 0 },
+            2.f,
+            "Pad",
+            "U8"
+    },
     // per-channel quantization with subtract
     {
         {
@@ -137,6 +200,32 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         0.f,
         "Pad",
         "FP32"
+    },
+    {
+            {
+                    256ul,
+                    ngraph::Shape{ 1, 3, 1, 1 },
+                    { -2.f, -4.f, -6.f }, { 10.5f, 8.5f, 6.5f },
+                    { -2.f, -4.f, -6.f }, { 10.5f, 8.5f, 6.5f }
+            },
+            { 0, 0, -1, 1 },
+            { 0, 0, 1, -1 },
+            0.f,
+            "Pad",
+            "FP32"
+    },
+    {
+            {
+                    256ul,
+                    ngraph::Shape{ 1, 3, 1, 1 },
+                    { -2.f, -4.f, -6.f }, { 10.5f, 8.5f, 6.5f },
+                    { -2.f, -4.f, -6.f }, { 10.5f, 8.5f, 6.5f }
+            },
+            { 0, 0, -1, -1 },
+            { 0, 0, -1, -1 },
+            0.f,
+            "Pad",
+            "U8"
     },
 };
 

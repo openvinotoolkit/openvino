@@ -61,8 +61,8 @@ shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Outp
         strides_length = end_pshape[0].get_length();
     } else  // dynamic case
     {
-        NGRAPH_CHECK(begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1,
-                     "Begin input must be 1D");
+        OPENVINO_ASSERT(begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1,
+                        "Begin input must be 1D");
         return std::make_shared<op::v1::Broadcast>(op::Constant::create(element::i64, {}, {1}),
                                                    std::make_shared<op::ShapeOf>(begin));
     }
@@ -237,8 +237,8 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const
     OV_OP_SCOPE(v1_StridedSlice_evaluate);
     // FIXME: 4th input is optional, but it is required by the following code
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 4));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return strided_slice::evaluate_strided_slice(input_values[0],
                                                  input_values[1],

@@ -66,10 +66,10 @@ public:
         const ov::PartialShape shape = std::get<1>(GetParam());
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
-        std::vector<element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::int8_support;
+        std::vector<element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
 
         if (fakeQuantizeOnData.actual.quantizationLevel != 256) {
-            defaultPrecisions = ov::pass::low_precision::precision_set::int8_int16_int32_support;
+            defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_int16_int32_support();
         }
 
         const auto params = TestTransformationParams(fakeQuantizeOnData.params)
