@@ -26,7 +26,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Math& node)>> initializers;
+    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Math& node)>>& getInitializers();
 
     float alpha = 0.0f;
     float beta = 0.0f;

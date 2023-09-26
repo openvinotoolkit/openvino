@@ -24,7 +24,7 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
 
     register_matcher(
         std::make_shared<ov::pass::pattern::Matcher>(m_reshape1,
-                                                     "ov::frontend::pytorch::pass::PrimTupleUnpackReplacer"),
+                                                     "ov::frontend::pytorch::pass::SoftmaxReshapeElimination"),
         [=](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto reshape0 = pattern_to_output[m_reshape0].get_node_shared_ptr();

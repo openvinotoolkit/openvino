@@ -27,6 +27,7 @@ More resources:
 * :doc:`Documentation <tmo_introduction>`  
 * `GitHub <https://github.com/openvinotoolkit/nncf>`__  
 * `PyPI <https://pypi.org/project/nncf/>`__  
+* `Conda Forge <https://anaconda.org/conda-forge/nncf/>`__  
 
 
 **OpenVINO™ Training Extensions**

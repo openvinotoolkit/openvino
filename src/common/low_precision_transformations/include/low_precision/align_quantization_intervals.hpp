@@ -31,7 +31,7 @@ class LP_TRANSFORMATIONS_API AlignQuantizationIntervals;
 class ov::pass::low_precision::AlignQuantizationIntervals : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("AlignQuantizationIntervals", "0");
-    AlignQuantizationIntervals(const std::vector<ov::element::Type>& defaultPrecisions = ov::pass::low_precision::precision_set::int8_support);
+    AlignQuantizationIntervals(const std::vector<ov::element::Type>& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support());
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 private:
     const std::vector<ov::element::Type> defaultPrecisions;

@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "base_reference_test.hpp"
 #include "openvino/op/negative.hpp"
+
+#include <gtest/gtest.h>
+
+#include "base_reference_test.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -14,9 +16,9 @@ namespace {
 struct NegativeParams {
     template <class IT>
     NegativeParams(const PartialShape& shape,
-                  const element::Type& iType,
-                  const std::vector<IT>& iValues,
-                  const std::vector<IT>& oValues)
+                   const element::Type& iType,
+                   const std::vector<IT>& iValues,
+                   const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
@@ -50,8 +52,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
-                                                    const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto negative = std::make_shared<op::v0::Negative>(in);
         return std::make_shared<Model>(NodeVector{negative}, ParameterVector{in});
@@ -66,12 +68,10 @@ template <element::Type_t IN_ET>
 std::vector<NegativeParams> generateParamsForNegativeFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<NegativeParams> params{
-        NegativeParams(ov::PartialShape{6},
-                       IN_ET,
-                       std::vector<T>{1, -2, 0, -4.75f, 8.75f, -8.75f},
-                       std::vector<T>{-1, 2, 0, 4.75f, -8.75f, 8.75f})
-    };
+    std::vector<NegativeParams> params{NegativeParams(ov::PartialShape{6},
+                                                      IN_ET,
+                                                      std::vector<T>{1, -2, 0, -4.75f, 8.75f, -8.75f},
+                                                      std::vector<T>{-1, 2, 0, 4.75f, -8.75f, 8.75f})};
     return params;
 }
 
@@ -79,12 +79,10 @@ template <element::Type_t IN_ET>
 std::vector<NegativeParams> generateParamsForNegativeInt() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<NegativeParams> params{
-        NegativeParams(ov::PartialShape{10},
-                       IN_ET,
-                       std::vector<T>{1, 8, -8, 17, -2, 1, 8, -8, 17, -1},
-                       std::vector<T>{-1, -8, 8, -17, 2, -1, -8, 8, -17, 1})
-    };
+    std::vector<NegativeParams> params{NegativeParams(ov::PartialShape{10},
+                                                      IN_ET,
+                                                      std::vector<T>{1, 8, -8, 17, -2, 1, 8, -8, 17, -1},
+                                                      std::vector<T>{-1, -8, 8, -17, 2, -1, -8, 8, -17, 1})};
     return params;
 }
 
@@ -94,8 +92,7 @@ std::vector<NegativeParams> generateCombinedParamsForNegative() {
         generateParamsForNegativeFloat<element::Type_t::f16>(),
         generateParamsForNegativeFloat<element::Type_t::bf16>(),
         generateParamsForNegativeInt<element::Type_t::i64>(),
-        generateParamsForNegativeInt<element::Type_t::i32>()
-    };
+        generateParamsForNegativeInt<element::Type_t::i32>()};
 
     std::vector<NegativeParams> combinedParams;
 
@@ -106,9 +103,8 @@ std::vector<NegativeParams> generateCombinedParamsForNegative() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Negative_With_Hardcoded_Refs,
-    ReferenceNegativeLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForNegative()),
-    ReferenceNegativeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Negative_With_Hardcoded_Refs,
+                         ReferenceNegativeLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForNegative()),
+                         ReferenceNegativeLayerTest::getTestCaseName);
 }  // namespace

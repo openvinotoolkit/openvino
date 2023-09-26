@@ -185,10 +185,13 @@ void parse_processor_info_win(const char* base_ptr,
                 }
                 num_blocked++;
             } else if (1 == list_len) {
-                _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
-                _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group;
-                _proc_type_table[0][MAIN_CORE_PROC]++;
-                group++;
+                if ((_cpu_mapping_table.size() > list[0]) &&
+                    (_cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] == -1)) {
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group;
+                    _proc_type_table[0][MAIN_CORE_PROC]++;
+                    group++;
+                }
             }
         }
     }
