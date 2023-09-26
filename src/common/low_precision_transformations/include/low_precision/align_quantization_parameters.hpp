@@ -32,7 +32,7 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
 class ov::pass::low_precision::AlignQuantizationParameters : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("AlignQuantizationParameters", "0");
-    AlignQuantizationParameters(const std::vector<ov::element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::int8_support);
+    AlignQuantizationParameters(const std::vector<ov::element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support());
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 private:
     const std::vector<ov::element::Type> defaultPrecisions;
