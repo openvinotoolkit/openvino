@@ -367,7 +367,10 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
     return priorities;
 }
 
-const bool Convolution::isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+const bool Convolution::isBrgConvAvailable() {
+    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+    return isBrgConvAvailable;
+}
 
 void Convolution::getSupportedDescriptors() {
     if (!descs.empty())
@@ -548,7 +551,7 @@ void Convolution::getSupportedDescriptors() {
 
 #if defined(OPENVINO_ARCH_X86_64)
     // nspc shows better performance only with brgconv implementation
-    bool nspcFirst = isBrgConvAvailable && one_of(inputDataType, memory::data_type::f16, memory::data_type::bf16, memory::data_type::f32);
+    bool nspcFirst = isBrgConvAvailable() && one_of(inputDataType, memory::data_type::f16, memory::data_type::bf16, memory::data_type::f32);
     bool nspcAdded = false;
     if (nspcFirst) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
@@ -977,7 +980,7 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
         DEBUG_LOG(getName(), ": Per channel zero point can only supported on attr[0].Avoid extra useless attribute.");
         return;
     }
-    if (!isBrgConvAvailable) {
+    if (!isBrgConvAvailable()) {
         DEBUG_LOG(getName(), ": brgconv is not available. Skip extra attribute");
         return;
     }

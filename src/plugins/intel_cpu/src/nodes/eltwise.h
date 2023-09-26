@@ -186,7 +186,7 @@ private:
     std::vector<const void*> fqDataPtrs;
 
     using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, Eltwise& node)>;
-    static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
+    static const std::map<const ngraph::DiscreteTypeInfo, Initializer>& getInitializers();
 
     static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
 

@@ -30,7 +30,7 @@ class LP_TRANSFORMATIONS_API MarkupAvgPoolPrecisionPreserved;
 class ov::pass::low_precision::MarkupAvgPoolPrecisionPreserved : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("MarkupAvgPoolPrecisionPreserved", "0");
-    MarkupAvgPoolPrecisionPreserved(const std::vector<ov::element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::int8_support);
+    MarkupAvgPoolPrecisionPreserved(const std::vector<ov::element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support());
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 private:
     const std::vector<ov::element::Type> defaultPrecisions;

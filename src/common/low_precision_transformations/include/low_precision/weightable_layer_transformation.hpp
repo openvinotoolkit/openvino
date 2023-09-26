@@ -33,7 +33,7 @@ public:
 
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer,
         const bool reshapeIsRequired,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
 protected:
     std::tuple<bool, std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantizeForWeightsPath(
@@ -47,7 +47,7 @@ public:
     static std::shared_ptr<ov::opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
     static DataPrecision getDataPrecisionOnWeights(const std::shared_ptr<Node>& node, const std::vector<ov::element::Type>& defaultPrecisions);
     static bool isAsymmetricOnWeights(const std::shared_ptr<const Node>& node,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 };
 
 } // namespace low_precision

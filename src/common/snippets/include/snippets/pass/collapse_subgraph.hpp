@@ -41,7 +41,7 @@ public:
 
     static bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);
 
-    static const std::set<ov::element::Type> supported_element_types;
+    static const std::set<ov::element::Type>& get_supported_element_types();
 };
 
 }  // namespace pass
