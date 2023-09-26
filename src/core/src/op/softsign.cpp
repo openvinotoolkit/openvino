@@ -1,15 +1,15 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/reference/softsign.hpp"
+#include "openvino/op/softsign.hpp"
 
 #include <openvino/core/validation_util.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/op/softsign.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/reference/softsign.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "shape_util.hpp"
 
 namespace {
 template <ov::element::Type_t ET>
