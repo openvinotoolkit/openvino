@@ -26,11 +26,10 @@ bool ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape::run(snippets::lowered::Lin
         if (auto copy_b = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node())) {
             const auto buffer = get_buffer_from_output(expr, 0);
             const auto& out_desc = expr->get_output_port_descriptor(0);
-            const auto planar_pshape = ov::PartialShape(ov::snippets::utils::get_planar_vdims(out_desc->get_shape(), out_desc->get_layout()));
-            buffer->set_allocation_shape(copy_b->get_data_repacking_shape(planar_pshape));
+            buffer->set_allocation_shape(copy_b->get_data_repacking_shape(out_desc->get_shape()));
             if (copy_b->is_with_compensations()) {
                 const auto compensations_buffer = get_buffer_from_output(expr, 1);
-                compensations_buffer->set_allocation_shape(copy_b->get_compensation_shape(planar_pshape));
+                compensations_buffer->set_allocation_shape(copy_b->get_compensation_shape(out_desc->get_shape()));
             }
             modified = true;
         }

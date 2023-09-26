@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/op/memory_access.hpp"
+#include "snippets/shape_types.hpp"
 #include <snippets/shape_inference/shape_inference.hpp>
 
 namespace ov {
@@ -43,8 +44,8 @@ public:
     void set_k_block_size(size_t block_size) { m_K_blk = block_size; }
     void set_n_block_size(size_t block_size) { m_N_blk = block_size; }
 
-    ov::Shape get_data_repacking_shape(const ov::PartialShape& planar_shape) const;
-    ov::Shape get_compensation_shape(const ov::PartialShape& planar_shape) const;
+    ov::Shape get_data_repacking_shape(const ov::snippets::VectorDims& planar_dims) const;
+    ov::Shape get_compensation_shape(const ov::snippets::VectorDims& planar_dims) const;
 
     Type get_type() const { return m_type; }
     size_t get_brgemm_vnni_factor() const { return m_brgemmVNNIFactor; }
@@ -55,6 +56,14 @@ public:
     void validate_and_infer_types() override;
     bool has_evaluate() const override { return false; }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    class ShapeInfer : public snippets::IShapeInferSnippets {
+        std::vector<size_t> m_layout{};
+        size_t m_num_outs = 1;
+    public:
+        explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
+        Result infer(const std::vector<snippets::VectorDimsRef>& input_shapes) override;
+    };
 
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});

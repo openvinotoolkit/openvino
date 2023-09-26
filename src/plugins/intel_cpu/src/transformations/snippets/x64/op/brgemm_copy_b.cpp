@@ -58,11 +58,11 @@ void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t
     // So we use port descs from source inputs
     const auto element_type = get_input_element_type(0);
     const auto& pshape = get_input_partial_shape(0);
-    set_output_type(0, element_type, pshape);
-    if (is_with_compensations()) {
-        set_output_type(1, ov::element::f32, pshape);
-    }
     const auto planar_pshape = snippets::utils::get_planar_pshape(pshape, layout_input);
+    set_output_type(0, element_type, planar_pshape);
+    if (is_with_compensations()) {
+        set_output_type(1, ov::element::f32, planar_pshape);
+    }
     validate(planar_pshape, element_type);
 }
 
@@ -71,11 +71,11 @@ void BrgemmCopyB::validate_and_infer_types() {
     const auto port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0));
     const auto shape = ov::Shape(port->get_shape());
     const auto& element_type = get_input_element_type(0);
-    set_output_type(0, element_type, shape);
-    if (is_with_compensations()) {
-        set_output_type(1, ov::element::f32, shape);
-    }
     const auto& planar_pshape = snippets::utils::get_planar_pshape(shape, port->get_layout());
+    set_output_type(0, element_type, planar_pshape);
+    if (is_with_compensations()) {
+        set_output_type(1, ov::element::f32, planar_pshape);
+    }
     validate(planar_pshape, element_type);
 }
 
@@ -90,33 +90,46 @@ void intel_cpu::BrgemmCopyB::compute_block_size_values(const size_t blk_size_k, 
     m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape.rbegin();
 }
 
-ov::Shape intel_cpu::BrgemmCopyB::get_data_repacking_shape(const ov::PartialShape& planar_shape) const {
-    const size_t N = planar_shape.rbegin()->get_length();
-    const size_t K = (planar_shape.rbegin() + 1)->get_length();
+ov::Shape intel_cpu::BrgemmCopyB::get_data_repacking_shape(const ov::snippets::VectorDims& planar_dims) const {
+    const auto& N = *planar_dims.rbegin();
+    const auto& K = *(planar_dims.rbegin() + 1);
     return ov::Shape{rnd_up(K, m_brgemmVNNIFactor), rnd_up(N, m_N_blk)};
 }
 
-ov::Shape intel_cpu::BrgemmCopyB::get_compensation_shape(const ov::PartialShape& planar_shape) const {
-    const size_t N = planar_shape.rbegin()->get_length();
+ov::Shape intel_cpu::BrgemmCopyB::get_compensation_shape(const ov::snippets::VectorDims& planar_dims) const {
+    const auto& N = *planar_dims.rbegin();
     return ov::Shape{rnd_up(N, m_N_blk)};
 }
 
 std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmRepack_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto clone = std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_type,
-                                               get_input_port_descriptor(0),
-                                               get_output_port_descriptor(0),
-                                               is_with_compensations() ? get_output_port_descriptor(1) : PortDescriptor{},
-                                               snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
-                                               m_K_blk, m_N_blk);
-    return clone;
+    return std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_type,
+                                         get_input_port_descriptor(0),
+                                         get_output_port_descriptor(0),
+                                         is_with_compensations() ? get_output_port_descriptor(1) : PortDescriptor{},
+                                         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+                                         m_K_blk, m_N_blk);
 }
 
 size_t BrgemmCopyB::get_offset_compensations() const {
     OPENVINO_ASSERT(is_with_compensations() && get_output_size() == 2,
                     "The offset for compensations must be in BrgemmCopyB only with compensations and 2 outputs!");
     return get_output_offset(1);
+}
+
+BrgemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
+    const auto& brg_copyb = ov::as_type_ptr<BrgemmCopyB>(n);
+    OPENVINO_ASSERT(brg_copyb, "Got invalid node in BrgemmCopyB::ShapeInfer");
+    m_layout = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(n->input(0))->get_layout();
+    m_num_outs = brg_copyb->get_output_size();
+}
+
+ov::snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(const std::vector<ov::snippets::VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
+    const auto planar_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_layout);
+    std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
+    return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }
 
 } // namespace intel_cpu
