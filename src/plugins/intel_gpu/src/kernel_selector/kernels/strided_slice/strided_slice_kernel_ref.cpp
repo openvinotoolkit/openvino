@@ -185,12 +185,13 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         }
 
         auto get_input_idx_order = [&](std::vector<std::string> bfwzyx_in_order) -> std::string {
-            return bfwzyx_in_order[0] + "," +
-                   bfwzyx_in_order[1] + "," +
-                   bfwzyx_in_order[2] + "," +
-                   bfwzyx_in_order[3] + "," +
-                   bfwzyx_in_order[4] + "," +
-                   bfwzyx_in_order[5];
+            std::string order = bfwzyx_in_order[0] + "," +
+                                bfwzyx_in_order[1] + "," +
+                                bfwzyx_in_order[2] + "," +
+                                bfwzyx_in_order[3] + "," +
+                                bfwzyx_in_order[4];
+            if (bfwzyx_in_order.size() == 6) order += "," + bfwzyx_in_order[5];
+            return order;
         };
         // Erase indices that exceeds 6d tensor. It should be safe, because we check in Validate method that
         // shrinked axes don't result in too big dims count
