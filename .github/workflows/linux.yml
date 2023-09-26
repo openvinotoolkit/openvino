@@ -53,6 +53,8 @@ jobs:
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
+      PIP_CACHE_DIR: /mount/caches/pip/linux
+
     steps:
       - name: Install git
         run: |
@@ -115,9 +117,8 @@ jobs:
       # Build
       #
 
-      - name: Setup ccache
-        run: |
-          mkdir -p $CCACHE_DIR
+      - name: Setup cache dirs
+        run: mkdir -p ${CCACHE_DIR} ${PIP_CACHE_DIR}
 
       - name: CMake configure - OpenVINO
         run: |
@@ -505,10 +506,11 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
+      PIP_CACHE_DIR: /mount/caches/pip/linux
 
     steps:
       - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR} ${PIP_CACHE_DIR}
 
       - name: Install git
         run: |
