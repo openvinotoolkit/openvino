@@ -24,16 +24,16 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
 
     for (size_t i = 0; i < compiled_model->inputs().size(); i++) {
         const auto& port = compiled_model->inputs()[i];
-        const auto& submodel_idx = compiled_model->m_inputs_to_submodels_inputs[i].first;
+        const auto& submodel_idx = compiled_model->m_mapping_info._inputs_to_submodels_inputs[i].first;
         m_port_to_subrequest_idx[port] = submodel_idx;
     }
     for (size_t i = 0; i < compiled_model->outputs().size(); i++) {
         const auto& port = compiled_model->outputs()[i];
-        const auto& submodel_idx = compiled_model->m_outputs_to_submodels_outputs[i].first;
+        const auto& submodel_idx = compiled_model->m_mapping_info._outputs_to_submodels_outputs[i].first;
         m_port_to_subrequest_idx[port] = submodel_idx;
     }
 
-    for (const auto& kvp : compiled_model->m_submodels_input_to_prev_output) {
+    for (const auto& kvp : compiled_model->m_mapping_info._submodels_input_to_prev_output) {
         const auto& submodel_idx_in = kvp.first.first;
         const auto& port_idx_in = kvp.first.second;
         const auto& submodel_idx_out = kvp.second.first;
