@@ -2,17 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import ast
 import inspect
-import logging as log
 import os
 import pathlib
 import re
 from collections import OrderedDict, namedtuple
-from distutils.util import strtobool
 from typing import List, Union
 
-from openvino.runtime import PartialShape, Dimension, Type  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import PartialShape, Dimension, Shape, Type  # pylint: disable=no-name-in-module,import-error
 
 import openvino
 from openvino.tools.ovc.error import Error
@@ -154,37 +151,6 @@ def input_to_input_cut_info(input: [dict, tuple, list]):
     # Case when single type or value is set, or unknown object
     return [single_input_to_input_cut_info(input)]
 
-
-def freeze_placeholder_to_input_cut_info(inputs: list):
-    """
-    Parses freezing parts from input list.
-    :param inputs: list of InputCutInfo with information from 'input' parameter
-    :returns (placeholder_values, unnamed_placeholder_values), where
-    placeholder_values - dictionary where key is node name, value is node value,
-    unnamed_placeholder_values - list with unnamed node values
-    """
-    placeholder_values = {}
-    unnamed_placeholder_values = []
-
-    # Collect values for freezing from 'inputs'
-    if inputs is not None and len(inputs) > 0:
-        for input in inputs:
-            node_name = input.name
-            value = input.value
-            if value is None:
-                continue
-            # Check for value conflict
-            if node_name in placeholder_values and placeholder_values[node_name] != value:
-                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
-                            ".".format(node_name, placeholder_values[node_name], value))
-            if node_name is not None:
-                # Named input case, add to dictionary
-                placeholder_values[node_name] = value
-            else:
-                # Unnamed input case, add to list
-                unnamed_placeholder_values.append(value)
-
-    return placeholder_values, unnamed_placeholder_values
 
 ParamDescription = namedtuple("ParamData", ["description", "cli_tool_description"])
 
@@ -345,50 +311,6 @@ def readable_files_or_empty(paths: [str, list, tuple]):
         paths_list = [readable_file_or_object(path) for path in str(paths).split(',')]
         return paths_list
     return paths
-
-
-def readable_dir(path: str):
-    """
-    Check that specified path is a readable directory.
-    :param path: path to check
-    :return: path if the directory is readable
-    """
-    if not os.path.isdir(path):
-        raise Error('The "{}" is not existing directory'.format(path))
-    elif not os.access(path, os.R_OK):
-        raise Error('The "{}" is not readable'.format(path))
-    else:
-        return path
-
-
-def writable_dir(path: str):
-    """
-    Checks that specified directory is writable. The directory may not exist but it's parent or grandparent must exist.
-    :param path: path to check that it is writable.
-    :return: path if it is writable
-    """
-    if path is None:
-        raise Error('The directory parameter is None')
-    if os.path.exists(path):
-        if os.path.isdir(path):
-            if os.access(path, os.W_OK):
-                return path
-            else:
-                raise Error('The directory "{}" is not writable'.format(path))
-        else:
-            raise Error('The "{}" is not a directory'.format(path))
-    else:
-        cur_path = path
-        while os.path.dirname(cur_path) != cur_path:
-            if os.path.exists(cur_path):
-                break
-            cur_path = os.path.dirname(cur_path)
-        if cur_path == '':
-            cur_path = os.path.curdir
-        if os.access(cur_path, os.W_OK):
-            return path
-        else:
-            raise Error('The directory "{}" is not writable'.format(cur_path))
 
 
 def add_args_by_description(args_group, params_description):
@@ -568,16 +490,6 @@ def get_node_name_with_port_from_input_value(input_value: str):
     return remove_shape_from_input_value(input_value)
 
 
-def partial_shape_prod(shape: [PartialShape, tuple]):
-    assert not (isinstance(shape, PartialShape) and shape.is_dynamic), \
-        "Unable to calculate prod for dynamic shape {}.".format(shape)
-
-    prod = 1
-    for dim in shape:
-        prod *= dim.get_min_length()
-    return prod
-
-
 def parse_input_value(input_value: str):
     """
     Parses a value of the "input" command line parameter and gets a node name, shape and value.
@@ -628,32 +540,6 @@ def split_inputs(input_str):
         inputs.append(input_str[:idx])
         input_str = input_str[idx+1:]
     return inputs
-
-
-def split_node_in_port(node_id: str):
-    """Split node_id in form port:node to separate node and port, where port is converted to int"""
-    if isinstance(node_id, str):
-        separator = ':'
-        parts = node_id.split(separator)
-        if len(parts) > 1:
-            if parts[0].isdigit():
-                node_name = separator.join(parts[1:])
-                try:
-                    port = int(parts[0])
-                    return node_name, port
-                except ValueError as err:
-                    log.warning('Didn\'t recognize port:node format for "{}" because port is not an integer.'.format(
-                    node_id))
-            else:
-                node_name = separator.join(parts[:-1])
-                try:
-                    port = int(parts[-1])
-                    return node_name, port
-                except ValueError as err:
-                    log.warning('Didn\'t recognize node:port format for "{}" because port is not an integer.'.format(
-                    node_id))
-
-    return node_id, None
 
 
 def get_model_name(path_input_model: str) -> str:
@@ -720,58 +606,6 @@ def get_absolute_path(path_to_file: str) -> str:
     if not os.path.isabs(file_path):
         file_path = os.path.join(os.getcwd(), file_path)
     return file_path
-
-
-def isfloat(value):
-    try:
-        float(value)
-        return True
-    except ValueError:
-        return False
-
-
-def isbool(value):
-    try:
-        strtobool(value)
-        return True
-    except ValueError:
-        return False
-
-
-def isdict(value):
-    try:
-        evaluated = ast.literal_eval(value)
-        return isinstance(evaluated, dict)
-    except ValueError:
-        return False
-
-
-def convert_string_to_real_type(value: str):
-    if isdict(value):
-        return ast.literal_eval(value)
-
-    values = value.split(',')
-    for i in range(len(values)):
-        value = values[i]
-        if value.isdigit():
-            values[i] = int(value)
-        elif isfloat(value):
-            values[i] = float(value)
-        elif isbool(value):
-            values[i] = strtobool(value)
-
-    return values[0] if len(values) == 1 else values
-
-
-def check_positive(value):
-    try:
-        int_value = int(value)
-        if int_value <= 0:
-            raise ValueError
-    except ValueError:
-        raise argparse.ArgumentTypeError("expected a positive integer value")
-
-    return int_value
 
 
 def check_bool(value):
