@@ -26,6 +26,8 @@ static WeightsType DataTypeToWeightsType(Datatype t) {
             return WeightsType::F32;
         case Datatype::BINARY:
             return WeightsType::BINARY;
+        case Datatype::INT32:
+            return WeightsType::INT32;
         default:
             return WeightsType::UNSUPPORTED;
     }
@@ -286,6 +288,9 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                     break;
                 case DataLayout::bxfy:
                     layout_order = { y, f, x, b, z, w, u, v };
+                    break;
+                case DataLayout::fbyx:
+                    layout_order = { x, y, b, f, z, w, u, v };
                     break;
                 case DataLayout::fyxb:
                     layout_order = { b, x, y, f, z, w, u, v };
