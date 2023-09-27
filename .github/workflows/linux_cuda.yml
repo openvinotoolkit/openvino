@@ -24,7 +24,8 @@ on:
 #      - master
 
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}-linux-cuda
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-cuda
   cancel-in-progress: true
 
 jobs:
