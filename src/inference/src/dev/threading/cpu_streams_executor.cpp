@@ -24,8 +24,6 @@ using namespace InferenceEngine;
 
 namespace ov {
 namespace threading {
-// maybe there are two CPUStreamsExecutors in the same thread.
-thread_local std::map<void*, std::shared_ptr<std::thread::id>> t_stream_count_map;
 struct CPUStreamsExecutor::Impl {
     struct Stream {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
@@ -327,6 +325,8 @@ struct CPUStreamsExecutor::Impl {
             : ThreadLocal<std::shared_ptr<Stream>>(callback_construct),
               _impl(impl) {}
         std::shared_ptr<Stream> local() {
+            // maybe there are two CPUStreamsExecutors in the same thread.
+            static thread_local std::map<void*, std::shared_ptr<std::thread::id>> t_stream_count_map;
             // fix the memory leak issue that CPUStreamsExecutor is already released,
             // but still exists thread id in t_stream_count_map
             for (auto it = t_stream_count_map.begin(); it != t_stream_count_map.end();) {
