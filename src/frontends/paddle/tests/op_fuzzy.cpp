@@ -6,9 +6,9 @@
 
 #include <fstream>
 
+#include "common_test_utils/test_control.hpp"
 #include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
-#include "common_test_utils/test_control.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -565,6 +565,16 @@ static const std::vector<std::string> models{
     std::string("trilinear_upsample_scales2/trilinear_upsample_scales2.pdmodel"),
     std::string("trilinear_upsample_true_0/trilinear_upsample_true_0.pdmodel"),
     std::string("unsqueeze"),
+    std::string("unique"),
+    std::string("unique_ret_index"),
+    std::string("unique_ret_inverse"),
+    std::string("unique_ret_counts"),
+    std::string("unique_ret_index_inverse"),
+    std::string("unique_ret_index_counts"),
+    std::string("unique_ret_inverse_counts"),
+    std::string("unique_ret_index_inverse_counts"),
+    std::string("unique_ret_index_axis"),
+    std::string("unique_ret_index_i32"),
     std::string("where_1"),
     std::string("where_2"),
     std::string("where_3"),
