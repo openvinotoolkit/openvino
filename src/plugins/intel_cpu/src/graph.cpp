@@ -201,41 +201,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         });
     };
 
-    auto find_input_port_prec = [&](const std::string& name) -> ov::element::Type_t {
-        for (auto& it : model->inputs()) {
-            auto port_name = get_port_name(it, is_legacy_api);
-            if (port_name == name)
-                return it.get_element_type();
-            port_name = it.get_node_shared_ptr()->get_friendly_name();
-            if (port_name == name)
-                return it.get_element_type();
-        }
-        OPENVINO_THROW("Cannot find input port with name: ", name);
-    };
-    // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
-    for (auto &input : inputNodesMap) {
-        auto prec = InferenceEngine::details::convertPrecision(find_input_port_prec(input.first));
-        const auto precToSet = normalizeToSupportedPrecision(prec);
-        input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
-    }
-
-    auto find_output_port_prec = [&](const std::string& name) -> ov::element::Type_t {
-        for (auto& it : model->outputs()) {
-            auto port_name = get_port_name(it, is_legacy_api);
-            if (port_name == name)
-                return it.get_element_type();
-            port_name = it.get_node_shared_ptr()->get_friendly_name();
-            if (port_name == name)
-                return it.get_element_type();
-        }
-        OPENVINO_THROW("Cannot find output port with name: ", name);
-    };
-    for (auto &output : outputNodesMap) {
-        auto prec = InferenceEngine::details::convertPrecision(find_output_port_prec(output.first));
-        const auto precToSet = normalizeToSupportedPrecision(prec);
-        output.second->setOriginalInputPrecisionAtPort(0, precToSet);
-    }
-
     // enforce must be performed after inputs and outputs info are taken into account
     EnforceInferencePrecision();
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
@@ -312,12 +277,6 @@ void Graph::InitDescriptors() {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "InitDescriptors", "Prepare");
 
     for (auto &node : graphNodes) {
-        if (node->getType() == Type::Input && _normalizePreprocMap.find(node->getName()) != _normalizePreprocMap.end()) {
-            auto *inputNode = dynamic_cast<node::Input *>(node.get());
-            if (inputNode)
-                inputNode->withMeanImage();
-        }
-
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
         DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
         node->getSupportedDescriptors();
