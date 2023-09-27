@@ -39,7 +39,7 @@ def paddle_scale_tensor(name : str, x, scale, bias, attrs : dict, data_type):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
-        node_scale = paddle.static.data(name='scale', shape=[1], dtype='float32')
+        node_scale = paddle.static.data(name='scale', shape=[], dtype='float32')
         out = paddle.scale(x=node_x, scale=node_scale, bias=bias,
                          bias_after_scale=attrs['bias_after_scale'])
         #FuzzyTest only support FP32 now, so cast result to fp32
@@ -53,7 +53,7 @@ def paddle_scale_tensor(name : str, x, scale, bias, attrs : dict, data_type):
             feed={'x': x, 'scale': scale},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x', 'scale'], fetchlist=[out], inputs=[x, np.array([scale]).astype('float32')], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feedkeys=['x', 'scale'], fetchlist=[out], inputs=[x, np.array(scale).astype('float32')], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

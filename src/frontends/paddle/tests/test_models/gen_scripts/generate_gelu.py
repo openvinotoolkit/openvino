@@ -16,7 +16,7 @@ def gelu(name:str, x, approximate=False):
     
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         data = paddle.static.data(name='x', shape=x.shape, dtype = data_type)
-        out = paddle.fluid.layers.gelu(data, approximate=approximate)
+        out = paddle.nn.functional.gelu(data, approximate=approximate)
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

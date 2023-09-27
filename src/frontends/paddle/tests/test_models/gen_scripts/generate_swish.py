@@ -7,13 +7,13 @@ import paddle as pdpd
 import sys
 
 
-def swish(name: str, x, data_type, input_beta):
+def swish(name: str, x, data_type):
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
         node_x = pdpd.static.data(
             name='input_x', shape=x.shape, dtype=data_type)
-        out = pdpd.fluid.layers.swish(x=node_x, beta=input_beta, name='swish')
+        out = pdpd.nn.functional.swish(x=node_x, name='swish')
 
         cpu = pdpd.static.cpu_places(1)
         exe = pdpd.static.Executor(cpu[0])
@@ -34,11 +34,11 @@ def main():
     data_type = 'float32'
     input_beta = 1.0
     x = np.random.randn(2, 3).astype(data_type)
-    swish("swish_default_params", x, data_type, input_beta)
+    swish("swish_default_params", x, data_type)
 
     input_beta = 2.0
     x = np.random.randn(2, 3).astype(data_type)
-    swish("swish_beta", x, data_type, input_beta)
+    swish("swish_beta", x, data_type)
 
 
 if __name__ == "__main__":

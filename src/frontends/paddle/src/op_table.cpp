@@ -8,6 +8,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 #define OP_CONVERTER(op) NamedOutputs op(const NodeContext& node)
+OP_CONVERTER(add);
 OP_CONVERTER(argmax);
 OP_CONVERTER(assign);
 OP_CONVERTER(assign_value);
@@ -29,25 +30,21 @@ OP_CONVERTER(dequantize_linear);
 OP_CONVERTER(dropout);
 OP_CONVERTER(elementwise_add);
 OP_CONVERTER(elementwise_div);
-OP_CONVERTER(elementwise_equal);
 OP_CONVERTER(elementwise_floordiv);
-OP_CONVERTER(elementwise_greater_equal);
-OP_CONVERTER(elementwise_max);
-OP_CONVERTER(elementwise_min);
 OP_CONVERTER(elementwise_mod);
 OP_CONVERTER(elementwise_mul);
-OP_CONVERTER(elementwise_not_equal);
 OP_CONVERTER(elementwise_pow);
-OP_CONVERTER(elementwise_sub);
+OP_CONVERTER(equal);
+OP_CONVERTER(greater_equal);
+OP_CONVERTER(not_equal);
 OP_CONVERTER(embedding);
 OP_CONVERTER(exp);
 OP_CONVERTER(expand_v2);
 OP_CONVERTER(flip);
-OP_CONVERTER(fill_any_like);
-OP_CONVERTER(fill_constant_batch_size_like);
-OP_CONVERTER(fill_constant);
 OP_CONVERTER(flatten_contiguous_range);
 OP_CONVERTER(floor);
+OP_CONVERTER(full);
+OP_CONVERTER(full_like);
 OP_CONVERTER(gather);
 OP_CONVERTER(gather_nd);
 OP_CONVERTER(gelu);
@@ -91,7 +88,6 @@ OP_CONVERTER(reduce_sum);
 OP_CONVERTER(relu);
 OP_CONVERTER(relu6);
 OP_CONVERTER(reshape2);
-OP_CONVERTER(reverse);
 OP_CONVERTER(rnn);
 OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
@@ -151,22 +147,18 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"depthwise_conv2d", op::conv2d},
             {"depthwise_conv2d_transpose", op::conv2d_transpose},
             {"dequantize_linear", op::dequantize_linear},
-            {"dropout", op::dropout},
             {"elementwise_add", op::elementwise_add},
             {"elementwise_div", op::elementwise_div},
             {"elementwise_floordiv", op::elementwise_floordiv},
-            {"elementwise_max", op::elementwise_max},
-            {"elementwise_min", op::elementwise_min},
             {"elementwise_mod", op::elementwise_mod},
             {"elementwise_mul", op::elementwise_mul},
+            {"dropout", op::dropout},
             {"elementwise_pow", op::elementwise_pow},
-            {"elementwise_sub", op::elementwise_sub},
-            {"equal", op::elementwise_equal},
+            {"equal", op::equal},
             {"exp", op::exp},
             {"expand_v2", op::expand_v2},
-            {"fill_any_like", op::fill_any_like},
-            {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
-            {"fill_constant", op::fill_constant},
+            {"full", op::full},
+            {"full_like", op::full_like},
             {"flatten_contiguous_range", op::flatten_contiguous_range},
             {"flip", op::flip},
             {"floor", op::floor},
@@ -174,7 +166,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"gather_nd", op::gather_nd},
             {"gelu", op::gelu},
             {"generate_proposals_v2", op::generate_proposals_v2},
-            {"greater_equal", op::elementwise_greater_equal},
+            {"greater_equal", op::greater_equal},
             {"greater_than", op::greater_than},
             {"grid_sampler", op::grid_sampler},
             {"group_norm", op::group_norm},
@@ -201,7 +193,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
-            {"not_equal", op::elementwise_not_equal},
+            {"not_equal", op::not_equal},
             {"one_hot_v2", op::one_hot_v2},
             {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
@@ -219,7 +211,6 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"relu", op::relu},
             {"relu6", op::relu6},
             {"reshape2", op::reshape2},
-            {"reverse", op::reverse},
             {"rnn", op::rnn},
             {"roi_align", op::roi_align},
             {"scale", op::scale},

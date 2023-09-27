@@ -42,7 +42,7 @@ else()
 endif()
 
 # PDPD 2.5.1 is not compatible with tests models we use
-set(paddlepaddle_FOUND OFF)
+set(paddlepaddle_FOUND ON)
 
 set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")

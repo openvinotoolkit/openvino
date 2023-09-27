@@ -15,7 +15,7 @@ def relu6(name: str, x, threshold: float = 6.0, data_type='float32'):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
-        out = paddle.fluid.layers.relu6(node_x, threshold=threshold, name='relu6')
+        out = paddle.nn.functional.relu6(node_x, name='relu6')
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

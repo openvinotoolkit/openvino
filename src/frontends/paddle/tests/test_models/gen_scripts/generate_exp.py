@@ -15,7 +15,7 @@ def exp(name: str, x):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
-        out = paddle.fluid.layers.exp(x=node_x)
+        out = paddle.exp(x=node_x)
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.

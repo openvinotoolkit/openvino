@@ -6,7 +6,6 @@
 #
 
 import paddle
-from paddle import fluid
 import numpy as np
 import sys
 import os
@@ -15,13 +14,11 @@ from save_model import saveModel
 paddle.enable_static()
 inp_blob1 = np.random.randn(1, 1, 224, 224).astype(np.float32)
 
-x1 = fluid.data(name='inputX1', shape=[1, 1, -1, -1], dtype='float32')
+x1 = paddle.static.data(name='inputX1', shape=[1, 1, -1, -1], dtype='float32')
 
-adative_pool2d = paddle.fluid.layers.adaptive_pool2d(
-    input=x1,
-    pool_size=[3,3],
-    pool_type='avg',
-    require_index=False)
+adative_pool2d = paddle.nn.functional.adaptive_avg_pool2d(
+    x=x1,
+    output_size=[3,3])
 
 cpu = paddle.static.cpu_places(1)
 exe = paddle.static.Executor(cpu[0])

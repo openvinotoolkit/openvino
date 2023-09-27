@@ -9,7 +9,7 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
-NamedOutputs fill_constant(const NodeContext& node) {
+NamedOutputs full(const NodeContext& node) {
     auto shape = node.get_attribute<std::vector<int64_t>>("shape");
     auto dtype = node.get_attribute<ov::element::Type>("dtype");
     Output<Node> value_node;
@@ -17,13 +17,13 @@ NamedOutputs fill_constant(const NodeContext& node) {
     if (node.has_input("ValueTensor")) {
         value_node = node.get_input("ValueTensor");
     } else if (dtype == element::i32) {
-        int32_t value = static_cast<int32_t>(node.get_attribute<float>("value"));
+        int32_t value = static_cast<int32_t>(node.get_attribute<float>("fill_value"));
         value_node = opset6::Constant::create(dtype, {1}, {value});
     } else if (dtype == element::f32) {
-        float value = node.get_attribute<float>("value");
+        float value = node.get_attribute<float>("fill_value");
         value_node = opset6::Constant::create(dtype, {1}, {value});
     } else if (dtype == element::i64) {
-        int64_t value = static_cast<int64_t>(node.get_attribute<float>("value"));
+        int64_t value = static_cast<int64_t>(node.get_attribute<float>("fill_value"));
         value_node = opset6::Constant::create(dtype, {1}, {value});
     } else {
         PADDLE_OP_CHECK(node, false, "fill_constant only supports i32, f32, i64");

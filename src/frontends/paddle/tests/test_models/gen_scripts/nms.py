@@ -9,6 +9,8 @@ import copy  # deepcopy
 import sys
 
 from save_model import saveModel, exportModel, print_alike
+from paddle.fluid import data_feeder
+
 
 # bboxes shape (N, M, 4) if shared else (M, C, 4)
 # scores shape (N, C, M) if shared else (M, C)
@@ -92,7 +94,7 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
         out = np.array(output_lod.pop(0))
         nms_rois_num = np.array(
             output_lod.pop(0)) if output[1] is not None else None
-        index = np.array(output_lod.pop(0)).astype(pdpd.fluid.data_feeder.convert_dtype(
+        index = np.array(output_lod.pop(0)).astype(data_feeder.convert_dtype(
             output[2].dtype)) if output[2] is not None else None
 
         # Save inputs in order of OpenVINO model, to facilite Fuzzy test,

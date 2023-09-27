@@ -14,7 +14,7 @@ def clip(name: str, x, min, max):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
-        out = paddle.fluid.layers.clip(node_x, min=min, max=max)
+        out = paddle.clip(node_x, min=min, max=max)
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

@@ -21,7 +21,7 @@ struct Evaluate : element::NoAction<bool> {
     template <element::Type_t ET>
     static result_type visit(const Tensor& arg0, const Tensor& arg1, Tensor& out, const size_t count) {
         using T = typename element_type_traits<ET>::value_type;
-        reference::swish(arg0.data<const T>(), arg1 ? *arg1.data<const T>() : T{1.0}, out.data<T>(), count);
+        reference::swish(arg0.data<const T>(), T{1.0}, out.data<T>(), count);
         return true;
     }
 };

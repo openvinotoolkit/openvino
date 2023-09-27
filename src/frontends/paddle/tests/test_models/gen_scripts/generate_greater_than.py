@@ -15,7 +15,7 @@ def greater_than(name: str, x, y, data_type, cast_to_fp32=False):
             name='input_x', shape=x.shape, dtype=data_type)
         node_y = pdpd.static.data(
             name='input_y', shape=y.shape, dtype=data_type)
-        out = pdpd.fluid.layers.greater_than(
+        out = pdpd.greater_than(
             x=node_x, y=node_y, name='greater_than')
         # FuzzyTest framework doesn't support boolean so cast to fp32/int32
 

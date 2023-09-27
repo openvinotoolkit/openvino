@@ -30,27 +30,19 @@ NamedOutputs elementwise_div(const NodeContext& node_context) {
     return elementwise_ops<default_opset::Divide>(node_context);
 }
 
-NamedOutputs elementwise_min(const NodeContext& node_context) {
-    return elementwise_ops<default_opset::Minimum>(node_context);
-}
-
-NamedOutputs elementwise_max(const NodeContext& node_context) {
-    return elementwise_ops<default_opset::Maximum>(node_context);
-}
-
 NamedOutputs elementwise_pow(const NodeContext& node_context) {
     return elementwise_ops<default_opset::Power>(node_context);
 }
 
-NamedOutputs elementwise_equal(const NodeContext& node_context) {
+NamedOutputs equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::Equal>(node_context);
 }
 
-NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
+NamedOutputs greater_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::GreaterEqual>(node_context);
 }
 
-NamedOutputs elementwise_not_equal(const NodeContext& node_context) {
+NamedOutputs not_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::NotEqual>(node_context);
 }
 

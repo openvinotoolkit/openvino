@@ -37,7 +37,7 @@ def main():
     x = np.random.rand(8, 24, 32).astype(data_type)
     random_data = np.random.rand(24 * 32).astype(data_type)
     attr = paddle.ParamAttr(
-              initializer=paddle.fluid.initializer.NumpyArrayInitializer(random_data))
+              initializer=paddle.nn.initializer.Assign(random_data))
     layer_norm("layer_norm", x, begin_norm_axis=1, param_attr=attr, bias_attr=attr)
     layer_norm("layer_norm_noscale", x, scale=False, begin_norm_axis=2)
     layer_norm("layer_norm_noshift", x, shift=False, begin_norm_axis=1)

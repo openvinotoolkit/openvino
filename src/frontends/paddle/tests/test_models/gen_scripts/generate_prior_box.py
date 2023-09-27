@@ -19,7 +19,7 @@ def prior_box(name: str, input_data, image_data, attrs: dict):
         Image = paddle.static.data(
             name='Image', shape=image_data.shape, dtype=image_data.dtype)
 
-        box, var = paddle.fluid.layers.prior_box(Input,
+        box, var = paddle.vision.ops.prior_box(Input,
                                                Image,
                                                min_sizes=attrs['min_sizes'],
                                                max_sizes=attrs['max_sizes'],

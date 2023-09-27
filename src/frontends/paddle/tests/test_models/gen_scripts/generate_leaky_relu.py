@@ -10,12 +10,12 @@ import paddle
 import sys
 
 
-def leaky_relu(name: str, x, alpha: float = 0.02, data_type='float32'):
+def leaky_relu(name: str, x, alpha: float = 0.01, data_type='float32'):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype = data_type)
-        out = paddle.fluid.layers.leaky_relu(node_x, alpha=alpha, name='leaky_relu')
+        out = paddle.nn.functional.leaky_relu(node_x, negative_slope=alpha, name='leaky_relu')
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
