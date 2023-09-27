@@ -1182,7 +1182,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'nightly'}}
           TEST_DEVICE: CPU
 
       - name: Upload Test Results
@@ -1270,7 +1270,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'nightly'}}
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
 
       - name: Available storage after tests
