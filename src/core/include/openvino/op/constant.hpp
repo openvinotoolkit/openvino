@@ -411,7 +411,7 @@ private:
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4,
+                                          Type != element::Type_t::i4 && Type != element::Type_t::nf4,
                                       bool>::type = true>
     StorageDataType get_element_value(size_t index) const {
         return get_data_ptr<Type>()[index];
@@ -429,6 +429,13 @@ private:
               typename std::enable_if<Type == element::Type_t::u4, bool>::type = true>
     StorageDataType get_element_value(size_t index) const {
         return (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+    }
+
+    template <element::Type_t Type,
+              typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type == element::Type_t::nf4, bool>::type = true>
+    StorageDataType get_element_value(size_t index) const {
+        return (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 4 : 0)) & 0x0F;
     }
 
     template <element::Type_t Type,
