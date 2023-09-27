@@ -129,10 +129,16 @@ void avg_pool_3d(const Values_t* data,
                  const Strides& kernel_strides,
                  const Shape& pads_begin,
                  const Shape& pads_end,
-                 const bool pads_in_avg) {
+                 bool pads_in_avg) {
     // helper constants(axes) denoting dimensions in the input data shape and kernel shape
     constexpr size_t data_D = 2, data_H = 3, data_W = 4;
     constexpr size_t kernel_D = 0, kernel_H = 1, kernel_W = 2;
+
+    const auto not_zero = [](size_t p) {
+        return p != 0;
+    };
+    pads_in_avg &= std::any_of(pads_begin.begin(), pads_begin.end(), not_zero) ||
+                   std::any_of(pads_end.begin(), pads_end.end(), not_zero);
 
     // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
     size_t out_idx = 0u;
