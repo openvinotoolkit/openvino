@@ -82,7 +82,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
     std::shared_ptr<ov::Model> model_to_update = nullptr;
     // if cached model was serialized
     if (!serialized_model_path.empty()) {
-        std::cout << "[ GRAPH CACHE ][ INFO ] Reading cached model: " << serialized_model_path << std::endl;
+        // std::cout << "[ GRAPH CACHE ][ INFO ] Reading cached model: " << serialized_model_path << std::endl;
         auto bin_path = ov::test::utils::replaceExt(serialized_model_path, ".bin");
         auto meta_path = ov::test::utils::replaceExt(serialized_model_path, ".meta");
         auto cached_model = ov::test::utils::PluginCache::get().core()->read_model(serialized_model_path);

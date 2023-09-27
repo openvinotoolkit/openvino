@@ -54,7 +54,7 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
                 }
             } catch (std::exception& e) {
                 not_read_model.emplace_back(model_file);
-                std::cout << "[ ERROR ] Impossible to read model: " << model_file << std::endl << "Exception: " << e.what();
+                // std::cout << "[ ERROR ] Impossible to read model: " << model_file << std::endl << "Exception: " << e.what();
             }
         }
     }
@@ -101,12 +101,12 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
                     }
                     cache->update_cache(function, model, extract_body, from_cache);
                 } catch (std::exception &e) {
-                    std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                    // std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
                     model_status = ModelCacheStatus::NOT_FULLY_CACHED;
                 }
             } catch (std::exception &e) {
                 model_status = ModelCacheStatus::NOT_READ;
-                std::cout << "[ ERROR ] Model reading failed with exception:" << std::endl << e.what() << std::endl;
+                // std::cout << "[ ERROR ] Model reading failed with exception:" << std::endl << e.what() << std::endl;
             }
             cache_status[model_status].push_back(model);
         }

@@ -109,7 +109,7 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
                 checked_ops.insert(tmp_checked_ops.begin(), tmp_checked_ops.end());
             } catch(std::exception& e) {
                 if (std::string(e.what()).find("Incorrect node number to create model!") == std::string::npos) {
-                    std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+                    // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
                 }
             }
         }

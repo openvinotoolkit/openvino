@@ -74,7 +74,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
                 matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name, is_copy_constants));
             } catch(std::exception& e) {
                 if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
-                    std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+                    // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
                 }
             }
             nodes.clear();
@@ -107,7 +107,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
         matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name, is_copy_constants));
     } catch(std::exception& e) {
         if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
-            std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+            // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
         }
     }
     return matched_patterns;
