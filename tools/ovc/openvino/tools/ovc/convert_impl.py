@@ -22,7 +22,7 @@ from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.ovc.cli_parser import get_available_front_ends, get_common_cli_options, depersonalize, \
-    get_mo_convert_params, input_to_input_cut_info
+    get_mo_convert_params, input_to_input_cut_info, parse_inputs
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 
 from openvino.tools.ovc.error import Error, FrameworkError
@@ -93,7 +93,14 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if is_verbose(argv):
         print_argv(argv)
 
-    params_parsing(argv)
+    import re
+    if argv.is_python_api_used and isinstance(argv.input, str):
+        argv.input = [argv.input]
+
+    if not argv.is_python_api_used and isinstance(argv.input, str):
+        argv.input = parse_inputs(argv.input)
+
+    normalize_inputs(argv)
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
     if not hasattr(argv, 'output') or argv.output is None:
@@ -297,9 +304,9 @@ def input_model_is_object(input_model):
     return True
 
 
-def params_parsing(argv: argparse.Namespace):
+def normalize_inputs(argv: argparse.Namespace):
     """
-    Parses params passed to convert_model and wraps resulting values into dictionaries or lists.
+    repacks params passed to convert_model and wraps resulting values into dictionaries or lists.
     After working of this method following values are set in argv:
 
     argv.input, argv.inputs_list - list of input names. Both values are used in some parts of MO.

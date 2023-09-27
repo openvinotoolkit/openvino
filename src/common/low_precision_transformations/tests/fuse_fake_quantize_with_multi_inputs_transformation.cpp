@@ -10,9 +10,9 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/fake_quantize.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/fake_quantize.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
@@ -62,7 +62,7 @@ public:
             testValues.actual.fakeQuantizeOnData);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transformer.add<ov::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(

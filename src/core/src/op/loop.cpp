@@ -12,6 +12,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "openvino/reference/loop.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -329,7 +330,12 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
     OV_OP_SCOPE(v5_Loop_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto op = make_shared<op::v5::Loop>();
-    NGRAPH_CHECK(op.get(), op != nullptr, "Cannot clone ", description(), " operation with name ", get_friendly_name());
+    OPENVINO_ASSERT(op.get(),
+                    op != nullptr,
+                    "Cannot clone ",
+                    description(),
+                    " operation with name ",
+                    get_friendly_name());
     clone_to(*op, new_args);
     return op;
 }
@@ -340,15 +346,14 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
                                                    int64_t part_size,
                                                    int64_t end,
                                                    int64_t axis) {
-    NGRAPH_CHECK(start == 0 && stride == 1 && part_size == 1 && end == -1,
-                 "Invalid start, stride, part_size, or end attribute values in Loop op. "
-                 "Supported values for start {0}, for stride and part_size {1}, for end "
-                 "{-1}");
+    OPENVINO_ASSERT(start == 0 && stride == 1 && part_size == 1 && end == -1,
+                    "Invalid start, stride, part_size, or end attribute values in Loop op. "
+                    "Supported values for start {0}, for stride and part_size {1}, for end "
+                    "{-1}");
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v5::Loop::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
     ov::reference::loop(m_bodies[0],
                         m_output_descriptions[0],
@@ -358,7 +363,6 @@ bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVec
                         inputs);
     return true;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v5::Loop::has_evaluate() const {
     OV_OP_SCOPE(v5_Loop_has_evaluate);
