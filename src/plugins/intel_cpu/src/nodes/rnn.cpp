@@ -1057,7 +1057,7 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         config.outConfs.push_back(dataConfig);
     }
 
-    supportedPrimitiveDescriptors.emplace_back(config, parse_impl_name(descs[0].impl_info_str()));
+    supportedPrimitiveDescriptors.emplace_back(config, ref_any);
 }
 
 Node::AttrPtr RNN::initPrimitiveAttr() {
