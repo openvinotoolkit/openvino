@@ -784,7 +784,7 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        runner: [aks-linux-16-cores, aks-linux-8-cores, aks-linux-4-cores, aks-linux-2-cores]
+        runner: [aks-linux-16-cores, aks-linux-8-cores, aks-linux-4-cores]
     runs-on: ${{ matrix.runner }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
