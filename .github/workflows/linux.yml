@@ -957,7 +957,7 @@ jobs:
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
       - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1 ca-certificates git
+        run: apt-get update && apt-get install -y libssl1.1 ca-certificates git ninja-build
 
       - uses: actions/setup-python@v4
         with:
