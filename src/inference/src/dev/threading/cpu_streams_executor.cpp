@@ -138,6 +138,18 @@ struct CPUStreamsExecutor::Impl {
                                    const int max_threads_per_core) {
             _numaNodeId = std::max(0, numa_node_id);
             _socketId = get_socket_by_numa_node(_numaNodeId);
+
+            unsigned int mxcsrOld = _mm_getcsr();
+            if (_impl->_config.optDenormalsForTBB) {
+                // Refer: src/plugins/intel_cpu/src/utils/denormals.cpp
+                unsigned int mxcsr = _mm_getcsr();
+                static constexpr unsigned int FTZ_FLAG = 0x8000;
+                static constexpr unsigned int DAZ_FLAG = 0x0040;
+                mxcsr |= DAZ_FLAG;
+                mxcsr |= FTZ_FLAG;
+                _mm_setcsr(mxcsr);
+            }
+
             if (stream_type == STREAM_WITHOUT_PARAM) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_max_concurrency(concurrency)
@@ -177,6 +189,10 @@ struct CPUStreamsExecutor::Impl {
                         _observer->observe(true);
                     }
                 }
+            }
+            if (_impl->_config.optDenormalsForTBB) {
+                // Recover the default setting to avoid impacting the custumer's application.
+                _mm_setcsr(mxcsrOld);
             }
         }
         void init_stream() {

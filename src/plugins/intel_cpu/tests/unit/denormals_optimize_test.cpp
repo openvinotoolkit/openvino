@@ -19,7 +19,11 @@ using namespace testing;
 
 class DenormalsOptimizeTestF : public ov::test::TestsCommon {
 public:
-    DenormalsOptimizeTestF() {}
+    DenormalsOptimizeTestF() {
+        // Default setting
+        ov::intel_cpu::flush_to_zero(false);
+        ov::intel_cpu::denormals_as_zero(false);
+    }
     ~DenormalsOptimizeTestF() {
         if (pConst1)
             delete[] pConst1;
@@ -121,7 +125,7 @@ TEST_F(DenormalsOptimizeTestF, Sync) {
 
     run(true);
 
-    checkOutput(false);
+    checkOutput(true);
 
     // To prove that there is no impact on customers' applications for the default setting.
     run_reference_multiply();

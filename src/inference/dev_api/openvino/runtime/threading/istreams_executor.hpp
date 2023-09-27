@@ -118,6 +118,8 @@ public:
         bool _cpu_reservation = false;
         bool _streams_changed = false;
 
+        bool optDenormalsForTBB = true;
+
         /**
          * @brief      A constructor with arguments
          *

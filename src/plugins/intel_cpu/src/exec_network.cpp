@@ -128,10 +128,11 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
         do {
             for (auto&& task : tasks) {
                 task = [this] {
+#if OV_THREAD == OV_THREAD_OMP
                     if (!this->_cfg.changedDenormalsOptMode) {
                         set_denormals_optimization(this->_cfg);
                     }
-
+#endif
                     ExecNetwork::GetGraph();
                 };
             }
