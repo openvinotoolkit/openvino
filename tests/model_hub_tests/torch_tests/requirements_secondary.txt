@@ -1,5 +1,5 @@
 -c ../../constraints.txt
 # This file contains requirements dependednt from modules in requirements.txt
-# get immutable commit for tag v0.6
-git+https://github.com/facebookresearch/detectron2.git@d1e04565d3bec8719335b88be9e9b961bf3ec464
+# get immutable commit to be ebale to use pip cache
+git+https://github.com/facebookresearch/detectron2.git@1a4df4d954089534daebbd7a0a45f08ece87056e
 natten
