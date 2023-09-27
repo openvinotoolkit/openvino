@@ -135,6 +135,7 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 std::istream* variant_to_stream_ptr(const ov::Any& variant,
                                     std::ifstream& ext_ifstream,
                                     std::stringstream& ext_sstream) {
@@ -159,6 +160,7 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant,
     FRONT_END_INITIALIZATION_CHECK(ext_ifstream && ext_ifstream.is_open(), "Cannot open model file.");
     return &ext_ifstream;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
 
 FrontEnd::FrontEnd() : m_op_translators(paddle::get_supported_ops()) {}
