@@ -20,12 +20,22 @@ class TRANSFORMATIONS_API TSStridedSliceBackward;
 }  // namespace pass
 }  // namespace ov
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TSStridedSliceForward transformation sinks Transpose through StridedSlice operation
+ * in the forward direction.
+ */
 class ov::pass::transpose_sinking::TSStridedSliceForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
     OPENVINO_RTTI("ov::pass::TSStridedSliceForward", "0");
     TSStridedSliceForward();
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TSStridedSliceBackward transformation sinks Transpose through StridedSlice operation
+ * in the backward direction.
+ */
 class ov::pass::transpose_sinking::TSStridedSliceBackward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::pass::TSStridedSliceBackward", "0");
