@@ -471,8 +471,7 @@ jobs:
             -j=4 \
             -d=${TEST_DEVICE} \
             -t=${{ matrix.TEST_TYPE }} \
-            -w=${CONFORMANCE_ARTIFACTS_DIR} \
-            -f=${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
+            -w=${CONFORMANCE_ARTIFACTS_DIR}
 
       # Required due to: https://github.com/actions/cache/tree/main/restore#ensuring-proper-restores-and-save-happen-across-the-actions
       - name: Rename Expected Failures List
