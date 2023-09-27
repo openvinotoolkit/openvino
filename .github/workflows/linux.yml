@@ -327,6 +327,8 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+      - name: Setup pip cache dir
+        run: echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/$(python3 -m pip --version | grep -o 'pip [0-9]*[.][0-9]*[.][0-9]*' | grep -o '[0-9].*')" >> $GITHUB_ENV
 
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
