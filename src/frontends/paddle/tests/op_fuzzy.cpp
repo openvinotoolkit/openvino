@@ -6,9 +6,9 @@
 
 #include <fstream>
 
+#include "common_test_utils/test_control.hpp"
 #include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
-#include "common_test_utils/test_control.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -396,6 +396,8 @@ static const std::vector<std::string> models{
     std::string("pad3d_test2"),
     std::string("pad3d_test3"),
     // pad3d_test4,
+    std::string("partial_concat"),
+    std::string("partial_sum"),
     std::string("pow_float32"),
     std::string("pow_int32"),
     std::string("pow_int64"),
