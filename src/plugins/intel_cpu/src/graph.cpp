@@ -235,6 +235,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         const auto precToSet = normalizeToSupportedPrecision(prec);
         output.second->setOriginalInputPrecisionAtPort(0, precToSet);
     }
+
     // enforce must be performed after inputs and outputs info are taken into account
     EnforceInferencePrecision();
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
@@ -445,6 +446,33 @@ void Graph::CreatePrimitivesAndExecConstants() const {
     }
 }
 
+static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc, const dnnl::engine& eng) {
+    auto definedParentDesc = parentDesc->isDefined() ? parentDesc : MemoryDescUtils::makeDummyDesc(*parentDesc);
+    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedParentDesc)->getDnnlDesc();
+
+    auto definedChildDesc = childDesc->isDefined() ? childDesc : MemoryDescUtils::makeDummyDesc(*childDesc);
+    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedChildDesc)->getDnnlDesc();
+
+    dnnl::primitive_attr attr;
+
+    dnnl_primitive_desc_t result = nullptr;
+    auto status = dnnl_reorder_primitive_desc_create(&result, srcMemDesc.get(), eng.get(), dstMemDesc.get(), eng.get(),
+                                                     attr.get());
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
+    // pretend the reorder is not available to use Convert node instead
+    if (result && parse_impl_name(result->impl()->name()) == ref_any) {
+        dnnl_primitive_desc_destroy(result);
+        return false;
+    }
+#endif
+    if (result) {
+        dnnl_primitive_desc_destroy(result);
+    }
+
+    return dnnl_success == status;
+}
+
 void Graph::InitEdges() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitEdges");
 
@@ -482,7 +510,32 @@ void Graph::InitEdges() {
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
         if (reorderStatus == Edge::ReorderStatus::Regular) {
-            insertReorder(edge, false);
+            Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
+            // Check if there is a reorder that needs the precision conversion
+            if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
+                    !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
+                                        edge->getOutputPortDesc()->getMemDesc(),
+                                        this->getEngine())) {
+                // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
+                const auto& inDesc = edge->getInputDesc();
+                const auto& outDesc = edge->getOutputDesc();
+
+                std::string convertName = edge->getParent()->getName() + "_" +
+                                          inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
+
+                auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
+                                                                       convertName, context);
+                convertNode->setDescs(inDesc, outDesc);
+                InsertNode(edge, convertNode, true);
+
+                //Check if reorder is still needed
+                reorderStatusInternal = convertNode->getChildEdgeAt(0)->needReorder();
+                if (reorderStatusInternal != Edge::ReorderStatus::No)
+                    edge = convertNode->getChildEdgeAt(0);
+            }
+            if (reorderStatusInternal != Edge::ReorderStatus::No) {
+                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
+            }
             updateEdge(i);
         } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
             insertReorder(edge, true);
