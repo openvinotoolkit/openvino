@@ -130,14 +130,14 @@ bool align_inputs(const std::shared_ptr<ov::op::v1::StridedSlice>& strided_slice
 
             auto input_const_val = input_const->cast_vector<uint64_t>();
             if (input_idx == 1) {
-                // `begin` input have to be initialized with 0
+                // `begin` input has to be initialized with 0
                 input_const_val.resize(expected_size, 0);
                 num_elements_in_begin_input = num_elements;
             } else if (input_idx == 2) {
-                // 'end' input have to be initialized with the corresponding `data` input dim value
+                // 'end' input has to be initialized with int_max value
                 input_const_val.resize(expected_size, get_max_value_by_type(input_const->get_element_type()));
             } else {
-                // `stride` input have to be initialized with 1
+                // `stride` input has to be initialized with 1
                 input_const_val.resize(expected_size, 1);
             }
             new_inputs[input_idx-1] = ov::op::v0::Constant::create(input_const->get_element_type(), {input_const_val.size()}, input_const_val);
@@ -177,7 +177,7 @@ TSStridedSliceForward::TSStridedSliceForward() {
             return false;
         }
 
-        // todo: handle ellipsis_mask
+        // todo: handle ellipsis_mask (ticket:121576)
         auto ellipsis_mask = strided_slice->get_ellipsis_mask();
         auto ellipsis_axes = convert_mask_to_axis_vec(ellipsis_mask);
         if (!ellipsis_axes.empty()) {

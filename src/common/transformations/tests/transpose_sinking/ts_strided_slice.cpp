@@ -661,6 +661,6 @@ INSTANTIATE_TEST_SUITE_P(TSCommonStridedSliceBackward_7, TSTestFixture, test_bac
 INSTANTIATE_TEST_SUITE_P(TSCommonStridedSliceBackward_8, TSTestFixture, test_backward_strided_slice(bw_test_8()));
 INSTANTIATE_TEST_SUITE_P(TSCommonStridedSliceBackward_9, TSTestFixture, test_backward_strided_slice(bw_test_9()));
 
-}  // namespace gather
+}  // namespace strided_slice
 }  // namespace testing
 }  // namespace transpose_sinking
