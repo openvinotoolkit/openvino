@@ -78,7 +78,7 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
     }
 }
 
-TEST(StaticMemoryTest, UnsupportedPrecision) {
+TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
     // in the context of this test, unsupported precision means a precision unsupported by oneDNN
     const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     CpuBlockedMemoryDesc memDescSupportedPrc(Precision::FP32, {5, 4, 7, 10});
