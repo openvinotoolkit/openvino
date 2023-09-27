@@ -150,7 +150,7 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_PYTHON=ON
         -DENABLE_INTEL_GNA=OFF
-        -DPYTHON_EXECUTABLE=$(BUILD_VENV)/bin/python3
+        -DPython3_EXECUTABLE=$(BUILD_VENV)/bin/python3
         -DENABLE_TESTS=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
@@ -286,7 +286,7 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'ONNX Frontend Tests'
 
-  # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
+  # TODO Reenable PDPD after paddlepaddle==2.5.1 with compliant protobuf is released (ticket 95904)
   - script: $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
