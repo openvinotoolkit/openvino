@@ -12,11 +12,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd5051)
 endif()
 
-if (X86_64)
-    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+if(NOT (ARM OR AARCH64))
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
       ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/arm)
-else()
-    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+endif()
+
+if(NOT X86_64)
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
       ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/x64
@@ -25,7 +27,6 @@ else()
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
-    set(MLAS_LIBRARY "")
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
 else()
     set(MLAS_LIBRARY "mlas")

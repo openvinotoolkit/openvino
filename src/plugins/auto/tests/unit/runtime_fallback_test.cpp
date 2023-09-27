@@ -1,6 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <thread>
+
 #include "include/auto_unit_test.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "openvino/runtime/auto/properties.hpp"
