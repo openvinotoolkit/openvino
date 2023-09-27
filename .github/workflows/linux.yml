@@ -1,4 +1,5 @@
-name: Tests on Linux (Ubuntu 20.04, Python 3.11)
+name: Tests on Linux (Ubuntu 20.04, Python 3.12)
+
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -92,25 +93,14 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          allow-prereleases: 'true'
 
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-
-          # For running ONNX frontend unit tests
-          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
-
-          # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
-
-          # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
-
-          # For running Paddle frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
 
       #
       # Build
@@ -321,7 +311,8 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          allow-prereleases: 'true'
 
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
@@ -600,12 +591,13 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          allow-prereleases: 'true'
 
       - name: Install Python API tests dependencies
         run: |
           # For torchvision to OpenVINO preprocessing converter
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
+          # python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
 
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
@@ -631,9 +623,6 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
-
-      - name: Install OpenVINO Python wheels
-        run: python3 -m pip install openvino-dev[mxnet,caffe,kaldi,onnx,tensorflow2] --find-links=${INSTALL_DIR}/tools
 
       #
       # Tests
@@ -829,7 +818,8 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          allow-prereleases: 'true'
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/requirements.txt
@@ -886,7 +876,8 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          allow-prereleases: 'true'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -960,7 +951,8 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          allow-prereleases: 'true'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
