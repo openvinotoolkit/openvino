@@ -698,12 +698,15 @@ bool Snippet::SnippetJitExecutor::optimizeExecDomain(std::vector<VectorDims>& in
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {
     using Manager = snippets::pass::Manager;
-    std::vector<Manager::PositionedPass> backend_passes;
-#if defined(OPENVINO_ARCH_X86_64)
     using PassPosition = snippets::pass::Manager::PassPosition;
     using Place = snippets::pass::Manager::PassPosition::Place;
+    std::vector<Manager::PositionedPass> backend_passes;
+#if defined(OPENVINO_ARCH_X86_64)
 #    define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
         backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...)
+#endif  // OPENVINO_ARCH_X86_64
 
     SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), ConvertToSwishCPU);
     if (enforceBF16 && snippet_for_generation->has_domain_sensitive_ops()) {
@@ -720,8 +723,7 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
     SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineEnd), ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineEnd), ov::intel_cpu::pass::MulAddToFMA);
 
-#    undef SNIPPETS_REGISTER_PASS
-#endif
+#undef SNIPPETS_REGISTER_PASS
 
     ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking);
