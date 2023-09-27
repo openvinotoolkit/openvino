@@ -6,7 +6,6 @@
 
 #include "paddle_utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 using PaddleCutTest = FrontEndLoadFromTest;

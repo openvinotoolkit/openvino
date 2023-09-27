@@ -6,7 +6,7 @@
 
 #include "paddle_utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace ov::frontend;
 
 using PaddlePartialShapeTest = FrontEndPartialShapeTest;
