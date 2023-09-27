@@ -752,8 +752,11 @@ def get_network_batch_size(inputs_info):
     return batch_size
 
 
-def show_available_devices():
-    print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
+def show_available_devices(core):
+    if core is None:
+        core = Core()
+
+    print("\nAvailable target devices:  ", ("  ".join(core.available_devices)))
 
 
 def device_properties_to_string(config):

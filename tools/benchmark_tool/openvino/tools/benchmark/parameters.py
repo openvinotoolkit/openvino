@@ -26,10 +26,15 @@ def check_positive(value):
     return ivalue
 
 class print_help(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        self.core = kwargs.pop('core', None)
+        super(print_help, self).__init__(option_strings, dest, nargs, **kwargs)
+
     def __call__(self, parser, namespace, values, option_string=None):
         parser.print_help()
-        show_available_devices()
+        show_available_devices(self.core)
         sys.exit()
+
 class HelpFormatterWithLines(argparse.HelpFormatter):
     def _split_lines(self, text, width):
         lines = super()._split_lines(text, width)
@@ -39,11 +44,11 @@ class HelpFormatterWithLines(argparse.HelpFormatter):
         lines = text.split('\n')
         return lines
 
-def parse_args():
+def parse_args(core=None):
     parser = argparse.ArgumentParser(add_help=False, formatter_class=HelpFormatterWithLines)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action=print_help, nargs='?', default=argparse.SUPPRESS,
-                      help='Show this help message and exit.')
+                      help='Show this help message and exit.', core=core)
     args.add_argument('-i', '--paths_to_input', action='append', nargs='+', type=str, required=False,
                       help='Optional. '
                            'Path to a folder with images and/or binaries or to specific image or binary file.'
