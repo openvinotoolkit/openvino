@@ -910,8 +910,7 @@ jobs:
           popd
 
       - name: Install OpenVINO Python wheels
-        run: |
-          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install TF Hub tests requirements
         run: |
@@ -998,16 +997,13 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Python wheels
-        run: |
-          python3 -m pip install openvino --find-links=${INSTALL_DIR}/tools
+      - name: Install OpenVINO Python wheels
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install PyTorch tests requirements
         run: |
           # export CPLUS_INCLUDE_PATH=${Python_ROOT_DIR}/include/python3.11
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
-          # python3 -m pip cache purge
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
           echo "Available storage:"
           df -h
           du -h -d0 ${PIP_CACHE_DIR} ${HOME}
