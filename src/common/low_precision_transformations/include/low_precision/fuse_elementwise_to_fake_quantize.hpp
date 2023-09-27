@@ -14,19 +14,18 @@ namespace low_precision {
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief FoldConvertTransformation evaluates Convert operation on Subtract constant subgraph.
+ * @brief FuseMultiplyToFakeQuantizeTransformation fuses Multiply operation to FakeQuantize.
  *
  * For more details about the transformation, refer to
- * [FoldConvertTransformation](@ref openvino_docs_OV_UG_lpt_FoldConvertTransformation) page
+ * [FuseMultiplyToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation) page
  * in the Inference Engine Developer Guide.
  */
-class LP_TRANSFORMATIONS_API FoldConvertTransformation : public CleanupTransformation {
+class LP_TRANSFORMATIONS_API FuseElementwiseToFakeQuantizeTransformation : public CleanupTransformation {
 public:
-    OPENVINO_RTTI("FoldConvertTransformation", "0");
-    FoldConvertTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    FuseElementwiseToFakeQuantizeTransformation(const Params& params);
+    virtual ~FuseElementwiseToFakeQuantizeTransformation() = default;
+
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
-    bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 
 } // namespace low_precision
