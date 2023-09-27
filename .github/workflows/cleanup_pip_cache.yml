@@ -1,0 +1,37 @@
+name: Cleanup PIP caches
+on:
+  schedule:
+    # at 00:00 on the 1st day of every month
+    # - cron: '0 0 1 * *'
+    # Every 10 minutes (to test only)
+    - cron: '*/5 * * * *'
+
+jobs:
+  Cleanup_Linux_Cache:
+    runs-on: aks-linux-2-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
+    env:
+      PIP_CACHE_DIR: /mount/caches/pip/linux
+
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Pre-Collecting Cache Info
+        run: |
+          echo "Cache path: "
+          python3 -m pip cache dir
+          echo "Cache info: "
+          python3 -m pip cache info
+
+      - name: Cleanup cache
+        run: python3 -m pip cache purge
+
+      - name: Post-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          python3 -m pip cache info
