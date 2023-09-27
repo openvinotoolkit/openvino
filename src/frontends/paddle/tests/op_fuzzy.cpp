@@ -6,9 +6,9 @@
 
 #include <fstream>
 
+#include "common_test_utils/test_control.hpp"
 #include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
-#include "common_test_utils/test_control.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -38,6 +38,16 @@ static const std::vector<std::string> models{
     std::string("avgPool_test7"),
     std::string("avgPool_test8"),
     std::string("avgPool_test9"),
+    std::string("avg3dPool_test1"),
+    std::string("avg3dPool_test10"),
+    std::string("avg3dPool_test2"),
+    std::string("avg3dPool_test3"),
+    std::string("avg3dPool_test4"),
+    std::string("avg3dPool_test5"),
+    // avg3dPool_test6<NDHWC support is disabled now>,
+    std::string("avg3dPool_test7"),
+    std::string("avg3dPool_test8"),
+    std::string("avg3dPool_test9"),
     std::string("batch_norm_nchw/batch_norm_nchw.pdmodel"),
     std::string("batch_norm_nhwc/batch_norm_nhwc.pdmodel"),
     std::string("bicubic_downsample_false_0/bicubic_downsample_false_0.pdmodel"),
@@ -334,6 +344,16 @@ static const std::vector<std::string> models{
     std::string("maxPool_test7"),
     std::string("maxPool_test8"),
     std::string("maxPool_test9"),
+    std::string("max3dPool_test1"),
+    std::string("max3dPool_test10"),
+    std::string("max3dPool_test2"),
+    std::string("max3dPool_test3"),
+    std::string("max3dPool_test4"),
+    std::string("max3dPool_test5"),
+    // std::string("max3dPool_test6") // NDHWC support is disabled now
+    std::string("max3dPool_test7"),
+    std::string("max3dPool_test8"),
+    std::string("max3dPool_test9"),
     std::string("meshgrid/meshgrid.pdmodel"),
     std::string("multiclass_nms_by_background"),
     std::string("multiclass_nms_by_class_id"),
