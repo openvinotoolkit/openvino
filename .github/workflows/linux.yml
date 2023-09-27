@@ -81,10 +81,10 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          # openjdk-11-jdk - Java API
+          # default-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
           # unzip - to download ninja
-          apt install --assume-yes --no-install-recommends openjdk-11-jdk libssl1.1 unzip
+          apt install --assume-yes --no-install-recommends default-jdk libssl1.1 unzip
 
           wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
           unzip ninja-linux.zip
