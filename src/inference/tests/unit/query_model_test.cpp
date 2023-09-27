@@ -20,6 +20,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
@@ -44,13 +45,19 @@ std::ostream& operator<<(std::ostream& os, const std::unordered_set<std::string>
 class GetSupportedNodesTest : public ::testing::Test {
 protected:
     ov::Shape m_shape{1, 84};
-    std::shared_ptr<ov::Model> m_function;
+    std::shared_ptr<ov::Model> m_model;
 
 public:
     void Run(std::function<void(std::shared_ptr<ov::Model>&)> transform,
              std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported,
-             const std::unordered_set<std::string>& expected) {
-        auto supported = ov::get_supported_nodes(m_function, transform, is_node_supported);
+             const std::unordered_set<std::string>& expected,
+             std::function<bool(const std::shared_ptr<ov::Node>)> is_node_under_memory_control = nullptr,
+             uint64_t memory_size_in_bytes = 0) {
+        auto supported = ov::get_supported_nodes(m_model,
+                                                 transform,
+                                                 is_node_supported,
+                                                 is_node_under_memory_control,
+                                                 memory_size_in_bytes);
         auto const is_in_expected = [&expected](const std::string& x) {
             return expected.find(x) != expected.end();
         };
@@ -77,7 +84,7 @@ TEST_F(GetSupportedNodesTest, UnsupportedCompressedConstantCF) {
         add->set_friendly_name("add");
         auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result");
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -112,7 +119,7 @@ TEST_F(GetSupportedNodesTest, ConstantSubgraphCF) {
         reshape->set_friendly_name("reshape");
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
         result->set_friendly_name("result");
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -146,7 +153,7 @@ TEST_F(GetSupportedNodesTest, SupportedCompressedConstantNop) {
         add->set_friendly_name("add");
         auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result");
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -158,7 +165,7 @@ TEST_F(GetSupportedNodesTest, SupportedCompressedConstantNop) {
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
-                   (std::dynamic_pointer_cast<ov::op::v1::Add>(op) != nullptr);
+                   ov::is_type<ov::op::v1::Add>(op);
         },
         {"input", "constant_compressed", "constant", "add", "result"});
 }
@@ -173,7 +180,7 @@ TEST_F(GetSupportedNodesTest, SupportedConstantInsertAdditionalOp) {
         mul->set_friendly_name("output_operation");
         auto result = std::make_shared<ov::op::v0::Result>(mul);
         result->set_friendly_name("result");
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -181,7 +188,7 @@ TEST_F(GetSupportedNodesTest, SupportedConstantInsertAdditionalOp) {
             m.register_pass<ov::pass::InitNodeInfo>();
             m.run_passes(model);
             for (auto& op : model->get_ops()) {
-                if (std::dynamic_pointer_cast<ov::op::v1::Multiply>(op) != nullptr) {
+                if (ov::is_type<ov::op::v1::Multiply>(op)) {
                     // Add one more dummy operation
                     auto consumers = op->output(0).get_target_inputs();
                     auto shape = op->get_shape();
@@ -198,8 +205,7 @@ TEST_F(GetSupportedNodesTest, SupportedConstantInsertAdditionalOp) {
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
-                   (std::dynamic_pointer_cast<ov::op::v1::Multiply>(op) != nullptr) ||
-                   (std::dynamic_pointer_cast<ov::op::v1::Add>(op) != nullptr);
+                   ov::is_type<ov::op::v1::Multiply>(op) || ov::is_type<ov::op::v1::Add>(op);
         },
         {"input", "constant", "output_operation", "result"});
 }
@@ -224,8 +230,7 @@ TEST_F(GetSupportedNodesTest, PartiallySupportedCompressedConstant) {
         auto result2 = std::make_shared<ov::op::v0::Result>(mul);
         result2->set_friendly_name("result2");
 
-        m_function =
-            std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -236,7 +241,7 @@ TEST_F(GetSupportedNodesTest, PartiallySupportedCompressedConstant) {
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
-                   (std::dynamic_pointer_cast<ov::op::v1::Multiply>(op) != nullptr);
+                   ov::is_type<ov::op::v1::Multiply>(op);
         },
         {"input2", "constant_compressed", "constant", "mul", "result2"});
 }
@@ -266,7 +271,7 @@ TEST_F(GetSupportedNodesTest, ConstantSubgraphSupported) {
         auto result = std::make_shared<ov::op::v0::Result>(matmul);
         result->set_friendly_name("result");
 
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -278,7 +283,7 @@ TEST_F(GetSupportedNodesTest, ConstantSubgraphSupported) {
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
-                   (std::dynamic_pointer_cast<ov::op::v0::MatMul>(op) != nullptr);
+                   ov::is_type<ov::op::v0::MatMul>(op);
         },
         {"input",
          "weights",
@@ -307,7 +312,7 @@ TEST_F(GetSupportedNodesTest, UnmarkedSupportedInputsOutputs) {
         add->set_friendly_name("add");
         auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result");
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -318,7 +323,7 @@ TEST_F(GetSupportedNodesTest, UnmarkedSupportedInputsOutputs) {
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             // Plugin don't mark input, constant and result as supported
-            return (std::dynamic_pointer_cast<ov::op::v1::Add>(op) != nullptr);
+            return ov::is_type<ov::op::v1::Add>(op);
         },
         {"add"});
 }
@@ -340,7 +345,7 @@ TEST_F(GetSupportedNodesTest, WrongFusedNamesInOriginalModel) {
         auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result");
 
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -348,7 +353,7 @@ TEST_F(GetSupportedNodesTest, WrongFusedNamesInOriginalModel) {
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
-                   (std::dynamic_pointer_cast<ov::op::v0::MatMul>(op) != nullptr);
+                   ov::is_type<ov::op::v0::MatMul>(op);
         },
         {"input", "weights", "matmul"});
 }
@@ -363,7 +368,7 @@ TEST_F(GetSupportedNodesTest, FusedNamesSupportedUnsupportedBoth) {
         logsoftmax->set_friendly_name("logsoftmax");
         auto result = std::make_shared<ov::op::v0::Result>(logsoftmax);
         result->set_friendly_name("result");
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param, dummy_param});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param, dummy_param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -375,10 +380,8 @@ TEST_F(GetSupportedNodesTest, FusedNamesSupportedUnsupportedBoth) {
         [&](const std::shared_ptr<ov::Node>& op) {
             // Exp is not supported and all constants are missing
             return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) ||
-                   (std::dynamic_pointer_cast<ov::op::v1::ReduceMax>(op) != nullptr) ||
-                   (std::dynamic_pointer_cast<ov::op::v1::Subtract>(op) != nullptr) ||
-                   (std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(op) != nullptr) ||
-                   (std::dynamic_pointer_cast<ov::op::v0::Log>(op) != nullptr);
+                   ov::is_type<ov::op::v1::ReduceMax>(op) || ov::is_type<ov::op::v1::Subtract>(op) ||
+                   ov::is_type<ov::op::v1::ReduceSum>(op) || ov::is_type<ov::op::v0::Log>(op);
         },
         {"dummy_param"});  // kepp dummy only since it has no unsupported consumers
 }
@@ -411,7 +414,7 @@ TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
         interpolate->set_friendly_name("interpolate");
         auto interpolate_result = std::make_shared<ov::op::v0::Result>(interpolate);
         interpolate_result->set_friendly_name("interpolate_result");
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{interpolate_result}, ov::ParameterVector{param});
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{interpolate_result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -422,7 +425,7 @@ TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
-                   (std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) != nullptr);
+                   ov::is_type<ov::op::v0::PRelu>(op);
         },
         {"input", "slope_compressed", "slope", "prelu"});  // keep dummy only since it has no unsupported consumers
 }
@@ -454,7 +457,7 @@ TEST_F(GetSupportedNodesTest, ShuffleChannelFusion) {
         auto reshape_after = std::make_shared<ov::op::v1::Reshape>(permute, shape_reshape_after, true);
         reshape_after->set_friendly_name("reshape_after");
 
-        m_function = std::make_shared<ov::Model>(ov::NodeVector{reshape_after}, ov::ParameterVector{input});
+        m_model = std::make_shared<ov::Model>(ov::NodeVector{reshape_after}, ov::ParameterVector{input});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -478,7 +481,7 @@ TEST_F(GetSupportedNodesTest, FusedNameReduceL2Test) {
         auto reduce_l2 = std::make_shared<ov::op::v4::ReduceL2>(data, axes, true);
         reduce_l2->set_friendly_name("reduce_l2");
 
-        m_function = std::make_shared<ov::Model>(ov::NodeVector{reduce_l2}, ov::ParameterVector{data});
+        m_model = std::make_shared<ov::Model>(ov::NodeVector{reduce_l2}, ov::ParameterVector{data});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -491,7 +494,197 @@ TEST_F(GetSupportedNodesTest, FusedNameReduceL2Test) {
         [&](const std::shared_ptr<ov::Node>& op) {
             // Pooling is supported, but Sqrt is not
             return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op) ||
-                   (std::dynamic_pointer_cast<ov::opset1::AvgPool>(op) != nullptr);
+                   ov::is_type<ov::op::v1::AvgPool>(op);
         },
         {});  // Check that constant axis is removed from supported
+}
+
+TEST_F(GetSupportedNodesTest, IfTrueTest) {
+    {
+        auto get_then_body = []() {
+            auto Xt = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            Xt->set_friendly_name("Xt");
+            auto Yt = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            Yt->set_friendly_name("Yt");
+            auto add_op = std::make_shared<ov::op::v1::Add>(Xt, Yt);
+            add_op->set_friendly_name("add_op");
+            auto then_op_result = std::make_shared<ov::op::v0::Result>(add_op);
+            then_op_result->set_friendly_name("then_op_result");
+            return std::make_shared<ov::Model>(ov::OutputVector{then_op_result}, ov::ParameterVector{Xt, Yt});
+        };
+        auto get_else_body = []() {
+            auto Xe = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            Xe->set_friendly_name("Xe");
+            auto Ye = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            Ye->set_friendly_name("Ye");
+            auto mul_op = std::make_shared<ov::op::v1::Multiply>(Xe, Ye);
+            mul_op->set_friendly_name("mul_op");
+            auto else_op_result = std::make_shared<ov::op::v0::Result>(mul_op);
+            else_op_result->set_friendly_name("else_op_result");
+            return std::make_shared<ov::Model>(ov::OutputVector{else_op_result}, ov::ParameterVector{Xe, Ye});
+        };
+
+        auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        X->set_friendly_name("X");
+        auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        Y->set_friendly_name("Y");
+        auto cond = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        cond->set_friendly_name("cond");
+        auto if_op = std::make_shared<ov::op::v8::If>(cond);
+        if_op->set_friendly_name("if_op");
+        const auto& then_body = get_then_body();
+        const auto& else_body = get_else_body();
+
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        auto then_p = then_body->get_parameters();
+        auto else_p = else_body->get_parameters();
+        if_op->set_input(X, then_p[0], else_p[0]);
+        if_op->set_input(Y, then_p[1], else_p[1]);
+        if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
+        auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+        if_result->set_friendly_name("if_result");
+
+        m_model = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+    }
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::UnrollIf>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            // Add is supported
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op) ||
+                   ov::is_type<ov::op::v1::Add>(op);
+        },
+        {"X", "Y", "cond", "if_op", "if_result"});
+}
+
+TEST_F(GetSupportedNodesTest, DynamicConvertShapeOfMemoryControlTest) {
+    {
+        ov::PartialShape input_shape = {-1, 112, 56, 56};
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, input_shape);
+        input->set_friendly_name("input");
+        auto convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+        convert->set_friendly_name("convert");
+        auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(convert);
+        shapeOf->set_friendly_name("shapeof");
+        auto add_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1});
+        add_const->set_friendly_name("add_const");
+        auto add = std::make_shared<ov::op::v1::Add>(convert, add_const);
+        add->set_friendly_name("add");
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(add, shapeOf, false);
+        reshape->set_friendly_name("reshape");
+        auto result = std::make_shared<ov::op::v0::Result>(reshape);
+        result->set_friendly_name("result");
+        m_model = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{input});
+    }
+    uint64_t memory_size_in_bytes = 1024;
+    Run([&](std::shared_ptr<ov::Model>& model) {},
+        [&](const std::shared_ptr<ov::Node>& op) {
+            // Convert and ShapeOf are supported
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op) ||
+                   ov::is_type<ov::op::v0::Convert>(op) || ov::is_type<ov::op::v0::ShapeOf>(op);
+        },
+        {},
+        nullptr,
+        memory_size_in_bytes);
+}
+
+TEST_F(GetSupportedNodesTest, MatMulNopEliminationMemoryControlTest) {
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{512, 2048});
+        data->set_friendly_name("data");
+        auto weights0 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4096, 2048}, {1});
+        weights0->set_friendly_name("weights0");
+        auto matmul0 = std::make_shared<ov::op::v0::MatMul>(data, weights0, false, true);
+        matmul0->set_friendly_name("matmul0");
+        auto weights1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1024, 4096}, {2});
+        weights1->set_friendly_name("weights1");
+        auto matmul1 = std::make_shared<ov::op::v0::MatMul>(matmul0, weights1, false, true);
+        matmul1->set_friendly_name("matmul1");
+        // This reshape doing nothing and will be removed
+        // auto const_reshape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{matmul1->get_shape().size()},
+        // matmul1->get_shape()); const_reshape->set_friendly_name("const_reshape"); auto reshape =
+        // std::make_shared<ov::op::v1::Reshape>(matmul1, const_reshape, false); reshape->set_friendly_name("reshape");
+        auto convert = std::make_shared<ov::op::v0::Convert>(matmul1, ov::element::f32);
+        convert->set_friendly_name("convert");
+        auto weights2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{512, 1024}, {2});
+        weights2->set_friendly_name("weights2");
+        auto matmul2 = std::make_shared<ov::op::v0::MatMul>(convert, weights2, false, true);
+        matmul2->set_friendly_name("matmul2");
+        auto result = std::make_shared<ov::op::v0::Result>(matmul2);
+        result->set_friendly_name("result");
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data});
+    }
+    // only first matmul fits
+    uint64_t memory_size_in_bytes = 4096 * 2048 * 4 + 1024;
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::NopElimination>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            // MatMul is supported
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op) ||
+                   ov::is_type<ov::op::v0::MatMul>(op);
+        },
+        {"data", "weights0", "matmul0"},
+        [&](const std::shared_ptr<ov::Node>& op) {
+            // Only MatMul can breaks graph
+            return ov::is_type<ov::op::v0::MatMul>(op);
+        },
+        memory_size_in_bytes);
+}
+
+TEST_F(GetSupportedNodesTest, MatMulAddMemoryControlTest) {
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{512, 2048});
+        data->set_friendly_name("data");
+        auto weights0 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4096, 2048}, {1});
+        weights0->set_friendly_name("weights0");
+        auto matmul0 = std::make_shared<ov::op::v0::MatMul>(data, weights0, false, true);
+        matmul0->set_friendly_name("matmul0");
+        auto weights1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1024, 4096}, {2});
+        weights1->set_friendly_name("weights1");
+        auto matmul1 = std::make_shared<ov::op::v0::MatMul>(matmul0, weights1, false, true);
+        matmul1->set_friendly_name("matmul1");
+        auto add_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1024}, {4});
+        add_const->set_friendly_name("add_const");
+        auto add = std::make_shared<ov::op::v1::Add>(matmul1, add_const);
+        add->set_friendly_name("add");
+        auto result = std::make_shared<ov::op::v0::Result>(add);
+        result->set_friendly_name("result");
+        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data});
+    }
+    // first matmul and add fits
+    uint64_t memory_size_in_bytes = 4096 * 2048 * 4 + 1024 * 4;
+    Run([&](std::shared_ptr<ov::Model>& model) {},
+        [&](const std::shared_ptr<ov::Node>& op) {
+            // MatMul is supported
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op) ||
+                   ov::is_type<ov::op::v0::MatMul>(op) || ov::is_type<ov::op::v1::Add>(op);
+        },
+        {"data", "weights0", "matmul0", "add_const", "add", "result"},
+        [&](const std::shared_ptr<ov::Node>& op) {
+            // Both MatMul and Add can breaks graph
+            return ov::is_type<ov::op::v0::MatMul>(op) || ov::is_type<ov::op::v1::Add>(op);
+        },
+        memory_size_in_bytes);
+    Run([&](std::shared_ptr<ov::Model>& model) {},
+        [&](const std::shared_ptr<ov::Node>& op) {
+            // MatMul is supported
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op) ||
+                   ov::is_type<ov::op::v0::MatMul>(op) || ov::is_type<ov::op::v1::Add>(op);
+        },
+        {"data", "weights0", "matmul0"},
+        [&](const std::shared_ptr<ov::Node>& op) {
+            // Only MatMul can breaks graph
+            return ov::is_type<ov::op::v0::MatMul>(op);
+        },
+        memory_size_in_bytes);
 }

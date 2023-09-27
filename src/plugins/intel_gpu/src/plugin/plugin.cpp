@@ -276,6 +276,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ProgramBuilder prog(ctx->get_engine(), config);
 
+    bool use_memory = config.get_property(ov::query_model_uses_device_mem.name()).as<bool>();
+    uint64_t memory_size_in_bytes = use_memory ? ctx->get_engine().get_device_info().max_global_mem_size : 0;
+
     auto supported = ov::get_supported_nodes(model,
         [&config,this](std::shared_ptr<ov::Model>& model) {
             std::map<std::string, ov::PartialShape> shapes;
@@ -284,7 +287,13 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         },
         [&prog](std::shared_ptr<ov::Node> node) {
             return prog.is_op_supported(node);
-        });
+        },
+        [](std::shared_ptr<ov::Node> node) {
+            return (ov::is_type<ov::op::v0::MatMul>(node) ||
+                    ov::is_type<ov::op::util::ConvolutionFwdPropBase>(node) ||
+                    ov::is_type<ov::op::util::ConvolutionBackPropBase>(node));
+        },
+        memory_size_in_bytes);
 
     for (auto&& op_name : supported) {
         res.emplace(op_name, ctx->get_device_name());
@@ -567,6 +576,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::query_model_uses_device_mem.name(), PropertyMutability::RW},
     };
 
     return supported_properties;

@@ -15,6 +15,7 @@
 #include "compiled_model.hpp"
 #include "ie/ie_plugin_config.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -91,8 +92,14 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     for (const auto& device_name : device_names) {
         // If there are some unsupported operations and it is a last device
         // exception should be raised when allowed
-        const auto& default_device = (!allow_exception || device_name != device_names.back()) ? get_device_name() : "";
-        const auto& device_config = properties_per_device.at(device_name);
+        bool fallback_device = (device_name == device_names.back());
+        const auto& default_device = (!allow_exception || !fallback_device) ? get_device_name() : "";
+        // const auto& default_device = get_device_name();
+        auto& device_config = properties_per_device.at(device_name);
+        if (fallback_device) {
+            // Turn off memory control to get all supported nodes
+            device_config[ov::query_model_uses_device_mem.name()] = false;
+        }
         query_results[device_name] = get_core()->query_model(model, device_name, device_config);
         // Update supported operations map which includes new operations
         update_supported_ops(supported_ops_temp, query_results[device_name]);

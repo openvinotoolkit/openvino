@@ -333,8 +333,14 @@ std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::
 std::unordered_set<std::string> GetSupportedNodes(
     const std::shared_ptr<const ov::Model>& model,
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
-    std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) {
-    return ov::get_supported_nodes(model, transform, is_node_supported);
+    std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported,
+    std::function<bool(const std::shared_ptr<ov::Node>)> is_node_under_memory_control,
+    uint64_t memory_size_in_bytes) {
+    return ov::get_supported_nodes(model,
+                                   transform,
+                                   is_node_supported,
+                                   is_node_under_memory_control,
+                                   memory_size_in_bytes);
 }
 
 void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
