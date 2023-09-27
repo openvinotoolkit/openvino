@@ -1040,7 +1040,6 @@ jobs:
           if-no-files-found: 'error'
 
   Cleanup_PIP_Caches:
-    needs: Build
     runs-on: aks-linux-2-cores
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
@@ -1048,20 +1047,23 @@ jobs:
         - /mount/caches:/mount/caches
     env:
       PIP_CACHE_PATH: /mount/caches/pip
+      PIP_CACHE_TMP_PATH: /mount/caches/.pip
 
     steps:
       - name: Pre-Collecting Cache Info
         run: |
-          echo "Cache info: "
+          echo "Cache info:"
           du -h -d2 ${PIP_CACHE_PATH}
 
       - name: Cleanup cache
         run: |
           echo "Removing pip caches"
-          [ ! -z "${PIP_CACHE_PATH}" ] && rm -rv ${PIP_CACHE_PATH}/*
+          [ ! -z "${PIP_CACHE_TMP_PATH}" ] && rm -rv ${PIP_CACHE_TMP_PATH}
+          mv ${PIP_CACHE_PATH} ${PIP_CACHE_TMP_PATH}
+          [ ! -z "${PIP_CACHE_TMP_PATH}" ] && rm -rv ${PIP_CACHE_TMP_PATH}
 
       - name: Post-Collecting Cache Info
         if: ${{ !cancelled() }}
         run: |
-          echo "Cache info: "
+          echo "Cache info:"
           du -h -d2 ${PIP_CACHE_PATH}
