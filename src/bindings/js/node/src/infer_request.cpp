@@ -192,33 +192,6 @@ Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info)
     return CompiledModelWrap::Wrap(info.Env(), _infer_request.get_compiled_model());
 }
 
-std::vector<ov::Tensor> parse_input_data(const Napi::CallbackInfo& info, ov::InferRequest& _infer_request) {
-    std::vector<ov::Tensor> input;
-    if (info.Length() == 1 && info[0].IsArray()) {
-        auto inputs = info[0].As<Napi::Array>();
-        for (size_t i = 0; i < inputs.Length(); ++i) {
-            auto tensor = value_to_tensor(inputs[i], _infer_request, i);
-            auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
-            tensor.copy_to(new_tensor);
-            input.push_back(new_tensor);
-        }
-
-    } else if (info.Length() == 1 && info[0].IsObject()) {
-        auto inputs = info[0].ToObject();
-        auto keys = inputs.GetPropertyNames();
-        for (size_t i = 0; i < keys.Length(); ++i) {
-            auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-            auto value = inputs.Get(input_name);
-            auto tensor = value_to_tensor(value, _infer_request, input_name);
-            auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
-            tensor.copy_to(new_tensor);
-            input.push_back(new_tensor);
-        }
-    } else {
-        throw std::invalid_argument("parse_input_data(): wrong arg");
-    }
-    return input;
-}
 struct TsfnContextLock {
     TsfnContextLock(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
 
@@ -234,10 +207,13 @@ void FinalizerCallbackLock(Napi::Env env, void* finalizeData, TsfnContextLock* c
 };
 
 Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
+    if (info.Length() != 1) {
+        reportError(info.Env(), "InferAsync method takes as an argument an array or an object.");
+    }
     Napi::Env env = info.Env();
 
+    auto parsed_input = parse_input_data(info[0], _infer_request);
     auto context_data = new TsfnContextLock(env);
-    auto parsed_input = parse_input_data(info, _infer_request);
 
     context_data->input_tensors = parsed_input;
     context_data->_context_ir = &_infer_request;
