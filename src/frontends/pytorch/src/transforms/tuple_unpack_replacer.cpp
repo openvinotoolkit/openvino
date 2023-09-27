@@ -51,14 +51,12 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
         const auto if_op = as_type_ptr<v8::If>(op);
         if (if_op) {
             for (size_t i = 1; i < if_op->get_input_size(); i++) {
-                std::cout << "debug 1" << std::endl;
                 auto input = if_op->input_value(i);
                 auto tuple_construct = std::dynamic_pointer_cast<ov::frontend::pytorch::PtFrameworkNode>(
                     cast_fw_node(input.get_node_shared_ptr(), "prim::TupleConstruct"));
                 if (!tuple_construct) {
                     continue;
                 }
-                std::cout << "debug 2" << std::endl;
                 int then_body_idx = -1;
                 int else_body_idx = -1;
                 auto then_descs = if_op->get_input_descriptions(v8::If::THEN_BODY_INDEX);
@@ -70,11 +68,10 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                                 tuple_construct,
                                 "Unexpected: TupleConstruct output is used in body more then once.");
                         } else {
-                            then_body_idx = inp_desc->m_body_parameter_index;
+                            then_body_idx = static_cast<int>(inp_desc->m_body_parameter_index);
                         }
                     }
                 }
-                std::cout << "debug 3" << std::endl;
                 for (auto inp_desc : else_descs) {
                     if (inp_desc->m_input_index == i) {
                         if (else_body_idx != -1) {
@@ -82,11 +79,10 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                                 tuple_construct,
                                 "Unexpected: TupleConstruct output is used in body more then once.");
                         } else {
-                            else_body_idx = inp_desc->m_body_parameter_index;
+                            else_body_idx = static_cast<int>(inp_desc->m_body_parameter_index);
                         }
                     }
                 }
-                std::cout << "debug 4" << std::endl;
                 auto new_if = std::make_shared<v8::If>(if_op->input_value(0));
                 auto then_body = if_op->get_function(v8::If::THEN_BODY_INDEX);
                 auto else_body = if_op->get_function(v8::If::ELSE_BODY_INDEX);
@@ -108,7 +104,6 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                     then_body->remove_parameter(then_param);
                     then_param->output(0).replace(new_tc->output(0));
                 }
-                std::cout << "debug 5" << std::endl;
                 if (else_body_idx != -1) {
                     auto else_param = else_body->get_parameters().at(else_body_idx);
                     ov::OutputVector new_tc_inputs;
@@ -125,7 +120,6 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                     else_body->remove_parameter(else_param);
                     else_param->output(0).replace(new_tc->output(0));
                 }
-                std::cout << "debug 6" << std::endl;
                 new_if->set_function(v8::If::THEN_BODY_INDEX, then_body);
                 new_if->set_function(v8::If::ELSE_BODY_INDEX, else_body);
                 new_if->set_output_size(if_op->get_output_size());
@@ -133,18 +127,15 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                                                 if_op->get_output_descriptions(v8::If::THEN_BODY_INDEX));
                 new_if->set_output_descriptions(v8::If::ELSE_BODY_INDEX,
                                                 if_op->get_output_descriptions(v8::If::ELSE_BODY_INDEX));
-                std::cout << "debug 7" << std::endl;
 
                 // create new If inputs
                 std::vector<std::pair<int, int>> inputs_mapping(if_op->get_input_size(), {-1, -1});
                 for (auto inp_desc : then_descs) {
-                    inputs_mapping[inp_desc->m_input_index].first = inp_desc->m_body_parameter_index;
+                    inputs_mapping[inp_desc->m_input_index].first = static_cast<int>(inp_desc->m_body_parameter_index);
                 }
-                std::cout << "debug 8" << std::endl;
                 for (auto inp_desc : else_descs) {
-                    inputs_mapping[inp_desc->m_input_index].second = inp_desc->m_body_parameter_index;
+                    inputs_mapping[inp_desc->m_input_index].second = static_cast<int>(inp_desc->m_body_parameter_index);
                 }
-                std::cout << "debug 9" << std::endl;
                 for (size_t j = 0; j < inputs_mapping.size(); j++) {
                     if (j == i)
                         continue;
@@ -159,7 +150,6 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                     if (then_p || else_p)
                         new_if->set_invariant_inputs(if_op->input_value(j), {then_p, else_p});
                 }
-                std::cout << "debug 10" << std::endl;
                 for (size_t j = 0; j < tuple_construct->get_input_size(); j++) {
                     ParameterVector body_inps;
                     if (then_body_idx != -1) {
@@ -176,13 +166,11 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                     }
                     new_if->set_invariant_inputs(tuple_construct->input_value(j), body_inps);
                 }
-                std::cout << "debug 11" << std::endl;
                 new_if->set_friendly_name(if_op->get_friendly_name());
                 replace_node(if_op, new_if);
                 new_if->validate_and_infer_types();
                 op = std::dynamic_pointer_cast<Node>(new_if);
                 result = true;
-                std::cout << "debug 12" << std::endl;
                 break;
             }
         }
