@@ -13,6 +13,7 @@ from openvino.runtime.op.util import (
     MergedInputDescription,
     ConcatOutputDescription,
 )
+from tests.utils.helpers import compare_models
 
 
 def test_simple_loop():
@@ -140,8 +141,10 @@ def test_loop_basic():
     loop.get_concatenated_slices(cma_hist.output(0), 0, 1, 1, -1, 0)
 
     subgraph_func = loop.get_function()
+
     assert type(subgraph_func) == type(graph_body)
-    assert subgraph_func == graph_body
+    assert subgraph_func._get_raw_address() == graph_body._get_raw_address()
+    assert compare_models(subgraph_func, graph_body)
     assert loop.get_special_body_ports() == body_ports
     assert loop.get_num_iterations() == 16
 

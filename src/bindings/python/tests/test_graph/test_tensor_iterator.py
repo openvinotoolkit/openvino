@@ -13,6 +13,7 @@ from openvino.runtime.op.util import (
     MergedInputDescription,
     ConcatOutputDescription,
 )
+from tests.utils.helpers import compare_models
 
 
 def test_simple_tensor_iterator():
@@ -119,8 +120,10 @@ def test_tensor_iterator_basic():
     ti.get_concatenated_slices(cma_hist.output(0), 0, 1, 1, -1, 0)
 
     subgraph_func = ti.get_function()
+
     assert type(subgraph_func) == type(graph_body)
-    assert subgraph_func == graph_body
+    assert compare_models(subgraph_func, graph_body)
+    assert subgraph_func._get_raw_address() == graph_body._get_raw_address()
     assert ti.get_num_iterations() == 16
 
     input_desc = ti.get_input_descriptions()
