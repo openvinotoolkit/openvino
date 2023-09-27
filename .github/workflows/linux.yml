@@ -363,7 +363,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ always() && !cancelled()}}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -556,7 +556,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ always() && !cancelled()}}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -570,6 +570,8 @@ jobs:
     runs-on: aks-linux-4-cores
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
@@ -771,7 +773,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ always() && !cancelled()}}
         with:
           name: test-results-python
           path: |
@@ -925,7 +927,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ always() && !cancelled()}}
         with:
           name: test-results-tensorflow-hub-models
           path: |
@@ -1030,7 +1032,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ always() && !cancelled()}}
         with:
           name: test-results-torch-models
           path: |
