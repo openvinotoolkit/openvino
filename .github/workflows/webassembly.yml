@@ -1,0 +1,77 @@
+name: Webassembly
+on:
+  workflow_dispatch:
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
+      - 'releases/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-webassembly
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores
+    container:
+      image: emscripten/emsdk
+      volumes:
+        - /mount/caches:/mount/caches
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
+      CCACHE_DIR: /mount/caches/ccache/webassembly_Release
+      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
+      CCACHE_MAXSIZE: 50G
+    steps:
+      - name: Install git
+        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+          submodules: 'true'
+
+      - name: Install ccache
+        run: apt-get install --assume-yes --no-install-recommends ccache
+
+      - name: emcmake cmake - configure
+        run: |
+          emcmake cmake \
+            -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
+            -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+            -S ${OPENVINO_REPO} \
+            -B ${OPENVINO_BUILD_DIR}
+
+      - name: emmake make - build
+        run: emmake make -j$(nproc) hello_query_device -C ${OPENVINO_BUILD_DIR}
+
+      - name: Show ccache stats
+        run: ccache --show-stats
