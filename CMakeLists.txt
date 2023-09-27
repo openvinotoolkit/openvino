@@ -14,8 +14,14 @@ if(NOT DEFINED CMAKE_MINIMUM_REQUIRED_VERSION)
             # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
             set(CMAKE_MINIMUM_REQUIRED_VERSION 3.20)
         else()
-            # default choice
-            set(CMAKE_MINIMUM_REQUIRED_VERSION 3.13)
+            if(WIN32)
+                # 3.16: FindPython3.cmake can find Python via -DPython3_EXECUTABLE
+                # 3.18: FindPython3.cmake can find Python automatically from virtualenv
+                set(CMAKE_MINIMUM_REQUIRED_VERSION 3.16)
+            else()
+                # 3.13: default choice
+                set(CMAKE_MINIMUM_REQUIRED_VERSION 3.13)
+            endif()
         endif()
     endif()
 endif()
