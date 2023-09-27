@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -12,7 +12,7 @@ from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 
-class TestUnsqueezeOp(unittest.TestCase):
+class TestUnsqueezeOp():
     nodes_attributes = {
         'data_1': {
             'kind': 'data',
@@ -37,8 +37,8 @@ class TestUnsqueezeOp(unittest.TestCase):
         }
     }
 
-    def test_unsqueeze_infer(self):
-        test_cases=[(shape_array([1, 3, 64, 64]), int64_array([0, 4]), shape_array([1, 1, 3, 64, 1, 64]),
+    @pytest.mark.parametrize("input_shape, unsq_dims, output_shape, ref_uns_dims, input_value, output_value",
+                [(shape_array([1, 3, 64, 64]), int64_array([0, 4]), shape_array([1, 1, 3, 64, 1, 64]),
                  int64_array([0, 4]), None, None),
                 (shape_array([2, 3, 64, 64]), int64_array([-1]), shape_array([2, 3, 64, 64, 1]), int64_array([4]), None,
                  None),
@@ -47,37 +47,34 @@ class TestUnsqueezeOp(unittest.TestCase):
                 (shape_array([1, 2]), int64_array([-1]), shape_array([1, 2, 1]), int64_array([2]),
                  shape_array([5, dynamic_dimension_value]).reshape((1, 2)),
                  shape_array([5, dynamic_dimension_value]).reshape((1, 2, 1))),
-                ]
-        for idx, (input_shape, unsq_dims, output_shape, ref_uns_dims, input_value,
-                  output_value) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph = build_graph(self.nodes_attributes,
-                                    [('data_1', 'unsq'),
-                                    ('unsq_dims_const', 'unsq_dims'),
-                                    ('unsq_dims', 'unsq'),
-                                    ('unsq', 'data_2')],
-                                    {'data_1': {'shape': input_shape, 'value': input_value},
-                                    'unsq_dims': {'value': unsq_dims, 'shape': unsq_dims.shape},
-                                    'unsq_dims_const': {'value': unsq_dims, 'shape': unsq_dims.shape},
-                                    })
+                ])
+    def test_unsqueeze_infer(self, input_shape, unsq_dims, output_shape, ref_uns_dims, input_value, output_value):
+        graph = build_graph(self.nodes_attributes,
+                            [('data_1', 'unsq'),
+                             ('unsq_dims_const', 'unsq_dims'),
+                             ('unsq_dims', 'unsq'),
+                             ('unsq', 'data_2')],
+                            {'data_1': {'shape': input_shape, 'value': input_value},
+                             'unsq_dims': {'value': unsq_dims, 'shape': unsq_dims.shape},
+                             'unsq_dims_const': {'value': unsq_dims, 'shape': unsq_dims.shape},
+                             })
 
-                graph_ref = build_graph(self.nodes_attributes,
-                                        [('data_1', 'unsq'),
-                                        ('unsq_dims_const', 'unsq_dims'),
-                                        ('unsq_dims', 'unsq'),
-                                        ('unsq', 'data_2')],
-                                        {'data_1': {'shape': input_shape, 'value': input_value},
-                                        'unsq_dims': {'value': ref_uns_dims, 'shape': ref_uns_dims.shape},
-                                        'unsq_dims_const': {'value': ref_uns_dims, 'shape': ref_uns_dims.shape},
-                                        'data_2': {'shape': output_shape, 'value': output_value},
-                                        })
+        graph_ref = build_graph(self.nodes_attributes,
+                                [('data_1', 'unsq'),
+                                 ('unsq_dims_const', 'unsq_dims'),
+                                 ('unsq_dims', 'unsq'),
+                                 ('unsq', 'data_2')],
+                                {'data_1': {'shape': input_shape, 'value': input_value},
+                                 'unsq_dims': {'value': ref_uns_dims, 'shape': ref_uns_dims.shape},
+                                 'unsq_dims_const': {'value': ref_uns_dims, 'shape': ref_uns_dims.shape},
+                                 'data_2': {'shape': output_shape, 'value': output_value},
+                                 })
 
-                unsqueeze_node = Node(graph, 'unsq')
-                Unsqueeze.infer(unsqueeze_node)
+        unsqueeze_node = Node(graph, 'unsq')
+        Unsqueeze.infer(unsqueeze_node)
 
-                (flag, resp) = compare_graphs(graph, graph_ref, 'data_2')
-                self.assertTrue(flag, resp)
-                self.assertTrue(strict_compare_tensors(Node(graph, 'data_2').shape, Node(graph_ref, 'data_2').shape))
-                if Node(graph_ref, 'data_2').value is not None:
-                    self.assertTrue(strict_compare_tensors(Node(graph, 'data_2').value,
-                                                           Node(graph_ref, 'data_2').value))
+        (flag, resp) = compare_graphs(graph, graph_ref, 'data_2')
+        assert flag, resp
+        assert strict_compare_tensors(Node(graph, 'data_2').shape, Node(graph_ref, 'data_2').shape)
+        if Node(graph_ref, 'data_2').value is not None:
+            assert strict_compare_tensors(Node(graph, 'data_2').value, Node(graph_ref, 'data_2').value)
