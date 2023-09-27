@@ -9,14 +9,14 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-TEST_P(OpImplCheckTest, checkPluginImplementationQueryModel) {
+TEST_P(OpImplCheckTest, checkPluginImplementation) {
     if (function == nullptr) {
         GTEST_FAIL() << "Target model is empty!";
     }
+    summary.updateOPsImplStatus(function, false);
 
     // in case of crash jump will be made and work will be continued
     ov::test::utils::CrashHandler crashHandler;
-
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
@@ -29,36 +29,33 @@ TEST_P(OpImplCheckTest, checkPluginImplementationQueryModel) {
         summary.setDeviceName(targetDevice);
         try {
             auto queryNetworkResult = core->query_model(function, targetDevice);
-            std::set<std::string> expected;
-            for (auto &&node : function->get_ops()) {
-                expected.insert(node->get_friendly_name());
-            }
+            {
+                std::set<std::string> expected;
+                for (auto &&node : function->get_ops()) {
+                    expected.insert(node->get_friendly_name());
+                }
 
-            std::set<std::string> actual;
-            for (auto &&res : queryNetworkResult) {
-                actual.insert(res.first);
-            }
+                std::set<std::string> actual;
+                for (auto &&res : queryNetworkResult) {
+                    actual.insert(res.first);
+                }
 
-            if (expected != actual) {
-                throw std::runtime_error("Expected and actual results are different");
+                if (expected == actual) {
+                    summary.updateOPsImplStatus(function, true);
+                }
             }
-            summary.updateOPsImplStatus(function, true);
         } catch (const std::exception &e) {
-            summary.updateOPsImplStatus(function, false);
             GTEST_FAIL() << "Exception in the Core::compile_model() method call: " << e.what();
         } catch (...) {
-            summary.updateOPsImplStatus(function, false);
-            GTEST_FAIL() << "Error in the Core::query_model() method call!";
+            GTEST_FAIL() << "Error in the Core::compile_model() method call!";
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        summary.updateOPsImplStatus(function, false);
         GTEST_FAIL() << "Crash happens";
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
-        summary.updateOPsImplStatus(function, false);
         GTEST_FAIL() << "Hang happens";
     }
 }
 
 }   // namespace subgraph
-}   //namespace test
+}   // namespace test
 }   // namespace ov

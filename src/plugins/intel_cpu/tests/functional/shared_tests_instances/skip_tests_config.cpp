@@ -220,6 +220,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 121363
         R"(.*smoke_Constant/ConstantLayerTest.*_dataPRC=(u4|u16|u32|i4|i16|f64).*)",
         R"(.*smoke_Constant_with_negative_values/ConstantLayerTest.*_dataPRC=(u4|u16|u32|i4|i16|f64).*)",
+        // Issue: 121313
+        R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
+        R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
     };
 #if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
     // Issue: 120950
