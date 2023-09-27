@@ -21,7 +21,8 @@ on:
       - master
 
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}-windows
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows
   cancel-in-progress: true
 
 env:
