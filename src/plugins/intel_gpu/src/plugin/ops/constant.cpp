@@ -67,30 +67,31 @@ struct ConstProperties {
     bool needsBatchInterpretation;
 };
 
-static void create_data(ProgramBuilder& p, const ov::Shape& constDims, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
-    cldnn::tensor constTensor = getConstTensor(constDims);
-    auto constFormat = cldnn::format::get_default_format(constDims.size());
+static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
+    cldnn::tensor constTensor = getConstTensor(const_shape);
+    auto constFormat = cldnn::format::get_default_format(const_shape.size());
 
     if (props.needsBatchInterpretation) {
         constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
     }
 
-    // If constDims has a dimension = 0, then create tensor with single value
+    // If const_shape has a dimension = 0, then create tensor with single value
     // TODO: check if dim=0 is a valid case
-    if (std::accumulate(constDims.begin(), constDims.end(), size_t(1), std::multiplies<size_t>()) == 0)
+    if (std::accumulate(const_shape.begin(), const_shape.end(), size_t(1), std::multiplies<size_t>()) == 0)
         constTensor = cldnn::tensor{1};
 
-    auto newDims = constDims;
     cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(newDims, out_dtype, constFormat) :
+    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat) :
                                                           cldnn::layout(out_dtype, constFormat, constTensor);
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
     auto data = op->get_data_ptr<char>();
 
-    auto bufIter = p.blobMemCache.find(std::make_pair(data, newDims));
+    const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
+
+    auto bufIter = p.blobMemCache.find(cache_key);
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
@@ -112,7 +113,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& constDims, const std
 
         std::memcpy(&buf[0], &data[0], bufSize);
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
-        p.blobMemCache[std::make_pair(data, newDims)] = initialconstPrimID;
+        p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
 }
