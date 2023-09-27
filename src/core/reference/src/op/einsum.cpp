@@ -352,7 +352,7 @@ void reduce_input(ov::TensorVector& inputs,
 
     auto output_ptr = ov::Tensor(input_ptr.get_element_type(), output_shape);
 
-    reference::sum<T>(input_ptr.data<T>(), output_ptr.data<T>(), input_shape, reduced_axes);
+    reference::sum(input_ptr.data<const T>(), output_ptr.data<T>(), input_shape, reduced_axes);
 
     // update a vector of inputs and input subscripts
     inputs[input_ind] = output_ptr;

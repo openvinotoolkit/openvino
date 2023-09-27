@@ -39,7 +39,7 @@ void mean(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_
         const size_t out_idx =
             std::inner_product(output_coord.begin(), output_coord.end(), out_strides.begin(), uint64_t(0));
 
-        details::kahan_summation(arg[in_idx], cs[out_idx], out[out_idx]);
+        out[out_idx] = details::kahan_summation(arg[in_idx], out[out_idx], cs[out_idx]);
 
         if (index_to_count_map.find(out_idx) == index_to_count_map.end()) {
             index_to_count_map[out_idx] = 1;

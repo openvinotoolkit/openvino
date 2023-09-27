@@ -7,78 +7,89 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/shape_util.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
 namespace details {
-// Windows doesn't seem to like it if we directly use std::isfinite on integer
-// types, so we will roll our own thing here.
+
 template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
-bool is_finite(T x) {
+bool isfinite(T x) {
     return std::isfinite(x);
 }
 
 template <
     typename T,
     typename std::enable_if<std::is_same<T, bfloat16>::value || std::is_same<T, float16>::value, bool>::type = true>
-bool is_finite(T x) {
+bool isfinite(T x) {
     return std::isfinite(static_cast<float>(x));
 }
 
-template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-bool is_finite(T /* x */) {
-    return true;
+/**
+ * @brief Performs one element summation based on Kahan algorithm to significantly reduce (integral types).
+ *
+ * @param in        Value to add with previous value of summation.
+ * @param prev_sum  Previous value of summation (accumulator).
+ * @return Compensate sum.
+ */
+template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+constexpr T kahan_summation(const T in, const T prev_sum, T&) {
+    return in + prev_sum;
 }
 
-///
-/// \brief      Performs one element summation based on Kahan algorithm to
-/// significantly reduce
-///             the numerical error.
-///
-/// \param[in]  elem            Element to add into the accumulator.
-/// \param      compensation    Variable that accumulates the error.
-/// \param      sum             Result of compensated summation.
-///
-template <typename T>
-void kahan_summation(const T& elem, T& compensation, T& sum) {
-    if (is_finite(elem) && is_finite(sum)) {
-        T temp = sum + (elem - compensation);
-        compensation = (temp - sum) - (elem - compensation);
-        sum = temp;
+/**
+ * @brief Performs one element summation based on Kahan algorithm to significantly reduce (floating point types).
+ *
+ * @param in            Value to add with previous value of summation.
+ * @param prev_sum      Previous value of summation (accumulator).
+ * @param compensation  Accumulates the summation error.
+ * @return Compensate sum.
+ */
+template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
+T kahan_summation(const T in, const T prev_sum, T& compensation) {
+    if (isfinite(in) && isfinite(prev_sum)) {
+        T temp = prev_sum + (in - compensation);
+        compensation = (temp - prev_sum) - (in - compensation);
+        return temp;
     } else {
-        sum = sum + elem;
+        return in + prev_sum;
     }
 }
 }  // namespace details
 
+/**
+ * @brief Reference implementation of ReduceSum operator.
+ *
+ * @param in             Input pointer to data.
+ * @param out            Output pointer to results.
+ * @param in_shape       Input shape.
+ * @param reduction_axes Axes on which reduction is applied.
+ */
 template <typename T>
-void sum(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
-    constexpr bool dont_keep_dims_in_output = false;
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    const auto out_shape = ngraph::reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
+void sum(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
+    const auto out_shape = util::reduce(in_shape, reduction_axes);
 
-    std::vector<T> cs(shape_size(out_shape), 0);
-    std::fill(out, out + shape_size(out_shape), T(0));
+    const auto out_size = shape_size(out_shape);
+    std::vector<T> cs(out_size, T{0});
+    std::fill(out, std::next(out, out_size), T{0});
 
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
 
     CoordinateTransformBasic input_transform(in_shape);
-    for (const Coordinate& input_coord : input_transform) {
-        const Coordinate output_coord = ngraph::reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
+    for (const auto& in_coord : input_transform) {
+        const auto out_coord = util::reduce(in_coord, reduction_axes);
 
-        const size_t in_idx =
-            std::inner_product(input_coord.begin(), input_coord.end(), in_strides.begin(), uint64_t(0));
-        const size_t out_idx =
-            std::inner_product(output_coord.begin(), output_coord.end(), out_strides.begin(), uint64_t(0));
+        const auto in_idx = coordinate_offset(in_coord, in_strides);
+        const auto out_idx = coordinate_offset(out_coord, out_strides);
 
-        details::kahan_summation(arg[in_idx], cs[out_idx], out[out_idx]);
+        out[out_idx] = details::kahan_summation(in[in_idx], out[out_idx], cs[out_idx]);
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov
