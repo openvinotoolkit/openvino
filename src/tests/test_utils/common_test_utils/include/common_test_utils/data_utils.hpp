@@ -186,7 +186,11 @@ void inline fill_data_random(T* pointer,
     const uint32_t k_range = k * range;  // range with respect to k
     random.Generate(k_range);
 
+<<<<<<< HEAD
     if (start_from < 0 && !std::numeric_limits<T>::is_signed) {
+=======
+    if (start_from < 0 && std::is_arithmetic<T>::value && !std::is_signed<T>::value) {
+>>>>>>> 67ebb645a0 (Refator ActivationLayerTest)
         start_from = 0;
     }
     for (std::size_t i = 0; i < size; i++) {
