@@ -223,7 +223,6 @@ jobs:
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       - name: List installed files
-        if: ${{ always() }}
         run: |
           Get-ChildItem -Recurse -Directory ${{ env.INSTALL_DIR }}
 
@@ -380,7 +379,6 @@ jobs:
 #          TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - TF FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -392,7 +390,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 2 Layer Tests - TF FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -404,7 +401,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -414,7 +410,6 @@ jobs:
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -426,7 +421,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow Lite Layer Tests - TFL FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -445,7 +439,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: MO Python API Tests
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -457,7 +450,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: Python Frontend tests
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -468,7 +460,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ always() && !cancelled()}}
         with:
           name: test-results-python
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -639,7 +631,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ always() && !cancelled()}}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -719,7 +711,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ always() && !cancelled()}}
         with:
           name: test-results-functional-cpu
           path: |
