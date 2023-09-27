@@ -34,12 +34,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 jobs:
 - job: Win
   strategy:
@@ -63,7 +57,6 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)\..\openvino_contrib
-    MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: $(WORK_DIR)\build
     BUILD_SAMPLES_DIR: $(WORK_DIR)\build_samples
@@ -130,11 +123,6 @@ jobs:
     submodules: 'true'
     path: openvino_contrib
 
-  - checkout: testdata
-    clean: 'true'
-    lfs: 'true'
-    path: testdata
-
   - script: |
       python -m pip install --upgrade pip
       rem For running Python API tests
@@ -178,9 +166,7 @@ jobs:
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
         -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" ^
-        -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.11.2\x64\python.exe" ^
-        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.11.2\x64\include" ^
-        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.11.2\x64\libs\python311.lib" ^
+        -DPython3_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.11.2\x64\python.exe" ^
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^

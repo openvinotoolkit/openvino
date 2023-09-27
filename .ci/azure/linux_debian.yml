@@ -28,14 +28,6 @@ pr:
     - '*/conformance/*'
     - 'tests/layer_tests/*'
 
-resources:
-  repositories:
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 jobs:
 - job: Lin_Debian
   # About 150% of total time
@@ -50,7 +42,6 @@ jobs:
     VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
@@ -149,12 +140,6 @@ jobs:
       git clone https://github.com/google/gtest-parallel.git
     displayName: 'Install build dependencies'
 
-    # Should be after 'Install dependencies' because Git lfs is not installed
-  - checkout: testdata
-    clean: 'true'
-    lfs: 'true'
-    path: testdata
-
   - task: CMake@1
     inputs:
       # CMake must get Python 3.x version by default
@@ -165,7 +150,7 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_PYTHON=ON
         -DENABLE_INTEL_GNA=OFF
-        -DPYTHON_EXECUTABLE=$(BUILD_VENV)/bin/python3
+        -DPython3_EXECUTABLE=$(BUILD_VENV)/bin/python3
         -DENABLE_TESTS=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
@@ -243,7 +228,7 @@ jobs:
       wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
-      sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2023.list
+      sudo apt-get update
       sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
@@ -338,15 +323,9 @@ jobs:
     displayName: 'TEMPLATE FuncTests'
 
   - script: $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
-    env:
-      DATA_PATH: $(MODELS_PATH)
-      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
 
   - script: $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
-    env:
-      DATA_PATH: $(MODELS_PATH)
-      MODELS_PATH: $(MODELS_PATH)
     displayName: 'OV CAPITests'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
