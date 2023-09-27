@@ -29,6 +29,9 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
   cancel-in-progress: true
 
+env:
+  PIP_CACHE_DIR: /mount/caches/pip/linux
+
 jobs:
   Build:
     defaults:
@@ -55,7 +58,6 @@ jobs:
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
-      PIP_CACHE_DIR: /mount/caches/pip/linux
 
     steps:
       - name: Install git
@@ -99,7 +101,9 @@ jobs:
       - name: Set pip cache path
         run: |
           export PIP_VER=$(python3 -m pip --version | grep -o '[0-9]*[.][0-9]*[.][0-9]*')
-          echo "PIP_CACHE_DIR=${PIP_CACHE_DIR}/${PIP_VER}" >> $GITHUB_ENV
+          export PIP_CACHE_DIR=${PIP_CACHE_DIR}/${PIP_VER}
+        env:
+          PIP_CACHE_DIR: ${{ env.PIP_CACHE_DIR }}
 
       - name: Install python dependencies
         run: |
@@ -1016,8 +1020,8 @@ jobs:
 
       - name: Set pip cache path
         run: |
-          export PIP_VER = $(python3 -m pip --version | grep -o '[0-9]*[.][0-9]*[.][0-9]*')
-          echo "PIP_CACHE_DIR=${PIP_CACHE_DIR}/${PIP_VER} >> $GITHUB_ENV
+          export PIP_VER=$(python3 -m pip --version | grep -o '[0-9]*[.][0-9]*[.][0-9]*')
+          echo "PIP_CACHE_DIR=${PIP_CACHE_DIR}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
