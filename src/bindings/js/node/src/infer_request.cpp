@@ -3,6 +3,9 @@
 
 #include "infer_request.hpp"
 
+#include <random>
+#include <thread>
+
 #include "compiled_model.hpp"
 #include "node_output.hpp"
 #include "tensor.hpp"
@@ -49,7 +52,7 @@ Napi::Object InferRequestWrap::Wrap(Napi::Env env, ov::InferRequest infer_reques
 }
 
 void InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() != 2 || !info[0].IsString() || !info[1].IsObject()) { 
+    if (info.Length() != 2 || !info[0].IsString() || !info[1].IsObject()) {
         reportError(info.Env(), "InferRequest.setTensor() invalid argument.");
     } else {
         std::string name = info[0].ToString();
@@ -59,10 +62,10 @@ void InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
 }
 
 void InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() == 1 && info[0].IsObject()) {  
+    if (info.Length() == 1 && info[0].IsObject()) {
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
         _infer_request.set_input_tensor(tensorWrap->get_tensor());
-    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {  
+    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
         auto idx = info[0].ToNumber().Int32Value();
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
         _infer_request.set_input_tensor(idx, tensorWrap->get_tensor());
@@ -76,7 +79,7 @@ void InferRequestWrap::set_output_tensor(const Napi::CallbackInfo& info) {
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
         auto t = tensorWrap->get_tensor();
         _infer_request.set_output_tensor(t);
-    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) { 
+    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
         auto idx = info[0].ToNumber().Int32Value();
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
         _infer_request.set_output_tensor(idx, tensorWrap->get_tensor());
@@ -92,7 +95,7 @@ Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
     } else if (info[0].IsString()) {
         std::string tensor_name = info[0].ToString();
         tensor = _infer_request.get_tensor(tensor_name);
-    } else if (info[0].IsObject()) { 
+    } else if (info[0].IsObject()) {
         auto outputWrap = Napi::ObjectWrap<Output<const ov::Node>>::Unwrap(info[0].ToObject());
         ov::Output<const ov::Node> output = outputWrap->get_output();
         tensor = _infer_request.get_tensor(output);
@@ -197,14 +200,57 @@ struct TsfnContext {
 
     Napi::Promise::Deferred deferred;
     ov::InferRequest* _context_ir;
+    std::thread nativeThread;
 
     Napi::ThreadSafeFunction tsfn;
     std::vector<ov::Tensor> input_tensors;
+    std::map<std::string, ov::Tensor> result;
 };
 
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
+    context->nativeThread.join();
     delete context;
 };
+
+void performInferenceThread(TsfnContext* data) {
+    for (size_t i = 0; i < data->input_tensors.size(); ++i) {
+        data->_context_ir->set_input_tensor(i, data->input_tensors[i]);
+    }
+    data->_context_ir->infer();
+    // Sleep for random time.
+    std::random_device rd;                             // obtain a random number from hardware
+    std::mt19937 gen(rd());                            // seed the generator
+    std::uniform_int_distribution<> distr(100, 3000);  // define the range
+    std::this_thread::sleep_for(std::chrono::milliseconds(distr(gen)));
+
+    auto compiled_model = data->_context_ir->get_compiled_model().outputs();
+    std::map<std::string, ov::Tensor> outputs;
+
+    for (auto& node : compiled_model) {
+        auto tensor = data->_context_ir->get_tensor(node);
+        auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
+        tensor.copy_to(new_tensor);
+        outputs.insert({node.get_any_name(), new_tensor});
+    }
+
+    data->result = outputs;
+
+    auto callback = [](Napi::Env env, Napi::Function _, TsfnContext* data) {
+        auto m = data->result;
+        auto outputs_obj = Napi::Object::New(env);
+
+        for (const auto& [key, tensor] : m) {
+            auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
+            tensor.copy_to(new_tensor);
+            outputs_obj.Set(key, TensorWrap::Wrap(env, new_tensor));
+        }
+        data->deferred.Resolve({outputs_obj});
+    };
+
+    data->tsfn.BlockingCall(data, callback);
+    data->tsfn.Release();
+}
+
 
 Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     if (info.Length() != 1) {
@@ -227,26 +273,6 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
                                                        FinalizerCallback,
                                                        (void*)nullptr);
 
-    auto callback = [](Napi::Env env, Napi::Function _, TsfnContext* data) {
-        for (size_t i = 0; i < data->input_tensors.size(); ++i) {
-            data->_context_ir->set_input_tensor(i, data->input_tensors[i]);
-        }
-        data->_context_ir->infer();
-
-        auto compiled_model = data->_context_ir->get_compiled_model().outputs();
-        auto outputs_obj = Napi::Object::New(env);
-
-        for (auto& node : compiled_model) {
-            auto tensor = data->_context_ir->get_tensor(node);
-            auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
-            tensor.copy_to(new_tensor);
-            outputs_obj.Set(node.get_any_name(), TensorWrap::Wrap(env, new_tensor));
-        }
-
-        data->deferred.Resolve({outputs_obj});
-    };
-
-    context_data->tsfn.BlockingCall(context_data, callback);
-    context_data->tsfn.Release();
+    context_data->nativeThread = std::thread(performInferenceThread, context_data);
     return context_data->deferred.Promise();
 }
