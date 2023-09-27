@@ -52,6 +52,8 @@ public:
      */
     Napi::Value read_model_async(const Napi::CallbackInfo& info);
 
+    Napi::Value read_model_from_buffer(const Napi::CallbackInfo& info);
+
     /**
      * @brief Creates and loads a compiled model from a source model.
      * @param info contains two passed arguments.

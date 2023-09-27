@@ -13,6 +13,7 @@ Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
                        "Core",
                        {InstanceMethod("readModelSync", &CoreWrap::read_model_sync),
                         InstanceMethod("readModel", &CoreWrap::read_model_async),
+                        InstanceMethod("readModelFromBuffer", &CoreWrap::read_model_from_buffer),
                         InstanceMethod("compileModel", &CoreWrap::compile_model)});
 }
 
@@ -78,6 +79,24 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
 
         return Napi::Value();
     }
+}
+
+Napi::Value CoreWrap::read_model_from_buffer(const Napi::CallbackInfo& info) {
+    if (info.Length() == 3 && info[0].IsArrayBuffer() && info[1].IsNumber() && info[2].IsNumber()) {
+
+        void *buffer = info[0].As<Napi::ArrayBuffer>().Data();
+        int64_t bytesOffset = info[1].As<Napi::Number>().Int64Value();
+        int64_t bytesLength = info[2].As<Napi::Number>().Int64Value();
+
+        // reinterpret_cast<char *>(buffer) + bytesOffset, bytesLength
+
+    } else {
+        Napi::Error::New(info.Env(), "Expected an ArrayBuffer, int offset and int length")
+            .ThrowAsJavaScriptException();
+        return info.Env().Undefined();
+    }
+
+    return info.Env().Undefined();
 }
 
 Napi::Value CoreWrap::compile_model(const Napi::CallbackInfo& info) {
