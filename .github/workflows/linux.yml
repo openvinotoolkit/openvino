@@ -98,11 +98,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Set pip cache path
-        run: echo "PIP_CACHE_DIR=${PIP_CACHE_DIR}/$(python3 -m pip --version | grep -o '[0-9]*[.][0-9]*[.][0-9]*')" >> $GITHUB_ENV
-
       - name: Install python dependencies
         run: |
+          # set pip cache
+          export PIP_CACHE_DIR=${PIP_CACHE_DIR}/$(python3 -m pip --version | grep -o '[0-9]*[.][0-9]*[.][0-9]*')
+          echo ${PIP_CACHE_DIR}
+
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
