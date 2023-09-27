@@ -43,13 +43,15 @@ jobs:
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
-      INSTALL_DIR: '/__w/openvino/openvino/install'
       ANDROID_TOOLS: '/__w/openvino/openvino/android_tools'
       ANDROID_NDK_HOME: '/__w/openvino/openvino/android_tools/ndk-bundle'
       ANDROID_SDK_VERSION: 29
       ANDROID_ABI_CONFIG: arm64-v8a
+      VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
+      VCPKG_FORCE_SYSTEM_BINARIES: '1'
       CCACHE_DIR: '/mount/caches/ccache/android_arm64'
       CCACHE_TEMPDIR: '/__w/openvino/openvino/ccache_temp'
+      CCACHE_COMPILERCHECK: 'content'
       CCACHE_MAXSIZE: 50G
     steps:
       - name: Install git
@@ -106,6 +108,7 @@ jobs:
 
       - name: Build vcpkg
         run: |
+          mkdir -p ${VCPKG_DEFAULT_BINARY_CACHE}
           ${VCPKG_ROOT}/bootstrap-vcpkg.sh
           # patch vcpkg default toolchain to build only Release configuration
           echo "set(VCPKG_BUILD_TYPE release)" >> ${VCPKG_ROOT}/triplets/arm64-android.cmake
