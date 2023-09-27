@@ -1058,7 +1058,7 @@ jobs:
       - name: Cleanup cache
         run: |
           echo "Removing pip caches"
-          [ ! -z "${PIP_CACHE_TMP_PATH}" ] && rm -rv ${PIP_CACHE_TMP_PATH}
+          [ -d "${PIP_CACHE_TMP_PATH}" ] && rm -rv ${PIP_CACHE_TMP_PATH}
           mv ${PIP_CACHE_PATH} ${PIP_CACHE_TMP_PATH}
           [ ! -z "${PIP_CACHE_TMP_PATH}" ] && rm -rv ${PIP_CACHE_TMP_PATH}
 
