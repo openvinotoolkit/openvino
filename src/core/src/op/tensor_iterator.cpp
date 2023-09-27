@@ -95,7 +95,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                     auto end = make_positive(slice_input_description->m_end, dim_size);
 
                     // +1 because the left and right borders are included [start, end]
-                    m_num_iterations = (abs(end - start) + 1) / part_size;
+                    m_num_iterations = (std::abs(end - start) + 1) / part_size;
                 }
             } else {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic(input_partial_shape.rank()));
