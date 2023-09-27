@@ -457,12 +457,12 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
-      # Disabled in Azure: https://github.com/openvinotoolkit/openvino/blob/master/.ci/azure/linux.yml#L403
-      # - name: PaddlePaddle frontend tests
-      #   run: |
-      #     source ${INSTALL_DIR}/setupvars.sh
-      #     ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* \
-      #           --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
+      - name: PaddlePaddle frontend tests
+        if: ${{ 'false' }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
         run: |
