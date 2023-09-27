@@ -81,7 +81,7 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
             <td>GPU</td>
             <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u">Intel GPU</a></td>
             <td><b><i><a href="./src/plugins/intel_gpu">openvino_intel_gpu_plugin</a></i></b></td>
-            <td>Intel Processor Graphics, including Intel HD Graphics and Intel Iris Graphics</td>
+            <td>Intel Processor Graphics(including Intel HD Graphics and Intel Iris Graphics), Intel Arc graphics for desktop and Intel Data Center GPU Flex series</td>
         </tr>
         <tr>
             <td>GNA</td>
