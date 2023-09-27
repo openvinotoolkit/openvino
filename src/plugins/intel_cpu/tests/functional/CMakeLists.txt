@@ -2,12 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# fix XByak compilation warning
-if(SUGGEST_OVERRIDE_SUPPORTED)
-    set_source_files_properties(test_utils/cpu_test_utils.cpp
-                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
-endif()
-
 set(TARGET_NAME ov_cpu_func_tests)
 
 add_library(cpuSpecificRtInfo STATIC
@@ -15,12 +9,9 @@ add_library(cpuSpecificRtInfo STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp)
 target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
 
-set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src
-                                         $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn
-                                         $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/include
-                                         $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src)
+set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
 set(DEPENDENCIES openvino_intel_cpu_plugin template_extension)
-set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets snippetsNgraphFunctions dnnl)
+set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets snippetsNgraphFunctions)
 
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")
