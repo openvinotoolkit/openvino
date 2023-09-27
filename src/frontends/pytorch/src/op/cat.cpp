@@ -38,7 +38,7 @@ OutputVector translate_cat_common(const NodeContext& context,
         list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_node),
         "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
         "This case is not supported.");
-    if (list_elems.size() == 1 && !std::dynamic_pointer_cast<op::util::FrameworkNode>(first_node)) {
+    if (list_elems.size() == 1 && !std::dynamic_pointer_cast<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr())) {
         // Case when list was merged into tensor
         auto tensor = list_elems[0];
         auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
