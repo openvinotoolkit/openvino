@@ -698,10 +698,10 @@ bool Snippet::SnippetJitExecutor::optimizeExecDomain(std::vector<VectorDims>& in
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {
     using Manager = snippets::pass::Manager;
-    using PassPosition = snippets::pass::Manager::PassPosition;
-    using Place = snippets::pass::Manager::PassPosition::Place;
     std::vector<Manager::PositionedPass> backend_passes;
 #if defined(OPENVINO_ARCH_X86_64)
+    using PassPosition = snippets::pass::Manager::PassPosition;
+    using Place = snippets::pass::Manager::PassPosition::Place;
 #    define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
         backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
 #else
