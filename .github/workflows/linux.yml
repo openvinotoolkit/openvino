@@ -1011,7 +1011,6 @@ jobs:
 
       - name: Install Python wheels
         run: |
-          python3 -m pip install --upgrade pip
           python3 -m pip install openvino --find-links=${INSTALL_DIR}/tools
 
       - name: Install PyTorch tests requirements
