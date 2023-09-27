@@ -129,16 +129,10 @@ void avg_pool_3d(const Values_t* data,
                  const Strides& kernel_strides,
                  const Shape& pads_begin,
                  const Shape& pads_end,
-                 bool pads_in_avg) {
+                 const bool pads_in_avg) {
     // helper constants(axes) denoting dimensions in the input data shape and kernel shape
     constexpr size_t data_D = 2, data_H = 3, data_W = 4;
     constexpr size_t kernel_D = 0, kernel_H = 1, kernel_W = 2;
-
-    const auto not_zero = [](size_t p) {
-        return p != 0;
-    };
-    pads_in_avg &= std::any_of(pads_begin.begin(), pads_begin.end(), not_zero) ||
-                   std::any_of(pads_end.begin(), pads_end.end(), not_zero);
 
     // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
     size_t out_idx = 0u;
@@ -202,11 +196,17 @@ void avg_pool(const T* const arg,
               const Strides& window_movement_strides,
               const Shape& padding_below,
               const Shape& padding_above,
-              const bool include_padding_in_avg_computation) {
+              bool include_padding_in_avg_computation) {
     if (window_shape.size() > 3)
         return;
     const auto old_mode = std::fegetround();
     std::fesetround(FE_TONEAREST);
+
+    const auto not_zero = [](size_t p) {
+        return p != 0;
+    };
+    include_padding_in_avg_computation &= std::any_of(padding_below.begin(), padding_below.end(), not_zero) ||
+                                          std::any_of(padding_above.begin(), padding_above.end(), not_zero);
 
     Shape arg_shape_3D{arg_shape};
     Shape out_shape_3D{out_shape};
@@ -215,13 +215,14 @@ void avg_pool(const T* const arg,
     Shape padding_below_3D{padding_below};
     Shape padding_above_3D{padding_above};
 
-    for (auto i = 3 - window_shape.size(); i > 0; --i) {
-        arg_shape_3D.emplace_back(1);
-        out_shape_3D.emplace_back(1);
-        window_shape_3D.emplace_back(1);
-        window_movement_strides_3D.emplace_back(1);
-        padding_below_3D.emplace_back(0);
-        padding_above_3D.emplace_back(0);
+    if (window_shape.size() < 3) {
+        const size_t dim_diff = 3 - window_shape.size();
+        arg_shape_3D.insert(std::next(arg_shape_3D.begin(), 2), dim_diff, 1);
+        out_shape_3D.insert(std::next(out_shape_3D.begin(), 2), dim_diff, 1);
+        window_shape_3D.insert(window_shape_3D.begin(), dim_diff, 1);
+        window_movement_strides_3D.insert(window_movement_strides_3D.begin(), dim_diff, 1);
+        padding_below_3D.insert(padding_below_3D.begin(), dim_diff, 0);
+        padding_above_3D.insert(padding_above_3D.begin(), dim_diff, 0);
     }
 
     const auto data_batch_elems = shape_size(std::begin(arg_shape) + 1, std::end(arg_shape));
