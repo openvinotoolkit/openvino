@@ -192,8 +192,8 @@ Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info)
     return CompiledModelWrap::Wrap(info.Env(), _infer_request.get_compiled_model());
 }
 
-struct TsfnContextLock {
-    TsfnContextLock(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+struct TsfnContext {
+    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
 
     Napi::Promise::Deferred deferred;
     ov::InferRequest* _context_ir;
@@ -202,7 +202,7 @@ struct TsfnContextLock {
     std::vector<ov::Tensor> input_tensors;
 };
 
-void FinalizerCallbackLock(Napi::Env env, void* finalizeData, TsfnContextLock* context) {
+void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
     delete context;
 };
 
@@ -213,7 +213,7 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
 
     auto parsed_input = parse_input_data(info[0], _infer_request);
-    auto context_data = new TsfnContextLock(env);
+    auto context_data = new TsfnContext(env);
 
     context_data->input_tensors = parsed_input;
     context_data->_context_ir = &_infer_request;
@@ -224,10 +224,10 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
                                                        0,
                                                        1,
                                                        context_data,
-                                                       FinalizerCallbackLock,
+                                                       FinalizerCallback,
                                                        (void*)nullptr);
 
-    auto callback = [](Napi::Env env, Napi::Function _, TsfnContextLock* data) {
+    auto callback = [](Napi::Env env, Napi::Function _, TsfnContext* data) {
         for (size_t i = 0; i < data->input_tensors.size(); ++i) {
             data->_context_ir->set_input_tensor(i, data->input_tensors[i]);
         }
