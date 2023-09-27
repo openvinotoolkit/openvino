@@ -97,7 +97,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Set PIP Cache Dir
+      - name: Setup pip cache dir
         run: echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/$(python3 -m pip --version | grep -o 'pip [0-9]*[.][0-9]*[.][0-9]*' | grep -o '[0-9].*')" >> $GITHUB_ENV
 
       - name: Install python dependencies
@@ -122,7 +122,7 @@ jobs:
       # Build
       #
 
-      - name: Setup cache dirs
+      - name: Setup ccache dir
         run: mkdir -p ${CCACHE_DIR}
 
       - name: CMake configure - OpenVINO
@@ -603,7 +603,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Set PIP Cache Dir
+      - name: Setup pip cache dir
         run: echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/$(python3 -m pip --version | grep -o 'pip [0-9]*[.][0-9]*[.][0-9]*' | grep -o '[0-9].*')" >> $GITHUB_ENV
 
       - name: Install Python API tests dependencies
@@ -1000,7 +1000,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Set PIP Cache Dir
+      - name: Setup pip cache dir
         run: echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/$(python3 -m pip --version | grep -o 'pip [0-9]*[.][0-9]*[.][0-9]*' | grep -o '[0-9].*')" >> $GITHUB_ENV
 
       - name: Install OpenVINO Python wheels
@@ -1038,3 +1038,28 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'
+
+  Cleanup_PIP_Caches:
+    runs-on: aks-linux-2-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
+    env:
+      PIP_CACHE_PATH: /mount/caches/pip
+
+    steps:
+      - name: Pre-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d0 ${PIP_CACHE_PATH}
+
+      - name: Cleanup cache
+        run: |
+          echo "Removing pip caches"
+          [ ! -z "${PIP_CACHE_PATH}" ] && rm -r ${PIP_CACHE_PATH}/*
+
+      - name: Post-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d0 ${PIP_CACHE_PATH}
