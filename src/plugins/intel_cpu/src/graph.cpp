@@ -875,6 +875,8 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in)
         auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor) -> CpuBlockedMemoryDesc {
             auto element_type = tensor->get_element_type();
             auto shape = tensor->get_shape();
+            if (shape.empty())
+                shape = {tensor->get_size()};
             std::vector<size_t> blk_order(shape.size());
             std::iota(blk_order.begin(), blk_order.end(), 0);
             std::vector<size_t> dim_offset(shape.size(), 0);

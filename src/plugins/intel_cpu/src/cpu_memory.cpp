@@ -36,16 +36,24 @@ namespace {
     void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
         node::Reorder::reorderData(src, dst);
 
+        try {
+            auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src.getDesc().getPrecision());
+            auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst.getDesc().getPrecision());
+            if (src_data_type != memory::data_type::f32 || dst_data_type == memory::data_type::bf16) {
+                return;
+            }
+        } catch (ov::Exception& ex) {
+            return;
+        }
+
         auto localPrim = dst.getPrimitive();
         auto desc = localPrim.get_desc();
         dnnl::impl::memory_desc_wrapper wrapper(desc.get());
 
         if (ftz
-            && src.getDataType() == memory::data_type::f32
             && !wrapper.is_wino_desc()
             // WA: to avoid zero filling auxiliary information
-            && !wrapper.is_rnn_packed_desc()
-            && dst.getDataType() != memory::data_type::bf16) {
+            && !wrapper.is_rnn_packed_desc()) {
             // Internal blobs don't have strides yet.
             auto *memData = static_cast<float *>(dst.getData());
             memData += wrapper.offset0();
