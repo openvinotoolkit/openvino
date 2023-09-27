@@ -6,9 +6,9 @@
 
 #include <fstream>
 
+#include "common_test_utils/test_control.hpp"
 #include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
-#include "common_test_utils/test_control.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -537,6 +537,7 @@ static const std::vector<std::string> models{
     std::string("sum_4"),
     std::string("swish_default_params"),
     std::string("swish_beta"),
+    std::string("tanh_shrink"),
     std::string("tanh"),
     std::string("tile_repeat_times_tensor"),
     std::string("tile_list_float32"),
