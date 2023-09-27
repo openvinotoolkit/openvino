@@ -363,7 +363,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() && !cancelled()}}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -556,7 +556,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() && !cancelled()}}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -773,7 +773,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() && !cancelled()}}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-python
           path: |
@@ -856,7 +856,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() && !cancelled()}}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu
           path: |
@@ -926,7 +926,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() && !cancelled()}}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-tensorflow-hub-models
           path: |
@@ -1002,7 +1002,8 @@ jobs:
 
       - name: Install PyTorch tests requirements
         run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
           echo "Available storage:"
           df -h
           du -h -d0 ${PIP_CACHE_DIR} ${HOME}
