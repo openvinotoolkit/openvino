@@ -140,25 +140,27 @@ bool align_inputs(const std::shared_ptr<ov::op::v1::StridedSlice>& strided_slice
                 // `stride` input has to be initialized with 1
                 input_const_val.resize(expected_size, 1);
             }
-            new_inputs[input_idx-1] = ov::op::v0::Constant::create(input_const->get_element_type(), {input_const_val.size()}, input_const_val);
+            new_inputs[input_idx - 1] = ov::op::v0::Constant::create(input_const->get_element_type(),
+                                                                     {input_const_val.size()},
+                                                                     input_const_val);
 
-            copy_runtime_info(input_const, new_inputs[input_idx-1]);
+            copy_runtime_info(input_const, new_inputs[input_idx - 1]);
         }
     }
     // connect the new begin, end, stride inputs to StridedSlice operation
     auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
     for (size_t i = 1; i <= new_inputs.size(); ++i) {
-        if (new_inputs[i-1]) {
-            strided_slice->input(i).replace_source_output(new_inputs[i-1]);
+        if (new_inputs[i - 1]) {
+            strided_slice->input(i).replace_source_output(new_inputs[i - 1]);
         }
         // insert Gather
         strided_slice->input(i).replace_source_output(
-                ChangeValuesOrder(strided_slice->input_value(i), transpose_order_values, axis));
+            ChangeValuesOrder(strided_slice->input_value(i), transpose_order_values, axis));
     }
     return true;
 }
 
-}
+}  // namespace
 
 TSStridedSliceForward::TSStridedSliceForward() {
     MATCHER_SCOPE(TSStridedSliceForward);
@@ -209,14 +211,16 @@ TSStridedSliceForward::TSStridedSliceForward() {
 
         // apply shrink_mask to get the correct order.
         // the mask have not to be transposed, so apply transpose 2nd time to get the original order.
-        auto shrink_axes = convert_mask_to_axis_vec(transpose_mask(strided_slice->get_shrink_axis_mask(), transpose_order_values));
+        auto shrink_axes =
+            convert_mask_to_axis_vec(transpose_mask(strided_slice->get_shrink_axis_mask(), transpose_order_values));
 
         transpose_order_values = GetOrderAfterReduction(shrink_axes, transpose_order_values);
 
         // add Transpose op to StridedSlice output
-        auto new_transpose_order = std::make_shared<ov::op::v0::Constant>(transpose_info.transpose_const->get_element_type(),
-                                                           Shape{transpose_order_values.size()},
-                                                           transpose_order_values);
+        auto new_transpose_order =
+            std::make_shared<ov::op::v0::Constant>(transpose_info.transpose_const->get_element_type(),
+                                                   Shape{transpose_order_values.size()},
+                                                   transpose_order_values);
 
         TransposeInputsInfo transpose_input_info = {transpose_info.transpose, new_transpose_order, 0};
         strided_slice->validate_and_infer_types();
@@ -230,14 +234,14 @@ TSStridedSliceForward::TSStridedSliceForward() {
 TSStridedSliceBackward::TSStridedSliceBackward() {
     MATCHER_SCOPE(TSStridedSliceBackward);
 
-    auto main_node_label = wrap_type<ov::op::v1::StridedSlice>([](const Output<Node> &output) -> bool {
+    auto main_node_label = wrap_type<ov::op::v1::StridedSlice>([](const Output<Node>& output) -> bool {
         return has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
 
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
-                                                            [](const Output<Node> &output) -> bool {
+                                                            [](const Output<Node>& output) -> bool {
                                                                 return has_static_rank()(output);
                                                             });
 
@@ -250,8 +254,8 @@ TSStridedSliceBackward::TSStridedSliceBackward() {
             return false;
         }
 
-        auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(main_node);f
-        if (!strided_slice) {
+        auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(main_node);
+        f if (!strided_slice) {
             return false;
         }
 
@@ -280,8 +284,8 @@ TSStridedSliceBackward::TSStridedSliceBackward() {
         size_t num_elements_in_begin_input = expected_size;
 
         // apply shrink_ mask to get the correct order
-        auto shrink_axes = convert_shrink_mask_to_axis_vec(strided_slice->get_shrink_axis_mask(),
-                                                           strided_slice->get_new_axis_mask());
+        auto shrink_axes =
+            convert_shrink_mask_to_axis_vec(strided_slice->get_shrink_axis_mask(), strided_slice->get_new_axis_mask());
 
         transpose_order_values = GetOrderBeforeReduction(shrink_axes, transpose_order_values);
         if (!align_inputs(strided_slice, transpose_order_values, expected_size, num_elements_in_begin_input)) {

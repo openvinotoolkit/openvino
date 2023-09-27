@@ -51,6 +51,7 @@ public:
     void set_masks(const StridedSliceMasks& masks) {
         m_masks = masks;
     }
+
 private:
     StridedSliceMasks m_masks;
 };
@@ -109,11 +110,10 @@ auto test_forward_strided_slice = [](const StridedSliceForwardArguments& test_ar
     // Reference model description
     const auto& ref_transpose_order = test_arguments.reference_transpose_order;
     const auto& ref_gather_order = test_arguments.reference_gather_order;
-    auto new_transpose = [ref_transpose_order](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+    auto new_transpose = [ref_transpose_order](const vector<size_t>& idxs,
+                                               const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
-        auto order = make_shared<Constant>(element::i32,
-                                           Shape{ref_transpose_order.size()},
-                                           ref_transpose_order);
+        auto order = make_shared<Constant>(element::i32, Shape{ref_transpose_order.size()}, ref_transpose_order);
         new_out_vec[0] = make_shared<Transpose>(out_vec[0], order);
         return new_out_vec;
     };
@@ -125,8 +125,8 @@ auto test_forward_strided_slice = [](const StridedSliceForwardArguments& test_ar
         }
     }
 
-
-    auto update_gather_inputs = [ref_gather_order, new_axes_cnt](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+    auto update_gather_inputs = [ref_gather_order, new_axes_cnt](const vector<size_t>& idxs,
+                                                                 const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec = out_vec;
         auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
         size_t expected_size = out_vec[0].get_partial_shape().rank().get_length() + new_axes_cnt;
@@ -146,11 +146,12 @@ auto test_forward_strided_slice = [](const StridedSliceForwardArguments& test_ar
                 // `stride` input have to be initialized with 1
                 input_const_val.resize(expected_size, 1);
             }
-            auto new_input = ov::op::v0::Constant::create(input_const->get_element_type(), {input_const_val.size()}, input_const_val);
+            auto new_input = ov::op::v0::Constant::create(input_const->get_element_type(),
+                                                          {input_const_val.size()},
+                                                          input_const_val);
 
-            auto indices = std::make_shared<ov::op::v0::Constant>(element::i32,
-                                                                  Shape{ref_gather_order.size()},
-                                                                  ref_gather_order);
+            auto indices =
+                std::make_shared<ov::op::v0::Constant>(element::i32, Shape{ref_gather_order.size()}, ref_gather_order);
             new_out_vec[idx] = std::make_shared<ov::op::v8::Gather>(new_input, indices, axis);
         }
         return new_out_vec;
@@ -169,10 +170,10 @@ auto test_forward_strided_slice = [](const StridedSliceForwardArguments& test_ar
 auto fw_test_1 = []() {
     StridedSliceForwardArguments args;
     args.inputs_to_main = {
-            parameter(f32, {7, 10}), // data
-            constant<int>(i32, {2}, {1, 2}), // begin
-            constant<int>(i32, {2}, {7, 6}), // end
-            constant<int>(i32, {2}, {1, 2})  // stride
+        parameter(f32, {7, 10}),          // data
+        constant<int>(i32, {2}, {1, 2}),  // begin
+        constant<int>(i32, {2}, {7, 6}),  // end
+        constant<int>(i32, {2}, {1, 2})   // stride
     };
     // empty masks
     args.masks.begin = {0, 0};
@@ -198,10 +199,10 @@ auto fw_test_1 = []() {
 auto fw_test_2 = []() {
     StridedSliceForwardArguments args;
     args.inputs_to_main = {
-            parameter(f32, {7, 10}), // data
-            constant<int>(i32, {2}, {1, 2}), // begin
-            constant<int>(i32, {2}, {7, 6}), // end
-            constant<int>(i32, {2}, {1, 2})  // stride
+        parameter(f32, {7, 10}),          // data
+        constant<int>(i32, {2}, {1, 2}),  // begin
+        constant<int>(i32, {2}, {7, 6}),  // end
+        constant<int>(i32, {2}, {1, 2})   // stride
     };
     // begin and end masks
     args.masks.begin = {1, 0};
@@ -226,15 +227,15 @@ auto fw_test_2 = []() {
 auto fw_test_3 = []() {
     StridedSliceForwardArguments args;
     args.inputs_to_main = {
-            parameter(f32, {7, 10}), // data
-            constant<int>(i32, {2}, {1, 2}), // begin
-            constant<int>(i32, {2}, {7, 6}), // end
-            constant<int>(i32, {2}, {1, 2})  // stride
+        parameter(f32, {7, 10}),          // data
+        constant<int>(i32, {2}, {1, 2}),  // begin
+        constant<int>(i32, {2}, {7, 6}),  // end
+        constant<int>(i32, {2}, {1, 2})   // stride
     };
     // new axis mask
     args.masks.begin = {0, 0, 0, 0};
     args.masks.end = {0, 0, 0, 0};
-    args.masks.new_axis = {1, 1, 0 ,0};
+    args.masks.new_axis = {1, 1, 0, 0};
     args.masks.shrink_axis = {0, 0, 0, 0};
     args.masks.ellipsis = {0, 0, 0, 0};
 
@@ -254,10 +255,10 @@ auto fw_test_3 = []() {
 auto fw_test_4 = []() {
     StridedSliceForwardArguments args;
     args.inputs_to_main = {
-            parameter(f32, {7, 10}), // data
-            constant<int>(i32, {2}, {1, 2}), // begin
-            constant<int>(i32, {2}, {7, 6}), // end
-            constant<int>(i32, {2}, {1, 2})  // stride
+        parameter(f32, {7, 10}),          // data
+        constant<int>(i32, {2}, {1, 2}),  // begin
+        constant<int>(i32, {2}, {7, 6}),  // end
+        constant<int>(i32, {2}, {1, 2})   // stride
     };
     // shrink mask
     args.masks.begin = {0, 0};
@@ -282,10 +283,10 @@ auto fw_test_4 = []() {
 auto fw_test_5 = []() {
     StridedSliceForwardArguments args;
     args.inputs_to_main = {
-            parameter(f32, {7, 4, 5, 10}), // data
-            constant<int>(i32, {4}, {1, 2, 2, 1}), // begin
-            constant<int>(i32, {4}, {5, 4, 4, 4}), // end
-            constant<int>(i32, {4}, {1, 2, 1, 2})  // stride
+        parameter(f32, {7, 4, 5, 10}),          // data
+        constant<int>(i32, {4}, {1, 2, 2, 1}),  // begin
+        constant<int>(i32, {4}, {5, 4, 4, 4}),  // end
+        constant<int>(i32, {4}, {1, 2, 1, 2})   // stride
     };
     // 4dims input, shrink mask
     args.masks.begin = {0, 0, 0, 0};
@@ -310,10 +311,10 @@ auto fw_test_5 = []() {
 auto fw_test_6 = []() {
     StridedSliceForwardArguments args;
     args.inputs_to_main = {
-            parameter(f32, {7, 10}), // data
-            constant<int>(i32, {4}, {1, 0, 2, 0}), // begin
-            constant<int>(i32, {4}, {7, 1, 6, 1}), // end
-            constant<int>(i32, {4}, {1, 1, 2, 1})  // stride
+        parameter(f32, {7, 10}),                // data
+        constant<int>(i32, {4}, {1, 0, 2, 0}),  // begin
+        constant<int>(i32, {4}, {7, 1, 6, 1}),  // end
+        constant<int>(i32, {4}, {1, 1, 2, 1})   // stride
     };
 
     // mixed masks: new_axis and shrink_mask
@@ -340,10 +341,10 @@ auto fw_test_6 = []() {
 auto fw_test_7 = []() {
     StridedSliceForwardArguments args;
     args.inputs_to_main = {
-            parameter(f32, {7, 10}), // data
-            constant<int>(i32, {4}, {1, 0, 2, 0}), // begin
-            constant<int>(i32, {4}, {7, 1, 6, 1}), // end
-            constant<int>(i32, {4}, {1, 1, 2, 1})  // stride
+        parameter(f32, {7, 10}),                // data
+        constant<int>(i32, {4}, {1, 0, 2, 0}),  // begin
+        constant<int>(i32, {4}, {7, 1, 6, 1}),  // end
+        constant<int>(i32, {4}, {1, 1, 2, 1})   // stride
     };
 
     // mixed masks: new_axis and shrink_mask
@@ -370,10 +371,10 @@ auto fw_test_7 = []() {
 auto fw_test_8 = []() {
     StridedSliceForwardArguments args;
     args.inputs_to_main = {
-            parameter(f32, {7, 4, 5, 10}), // data
-            constant<int>(i32, {6}, {0, 0, 1, 2, 2, 1}), // begin
-            constant<int>(i32, {6}, {1, 1, 5, 4, 4, 4}), // end
-            constant<int>(i32, {6}, {1, 1, 1, 2, 1, 2})  // stride
+        parameter(f32, {7, 4, 5, 10}),                // data
+        constant<int>(i32, {6}, {0, 0, 1, 2, 2, 1}),  // begin
+        constant<int>(i32, {6}, {1, 1, 5, 4, 4, 4}),  // end
+        constant<int>(i32, {6}, {1, 1, 1, 2, 1, 2})   // stride
     };
     // mixed masks: begin, end, shrink, new_axis
     args.masks.begin = {0, 0, 0, 1, 0, 0};
@@ -398,10 +399,10 @@ auto fw_test_8 = []() {
 auto fw_test_9 = []() {
     StridedSliceForwardArguments args;
     args.inputs_to_main = {
-            parameter(f32, {7, 4, 5, 10}), // data
-            constant<int>(i32, {4}, {1, 2, 2, 1}), // begin
-            constant<int>(i32, {4}, {5, 4, 4, 4}), // end
-            constant<int>(i32, {4}, {1, 2, 1, 2})  // stride
+        parameter(f32, {7, 4, 5, 10}),          // data
+        constant<int>(i32, {4}, {1, 2, 2, 1}),  // begin
+        constant<int>(i32, {4}, {5, 4, 4, 4}),  // end
+        constant<int>(i32, {4}, {1, 2, 1, 2})   // stride
     };
     // mixed masks: shrink, new_axis
     args.masks.begin = {0, 0, 0, 0};
@@ -451,11 +452,10 @@ auto test_backward_strided_slice = [](const StridedSliceForwardArguments& test_a
     // Reference model description
     const auto& ref_transpose_order = test_arguments.reference_transpose_order;
     const auto& ref_gather_order = test_arguments.reference_gather_order;
-    auto new_transpose = [ref_transpose_order](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+    auto new_transpose = [ref_transpose_order](const vector<size_t>& idxs,
+                                               const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec = out_vec;
-        auto order = make_shared<Constant>(element::i32,
-                                           Shape{ref_transpose_order.size()},
-                                           ref_transpose_order);
+        auto order = make_shared<Constant>(element::i32, Shape{ref_transpose_order.size()}, ref_transpose_order);
         new_out_vec[0] = make_shared<Transpose>(out_vec[0], order);
         return new_out_vec;
     };
@@ -467,7 +467,8 @@ auto test_backward_strided_slice = [](const StridedSliceForwardArguments& test_a
         }
     }
 
-    auto update_gather_inputs = [ref_gather_order, new_axes_cnt](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+    auto update_gather_inputs = [ref_gather_order, new_axes_cnt](const vector<size_t>& idxs,
+                                                                 const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec = out_vec;
         auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
         size_t expected_size = out_vec[0].get_partial_shape().rank().get_length() + new_axes_cnt;
@@ -487,11 +488,12 @@ auto test_backward_strided_slice = [](const StridedSliceForwardArguments& test_a
                 // `stride` input have to be initialized with 1
                 input_const_val.resize(expected_size, 1);
             }
-            auto new_input = ov::op::v0::Constant::create(input_const->get_element_type(), {input_const_val.size()}, input_const_val);
+            auto new_input = ov::op::v0::Constant::create(input_const->get_element_type(),
+                                                          {input_const_val.size()},
+                                                          input_const_val);
 
-            auto indices = std::make_shared<ov::op::v0::Constant>(element::i32,
-                                                                  Shape{ref_gather_order.size()},
-                                                                  ref_gather_order);
+            auto indices =
+                std::make_shared<ov::op::v0::Constant>(element::i32, Shape{ref_gather_order.size()}, ref_gather_order);
             new_out_vec[idx] = std::make_shared<ov::op::v8::Gather>(new_input, indices, axis);
         }
         return new_out_vec;
