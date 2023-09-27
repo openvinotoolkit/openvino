@@ -615,9 +615,11 @@ void RNN::fillCellDesc() {
         inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeS, inDataTypes[cIdx], memory::format_tag::nc));
         outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeS, outDataTypes[coIdx], memory::format_tag::nc));
     }
-
+    // The weight and weights_iter would expose nc layout to avoid unnecessary reorder.
+    // The onednn would determine the final layout when prepareParams.
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::nc));
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::nc));
+
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::x));
 
     if (haveAttention(cell_type)) {
@@ -720,8 +722,11 @@ void RNN::fillSequenceDesc() {
     }
 
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(TShape, inDataTypes[sIdx], memory::format_tag::x)); // sequence lengths
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::ntc)); // W
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::ntc)); // R
+    // The weight and weights_iter would expose tnc layout to avoid unnecessary reorder.
+    // The onednn would determine the final layout when prepareParams.
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::tnc)); // W
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::tnc)); // R
+
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::nc)); // B
 
     if (haveAttention(cell_type)) {
@@ -890,9 +895,6 @@ void RNN::copyWeightsData() {
     if (one_of(dataType, memory::data_type::bf16, memory::data_type::f16)) {
         fillWeights<uint16_t>(gate_map, wIdx, rIdx);
     } else if (dataType == memory::data_type::f32) {
-        // WA To avoid different weights layer and iter formats in FP32 case
-        if (T.minVal > 1 || N.maxVal < optimalBatchSize)
-            wFormat = dnnl::memory::format_tag::ldigo;
         fillWeights<float>(gate_map, wIdx, rIdx);
     } else if (dataType == memory::data_type::u8 || dataType == memory::data_type::s8) {
         fillWeights<int8_t>(gate_map, wIdx, rIdx);
@@ -1031,9 +1033,11 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
            since internalBlobs are used for the execution, not the initial weights */
         const auto& targetWeightDataType = weightsByinputDataType.at(inDataTypes[xIdx]);
         auto weightsDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
-        wDescs[0] = dnnl::memory::desc(weightsDims, targetWeightDataType, wFormat);
+        //onednn determines the preferred weight layout.
+        wDescs[0] = dnnl::memory::desc(weightsDims, targetWeightDataType, memory::format_tag::any);
         auto statesDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
-        wDescs[1] = dnnl::memory::desc(statesDims, targetWeightDataType, wFormat);
+        //onednn determines the preferred weights_iter layout.
+        wDescs[1] = dnnl::memory::desc(statesDims, targetWeightDataType, memory::format_tag::any);
         auto biasDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
         wDescs[2] = dnnl::memory::desc(biasDims, inDataTypes[bIdx], memory::format_tag::ldgo);
 
@@ -1058,7 +1062,7 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         config.outConfs.push_back(dataConfig);
     }
 
-    supportedPrimitiveDescriptors.emplace_back(config, ref_any);
+    supportedPrimitiveDescriptors.emplace_back(config, parse_impl_name(descs[0].impl_info_str()));
 }
 
 Node::AttrPtr RNN::initPrimitiveAttr() {
@@ -1106,27 +1110,6 @@ void RNN::prepareParams() {
         outDataDescs[2] = std::make_shared<DnnlBlockedMemoryDesc>(shapeS_4D, outDataTypes[coIdx], memory::format_tag::ldnc);
     } else if (haveAttention(cell_type)) {
         inDataDescs[2] = std::make_shared<DnnlBlockedMemoryDesc>(Shape{SL, B, 1}, inDataTypes[aIdx], memory::format_tag::tnc);
-    }
-
-    bool wFormatWasChanged = false;
-    // WA To avoid different weights layer and iter formats in FP32 case.
-    if (one_of(inDataTypes[xIdx], memory::data_type::f32) &&
-        (SL != 1 || B < optimalBatchSize)) {
-        if (wFormat != dnnl::memory::format_tag::ldigo) {
-            wFormat = dnnl::memory::format_tag::ldigo;
-            wFormatWasChanged = true;
-        }
-    } else if (wFormat != dnnl::memory::format_tag::any) {
-        wFormat = dnnl::memory::format_tag::any;
-        wFormatWasChanged = true;
-    }
-
-    if (wFormatWasChanged) {
-        auto weightsDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
-        const auto& targetWeightDataType = weightsByinputDataType.at(inDataTypes[xIdx]);
-        wDescs[0] = dnnl::memory::desc(weightsDims, targetWeightDataType, wFormat);
-        auto statesDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
-        wDescs[1] = dnnl::memory::desc(statesDims, targetWeightDataType, wFormat);
     }
 
     const auto attr = initPrimitiveAttr();
