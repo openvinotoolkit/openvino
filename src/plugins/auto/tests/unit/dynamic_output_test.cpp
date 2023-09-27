@@ -5,6 +5,7 @@
 #include <thread>
 #include <common_test_utils/common_utils.hpp>
 #include "include/auto_unit_test.hpp"
+
 using DynamicOutputConfigParams = std::tuple<
         ov::Any,                  // priority device list
         ov::Any                   // expected device to run inference on
