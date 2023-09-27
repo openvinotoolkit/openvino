@@ -125,10 +125,14 @@ TEST_F(DenormalsOptimizeTestF, Sync) {
 
     run(true);
 
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     checkOutput(true);
 
     // To prove that there is no impact on customers' applications for the default setting.
     run_reference_multiply();
+#else
+    checkOutput(false);
+#endif
 }
 
 TEST_F(DenormalsOptimizeTestF, Sync_Opt_YES) {
@@ -156,7 +160,7 @@ TEST_F(DenormalsOptimizeTestF, Async) {
 
     run(false);
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     checkOutput(true);
 
     // To prove that there is no impact on customers' applications for the default setting.

@@ -83,7 +83,7 @@ struct Config {
     ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 
     bool changedDenormalsOptMode = false;
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_On;
 #else
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
