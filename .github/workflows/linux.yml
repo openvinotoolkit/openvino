@@ -473,19 +473,20 @@ jobs:
             -j=4 \
             -d=${TEST_DEVICE} \
             -t=${{ matrix.TEST_TYPE }} \
-            -w=${CONFORMANCE_ARTIFACTS_DIR}
+            -w=${CONFORMANCE_ARTIFACTS_DIR} \
+            -f=${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
 
       # Required due to: https://github.com/actions/cache/tree/main/restore#ensuring-proper-restores-and-save-happen-across-the-actions
       - name: Rename Expected Failures List
-        # if: ${{ github.ref_name == 'master' && 'true' || 'false' }}
-        if: ${{ always() }}
+        if: github.ref_name == 'master'
+        # if: ${{ always() }}
         run: |
           rm -rf ${CONFORMANCE_TOOLS_DIR}/expected_failures_${TEST_DEVICE}.csv
           cp ${CONFORMANCE_ARTIFACTS_DIR}/${TEST_DEVICE}_logs/logs/fix_priority.csv ${CONFORMANCE_TOOLS_DIR}/expected_failures_${TEST_DEVICE}.csv
 
       - name: Upload Expected Failures List
-        # if: ${{ github.ref_name == 'master' && 'true' || 'false' }}
-        if: ${{ always() }}
+        if: github.ref_name == 'master'
+        # if: ${{ always() }}
         uses: actions/cache/save@v3
         with:
           path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
