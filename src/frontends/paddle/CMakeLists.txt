@@ -5,6 +5,6 @@
 add_subdirectory(src)
 
 # ticket 95904
-#if(ENABLE_TESTS AND Python_VERSION_MINOR LESS 11)
-#    add_subdirectory(tests)
-#endif()
+if(ENABLE_TESTS AND Python_VERSION_MINOR LESS 11)
+   add_subdirectory(tests)
+endif()

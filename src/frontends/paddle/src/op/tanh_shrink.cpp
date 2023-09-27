@@ -11,9 +11,8 @@ namespace paddle {
 namespace op {
 NamedOutputs tanh_shrink(const NodeContext& node) {
     const auto x = node.get_input("X");
-    const auto tanh = std::make_shared<default_opset::Tanh> return node.default_single_output_mapping(
-        {std::make_shared<default_opset::Add>(x, tanh)},
-        {"Out"});
+    const auto tanh = std::make_shared<default_opset::Tanh>(x);
+    return node.default_single_output_mapping({std::make_shared<default_opset::Add>(x, tanh)}, {"Out"});
 }
 
 }  // namespace op
