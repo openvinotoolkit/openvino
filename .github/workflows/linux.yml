@@ -1002,14 +1002,12 @@ jobs:
 
       - name: Install PyTorch tests requirements
         run: |
-          # export CPLUS_INCLUDE_PATH=${Python_ROOT_DIR}/include/python3.11
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
           echo "Available storage:"
           df -h
           du -h -d0 ${PIP_CACHE_DIR} ${HOME}
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python3.11
-
 
       - name: PyTorch Models Tests
         run: |
@@ -1027,7 +1025,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() && !cancelled()}}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-torch-models
           path: |
