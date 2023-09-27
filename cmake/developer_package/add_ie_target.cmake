@@ -75,7 +75,7 @@ function(addIeTarget)
     file(GLOB_RECURSE sources  ${sourceSearch})
 
     # remove unnecessary directories
-    foreach(excludedDir ${ARG_EXCLUDED_SOURCE_PATHS})
+    foreach(excludedDir IN LISTS ARG_EXCLUDED_SOURCE_PATHS)
         list(FILTER includes EXCLUDE REGEX "${excludedDir}.*")
         list(FILTER sources EXCLUDE REGEX "${excludedDir}.*")
     endforeach()

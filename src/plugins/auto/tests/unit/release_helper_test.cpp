@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/test_constants.hpp>
-#include "include/auto_unit_test.hpp"
 #include <thread>
+
+#include "common_test_utils/test_constants.hpp"
+#include "include/auto_unit_test.hpp"
 
 using Config = std::map<std::string, std::string>;
 using namespace ov::mock_auto_plugin;

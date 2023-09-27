@@ -10,9 +10,13 @@ add_definitions(-DMULTIUNITTEST)
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils
+        ADDITIONAL_SOURCE_DIRS
+            ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
+            ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils
         INCLUDES
-            ${OpenVINO_SOURCE_DIR}/src/plugins/auto ${CMAKE_CURRENT_SOURCE_DIR} ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
+            ${OpenVINO_SOURCE_DIR}/src/plugins/auto
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
         LINK_LIBRARIES
             ngraphFunctions
             unit_test_utils
