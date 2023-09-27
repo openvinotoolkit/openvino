@@ -1,8 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 import numpy as np
-from openvino.runtime import PartialShape, Dimension # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Shape, PartialShape, Dimension  # pylint: disable=no-name-in-module,import-error
+
 from openvino.tools.ovc.error import Error
 
 
@@ -62,3 +65,46 @@ def get_dynamic_dims(shape: [PartialShape, list, tuple]):
                 dynamic_dims.append(idx)
 
     return dynamic_dims
+
+
+def tensor_to_int_list(tensor):
+    assert hasattr(tensor, 'numpy'), "Could not get value of provided tensor: {}".format(tensor)
+    tensor_numpy = tensor.numpy()
+    assert tensor_numpy.dtype == np.int32, "Unexpected type of provided tensor. Expected int32, got: {}".format(
+        tensor_numpy.dtype)
+    return tensor_numpy.tolist()
+
+def to_partial_shape(shape):
+    if 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        if isinstance(shape, tf.Tensor):
+            return PartialShape(tensor_to_int_list(shape))
+        if isinstance(shape, tf.TensorShape):
+            return PartialShape(list(shape))
+    if 'paddle' in sys.modules:
+        import paddle
+        if isinstance(shape, paddle.Tensor):
+            return PartialShape(tensor_to_int_list(shape))
+    return PartialShape(shape)
+
+
+def is_shape_type(value):
+    if isinstance(value, PartialShape):
+        return True
+    if 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        if isinstance(value, (tf.TensorShape, tf.Tensor)):
+            return True
+    if 'paddle' in sys.modules:
+        import paddle
+        if isinstance(value, paddle.Tensor):
+            return True
+    if isinstance(value, Shape):
+        return True
+    if isinstance(value, list) or isinstance(value, tuple):
+        for dim in value:
+            if not (isinstance(dim, Dimension) or isinstance(dim, int)):
+                return False
+        return True
+    return False
+
