@@ -96,6 +96,11 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Set pip cache path
+        run: |
+          export PIP_VER = $(python3 -m pip --version | grep -o '[0-9]*[.][0-9]*[.][0-9]*')
+          echo "PIP_CACHE_DIR=${PIP_CACHE_DIR}/${PIP_VER} >> $GITHUB_ENV
+
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
@@ -950,7 +955,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-8-cores' || 'aks-linux-4-cores'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-8-cores'}}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -1008,6 +1013,11 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+
+      - name: Set pip cache path
+        run: |
+          export PIP_VER = $(python3 -m pip --version | grep -o '[0-9]*[.][0-9]*[.][0-9]*')
+          echo "PIP_CACHE_DIR=${PIP_CACHE_DIR}/${PIP_VER} >> $GITHUB_ENV
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
