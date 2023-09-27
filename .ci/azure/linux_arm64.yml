@@ -191,10 +191,10 @@ jobs:
         -DENABLE_INTEL_GPU=ON \
         -DENABLE_PYTHON=ON \
         -DENABLE_WHEEL=ON \
-        -DPYBIND11_PYTHONLIBS_OVERWRITE=OFF \
         -DPYTHON_MODULE_EXTENSION=$(aarch64-linux-gnu-python3-config --extension-suffix) \
-        -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libc-2.31.so \
-        -DPYTHON_INCLUDE_DIR=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/include/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
+        -DPYBIND11_PYTHON_EXECUTABLE_LAST=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/bin/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
+        -DPython3_EXECUTABLE=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/bin/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
+        -DPython3_INCLUDE_DIR=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/include/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
         -DENABLE_TESTS=ON \
         -DENABLE_SYSTEM_TBB=ON \
         -DENABLE_SYSTEM_PROTOBUF=ON \

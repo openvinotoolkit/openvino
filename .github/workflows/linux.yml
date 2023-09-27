@@ -178,7 +178,7 @@ jobs:
           cmake -UPYTHON* \
                 -DCPACK_GENERATOR=DEB \
                 -DENABLE_PYTHON_PACKAGING=ON \
-                -DPYTHON_EXECUTABLE=/usr/bin/python3.8 \
+                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
                 -DENABLE_TESTS=OFF \
                 -S ${OPENVINO_REPO} \
                 -B ${BUILD_DIR}
@@ -268,7 +268,12 @@ jobs:
           /usr/share/openvino/samples/c/build_samples.sh
           ~/openvino_cpp_samples_build/intel64/Release/hello_query_device
           python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
-          python3 -c 'from openvino import Core; print(Core().available_devices)'
+          python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
+          python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
+          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
           python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
           ovc --help
@@ -459,12 +464,12 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
-      # Disabled in Azure: https://github.com/openvinotoolkit/openvino/blob/master/.ci/azure/linux.yml#L403
-      # - name: PaddlePaddle frontend tests
-      #   run: |
-      #     source ${INSTALL_DIR}/setupvars.sh
-      #     ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* \
-      #           --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
+      - name: PaddlePaddle frontend tests
+        if: ${{ 'false' }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
         run: |
