@@ -15,6 +15,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
+#include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
@@ -61,31 +62,36 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
     // before: y = (deq_scales1 * (x1 - zero_point1)) * (deq_scales2 * (x2 - zero_point2))
     // after : y = deq_scales1 * deq_scales2 * (x1 - zero_point1) * (x2 - zero_point2)
 
+    auto new_scales_values = fold<ov::opset1::Multiply>(
+        dequantization1.empty() ? dequantization1.data : dequantization1.multiplyConstant,
+        dequantization2.empty() ? dequantization2.data : dequantization2.multiplyConstant);
+
+    if (!ov::is_type<ov::opset1::Constant>(new_scales_values)) {
+        return false;
+    }
+
+    const auto init_input = [&new_scales_values](const FakeQuantizeDequantization& dequantization) -> Output<Node> {
+        if (dequantization.empty()) {
+            return new_scales_values;
+        }
+
+        if (dequantization.subtract == nullptr) {
+            return dequantization.data;
+        }
+
+        const auto subtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
+        if (subtract != nullptr) {
+            DisableCleanupAttribute::create(subtract);
+        }
+
+        return subtract == nullptr ? dequantization.data : subtract;
+    };
+
     if ((dequantization1.empty() && (ov::is_type<ov::opset1::Constant>(dequantization1.data.get_node()))) ||
         (dequantization2.empty() && (ov::is_type<ov::opset1::Constant>(dequantization2.data.get_node())))) {
         // one input is constant
-        auto new_scales_values = fold<ov::opset1::Multiply>(
-            dequantization1.empty() ? dequantization1.data : dequantization1.multiplyConstant,
-            dequantization2.empty() ? dequantization2.data : dequantization2.multiplyConstant);
-
-        if (!ov::is_type<ov::opset1::Constant>(new_scales_values)) {
-            return false;
-        }
-
-        const auto create_input = [&new_scales_values](const FakeQuantizeDequantization& dequantization) -> Output<Node> {
-            if (dequantization.empty()) {
-                return new_scales_values;
-            }
-
-            if (dequantization.subtract == nullptr) {
-                return dequantization.data;
-            }
-
-            const auto subtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
-            return subtract == nullptr ? dequantization.data : subtract;
-        };
-        const Output<Node> in1 = create_input(dequantization1);
-        const Output<Node> in2 = create_input(dequantization2);
+        const Output<Node> in1 = init_input(dequantization1);
+        const Output<Node> in2 = init_input(dequantization2);
 
         const auto new_multiply = (in1.get_element_type() == multiply->get_output_element_type(0)) &&
                                   (in2.get_element_type() == multiply->get_output_element_type(0)) ?
@@ -102,18 +108,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
         return true;
     }
 
-    auto new_scales_values = fold<ov::opset1::Multiply>(dequantization1.multiplyConstant, dequantization2.multiplyConstant);
-    if (!ov::is_type<ov::opset1::Constant>(new_scales_values)) {
-        return false;
-    }
-
-    const Output<Node> in1 = dequantization1.subtract == nullptr ?
-        dequantization1.data :
-        NetworkHelper::optimizeSubtract(dequantization1.subtract);
-
-    const Output<Node> in2 = dequantization2.subtract == nullptr ?
-        dequantization2.data :
-        NetworkHelper::optimizeSubtract(dequantization2.subtract);
+    Output<Node> in1 = init_input(dequantization1);
+    Output<Node> in2 = init_input(dequantization2);
 
     // in1 & in2 can have different input types
     const auto new_multiply = (in1.get_element_type() == deqPrecision) &&
@@ -124,6 +120,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
             std::vector<ov::element::Type>{ deqPrecision },
             ov::op::TemporaryReplaceOutputType(in1, deqPrecision).get(),
             ov::op::TemporaryReplaceOutputType(in2, deqPrecision).get());
+
+    DisableCleanupAttribute::create(new_multiply);
 
     auto new_scales = (new_multiply->get_output_element_type(0) == multiply->get_output_element_type(0)) &&
                       (new_scales_values->get_output_element_type(0) == multiply->get_output_element_type(0)) ?
