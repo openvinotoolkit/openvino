@@ -15,7 +15,7 @@ NamedOutputs partial_sum(const NodeContext& node) {
     auto start_index = node.get_attribute<int>("start_index");
     auto length = node.get_attribute<int>("length");
 
-    int end_index;
+    size_t end_index;
     if (length < 0) {
         end_index = datas[0].get_shape()[1];
     } else {
