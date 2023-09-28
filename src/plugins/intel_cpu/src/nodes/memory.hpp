@@ -105,10 +105,10 @@ public:
     void createPrimitive() override;
 
     void setInputNode(Node* node) override {}
-    void storeState(const IMemory& mem);
+    void storeState(const MemoryPtr mem);
     MemoryPtr getStore();
  private:
-    MemoryPtr dataStore;
+    MemoryPtr dataStore = nullptr;
     MemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 

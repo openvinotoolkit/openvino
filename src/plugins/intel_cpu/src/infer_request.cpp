@@ -99,9 +99,13 @@ void SyncInferRequest::push_states() {
             auto cur_id = cur_node->getId();
             for (const auto& state : m_memory_states) {
                 if (state->get_name() == cur_id) {
-                    auto state_blob = state->get_state();
+                    // auto storage = cur_node->getStore();
+                    // auto state_blob = state->GetState();
+                    // if (storage->getData() == state_blob->cbuffer().as<const void *>())
+                    //     continue;  // there is no inferrequest switch
+
                     // auto state_desc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(state_blob->getTensorDesc());
-                    // Memory state_mem(eng, state_desc, state_blob->cbuffer(), false);
+                    // auto state_mem = std::make_shared<Memory>(eng, state_desc, state_blob->cbuffer(), false);
                     // cur_node->storeState(state_mem);
                 }
             }
@@ -121,11 +125,7 @@ void SyncInferRequest::pull_states() {
             for (const auto& state : m_memory_states) {
                 if (state->get_name() == cur_id) {
                     auto storage = cur_node->getStore();
-
-                    //redefine state
-                    // auto blob = make_blob_with_precision(MemoryDescUtils::convertToTensorDesc(storage->getDesc()));
-                    // blob->allocate();
-                    // cpu_memcpy(blob->buffer(), storage->getData(), storage->getSize());
+                    // auto blob = make_blob_with_precision(MemoryDescUtils::convertToTensorDesc(storage->getDesc()), storage->getData());
                     // state->SetState(blob);
                 }
             }

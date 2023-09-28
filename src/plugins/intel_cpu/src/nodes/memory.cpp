@@ -19,6 +19,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+inline
+static void simple_copy(const IMemory& dst, const IMemory& src);
+
 std::mutex MemoryNodeVirtualEdge::holderMutex;
 
 MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
@@ -79,7 +82,15 @@ void MemoryOutput::execute(dnnl::stream strm)  {
     auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
     IE_ASSERT(inputMemoryNode != nullptr);
 
-    inputMemoryNode->storeState(srcMemory);
+    //redefine storage memory before copy to it
+    auto storage = inputMemoryNode->getStore();
+
+    auto desc = storage->getDescPtr();
+    const auto new_shape = srcMemory.getStaticDims();
+    const auto newDesc = desc->cloneWithNewDims(new_shape, true);
+    storage->redefineDesc(newDesc);
+
+    simple_copy(*storage, srcMemory);
 }
 
 void MemoryOutput::executeDynamicImpl(dnnl::stream strm) {
@@ -162,18 +173,8 @@ MemoryPtr MemoryInput::getStore() {
     return dataStore;
 }
 
-void MemoryInput::storeState(const IMemory &new_state) {
-    //redefine storage memory before copy to it
-    const auto &_desc = new_state.getDesc();
-    auto _shape = _desc.getShape();
-    VectorDims dims = _shape.getStaticDims();
-    auto desc = _desc.cloneWithNewDims(dims);
-    dataStore = std::make_shared<Memory>(getEngine(), desc);
-
-    // TODO: Should be next one call:
-    //           dataStore.load(new_state, false);
-    //       But because of performance reason we use simple manual copy
-    simple_copy(*dataStore, new_state);
+void MemoryInput::storeState(const MemoryPtr new_state) {
+    dataStore = new_state;
 }
 
 void MemoryInput::execute(dnnl::stream strm) {
