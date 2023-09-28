@@ -14,6 +14,7 @@
 #include "ov_optional.hpp"
 #include "shape_infer_type_utils.hpp"
 #include "tensor_data_accessor.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 
@@ -277,10 +278,8 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = tensor_accessor(idx)) {
         return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))));
-        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (const auto& constant =
-                   (idx < op->get_input_size()) ? ov::get_constant_from_source(op->input_value(idx)) : nullptr) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+                   (idx < op->get_input_size()) ? ov::util::get_constant_from_source(op->input_value(idx)) : nullptr) {
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
         return std::unique_ptr<TRes>(new TRes(get_raw_data_as<TData, TRes>(et,
@@ -358,9 +357,7 @@ ov::optional<TShape> get_input_const_data_as_shape(const ov::Node* op,
 inline element::Type get_input_const_element_type(const ov::Node* const op, size_t port, const ITensorAccessor& ta) {
     if (auto t = ta(port)) {
         return t.get_element_type();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(port))) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    } else if (const auto& constant = ov::util::get_constant_from_source(op->input_value(port))) {
         return constant->get_element_type();
     } else {
         return element::undefined;
