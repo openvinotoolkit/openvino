@@ -35,14 +35,13 @@ namespace {
 
     void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
         node::Reorder::reorderData(src, dst);
-
         try {
             auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src.getDesc().getPrecision());
             auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst.getDesc().getPrecision());
             if (src_data_type != memory::data_type::f32 || dst_data_type == memory::data_type::bf16) {
                 return;
             }
-        } catch (ov::Exception& ex) {
+        } catch (ov::Exception&) {
             return;
         }
 

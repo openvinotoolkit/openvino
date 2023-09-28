@@ -61,8 +61,8 @@ public:
         return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }
 
-    void PushInputData(const std::string& name, const ov::SoPtr<ITensor>& in);
-    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& out);
+    void PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input);
+    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output);
 
     void Infer(SyncInferRequest* request = nullptr);
 

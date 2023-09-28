@@ -549,8 +549,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
     if (!graph || !graph->IsReady())
         OPENVINO_THROW("Graph is not ready!");
 
-    if (name.empty())
-        OPENVINO_ASSERT("Can't prepare tensor for empty name! ");
+    OPENVINO_ASSERT(!name.empty(), "Can't prepare tensor for empty name! ");
 
     ov::SoPtr<ITensor> tensor;
     const auto& inMap = graph->inputNodesMap;
@@ -597,7 +596,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                             name,
                             " exists in CPU plugin graph, but absents in network outputs");
             auto port = output_port->second;
-            const auto port_shape = port.get_partial_shape();
+            const auto& port_shape = port.get_partial_shape();
             const auto& graph_shape = output->second->getInputShapeAtPort(0);
 
             // WA, due to the transformations and constant folding, shape inference of the resulting model may
