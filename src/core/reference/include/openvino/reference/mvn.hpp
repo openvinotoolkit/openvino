@@ -5,9 +5,9 @@
 #pragma once
 
 #include <cstddef>
-#include <ngraph/op/mvn.hpp>
-#include <ngraph/shape.hpp>
 
+#include "openvino/core/shape.hpp"
+#include "openvino/op/mvn.hpp"
 #include "openvino/reference/add.hpp"
 #include "openvino/reference/divide.hpp"
 #include "openvino/reference/multiply.hpp"
@@ -18,7 +18,6 @@
 
 namespace ov {
 namespace reference {
-OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
 void mvn(const T* arg,
          T* out,
@@ -87,7 +86,6 @@ void mvn_6(const T* arg,
         divide(out, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY, true);
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename T>
 AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
