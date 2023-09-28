@@ -406,7 +406,7 @@ jobs:
 
       - name: Create Directories
         run: |
-          mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR} ${CONFORMANCE_ARTIFACTS_DIR}
+          mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR} ${CONFORMANCE_ARTIFACTS_DIR} ${CONFORMANCE_CACHE_DIR}
 
       #
       # Dependencies
@@ -445,6 +445,70 @@ jobs:
           sudo apt-get update && sudo apt-get install --assume-yes --no-install-recommends ca-certificates
           
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+
+      #
+      # Download Previous Test Results from Cache
+      #
+
+      - name: Install @actions/cache package
+        run: npm install @actions/cache
+
+      - name: Gather Workflows Data
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const cache = require('@actions/cache');
+
+            function sleep(ms) {
+              return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            const org = context.payload.organization.login
+            const repositoryName = context.payload.repository.name
+            const cachePrefix = '${{ runner.os }}-conformance-hash-table-${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}-'
+
+            const conformanceCacheEntries = await github.rest.actions.getActionsCacheList({
+              'owner': org,
+              'repo': repositoryName,
+              'key': cachePrefix
+            })
+
+            // The path from which the cache entry is uploaded
+            const restorePath = '${{ env.CONFORMANCE_TOOLS_DIR }}/hash_table_${{ env.TEST_DEVICE }}.csv'
+
+            // Download the cache entries
+            for (const cacheEntryInfo of conformanceCacheEntries.data.actions_caches) {
+              const cacheKey = cacheEntryInfo.key
+            
+              // The unique path to which the current cache entry will be saved
+              const finalPath = `${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}/expected_failures_${{ env.TEST_DEVICE }}.csv`
+
+              console.log(`Restoring cache: ${cacheKey}`)
+
+              const restoredCacheKey = await cache.restoreCache([restorePath], cacheKey, [])
+
+              if (restoredCacheKey) {
+                // Create dir for the entry
+                fs.mkdir(`${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}`, { recursive: true }, (err) => {
+                  if (err) throw err;
+                });
+
+                // Move downloaded cache to its final directory
+                fs.rename(restorePath, finalPath, function (err) {
+                  if (err) throw err
+                  console.log(`${cacheKey} was restored to ${finalPath}.\n`)
+                })
+              } else {
+                console.log(`Cache was not restored: ${cacheKey}.\n`)
+              }
+              
+              // Sleep so that downloading/moving is complete w/o interfering with the next one 
+              await sleep(3000);
+            }
+
+      - name: Check Cache Restoration
+        run: ls -laR ${{ env.CONFORMANCE_TOOLS_DIR }}
 
       #
       # Tests
