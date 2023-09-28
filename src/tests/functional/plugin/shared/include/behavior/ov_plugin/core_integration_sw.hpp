@@ -13,6 +13,8 @@ namespace behavior {
 class OVClassSeveralDevicesTests : public OVPluginTestBase,
                                    public OVClassNetworkTest,
                                    public ::testing::WithParamInterface<std::vector<std::string>> {
+protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
 public:
     std::vector<std::string> target_devices;
 
@@ -31,19 +33,16 @@ using OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest = OVClas
 
 TEST_P(OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest,
        CompileModelRepeatedlyWithMetaPluginTestThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.compile_model(actualNetwork, target_device, configuration), ov::Exception);
+    ASSERT_THROW(core->compile_model(actualNetwork, target_device, configuration), ov::Exception);
 }
 
 TEST_P(OVClassSeveralDevicesTestCompileModel, CompileModelActualSeveralDevicesNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-
     std::string clear_target_device;
     auto pos = target_devices.begin()->find('.');
     if (pos != std::string::npos) {
         clear_target_device = target_devices.begin()->substr(0, pos);
     }
-    auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
+    auto deviceIDs = core->get_property(clear_target_device, ov::available_devices);
     if (deviceIDs.size() < target_devices.size())
         GTEST_FAIL() << "Incorrect DeviceID" << std::endl;
 
@@ -54,30 +53,26 @@ TEST_P(OVClassSeveralDevicesTestCompileModel, CompileModelActualSeveralDevicesNo
             multitarget_device += ",";
         }
     }
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, multitarget_device));
+    OV_ASSERT_NO_THROW(core->compile_model(actualNetwork, multitarget_device));
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceUsingDevicePropertiesNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
+    OV_ASSERT_NO_THROW(core->compile_model(actualNetwork,
                                         ov::test::utils::DEVICE_HETERO,
                                         ov::device::priorities(target_device),
                                         ov::device::properties(target_device, ov::enable_profiling(true))));
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device));
+    OV_ASSERT_NO_THROW(core->compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDevice2NoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
+    OV_ASSERT_NO_THROW(core->compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelCreateDefaultExecGraphResult) {
-    auto ie = createCoreWithTemplate();
-    auto net = ie.compile_model(actualNetwork, target_device);
+    auto net = core->compile_model(actualNetwork, target_device);
     auto runtime_function = net.get_runtime_model();
     ASSERT_NE(nullptr, runtime_function);
     auto actual_parameters = runtime_function->get_parameters();
@@ -105,14 +100,12 @@ TEST_P(OVClassModelOptionalTestP, CompileModelCreateDefaultExecGraphResult) {
 }
 
 TEST_P(OVClassSeveralDevicesTestQueryModel, QueryModelActualSeveralDevicesNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-
     std::string clear_target_device;
     auto pos = target_devices.begin()->find('.');
     if (pos != std::string::npos) {
         clear_target_device = target_devices.begin()->substr(0, pos);
     }
-    auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
+    auto deviceIDs = core->get_property(clear_target_device, ov::available_devices);
     ASSERT_LT(deviceIDs.size(), target_devices.size());
 
     std::string multi_target_device = ov::test::utils::DEVICE_MULTI + std::string(":");
@@ -122,7 +115,7 @@ TEST_P(OVClassSeveralDevicesTestQueryModel, QueryModelActualSeveralDevicesNoThro
             multi_target_device += ",";
         }
     }
-    OV_ASSERT_NO_THROW(ie.query_model(actualNetwork, multi_target_device));
+    OV_ASSERT_NO_THROW(core->query_model(actualNetwork, multi_target_device));
 }
 
 TEST(OVClassBasicPropsTest, smoke_SetConfigHeteroThrows) {
@@ -178,8 +171,7 @@ TEST(OVClassBasicPropsTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 }
 
 TEST_P(OVClassModelOptionalTestP, getVersionsNonEmpty) {
-    ov::Core core = createCoreWithTemplate();
-    ASSERT_EQ(2, core.get_versions(ov::test::utils::DEVICE_HETERO + std::string(":") + target_device).size());
+    ASSERT_EQ(2, core->get_versions(ov::test::utils::DEVICE_HETERO + std::string(":") + target_device).size());
 }
 
 }  // namespace behavior

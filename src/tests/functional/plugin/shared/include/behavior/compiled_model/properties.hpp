@@ -29,6 +29,11 @@ public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
     AnyMap properties;
+
+    void TearDown() override {
+        utils::PluginCache::get().reset();
+        APIBaseTest::TearDown();
+    }
 };
 
 class OVClassCompiledModelEmptyPropertiesTests : public testing::WithParamInterface<std::string>,
@@ -63,6 +68,7 @@ class OVClassCompiledModelSetCorrectConfigTest :
         public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>>,
         public OVCompiledNetworkTestBase {
 protected:
+    std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::string configKey;
     ov::Any configValue;
 
@@ -98,6 +104,11 @@ public:
     AnyMap compileModelProperties;
 
     std::string expectedDeviceName;
+
+    void TearDown() override {
+        utils::PluginCache::get().reset();
+        APIBaseTest::TearDown();
+    }
 };
 
 using OVClassCompiledModelGetPropertyTest_EXEC_DEVICES = OVCompileModelGetExecutionDeviceTests;
@@ -109,6 +120,7 @@ using PriorityParams = std::tuple<
 class OVClassCompiledModelGetPropertyTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
                                                        public OVCompiledNetworkTestBase {
 protected:
+    std::shared_ptr<Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ngraph::Function> simpleNetwork;
 
@@ -119,6 +131,11 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+    }
+
+    void TearDown() override {
+        utils::PluginCache::get().reset();
+        APIBaseTest::TearDown();
     }
 };
 

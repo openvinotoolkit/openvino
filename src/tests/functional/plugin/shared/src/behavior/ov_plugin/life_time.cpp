@@ -40,8 +40,8 @@ static void release_order_test(std::vector<std::size_t> order, const std::string
                                std::shared_ptr<ngraph::Function> function) {
     ov::AnyVector objects;
     {
-        ov::Core core = createCoreWithTemplate();
-        auto compiled_model = core.compile_model(function, deviceName);
+        std::shared_ptr<Core> core = utils::PluginCache::get().core();
+        auto compiled_model = core->compile_model(function, deviceName);
         auto request = compiled_model.create_infer_request();
 
         objects = {core, compiled_model, request};

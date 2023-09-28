@@ -25,9 +25,9 @@ class OVClassHeteroCompiledModelGetMetricTest :
         public ::testing::WithParamInterface<std::string>,
         public OVCompiledNetworkTestBase {
 protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string heteroDeviceName;
     void SetCpuAffinity(ov::Core& core, std::vector<std::string>& expectedTargets);
-
 public:
     void SetUp() override {
         target_device = GetParam();

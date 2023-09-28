@@ -34,6 +34,7 @@ using PriorityParams = std::tuple<
 class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
                                                        public OVCompiledNetworkTestBase {
 protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ngraph::Function> simpleNetwork;
 
@@ -65,6 +66,7 @@ class OVClassExecutableNetworkGetMetricTestForSpecificConfig :
         public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>>,
         public OVCompiledNetworkTestBase {
 protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string configKey;
     ov::Any configValue;
 
@@ -89,6 +91,7 @@ class OVClassHeteroExecutableNetworkGetMetricTest :
         public ::testing::WithParamInterface<std::string>,
         public OVCompiledNetworkTestBase {
 protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string heteroDeviceName;
     void SetCpuAffinity(ov::Core& core, std::vector<std::string>& expectedTargets);
 

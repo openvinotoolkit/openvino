@@ -129,47 +129,41 @@ TEST_P(OVPropertiesIncorrectTests, SetPropertiesWithIncorrectKey) {
 }
 
 TEST_P(OVBasicPropertiesTestsP, GetMetricThrowUnsupported) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.get_property(target_device, "unsupported_metric"), ov::Exception);
+    ASSERT_THROW(core->get_property(target_device, "unsupported_metric"), ov::Exception);
 }
 
 TEST_P(OVBasicPropertiesTestsP, SetConfigAllThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.set_property({{"unsupported_key", "4"}}));
-    ASSERT_ANY_THROW(ie.get_versions(target_device));
+    OV_ASSERT_NO_THROW(core->set_property({{"unsupported_key", "4"}}));
+    ASSERT_ANY_THROW(core->get_versions(target_device));
 }
 
 TEST_P(OVBasicPropertiesTestsP, SetConfigForUnRegisteredDeviceThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.set_property("unregistered_device", {{"unsupported_key", "4"}}), ov::Exception);
+    ASSERT_THROW(core->set_property("unregistered_device", {{"unsupported_key", "4"}}), ov::Exception);
 }
 
 TEST_P(OVBasicPropertiesTestsP, getVersionsByDeviceClassNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.get_versions(target_device));
+    OV_ASSERT_NO_THROW(core->get_versions(target_device));
 }
 
 TEST_P(OVBasicPropertiesTestsP, getVersionsByExactDeviceNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> devices;
-    devices = ie.get_available_devices();
+    devices = core->get_available_devices();
 
     std::cout << "Available devices: " << std::endl;
     for (auto&& device : devices) {
-        OV_ASSERT_NO_THROW(ie.get_versions(device));
+        OV_ASSERT_NO_THROW(core->get_versions(device));
     }
 }
 
 TEST_P(OVPropertiesDefaultSupportedTests, CanSetDefaultValueBackToPlugin) {
-    ov::Core core = createCoreWithTemplate();
     std::vector<ov::PropertyName> supported_properties;
-    OV_ASSERT_NO_THROW(supported_properties = core.get_property(target_device, ov::supported_properties));
+    OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
     for (auto& supported_property : supported_properties) {
         Any property;
-        OV_ASSERT_NO_THROW(property = core.get_property(target_device, supported_property));
+        OV_ASSERT_NO_THROW(property = core->get_property(target_device, supported_property));
         ASSERT_FALSE(property.empty());
         if (supported_property.is_mutable()) {
-            OV_ASSERT_NO_THROW(core.set_property(target_device, {{ supported_property, property}}));
+            OV_ASSERT_NO_THROW(core->set_property(target_device, {{ supported_property, property}}));
         }
     }
 }
@@ -459,21 +453,18 @@ TEST_P(OVCheckMetricsPropsTests_ModelDependceProps, ChangeCorrectDevicePropertie
 }
 
 TEST_P(OVClassSetDefaultDeviceIDPropTest, SetDefaultDeviceIDNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto deviceIDs = ie.get_property(target_device, ov::available_devices);
+    auto deviceIDs = core->get_property(target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_FAIL();
     }
     std::string value;
-    OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::device::id(deviceID), ov::enable_profiling(true)));
-    ASSERT_TRUE(ie.get_property(target_device, ov::enable_profiling));
-    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::enable_profiling.name()).as<std::string>());
+    OV_ASSERT_NO_THROW(core->set_property(target_device, ov::device::id(deviceID), ov::enable_profiling(true)));
+    ASSERT_TRUE(core->get_property(target_device, ov::enable_profiling));
+    OV_ASSERT_NO_THROW(value = core->get_property(target_device, ov::enable_profiling.name()).as<std::string>());
     ASSERT_EQ(value, "YES");
 }
 
 TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     std::string deviceID, clear_target_device;
@@ -482,7 +473,7 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
         clear_target_device = target_device.substr(0, pos);
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
-    auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
+    auto deviceIDs = core->get_property(clear_target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_FAIL() << "No DeviceID" << std::endl;
     }
@@ -490,27 +481,26 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
         return clear_target_device + "." + id;
     };
     // Set default device id to target device
-    OV_ASSERT_NO_THROW(ie.set_property(clear_target_device, ov::device::id(deviceID)));
+    OV_ASSERT_NO_THROW(core->set_property(clear_target_device, ov::device::id(deviceID)));
     // Set num_streams to AUTO for clear device name
-    OV_ASSERT_NO_THROW(ie.set_property(clear_target_device, ov::num_streams(ov::streams::AUTO)));
-    ASSERT_EQ(ie.get_property(clear_target_device, ov::num_streams), ov::streams::AUTO);
+    OV_ASSERT_NO_THROW(core->set_property(clear_target_device, ov::num_streams(ov::streams::AUTO)));
+    ASSERT_EQ(core->get_property(clear_target_device, ov::num_streams), ov::streams::AUTO);
     // Check if it is applied for all devices
     for (auto& id : deviceIDs) {
-        ASSERT_EQ(ie.get_property(device_name(id), ov::num_streams),  ov::streams::AUTO);
+        ASSERT_EQ(core->get_property(device_name(id), ov::num_streams),  ov::streams::AUTO);
     }
     for (auto& id : deviceIDs) {
         // Set different properties for different devices
-        OV_ASSERT_NO_THROW(ie.set_property(device_name(id), ov::num_streams(std::stoi(id))));
-        ASSERT_EQ(ie.get_property(device_name(id), ov::num_streams), std::stoi(id));
+        OV_ASSERT_NO_THROW(core->set_property(device_name(id), ov::num_streams(std::stoi(id))));
+        ASSERT_EQ(core->get_property(device_name(id), ov::num_streams), std::stoi(id));
     }
     // Check if default device id is still the same
-    ASSERT_EQ(ie.get_property(clear_target_device, ov::device::id), deviceID);
+    ASSERT_EQ(core->get_property(clear_target_device, ov::device::id), deviceID);
     // Check if default property is still equal property to default device
-    ASSERT_EQ(ie.get_property(clear_target_device, ov::num_streams), std::stoi(deviceID));
+    ASSERT_EQ(core->get_property(clear_target_device, ov::num_streams), std::stoi(deviceID));
 }
 
 TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     std::string deviceID, clear_target_device;
@@ -519,26 +509,25 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
         clear_target_device = target_device.substr(0, pos);
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
-    auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
+    auto deviceIDs = core->get_property(clear_target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_FAIL() << "No DeviceID" << std::endl;
     }
 
     std::vector<ov::PropertyName> configValues;
-    OV_ASSERT_NO_THROW(configValues = ie.get_property(target_device, ov::supported_properties));
+    OV_ASSERT_NO_THROW(configValues = core->get_property(target_device, ov::supported_properties));
 
     for (auto &&confKey : configValues) {
         ov::Any defaultValue;
-        OV_ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, confKey));
+        OV_ASSERT_NO_THROW(defaultValue = core->get_property(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
 }
 
 TEST_P(OVGetAvailableDevicesPropsTest, GetAvailableDevicesNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> devices;
 
-    OV_ASSERT_NO_THROW(devices = ie.get_available_devices());
+    OV_ASSERT_NO_THROW(devices = core->get_available_devices());
 
     bool deviceFound = false;
     std::cout << "Available devices: " << std::endl;
@@ -555,44 +544,40 @@ TEST_P(OVGetAvailableDevicesPropsTest, GetAvailableDevicesNoThrow) {
 }
 
 TEST_P(OVSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-
     std::string deviceID, cleartarget_device;
     auto pos = target_device.find('.');
     if (pos != std::string::npos) {
         cleartarget_device = target_device.substr(0, pos);
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
-    auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
+    auto deviceIDs = core->get_property(cleartarget_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_FAIL();
     }
 
-    OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::enable_profiling(true)));
+    OV_ASSERT_NO_THROW(core->set_property(target_device, ov::enable_profiling(true)));
     bool value = false;
-    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::enable_profiling));
+    OV_ASSERT_NO_THROW(value = core->get_property(target_device, ov::enable_profiling));
     ASSERT_TRUE(value);
 }
 
 
 TEST_P(OVClassSetDevicePriorityConfigPropsTest, SetConfigAndCheckGetConfigNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
     std::string devicePriority;
-    OV_ASSERT_NO_THROW(ie.set_property(target_device, configuration));
-    OV_ASSERT_NO_THROW(devicePriority = ie.get_property(target_device, ov::device::priorities));
+    OV_ASSERT_NO_THROW(core->set_property(target_device, configuration));
+    OV_ASSERT_NO_THROW(devicePriority = core->get_property(target_device, ov::device::priorities));
     ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
 }
 
 TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_AVAILABLE_DEVICES) {
-    ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> device_ids;
 
-    OV_ASSERT_NO_THROW(device_ids = ie.get_property(target_device, ov::available_devices));
+    OV_ASSERT_NO_THROW(device_ids = core->get_property(target_device, ov::available_devices));
     ASSERT_GT(device_ids.size(), 0);
 
     for (auto&& device_id : device_ids) {
         std::string full_name;
-        OV_ASSERT_NO_THROW(full_name = ie.get_property(target_device, ov::device::full_name, ov::device::id(device_id)));
+        OV_ASSERT_NO_THROW(full_name = core->get_property(target_device, ov::device::full_name, ov::device::id(device_id)));
         ASSERT_FALSE(full_name.empty());
     }
 
@@ -600,9 +585,8 @@ TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_AVAILABLE_DEVICES) {
 }
 
 TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_OPTIMIZATION_CAPABILITIES) {
-    ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> capabilities;
-    OV_ASSERT_NO_THROW(capabilities = ie.get_property(target_device, ov::device::capabilities));
+    OV_ASSERT_NO_THROW(capabilities = core->get_property(target_device, ov::device::capabilities));
     std::cout << "Optimization capabilities: " << std::endl;
     std::vector<std::string> possible_capabilities{ov::device::capability::FP32, ov::device::capability::BF16,
                                                    ov::device::capability::FP16, ov::device::capability::INT8,
@@ -616,10 +600,9 @@ TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_OPTIMIZATION_CAPABILITIES)
 }
 
 TEST_P(OVGetMetricPropsOptionalTest, GetMetricAndPrintNoThrow_RANGE_FOR_ASYNC_INFER_REQUESTS) {
-    ov::Core ie = createCoreWithTemplate();
     unsigned int start{0}, end{0}, step{0};
 
-    ASSERT_NO_THROW(std::tie(start, end, step) = ie.get_property(target_device, ov::range_for_async_infer_requests));
+    ASSERT_NO_THROW(std::tie(start, end, step) = core->get_property(target_device, ov::range_for_async_infer_requests));
 
     std::cout << "Range for async infer requests: " << std::endl
     << start << std::endl
@@ -633,10 +616,9 @@ TEST_P(OVGetMetricPropsOptionalTest, GetMetricAndPrintNoThrow_RANGE_FOR_ASYNC_IN
 }
 
 TEST_P(OVGetMetricPropsOptionalTest, GetMetricAndPrintNoThrow_RANGE_FOR_STREAMS) {
-    ov::Core ie = createCoreWithTemplate();
     unsigned int start = 0, end = 0;
 
-    ASSERT_NO_THROW(std::tie(start, end) = ie.get_property(target_device, ov::range_for_streams));
+    ASSERT_NO_THROW(std::tie(start, end) = core->get_property(target_device, ov::range_for_streams));
 
     std::cout << "Range for streams: " << std::endl
     << start << std::endl
@@ -648,9 +630,8 @@ TEST_P(OVGetMetricPropsOptionalTest, GetMetricAndPrintNoThrow_RANGE_FOR_STREAMS)
 }
 
 TEST_P(OVClassCompileModelAndCheckSecondaryPropertiesTest, CompileModelAndCheckSecondaryPropertiesTest) {
-    ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
-    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
+    OV_ASSERT_NO_THROW(model = core->compile_model(actualNetwork, target_device, configuration));
     ov::AnyMap property = configuration;
     ov::AnyMap::iterator it = configuration.end();
     // device properties in form ov::device::properties(DEVICE, ...) has the first priority

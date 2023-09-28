@@ -115,8 +115,7 @@ TEST_P(OVClassCompiledModelPropertiesIncorrectTests, CanNotCompileModelWithIncor
 }
 
 TEST_P(OVCompiledModelIncorrectDevice, CanNotCompileModelWithIncorrectDeviceID) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
+    ASSERT_THROW(core->compile_model(actualNetwork, target_device + ".10"), ov::Exception);
 }
 
 TEST_P(OVCompiledModelPropertiesDefaultSupportedTests, CanCompileWithDefaultValueFromPlugin) {
@@ -171,9 +170,7 @@ std::string OVClassCompiledModelGetPropertyTest_Priority::getTestCaseName(testin
 
 // get property
 TEST_P(OVClassCompiledModelGetConfigTest, GetConfigNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device);
 
     std::vector<ov::PropertyName> property_names;
     OV_ASSERT_NO_THROW(property_names = compiled_model.get_property(ov::supported_properties));
@@ -186,12 +183,10 @@ TEST_P(OVClassCompiledModelGetConfigTest, GetConfigNoThrow) {
 }
 
 TEST_P(OVClassCompiledModelGetConfigTest, GetConfigFromCoreAndFromCompiledModel) {
-    ov::Core ie = createCoreWithTemplate();
-
     std::vector<ov::PropertyName> dev_property_names;
-    OV_ASSERT_NO_THROW(dev_property_names = ie.get_property(target_device, ov::supported_properties));
+    OV_ASSERT_NO_THROW(dev_property_names = core->get_property(target_device, ov::supported_properties));
 
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device);
 
     std::vector<ov::PropertyName> model_property_names;
     OV_ASSERT_NO_THROW(model_property_names = compiled_model.get_property(ov::supported_properties));
@@ -199,9 +194,7 @@ TEST_P(OVClassCompiledModelGetConfigTest, GetConfigFromCoreAndFromCompiledModel)
 
 // readonly
 TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_SUPPORTED_CONFIG_KEYS) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device);
 
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = compiled_model.get_property(ov::supported_properties));
@@ -230,9 +223,7 @@ TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_SUPPORTED_CONFIG_KE
 }
 
 TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_NETWORK_NAME) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device);
 
     std::string model_name;
     OV_ASSERT_NO_THROW(model_name = compiled_model.get_property(ov::model_name));
@@ -243,9 +234,7 @@ TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_NETWORK_NAME) {
 }
 
 TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device);
 
     unsigned int value = 0;
     OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::optimal_number_of_infer_requests));
@@ -256,17 +245,14 @@ TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_OPTIMAL_NUMBER_OF_I
 }
 
 TEST_P(OVClassCompiledModelGetIncorrectPropertyTest, GetConfigThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device);
     ASSERT_THROW(compiled_model.get_property("unsupported_property"), ov::Exception);
 }
 
 // set property
 TEST_P(OVClassCompiledModelSetCorrectConfigTest, canSetConfig) {
-    ov::Core ie = createCoreWithTemplate();
     ov::Any param;
-
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device);
     OV_ASSERT_NO_THROW(compiled_model.set_property({{configKey, configValue}}));
     OV_ASSERT_NO_THROW(param = compiled_model.get_property(configKey));
     EXPECT_FALSE(param.empty());
@@ -274,9 +260,7 @@ TEST_P(OVClassCompiledModelSetCorrectConfigTest, canSetConfig) {
 }
 
 TEST_P(OVClassCompiledModelSetIncorrectConfigTest, canNotSetConfigToCompiledModelWithIncorrectConfig) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device);
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
     std::map<std::string, ov::Any> config;
     for (const auto& confItem : incorrectConfig) {
@@ -287,8 +271,7 @@ TEST_P(OVClassCompiledModelSetIncorrectConfigTest, canNotSetConfigToCompiledMode
 
 // writeble
 TEST_P(OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY, GetMetricNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device, configuration);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device, configuration);
 
     ov::hint::Priority value;
     OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::hint::model_priority));
@@ -296,8 +279,7 @@ TEST_P(OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY, GetMetricNoThrow) {
 }
 
 TEST_P(OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY, GetMetricNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device, configuration);
+    auto compiled_model = core->compile_model(simpleNetwork, target_device, configuration);
 
     std::string value;
     OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::device::priorities));
@@ -305,9 +287,8 @@ TEST_P(OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY, GetMetricNoThrow) {
 }
 
 TEST_P(OVClassCompiledModelGetPropertyTest_EXEC_DEVICES, CanGetExecutionDeviceInfo) {
-    ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> expectedTargets = {expectedDeviceName};
-    auto compiled_model = ie.compile_model(model, target_device, compileModelProperties);
+    auto compiled_model = core->compile_model(model, target_device, compileModelProperties);
 
     std::vector<std::string> exeTargets;
     OV_ASSERT_NO_THROW(exeTargets = compiled_model.get_property(ov::execution_devices));

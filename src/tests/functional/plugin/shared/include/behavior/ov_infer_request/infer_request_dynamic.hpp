@@ -51,7 +51,7 @@ protected:
     void SetUp() override;
     bool checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual);
 
-    std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> function;
     ov::AnyMap configuration;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;

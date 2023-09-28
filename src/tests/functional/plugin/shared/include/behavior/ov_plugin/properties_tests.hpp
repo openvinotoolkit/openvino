@@ -17,7 +17,7 @@ namespace behavior {
 
 #define OV_ASSERT_PROPERTY_SUPPORTED(property_key)                                  \
     {                                                                               \
-        auto properties = ie.get_property(target_device, ov::supported_properties); \
+        auto properties = core->get_property(target_device, ov::supported_properties); \
         auto it = std::find(properties.begin(), properties.end(), property_key);    \
         ASSERT_NE(properties.end(), it);                                            \
     }
@@ -27,6 +27,11 @@ public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
     AnyMap properties;
+
+    void TearDown() override {
+        utils::PluginCache::get().reset();
+        APIBaseTest::TearDown();
+    }
 };
 
 using PropertiesParams = std::tuple<std::string, AnyMap>;
@@ -86,6 +91,7 @@ using OVCheckMetricsPropsTests_ModelDependceProps = OVPropertiesTestsWithCompile
 class OVClassSetDefaultDeviceIDPropTest : public OVPluginTestBase,
                                           public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
+    std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::string deviceName;
     std::string deviceID;
 
@@ -116,6 +122,7 @@ using OVSpecificDeviceTestSetConfig = OVClassBaseTestP;
 class OVBasicPropertiesTestsP : public OVPluginTestBase,
                                public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
+    std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::string deviceName;
     std::string pluginName;
 public:
@@ -127,6 +134,11 @@ public:
         if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
             pluginName = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName);
         }
+    }
+
+    void TearDown() override {
+        utils::PluginCache::get().reset();
+        APIBaseTest::TearDown();
     }
 };
 

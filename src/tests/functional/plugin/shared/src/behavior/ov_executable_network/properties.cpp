@@ -93,8 +93,7 @@ TEST_P(OVCompiledModelPropertiesIncorrectTests, CanNotCompileModelWithIncorrectP
 }
 
 TEST_P(OVClassCompileModelTest, LoadNetworkWithBigDeviceIDThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
+    ASSERT_THROW(core->compile_model(actualNetwork, target_device + ".10"), ov::Exception);
 }
 
 TEST_P(OVCompiledModelPropertiesDefaultTests, CanCompileWithDefaultValueFromPlugin) {

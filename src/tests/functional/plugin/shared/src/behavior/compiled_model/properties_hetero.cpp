@@ -25,10 +25,8 @@ void OVClassHeteroCompiledModelGetMetricTest::SetCpuAffinity(ov::Core& core, std
 }
 
 TEST_P(OVClassHeteroCompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto heteroExeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
-    auto deviceExeNetwork = ie.compile_model(actualNetwork, target_device);
+    auto heteroExeNetwork = core->compile_model(actualNetwork, heteroDeviceName);
+    auto deviceExeNetwork = core->compile_model(actualNetwork, target_device);
 
     std::vector<ov::PropertyName> heteroConfigValues, deviceConfigValues;
     OV_ASSERT_NO_THROW(heteroConfigValues = heteroExeNetwork.get_property(ov::supported_properties));
@@ -61,11 +59,9 @@ TEST_P(OVClassHeteroCompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricN
 }
 
 TEST_P(OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-
     setHeteroNetworkAffinity(target_device);
 
-    auto compiled_model = ie.compile_model(actualNetwork, heteroDeviceName);
+    auto compiled_model = core->compile_model(actualNetwork, heteroDeviceName);
 
     std::string targets;
     OV_ASSERT_NO_THROW(targets = compiled_model.get_property(ov::device::priorities));
@@ -76,12 +72,11 @@ TEST_P(OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow
 }
 
 TEST_P(OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES, GetMetricNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> expectedTargets = {target_device};
 
-    SetCpuAffinity(ie, expectedTargets);
+    SetCpuAffinity(*core, expectedTargets);
 
-    auto compiled_model = ie.compile_model(actualNetwork, heteroDeviceName);
+    auto compiled_model = core->compile_model(actualNetwork, heteroDeviceName);
 
     std::vector<std::string> exeTargets;
     OV_ASSERT_NO_THROW(exeTargets = compiled_model.get_property(ov::execution_devices));

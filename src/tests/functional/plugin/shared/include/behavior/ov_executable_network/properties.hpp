@@ -21,6 +21,11 @@ public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
     AnyMap properties;
+
+    void TearDown() override {
+        utils::PluginCache::get().reset();
+        APIBaseTest::TearDown();
+    }
 };
 
 class OVCompiledModelEmptyPropertiesTests : public testing::WithParamInterface<std::string>,

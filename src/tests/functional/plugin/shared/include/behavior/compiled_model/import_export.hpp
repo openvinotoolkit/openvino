@@ -510,12 +510,11 @@ TEST_P(OVCompiledGraphImportExportTest, ovImportExportedFunction) {
 using OVClassCompiledModelImportExportTestP = OVCompiledModelClassBaseTestP;
 
 TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
-    ov::Core ie = createCoreWithTemplate();
     std::stringstream strm;
     ov::CompiledModel executableNetwork;
-    OV_ASSERT_NO_THROW(executableNetwork = ie.compile_model(actualNetwork, target_device));
+    OV_ASSERT_NO_THROW(executableNetwork = core->compile_model(actualNetwork, target_device));
     OV_ASSERT_NO_THROW(executableNetwork.export_model(strm));
-    OV_ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, target_device));
+    OV_ASSERT_NO_THROW(executableNetwork = core->import_model(strm, target_device));
     OV_ASSERT_NO_THROW(executableNetwork.create_infer_request());
 }
 

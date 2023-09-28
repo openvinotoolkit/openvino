@@ -23,14 +23,11 @@ namespace behavior {
 using OVClassQueryModelTest = OVClassBaseTestP;
 
 TEST_P(OVClassModelTestP, QueryModelActualNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    ie.query_model(actualNetwork, target_device);
+    core->query_model(actualNetwork, target_device);
 }
 
 TEST_P(OVClassModelTestP, QueryModelWithKSO) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto rl_map = ie.query_model(ksoNetwork, target_device);
+    auto rl_map = core->query_model(ksoNetwork, target_device);
     auto func = ksoNetwork;
     for (const auto& op : func->get_ops()) {
         if (!rl_map.count(op->get_friendly_name())) {
@@ -40,8 +37,6 @@ TEST_P(OVClassModelTestP, QueryModelWithKSO) {
 }
 
 TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
-    ov::Core ie = createCoreWithTemplate();
-
     std::shared_ptr<ov::Model> func;
     {
         ov::PartialShape shape({1, 84});
@@ -67,7 +62,7 @@ TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
         func = std::make_shared<ov::Model>(results, params);
     }
 
-    auto rl_map = ie.query_model(func, target_device);
+    auto rl_map = core->query_model(func, target_device);
     for (const auto& op : func->get_ops()) {
         if (!rl_map.count(op->get_friendly_name())) {
             FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << target_device;
@@ -76,24 +71,20 @@ TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
 }
 
 TEST_P(OVClassQueryModelTest, QueryModelHETEROWithDeviceIDNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto deviceIDs = ie.get_property(target_device, ov::available_devices);
+    auto deviceIDs = core->get_property(target_device, ov::available_devices);
     if (deviceIDs.empty())
         GTEST_FAIL();
-    OV_ASSERT_NO_THROW(ie.query_model(actualNetwork,
+    OV_ASSERT_NO_THROW(core->query_model(actualNetwork,
                                       ov::test::utils::DEVICE_HETERO,
                                       ov::device::priorities(target_device + "." + deviceIDs[0], target_device)));
 }
 
 TEST_P(OVClassQueryModelTest, QueryModelWithBigDeviceIDThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.query_model(actualNetwork, target_device + ".110"), ov::Exception);
+    ASSERT_THROW(core->query_model(actualNetwork, target_device + ".110"), ov::Exception);
 }
 
 TEST_P(OVClassQueryModelTest, QueryModelWithInvalidDeviceIDThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.query_model(actualNetwork, target_device + ".l0"), ov::Exception);
+    ASSERT_THROW(core->query_model(actualNetwork, target_device + ".l0"), ov::Exception);
 }
 
 }  // namespace behavior

@@ -205,6 +205,8 @@ public:
 class OVClassBaseTestP : public OVClassNetworkTest,
                          public ::testing::WithParamInterface<std::string>,
                          public OVPluginTestBase {
+protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
 public:
     void SetUp() override {
         target_device = GetParam();
@@ -219,6 +221,8 @@ using OVClassModelOptionalTestP = OVClassBaseTestP;
 class OVCompiledModelClassBaseTestP : public OVClassNetworkTest,
                                       public ::testing::WithParamInterface<std::string>,
                                       public OVCompiledNetworkTestBase {
+protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
 public:
     void SetUp() override {
         target_device = GetParam();
@@ -234,6 +238,7 @@ protected:
     std::string deviceName;
     ov::AnyMap configuration;
     std::shared_ptr<ngraph::Function> actualNetwork;
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
 
 public:
     void SetUp() override {
