@@ -183,23 +183,31 @@ Napi::Array cpp_to_js<ov::PartialShape, Napi::Array>(const Napi::CallbackInfo& i
     return arr;
 }
 
-std::vector<ov::Tensor> parse_input_data(const Napi::Value& input, ov::InferRequest& _infer_request) {
+std::vector<ov::Tensor> parse_input_data(const Napi::Value& input) {
     std::vector<ov::Tensor> parsed_input;
     if (input.IsArray()) {
         auto inputs = input.As<Napi::Array>();
         for (size_t i = 0; i < inputs.Length(); ++i) {
-            auto tensor = value_to_tensor(inputs[i], _infer_request, i);
-            parsed_input.push_back(tensor);
+            Napi::Value value = inputs[i];
+            if (value.IsObject()) {
+                auto tensor = cast_to_tensor(value.As<Napi::Object>());
+                parsed_input.push_back(tensor);
+            } else {
+                throw std::invalid_argument("Cannot create a tensor from the passed Napi::Value.");
+            }  
         }
-
     } else if (input.IsObject()) {
         auto inputs = input.ToObject();
         auto keys = inputs.GetPropertyNames();
         for (size_t i = 0; i < keys.Length(); ++i) {
             auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
             auto value = inputs.Get(input_name);
-            auto tensor = value_to_tensor(value, _infer_request, input_name);
-            parsed_input.push_back(tensor);
+            if (value.IsObject()) {
+                auto tensor = cast_to_tensor(value.As<Napi::Object>());
+                parsed_input.push_back(tensor);
+            } else {
+                throw std::invalid_argument("Cannot create a tensor from the passed Napi::Value.");
+            } 
         }
     } else {
         throw std::invalid_argument("parse_input_data(): wrong arg");

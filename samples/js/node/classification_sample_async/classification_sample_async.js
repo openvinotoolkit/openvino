@@ -43,6 +43,7 @@ async function main(modelPath, images, deviceName) {
   // (.xml and .bin files) or (.onnx file)
   const model = await core.readModel(modelPath);
   const [h, w] = model.inputs[0].shape.slice(-2);
+  const tensorShape = [1, h, w, 3];
 
   if (model.inputs.length !== 1)
     throw new Error('Sample supports only single input topologies');
@@ -87,7 +88,7 @@ async function main(modelPath, images, deviceName) {
   const inferRequest = compiledModel.createInferRequest();
 
   const promises = inputTensors.map((t, i) => {
-    const inferPromise = inferRequest.inferAsync([t]);
+    const inferPromise = inferRequest.inferAsync([new ov.Tensor(ov.element.u8, tensorShape, t)]);
 
     inferPromise.then(result =>
       completionCallback(result[outputName], images[i]));

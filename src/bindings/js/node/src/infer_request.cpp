@@ -3,12 +3,15 @@
 
 #include "infer_request.hpp"
 
+#include <mutex>
 #include <random>
 #include <thread>
 
 #include "compiled_model.hpp"
 #include "node_output.hpp"
 #include "tensor.hpp"
+
+std::mutex infer_mutex;
 
 InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InferRequestWrap>(info) {}
 
@@ -213,15 +216,11 @@ void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) 
 };
 
 void performInferenceThread(TsfnContext* data) {
+    infer_mutex.lock();
     for (size_t i = 0; i < data->input_tensors.size(); ++i) {
         data->_context_ir->set_input_tensor(i, data->input_tensors[i]);
     }
     data->_context_ir->infer();
-    // Sleep for random time.
-    std::random_device rd;                             // obtain a random number from hardware
-    std::mt19937 gen(rd());                            // seed the generator
-    std::uniform_int_distribution<> distr(100, 3000);  // define the range
-    std::this_thread::sleep_for(std::chrono::milliseconds(distr(gen)));
 
     auto compiled_model = data->_context_ir->get_compiled_model().outputs();
     std::map<std::string, ov::Tensor> outputs;
@@ -234,6 +233,7 @@ void performInferenceThread(TsfnContext* data) {
     }
 
     data->result = outputs;
+    infer_mutex.unlock();
 
     auto callback = [](Napi::Env env, Napi::Function _, TsfnContext* data) {
         auto m = data->result;
@@ -258,7 +258,7 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     }
     Napi::Env env = info.Env();
 
-    auto parsed_input = parse_input_data(info[0], _infer_request);
+    auto parsed_input = parse_input_data(info[0]);
     auto context_data = new TsfnContext(env);
 
     context_data->input_tensors = parsed_input;

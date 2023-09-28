@@ -100,7 +100,7 @@ template <>
 Napi::Array cpp_to_js<ov::Shape, Napi::Array>(const Napi::CallbackInfo& info, const ov::Shape shape);
 
 /** @brief Takes Napi::Value and parse Napi::Array or Napi::Object to std::vector<ov::Tensor>. */
-std::vector<ov::Tensor> parse_input_data(const Napi::Value& input, ov::InferRequest& _infer_request);
+std::vector<ov::Tensor> parse_input_data(const Napi::Value& input);
 
 /** @brief Gets an input/output tensor from InferRequest by key. */
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key);
