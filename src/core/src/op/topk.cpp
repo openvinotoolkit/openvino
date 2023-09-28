@@ -19,7 +19,7 @@
 #include "openvino/reference/topk.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace topk {
