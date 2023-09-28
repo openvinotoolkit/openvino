@@ -40,6 +40,7 @@ using ov::element::i32;
 using ov::element::i4;
 using ov::element::i64;
 using ov::element::i8;
+using ov::element::nf4;
 using ov::element::u1;
 using ov::element::u16;
 using ov::element::u32;

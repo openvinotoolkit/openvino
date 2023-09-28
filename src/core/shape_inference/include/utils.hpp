@@ -53,7 +53,7 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
     auto out_it = std::inserter(out, out.end());
 
     using namespace ov::element;
-    IfTypeOf<bf16, f16, f32, f64, i4, i8, i16, i32, i64, u4, u8, u16, u32, u64>::apply<TensorTransform>(
+    IfTypeOf<bf16, f16, f32, f64, i4, i8, i16, i32, i64, u4, u8, u16, u32, u64, nf4>::apply<TensorTransform>(
         et,
         ptr,
         size,

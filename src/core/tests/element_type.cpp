@@ -64,6 +64,8 @@ TEST(element_type, from_string) {
     EXPECT_EQ(element::Type("U32"), element::u32);
     EXPECT_EQ(element::Type("u64"), element::u64);
     EXPECT_EQ(element::Type("U64"), element::u64);
+    EXPECT_EQ(element::Type("nf4"), element::nf4);
+    EXPECT_EQ(element::Type("NF4"), element::nf4);
 
     EXPECT_EQ(element::Type("undefined"), element::undefined);
     EXPECT_EQ(element::Type("UNSPECIFIED"), element::undefined);
