@@ -14,11 +14,10 @@
 
 namespace ov {
 namespace intel_cpu {
-static constexpr unsigned int FTZ_FLAG = 0x8000;
-static constexpr unsigned int DAZ_FLAG = 0x0040;
 
 #ifdef OPENVINO_ARCH_X86_64
-
+static constexpr unsigned int FTZ_FLAG = 0x8000;
+static constexpr unsigned int DAZ_FLAG = 0x0040;
 bool flush_to_zero(bool on) {
     unsigned int mxcsr = _mm_getcsr();
     if (on) {
@@ -42,6 +41,8 @@ bool denormals_as_zero(bool on) {
 }
 #else // OPENVINO_ARCH_X86_64
     #if defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
+        static constexpr unsigned int FTZ_FLAG = 0x8000;
+        static constexpr unsigned int DAZ_FLAG = 0x0040;
         bool flush_to_zero(bool on) {
             unsigned int mxcsr = _mm_getcsr();
             if (on) {
