@@ -55,11 +55,15 @@ void regclass_graph_op_TensorIterator(py::module m) {
             py::arg("successive_value"));
 
     cls.def("get_body", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) {
-        return self->get_body();
+        auto model = self->get_body();
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
     });
 
     cls.def("get_function", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) {
-        return self->get_function();
+        auto model = self->get_function();
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
     });
 
     cls.def(
