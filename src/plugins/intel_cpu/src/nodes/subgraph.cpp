@@ -517,9 +517,14 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(const SnippetAttrs& attrs, bool 
         snippet_for_generation = std::make_shared<ov::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
         ov::copy_runtime_info(snippetAttrs.snippet, snippet_for_generation);
         snippet_for_generation->set_friendly_name(snippetAttrs.snippet->get_friendly_name());
-        auto host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
-            dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
+#if defined(OPENVINO_ARCH_X86_64)
+        auto host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)
+                            ? dnnl::impl::cpu::x64::avx512_core
+                            : dnnl::impl::cpu::x64::avx2;
         snippet_for_generation->set_generator(std::make_shared<CPUGenerator>(host_isa));
+#else
+        IE_THROW(NotImplemented) << "CPU plugin: code-generation is not supported on non-x64 platforms";
+#endif  // OPENVINO_ARCH_X86_64
     };
 
     // is_canonicalized is ture means just reshape canonicalized graph with new input shapes, and get updated master shape,
@@ -693,12 +698,15 @@ bool Snippet::SnippetJitExecutor::optimizeExecDomain(std::vector<VectorDims>& in
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {
     using Manager = snippets::pass::Manager;
+    std::vector<Manager::PositionedPass> backend_passes;
+#if defined(OPENVINO_ARCH_X86_64)
     using PassPosition = snippets::pass::Manager::PassPosition;
     using Place = snippets::pass::Manager::PassPosition::Place;
-    std::vector<Manager::PositionedPass> backend_passes;
-
-#define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
-            backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
+#    define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
+        backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...)
+#endif  // OPENVINO_ARCH_X86_64
 
     SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), ConvertToSwishCPU);
     if (enforceBF16 && snippet_for_generation->has_domain_sensitive_ops()) {
