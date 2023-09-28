@@ -763,7 +763,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     const cldnn::primitive_id internal_name = "parameter:" + name;
     network->set_input_data(internal_name, memory);
 
-    if (ret_event)
+    if (!ret_event->is_set())
         return { ret_event };
     else
         return {};
