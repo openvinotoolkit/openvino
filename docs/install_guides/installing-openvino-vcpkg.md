@@ -66,7 +66,7 @@ which means the compiler stage will require additional time to complete the proc
 
 .. important::
 
-   If you are building OpenVINO as dynamic libraries and you want to use either Paddle, TensorFlow or ONNX frontends, you need to create `custom vcpkg <https://learn.microsoft.com/en-us/vcpkg/users/triplets#per-port-customization>`__ triplet file ``<VCPKG_ROOT>/triplets/community/x64-linux-release-dynamic.cmake``, which builds ``protobuf`` dependency statically:
+   If you are building OpenVINO as dynamic libraries and you want to use either Paddle, TensorFlow or ONNX frontends, you need to create `custom vcpkg <https://learn.microsoft.com/en-us/vcpkg/users/triplets#per-port-customization>`__ triplet file, like ``<VCPKG_ROOT>/triplets/community/x64-linux-release-dynamic.cmake``, which builds ``protobuf`` dependency statically:
 
    .. code-block:: sh
 
