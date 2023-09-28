@@ -320,7 +320,7 @@ void max_pool(const Value_t* data,
               const Strides& strides,
               const Shape& pads_begin,
               const Shape& pads_end) {
-    std::vector<int32_t> indices(shape_size(data_shape));
+    std::vector<int32_t> indices(shape_size(out_shape));
     const Strides dilations(kernel.size(), 1);
     max_pool<Value_t, int32_t>(data,
                                values,
