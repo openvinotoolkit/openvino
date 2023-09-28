@@ -9,7 +9,6 @@
 #include <functional>
 #include <numeric>
 
-#include "ngraph/axis_vector.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/reference/convolution.hpp"
 #include "openvino/reference/reverse.hpp"

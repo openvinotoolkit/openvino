@@ -6,8 +6,7 @@
 
 #include <cassert>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/check.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 

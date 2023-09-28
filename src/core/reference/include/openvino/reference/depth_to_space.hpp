@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ngraph/op/depth_to_space.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

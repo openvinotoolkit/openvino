@@ -7,7 +7,7 @@
 #include <cstring>
 #include <numeric>
 
-#include "ngraph/check.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/reference/utils/coordinate_range.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 

@@ -8,7 +8,7 @@
 
 #include <unordered_set>
 
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

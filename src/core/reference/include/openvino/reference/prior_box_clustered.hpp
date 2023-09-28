@@ -6,9 +6,8 @@
 
 #include <cmath>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/check.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {

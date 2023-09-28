@@ -6,8 +6,8 @@
 
 #include <cstddef>
 
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ov {
 namespace reference {

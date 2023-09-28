@@ -11,7 +11,7 @@
 
 #include "ngraph/op/detection_output.hpp"
 #include "ngraph/op/util/detection_output_base.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {
@@ -418,9 +418,9 @@ private:
 
 public:
     referenceDetectionOutput(const ngraph::op::DetectionOutputAttrs& _attrs,
-                             const ngraph::Shape& locShape,
-                             const ngraph::Shape& priorsShape,
-                             const ngraph::Shape& outShape)
+                             const Shape& locShape,
+                             const Shape& priorsShape,
+                             const Shape& outShape)
         : attrs(_attrs) {
         numImages = locShape[0];
         priorSize = _attrs.normalized ? 4 : 5;
@@ -434,10 +434,10 @@ public:
     }
 
     referenceDetectionOutput(const ngraph::op::util::DetectionOutputBase::AttributesBase& _attrs,
-                             const ngraph::Shape& locShape,
-                             const ngraph::Shape& classPredShape,
-                             const ngraph::Shape& priorsShape,
-                             const ngraph::Shape& outShape)
+                             const Shape& locShape,
+                             const Shape& classPredShape,
+                             const Shape& priorsShape,
+                             const Shape& outShape)
         : attrs(_attrs) {
         numImages = locShape[0];
         priorSize = _attrs.normalized ? 4 : 5;

@@ -6,7 +6,8 @@
 
 #include <cmath>
 #include <cstddef>
-#include <ngraph/op/gelu.hpp>
+
+#include "ngraph/op/gelu.hpp"
 
 namespace ov {
 namespace reference {

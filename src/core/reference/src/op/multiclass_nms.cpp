@@ -10,7 +10,7 @@
 #include <queue>
 #include <vector>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/multiclass_nms.hpp"
 #include "openvino/reference/utils/nms_common.hpp"
 

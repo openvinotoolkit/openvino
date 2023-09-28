@@ -6,9 +6,9 @@
 
 #include <cmath>
 #include <cstddef>
-#include <ngraph/op/util/attr_types.hpp>
-#include <ngraph/shape.hpp>
 
+#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 
 namespace ov {

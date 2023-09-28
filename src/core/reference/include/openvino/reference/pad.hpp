@@ -6,7 +6,7 @@
 
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/util/attr_types.hpp"  // for op::PadMode
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

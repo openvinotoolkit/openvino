@@ -8,7 +8,7 @@
 #include <numeric>
 
 #include "ngraph/coordinate.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "utils/span.hpp"
 
 namespace ov {

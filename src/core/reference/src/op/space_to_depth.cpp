@@ -6,8 +6,8 @@
 
 #include <vector>
 
-#include "ngraph/check.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace reference {

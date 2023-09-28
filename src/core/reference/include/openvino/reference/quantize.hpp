@@ -8,7 +8,6 @@
     "reference::quantize() is deprecated and openvino/reference/quantize.hpp will be removed in the 2024.0 release.")
 
 #include "ngraph/op/quantize.hpp"
-#include "ngraph/shape_util.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {

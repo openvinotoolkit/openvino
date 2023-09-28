@@ -8,8 +8,7 @@
 #include <numeric>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/adaptive_avg_pool.hpp"
 
 namespace ov {

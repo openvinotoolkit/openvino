@@ -9,8 +9,6 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/shape_util.hpp"
-
 namespace ov {
 namespace reference {
 namespace details {
