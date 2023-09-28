@@ -141,7 +141,7 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
                                     "Number of inputs provided is incorrect. Graph modification is not supported for "
                                     "this model. Expected number of inputs: ",
                                     m_inputs.size() - 1,
-                                    " recieved ",
+                                    " received ",
                                     inputs.size());
             auto self_place = m_inputs[0];
             // Verify that no same place already in vector
@@ -158,7 +158,7 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
                             "Number of inputs provided is incorrect. Graph modification is not supported for "
                             "this model. Expected number of inputs: ",
                             m_inputs.size(),
-                            " recieved ",
+                            " received ",
                             inputs.size());
     m_inputs = inputs;
 }

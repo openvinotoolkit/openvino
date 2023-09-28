@@ -69,6 +69,7 @@ jobs:
 
       - name: Install python dependencies
         run: |
+          python3 -m pip install -U pip
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
@@ -113,7 +114,7 @@ jobs:
         run: ccache --zero-stats --show-config
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel
+        run: cmake --build ${BUILD_DIR} --parallel --verbose
 
       - name: Show ccache stats
         run: ccache --show-stats
@@ -138,9 +139,8 @@ jobs:
         run: |
           cmake -DCPACK_GENERATOR=RPM \
                 -DENABLE_TESTS=OFF \
-                -S ${OPENVINO_REPO} \
-                -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel --target package
+                ${BUILD_DIR}
+          cmake --build ${BUILD_DIR} --parallel --target package --verbose
 
       #
       # Upload build artifacts
@@ -208,7 +208,7 @@ jobs:
           yum install -y openvino
 
           # install current version
-          yum install *.rpm
+          yum install --allowerasing *.rpm
         working-directory: ${{ env.RPM_PACKAGES_DIR }}
 
       - name: Test RPM packages

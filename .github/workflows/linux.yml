@@ -78,9 +78,9 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          # openjdk-11-jdk - Java API
+          # default-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          apt install --assume-yes --no-install-recommends openjdk-11-jdk libssl1.1
+          apt install --assume-yes --no-install-recommends default-jdk libssl1.1
 
       - uses: actions/setup-python@v4
         with:
@@ -159,12 +159,11 @@ jobs:
           /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           cmake -UPYTHON* \
-                -DCPACK_GENERATOR=DEB \
                 -DENABLE_PYTHON_PACKAGING=ON \
-                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
                 -DENABLE_TESTS=OFF \
-                -S ${OPENVINO_REPO} \
-                -B ${BUILD_DIR}
+                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
+                -DCPACK_GENERATOR=DEB \
+                ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
 
       - name: Cmake & Build - OpenVINO Contrib
@@ -775,7 +774,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores
+    runs-on: aks-linux-8-cores
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
@@ -862,7 +861,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores'}}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -870,7 +873,10 @@ jobs:
 
     steps:
       - name: Create Directories
-        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+
+      - name: Install 'actions/setup-python@v4' dependencies
+        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
 
       - uses: actions/setup-python@v4
         with:
@@ -890,26 +896,25 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
           popd
 
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
 
       - name: Install OpenVINO Python wheels
-        run: |
-          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install TF Hub tests requirements
         run: |
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
 
       - name: TensorFlow Hub Tests - TF FE
         run: |
-          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.html --self-contained-html
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
