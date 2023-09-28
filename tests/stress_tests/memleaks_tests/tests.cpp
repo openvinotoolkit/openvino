@@ -95,14 +95,15 @@ TEST_P(MemLeaksTestSuiteNoDevice, set_input_params) {
     test_runner(test_params.numthreads, test);
 }
 
-TEST_P(MemLeaksTestSuite, recreate_exenetwork) {
+TEST_P(MemLeaksTestSuite, recreate_compiled_model) {
     auto test_params = GetParam();
     std::vector<std::function<void()>> pipeline;
-    auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
 
     pipeline.reserve(test_params.models.size());
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(recreate_compiled_model(ie_wrapper, test_params.models[i]["full_path"], test_params.device,
+        auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
+        ie_wrapper->read_network(test_params.models[i]["full_path"]);
+        pipeline.push_back(recreate_compiled_model(ie_wrapper, test_params.device,
                                                    test_params.api_version));
     }
     auto test = [&] {
@@ -117,11 +118,10 @@ TEST_P(MemLeaksTestSuite, recreate_exenetwork) {
 TEST_P(MemLeaksTestSuite, recreate_infer_request) {
     auto test_params = GetParam();
     std::vector<std::function<void()>> pipeline;
-    auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
-
     size_t n_models = test_params.models.size();
 
     for (int i = 0; i < n_models; i++) {
+        auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         ie_wrapper->load_network(test_params.device);
         pipeline.push_back(recreate_infer_request(ie_wrapper));
@@ -138,10 +138,10 @@ TEST_P(MemLeaksTestSuite, recreate_infer_request) {
 TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
     auto test_params = GetParam();
     std::vector<std::function<void()>> pipeline;
-    auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
     size_t n_models = test_params.models.size();
 
     for (int i = 0; i < n_models; i++) {
+        auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         ie_wrapper->load_network(test_params.device);
         ie_wrapper->create_infer_request();
@@ -196,10 +196,10 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
 TEST_P(MemLeaksTestSuite, recreate_and_infer_in_thread) {
     auto test_params = GetParam();
     std::vector<std::function<void()>> pipeline;
-    auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
     size_t n_models = test_params.models.size();
 
     for (int i = 0; i < n_models; i++) {
+        auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         ie_wrapper->load_network(test_params.device);
         pipeline.push_back(recreate_and_infer_in_thread(ie_wrapper));

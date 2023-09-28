@@ -99,7 +99,7 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const Ho
             GET_AXES(u32, axes, inputs[1]);
             GET_AXES(u64, axes, inputs[1]);
         default:
-            NGRAPH_CHECK(false, "Not supported axes type", inputs[1]->get_element_type());
+            OPENVINO_ASSERT(false, "Not supported axes type", inputs[1]->get_element_type());
         }
     } else  // Mode::MASK
     {

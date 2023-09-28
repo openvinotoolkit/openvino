@@ -16,6 +16,7 @@ if(ENABLE_LTO)
 endif()
 
 function(ov_add_onednn)
+    set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
     set(DNNL_ENABLE_JIT_PROFILING ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     if(BUILD_SHARED_LIBS AND ENABLE_PROFILING_ITT)
         set(DNNL_ENABLE_ITT_TASKS ON CACHE BOOL "" FORCE)
@@ -117,7 +118,7 @@ function(ov_add_onednn)
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
     # install static libraries
-    ov_install_static_lib(dnnl cpu)
+    ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
 
     if(DNNL_USE_ACL AND NOT BUILD_SHARED_LIBS)
         # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
@@ -125,16 +126,16 @@ function(ov_add_onednn)
         # but for this we need to install library files
         install(FILES $<TARGET_PROPERTY:arm_compute::arm_compute,IMPORTED_LOCATION>
                 DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                COMPONENT cpu)
+                COMPONENT ${OV_CPACK_COMP_CORE})
         install(FILES "${intel_cpu_thirdparty_SOURCE_DIR}/ACLConfig.cmake"
                 DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-                COMPONENT core_dev)
+                COMPONENT ${OV_CPACK_COMP_CORE_DEV})
     endif()
 endfunction()
 
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)
-    ov_install_static_lib(mlas cpu)
+    ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()
