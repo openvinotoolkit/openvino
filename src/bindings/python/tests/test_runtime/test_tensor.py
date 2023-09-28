@@ -377,6 +377,7 @@ def test_init_with_packed_buffer(dtype, ov_type):
     (0, 2, ov.Type.u1, np.uint8),
     (0, 16, ov.Type.u4, np.uint8),
     (-8, 7, ov.Type.i4, np.int8),
+    (0, 16, ov.Type.nf4, np.uint8),
 ])
 def test_packing(shape, low, high, ov_type, dtype):
     ov_tensor = Tensor(ov_type, shape)
