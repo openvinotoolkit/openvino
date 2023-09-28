@@ -37,6 +37,7 @@
    openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README
    openvino_inference_engine_samples_benchmark_app_README
    openvino_inference_engine_tools_benchmark_tool_README
+   openvino_inference_engine_ie_bridges_python_sample_llm_README
 
 
 The OpenVINO™ samples are simple console applications that show how to utilize specific OpenVINO API capabilities within an application. They can assist you in executing specific tasks such as loading a model, running inference, querying specific device capabilities, etc.
@@ -102,6 +103,10 @@ The applications include:
     Note that the Python version of the benchmark tool is a core component of the OpenVINO installation package and 
     may be executed with the following command: ``benchmark_app -m <model> -i <input> -d <device>``. 
     For more information, check the :doc:`Benchmark Python Tool <openvino_inference_engine_tools_benchmark_tool_README>`.
+
+- **Large Language Model Sample** – Estimates performance for LLM based on pipelines provided by Optimum-Intel and allows to estimate performance for pytorch and openvino models using almost the same code and precollected models.
+
+  - :doc:`llm(Large Language Model) Python Sample <openvino_inference_engine_ie_bridges_python_sample_llm_README>`
 
 .. note:: 
    
