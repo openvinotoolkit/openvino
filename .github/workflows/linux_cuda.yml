@@ -99,6 +99,10 @@ jobs:
       # Build
       #
 
+      - name: Setup ccache
+        run: |
+          mkdir -p $CCACHE_DIR
+
       - name: CMake configure
         run: |
           cmake \
@@ -106,7 +110,7 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DENABLE_CPPLINT=OFF \
             -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
-            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO} \
+            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules/nvidia_plugin \
             -DENABLE_INTEL_CPU=OFF \
             -DENABLE_INTEL_GPU=OFF \
             -DENABLE_INTEL_GNA=OFF \
