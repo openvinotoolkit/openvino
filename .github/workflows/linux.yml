@@ -81,10 +81,10 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          # openjdk-11-jdk - Java API
+          # default-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
           # unzip - to download ninja
-          apt install --assume-yes --no-install-recommends openjdk-11-jdk libssl1.1 unzip
+          apt install --assume-yes --no-install-recommends default-jdk libssl1.1 unzip
 
           wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
           unzip ninja-linux.zip
@@ -457,12 +457,12 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
-      # Disabled in Azure: https://github.com/openvinotoolkit/openvino/blob/master/.ci/azure/linux.yml#L403
-      # - name: PaddlePaddle frontend tests
-      #   run: |
-      #     source ${INSTALL_DIR}/setupvars.sh
-      #     ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* \
-      #           --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
+      - name: PaddlePaddle frontend tests
+        if: ${{ 'false' }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
         run: |
