@@ -48,6 +48,10 @@ jobs:
                         
             const cache = require('@actions/cache');
             
+            function sleep(ms) {
+              return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
             const org = context.payload.organization.login
             const repositoryName = context.payload.repository.name
             
@@ -65,6 +69,8 @@ jobs:
               const cacheKey = cacheEntryInfo.key
               const finalPath = `${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}/expected_failures_${{ env.TEST_DEVICE }}.csv`
             
+              console.log(`Restoring cache: ${cacheKey}`)
+            
               fs.mkdir(`${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}`, { recursive: true }, (err) => {
                 if (err) throw err;
               });
@@ -75,9 +81,12 @@ jobs:
                 // Move downloaded cache to its final directory
                 fs.rename(restorePath, finalPath, function (err) {
                   if (err) throw err
-                  console.log(`${cacheKey} was restored to ${finalPath}.`)
+                  console.log(`${cacheKey} was restored to ${finalPath}.\n`)
                 })
+              } else {
+                console.log(`Cache was not restored: ${cacheKey}.\n`)
               }
+              await sleep(2000);
             }
 
       - name: Check Restoration
