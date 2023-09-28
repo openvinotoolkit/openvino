@@ -918,8 +918,7 @@ jobs:
           popd
 
       - name: Install OpenVINO Python wheels
-        run: |
-          python3 -m pip install openvino --find-links=${INSTALL_DIR}/tools
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install TF Hub tests requirements
         run: |
