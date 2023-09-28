@@ -4,7 +4,7 @@
 
 .. raw:: html
 
-   <meta http-equiv="Refresh" content="0; url='https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html'" />
+   <meta http-equiv="Refresh" content="0; url='https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-1.html'" />
 
 
 .. toctree::
@@ -12,7 +12,7 @@
 
    prerelease_information
 
-The official OpenVINO Release Notes are published at `www.intel.com <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__
+The official OpenVINO Release Notes are published at `www.intel.com <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-1.html>`__
 
 
 @endsphinxdirective
