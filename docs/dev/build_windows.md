@@ -42,17 +42,17 @@ Supported configurations:
 
    On Windows x86 64-bits:
     ```sh
-    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release <openvino>
+    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release <path/to/openvino>
     ```
 
    On Windows on ARM for ARM64 architecture:
     ```sh
-    cmake -G "Visual Studio 16 2019" -DOPENVINO_EXTRA_MODULES=<openvino_contrib>/modules/arm_plugin -DCMAKE_BUILD_TYPE=Release <openvino>
+    cmake -G "Visual Studio 16 2019" -DOPENVINO_EXTRA_MODULES=<openvino_contrib>/modules/arm_plugin -DCMAKE_BUILD_TYPE=Release <path/to/openvino>
     ```
 
 4. Build generated solution in Visual Studio or run `cmake --build . --config Release --verbose -j8` to build from the command line. Be aware that this process may take some time.
 
-5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<openvino>/temp/tbb/bin` folder.
+5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<path/to/openvino>/temp/tbb/bin` folder.
 
 ### Additional Build Options
 
@@ -67,7 +67,7 @@ Supported configurations:
 - To build the OpenVINO Runtime Python API:
   1. First, install all additional packages (e.g., cython and opencv) listed in the file:
       ```sh
-      pip install -r <openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
+      pip install -r <path\to\openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
       ```
   2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options:
      ```sh
