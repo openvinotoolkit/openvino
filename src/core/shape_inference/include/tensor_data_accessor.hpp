@@ -30,8 +30,7 @@ protected:
  * This accessor not take ownership of tensors container.
  * Supports following containers:
  * - ov::TensorVector
- * - ngraph::HostTensorVector
- * - std::map<size_t, ngraph::HostTensorPtr>
+ * - std::unordered_map<size_t, ov::Tensor>
  *
  * @tparam TContainer Type of tensor container.
  */
@@ -62,13 +61,7 @@ template <>
 Tensor TensorAccessor<TensorVector>::operator()(size_t port) const;
 
 template <>
-Tensor TensorAccessor<HostTensorVector>::operator()(size_t port) const;
-
-template <>
 Tensor TensorAccessor<std::unordered_map<size_t, Tensor>>::operator()(size_t port) const;
-
-template <>
-Tensor TensorAccessor<std::map<size_t, ngraph::HostTensorPtr>>::operator()(size_t port) const;
 
 template <>
 Tensor TensorAccessor<void>::operator()(size_t port) const;
