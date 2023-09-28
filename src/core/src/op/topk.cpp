@@ -8,19 +8,18 @@
 #include <topk_shape_inference.hpp>
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/axis_vector.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/topk.hpp"
 
 using namespace std;
-using namespace ov;
 
+namespace ov {
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace topk {
 namespace {
@@ -185,12 +184,12 @@ bool op::v1::TopK::has_evaluate() const {
     OV_OP_SCOPE(v1_TopK_has_evaluate);
 
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         break;
     default:
         return false;
@@ -198,23 +197,23 @@ bool op::v1::TopK::has_evaluate() const {
 
     if (op::util::is_constant(input_value(1).get_node())) {
         switch (get_input_element_type(1)) {
-        case ngraph::element::i8:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
+        case element::i8:
+        case element::i32:
+        case element::i64:
             break;
         default:
             return false;
         }
     } else {
         switch (get_input_element_type(1)) {
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64:
+        case element::i8:
+        case element::i16:
+        case element::i32:
+        case element::i64:
+        case element::u8:
+        case element::u16:
+        case element::u32:
+        case element::u64:
             break;
         default:
             return false;
@@ -258,12 +257,12 @@ bool op::v3::TopK::has_evaluate() const {
     OV_OP_SCOPE(v3_TopK_has_evaluate);
 
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         break;
     default:
         return false;
@@ -271,23 +270,23 @@ bool op::v3::TopK::has_evaluate() const {
 
     if (op::util::is_constant(input_value(1).get_node())) {
         switch (get_input_element_type(1)) {
-        case ngraph::element::i8:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
+        case element::i8:
+        case element::i32:
+        case element::i64:
             break;
         default:
             return false;
         }
     } else {
         switch (get_input_element_type(1)) {
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64:
+        case element::i8:
+        case element::i16:
+        case element::i32:
+        case element::i64:
+        case element::u8:
+        case element::u16:
+        case element::u32:
+        case element::u64:
             break;
         default:
             return false;
@@ -360,15 +359,16 @@ bool ov::op::v11::TopK::has_evaluate() const {
     OV_OP_SCOPE(v11_TopK_has_evaluate);
 
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         break;
     default:
         return false;
     }
     return true;
 }
+}  // namespace ov
