@@ -53,14 +53,13 @@ if (tensorflow_FOUND)
         set(OUT_DONE_FILE ${TEST_TENSORFLOW_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                COMMAND ${PYTHON_EXECUTABLE}
-                ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
-                ${GEN_SCRIPT}
-                ${TEST_TENSORFLOW_MODELS}
-                ${OUT_DONE_FILE}
+                COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
+                    ${GEN_SCRIPT}
+                    ${TEST_TENSORFLOW_MODELS}
+                    ${OUT_DONE_FILE}
                 JOB_POOL four_jobs
-                DEPENDS ${TENSORFLOW_ALL_SCRIPTS}
-                )
+                DEPENDS ${TENSORFLOW_ALL_SCRIPTS})
     endforeach()
     add_custom_target(tensorflow_test_models DEPENDS ${OUT_FILES})
 

@@ -445,9 +445,13 @@ extern template bool evaluate_node<ov::op::v12::GroupNormalization>(std::shared_
                                                                     ov::TensorVector& outputs,
                                                                     const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v13::BitwiseNot>(std::shared_ptr<ov::Node> node,
+                                                            ov::TensorVector& outputs,
+                                                            const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
-                                                             const ov::HostTensorVector& outputs,
-                                                             const ov::HostTensorVector& inputs);
+                                                            ov::HostTensorVector& outputs,
+                                                            const ov::HostTensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ov::Node> node,
                                                                 ov::TensorVector& outputs,
