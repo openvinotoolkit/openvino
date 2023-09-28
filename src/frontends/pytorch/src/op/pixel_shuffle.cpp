@@ -38,6 +38,7 @@ OutputVector translate_pixel_shuffle(const NodeContext& context) {
     Output<Node> shape;
     Output<Node> rank;
     std::tie(shape, rank) = get_shape_rank(context, x, true);
+    // 1. Reshape input to [*, -1, r, r, H, W], where r is upscale factor    
     auto indices = context.mark_node(v0::Constant::create(element::i32, Shape{3}, {-3, -2, -1}));
     auto dims = context.mark_node(std::make_shared<v8::Gather>(shape, indices, zero_s));
     auto dims_splitted = context.mark_node(std::make_shared<v1::Split>(dims, zero_s, 3));
@@ -49,6 +50,7 @@ OutputVector translate_pixel_shuffle(const NodeContext& context) {
     auto intermediate_shape = context.mark_node(
         std::make_shared<v0::Concat>(OutputVector{dims_before, neg_1, upscale_factor_1d, upscale_factor_1d, h, w}, 0));
     auto reshape = context.mark_node(std::make_shared<v1::Reshape>(x, intermediate_shape, false));
+    // 2. Transpose tensor to [*, C, r, H, r, W]
     auto dims_before_len = context.mark_node(std::make_shared<v3::ShapeOf>(dims_before, element::i32));
     auto dims_before_len_s = context.mark_node(std::make_shared<v0::Squeeze>(dims_before_len, zero));
     auto order_begin = context.mark_node(std::make_shared<v4::Range>(zero_s, dims_before_len_s, one_s, element::i32));
@@ -57,6 +59,7 @@ OutputVector translate_pixel_shuffle(const NodeContext& context) {
     auto order_end = context.mark_node(std::make_shared<v1::Add>(order_end_neg, rank));
     auto order = context.mark_node(std::make_shared<v0::Concat>(OutputVector{order_begin, order_end}, 0));
     auto transpose = context.mark_node(std::make_shared<v1::Transpose>(reshape, order));
+    // 3. Reshape to [*, -1, r * H, r * W]
     auto new_h = context.mark_node(std::make_shared<v1::Multiply>(h, upscale_factor));
     auto new_w = context.mark_node(std::make_shared<v1::Multiply>(w, upscale_factor));
     auto shape_after =
