@@ -23,7 +23,7 @@ jobs:
       - name: Cleanup cache
         run: |
           echo "Delete cache files if they have not been used in over 30 days"
-          [ ! -z "${PIP_CACHE_PATH}" ] && find ${PIP_CACHE_PATH} ! -type d -mtime +30 -delete
+          [ ! -z "${PIP_CACHE_PATH}" ] && find ${PIP_CACHE_PATH} ! -type d -atime +30 -delete
 
       - name: Post-Collecting Cache Info
         run: |
