@@ -521,6 +521,10 @@ void Deconvolution::getSupportedDescriptors() {
             createDescriptor({in_candidate}, {out_candidate});
         }
     }
+    OPENVINO_ASSERT(!descs.empty(),
+                    "Failed to create convolution_backward_data::primitive_desc: ",
+                    "Node: ##",
+                    getName());
 }
 
 void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
@@ -1083,10 +1087,10 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
         std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(in_candidate, wgh_candidate, out_candidate, dnnl::algorithm::convolution_direct,
                                                                                 deconvAttrs.stride, deconvAttrs.dilation, deconvAttrs.paddingL,
                                                                                 deconvAttrs.paddingR, *attr, getEngine());
-        IE_ASSERT(fwd_conv_pd &&  deconv_desc && deconv_desc.get(true) != nullptr)
-                << "Failed to create convolution_backward_data::primitive_desc: " << "Node: ##" << getName();
-        fwdConvPD.push_back(fwd_conv_pd); // oneDNN requires forward pd to exists until primitive is created
-        descs.push_back(deconv_desc);
+        if (fwd_conv_pd && deconv_desc && deconv_desc.get(true) != nullptr) {
+            fwdConvPD.push_back(fwd_conv_pd);  // oneDNN requires forward pd to exists until primitive is created
+            descs.push_back(deconv_desc);
+        }
     }
 }
 
