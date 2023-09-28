@@ -45,7 +45,7 @@ jobs:
             const fs = require('fs');
             const XLSX = require('xlsx');
             
-            const restorePath = [${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv]
+            const restorePath = ['${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv']
             
             const cache = require('@actions/cache');
             const key = 'Linux-conformance-OP-expected-failures-CPU-ac137727fe5bdd9de265f9c982d9aed9e62b6128'
