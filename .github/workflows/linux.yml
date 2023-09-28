@@ -467,6 +467,7 @@ jobs:
             const org = context.payload.organization.login
             const repositoryName = context.payload.repository.name
             const cachePrefix = '${{ runner.os }}-conformance-hash-table-${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}-'
+            const fileName = 'hash_table_${{ env.TEST_DEVICE }}.csv'
 
             const conformanceCacheEntries = await github.rest.actions.getActionsCacheList({
               'owner': org,
@@ -474,30 +475,28 @@ jobs:
               'key': cachePrefix
             })
 
-            // The path from which the cache entry was uploaded
-            const restorePath = '${{ env.CONFORMANCE_TOOLS_DIR }}/hash_table_${{ env.TEST_DEVICE }}.csv'
+            // The path from which all the cache entries were uploaded
+            // It is needed for the `restoreCache` function to look for the right cache entry
+            const restorePath = `${{ env.CONFORMANCE_TOOLS_DIR }}/${fileName}`
 
             // Download the cache entries
             for (const cacheEntryInfo of conformanceCacheEntries.data.actions_caches) {
               const cacheKey = cacheEntryInfo.key
             
               // The unique path to which the current cache entry will be saved
-              const finalPath = `${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}/hash_table_${{ env.TEST_DEVICE }}.csv`
+              const finalPath = `${{ env.CONFORMANCE_CACHE_DIR }}/${cacheKey}/${fileName}`
 
               console.log(`Restoring cache: ${cacheKey}`)
 
               const restoredCacheKey = await cache.restoreCache([restorePath], cacheKey, [])
 
               if (restoredCacheKey) {
-                // Create dir for the entry
-                fs.mkdir(`${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}`, { recursive: true }, (err) => {
+                // Create directory for the entry
+                fs.mkdir(`${{ env.CONFORMANCE_CACHE_DIR }}/${cacheKey}`, { recursive: true }, (err) => {
                   if (err) throw err;
                 });
             
-                fs.readdirSync(`${{ env.CONFORMANCE_TOOLS_DIR }}`).forEach(file => {
-                  console.log(file);
-                });
-            
+                // Sleep to make sure that that downloading is complete
                 await sleep(2000);
 
                 // Move downloaded cache to its final directory
@@ -509,12 +508,12 @@ jobs:
                 console.log(`Cache was not restored: ${cacheKey}.\n`)
               }
               
-              // Sleep so that downloading/moving is complete w/o interfering with the next one 
-              await sleep(3000)
+              // Sleep to make sure that downloading/moving is complete w/o interfering with the next one 
+              await sleep(2000)
             }
 
       - name: Check Cache Restoration
-        run: ls -laR ${{ env.CONFORMANCE_TOOLS_DIR }}
+        run: ls -laR ${{ env.CONFORMANCE_CACHE_DIR }}
 
       #
       # Tests
