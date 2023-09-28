@@ -1,4 +1,4 @@
-name: Linux CUDA Plugin (Ubuntu 20.04, Python 3.11)
+name: Linux CUDA Plugin (Ubuntu 20.04)
 on:
   workflow_dispatch:
   pull_request:
@@ -73,7 +73,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          ${OPENVINO_REPO}/openvino/install_build_dependencies.sh
+          ${OPENVINO_REPO}/install_build_dependencies.sh
           
           apt -y --no-install-recommends install unzip wget software-properties-common
 
