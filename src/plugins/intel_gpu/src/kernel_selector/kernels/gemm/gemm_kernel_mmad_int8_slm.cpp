@@ -161,6 +161,9 @@ bool GemmKernelMMADslmInt8::Validate(const Params& params, const optional_params
     if (HasLeftovers(tuning_data))
         return false;
 
+    if (!IsSIMDSizeSupported(params.engineInfo, tuning_data.simd_size))
+        return false;
+
     if ((input0_type != Datatype::UINT8 && input0_type != Datatype::INT8) ||
         (input1_type != Datatype::UINT8 && input1_type != Datatype::INT8))
         return false;
