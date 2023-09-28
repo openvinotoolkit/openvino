@@ -7,8 +7,8 @@
 #include <cmath>
 
 #include "openvino/core/shape_util.hpp"
-#include "openvino/reference/max.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/reference/reduce_max.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
@@ -21,7 +21,7 @@ void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
     auto temp_storage = std::vector<T>(temp_elements);
     const auto temp_ptr = temp_storage.data();
 
-    max(arg, temp_ptr, shape, axes);
+    reduce_max(arg, temp_ptr, shape, axes);
 
     const CoordinateTransformBasic transform{shape};
     for (const auto& coord : transform) {
@@ -31,7 +31,7 @@ void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
         out[out_index] = std::exp(arg[out_index] - temp_ptr[temp_index]);
     }
 
-    sum(out, temp_ptr, shape, axes);
+    reduce_sum(out, temp_ptr, shape, axes);
 
     for (const auto& coord : transform) {
         const Coordinate temp_coord = util::reduce_keep_dims(coord, axes);
